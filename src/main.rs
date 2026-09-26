@@ -1388,12 +1388,19 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
     };
 
     /*
-     * The algorithm order cycles through the Williams orders. Point order
-     * rotates independently. This distributes ordering, thermal, and
-     * system-load effects across the algorithms.
+     * Point order rotates by round. Each point's contender order cycles
+     * through the Williams orders by the point's own visits (the rounds in
+     * which it takes samples), so a cell sampled at every visit sees every
+     * order in turn: cycled by round, a cell sampled every eighth round
+     * saw one order of the default roster's four and seven of --all's
+     * fourteen, and a neighbour's aftereffect stayed with it (servil mt at
+     * 1 MiB alternating 0.032 and 0.050 ns/B, Mac, September 26, 2026). A
+     * long cell, sampled at every second visit, sees half the orders; its
+     * samples are single hashes of 4 ms or more.
      */
     progress.phase("measuring");
     let mut load = LoadMonitor::start();
+    let mut visits = vec![0usize; POINT_COUNT];
 
     for round in 0..roster.rounds {
         progress.round(round, &samples.solo);
@@ -1401,26 +1408,29 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
             load.round_boundary();
         }
 
-        let algorithm_order = &roster.orders[round % roster.orders.len()];
-
         for point_offset in 0..roster.points.len() {
             let size_index = roster.points[(point_offset + round) % roster.points.len()];
             let point = POINTS[size_index];
+            let wants = |algorithm_index: usize| {
+                roster.algorithms[algorithm_index].takes_part(point.use_case)
+                    && (roster.every_round
+                        || cell_wants_sample(round + size_index, roster.rounds, budgeted[algorithm_index][size_index]))
+            };
+            if !(0..roster.len()).any(wants) {
+                continue;
+            }
+            let algorithm_order = &roster.orders[visits[size_index] % roster.orders.len()];
+            visits[size_index] += 1;
 
             let input = &inputs[size_index];
 
             for (position, &algorithm_index) in algorithm_order.iter().enumerate() {
                 let algorithm = roster.algorithms[algorithm_index];
-                if !algorithm.takes_part(point.use_case) {
+                if !wants(algorithm_index) {
                     continue;
                 }
                 let iterations =
                     batch_iterations[algorithm_index][size_index];
-                if !roster.every_round
-                    && !cell_wants_sample(round + size_index, roster.rounds, budgeted[algorithm_index][size_index])
-                {
-                    continue;
-                }
 
                 /* Trace reads bracket the sample; the sample clock sits innermost. */
                 let (trace_cpu0, trace_proc0, trace_mach0, trace_perf0) = if trace.is_some() {
