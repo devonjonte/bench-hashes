@@ -331,7 +331,9 @@ On macOS these environment overrides are unnecessary.
 
 The fork is a git dependency at the commit `Cargo.lock` pins; with
 `--config 'patch."https://github.com/johnservil/BLAKE3".blake3-servil.path=".."'`
-it is the enclosing checkout, and its provenance records that
+it is the enclosing checkout (the fork's `tools/perf_regress.py build`
+does that in a copy of this repository with a lock of its own, since the
+patch changes the lock), and its provenance records that
 checkout's commit and working-tree fingerprint. Keep that provenance
 with each measurement.
 

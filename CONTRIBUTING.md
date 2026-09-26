@@ -32,19 +32,20 @@ The BLAKE3 servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
 the crate `blake3-servil`, a git dependency on the `servil` branch of
 [github.com/johnservil/BLAKE3](https://github.com/johnservil/BLAKE3), at
 the commit `Cargo.lock` pins. To measure your own checkout of the fork,
-put this repository inside it and point the dependency there:
+put this repository inside it and let the fork's tool build it there:
 
 ```sh
 git clone --branch servil https://github.com/johnservil/BLAKE3
 git clone https://github.com/johnservil/bench-hashes BLAKE3/bench-hashes
-cd BLAKE3/bench-hashes
-cargo --config 'patch."https://github.com/johnservil/BLAKE3".blake3-servil.path=".."' run --release
+cd BLAKE3
+python3 tools/perf_regress.py build   # prints the executable's path
 ```
 
-Cargo then rewrites `Cargo.lock`'s `blake3-servil` entry; restore it with
-`git checkout Cargo.lock` before you commit. The build counts that one
-change as clean, and the report names the fork checkout's commit and
-whether its tree was clean. The fork's `CONTRIBUTING.md` covers the
+The tool builds in a directory of its own (`tmp/perf-ab/new/`), with a
+copy of this repository whose `Cargo.lock` points at the fork checkout,
+and leaves your checkouts' files as they were. Run the executable from a
+scratch directory (it writes `benchmark-results/` there); the report
+names the fork checkout's commit and whether its tree was clean. The fork's `CONTRIBUTING.md` covers the
 fork's own tests and its performance-regression check, which runs this
 benchmark.
 

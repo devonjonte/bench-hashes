@@ -163,45 +163,32 @@ struct GitState {
 /// name HEAD) as build-script inputs, so the embedded provenance follows
 /// each commit and each edit.
 fn watch_repository(repository: &Path) {
-    let git_directory = git_text(
-        repository,
-        &["rev-parse", "--git-dir"],
-    );
-
-    let git_directory = {
-        let path = PathBuf::from(git_directory);
-
-        if path.is_absolute() {
-            path
-        } else {
-            repository.join(path)
-        }
+    // A worktree's own git directory holds its HEAD, index, and reflog;
+    // tags and packed refs live in the repository's common directory.
+    let absolute = |path: String| {
+        let path = PathBuf::from(path);
+        if path.is_absolute() { path } else { repository.join(path) }
     };
+    let git_directory = absolute(git_text(repository, &["rev-parse", "--git-dir"]));
+    let common_directory = absolute(git_text(repository, &["rev-parse", "--git-common-dir"]));
 
-    println!(
-        "cargo:rerun-if-changed={}",
-        git_directory.join("HEAD").display()
-    );
-    println!(
-        "cargo:rerun-if-changed={}",
-        git_directory.join("index").display()
-    );
     // HEAD names a branch, so a commit changes the branch's ref and leaves
     // HEAD itself alone (and the index too, when the commit follows a
     // build of the staged tree, as a pre-commit check does). The reflog
-    // gains a line on every commit, checkout, and reset.
-    println!(
-        "cargo:rerun-if-changed={}",
-        git_directory.join("logs/HEAD").display()
-    );
-    println!(
-        "cargo:rerun-if-changed={}",
-        git_directory.join("refs/tags").display()
-    );
-    println!(
-        "cargo:rerun-if-changed={}",
-        git_directory.join("packed-refs").display()
-    );
+    // gains a line on every commit, checkout, and reset. Only paths that
+    // exist are watched: Cargo reruns the script on every build for a
+    // watched path that is missing (a repository without packed refs).
+    for path in [
+        git_directory.join("HEAD"),
+        git_directory.join("index"),
+        git_directory.join("logs/HEAD"),
+        common_directory.join("refs/tags"),
+        common_directory.join("packed-refs"),
+    ] {
+        if path.exists() {
+            println!("cargo:rerun-if-changed={}", path.display());
+        }
+    }
 
     let tracked_files = git_bytes(
         repository,
