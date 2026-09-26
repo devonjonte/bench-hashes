@@ -48,25 +48,28 @@ const TARGET_SAMPLE_NS: u128 = 1_000_000;
 /*
  * Every cell samples in a share of the rounds, spread over the run at an
  * offset of its own, so drift and other programs' load reach every cell
- * alike: a steady cell aims at STEADY_SAMPLES samples, one whose median is
- * not yet known to within PRECISION_PERMILLE (or that has fewer than
- * UNSURE_BELOW samples) at twice that. A cell whose single hash takes
- * LONG_HASH_NS or more (every sample is then one hash, tens of
- * milliseconds for the plateau sizes, itself an average over the input)
- * aims at LONG_SAMPLES, twice that while unsure (and at least UNSURE_BELOW).
+ * alike: STEADY_SAMPLES samples, or LONG_SAMPLES for a cell whose single
+ * hash takes LONG_HASH_NS or more (every sample is then one hash, tens of
+ * milliseconds for the plateau sizes, itself an average over the input).
  * The shares follow the run's rounds, so a quick run samples each cell in
- * every second round, and in every round while unsure.
+ * every second round.
+ *
+ * Measured on the VM (September 26, 2026), full default runs old / new /
+ * new / old / old / new, cell medians' |log ratio| between runs, solo:
+ * - 12 samples instead of 24, doubled while a cell's 95% interval was
+ *   wider than 2%: 25 s instead of 47; new against new 1.6%, old against
+ *   old 3.5% (median cell). A median varies between runs about as much at
+ *   12 samples as at 24 (0.53% against 0.37%; the worst tenth 2.7%
+ *   against 2.8%, set by how long a run spends in each state).
+ * - Then no doubling: 18.8 s instead of 25; 1.36% against 1.94% (the
+ *   worst tenth 7.1% against 5.7%); more cells marked poorly determined.
+ *   On the VM the doubling measured the machine's spread of samples, a
+ *   tenth to a third of them 10-14% slow, more than a median's
+ *   uncertainty, and a 4% threshold saved 1.5 s of the 6.
  */
 const LONG_HASH_NS: u128 = 4_000_000;
-/// A cell's median varies between runs about as much at 12 samples as at 24
-/// (VM, September 26, 2026: 0.53% against 0.37% for the median cell, the
-/// worst tenth 2.7% against 2.8%, set by how long each run spends in a
-/// state rather than by sample count); full default runs of 25 s instead
-/// of 47 agreed with each other to 1.6% (median cell, solo) against 3.5%.
 const STEADY_SAMPLES: usize = 12;
-const LONG_SAMPLES: usize = 4;
-const PRECISION_PERMILLE: u64 = 20;
-const UNSURE_BELOW: usize = 6;
+const LONG_SAMPLES: usize = 6;
 
 /// Points on the one-message axis, and on each many-messages axis.
 const INPUT_COUNT: usize = 27;
@@ -1448,13 +1451,9 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                 }
                 let iterations =
                     batch_iterations[algorithm_index][size_index];
-                if !roster.every_round && !cell_wants_sample(
-                    &samples.solo[algorithm_index][size_index],
-                    &samples.shared[algorithm_index][size_index],
-                    round + size_index,
-                    roster.rounds,
-                    budgeted[algorithm_index][size_index],
-                ) {
+                if !roster.every_round
+                    && !cell_wants_sample(round + size_index, roster.rounds, budgeted[algorithm_index][size_index])
+                {
                     continue;
                 }
 
@@ -2666,37 +2665,10 @@ impl LoadMonitor {
 /// Whether a cell takes a sample this round (`slot` is the round plus the
 /// cell's own offset): in every `every`-th round of a run of `rounds`,
 /// where `every` spreads STEADY_SAMPLES (or, for a `long` cell,
-/// LONG_SAMPLES) over the run, and in every other one of those rounds
-/// between while its solo or shared median is unsure.
-fn cell_wants_sample(solo: &[Measured], shared: &[Measured], slot: usize, rounds: usize, long: bool) -> bool {
+/// LONG_SAMPLES) over the run.
+fn cell_wants_sample(slot: usize, rounds: usize, long: bool) -> bool {
     let target = if long { LONG_SAMPLES } else { STEADY_SAMPLES };
-    let every = (rounds / target).max(1);
-    if slot % every == 0 {
-        return true;
-    }
-    let unsure_every = (every / 2).max(1);
-    slot % unsure_every == 0 && (median_unsure(solo) || median_unsure(shared))
-}
-
-/// Whether the median of `taken` is still unsure: fewer than UNSURE_BELOW
-/// samples, or a 95% interval wider than PRECISION_PERMILLE of the
-/// median. The interval is the order-statistic one (ranks n/2 ± 0.98 √n,
-/// in hundredths of a rank, the square root rounded up), a sort and two
-/// look-ups, cheap enough to ask of every cell each round; the report's
-/// intervals come from the bootstrap.
-fn median_unsure(taken: &[Measured]) -> bool {
-    let n = taken.len();
-    if n < UNSURE_BELOW {
-        return true;
-    }
-    let mut sorted: Vec<PerUnit> = taken.iter().map(|m| m.per_unit()).collect();
-    sorted.sort_unstable();
-    /* 100 × 0.98 √n = √(9604 n), rounded up: hundredths of a rank. */
-    let half_width = (9604 * n - 1).isqrt() + 1;
-    let low = (50 * n).saturating_sub(half_width) / 100;
-    let high = ((50 * n + half_width).div_ceil(100)).min(n - 1);
-    let median = median_of_sorted(&sorted);
-    (sorted[high] - sorted[low]) * 1000 > median * PRECISION_PERMILLE
+    slot % (rounds / target).max(1) == 0
 }
 
 /// (iterations per sample, nanoseconds per iteration measured).

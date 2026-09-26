@@ -349,7 +349,8 @@ new medians 0.3-0.6% slower on average, inside the noise; two-speed cells
 23-25 against 19-21.
 
 **Thinned again (September 26, 2026):** steady cells 12 samples (24
-while unsure), long cells 4 (8). The between-run variance of a cell's
+while unsure), long cells 4 (8); then no "unsure" doubling at all
+(steady 12, long 6), below. The between-run variance of a cell's
 median barely falls with more samples (0.53% at 12, 0.37% at 24, median
 cell; the worst tenth, servil's SME2 cells, 2.7% against 2.8%: set by how
 long each run spends in each state), so the extra samples bought little.
@@ -362,4 +363,14 @@ NOTES-servil.md); two-speed cells level. A second change to how many
 processes a run uses was weighed and left: since the fork's scratch
 alignment (servil f38786d) the per-process part is small, and what is
 left changes within a process over seconds, which rounds spread over the
-run already sample. Most VM cells stay unsure at 2% and take 48.
+run already sample.
+
+Then the doubling went (Zooko asked for a looser 4% threshold, which
+saved 1.5 s of 25: on the VM the order-statistic interval of 12 samples
+spans the tenth to a third of samples that run 10-14% slow, so most cells
+stayed unsure at 4% too). Without it, full default runs old / new / new
+/ old / old / new: 25.2, 18.7, 18.7, 25.0, 24.9, 18.9 s; cell medians,
+|log ratio|, solo: old against old 1.94% (90th percentile 5.7%), new
+against new 1.36% (7.1%), new against old 1.44% (6.2%); shared 2.22%,
+1.73%, 1.72%; two-speed cells level; cells marked `~` 108-109 against
+124-159. Most VM cells stay unsure at 2% and take 48.
