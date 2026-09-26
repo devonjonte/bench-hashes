@@ -56,9 +56,7 @@ of 64 B (a Merkle tree's inner nodes) and of 256 B (its leaves, as in
 WHIR), with 3, 6, 12, 24, 48 beside the powers of two to leave SIMD
 groups partly filled. Samples on that axis divide by messages, so the
 statistics pipeline is unchanged and only the unit names and the rate
-scale (1 GB/s per ns/B; 1000 Mmsg/s per ns/msg) differ per plot. Its
-golden anchors are the SHA-256 of a batch's digests concatenated, one
-line per (batch size, seed) in `MANY_VECTORS` and `MANY_256_VECTORS`.
+scale (1 GB/s per ns/B; 1000 Mmsg/s per ns/msg) differ per plot.
 
 **Round counts** are a plain 96 (24 with `--quick`). They used to
 be the least multiple of the point count and the order count at or above
@@ -68,10 +66,7 @@ orders: 376 rounds). The imbalance a plain count leaves is a fraction of
 a sample per cell.
 
 **Inputs** are little-endian 64-bit counter words `seed << 48 | index`:
-every block differs (a kernel mixing up lanes fails the golden digests),
-Python's `array('Q')` builds them at C speed (the generator writes every
-vector, 128 MiB included, in five seconds; the earlier byte-per-step
-xorshift could not), and hash speed does not depend on the bytes. The
+every block differs, and hash speed does not depend on the bytes. The
 bootstrap resampler uses SplitMix64 with multiply-shift ranges.
 
 **Time budget for long cells.** 78% of a full run went to 58 cells
@@ -202,17 +197,13 @@ faster); 5% or more, intervals apart; identical claims merge across the
 two contenders and scenarios; worst first. "Divides" matters: 3 messages
 slower per message than 2 is no defect, 128 slower than 64 is.
 
-**Correctness.** Before calibration, selected contenders hash identical
-inputs and assert equality with checked-in golden digests. The deterministic
-RNG and both seeds are frozen by 64 vectors in `src/test_vectors.rs`.
-Expected digests were established with the BLAKE3 reference implementation
-and Python hashlib, independently of the optimized fork. Regeneration is
-an explicit review step using `tools/gen-test-vectors.py`. Checks cover
-both timed input sets, empty input and short boundary tails,
-and two simultaneous calls to multithreaded entries. `hash_batch` contains
-the one dispatch used by both checking and timing; a monomorphized callback
-asserts digest equality or black-boxes the digest. Timed duo copies retain
-their separate, differently seeded buffers. A failed check stops the run.
+**Correctness** is each crate's tests' business (Zooko, September 26,
+2026): the benchmark checks no digests. It used to check every contender
+against golden digests at every timed input, both seeds, one-shot and
+streamed, before calibrating: 15 s of an --all run, 10 of them BLAKE3
+official mt's streamed update_rayon, and a vector file with its generator
+to keep. The timed loop still hands every digest to `black_box`, and a
+test checks that the dispatch observes every iteration's digest.
 
 **Provenance.** The build script embeds the git state of this
 repository and of the fork checkout (branch, commit, clean or a hash of

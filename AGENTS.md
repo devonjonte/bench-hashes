@@ -107,8 +107,9 @@ Tests never silently regenerate their own expected answers.
 The same fixed vectors can exercise different kernels, thread budgets,
 concurrent calls, and scheduling interleavings. Input generation and
 execution scheduling are separate concerns. Differential tests supplement
-these anchors. Keep benchmark correctness checks outside timed intervals,
-and share the implementation dispatch between checking and timing.
+these anchors. Correctness is each project's tests' business: a benchmark
+checks no outputs (Zooko, September 26, 2026), and only keeps every
+result from being optimized away.
 
 ## Coding: integers first
 
@@ -136,7 +137,7 @@ Results land in `benchmark-results/{CPU}.{OS}/` as a text report and an SVG. Eve
 
 Vocabulary: an *implementation* is a crate (crates.io `blake3`, the servil fork, `sha2`, ...) and is what `--list` and `--contenders` select. A *use case* is what one call does: hash one message, hash a batch of 64-byte messages, or take one piece of a streamed input. A *point* is one x on a use case's axis. A *kernel* is the code path an implementation runs at one point, chosen at run time and reported per point. A *mode* is how many threads a contender may use: single-threaded or multithreaded. Availability is a property of the build's platform (CommonCrypto on Apple), never of the machine's capacity; taking part in a use case is a property of the contender (BLAKE3 official mt sits out the many-messages use cases; the fork's multithreaded contenders join them through `hash_many_multithreaded`).
 
-The benchmarker touches an implementation in three ways only: listing it, calling its plain entry point (single-threaded, multithreaded, or a batch call: the fork's `hash_many` and `hash_many_multithreaded`, the crates.io crate's hidden `blake3::platform::Platform::hash_many::<N>` sixteen messages per call; with no cap, pool, or wrapper of its own: many messages means `for m in batch { hash(m) }` for every contender without a batch entry point), and asking the servil fork for `kernel_report()` and its `_many` / `_multithreaded` forms. Contender code is never edited from here; the fork is edited in its own checkout at `..`. Before calibration it checks every selected implementation against the checked-in golden digests on identical inputs, using the same entry-point dispatch as timed batches; the fork's `initialize()` (up to tens of milliseconds, once per process) lands in that phase, outside every timed sample. It asks for no implementation capacity; the crates.io `blake3` kernel table is hand-written from that crate's source because it offers no report. Batch checks compare the SHA-256 of the concatenated per-message digests against `MANY_VECTORS`; `tools/gen-test-vectors.py` writes every table.
+The benchmarker touches an implementation in three ways only: listing it, calling its plain entry point (single-threaded, multithreaded, or a batch call: the fork's `hash_many` and `hash_many_multithreaded`, the crates.io crate's hidden `blake3::platform::Platform::hash_many::<N>` sixteen messages per call; with no cap, pool, or wrapper of its own: many messages means `for m in batch { hash(m) }` for every contender without a batch entry point), and asking the servil fork for `kernel_report()` and its `_many` / `_multithreaded` forms. Contender code is never edited from here; the fork is edited in its own checkout at `..`. It checks no digests (each crate's tests do); the fork's `initialize()` (up to tens of milliseconds, once per process) lands in calibration, outside every timed sample. It asks for no implementation capacity; the crates.io `blake3` kernel table is hand-written from that crate's source because it offers no report. Batch checks compare the SHA-256 of the concatenated per-message digests against `MANY_VECTORS`; `tools/gen-test-vectors.py` writes every table.
 
 # Targets
 

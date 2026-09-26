@@ -24,8 +24,8 @@ cd bench-hashes
 cargo run --release
 ```
 
-The first build takes a minute or two. The run checks every hash against
-known answers, then measures for under a minute. The numbers come out most
+The first build takes a minute or two; the run then measures for under
+a minute. The numbers come out most
 accurate when nothing else busy runs on the computer meanwhile.
 
 ## Read your results

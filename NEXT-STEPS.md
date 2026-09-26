@@ -19,7 +19,8 @@ sampling, the roster, and the alignment changed). Runner jobs run to 326;
 the next job number is 327.
 
 **Waiting on Zooko.**
-- Restart the Mac runner (`setup-mac.sh`): the runner now keeps its
+- Rerun `setup-mac.sh` (servil ad24649 installs perf_regress.py beside
+  runner.py; job 327 failed without it): the runner now keeps its
   clones between jobs and builds through `perf_regress.py build`
   (servil 13402d6), and benchmark jobs take `"repeat": N`.
 - Then the Mac calibration of perf_regress's 24-round rule: one benchmark
@@ -29,8 +30,6 @@ the next job number is 327.
   gone with the guest; the method is in the fork NOTES, "perf_regress").
   The Mac showed more open points after the first pair (22 of 29, job 325)
   than the VM (5-12).
-- Whether digest checks move into each cell's first sample (checked after
-  its timer stops), which ends the separate hashing phase (proposed).
 - Try the graph on his iPhone (bench-hashes 20a87c6), a real x86-64
   machine, perf_regress's 256 B batch points, upstream issue #590 / PR
   #591: as before.
@@ -149,9 +148,6 @@ commitment format (see "Idea: a full-fledged Merkle tree API").
   it by its host path
   (`/Users/donaldturnworth/piplayground/blake3-servil/tmp/...`); the
   host sees a new file after a moment.
-- **Golden vectors** come from `tools/gen-test-vectors.py` (reference
-  implementation and hashlib); a new benchmark size needs its vector
-  there, and a regeneration that changes existing lines is a review item.
 
 ## Decisions made (don't re-ask)
 

@@ -1,4 +1,3 @@
-mod test_vectors;
 
 use sha2::{Digest, Sha256};
 use std::fmt::Write as _;
@@ -471,26 +470,6 @@ enum Algorithm {
     Sha3_256,
 }
 
-/// The hash function a contender implements, which names its golden digests.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Family {
-    Blake3,
-    Sha256,
-    Sha1Dc,
-    Sha3_256,
-}
-
-impl Family {
-    fn name(self) -> &'static str {
-        match self {
-            Self::Blake3 => "BLAKE3",
-            Self::Sha256 => "SHA-256",
-            Self::Sha1Dc => "SHA-1DC",
-            Self::Sha3_256 => "SHA3-256",
-        }
-    }
-}
-
 impl Algorithm {
     const ALL: [Algorithm; 9] = [
         Algorithm::Blake3,
@@ -519,14 +498,6 @@ impl Algorithm {
         }
     }
 
-    fn family(self) -> Family {
-        match self {
-            Self::Blake3 | Self::Blake3ServilSt | Self::Blake3Rayon | Self::Blake3ServilMt => Family::Blake3,
-            Self::Sha256 | Self::Sha256CommonCrypto | Self::Sha256Ring => Family::Sha256,
-            Self::Sha1Dc => Family::Sha1Dc,
-            Self::Sha3_256 => Family::Sha3_256,
-        }
-    }
 
     /// Whether this contender may use more than the calling thread.
     fn multithreaded(self) -> bool {
@@ -1375,23 +1346,6 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
         .map(|index| if roster.measures(index) { make_input_seeded(POINTS[index].bytes, 1) } else { Vec::new() })
         .collect();
     let mut progress = Progress::new(roster);
-    progress.phase("checking digests");
-    // Both timed input sets visit every implementation's selected kernels.
-    // Empty and short tails cover boundaries absent from the timing grid.
-    for (seed, buffers) in [(0, &inputs), (1, &duo_inputs)] {
-        for (index, (point, input)) in POINTS.iter().zip(buffers).enumerate() {
-            if roster.measures(index) {
-                check_input(&roster.algorithms, input, *point, seed);
-            }
-        }
-    }
-    for &(len, seed, _) in test_vectors::VECTORS {
-        if !POINTS.iter().any(|point| point.messages == 1 && point.bytes == len) {
-            let input = make_input_seeded(len, seed);
-            check_input(&roster.algorithms, &input, Point::one("", len), seed);
-            check_input(&roster.algorithms, &input, Point::streamed("", len), seed);
-        }
-    }
     let duo = Duo::new();
 
     /*
@@ -1677,12 +1631,11 @@ fn make_input(size: usize) -> Vec<u8> {
 }
 
 /// The input of `size` bytes for `seed`: `seed` 0 is make_input's buffer,
-/// seed 1 the duo copy's. This stream is frozen by test_vectors.rs.
+/// seed 1 the duo copy's.
 fn make_input_seeded(size: usize, seed: u64) -> Vec<u8> {
     /*
      * Little-endian 64-bit words `seed << 48 | index`: every block of every
-     * input differs, so a kernel that mixed up its lanes would fail the
-     * golden digests, and the two seeds give the duo copies different
+     * input differs, and the two seeds give the duo copies different
      * contents. Hash speed does not depend on the bytes. Generated
      * outside timed intervals.
      */
@@ -1691,82 +1644,14 @@ fn make_input_seeded(size: usize, seed: u64) -> Vec<u8> {
     input
 }
 
-/// Check exactly the entry points used by timed batches, on identical
-/// bytes against checked-in golden digests: the digest itself for one
-/// message, SHA-256 over the concatenated digests for a batch of
-/// `messages`. Multithreaded entries also run two simultaneous calls over
-/// the same vectors, exercising shared pools.
-fn check_input(algorithms: &[Algorithm], input: &[u8], point: Point, seed: u64) {
-    assert!(!algorithms.is_empty(), "correctness checks need a contender");
-    let messages = point.messages;
-    for &algorithm in algorithms.iter().filter(|algorithm| algorithm.takes_part(point.use_case)) {
-        assert!(algorithm.availability().is_ok(), "{} must be available", algorithm.key());
-        let expected = expected_digest(algorithm.family(), input.len(), messages, seed);
-        let check = || {
-            let mut digests = Vec::new();
-            hash_batch(algorithm, input, point, 1, |digest| digests.extend_from_slice(digest));
-            let actual = if messages == 1 { digests } else { Sha256::digest(&digests).to_vec() };
-            assert_digest_matches(algorithm, input.len(), messages, seed, &expected, &actual);
-        };
-        check();
-        if algorithm.multithreaded() {
-            let barrier = std::sync::Barrier::new(2);
-            std::thread::scope(|scope| {
-                for _ in 0..2 {
-                    scope.spawn(|| {
-                        barrier.wait();
-                        check();
-                    });
-                }
-            });
-        }
-    }
-}
-
-/// Every checked input has a frozen vector: (length, seed) for one
-/// message, (messages, seed) for a batch. Hex decoding and lookup happen
-/// outside timed batches.
-fn expected_digest(family: Family, len: usize, messages: usize, seed: u64) -> Vec<u8> {
-    let (_, _, digests) = if messages == 1 {
-        test_vectors::VECTORS.iter()
-            .find(|&&(n, s, _)| n == len && s == seed)
-            .unwrap_or_else(|| panic!("missing golden vector for length {len}, seed {seed}"))
-    } else {
-        let table = match len / messages {
-            MESSAGE_LEN => test_vectors::MANY_VECTORS,
-            other => panic!("no golden batches of {other}-byte messages"),
-        };
-        assert_eq!(len % messages, 0, "a batch is {messages} messages of one length");
-        table.iter()
-            .find(|&&(n, s, _)| n == messages && s == seed)
-            .unwrap_or_else(|| panic!("missing golden vector for {messages} messages of {} bytes, seed {seed}", len / messages))
-    };
-    let index = match family { Family::Blake3 => 0, Family::Sha256 => 1, Family::Sha1Dc => 2, Family::Sha3_256 => 3 };
-    let hex = digests[index];
-    assert_eq!(hex.len(), if family == Family::Sha1Dc && messages == 1 { 40 } else { 64 });
-    (0..hex.len()).step_by(2).map(|i|
-        u8::from_str_radix(&hex[i..i + 2], 16).expect("golden digests are hexadecimal")
-    ).collect()
-}
-
-fn assert_digest_matches(algorithm: Algorithm, len: usize, messages: usize, seed: u64, expected: &[u8], actual: &[u8]) {
-    if messages == 1 {
-        assert_eq!(actual, expected, "{} ({}) disagrees with golden vector on {} input bytes, seed {}",
-            algorithm.key(), algorithm.family().name(), len, seed);
-    } else {
-        assert_eq!(actual, expected, "{} ({}) disagrees with golden vector on a batch of {} messages of {} bytes, seed {}",
-            algorithm.key(), algorithm.family().name(), messages, len / messages, seed);
-    }
-}
-
 fn run_batch(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize) {
     hash_batch(algorithm, input, point, iterations, |digest| { black_box(digest); });
 }
 
 /*
- * One dispatch for both timing and correctness checks. The callback is
- * monomorphized: timed batches black-box each digest, and checking batches
- * collect it. Selection and allocation stay outside the per-hash loop.
+ * The dispatch of every timed batch. The callback is monomorphized: timed
+ * batches black-box each digest (a test observes them). Selection and
+ * allocation stay outside the per-hash loop.
  *
  * `input` holds `messages` messages of the use case's length (for one
  * message, the whole slice). A contender with a batch entry point hands
@@ -3384,7 +3269,6 @@ fn generate_text(roster: &Roster, results: &Results, samples: &RunSamples, machi
         Some(load) => writeln!(output, "  load during the run: {}", load.describe()).unwrap(),
         None => writeln!(output, "  load during the run: not measured on this platform").unwrap(),
     }
-    writeln!(output, "  every contender matched golden digests on the timed inputs before timing began").unwrap();
 
     output
 }
@@ -6769,16 +6653,6 @@ mod correctness_tests {
         assert!(two_speed.iter().any(|line| line.contains("two speeds: 64 messages")), "{two_speed:#?}");
     }
 
-    #[test]
-    fn same_input_agrees_across_available_implementations() {
-        let algorithms: Vec<_> = Algorithm::ALL.into_iter()
-            .filter(|a| a.availability().is_ok()).collect();
-        for &(len, seed, _) in test_vectors::VECTORS {
-            check_input(&algorithms, &make_input_seeded(len, seed), Point::one("", len), seed);
-            check_input(&algorithms, &make_input_seeded(len, seed), Point::streamed("", len), seed);
-        }
-    }
-
     /// Axis ticks below 1 keep two significant digits, so neighbouring
     /// ticks read apart; zoom labels name sizes the way the script does.
     #[test]
@@ -6787,18 +6661,6 @@ mod correctness_tests {
         assert_eq!(ticks, ["70", "10", "7.0", "1.5", "1.0", "0.7", "0.2", "0.15", "0.1", "0.05", "0.015"]);
         let sizes: Vec<String> = [64, 192, 1024, 1025, 1536, 2304, 3072, 1 << 20, 3 << 20, 16 << 20].iter().map(|&b| format_bytes(b)).collect();
         assert_eq!(sizes, ["64 B", "192 B", "1 KiB", "1025 B", "1536 B", "2304 B", "3 KiB", "1 MiB", "3 MiB", "16 MiB"]);
-    }
-
-    #[test]
-    fn every_batch_size_has_a_golden_vector_and_a_dispatch_arm() {
-        let algorithms: Vec<_> = Algorithm::ALL.into_iter()
-            .filter(|a| a.availability().is_ok()).collect();
-        for point in &POINTS[UseCase::ManyMessages.points()] {
-            for seed in [0, 1] {
-                check_input(&algorithms, &make_input_seeded(point.bytes, seed), *point, seed);
-            }
-        }
-        assert_eq!(test_vectors::MANY_VECTORS.len(), 2 * BATCH_COUNT, "two seeds per batch size");
     }
 
     #[test]
@@ -6828,11 +6690,5 @@ mod correctness_tests {
             });
             assert_eq!(calls, 3);
         }
-    }
-
-    #[test]
-    #[should_panic(expected = "blake3-servil-st (BLAKE3) disagrees with golden vector on 65 input bytes, seed 0")]
-    fn digest_mismatch_fails_stop_with_context() {
-        assert_digest_matches(Algorithm::Blake3ServilSt, 65, 1, 0, &[0; 32], &[1; 32]);
     }
 }

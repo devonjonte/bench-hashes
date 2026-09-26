@@ -8,8 +8,6 @@ it measures, and keep your results comparable with ours.
 
 - `src/main.rs`: the whole benchmark (contenders, timing, statistics, the
   text report, the SVG and its script).
-- `src/test_vectors.rs`: golden digests, written by
-  `tools/gen-test-vectors.py`.
 - `build.rs`: embeds the provenance (this repository's commit and state,
   and each contender crate's version and source).
 - `tools/graph-check/`: drives the graph's script in jsdom and checks its
@@ -60,11 +58,9 @@ benchmark.
   own, and asks the fork for its
   `kernel_report()`. A contender without a batch entry point hashes a
   batch as `for m in batch { hash(m) }`.
-- **Expected digests come from independent implementations**: the BLAKE3
-  reference implementation and Python's `hashlib`, through
-  `tools/gen-test-vectors.py`. A new point needs its vectors there.
-  Regenerating vectors is a reviewed change; tests never write their own
-  expected answers.
+- **The benchmark checks no digests.** Each crate's own tests establish
+  that it is correct; the benchmark only keeps every digest from being
+  optimized away (`black_box`).
 - **Results name their code.** Commit before you publish a result: a
   report whose provenance says `dirty-…` measured uncommitted code.
 - **The fork's regression check depends on this interface**:
