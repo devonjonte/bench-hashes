@@ -25,7 +25,7 @@ cargo run --release
 ```
 
 The first build takes a minute or two. The run checks every hash against
-known answers, then measures for a few minutes. The numbers come out most
+known answers, then measures for under a minute. The numbers come out most
 accurate when nothing else busy runs on the computer meanwhile.
 
 ## Read your results
@@ -72,9 +72,11 @@ The contenders:
   `sha2` is faster for the smallest inputs, `ring` from about 256 bytes.
 
 `cargo run --release -- --all` adds every other hash the benchmark knows
-(the official BLAKE3 crate on one thread and on its thread pool,
-SHA3-256, SHA-1DC, and on Apple CommonCrypto's SHA-256) and takes
-longer; `--contenders` picks any set by name (`--list` shows the names).
+(the official BLAKE3 crate, SHA3-256, SHA-1DC, and on Apple
+CommonCrypto's SHA-256) and takes longer; `--contenders` picks any set
+by name, including the official crate on its thread pool
+(`blake3-official-mt`), which runs only when named (`--list` shows the
+names).
 
 ## Share your results
 
