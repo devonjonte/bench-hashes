@@ -20,7 +20,8 @@ the next job number is 327.
 
 **Waiting on Zooko.**
 - Rerun `setup-mac.sh` (servil ad24649 installs perf_regress.py beside
-  runner.py; job 327 failed without it): the runner now keeps its
+  runner.py; job 327 failed without it), then queue the calibration
+  again (a new job number) and the Mac `--all` record: the runner now keeps its
   clones between jobs and builds through `perf_regress.py build`
   (servil 13402d6), and benchmark jobs take `"repeat": N`.
 - Then the Mac calibration of perf_regress's 24-round rule: one benchmark
@@ -70,19 +71,29 @@ the next job number is 327.
 
 ### Next, in order
 
-1. **Weak cells** (minimax; both records): 64 B at 4 messages (Mac:
+1. **servil mt after idle** (found September 26): one
+   `hash_multithreaded(64 KiB)` after idle time takes 65-100 us (its
+   workers asleep, woken per call), against about 12 us single-threaded:
+   mt 5-8x slower than st for a program hashing now and then. The
+   benchmark's back-to-back samples never show it (calibration had, by
+   accident, while the pool's start fell in its first call: bench-hashes
+   faff091, "Calibration times a single call ... once more"). Measure calls
+   after idle (NOTES.md, "Idle between calls"), then fix: e.g. stay on
+   the caller's thread when the workers are asleep and the input is
+   small, or wake them before cutting.
+2. **Weak cells** (minimax; both records): 64 B at 4 messages (Mac:
    servil 24-25 ns/msg against official 22-23; the hybrids against the C
    four-lane kernel); SHA-256 against BLAKE3 at 2-4 KiB single messages
    (open problem 1); servil mt's shared batches (CHECKS: 48 and 128
    messages, mt slower than st when two copies run).
-2. The E-core cells: 2-chunk messages at 4 (p4 two pairs), 1000 B x 4;
+3. The E-core cells: 2-chunk messages at 4 (p4 two pairs), 1000 B x 4;
    tails of 1-4 multi-block messages past SME2 groups (slow state).
-3. **One cell's aftereffects slow the next** (open, ours to explain): on
+4. **One cell's aftereffects slow the next** (open, ours to explain): on
    the VM, a long run of shimmed batch cells once made the next SHA-256
    64 B cell 3-6% slower; the mechanism is unexplained.
-4. The text report's three-reader pass (CHECKS, TWO SPEEDS).
-5. A second SME2 thread in the pool (two SME units reachable, job 187).
-6. Open, smaller: hash(256 KiB)'s partial slow state; the VM's
+5. The text report's three-reader pass (CHECKS, TWO SPEEDS).
+6. A second SME2 thread in the pool (two SME units reachable, job 187).
+7. Open, smaller: hash(256 KiB)'s partial slow state; the VM's
    per-process two speeds; shared streamed 64 B two-speed on the VM.
 
 ### Remco (a potential user)
