@@ -324,7 +324,7 @@ From `/workspace` in the VM, each with the prefix above:
     pypy3 tools/perf_regress.py check | compare OLD NEW
     cargo run --release --example host_lab
 
-Expected: 89 / 85 / 74 library tests, 21 doc tests, 2 vectors, 8 benchmark
+Expected: 89 / 85 / 74 library tests, 21 doc tests, 2 vectors, 5 benchmark
 tests. Release: `python3 tools/gen-ver.py X.Y.Z` from a clean tree (two
 version commits and a lightweight tag; push the branch, `servil` in the
 fork or `main` here, then the tag by name).
