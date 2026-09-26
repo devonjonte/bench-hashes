@@ -370,4 +370,14 @@ against new 1.36% (7.1%), new against old 1.44% (6.2%); shared 2.22%,
 the first 47 s `--all` record (servil ad24649) read SHA-256, ring, and
 BLAKE3 official 7-8% faster than the 140 s record before it (ee956b7),
 servil level (-1 to +0.3% solo). Near-ties on the VM within about 8%
-depend on the run's length; Zooko chose to leave it (September 26). Most VM cells stay unsure at 2% and take 48.
+depend on the run's length; Zooko chose to leave it (September 26).
+The Mac warms too, less: over 4 minutes of sustained load SHA-256 drifts
+about +3-4%, BLAKE3 st about +1% (fork job 329).
+
+**Open: a median exactly halfway between two display values.** The Mac
+record of servil ad24649 (job 330) has one cell (CommonCrypto, shared, 8
+messages) whose exact median is 51.3875 ns/msg: check-report.py, exact,
+rounds it half up to 51.388; the benchmark shows 51.387, since each
+sample's ns/units becomes Q64.64 rounded down before the median, a
+rounding before the page's. Fix: the median of two middle samples as an
+exact midpoint of the measured values (Measured), rounded once. Most VM cells stay unsure at 2% and take 48.
