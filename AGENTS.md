@@ -144,7 +144,7 @@ The benchmarker touches an implementation in three ways only: listing it, callin
 
 # The fork's performance-regression check runs this benchmark
 
-The fork's `tools/perf_regress.py` builds this benchmark twice through the `--config` patch, against the fork's `HEAD` and against its working tree, and runs the builds alternately with `--contenders sha256,blake3-servil-st,blake3-servil-mt --points ... --rounds 48`, reading `bench-hashes.samples.tsv` (both scenarios). Both sides use this checkout's source, so a change here never skews that comparison; keep `--points`, `--rounds`, and the samples file's format working, since the check depends on them. The fork's `AGENTS.md` ("Performance regressions") has the procedure every fork commit follows.
+The fork's `tools/perf_regress.py` builds this benchmark twice through the `--config` patch, against the fork's `HEAD` and against its working tree, and runs the builds alternately with `--contenders sha256,blake3-servil-st,blake3-servil-mt --points ... --rounds 24` (every cell sampled in each round), reading `bench-hashes.samples.tsv` (both scenarios). Both sides use this checkout's source, so a change here never skews that comparison; keep `--points`, `--rounds`, and the samples file's format working, since the check depends on them. The fork's `AGENTS.md` ("Performance regressions") has the procedure every fork commit follows.
 
 # Environment
 
