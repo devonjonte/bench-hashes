@@ -364,4 +364,10 @@ stayed unsure at 4% too). Without it, full default runs old / new / new
 |log ratio|, solo: old against old 1.94% (90th percentile 5.7%), new
 against new 1.36% (7.1%), new against old 1.44% (6.2%); shared 2.22%,
 1.73%, 1.72%; two-speed cells level; cells marked `~` 108-109 against
-124-159. Most VM cells stay unsure at 2% and take 48.
+124-159.
+
+**Shorter runs sit less of the VM's warm-up** (fork NOTES, "perf_regress"):
+the first 47 s `--all` record (servil ad24649) read SHA-256, ring, and
+BLAKE3 official 7-8% faster than the 140 s record before it (ee956b7),
+servil level (-1 to +0.3% solo). Near-ties on the VM within about 8%
+depend on the run's length; Zooko chose to leave it (September 26). Most VM cells stay unsure at 2% and take 48.
