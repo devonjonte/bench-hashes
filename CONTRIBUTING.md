@@ -97,7 +97,7 @@ the page", has the whole practice. Check a change with
 
 ## Maintainers' notes
 
-`AGENTS.md`, `NEXT-STEPS.md`, and `NOTES.md` are the maintainers' working
+`AGENTS.md`, `PROCEDURES.md`, `NEXT-STEPS.md`, and `NOTES.md` are the maintainers' working
 notes: environment, current work, and the reasoning behind past
 decisions. Contributing needs none of them; `NOTES.md` explains why the
 measurement works as it does, should you want to change it.

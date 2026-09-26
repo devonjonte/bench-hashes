@@ -102,55 +102,7 @@ commitment format (see "Idea: a full-fledged Merkle tree API").
 
 ## How to work
 
-- **VM setup** after a restart: `sh /workspace/vm/setup.sh` (clang-19,
-  pypy3, rsvg, the guest's pre-commit hook). The graph check needs Node
-  and jsdom: `apt-get install -y nodejs npm`, then `npm install jsdom@22`
-  in `/tmp/gc` and `NODE_PATH=/tmp/gc/node_modules node
-  tools/graph-check/check.js GRAPH.svg`.
-- **Every `git` and `cargo` command** in the VM takes
-  `HOME=/workspace/vm/home CARGO_TARGET_DIR=/tmp/target CC=clang-19 TMPDIR=/tmp`,
-  `git commit` included (the hook builds; without `CC` it aborts the
-  commit and leaves the branch where it was).
-- **The gate to `servil`** (fork AGENTS.md "Branches"), for every change,
-  a README's included: work on `candidate/<topic>`; every suite;
-  `perf_regress compare servil candidate/<topic>` on the VM and as a Mac
-  runner job; a fast-forward; the verdicts as a note in `refs/notes/perf`
-  (`git notes --ref=perf add`, pushed with `servil`); delete the branch;
-  pin here. Changes that trade one cell for another go to Zooko with
-  their numbers.
-- **`perf_regress` and older commits**: the benchmark calls the current
-  fork API; `tools/perf_regress.py` shims older commits (renaming their
-  old functions, forwarding or wrapping the new names). A comparison with
-  a wrapped side measures and judges the one-message cells alone. A
-  benchmark change that calls a new fork API needs a shim there.
-- **The Mac** (fork `tools/runner/README.md`): Zooko starts the runner
-  with `sh ~/piplayground/blake3-servil/tools/runner/setup-mac.sh`. Write
-  `runner/jobs/NNN-name.json` naming pushed commits; wait with
-  `pypy3 tools/runner/wait_for.py NNN-name`; results in
-  `runner/results/`. A job runs once per file name: a rewritten job keeps
-  its old result, so a changed job takes a new number. Keep the VM idle
-  while a Mac job runs. A direct A/B is four `benchmark` jobs, old new
-  new old, run back to back (spread apart, the control moves). Mac-only
-  measurements (cycles by core kind, QoS) go in a `probe/<topic>` branch
-  that replaces `examples/host_lab.rs` (fork NOTES, "Probes on the Mac");
-  the `probe/*` branches on origin are those probes, each cited in the
-  fork's NOTES where its finding is.
-- **Records** measure the pinned fork commit: after a promotion,
-  `cargo update -p blake3-servil` here and commit the lock; the VM's with
-  `cargo run --release -- --all` from this directory (unpatched; writes
-  `benchmark-results/` here); the Mac's as a runner job naming that fork
-  commit, flags `["--all"]`, its files copied into
-  `benchmark-results/AppleM4Max.darwin25/`. Run the graph check on both
-  graphs before committing.
-- **Exploratory runs** go in a scratch directory with the built
-  executable (`cd /tmp/qr && /tmp/target/release/bench-hashes --quick
-  ...`, or `$(pypy3 /workspace/tools/perf_regress.py build)` for the
-  fork's working tree): a run from this directory overwrites the records.
-- **Looking at a graph**: `rsvg-convert -w 1300 GRAPH.svg -o
-  /tmp/g.png`, crop with `convert`, copy into `/workspace/tmp/`, and read
-  it by its host path
-  (`/Users/donaldturnworth/piplayground/blake3-servil/tmp/...`); the
-  host sees a new file after a moment.
+The fork's `PROCEDURES.md` (the regression check, the gate to `servil`, the Mac runner, probes, the VM) and this repository's `PROCEDURES.md` (records, runs, graphs, its environment).
 
 ## Decisions made (don't re-ask)
 

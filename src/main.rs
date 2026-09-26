@@ -2351,11 +2351,13 @@ mod trace_clocks {
  *
  * A counter read can only over-count when the thread is interrupted, and
  * the median absorbs that while the band reports it. Thread CPU time
- * (CLOCK_THREAD_CPUTIME_ID) is scheduler accounting instead: an
- * interruption mid-sample can leave the slice under-counted, so the sample
- * reports a hash faster than the hardware allows. On an M4 Max three
- * unrelated SHA-256 contenders shared one minimum 12% under their
- * own steady medians. The measure-clocks3 repository demonstrates this.
+ * (CLOCK_THREAD_CPUTIME_ID) agrees with it on 1 ms samples, and adds an
+ * accounting layer to reason about: once suspected of inventing a floor
+ * 12% under three SHA-256 contenders' medians (M4 Max), it was cleared by
+ * experiment; the core had run about 12% faster for some 12 ms, and both
+ * clocks saw it (github.com/johnservil/measure-clocks3,
+ * CPU-TIME-CLOCKS-AND-FREQUENCY.md). Frequency is what no clock sees;
+ * --trace-clocks records the cycles that do.
  */
 mod sample_clock {
     use std::time::Instant;
