@@ -337,12 +337,14 @@ The contenders run in a Williams design: a set of orders that together
 place every contender in every position equally often and realise every
 "Y right after X" adjacency equally often — the balance all permutations
 would give (n orders for an even count of contenders, 2n for odd). Point
-order (the one hundred and two points of the four use cases together) rotates independently. Each contender/point combination is
+order (the seventy-eight points of the three use cases together) rotates independently. Each contender/point combination is
 calibrated separately so its timed samples last about 1 ms each.
 
-Each combination collects 96 solo samples and 192 shared ones (fewer
-for long cells, below), or 24 and 48 in a `--quick` run, which also stops
-below 1 MiB and 10,000 messages. The
+A full run has 96 rounds, a `--quick` one 24 (and stops below 1 MiB and
+10,000 messages). Each combination samples in a share of them, spread
+over the run at an offset of its own: 12 solo samples and 24 shared
+ones, twice that while the 95% interval of its median is wider than 2%
+of it. The
 rounds cycle through the orders and rotate the point that starts a
 round; a round count that is no multiple of the order or point count
 leaves some orders or starting points once more than others, a fraction
@@ -353,9 +355,8 @@ is long enough that the clock's resolution is far below noise.
 
 Cells whose single hash takes 4 ms or more (the
 plateau sizes, where a sample is one hash of tens of milliseconds) get a
-time budget: such a cell is sampled in every fourth round, at an offset
-of its own so its samples span the run, and in every second round while
-the 95% interval of its median is wider than 2% of it. Shorter samples
+time budget: such a cell aims at 4 solo samples, 8 while the 95%
+interval of its median is wider than 2% of it, and takes at least 6. Shorter samples
 (0.5 ms) were tried and rejected: every median read 1.6% slower, since
 a sample's fixed cost weighs twice as much.
 

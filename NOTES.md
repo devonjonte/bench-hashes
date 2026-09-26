@@ -346,4 +346,20 @@ new / new / old: 99 s, 48 s, 48 s, 107 s. Cell medians, |log ratio|, solo:
 old against old median 4.3% (90th percentile 7.1%), new against new 1.1%
 (3.4%), new against old 1.5% (4.4-4.9%); shared alike (2.6%, 0.9%, 1.0-1.2%);
 new medians 0.3-0.6% slower on average, inside the noise; two-speed cells
-23-25 against 19-21. Most VM cells stay unsure at 2% and take 48.
+23-25 against 19-21.
+
+**Thinned again (September 26, 2026):** steady cells 12 samples (24
+while unsure), long cells 4 (8). The between-run variance of a cell's
+median barely falls with more samples (0.53% at 12, 0.37% at 24, median
+cell; the worst tenth, servil's SME2 cells, 2.7% against 2.8%: set by how
+long each run spends in each state), so the extra samples bought little.
+VM, default roster, full runs old / new / new / old / old / new: 47.8,
+25.2, 25.0, 47.4, 45.5, 24.3 s; cell medians, |log ratio|, solo: old
+against old median 3.45% (90th percentile 6.5%), new against new 1.63%
+(6.1%), new against old 2.23% (6.5%); shared 3.40%, 2.20%, 2.43%; new
+0.6% faster on the median (shorter runs sit less of the VM's warm-up,
+NOTES-servil.md); two-speed cells level. A second change to how many
+processes a run uses was weighed and left: since the fork's scratch
+alignment (servil f38786d) the per-process part is small, and what is
+left changes within a process over seconds, which rounds spread over the
+run already sample. Most VM cells stay unsure at 2% and take 48.

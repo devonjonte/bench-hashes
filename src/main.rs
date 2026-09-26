@@ -53,12 +53,18 @@ const TARGET_SAMPLE_NS: u128 = 1_000_000;
  * UNSURE_BELOW samples) at twice that. A cell whose single hash takes
  * LONG_HASH_NS or more (every sample is then one hash, tens of
  * milliseconds for the plateau sizes, itself an average over the input)
- * aims at LONG_SAMPLES, twice that while unsure. The shares follow the
- * run's rounds, so a quick run samples every cell in every round.
+ * aims at LONG_SAMPLES, twice that while unsure (and at least UNSURE_BELOW).
+ * The shares follow the run's rounds, so a quick run samples each cell in
+ * every second round, and in every round while unsure.
  */
 const LONG_HASH_NS: u128 = 4_000_000;
-const STEADY_SAMPLES: usize = 24;
-const LONG_SAMPLES: usize = 8;
+/// A cell's median varies between runs about as much at 12 samples as at 24
+/// (VM, September 26, 2026: 0.53% against 0.37% for the median cell, the
+/// worst tenth 2.7% against 2.8%, set by how long each run spends in a
+/// state rather than by sample count); full default runs of 25 s instead
+/// of 47 agreed with each other to 1.6% (median cell, solo) against 3.5%.
+const STEADY_SAMPLES: usize = 12;
+const LONG_SAMPLES: usize = 4;
 const PRECISION_PERMILLE: u64 = 20;
 const UNSURE_BELOW: usize = 6;
 
@@ -939,6 +945,10 @@ struct Roster {
     points: Vec<usize>,
     /// Sample rounds.
     rounds: usize,
+    /// Every cell samples in every round (`--rounds`: a fixed design, as
+    /// the fork's regression check needs); otherwise each samples in its
+    /// share of the rounds (cell_wants_sample).
+    every_round: bool,
 }
 
 impl Roster {
@@ -946,7 +956,8 @@ impl Roster {
      * `points` restricts the run to those POINTS indices; without it a
      * full run measures every point and a quick run the points below
      * QUICK_BYTES and QUICK_MESSAGES. `rounds` fixes the round count
-     * (positive), else FULL_ROUNDS or QUICK_ROUNDS.
+     * (positive), every cell sampled in each, else FULL_ROUNDS or
+     * QUICK_ROUNDS with each cell sampled in its share of them.
      */
     fn new(algorithms: Vec<Algorithm>, quick: bool, points: Option<Vec<usize>>, rounds: Option<usize>) -> Self {
         assert!(
@@ -967,9 +978,10 @@ impl Roster {
         let orders = williams_orders(algorithms.len());
         let points = points.unwrap_or_else(|| (0..POINT_COUNT).filter(|&index| !quick || POINTS[index].quick()).collect());
         assert!(!points.is_empty() && points.windows(2).all(|w| w[0] < w[1]), "points ascend, without repeats");
+        let every_round = rounds.is_some();
         let rounds = rounds.unwrap_or(if quick { QUICK_ROUNDS } else { FULL_ROUNDS });
         assert!(rounds > 0, "--rounds must be positive");
-        Self { algorithms, orders, points, rounds }
+        Self { algorithms, orders, points, rounds, every_round }
     }
 
     /// Whether every point of each use case measured runs from the axis's
@@ -1087,7 +1099,7 @@ are known to 2%.
                                    report: \"64 B\", \"8 MiB\", \"1024\" messages,
                                    \"streamed 64 KiB\"); with
                                    --contenders only
-  --rounds N                       exactly N sample rounds
+  --rounds N                       exactly N sample rounds, every cell sampled in each
   --trace-clocks PATH              also write one CSV line per sample interval
                                    with wall, thread-CPU, mach_absolute_time,
                                    and (on Apple) per-core-kind cycles and
@@ -1436,7 +1448,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                 }
                 let iterations =
                     batch_iterations[algorithm_index][size_index];
-                if !cell_wants_sample(
+                if !roster.every_round && !cell_wants_sample(
                     &samples.solo[algorithm_index][size_index],
                     &samples.shared[algorithm_index][size_index],
                     round + size_index,
