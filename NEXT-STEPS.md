@@ -19,18 +19,7 @@ sampling, the roster, and the alignment changed). Runner jobs run to 326;
 the next job number is 327.
 
 **Waiting on Zooko.**
-- Rerun `setup-mac.sh` (servil ad24649 installs perf_regress.py beside
-  runner.py; job 327 failed without it), then queue the calibration
-  again (a new job number) and the Mac `--all` record: the runner now keeps its
-  clones between jobs and builds through `perf_regress.py build`
-  (servil 13402d6), and benchmark jobs take `"repeat": N`.
-- Then the Mac calibration of perf_regress's 24-round rule: one benchmark
-  job, contenders sha256, blake3-servil-st, blake3-servil-mt, perf_regress's
-  29 points, `"rounds": 24`, `"repeat": 48`; simulate checks over
-  consecutive runs as `/tmp/cal/sim2.py` did on the VM (the scripts are
-  gone with the guest; the method is in the fork NOTES, "perf_regress").
-  The Mac showed more open points after the first pair (22 of 29, job 325)
-  than the VM (5-12).
+- The design of the after-idle measurement (item 1 below).
 - Try the graph on his iPhone (bench-hashes 20a87c6), a real x86-64
   machine, perf_regress's 256 B batch points, upstream issue #590 / PR
   #591: as before.
@@ -71,29 +60,32 @@ the next job number is 327.
 
 ### Next, in order
 
-1. **servil mt after idle** (found September 26): one
+1. **servil mt after idle** (found September 26; Zooko: prioritize): one
    `hash_multithreaded(64 KiB)` after idle time takes 65-100 us (its
    workers asleep, woken per call), against about 12 us single-threaded:
-   mt 5-8x slower than st for a program hashing now and then. The
-   benchmark's back-to-back samples never show it (calibration had, by
-   accident, while the pool's start fell in its first call: bench-hashes
-   faff091, "Calibration times a single call ... once more"). Measure calls
-   after idle (NOTES.md, "Idle between calls"), then fix: e.g. stay on
-   the caller's thread when the workers are asleep and the input is
-   small, or wake them before cutting.
-2. **Weak cells** (minimax; both records): 64 B at 4 messages (Mac:
-   servil 24-25 ns/msg against official 22-23; the hybrids against the C
-   four-lane kernel); SHA-256 against BLAKE3 at 2-4 KiB single messages
-   (open problem 1); servil mt's shared batches (CHECKS: 48 and 128
-   messages, mt slower than st when two copies run).
-3. The E-core cells: 2-chunk messages at 4 (p4 two pairs), 1000 B x 4;
+   mt 5-8x slower than st for a program hashing now and then. First make
+   the benchmark see it (a measurement of calls after idle, judged by
+   CHECKS and perf_regress, so a regression of this kind is caught), then
+   fix it (e.g. stay on the caller's thread when the workers are asleep
+   and the input is small, or wake them before cutting). The pool's start
+   (0.5-0.7 ms) and the self-test (0.13-0.17 ms) are one-time costs that
+   `initialize()` moves, as its docs say.
+2. **servil behind BLAKE3 official** (Zooko: high priority; official stays
+   in `--all` until servil wins every cell): batches of 64-byte messages,
+   4 messages (VM solo 26.8 against 25.1 ns/msg; Mac solo and shared 25.7
+   against 24.1), 12 and 24 (Mac shared, 7%).
+3. **SHA-256 at 3-8 KiB** (open problem 1): the only cells within 10% of
+   SHA-256 on either machine (servil 2-9% behind at 3 KiB, 3839 B, 4 KiB,
+   4470 B; a VM record's warm-up can move them by up to 8%). Elsewhere
+   SHA-256 leads twice over below 3 KiB and servil far ahead from 8 KiB.
+4. The E-core cells: 2-chunk messages at 4 (p4 two pairs), 1000 B x 4;
    tails of 1-4 multi-block messages past SME2 groups (slow state).
-4. **One cell's aftereffects slow the next** (open, ours to explain): on
+5. **One cell's aftereffects slow the next** (open, ours to explain): on
    the VM, a long run of shimmed batch cells once made the next SHA-256
    64 B cell 3-6% slower; the mechanism is unexplained.
-5. The text report's three-reader pass (CHECKS, TWO SPEEDS).
-6. A second SME2 thread in the pool (two SME units reachable, job 187).
-7. Open, smaller: hash(256 KiB)'s partial slow state; the VM's
+6. The text report's three-reader pass (CHECKS, TWO SPEEDS).
+7. A second SME2 thread in the pool (two SME units reachable, job 187).
+8. Open, smaller: hash(256 KiB)'s partial slow state; the VM's
    per-process two speeds; shared streamed 64 B two-speed on the VM.
 
 ### Remco (a potential user)
