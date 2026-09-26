@@ -8,47 +8,58 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
-## Resume here (checkpoint, September 26, 2026, night)
+## Resume here (checkpoint, September 26, 2026, late night)
 
-**State.** Fork `servil` 623be54 (version 0.2.0, tag
-`v0.2.0+30296341eef435521469f8eae3582047b02d67da`), pinned here; no
-candidates open; every promotion has its gate note in `refs/notes/perf`.
-Records (VM and Mac `--all`) are bench-hashes ee956b7, on servil f9d39b0
-(same src as the tip); the README's speed chart is drawn from the Mac one
-(`tools/speed_chart.py`; redraw after each Mac record). Runner jobs run
-to 317; the next job number is 318.
+**State.** Fork `servil` 13402d6 (code as f38786d: the flat walk's scratch
+on a 4 KiB boundary); bench-hashes pinned to 5a783bc (same code), `main`
+past it with the benchmark changes below; every promotion has its gate
+note in `refs/notes/perf`. Records (VM and Mac `--all`) are still
+bench-hashes ee956b7's, on servil f9d39b0: remake both on the tip (the
+sampling, the roster, and the alignment changed). Runner jobs run to 326;
+the next job number is 327.
 
 **Waiting on Zooko.**
-- Restart the Mac runner (`setup-mac.sh`) to install runner.py's patch
-  check for benchmark jobs (perf_regress jobs already use the fork's).
-- Try the graph on his iPhone: hiding plots no longer shrinks the page
-  (bench-hashes 20a87c6, in the records ee956b7; the likely cause of the zoom-in he saw).
-  If it still zooms, next idea: an HTML page around the SVG with a
-  viewport meta tag, or a double-tap reading of the tap.
-- A real x86-64 machine is coming for the x86 tests; no emulation, not
-  even for unit tests (Zooko).
-- Whether perf_regress should keep a few points of multi-block batches
-  (256 B, the Merkle-leaf path), now that the benchmark has none.
-- Upstream: BLAKE3-team/BLAKE3 issue #590 and PR #591 (Platform::hash_many
-  drops a partial block in release builds; a catalog of every public
-  caller of `blake3::platform`); watch for the maintainers' answer.
-- Remco's note is public:
-  https://github.com/johnservil/BLAKE3/blob/servil/docs/whir-merkle-trees.md
+- Restart the Mac runner (`setup-mac.sh`): the runner now keeps its
+  clones between jobs and builds through `perf_regress.py build`
+  (servil 13402d6), and benchmark jobs take `"repeat": N`.
+- Then the Mac calibration of perf_regress's 24-round rule: one benchmark
+  job, contenders sha256, blake3-servil-st, blake3-servil-mt, perf_regress's
+  29 points, `"rounds": 24`, `"repeat": 48`; simulate checks over
+  consecutive runs as `/tmp/cal/sim2.py` did on the VM (the scripts are
+  gone with the guest; the method is in the fork NOTES, "perf_regress").
+  The Mac showed more open points after the first pair (22 of 29, job 325)
+  than the VM (5-12).
+- Whether digest checks move into each cell's first sample (checked after
+  its timer stops), which ends the separate hashing phase (proposed).
+- Try the graph on his iPhone (bench-hashes 20a87c6), a real x86-64
+  machine, perf_regress's 256 B batch points, upstream issue #590 / PR
+  #591: as before.
 
-**Done this session** (details in the commits and the fork's NOTES):
-QUALITY.md (every check, the four bugs, formal verification tried);
-Kani proofs (`cfg(kani)`, Kani 0.64 in the guest); the startup
-self-test (39 chained cases, all 31 AArch64 assembly entries, fork NOTES
-"The startup self-test"); time kept as measured (`Measured`, `Fixed`
-Q64.64, samples v3 `ns/units`, `tools/check-report.py`); integers for
-time everywhere (clocks tick); SHA3-256 contender; 256 B batches,
-ab-blake3, commonware removed; the graph's header no longer follows the
-page, and the page never shrinks; the one-block tails from 5 (9eb2613);
-perf_regress reports shared cells without holding; the 0.2.0 release.
+**Done this session** (details in the commits, the fork's NOTES
+"perf_regress" and "The slow state, measured directly", and NOTES.md):
+- The VM's 32-64 KiB two speeds traced to the flat walk's scratch
+  placement (malloc chose its residue mod 4 KiB); aligned (f38786d).
+- perf_regress: 95 s -> 17 s on the VM (curtailment, targeted
+  confirmation, 24 rounds recalibrated, sides that own their builds and
+  locks; `perf_regress.py build` for runs by hand); Mac gate jobs 104 s
+  -> 38-47 s, less once the runner restarts.
+- bench-hashes: a default full run 47 s -> 18.8 s (12 samples a cell, no
+  "unsure" doubling); BLAKE3 official mt by request only (`BY_REQUEST`);
+  `--rounds N` samples every cell in each round; build.rs watches tags in
+  the common git directory (worktree builds had always rebuilt).
+- Found, open (fork NOTES): the VM warms up over 3-4 minutes of load
+  (SHA-256 +5-11%, BLAKE3 +2-6%; no user-facing action, Zooko); SME2
+  batches of 16 switch between 10, 15, and 20 ns/msg for seconds at a time
+  on the VM while SHA-256 holds (host programs sharing the SME unit?); a
+  trivial change moved shared 32-64 KiB by 20-24% in all pairs (layout, or
+  the SME2 lock's timing); a quarter of VM processes still run 32-64 KiB
+  slow (the host's 16 KiB pages?).
 
 **Lessons (this guest).**
 - `pkill -f PATTERN` matches the shell running it and kills the command;
-  kill by PID. Run verification tools (Kani, CBMC) under `timeout`: a
+  kill by PID (`cmd & PID=$!`, then `kill $PID`). Each tool call is a
+  fresh shell: repeat the `HOME=... CARGO_TARGET_DIR=...` prefix on every
+  command, or cargo builds into another target directory. Run verification tools (Kani, CBMC) under `timeout`: a
   symbolic divisor over all of usize ran 3.5 hours.
 - A version bump makes cargo ignore a `[patch]` of a different version,
   with only a warning; perf_regress and the runner now lock the patched
@@ -131,7 +142,8 @@ commitment format (see "Idea: a full-fledged Merkle tree API").
   graphs before committing.
 - **Exploratory runs** go in a scratch directory with the built
   executable (`cd /tmp/qr && /tmp/target/release/bench-hashes --quick
-  ...`): a run from this directory overwrites the records.
+  ...`, or `$(pypy3 /workspace/tools/perf_regress.py build)` for the
+  fork's working tree): a run from this directory overwrites the records.
 - **Looking at a graph**: `rsvg-convert -w 1300 GRAPH.svg -o
   /tmp/g.png`, crop with `convert`, copy into `/workspace/tmp/`, and read
   it by its host path
@@ -142,6 +154,15 @@ commitment format (see "Idea: a full-fledged Merkle tree API").
   there, and a regeneration that changes existing lines is a review item.
 
 ## Decisions made (don't re-ask)
+
+- Benchmark time (Zooko, September 26): the caller keeps the machine
+  quiet, and the benchmark detects and reports noise and wastes no time
+  compensating for it; a small loss of reliability for a large saving
+  of time is welcome. Streamed 32-128 MiB stay in `--all` (informative).
+  BLAKE3 official mt runs only when named; BLAKE3 official stays in
+  `--all` until servil beats it in every cell. The VM's warm-up gets no
+  treatment beyond the note. Never change a tracked file and change it
+  back (the lock is the side's own). PyPy over CPython wherever it runs.
 
 - Contenders: at most two settings each (single-threaded, multithreaded
   uncapped); two scenarios (solo; shared = two copies of itself); wall
