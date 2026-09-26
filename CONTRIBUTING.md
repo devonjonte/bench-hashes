@@ -38,7 +38,7 @@ put this repository inside it and let the fork's tool build it there:
 git clone --branch servil https://github.com/johnservil/BLAKE3
 git clone https://github.com/johnservil/bench-hashes BLAKE3/bench-hashes
 cd BLAKE3
-python3 tools/perf_regress.py build   # prints the executable's path
+pypy3 tools/perf_regress.py build     # prints the executable's path (python3 where PyPy is absent)
 ```
 
 The tool builds in a directory of its own (`tmp/perf-ab/new/`), with a
