@@ -2593,6 +2593,21 @@ fn calibrate_batch(
         }
 
         if elapsed_ns >= CALIBRATION_PROBE_NS {
+            /*
+             * A contender's first call may carry one-time costs (a pool
+             * starting, a self-test), which would make one call look long
+             * and leave its cell a single cold call per sample (the fork's
+             * multithreaded 64 KiB: 1 iteration instead of 81, samples 5x
+             * slow). A single call that reaches the probe is timed again,
+             * and the faster time kept.
+             */
+            let elapsed_ns = if iterations == 1 {
+                let started = sample_clock::now();
+                run_batch(algorithm, input, point, 1);
+                elapsed_ns.min(u128::from(sample_clock::since_ns(started)))
+            } else {
+                elapsed_ns
+            };
             let scaled = (
                 iterations as u128 * TARGET_SAMPLE_NS
                     + elapsed_ns / 2
