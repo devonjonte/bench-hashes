@@ -12,10 +12,9 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 
 **State.** Fork `servil` 663f17e (library code as f38786d: the flat walk's
 scratch on a 4 KiB boundary; the clocks crate); bench-hashes pinned to it; every promotion has its gate
-note in `refs/notes/perf`. Records (VM and Mac `--all`) are still
-bench-hashes ee956b7's, on servil f9d39b0: remake both on the tip (the
-sampling, the roster, and the alignment changed). Runner jobs run to 326;
-the next job number is 327.
+note in `refs/notes/perf`. Records (VM and Mac `--all`) are on servil
+ad24649 (bench-hashes 01e26d3, 0da1e22; the library code is today's).
+Runner jobs run to 336; the next job number is 337.
 
 **Waiting on Zooko.**
 - The design of the after-idle measurement (item 1 below).
