@@ -170,6 +170,13 @@ The fork's `PROCEDURES.md` (the regression check, the gate to `servil`, the Mac 
     multithreaded call that leaves the caller's thread.
   - A behaviour change of `initialize()`: a minor version bump and a
     changelog entry; measure the pool's memory cost when it is built.
+  Benchmarking the one-shot APIs (Zooko agreed): exactly two automated
+  scenarios, back to back (perf_regress at 3%: small kernel regressions)
+  and after idle (20%: the wake path and cold starts, which back to back
+  cannot see, as the 5-8x after-idle pool slowdown showed); no warm-start
+  gap scenario (no evidence it would catch anything). The graph plots back
+  to back only; the rest stays behind a door. To be written into policy,
+  procedure, and code comments once the whole plan is settled.
   Still to settle: batches (`hash_many`), input arriving in pieces
   (`Hasher`, `Stream`), and a stream of inputs (the `Queue` design).
 - The pool keeps nothing awake between calls (Zooko, September 27):
