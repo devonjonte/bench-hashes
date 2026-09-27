@@ -8,46 +8,77 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
-## Resume here (checkpoint, September 26, 2026, late night)
+## Resume here (checkpoint, September 26, 2026, end of the benchmark session)
 
-**State.** Fork `servil` 14db82c (library code as f38786d: the flat walk's
-scratch on a 4 KiB boundary; the clocks crate); bench-hashes pinned to it; every promotion has its gate
-note in `refs/notes/perf`. Records (VM and Mac `--all`) are on servil
-ad24649 (bench-hashes 01e26d3, 0da1e22; the library code is today's).
-Runner jobs run to 339; the next job number is 340.
+**State.** Fork `servil` 14db82c (library code as f38786d; the `clocks/`
+crate); bench-hashes `main` pinned to it. Records (VM and Mac `--all`) on
+servil ad24649 (bench-hashes 01e26d3, 0da1e22); they predate the
+after-idle scenario, so remake both when the fork next changes. Every
+promotion has its gate note in `refs/notes/perf`. The fork's working tree
+holds uncommitted doc edits (PROCEDURES.md's timings and pointer, and the
+Measuring principle's sentence on not scaling by cycles, in both AGENTS.md
+files): commit them through a candidate and the gate first. Runner jobs
+run to 339 (340 archived unrun: the runner was stopped); the next number
+is 341. The Mac runner must be running (Zooko restarts it with
+`setup-mac.sh`) before any gate job.
 
-**Waiting on Zooko.**
-- Try the graph on his iPhone (bench-hashes 20a87c6), a real x86-64
-  machine, perf_regress's 256 B batch points, upstream issue #590 / PR
-  #591: as before.
+**In flight: item 1 below, servil mt after idle.** Branch `probe/idle-wake`
+(pushed) replaces `examples/host_lab.rs` with a probe: one call after a
+1 ms sleep, st against mt, by size and thread budget, with the clock. Run
+it on the Mac as an `example` job (`host_lab`) while the Mac is quiet (a
+browser perturbs it). VM results so far (median of 101 calls):
+- 64 KiB after idle: st 15 us, mt 85-107 us; back to back mt 9 us.
+  128 KiB 33 against 105; 256 KiB 66 against 119; 1 MiB 232 against 180
+  (the pool wins after idle from about 1 MiB).
+- Budget 2 (the caller and one worker) pays the whole cost, because the
+  caller wakes every sleeper whatever its budget (`lanes.rs`, "a call
+  whose pieces outnumber the workers awake wakes every sleeper").
+- The cost grows with the sleepers woken: CPUs 2 / 4 / 8 / 16 (workers
+  1 / 3 / 7 / 15): mt after idle 31 / 32 / 53 / 107 us against st 15-20.
+  So two parts: the caller waking each sleeper synchronously (about 5 us
+  each in the VM, a halted vCPU kicked per wake), and a woken worker
+  arriving late (about 15 us even alone).
+- Fix directions to weigh, simplest first, judged by the after-idle
+  cells (now in the benchmark and held by perf_regress): wake only the
+  workers the call can use (at most pieces - 1, budget - 1); take the
+  wakes off the caller's path (the caller wakes one, each woken worker
+  wakes the next ones); stay on the caller's thread while the workers are
+  asleep and the input would finish before they could arrive (a
+  threshold measured, not tuned). The contract to meet: a multithreaded
+  call never slower than the single-threaded one (AGENTS.md, minimax).
+- With it: split `initialize()` (the self-test alone, 130-165 us) from
+  `initialize_multithreaded()` (plus the pool, 510-700 us), a behaviour
+  change of a public function (0.x minor bump, changelog); measure the
+  pool's memory cost then.
 
-**Also done:** principles apart from procedures (AGENTS.md against
-PROCEDURES.md, both repositories); the `clocks/` crate in the fork, the
-one place both repositories read clocks (servil 663f17e; the old probe
-examples and `examples/support/clocks.rs` gone); the Mac calibration of
-perf_regress (job 329); both records on the tip; the benchmark checks no
-digests; calibration keeps a first call's one-time costs out; each point
-cycles its contender orders by its own visits.
+**Waiting on Zooko.** The graph on his iPhone (bench-hashes 20a87c6); a
+real x86-64 machine; perf_regress's 256 B batch points; upstream issue
+#590 / PR #591.
 
-**Done this session** (details in the commits, the fork's NOTES
+**This session** (September 26; details in the commits, the fork's NOTES
 "perf_regress" and "The slow state, measured directly", and NOTES.md):
-- The VM's 32-64 KiB two speeds traced to the flat walk's scratch
-  placement (malloc chose its residue mod 4 KiB); aligned (f38786d).
-- perf_regress: 95 s -> 17 s on the VM (curtailment, targeted
-  confirmation, 24 rounds recalibrated, sides that own their builds and
-  locks; `perf_regress.py build` for runs by hand); Mac gate jobs 104 s
-  -> 38-47 s, less once the runner restarts.
-- bench-hashes: a default full run 47 s -> 18.8 s (12 samples a cell, no
-  "unsure" doubling); BLAKE3 official mt by request only (`BY_REQUEST`);
-  `--rounds N` samples every cell in each round; build.rs watches tags in
-  the common git directory (worktree builds had always rebuilt).
-- Found, open (fork NOTES): the VM warms up over 3-4 minutes of load
-  (SHA-256 +5-11%, BLAKE3 +2-6%; no user-facing action, Zooko); SME2
-  batches of 16 switch between 10, 15, and 20 ns/msg for seconds at a time
-  on the VM while SHA-256 holds (host programs sharing the SME unit?); a
-  trivial change moved shared 32-64 KiB by 20-24% in all pairs (layout, or
-  the SME2 lock's timing); a quarter of VM processes still run 32-64 KiB
-  slow (the host's 16 KiB pages?).
+- The benchmarks, faster: perf_regress 95 s -> about 20-40 s on the VM
+  (curtailment, targeted confirmation, 24 rounds recalibrated on both
+  machines, sides that own their builds and locks, `perf_regress.py
+  build`); a default full run 47 s -> about 20 s, `--all` 176 s -> about
+  50 s (12 samples a cell with no "unsure" doubling, no digest checks,
+  BLAKE3 official mt by request only); Mac gate jobs 104 s -> about 30-45 s
+  (the runner keeps its checkouts).
+- Found and fixed: the flat walk's scratch placement (the VM's 32-64 KiB
+  two speeds; f38786d); calibration timing a first call's one-time costs;
+  the thinned schedule seeing one Williams order; build.rs's missing
+  watched path (every worktree build rebuilt); the committed lock patched
+  and restored on every check.
+- Added: the after-idle scenario (text and CHECKS, not the graph; judged
+  by fast speeds; held by perf_regress at 20%); the `clocks/` crate, the
+  one place both repositories read clocks; PROCEDURES.md in both
+  repositories, apart from the principles.
+- Found, open: servil mt after idle (item 1); the VM's warm-up and the
+  Mac's falling P-core clock under load (set aside); SME2 batches of 16
+  switching between 10, 15, 20 ns/msg on the VM; a trivial change moving
+  shared 32-64 KiB by a fifth; a quarter of VM processes still slow at
+  32-64 KiB; a median exactly halfway between two display values
+  (check-report, NOTES.md).
 
 **Lessons (this guest).**
 - `pkill -f PATTERN` matches the shell running it and kills the command;
@@ -61,7 +92,15 @@ cycles its contender orders by its own visits.
 - gdb needs `SHELL=/bin/sh` and `set startup-with-shell off`; bash
   process substitution (`<(...)`) fails here (no /dev/fd): use files.
 - The runner reruns any job it never finished; to clear one, move its
-  file out of `runner/jobs/` (into `runner/jobs-archive/`).
+  file out of `runner/jobs/` (into `runner/jobs-archive/`). A job that
+  never starts means the runner is stopped: ask Zooko, don't wait.
+- Compare only measurements taken side by side (alternated): a sequence
+  run earlier sat in another machine state (a quiet VM read solo spreads
+  of 0.48% where the same code, alternated later, read 1.4-1.5%), and a
+  conclusion drawn across the two was wrong.
+- A fork change that a bench-hashes change depends on (a new crate, an
+  API) is promoted first, with bench-hashes' edits stashed, since the
+  pre-commit check builds bench-hashes' working tree against `servil`.
 
 ### Next, in order
 
@@ -71,10 +110,8 @@ cycles its contender orders by its own visits.
    mt 5-8x slower than st for a program hashing now and then. The
    benchmark sees it now (the after-idle scenario: CHECKS, servil mt 5-6x
    slower than st at 64-512 KiB; perf_regress holds a change on after-idle
-   cells, 20% margin, a planted wake-up delay held). Fix it (e.g. stay on the caller's thread when the workers are asleep
-   and the input is small, or wake them before cutting). The pool's start
-   (0.5-0.7 ms) and the self-test (0.13-0.17 ms) are one-time costs that
-   `initialize()` moves, as its docs say.
+   cells, 20% margin, a planted wake-up delay held). The measurements so
+   far and the fix directions are under "In flight" above.
 2. **servil behind BLAKE3 official** (Zooko: high priority; official stays
    in `--all` until servil wins every cell): batches of 64-byte messages,
    4 messages (VM solo 26.8 against 25.1 ns/msg; Mac solo and shared 25.7
@@ -83,7 +120,16 @@ cycles its contender orders by its own visits.
    SHA-256 on either machine (servil 2-9% behind at 3 KiB, 3839 B, 4 KiB,
    4470 B; a VM record's warm-up can move them by up to 8%). Elsewhere
    SHA-256 leads twice over below 3 KiB and servil far ahead from 8 KiB.
-4. The E-core cells: 2-chunk messages at 4 (p4 two pairs), 1000 B x 4;
+4. **Which part of the cycles-to-wall-time ratio is ours** (Zooko,
+   September 26): reported times stay wall time, never scaled by cycles,
+   until we know. Ours: SME2 waits, the power our code draws lowering its
+   own clock. The machine's: heat, a host, a scheduler. Measure the
+   warm-up to confirm it is the machine's and to size its effect on what
+   users read: a traced Mac job of about 10 minutes of load
+   (`--trace-clocks`, as job 332), cycles per ns over time by contender.
+   Then have every benchmark run record cycles beside wall time (today
+   only `--trace-clocks` does; the samples file would carry them).
+5. The E-core cells: 2-chunk messages at 4 (p4 two pairs), 1000 B x 4;
    tails of 1-4 multi-block messages past SME2 groups (slow state).
 5. **One cell's aftereffects slow the next** (open, ours to explain): on
    the VM, a long run of shimmed batch cells once made the next SHA-256
