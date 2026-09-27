@@ -11,9 +11,9 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 
 ## Resume here (checkpoint, September 27, 2026, night; Zooko asleep)
 
-**State.** Fork `servil` 3a1e948 (library code as 3d7102e; later commits
-docs and tools); bench-hashes `main` 50c3799, pinned to e5b0307 (3d7102e's
-code). Records (Mac job 380, mains power; VM) on e5b0307, committed in
+**State.** Fork `servil` 8c3f805 (library code as 3d7102e: a p4 kernel
+change was promoted and reverted, see NOTES "Rejected"); bench-hashes
+`main` pinned to 8c3f805. Records (Mac job 380, mains power; VM) on e5b0307, committed in
 3d70e04. Every promotion has its gate note in `refs/notes/perf`; both
 trees clean. Runner jobs run to 381; the next number is 382. **Zooko:
 restart the runner** (`setup-mac.sh`): it installs perf_regress.py, whose
@@ -72,6 +72,10 @@ clock", "The clock after a pause, measured"):
   state was unknown; recalibrate on mains after the state fix above.
 
 **Lessons (this guest).**
+- Before promoting a kernel or plan change, measure E-cores (NOTES,
+  "Rejected", p4: how on this Mac) and read the comments above the plan
+  tables: perf_regress runs on P-cores, and its points skip some batch
+  sizes (4 messages among them).
 - `pkill -f PATTERN` matches the shell running it and kills the command;
   kill by PID (`cmd & PID=$!`, then `kill $PID`). Each tool call is a
   fresh shell: repeat the `HOME=... CARGO_TARGET_DIR=...` prefix on every
