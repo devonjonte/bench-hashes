@@ -10,9 +10,8 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 
 ## Resume here (checkpoint, September 26, 2026, late night)
 
-**State.** Fork `servil` 13402d6 (code as f38786d: the flat walk's scratch
-on a 4 KiB boundary); bench-hashes pinned to 5a783bc (same code), `main`
-past it with the benchmark changes below; every promotion has its gate
+**State.** Fork `servil` 663f17e (library code as f38786d: the flat walk's
+scratch on a 4 KiB boundary; the clocks crate); bench-hashes pinned to it; every promotion has its gate
 note in `refs/notes/perf`. Records (VM and Mac `--all`) are still
 bench-hashes ee956b7's, on servil f9d39b0: remake both on the tip (the
 sampling, the roster, and the alignment changed). Runner jobs run to 326;
@@ -23,6 +22,14 @@ the next job number is 327.
 - Try the graph on his iPhone (bench-hashes 20a87c6), a real x86-64
   machine, perf_regress's 256 B batch points, upstream issue #590 / PR
   #591: as before.
+
+**Also done:** principles apart from procedures (AGENTS.md against
+PROCEDURES.md, both repositories); the `clocks/` crate in the fork, the
+one place both repositories read clocks (servil 663f17e; the old probe
+examples and `examples/support/clocks.rs` gone); the Mac calibration of
+perf_regress (job 329); both records on the tip; the benchmark checks no
+digests; calibration keeps a first call's one-time costs out; each point
+cycles its contender orders by its own visits.
 
 **Done this session** (details in the commits, the fork's NOTES
 "perf_regress" and "The slow state, measured directly", and NOTES.md):
