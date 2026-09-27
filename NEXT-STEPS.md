@@ -110,15 +110,24 @@ real x86-64 machine; perf_regress's 256 B batch points; upstream issue
    slower than st at 64-512 KiB; perf_regress holds a change on after-idle
    cells, 20% margin, a planted wake-up delay held). The measurements so
    far and the fix directions are under "In flight" above.
-2. **servil behind BLAKE3 official** (Zooko: high priority; official stays
+2. **A proper streaming mode with minimal pipeline bubbles** (Zooko,
+   September 27): the caller hands over pieces and moves on while our
+   threads hash behind it, so the engine never idles while the caller
+   handles results or produces input; the interface callers with a
+   stream of inputs are steered to, now that the pool keeps nothing
+   awake between calls. Design points under "Idea: a truly streaming
+   (pipelined) hasher"; write the design up for Zooko before building,
+   with how the benchmark measures it (a producer doing real work per
+   piece, timed end to end).
+3. **servil behind BLAKE3 official** (Zooko: high priority; official stays
    in `--all` until servil wins every cell): batches of 64-byte messages,
    4 messages (VM solo 26.8 against 25.1 ns/msg; Mac solo and shared 25.7
    against 24.1), 12 and 24 (Mac shared, 7%).
-3. **SHA-256 at 3-8 KiB** (open problem 1): the only cells within 10% of
+4. **SHA-256 at 3-8 KiB** (open problem 1): the only cells within 10% of
    SHA-256 on either machine (servil 2-9% behind at 3 KiB, 3839 B, 4 KiB,
    4470 B; a VM record's warm-up can move them by up to 8%). Elsewhere
    SHA-256 leads twice over below 3 KiB and servil far ahead from 8 KiB.
-4. **Which part of the cycles-to-wall-time ratio is ours** (Zooko,
+5. **Which part of the cycles-to-wall-time ratio is ours** (Zooko,
    September 26): reported times stay wall time, never scaled by cycles,
    until we know. Ours: SME2 waits, the power our code draws lowering its
    own clock. The machine's: heat, a host, a scheduler. Measure the
@@ -127,14 +136,14 @@ real x86-64 machine; perf_regress's 256 B batch points; upstream issue
    (`--trace-clocks`, as job 332), cycles per ns over time by contender.
    Then have every benchmark run record cycles beside wall time (today
    only `--trace-clocks` does; the samples file would carry them).
-5. The E-core cells: 2-chunk messages at 4 (p4 two pairs), 1000 B x 4;
+6. The E-core cells: 2-chunk messages at 4 (p4 two pairs), 1000 B x 4;
    tails of 1-4 multi-block messages past SME2 groups (slow state).
-6. **One cell's aftereffects slow the next** (open, ours to explain): on
+7. **One cell's aftereffects slow the next** (open, ours to explain): on
    the VM, a long run of shimmed batch cells once made the next SHA-256
    64 B cell 3-6% slower; the mechanism is unexplained.
-7. The text report's three-reader pass (CHECKS, TWO SPEEDS).
-8. A second SME2 thread in the pool (two SME units reachable, job 187).
-9. Open, smaller: hash(256 KiB)'s partial slow state; the VM's
+8. The text report's three-reader pass (CHECKS, TWO SPEEDS).
+9. A second SME2 thread in the pool (two SME units reachable, job 187).
+10. Open, smaller: hash(256 KiB)'s partial slow state; the VM's
    per-process two speeds; shared streamed 64 B two-speed on the VM.
 
 ### Remco (a potential user)
@@ -155,6 +164,16 @@ The fork's `PROCEDURES.md` (the regression check, the gate to `servil`, the Mac 
 
 ## Decisions made (don't re-ask)
 
+- The pool keeps nothing awake between calls (Zooko, September 27):
+  its workers poll only while a job is registered and sleep when none
+  is; waiting inside a call stays. Every call therefore meets sleeping
+  workers, so a call wakes workers only when its input pays for the wake
+  and otherwise runs on the caller's thread. The benchmark's back-to-back
+  mt cells slow (they measured workers kept awake for a next call, which
+  few real programs make); the benchmark gains a sweep of caller gaps
+  (real work between calls, timed with them), and the pool is judged by
+  the worst gap. Callers with a stream of inputs are told to use batches
+  (and later a pipelined API).
 - Benchmark time (Zooko, September 26): the caller keeps the machine
   quiet, and the benchmark detects and reports noise and wastes no time
   compensating for it; a small loss of reliability for a large saving
