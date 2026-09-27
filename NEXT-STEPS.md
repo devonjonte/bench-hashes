@@ -106,10 +106,13 @@ clock", "The clock after a pause, measured"):
    (pipelined) hasher"; write the design up for Zooko before building,
    with how the benchmark measures it (a producer doing real work per
    piece, timed end to end).
-3. **servil behind BLAKE3 official** (Zooko: high priority; official stays
-   in `--all` until servil wins every cell): batches of 64-byte messages,
-   4 messages (VM solo 26.8 against 25.1 ns/msg; Mac solo and shared 25.7
-   against 24.1), 12 and 24 (Mac shared, 7%).
+3. **servil behind BLAKE3 official**: 4 messages fixed (642757f: p4 as
+   two scalars beside a pair; Mac 23.2 -> 20.3 ns/msg against official's
+   21.6). Left: 12 messages shared (Mac 25.8 against 21.7; solo servil
+   13.4 against 21.4): the copy without the SME2 turn runs the NEON plans
+   (p9 + p3), a cost of the one-SME2-call rule Zooko accepted; a faster
+   p9 + p3 (or p8 + p4 now) would narrow it. Official stays in `--all`
+   until servil wins every cell.
 4. **SHA-256 at 3-8 KiB** (open problem 1): the only cells within 10% of
    SHA-256 on either machine (servil 2-9% behind at 3 KiB, 3839 B, 4 KiB,
    4470 B; a VM record's warm-up can move them by up to 8%). Elsewhere
