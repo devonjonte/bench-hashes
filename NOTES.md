@@ -395,6 +395,13 @@ servil level (-1 to +0.3% solo). Near-ties on the VM within about 8%
 depend on the run's length; Zooko chose to leave it (September 26).
 The Mac warms too, less: over 4 minutes of sustained load SHA-256 drifts
 about +3-4%, BLAKE3 st about +1% (fork job 329).
+Summary, and set aside (Zooko, September 26, 2026): some contenders fare
+better than others as the machine warms under sustained load. On the Mac
+the P-core clock falls with load, by how much power the running code
+draws (SHA-256 4.40 -> 4.35 GHz, servil's integer + NEON code 4.24 ->
+4.11 over 2.5 minutes, the SME2 path flat; job 332); cycles per byte stay
+constant. Where the clock levels off is unmeasured; no warm-up, no
+second record; the rounds give every contender the same exposure.
 
 **Open: a median exactly halfway between two display values.** The Mac
 record of servil ad24649 (job 330) has one cell (CommonCrypto, shared, 8

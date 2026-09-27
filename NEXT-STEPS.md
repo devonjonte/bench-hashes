@@ -17,8 +17,6 @@ ad24649 (bench-hashes 01e26d3, 0da1e22; the library code is today's).
 Runner jobs run to 339; the next job number is 340.
 
 **Waiting on Zooko.**
-- Whether to run a 10-minute traced Mac job to find the warm plateau
-  (the P-core clock falls 1-3% over 2.5 minutes of load; job 332).
 - Try the graph on his iPhone (bench-hashes 20a87c6), a real x86-64
   machine, perf_regress's 256 B batch points, upstream issue #590 / PR
   #591: as before.
