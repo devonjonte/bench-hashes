@@ -2,7 +2,8 @@
 
 Read this file first. The work: make the servil fork the fastest BLAKE3 in
 every situation a user meets (minimax: judge by the worst plausible case),
-natively on the Mac and in the VM (both first-class), measured by this
+natively on the Mac first, then in the VM (the user's decision,
+September 27, 2026: diagnose on the Mac), measured by this
 benchmark. Prefer changes that are simpler and faster together. The
 principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it

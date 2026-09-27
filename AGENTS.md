@@ -145,7 +145,7 @@ The benchmarker touches an implementation in three ways only: listing it, callin
 
 # Targets
 
-**Virtual machines are first-class optimization targets,** alongside native hosts: people run BLAKE3 inside VMs, and the VM records in `benchmark-results/` count as much as the Mac's. Keep both current when a change could move either, and read a difference between them as information about the change, never as noise to be ignored. The fork's `examples/host_lab.rs` measures the platform effects behind such differences (idle-waiter interference, `WFE`, NEON after SME2, core scaling).
+**The native Mac comes first; virtual machines follow** (the user's decision, September 27, 2026): performance-sensitive programs run on native hosts far more often than in VMs, and the Mac shows what our code does where a VM's layers hide it. The VM records in `benchmark-results/` still matter. Keep both current when a change could move either, and read a difference between them as information about the change, never as noise to be ignored. The fork's `examples/host_lab.rs` measures the platform effects behind such differences (idle-waiter interference, `WFE`, NEON after SME2, core scaling).
 
 # The fork's regression check depends on this benchmark
 
