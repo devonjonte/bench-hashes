@@ -1086,9 +1086,9 @@ cell sampled in a share of them.
                                    --contenders only
   --rounds N                       exactly N sample rounds, every cell sampled in each
   --trace-clocks PATH              also write one CSV line per sample interval
-                                   with wall, thread-CPU, mach_absolute_time,
-                                   and (on Apple) per-core-kind cycles and
-                                   instructions, for the solo sample and each
+                                   with its wall time and (on Apple) the
+                                   thread's cycles, instructions, and time per
+                                   core kind, for the solo sample and each
                                    shared copy
 ";
 
@@ -1432,22 +1432,13 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                 let iterations =
                     batch_iterations[algorithm_index][size_index];
 
-                /* Trace reads bracket the sample; the sample clock sits innermost. */
-                let (trace_cpu0, trace_proc0, trace_mach0, trace_perf0) = if trace.is_some() {
-                    (
-                        trace_clocks::thread_cpu_ns(),
-                        trace_clocks::process_cpu_ns(),
-                        trace_clocks::mach_ticks(),
-                        trace_clocks::perf_counters(),
-                    )
-                } else {
-                    (0, 0, 0, PerfCounters::default())
-                };
+                /* The trace's counts bracket the sample; the wall clock sits innermost. */
+                let counts0 = trace.as_ref().and_then(|_| clocks::Counts::read());
 
                 /* The solo sample: this thread runs the batch, alone. */
-                let started = sample_clock::now();
+                let started = clocks::now();
                 run_batch(algorithm, input, point, iterations);
-                let elapsed_ns = sample_clock::since_ns(started);
+                let elapsed_ns = clocks::since_ns(started);
 
                 /*
                  * The shared sample, under the same conditions: two copies
@@ -1465,26 +1456,19 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                 }
 
                 if let Some(trace) = trace.as_deref_mut() {
-                    let perf1 = trace_clocks::perf_counters();
-                    let mach1 = trace_clocks::mach_ticks();
-                    let proc1 = trace_clocks::process_cpu_ns();
-                    let cpu1 = trace_clocks::thread_cpu_ns();
-                    let perf = perf1.since(trace_perf0);
+                    let counts = counts0.zip(clocks::Counts::read()).map(|(before, after)| after.since(before));
                     let later_ns = copies.iter().map(|copy| copy.elapsed_ns).max().unwrap();
                     trace.lines.push(format!(
-                        "{round},{},{},{},{iterations},{elapsed_ns},{},{},{},{},{:?},{later_ns},{},{},{},{}",
+                        "{round},{},{},{},{iterations},{elapsed_ns},{},{:?},{later_ns},{},{},{},{}",
                         point_offset * algorithm_order.len() + position,
                         algorithm.key(),
                         input.len(),
-                        cpu1 - trace_cpu0,
-                        mach1 - trace_mach0,
-                        proc1 - trace_proc0,
-                        perf.csv(),
+                        counts_csv(counts),
                         point.use_case,
                         copies[0].elapsed_ns,
-                        copies[0].perf.csv(),
+                        counts_csv(copies[0].counts),
                         copies[1].elapsed_ns,
-                        copies[1].perf.csv(),
+                        counts_csv(copies[1].counts),
                     ));
                 }
             }
@@ -1536,7 +1520,7 @@ impl<'a> Progress<'a> {
         let interactive = std::io::stderr().is_terminal();
         Self {
             roster,
-            started: Instant::now(),
+            started: clocks::now(),
             measuring_started: None,
             interactive,
             last_width: 0,
@@ -1545,7 +1529,7 @@ impl<'a> Progress<'a> {
 
     fn phase(&mut self, name: &str) {
         if name == "measuring" {
-            self.measuring_started = Some(Instant::now());
+            self.measuring_started = Some(clocks::now());
         }
         self.draw(&format!("[{:>5}s] {name}…", tenths_of_seconds(self.started.elapsed())));
     }
@@ -1959,12 +1943,12 @@ struct Duo {
 }
 
 /// One copy's part of a duo sample: nanoseconds from its own start to its
-/// finish, and its thread's cycle counts across the sample (read outside
-/// the timed interval; zero off Apple).
+/// finish, and its thread's counts across the sample (read outside the
+/// timed interval; None where the platform counts none).
 #[derive(Clone, Copy)]
 struct DuoCopy {
     elapsed_ns: u64,
-    perf: PerfCounters,
+    counts: Option<clocks::Counts>,
 }
 
 #[derive(Clone, Copy)]
@@ -2070,14 +2054,14 @@ impl Duo {
             }
             seen = self.generation.load(Ordering::Acquire);
             // Outside the timed interval, which starts at this copy's own clock read.
-            let perf0 = trace_clocks::perf_counters();
-            let started = sample_clock::now();
+            let counts0 = clocks::Counts::read();
+            let started = clocks::now();
             // Sound: run() holds the borrows until both finishes are read.
             run_batch(job.algorithm, unsafe { &*job.inputs[copy] }, job.point, job.iterations);
-            let elapsed_ns = sample_clock::since_ns(started);
-            let perf = trace_clocks::perf_counters().since(perf0);
+            let elapsed_ns = clocks::since_ns(started);
+            let counts = counts0.zip(clocks::Counts::read()).map(|(before, after)| after.since(before));
             let mut finished = self.finished.lock().unwrap();
-            finished[copy] = Some(DuoCopy { elapsed_ns, perf });
+            finished[copy] = Some(DuoCopy { elapsed_ns, counts });
             self.done.notify_all();
         }
     }
@@ -2149,8 +2133,8 @@ mod common_crypto {
 
 /*
  * Optional per-sample trace for clock diagnosis: every solo sample's wall
- * nanoseconds, thread CPU nanoseconds, and (on Apple) mach_absolute_time
- * ticks and P/E counts, with the round, its position in the round, the
+ * nanoseconds and (on Apple) the thread's counts per core kind (the clocks
+ * crate), with the round, its position in the round, the
  * contender, size, and use case; then the duo sample's later finish and
  * each copy's own time and P/E counts. One CSV line per sample interval.
  * Off unless --trace-clocks PATH is given; every clock read sits outside
@@ -2164,7 +2148,7 @@ struct ClockTrace {
 impl ClockTrace {
     fn new(path: std::path::PathBuf) -> Self {
         let mut lines = Vec::with_capacity(8192);
-        let mut header = "round,position,contender,size_bytes,iterations,wall_ns,thread_cpu_ns,mach_ticks,process_cpu_ns,p_cycles,p_instructions,p_time_ns,e_cycles,e_instructions,e_time_ns,use_case,duo_ns".to_owned();
+        let mut header = "round,position,contender,size_bytes,iterations,wall_ns,p_cycles,p_instructions,p_time_ns,e_cycles,e_instructions,e_time_ns,use_case,duo_ns".to_owned();
         for copy in 0..2 {
             for field in ["ns", "p_cycles", "p_instructions", "p_time_ns", "e_cycles", "e_instructions", "e_time_ns"] {
                 header += &format!(",copy{copy}_{field}");
@@ -2183,205 +2167,11 @@ impl ClockTrace {
     }
 }
 
-/*
- * Per-thread cycle and instruction counts, split by CPU performance level,
- * from Apple's thread_selfcounts(THSC_TIME_CPI_PER_PERF_LEVEL). Cycles
- * over time is the clock frequency the thread actually ran at; the split
- * says which cluster ran it. Zero everywhere off Apple, or when the call is
- * unsupported.
- */
-#[derive(Clone, Copy, Default)]
-struct PerfCounters {
-    p_cycles: u64,
-    p_instructions: u64,
-    p_time_ns: u64,
-    e_cycles: u64,
-    e_instructions: u64,
-    e_time_ns: u64,
-}
-
-impl PerfCounters {
-    /// The six counts as CSV fields, in the trace header's order.
-    fn csv(&self) -> String {
-        format!(
-            "{},{},{},{},{},{}",
-            self.p_cycles, self.p_instructions, self.p_time_ns, self.e_cycles, self.e_instructions, self.e_time_ns
-        )
-    }
-
-    fn since(self, earlier: PerfCounters) -> PerfCounters {
-        PerfCounters {
-            p_cycles: self.p_cycles - earlier.p_cycles,
-            p_instructions: self.p_instructions - earlier.p_instructions,
-            p_time_ns: self.p_time_ns - earlier.p_time_ns,
-            e_cycles: self.e_cycles - earlier.e_cycles,
-            e_instructions: self.e_instructions - earlier.e_instructions,
-            e_time_ns: self.e_time_ns - earlier.e_time_ns,
-        }
-    }
-}
-
-/*
- * Clock and counter reads for --trace-clocks.
- */
-mod trace_clocks {
-    use super::PerfCounters;
-
-
-    #[cfg(target_vendor = "apple")]
-    pub fn perf_counters() -> PerfCounters {
-        use std::sync::OnceLock;
-
-        #[repr(C)]
-        #[derive(Clone, Copy, Default)]
-        struct ThscTimeCpi {
-            instructions: u64,
-            cycles: u64,
-            user_time_mach: u64,
-            system_time_mach: u64,
-        }
-        #[repr(C)]
-        struct MachTimebaseInfo {
-            numer: u32,
-            denom: u32,
-        }
-        unsafe extern "C" {
-            fn thread_selfcounts(kind: u32, dst: *mut std::ffi::c_void, size: usize) -> i32;
-            fn mach_timebase_info(info: *mut MachTimebaseInfo) -> i32;
-        }
-        const THSC_TIME_CPI_PER_PERF_LEVEL: u32 = 4;
-
-        /* (numer, denom) for mach ticks → ns, and whether the call works here. */
-        static SETUP: OnceLock<Option<(u64, u64)>> = OnceLock::new();
-        let Some((numer, denom)) = *SETUP.get_or_init(|| {
-            let mut info = MachTimebaseInfo { numer: 0, denom: 0 };
-            if unsafe { mach_timebase_info(&mut info) } != 0 || info.denom == 0 {
-                return None;
-            }
-            let mut probe = [ThscTimeCpi::default(); 2];
-            let rc = unsafe {
-                thread_selfcounts(
-                    THSC_TIME_CPI_PER_PERF_LEVEL,
-                    probe.as_mut_ptr().cast(),
-                    std::mem::size_of_val(&probe),
-                )
-            };
-            if rc != 0 {
-                eprintln!("thread_selfcounts(THSC_TIME_CPI_PER_PERF_LEVEL) unavailable (rc {rc}); cycle columns stay 0");
-                return None;
-            }
-            Some((u64::from(info.numer), u64::from(info.denom)))
-        }) else {
-            return PerfCounters::default();
-        };
-
-        /* hw.nperflevels is 2 on every Apple silicon Mac: index 0 = P, 1 = E. */
-        let mut levels = [ThscTimeCpi::default(); 2];
-        let rc = unsafe {
-            thread_selfcounts(
-                THSC_TIME_CPI_PER_PERF_LEVEL,
-                levels.as_mut_ptr().cast(),
-                std::mem::size_of_val(&levels),
-            )
-        };
-        assert_eq!(rc, 0, "thread_selfcounts failed after succeeding at setup");
-        let to_ns = |mach: u64| mach * numer / denom;
-        PerfCounters {
-            p_cycles: levels[0].cycles,
-            p_instructions: levels[0].instructions,
-            p_time_ns: to_ns(levels[0].user_time_mach + levels[0].system_time_mach),
-            e_cycles: levels[1].cycles,
-            e_instructions: levels[1].instructions,
-            e_time_ns: to_ns(levels[1].user_time_mach + levels[1].system_time_mach),
-        }
-    }
-
-    #[cfg(not(target_vendor = "apple"))]
-    pub fn perf_counters() -> PerfCounters {
-        PerfCounters::default()
-    }
-
-    #[cfg(unix)]
-    fn clock_ns(clock_id: i32) -> u64 {
-        #[repr(C)]
-        struct Timespec {
-            tv_sec: i64,
-            tv_nsec: i64,
-        }
-        unsafe extern "C" {
-            fn clock_gettime(clock_id: i32, tp: *mut Timespec) -> i32;
-        }
-        let mut ts = Timespec { tv_sec: 0, tv_nsec: 0 };
-        let rc = unsafe { clock_gettime(clock_id, &mut ts) };
-        assert_eq!(rc, 0, "clock_gettime({clock_id}) failed");
-        ts.tv_sec as u64 * 1_000_000_000 + ts.tv_nsec as u64
-    }
-
-    #[cfg(target_vendor = "apple")]
-    pub fn thread_cpu_ns() -> u64 { clock_ns(16) }
-    #[cfg(target_vendor = "apple")]
-    pub fn process_cpu_ns() -> u64 { clock_ns(12) }
-    #[cfg(all(unix, not(target_vendor = "apple")))]
-    pub fn thread_cpu_ns() -> u64 { clock_ns(3) }
-    #[cfg(all(unix, not(target_vendor = "apple")))]
-    pub fn process_cpu_ns() -> u64 { clock_ns(2) }
-    #[cfg(not(unix))]
-    pub fn thread_cpu_ns() -> u64 { 0 }
-    #[cfg(not(unix))]
-    pub fn process_cpu_ns() -> u64 { 0 }
-
-    #[cfg(target_vendor = "apple")]
-    pub fn mach_ticks() -> u64 {
-        unsafe extern "C" {
-            fn mach_absolute_time() -> u64;
-        }
-        unsafe { mach_absolute_time() }
-    }
-    #[cfg(not(target_vendor = "apple"))]
-    pub fn mach_ticks() -> u64 { 0 }
-}
-
-/*
- * The clock for timed samples: the platform's raw hardware counter, read
- * through std::time::Instant. On Darwin that is CLOCK_UPTIME_RAW
- * (mach_absolute_time in nanoseconds); on Linux, CLOCK_MONOTONIC; on
- * Windows, QueryPerformanceCounter. Each is a counter read with no NTP
- * slew, and the Darwin and Linux clocks stop while the machine sleeps, so
- * a suspend mid-run stays out of the samples.
- *
- * A counter read can only over-count when the thread is interrupted, and
- * the median absorbs that while the band reports it. Thread CPU time
- * (CLOCK_THREAD_CPUTIME_ID) agrees with it on 1 ms samples, and adds an
- * accounting layer to reason about: once suspected of inventing a floor
- * 12% under three SHA-256 contenders' medians (M4 Max), it was cleared by
- * experiment; the core had run about 12% faster for some 12 ms, and both
- * clocks saw it (github.com/johnservil/measure-clocks3,
- * CPU-TIME-CLOCKS-AND-FREQUENCY.md). Frequency is what no clock sees;
- * --trace-clocks records the cycles that do.
- */
-mod sample_clock {
-    use std::time::Instant;
-
-    #[cfg(target_vendor = "apple")]
-    pub const NAME: &str = "std::time::Instant → CLOCK_UPTIME_RAW (mach_absolute_time; stops during sleep, no NTP slew)";
-    #[cfg(all(unix, not(target_vendor = "apple")))]
-    pub const NAME: &str = "std::time::Instant → CLOCK_MONOTONIC (stops during suspend, NTP slew only)";
-    #[cfg(windows)]
-    pub const NAME: &str = "std::time::Instant → QueryPerformanceCounter";
-    #[cfg(not(any(unix, windows)))]
-    pub const NAME: &str = "std::time::Instant";
-
-    /// A point on the sample clock. Only differences are meaningful.
-    #[inline(always)]
-    pub fn now() -> Instant {
-        Instant::now()
-    }
-
-    /// Elapsed nanoseconds since `start`.
-    #[inline(always)]
-    pub fn since_ns(start: Instant) -> u64 {
-        u64::try_from(start.elapsed().as_nanos()).expect("a sample lasts well under 584 years")
-    }
+/// A trace's six count fields (P cycles, instructions, time; then E), zeros
+/// where the platform counts none.
+fn counts_csv(counts: Option<clocks::Counts>) -> String {
+    let c = counts.unwrap_or_default();
+    format!("{},{},{},{},{},{}", c.p.cycles, c.p.instructions, c.p.time_ns, c.e.cycles, c.e.instructions, c.e.time_ns)
 }
 
 /*
@@ -2531,7 +2321,7 @@ struct LoadMonitor {
 impl LoadMonitor {
     fn reading() -> Option<(std::time::Instant, cpu_times::CpuTimes, u64)> {
         let times = cpu_times::read()?;
-        Some((std::time::Instant::now(), times, trace_clocks::process_cpu_ns()))
+        Some((clocks::now(), times, clocks::process_cpu_ns()))
     }
 
     /// None where the OS reports no CPU times.
@@ -2588,9 +2378,9 @@ fn calibrate_batch(
     let mut iterations = 1usize;
 
     loop {
-        let started = sample_clock::now();
+        let started = clocks::now();
         run_batch(algorithm, input, point, iterations);
-        let elapsed_ns = u128::from(sample_clock::since_ns(started));
+        let elapsed_ns = u128::from(clocks::since_ns(started));
 
         /*
          * A sufficiently short interval can be below a platform timer's
@@ -2614,9 +2404,9 @@ fn calibrate_batch(
              * and the faster time kept.
              */
             let elapsed_ns = if iterations == 1 {
-                let started = sample_clock::now();
+                let started = clocks::now();
                 run_batch(algorithm, input, point, 1);
-                elapsed_ns.min(u128::from(sample_clock::since_ns(started)))
+                elapsed_ns.min(u128::from(clocks::since_ns(started)))
             } else {
                 elapsed_ns
             };
@@ -3171,7 +2961,7 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
         ("rust compiler", RUSTC_VERSION),
         ("build target", BUILD_TARGET),
         ("target features", TARGET_FEATURES),
-        ("sample clock", sample_clock::NAME),
+        ("sample clock", clocks::WALL_CLOCK),
         ("contenders", selection_note),
         ("rounds", roster.rounds.to_string().as_str()),
         ("points", roster.points.iter().map(|&index| POINTS[index].label).collect::<Vec<_>>().join(",").as_str()),
@@ -3291,7 +3081,7 @@ fn generate_text(roster: &Roster, results: &Results, samples: &RunSamples, machi
     }
     writeln!(output, "  CPU: {}", machine.cpu_identity).unwrap();
     writeln!(output, "  {RUSTC_VERSION}; target {BUILD_TARGET}; features {TARGET_FEATURES}").unwrap();
-    writeln!(output, "  clock: {}", sample_clock::NAME).unwrap();
+    writeln!(output, "  clock: {}", clocks::WALL_CLOCK).unwrap();
     match &machine.load {
         Some(load) => writeln!(output, "  load during the run: {}", load.describe()).unwrap(),
         None => writeln!(output, "  load during the run: not measured on this platform").unwrap(),
@@ -4411,7 +4201,7 @@ fn generate_svg(
         ("Rust compiler", RUSTC_VERSION),
         ("build target", BUILD_TARGET),
         ("target features", TARGET_FEATURES),
-        ("sample clock", sample_clock::NAME),
+        ("sample clock", clocks::WALL_CLOCK),
         ("BLAKE3 source", BLAKE3_SOURCE_INFO),
         ("SHA-256 source", SHA2_SOURCE_INFO),
         ("SHA-1DC source", SHA1_CHECKED_SOURCE_INFO),
@@ -5257,7 +5047,7 @@ fn shared_provenance_cats(machine: &MachineMetadata, selection_note: &str) -> Ve
                     None => "Load during the run: not measured on this platform".to_owned(),
                 },
                 format!("Toolchain: {RUSTC_VERSION} · {BUILD_TARGET}"),
-                format!("Sample clock: {}", sample_clock::NAME),
+                format!("Sample clock: {}", clocks::WALL_CLOCK),
             ],
         },
         ProvCat {

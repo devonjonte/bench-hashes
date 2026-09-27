@@ -6,6 +6,9 @@ rust-version = "1.88"
 build = "build.rs"
 
 [dependencies]
+# The one place clocks are read (the fork's clocks/ crate): wall time, and
+# the thread's counts per core kind.
+clocks = { git = "https://github.com/johnservil/BLAKE3", branch = "servil" }
 # The `rayon` feature adds Hasher::update_rayon for the BLAKE3 mt contender;
 # blake3::hash and every other API stay single-threaded with it on.
 [dependencies.blake3]
