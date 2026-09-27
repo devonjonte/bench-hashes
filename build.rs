@@ -62,7 +62,15 @@ fn main() {
     );
     emit_servil_package(&manifest_dir, &lock);
 
-    emit_git_metadata(&manifest_dir);
+    /*
+     * The checkout whose git state is this build's provenance: this
+     * directory, or, for a copy built elsewhere (the fork's perf_regress
+     * builds one inside a fork worktree, where git would find the fork),
+     * the checkout BENCH_HASHES_CHECKOUT names.
+     */
+    println!("cargo:rerun-if-env-changed=BENCH_HASHES_CHECKOUT");
+    let checkout = env::var_os("BENCH_HASHES_CHECKOUT").map_or(manifest_dir.clone(), PathBuf::from);
+    emit_git_metadata(&checkout);
 
     let rustc = env::var_os("RUSTC")
         .expect("Cargo must provide RUSTC");
