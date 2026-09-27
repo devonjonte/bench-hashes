@@ -1498,7 +1498,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                         counts_csv(copies[0].counts),
                         copies[1].elapsed_ns,
                         counts_csv(copies[1].counts),
-                    ));
+                    ) + ",solo and shared");
                 }
             }
         }
@@ -1531,9 +1531,23 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                 }
                 let iterations = (batch_iterations[algorithm_index][size_index] as u128 * IDLE_BURST_NS).div_ceil(TARGET_SAMPLE_NS) as usize;
                 std::thread::sleep(std::time::Duration::from_nanos(IDLE_NS));
+                /* The trace's counts bracket the burst, read only when tracing. */
+                let counts0 = trace.as_ref().and_then(|_| clocks::Counts::read());
                 let started = clocks::now();
                 run_batch(roster.algorithms[algorithm_index], &inputs[size_index], point, iterations);
                 let elapsed_ns = clocks::since_ns(started);
+                if let Some(trace) = trace.as_deref_mut() {
+                    let counts = counts0.zip(clocks::Counts::read()).map(|(before, after)| after.since(before));
+                    let none = counts_csv(None);
+                    trace.lines.push(format!(
+                        "{visit},{},{},{},{iterations},{elapsed_ns},{},{:?},0,0,{none},0,{none},after idle",
+                        point_offset,
+                        roster.algorithms[algorithm_index].key(),
+                        inputs[size_index].len(),
+                        counts_csv(counts),
+                        point.use_case,
+                    ));
+                }
                 samples.after_idle[algorithm_index][size_index].push(Measured::new(elapsed_ns, point.use_case.units(point, iterations)));
             }
         }
@@ -2223,6 +2237,8 @@ impl ClockTrace {
                 header += &format!(",copy{copy}_{field}");
             }
         }
+        /* Rows from the rounds carry both scenarios; after-idle rows one call burst, no copies. */
+        header += ",scenario";
         lines.push(header);
         Self { lines, path }
     }

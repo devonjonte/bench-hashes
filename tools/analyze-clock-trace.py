@@ -92,8 +92,13 @@ def main():
         sys.exit(2)
     path = sys.argv[1]
     rows = []
+    after_idle = 0
     with open(path) as handle:
         for row in csv.DictReader(handle):
+            # After-idle bursts (traces from September 27, 2026) are not rounds.
+            if row.get("scenario") == "after idle":
+                after_idle += 1
+                continue
             rows.append({
                 "round": int(row["round"]),
                 "position": int(row["position"]),
@@ -108,7 +113,7 @@ def main():
                 "e_instr": int(row["e_instructions"]),
             })
     rows.sort(key=lambda r: (r["round"], r["position"]))
-    print(f"{len(rows)} samples from {path}")
+    print(f"{len(rows)} samples from {path}" + (f" (and {after_idle} after-idle bursts, left out)" if after_idle else ""))
     if not any(r["p_cycles"] or r["e_cycles"] for r in rows):
         print("No cycle counts: this platform gives none.")
         return
