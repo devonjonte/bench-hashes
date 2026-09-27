@@ -11,16 +11,13 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 
 ## Resume here (checkpoint, September 27, 2026, night; Zooko asleep)
 
-**State.** Fork `servil` 8c3f805 (library code as 3d7102e: a p4 kernel
-change was promoted and reverted, see NOTES "Rejected"); bench-hashes
-`main` pinned to 8c3f805. Records (Mac job 380, mains power; VM) on e5b0307, committed in
-3d70e04. Every promotion has its gate note in `refs/notes/perf`; both
-trees clean. Runner jobs run to 381; the next number is 382. **Zooko:
-restart the runner** (`setup-mac.sh`): it installs perf_regress.py, whose
-fix (3a1e948) makes the Mac's records name bench-hashes' own commit (every
-runner record since September 26 names the fork's; the README speed chart
-cannot be redrawn from 380 until then: `tools/speed_chart.py` finds no
-bench-hashes commit). Then remake the Mac record and redraw the chart.
+**State.** Fork `servil` b30b7eb (library code as b9ec183: p4 as two
+scalars beside a pair, Zooko's decision), the streaming design in `docs/` on top;
+bench-hashes `main` pinned to b9ec183. Records (Mac job 403, mains power,
+provenance fixed; VM) and the README chart on b9ec183. Runner restarted by
+Zooko (September 27); jobs run to 403, the next number is 404. Solo,
+servil now beats BLAKE3 official in every cell; shared 12 and 24 messages
+remain (the SME2 turn). Both trees clean.
 
 **Done this session** (September 27; details in the commits and the
 fork's NOTES "Waking", "Holds", "Two aims", "Pauses slow the core's
