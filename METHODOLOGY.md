@@ -148,11 +148,12 @@ interval takes three samples of the same batch:
   clock ticks every 41.7 ns, so a single short call cannot be timed).
   What a program gets that hashes now and then: a pool's workers have
   fallen asleep, and a core may have slowed. The sleep leaves the core at
-  full clock or at a fraction of it, independently for each call and for
-  every contender alike: on an Apple M4 Max about 4.4 against 1.26 GHz,
-  in a VM two speeds about 3.5 times apart. Where the platform counts
-  cycles (macOS), the run reads each call's clock, the report says how
-  many calls met the full clock, and the samples file keeps each clock.
+  full clock, at its lowest, or at a step between, independently for each
+  call and for every contender alike: on an Apple M4 Max about 4.4 GHz,
+  1.26 GHz, and steps such as 2.1 and 3 GHz; in a VM two speeds about 3.5
+  times apart. Where the platform counts cycles (macOS), the run reads each
+  call's clock, the report says how many calls met the full clock and how
+  many the lowest, and the samples file keeps each clock.
 
 A single-threaded hash costs about the same in both. A multithreaded one
 shows in the shared scenario what its threads cost when the machine is
@@ -171,10 +172,11 @@ judged. A finding needs that ratio 5% or more above 1, with its 95%
 interval above 1; the worst come first. After idle, each call meets a
 clock state of its own, so a round would pair one side's slow call with
 the other's fast one by chance. There the calls are compared within one
-state: a call counts as fast from half the run's high after-idle clock
-(its 95th percentile), and for each state that both cells met in three
-calls or more, their medians must be 5% apart or more with their
-intervals apart; the worse state is judged. Where the platform counts no
+of two clock states: full clock (within 20% of the run's high after-idle
+clock, its 95th percentile) and the lowest (within 25% of its low one,
+the 5th percentile); calls between are left out. For each state that both
+cells met in three calls or more, their medians must be 5% apart or more
+with their intervals apart; the worse state is judged. Where the platform counts no
 cycles, the two cells' faster speeds are compared instead.
 
 ## Hash implementations
@@ -461,7 +463,7 @@ report), `bench-hashes.graph.svg` (the graph), and
 in the order taken, each as `ns/units`, with the provenance and the CPU's
 identity as `# key: value` lines, and where the platform counts cycles
 each after-idle call's clock as `# after-idle MHz` lines, in the order of
-that cell's samples, beside the clock from which a call counts as fast;
+that cell's samples, beside the bounds of the two clock states;
 files from before September 26, 2026, marked `samples v2`, hold integer
 picoseconds per unit instead).
 
