@@ -482,11 +482,10 @@ and any power mode that trades speed for energy (macOS's Low Power Mode
 and High Power mode, through `pmset`; Linux's ACPI platform profile).
 The report, the samples file, and the graph's "About this run" section
 give it, and the graph's header says so when the run drew on a battery
-or saved power. On battery an Apple M4 Max moved a thread that paused
-between calls onto its efficiency cores at about 1 GHz, where it stayed
-after the pauses stopped: one 64 KiB hash took 20-41 µs against
-14.7 µs. A virtual machine sees no power supply, and its report says
-the OS reports none.
+or saved power. On battery an Apple M4 Max ran more of the calls that
+follow a pause on its efficiency cores (233 of 400 calls after 1 ms of
+sleep, against 32 of 400 on mains power). A virtual machine sees no
+power supply, and its report says the OS reports none.
 
 ## Build settings and provenance
 

@@ -56,7 +56,8 @@ The chips at the top right show or hide plots: solo or shared, one input,
 Under the title, the graph names the computer and the day, and says so
 when other programs were busy or the computer ran on battery power
 during the run; if it does, run again when the computer is quieter and
-plugged in, since both slow the results down. "How to read this graph" beside it explains the lines, bands, and
+plugged in, since busy programs slow the results down and battery power
+changes which cores run them. "How to read this graph" beside it explains the lines, bands, and
 dot shapes, and "About this run" at the bottom opens onto the details:
 the machine, the hashes' versions, and the method behind each dot shape.
 

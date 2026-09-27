@@ -2382,14 +2382,13 @@ impl Load {
 
 /*
  * The machine's power state: whether it draws from a battery, the
- * battery's charge, and a power mode that trades speed for energy. It can
- * change results severalfold: an M4 Max on battery moved a thread that
- * slept 1 ms between calls onto its efficiency cores at about 1 GHz, and
- * the thread stayed there when the sleeps stopped (hash of 64 KiB 41 µs
- * after sleeps, 20-24 µs back to back afterwards, against 14.7 µs before;
- * fork runner job 351, September 27, 2026). macOS reports it through
- * pmset, Linux through /sys/class/power_supply and the ACPI platform
- * profile; a VM reports none.
+ * battery's charge, and a power mode that trades speed for energy. It
+ * changes where the OS runs threads: an M4 Max on battery ran 233 of 400
+ * calls that each followed 1 ms of sleep on its efficiency cores, against
+ * 32 of 400 on mains power (fork runner jobs 351 and 357, September 27,
+ * 2026). macOS reports it through pmset, Linux through
+ * /sys/class/power_supply and the ACPI platform profile; a VM reports
+ * none.
  */
 #[derive(Clone, PartialEq, Eq)]
 struct Power {
@@ -2495,7 +2494,7 @@ impl MachineMetadata {
             }
             (Some(one), _) | (None, Some(one)) => one.describe(),
         };
-        if self.power_slowing() { line + "; some results may read slower than this machine runs on mains power" } else { line }
+        if self.power_slowing() { line + "; results may differ from a run on mains power in the normal mode" } else { line }
     }
 }
 
@@ -4179,8 +4178,8 @@ fn generate_svg(
     let caveat = match (busy, machine.power_slowing()) {
         (true, true) => " · other programs were busy and the machine saved power during the run, so some results may read slow",
         (true, false) => " · other programs were busy during the run, so some results may read slow",
-        (false, true) if on_battery => " · the machine ran on battery power, so some results may read slow",
-        (false, true) => " · the machine ran in a low-power mode, so some results may read slow",
+        (false, true) if on_battery => " · the machine ran on battery power, which can change results",
+        (false, true) => " · the machine ran in a low-power mode, which can change results",
         (false, false) => "",
     };
     writeln!(
