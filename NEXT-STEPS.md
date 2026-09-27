@@ -110,12 +110,11 @@ clock", "The clock after a pause, measured"):
    (pipelined) hasher"; write the design up for Zooko before building,
    with how the benchmark measures it (a producer doing real work per
    piece, timed end to end).
-3. **servil behind BLAKE3 official** (Zooko: high priority): 4 messages
-   (Mac 23.2 against 21.6 ns/msg). Two scalars beside a pair won 13% on
-   P-cores and lost 30% on E-cores (reverted, NOTES "Rejected"); a faster
-   p4 must hold on E-cores too (the NOTES say how to measure them on this
-   Mac). 12 messages shared (Mac 25.8 against 21.7; solo 13.4 against
-   21.4): the copy without the SME2 turn runs p9 + p3 (p8 + p4 was level).
+3. **servil behind BLAKE3 official**: 4 messages fixed (p4 as two scalars
+   beside a pair, Zooko's decision despite E-cores +30%; Mac 20.3 against
+   official's 21.6 ns/msg). Left: 12 messages shared (Mac 25.8 against
+   21.7; solo 13.4 against 21.4): the copy without the SME2 turn runs
+   p9 + p3 (p8 + p4 was level). A p4 kinder to E-cores stays welcome.
 4. **SHA-256 at 3-8 KiB** (open problem 1): the only cells within 10% of
    SHA-256 on either machine (servil 2-9% behind at 3 KiB, 3839 B, 4 KiB,
    4470 B; a VM record's warm-up can move them by up to 8%). Elsewhere
