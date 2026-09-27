@@ -240,12 +240,43 @@ struct RunSamples {
     shared: Samples,
     /// Calls after IDLE_NS of sleep, taken after the rounds (unpaired).
     after_idle: Samples,
+    /// The caller's clock in each after-idle sample, MHz (its cycles over
+    /// its time on cores), by contender and point, parallel to after_idle;
+    /// 0 where the platform counts no cycles.
+    after_idle_mhz: Vec<Vec<Vec<u64>>>,
     /// The round of each solo sample, by contender and point; the shared
     /// samples of that interval are the two at twice its index.
     rounds: Vec<Vec<Vec<usize>>>,
 }
 
 impl RunSamples {
+    /*
+     * The clock from which an after-idle sample counts as fast: half the
+     * run's high after-idle clock (its 95th percentile over every
+     * contender and point). A 1 ms sleep leaves the core either at full
+     * clock or at about a third of it (M4 Max: 4.4 against 1.26 GHz),
+     * so half the high clock splits the two. None where the platform
+     * counts no cycles.
+     */
+    fn after_idle_fast_mhz(&self) -> Option<u64> {
+        let mut clocks: Vec<u64> = self.after_idle_mhz.iter().flatten().flatten().copied().filter(|&mhz| mhz > 0).collect();
+        if clocks.is_empty() {
+            return None;
+        }
+        clocks.sort_unstable();
+        Some(clocks[(clocks.len() - 1) * 95 / 100] / 2)
+    }
+
+    /// A cell's after-idle samples split by the state the sleep left the
+    /// core in: [fast, slow], by `fast_mhz` (after_idle_fast_mhz).
+    fn after_idle_by_state(&self, (algorithm_index, point_index): (usize, usize), fast_mhz: u64) -> [Vec<Measured>; 2] {
+        let mut states = [Vec::new(), Vec::new()];
+        for (&sample, &mhz) in self.after_idle[algorithm_index][point_index].iter().zip(&self.after_idle_mhz[algorithm_index][point_index]) {
+            states[usize::from(mhz < fast_mhz)].push(sample);
+        }
+        states
+    }
+
     /*
      * Samples of two cells taken in the same sample interval: for each
      * round both cells were sampled in, the solo samples, or the shared
@@ -1412,6 +1443,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
         solo: empty(),
         shared: empty(),
         after_idle: empty(),
+        after_idle_mhz: (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::new()).collect()).collect(),
         rounds: (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::new()).collect()).collect(),
     };
 
@@ -1531,13 +1563,18 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                 }
                 let iterations = (batch_iterations[algorithm_index][size_index] as u128 * IDLE_BURST_NS).div_ceil(TARGET_SAMPLE_NS) as usize;
                 std::thread::sleep(std::time::Duration::from_nanos(IDLE_NS));
-                /* The trace's counts bracket the burst, read only when tracing. */
-                let counts0 = trace.as_ref().and_then(|_| clocks::Counts::read());
+                /*
+                 * The counts bracket the burst (outside its timed interval):
+                 * its clock says which state the sleep left the core in.
+                 */
+                let counts0 = clocks::Counts::read();
                 let started = clocks::now();
                 run_batch(roster.algorithms[algorithm_index], &inputs[size_index], point, iterations);
                 let elapsed_ns = clocks::since_ns(started);
+                let counts = counts0.zip(clocks::Counts::read()).map(|(before, after)| after.since(before));
+                samples.after_idle_mhz[algorithm_index][size_index]
+                    .push(counts.filter(|c| c.p.time_ns + c.e.time_ns > 0).map_or(0, |c| c.mhz()));
                 if let Some(trace) = trace.as_deref_mut() {
-                    let counts = counts0.zip(clocks::Counts::read()).map(|(before, after)| after.since(before));
                     let none = counts_csv(None);
                     trace.lines.push(format!(
                         "{visit},{},{},{},{iterations},{elapsed_ns},{},{:?},0,0,{none},0,{none},after idle",
@@ -3187,6 +3224,18 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
             writeln!(out, "# kernel platform {} {:?}: {}", algorithm.key(), use_case, detect_kernels(algorithm, *use_case).platform).unwrap();
         }
     }
+    if let Some(fast_mhz) = samples.after_idle_fast_mhz() {
+        writeln!(out, "# after-idle fast from: {fast_mhz} MHz").unwrap();
+        for (algorithm_index, &algorithm) in roster.algorithms.iter().enumerate() {
+            for (point_index, point) in POINTS.iter().enumerate() {
+                let clocks = &samples.after_idle_mhz[algorithm_index][point_index];
+                if !clocks.is_empty() {
+                    let list: Vec<String> = clocks.iter().map(u64::to_string).collect();
+                    writeln!(out, "# after-idle MHz {} {:?} {}: {}", algorithm.key(), point.use_case, point.label, list.join(",")).unwrap();
+                }
+            }
+        }
+    }
     writeln!(out, "contender\tscenario\tuse_case\tpoint\tunit\tns/units").unwrap();
     for (algorithm_index, &algorithm) in roster.algorithms.iter().enumerate() {
         for scenario in Scenario::ALL {
@@ -3243,6 +3292,16 @@ fn generate_text(roster: &Roster, results: &Results, samples: &RunSamples, machi
 
     for scenario in Scenario::ALL {
         writeln!(output, "{}: {}.", scenario.heading().to_uppercase(), scenario.description()).unwrap();
+        if let (Scenario::AfterIdle, Some(fast_mhz)) = (scenario, samples.after_idle_fast_mhz()) {
+            let clocks: Vec<u64> = samples.after_idle_mhz.iter().flatten().flatten().copied().collect();
+            let fast = clocks.iter().filter(|&&mhz| mhz >= fast_mhz).count();
+            writeln!(
+                output,
+                "The sleep left the core at full clock ({fast_mhz} MHz or more) before {}% of these calls and slower before the rest; CHECKS compare calls in the same state.",
+                (fast * 100 + clocks.len() / 2) / clocks.len(),
+            )
+            .unwrap();
+        }
         writeln!(output).unwrap();
         for use_case in UseCase::ALL {
             append_table(&mut output, roster, results, scenario, use_case);
@@ -3252,7 +3311,7 @@ fn generate_text(roster: &Roster, results: &Results, samples: &RunSamples, machi
     let (findings, two_speed) = checks(roster, results, samples);
     writeln!(
         output,
-        "CHECKS: where BLAKE3 servil st or servil mt is slower than another contender, or slower per unit on larger work than on a size that divides it; compared round by round (samples taken in the same moment), judged at the worse ratio where the ratios split in two, by {}% or more with the ratio's 95% interval above 1.",
+        "CHECKS: where BLAKE3 servil st or servil mt is slower than another contender, or slower per unit on larger work than on a size that divides it; compared round by round (samples taken in the same moment), judged at the worse ratio where the ratios split in two, and after idle within one clock state, by {}% or more with the ratio's 95% interval above 1.",
         CHECK_GAP_PERMILLE / 10,
     )
     .unwrap();
@@ -3342,6 +3401,9 @@ fn append_table(output: &mut String, roster: &Roster, results: &Results, scenari
  */
 const CHECK_GAP_PERMILLE: u64 = 50;
 
+/// The fewest after-idle samples in one clock state that CHECKS compare.
+const AFTER_IDLE_STATE_MIN: usize = 3;
+
 /*
  * How much slower the first samples of `pairs` are than the second, round
  * by round: the ratio a user may meet (the slower of two speeds where the
@@ -3396,19 +3458,32 @@ fn checks(roster: &Roster, results: &Results, samples: &RunSamples) -> (Vec<Stri
                 let points: Vec<usize> = use_case.points().filter(|&index| roster.measures(index)).collect();
                 let stats = |algorithm_index: usize, point_index: usize| cell(results, algorithm_index, point_index).get(scenario);
                 /*
-                 * After idle, each sample wakes a core of its own, cold or
-                 * warm (the VM: 3.5x apart, for every contender alike), so a
-                 * round pairs one side's cold call with the other's warm
-                 * one by chance: the two cells' fast speeds are compared
-                 * instead, 5% apart or more with their intervals apart.
+                 * After idle, each sample wakes a core that the sleep left
+                 * at full clock or at a fraction of it (M4 Max: 4.4 against
+                 * 1.26 GHz; the VM 3.5x apart), for every contender alike
+                 * and independently per sample, so a round pairs one side's
+                 * slow call with the other's fast one by chance. Where the
+                 * platform counts cycles, samples are compared within one
+                 * clock state (AGENTS.md, "Measuring"), at the worse state
+                 * the two cells share; elsewhere their fast speeds. Each
+                 * comparison asks 5% apart or more with intervals apart.
                  */
+                let slower = |m: Speed, t: Speed| {
+                    let ratio = m.median.ratio(t.median);
+                    (m.low > t.high && ratio.cmp_permille(1000 + CHECK_GAP_PERMILLE).is_ge()).then(|| (ratio.permille(), m.median, t.median))
+                };
                 let judged = |mine: (usize, usize), theirs: (usize, usize)| {
                     if scenario != Scenario::AfterIdle {
                         return paired_slower(&samples.paired(scenario, mine, theirs));
                     }
-                    let (m, t) = (stats(mine.0, mine.1).speeds()[0], stats(theirs.0, theirs.1).speeds()[0]);
-                    let ratio = m.median.ratio(t.median);
-                    (m.low > t.high && ratio.cmp_permille(1000 + CHECK_GAP_PERMILLE).is_ge()).then(|| (ratio.permille(), m.median, t.median))
+                    let Some(fast_mhz) = samples.after_idle_fast_mhz() else {
+                        return slower(stats(mine.0, mine.1).speeds()[0], stats(theirs.0, theirs.1).speeds()[0]);
+                    };
+                    let (m, t) = (samples.after_idle_by_state(mine, fast_mhz), samples.after_idle_by_state(theirs, fast_mhz));
+                    (0..2)
+                        .filter(|&state| m[state].len() >= AFTER_IDLE_STATE_MIN && t[state].len() >= AFTER_IDLE_STATE_MIN)
+                        .filter_map(|state| slower(summarize(&mut per_units(&m[state])).speeds()[0], summarize(&mut per_units(&t[state])).speeds()[0]))
+                        .max_by_key(|verdict| verdict.0)
                 };
                 let unit = use_case.time_unit();
                 let span = |run: &[usize]| match (run, use_case) {
@@ -6682,7 +6757,7 @@ mod correctness_tests {
     /// both shared copies, and after idle alike, summarised as measure_all does.
     fn run(roster: &Roster, rounds: usize, value: impl Fn(usize, usize, usize) -> u64) -> (Results, RunSamples) {
         let empty = || -> Samples { vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
-        let mut samples = RunSamples { solo: empty(), shared: empty(), after_idle: empty(), rounds: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
+        let mut samples = RunSamples { solo: empty(), shared: empty(), after_idle: empty(), after_idle_mhz: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], rounds: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
         let mut results: Results = vec![vec![None; POINT_COUNT]; roster.len()];
         for a in 0..roster.len() {
             for &p in &roster.points {
@@ -6691,6 +6766,7 @@ mod correctness_tests {
                     samples.solo[a][p].push(v);
                     samples.shared[a][p].extend([v, v]);
                     samples.after_idle[a][p].push(v);
+                    samples.after_idle_mhz[a][p].push(0);
                     samples.rounds[a][p].push(r);
                 }
                 results[a][p] = Some(Cell {
@@ -6740,6 +6816,42 @@ mod correctness_tests {
         let (findings, two_speed) = checks(&roster, &results, &samples);
         assert!(findings.iter().any(|f| f.starts_with("x1.5") && f.contains("slower than SHA-256: 64 messages;")), "{findings:#?}");
         assert!(two_speed.iter().any(|line| line.contains("two speeds: 64 messages")), "{two_speed:#?}");
+    }
+
+    /// After idle, servil caught only the slow clock state and SHA-256 both
+    /// states, half each: compared within the state they share, servil is
+    /// 10% slower (33 against 30 µs), where its one speed against SHA-256's
+    /// fast one would read x3.3.
+    #[test]
+    fn after_idle_checks_compare_within_a_clock_state() {
+        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256], true, Some(vec![point("64 KiB", UseCase::OneMessage)]), Some(24));
+        let jitter = |r: usize| (r % 5) as u64 * 20;
+        let (mut results, mut samples) = run(&roster, 24, |_, _, r| 10_000 + jitter(r));
+        let p = roster.points[0];
+        for a in 0..2 {
+            samples.after_idle[a][p].clear();
+            samples.after_idle_mhz[a][p].clear();
+            for r in 0..24 {
+                let fast = a == 1 && r % 2 == 0;
+                let ns = if a == 0 { 33_000 } else if fast { 10_000 } else { 30_000 };
+                samples.after_idle[a][p].push(Measured::new(ns + jitter(r), 1));
+                samples.after_idle_mhz[a][p].push(if fast { 4400 } else { 1260 });
+            }
+            results[a][p].as_mut().unwrap().after_idle = summarize(&mut per_units(&samples.after_idle[a][p]));
+        }
+        assert_eq!(samples.after_idle_fast_mhz(), Some(2200));
+        let (findings, _) = checks(&roster, &results, &samples);
+        let after_idle: Vec<&String> = findings.iter().filter(|f| f.contains("after-idle")).collect();
+        assert_eq!(after_idle.len(), 1, "{findings:#?}");
+        assert!(after_idle[0].starts_with("x1.1") && after_idle[0].contains("slower than SHA-256"), "{findings:#?}");
+
+        /* Without cycle counts (every clock 0), the fast speeds are compared, as before. */
+        for a in 0..2 {
+            samples.after_idle_mhz[a][p].iter_mut().for_each(|mhz| *mhz = 0);
+        }
+        assert_eq!(samples.after_idle_fast_mhz(), None);
+        let (findings, _) = checks(&roster, &results, &samples);
+        assert!(findings.iter().any(|f| f.contains("after-idle") && f.starts_with("x3.")), "{findings:#?}");
     }
 
     /// Axis ticks below 1 keep two significant digits, so neighbouring

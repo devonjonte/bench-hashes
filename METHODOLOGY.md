@@ -147,9 +147,12 @@ interval takes three samples of the same batch:
   one call, or as many as fill 10 µs where a call is shorter (the
   clock ticks every 41.7 ns, so a single short call cannot be timed).
   What a program gets that hashes now and then: a pool's workers have
-  fallen asleep, and a core may have slowed. In a VM every contender's
-  calls after idle come at two speeds, about 3.5 times apart, as the
-  host wakes the virtual CPU cold or warm.
+  fallen asleep, and a core may have slowed. The sleep leaves the core at
+  full clock or at a fraction of it, independently for each call and for
+  every contender alike: on an Apple M4 Max about 4.4 against 1.26 GHz,
+  in a VM two speeds about 3.5 times apart. Where the platform counts
+  cycles (macOS), the run reads each call's clock, the report says how
+  many calls met the full clock, and the samples file keeps each clock.
 
 A single-threaded hash costs about the same in both. A multithreaded one
 shows in the shared scenario what its threads cost when the machine is
@@ -166,9 +169,13 @@ cancels out, and a slowdown of one side (two copies sharing an SME unit)
 counts; where the round-by-round ratios split in two, the worse one is
 judged. A finding needs that ratio 5% or more above 1, with its 95%
 interval above 1; the worst come first. After idle, each call meets a
-state of its own (a cold or a warm core), so a round pairs one side's
-cold call with the other's warm one by chance; there the two cells'
-faster speeds are compared, 5% apart or more with their intervals apart.
+clock state of its own, so a round would pair one side's slow call with
+the other's fast one by chance. There the calls are compared within one
+state: a call counts as fast from half the run's high after-idle clock
+(its 95th percentile), and for each state that both cells met in three
+calls or more, their medians must be 5% apart or more with their
+intervals apart; the worse state is judged. Where the platform counts no
+cycles, the two cells' faster speeds are compared instead.
 
 ## Hash implementations
 
@@ -450,10 +457,13 @@ phase, a bar over the sample rounds, and the running median of every
 contender at the largest input size), and writes three files to
 `benchmark-results/{CPU}.{OS}/`: `bench-hashes.result.txt` (the
 report), `bench-hashes.graph.svg` (the graph), and
-`bench-hashes.samples.tsv` (every sample of every cell, both scenarios,
+`bench-hashes.samples.tsv` (every sample of every cell, every scenario,
 in the order taken, each as `ns/units`, with the provenance and the CPU's
-identity as `# key: value` lines; files from before September 26, 2026,
-marked `samples v2`, hold integer picoseconds per unit instead).
+identity as `# key: value` lines, and where the platform counts cycles
+each after-idle call's clock as `# after-idle MHz` lines, in the order of
+that cell's samples, beside the clock from which a call counts as fast;
+files from before September 26, 2026, marked `samples v2`, hold integer
+picoseconds per unit instead).
 
 ## Load from other programs
 
