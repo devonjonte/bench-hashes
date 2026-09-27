@@ -12,13 +12,15 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 
 ## Resume here (checkpoint, September 27, 2026, night; Zooko asleep)
 
-**State.** Fork `servil` ebecac1 (library code as b9ec183: p4 as two
-scalars beside a pair, Zooko's decision), the streaming design in `docs/` on top;
-bench-hashes `main` pinned to b9ec183. Records (Mac job 405, mains power; VM) on b9ec183 with bench-hashes
-8fc9355; the README chart from job 403. Runner restarted by
-Zooko (September 27); jobs run to 405, the next number is 406. Solo,
-servil now beats BLAKE3 official in every cell; shared 12 and 24 messages
-remain (the SME2 turn). Both trees clean.
+**State.** Fork `servil` 9e0e753 (Stream deleted, Zooko's decision);
+bench-hashes `main` pinned to it (servil st streams through `Hasher`, servil
+mt left out of the streamed use case). The API plan is the fork's
+`docs/api-design.md`, awaiting Zooko's answers to Q1 (time or energy in
+the queue) and Q3 (one queue type or one per shape); then encode it into
+the benchmark and freeze it. The published records (job 405) still show
+Stream and servil mt streamed; remake them once the benchmark is frozen.
+AGENTS.md: the streaming APIs first (replacing minimax). Runner jobs run to
+407; the next number is 408.
 
 **Done this session** (September 27; details in the commits and the
 fork's NOTES "Waking", "Holds", "Two aims", "Pauses slow the core's
@@ -381,7 +383,7 @@ From `/workspace` in the VM, each with the prefix above:
     pypy3 tools/perf_regress.py check | compare OLD NEW
     cargo run --release --example host_lab
 
-Expected: 89 / 85 / 74 library tests, 21 doc tests, 2 vectors, 5 benchmark
+Expected: 84 / 80 / 69 library tests, 19 doc tests, 2 vectors, 7 benchmark
 tests. Release: `python3 tools/gen-ver.py X.Y.Z` from a clean tree (two
 version commits and a lightweight tag; push the branch, `servil` in the
 fork or `main` here, then the tag by name).
