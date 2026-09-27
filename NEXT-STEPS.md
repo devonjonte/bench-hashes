@@ -12,15 +12,21 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 
 ## Resume here (checkpoint, September 27, 2026, night; Zooko asleep)
 
-**State.** Fork `servil` 9e0e753 (Stream deleted, Zooko's decision);
-bench-hashes `main` pinned to it (servil st streams through `Hasher`, servil
-mt left out of the streamed use case). The API plan is the fork's
-`docs/api-design.md`, awaiting Zooko's answers to Q1 (time or energy in
-the queue) and Q3 (one queue type or one per shape); then encode it into
-the benchmark and freeze it. The published records (job 405) still show
-Stream and servil mt streamed; remake them once the benchmark is frozen.
-AGENTS.md: the streaming APIs first (replacing minimax). Runner jobs run to
-407; the next number is 408.
+**State.** The API plan (fork `docs/api-design.md`) is settled and being
+built test-first. Fork branch `candidate/api-plan`: `tests/api_plan.rs`
+states the planned API's contract (official vectors and the reference
+implementation as anchors); it does not compile until the API exists.
+bench-hashes branch `api-plan`: servil mt streams through `Queue::pieces`;
+`FROZEN.md` and its test freeze what the benchmark asks of the fork. Next:
+build the planned API in the fork (first simple and correct: `Mode`,
+`Threads`, `hash_with`, `hash_many_with`, `initialize` apart from
+`initialize_multithreaded`, `Queue` with its three shapes, handler traits,
+one delivery thread) until `tests/api_plan.rs` passes and bench-hashes'
+branch builds against it; then add FROZEN.md's planned use case (many
+inputs arriving) and the keyed spot checks; then gate and merge both
+branches together, remake the records, and make it fast. `servil`
+9e0e753 plus tools and docs; bench-hashes `main` pinned to it. Runner jobs
+run to 407; the next number is 408.
 
 **Done this session** (September 27; details in the commits and the
 fork's NOTES "Waking", "Holds", "Two aims", "Pauses slow the core's
