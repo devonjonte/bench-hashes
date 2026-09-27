@@ -48,8 +48,16 @@ fork's NOTES "The planned API", "The queue", "The queue's small inputs"):
   a delivery counts as inside the stream.
 - **Restart the Mac runner** (`sh ~/piplayground/blake3-servil/tools/runner/setup-mac.sh`):
   its test job then runs `tests/api_plan.rs` natively too.
-- A release is due: `initialize()` changed meaning (the plan: a minor
-  version bump, 0.2.0 -> 0.3.0, with a changelog entry).
+- **`candidate/queue-speed` waits for your decision** (fork, fd79d44;
+  VM and Mac perf_regress no regression, jobs 434-435): the queue's
+  engine helps only with the front's tasks. Mac servil mt: streamed 1 MiB
+  0.151 -> 0.134 ns/B, 32 MiB 0.143 -> 0.113, many 64 KiB inputs 0.144 ->
+  0.116, 256 KiB 0.115 -> 0.107; a stream of four 64 KiB pieces 0.165 ->
+  0.193 (7 us more per stream; still ahead of servil st's 0.236 and every
+  other hash). Its cause is open (fork NOTES, "The engine helps only with
+  the front's tasks"). Promote, or keep the old rule.
+- Released: fork v0.3.0 (the changelog in the fork's `CHANGELOG.md`);
+  bench-hashes pinned to it.
 
 **Found, open, for Zooko:**
 - **After-idle CHECKS compare within one clock state** (done, Zooko's
