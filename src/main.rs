@@ -699,7 +699,7 @@ impl Algorithm {
             | Self::Sha3_256 => "single-threaded",
             Self::Blake3ServilSt => "single-threaded; blake3_servil::hash for one message, blake3_servil::hash_many for a batch, Hasher::update per piece for a stream",
             Self::Blake3Rayon => "multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread",
-            Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, and Queue::pieces (efficiency in time) for a stream: the fork chooses whether to use its shared resident workers; the kernel tables below show the thresholds",
+            Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, Queue::pieces for a stream, and Queue::messages for many inputs (both efficient in time): the fork chooses whether to use its shared resident workers; the kernel tables below show the thresholds",
         }
     }
 
@@ -5765,7 +5765,7 @@ fn contender_provenance_lines(
             format!("{name}: {}", algorithm.thread_resources().expect("BLAKE3 mt runs on Rayon's pool")),
         ],
         Algorithm::Blake3ServilMt => vec![
-            format!("{name}: {} · hash_multithreaded, hash_many_multithreaded for a batch, Queue::pieces for a stream", short_git_source(BLAKE3_SERVIL_SOURCE_INFO)),
+            format!("{name}: {} · hash_multithreaded, hash_many_multithreaded for a batch, Queue::pieces for a stream, Queue::messages for many inputs", short_git_source(BLAKE3_SERVIL_SOURCE_INFO)),
             format!("{name}: multithreaded on the fork's own threads · platform {platform}"),
         ],
     }
