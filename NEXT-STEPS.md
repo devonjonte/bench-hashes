@@ -13,9 +13,9 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 
 **State.** Fork `servil` ebecac1 (library code as b9ec183: p4 as two
 scalars beside a pair, Zooko's decision), the streaming design in `docs/` on top;
-bench-hashes `main` pinned to b9ec183. Records (Mac job 403, mains power,
-provenance fixed; VM) and the README chart on b9ec183. Runner restarted by
-Zooko (September 27); jobs run to 403, the next number is 404. Solo,
+bench-hashes `main` pinned to b9ec183. Records (Mac job 405, mains power; VM) on b9ec183 with bench-hashes
+8fc9355; the README chart from job 403. Runner restarted by
+Zooko (September 27); jobs run to 405, the next number is 406. Solo,
 servil now beats BLAKE3 official in every cell; shared 12 and 24 messages
 remain (the SME2 turn). Both trees clean.
 
@@ -46,20 +46,15 @@ clock", "The clock after a pause, measured"):
 - Tried and dropped: wake fan-out as a tree (level on both machines).
 
 **Found, open, for Zooko:**
-- **The after-idle CHECKS compare clock states, not code.** In the Mac
-  record (380) every after-idle cell is two-speed (fast|slow about 2-2.5x
-  apart, every contender): after some 1 ms sleeps the clock stays up,
-  after others it falls. A traced run (381) caught the slow state every
-  time: every contender at about 1.26 GHz against 4.44, cycles per call
-  as back to back, so servil's ratio to SHA-256 after idle equals its
-  ratio back to back. CHECKS judge at the worse round-by-round ratio,
-  which pairs one contender's fast burst with another's slow one: its
-  "servil st x5 slower than SHA-256 after idle" lines are the machine's.
-  Proposed fix (AGENTS "Measuring": compare within one state): read the
-  counts around every after-idle burst where the platform has them, keep
-  each sample's state (cycles per ns) in the samples file, and compare
-  after-idle cells within a state; report the state mix. A samples-format
-  change (v4) and a CHECKS change: Zooko's review first.
+- **After-idle CHECKS compare within one clock state** (done, Zooko's
+  go-ahead, bench-hashes 8fc9355): each after-idle call's clock is read
+  where the platform counts cycles; calls are compared at full clock
+  (within 20% of the run's high) or at the lowest (within 25% of its low),
+  those between left out, the worse shared state judged; the report gives
+  the state mix, the samples file every clock. Mac record 405: the
+  sleep left 10% of calls at full clock, 39% at the lowest; servil's
+  after-idle ratios to SHA-256 now match its solo ones (1 KiB x1.74
+  against x1.85). The VM counts no cycles and keeps the fast-speed rule.
 - **The gap sweep** (a caller doing real work between calls) was
   proposed to judge lingering; with nothing kept awake every call meets
   sleeping workers at any gap, so it now measures only the clock state,
@@ -96,8 +91,10 @@ clock", "The clock after a pause, measured"):
 
 ### Next, in order
 
-1. **The after-idle state fix** (above, "Found, open"): after Zooko's
-   review.
+1. **After-idle margin, recalibrated on mains power** (20%, job 338, was
+   calibrated when the Mac's power state was unknown); and servil's small
+   streams running at two speeds solo (1 KiB streamed: some rounds 4.5x
+   slower than SHA-256 where the median is 1.85x; record 405's CHECKS).
 2. **A proper streaming mode with minimal pipeline bubbles** (Zooko,
    September 27): the caller hands over pieces and moves on while our
    threads hash behind it, so the engine never idles while the caller
