@@ -131,12 +131,12 @@ real x86-64 machine; perf_regress's 256 B batch points; upstream issue
    only `--trace-clocks` does; the samples file would carry them).
 5. The E-core cells: 2-chunk messages at 4 (p4 two pairs), 1000 B x 4;
    tails of 1-4 multi-block messages past SME2 groups (slow state).
-5. **One cell's aftereffects slow the next** (open, ours to explain): on
+6. **One cell's aftereffects slow the next** (open, ours to explain): on
    the VM, a long run of shimmed batch cells once made the next SHA-256
    64 B cell 3-6% slower; the mechanism is unexplained.
-6. The text report's three-reader pass (CHECKS, TWO SPEEDS).
-7. A second SME2 thread in the pool (two SME units reachable, job 187).
-8. Open, smaller: hash(256 KiB)'s partial slow state; the VM's
+7. The text report's three-reader pass (CHECKS, TWO SPEEDS).
+8. A second SME2 thread in the pool (two SME units reachable, job 187).
+9. Open, smaller: hash(256 KiB)'s partial slow state; the VM's
    per-process two speeds; shared streamed 64 B two-speed on the VM.
 
 ### Remco (a potential user)
