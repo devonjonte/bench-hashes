@@ -152,6 +152,26 @@ The fork's `PROCEDURES.md` (the regression check, the gate to `servil`, the Mac 
 
 ## Decisions made (don't re-ask)
 
+- **The API plan, being settled one use case at a time** (Zooko,
+  September 27; write down, implement only once every use case is
+  settled). One-shot, synchronous, one message in memory:
+  - `hash()` stays single-threaded (platforms without threads, programs
+    whose other cores are busy, the least energy per byte).
+  - The docs prominently recommend `hash_multithreaded()` instead: never
+    slower, faster for big messages (it leaves the caller's thread from
+    768 KiB); the energy advice (single-threaded spends less per byte)
+    stays beside it.
+  - `initialize()` runs the startup self-test alone; its docs and
+    `hash()`'s say calling it early keeps that cost (under 200 µs on an
+    Apple M4 Max: 130-165 µs measured) off the first `hash()`.
+  - `initialize_multithreaded()` runs the self-test and starts the pool;
+    its docs and `hash_multithreaded()`'s say calling it early keeps that
+    cost (under 1 ms on an Apple M4 Max: 510-700 µs measured) off the first
+    multithreaded call that leaves the caller's thread.
+  - A behaviour change of `initialize()`: a minor version bump and a
+    changelog entry; measure the pool's memory cost when it is built.
+  Still to settle: batches (`hash_many`), input arriving in pieces
+  (`Hasher`, `Stream`), and a stream of inputs (the `Queue` design).
 - The pool keeps nothing awake between calls (Zooko, September 27):
   its workers poll only while a job is registered and sleep when none
   is; waiting inside a call stays. Every call therefore meets sleeping
