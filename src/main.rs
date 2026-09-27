@@ -137,7 +137,7 @@ const BLAKE3_SERVIL_SOURCE_INFO: &str = env!("BLAKE3_SERVIL_SOURCE_INFO");
  * in PIECE_LEN pieces, each piece copied as a read would copy it, and fed
  * to the contender's incremental API (then finalized): below PIECE_LEN one
  * piece, above it one per PIECE_LEN, so the implementation never sees the
- * total up front. The servil fork takes the pieces into its Stream.
+ * total up front.
  *
  * The many-messages axis counts 64-byte messages per batch, from one to
  * 262144 (16 MiB of input). Powers of two from 1 to 16 show a SIMD batch
@@ -563,7 +563,13 @@ impl Algorithm {
     fn takes_part(self, use_case: UseCase) -> bool {
         match use_case {
             UseCase::ManyMessages => !matches!(self, Self::Blake3Rayon),
-            UseCase::OneMessage | UseCase::Streaming => true,
+            UseCase::OneMessage => true,
+            /*
+             * The fork's streaming interfaces are being redesigned
+             * (its docs/api-design.md; Stream deleted, September 27, 2026):
+             * servil mt returns to the streamed axis with them.
+             */
+            UseCase::Streaming => !matches!(self, Self::Blake3ServilMt),
         }
     }
 
@@ -667,9 +673,9 @@ impl Algorithm {
             | Self::Sha256CommonCrypto
             | Self::Sha256Ring
             | Self::Sha3_256 => "single-threaded",
-            Self::Blake3ServilSt => "single-threaded; blake3_servil::hash for one message, blake3_servil::hash_many for a batch, Stream for a stream",
+            Self::Blake3ServilSt => "single-threaded; blake3_servil::hash for one message, blake3_servil::hash_many for a batch, Hasher::update per piece for a stream",
             Self::Blake3Rayon => "multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread",
-            Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, and Stream::new_multithreaded for a stream: the fork chooses whether to use its shared resident workers; the kernel tables below show the thresholds",
+            Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch: the fork chooses whether to use its shared resident workers; the kernel tables below show the thresholds",
         }
     }
 
@@ -1865,8 +1871,12 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             pieces(&mut |piece| { hasher.update_rayon(piece); });
             *hasher.finalize().as_bytes()
         }, consume),
-        Algorithm::Blake3ServilSt => each_stream_into(input, iterations, blake3_servil::Stream::new, consume),
-        Algorithm::Blake3ServilMt => each_stream_into(input, iterations, blake3_servil::Stream::new_multithreaded, consume),
+        Algorithm::Blake3ServilSt => each_stream(input, iterations, |pieces| {
+            let mut hasher = blake3_servil::Hasher::new();
+            pieces(&mut |piece| { hasher.update(piece); });
+            *hasher.finalize().as_bytes()
+        }, consume),
+        Algorithm::Blake3ServilMt => unreachable!("servil mt takes no part in the streamed use case (takes_part)"),
         Algorithm::Sha256 => each_stream(input, iterations, |pieces| {
             let mut hasher = Sha256::new();
             pieces(&mut |piece| hasher.update(piece));
@@ -1922,25 +1932,6 @@ fn each_stream<D: AsRef<[u8]>>(
     }
 }
 
-/// `iterations` streams of `input` into a fresh servil Stream from `new`:
-/// each PIECE_LEN piece read (copied) straight into the stream's buffer,
-/// through buffer() and filled(), as a program's read would land there.
-#[inline(always)]
-fn each_stream_into(input: &[u8], iterations: usize, new: fn() -> blake3_servil::Stream, mut consume: impl FnMut(&[u8])) {
-    for _ in 0..iterations {
-        let mut stream = new();
-        for mut piece in black_box(input).chunks(PIECE_LEN) {
-            while !piece.is_empty() {
-                let buffer = stream.buffer();
-                let n = buffer.len().min(piece.len());
-                buffer[..n].copy_from_slice(&piece[..n]);
-                stream.filled(n);
-                piece = &piece[n..];
-            }
-        }
-        consume(stream.finalize().as_bytes());
-    }
-}
 
 /// `iterations` passes over the batch through one of the fork's batch entry
 /// points, which take the messages back to back in one buffer with their
@@ -5522,7 +5513,7 @@ fn contender_provenance_lines(
             format!("{name}: {}", algorithm.thread_resources().expect("BLAKE3 mt runs on Rayon's pool")),
         ],
         Algorithm::Blake3ServilMt => vec![
-            format!("{name}: {} · hash_multithreaded, hash_many_multithreaded for a batch, Stream::new_multithreaded for a stream", short_git_source(BLAKE3_SERVIL_SOURCE_INFO)),
+            format!("{name}: {} · hash_multithreaded, hash_many_multithreaded for a batch", short_git_source(BLAKE3_SERVIL_SOURCE_INFO)),
             format!("{name}: multithreaded on the fork's own threads · platform {platform}"),
         ],
     }

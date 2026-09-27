@@ -78,19 +78,14 @@ memory copy from the input, the cheapest read there is (a read from the
 operating system's page cache adds a system call per piece), and every
 contender pays it once per byte.
 
-Where each read lands follows the contender's API. The synchronous
-incremental APIs get each piece read into a 64 KiB buffer of the
-program's and then hash it, so reading and hashing take turns
-(`Hasher::update` in crates.io BLAKE3, `update_rayon` for BLAKE3 official
-mt, `Digest::update` in sha2 and sha1-checked, ring's `Context::update`,
-CommonCrypto's `CC_SHA256_Update`). The servil fork's `Stream` has each
-read land in its own buffers (`buffer()` and `filled(n)`) and hashes each
-full 1 MiB buffer on another thread while the next pieces are read
-(`Stream::new` for BLAKE3 servil st, `Stream::new_multithreaded` for
-BLAKE3 servil mt): its time is about the slower of the reading and the
-hashing, plus the first buffer's reading and the last one's hashing. A
-stream shorter than one buffer is hashed when it ends. The expected
-digests are the one-message ones.
+Each piece is read into a 64 KiB buffer of the program's and then
+handed to the contender's incremental API, so reading and hashing take
+turns (`Hasher::update` in crates.io BLAKE3 and in BLAKE3 servil st,
+`update_rayon` for BLAKE3 official mt, `Digest::update` in sha2 and
+sha1-checked, ring's `Context::update`, CommonCrypto's
+`CC_SHA256_Update`). BLAKE3 servil mt takes no part while the fork's
+streaming interfaces are redesigned. The expected digests are the
+one-message ones.
 
 ## The many-messages use case
 
