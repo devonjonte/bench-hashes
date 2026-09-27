@@ -11,7 +11,7 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 
 ## Resume here (checkpoint, September 27, 2026, night; Zooko asleep)
 
-**State.** Fork `servil` b30b7eb (library code as b9ec183: p4 as two
+**State.** Fork `servil` ebecac1 (library code as b9ec183: p4 as two
 scalars beside a pair, Zooko's decision), the streaming design in `docs/` on top;
 bench-hashes `main` pinned to b9ec183. Records (Mac job 403, mains power,
 provenance fixed; VM) and the README chart on b9ec183. Runner restarted by
