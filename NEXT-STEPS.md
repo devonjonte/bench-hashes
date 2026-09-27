@@ -10,49 +10,46 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
-## Resume here (checkpoint, September 27, 2026, night; Zooko asleep)
+## Resume here (checkpoint, September 28, 2026)
 
-**State.** The API plan (fork `docs/api-design.md`) is settled and being
-built test-first. Fork branch `candidate/api-plan`: `tests/api_plan.rs`
-states the planned API's contract (official vectors and the reference
-implementation as anchors); it does not compile until the API exists.
-bench-hashes branch `api-plan`: servil mt streams through `Queue::pieces`;
-`FROZEN.md` and its test freeze what the benchmark asks of the fork. Next:
-build the planned API in the fork (first simple and correct: `Mode`,
-`Threads`, `hash_with`, `hash_many_with`, `initialize` apart from
-`initialize_multithreaded`, `Queue` with its three shapes, handler traits,
-one delivery thread) until `tests/api_plan.rs` passes and bench-hashes'
-branch builds against it; then add FROZEN.md's planned use case (many
-inputs arriving) and the keyed spot checks; then gate and merge both
-branches together, remake the records, and make it fast. `servil`
-9e0e753 plus tools and docs; bench-hashes `main` pinned to it. Runner jobs
-run to 407; the next number is 408.
+**State.** The API plan (fork `docs/api-design.md`) is built and on the
+main lines: fork `servil` 61502ef (`Mode`, `Threads`, `hash_with`,
+`hash_many_with`, `initialize` apart from `initialize_multithreaded`, the
+`_with_budget` functions gone, `Queue` in three shapes with handler
+traits); bench-hashes `main` pinned to it, with the many-inputs use case
+(FROZEN.md) and records remade on both machines (Mac job 421). The fork's
+`tests/api_plan.rs` states the contract and passes. Runner jobs run to
+421; the next number is 422.
 
-**Done this session** (September 27; details in the commits and the
-fork's NOTES "Waking", "Holds", "Two aims", "Pauses slow the core's
-clock", "The clock after a pause, measured"):
-- Power state recorded everywhere (bench-hashes report, samples, graph;
-  perf_regress's verdict; the runner's verdict.json). Battery power moves
-  more calls after a pause onto E-cores; the clock's fall after a pause
-  happens on mains too.
-- The Mac's clock after a pause (jobs 358-359): sleeps of 500 µs-20 ms
-  leave about 85 µs of work at 1.06 GHz; 100 ms longer; a 1 ms spin
-  leaves 2.5 GHz. Told users in the crate docs.
-- **The pool keeps nothing awake between calls** (1046c10, Zooko's
-  decision and framing: a fix to the benchmark, not a slowdown users
-  meet): workers poll only while a job or Hold is registered; a call
-  wakes only the workers it can use (the caller one, the first woken the
-  rest); MIN_SPLIT_LEN 768 KiB. After idle mt now equals st below the
-  split and beats it above; back-to-back mt cells slowed (numbers in the
-  commit message).
-- **A multithreaded Stream holds the pool** while its next buffer waits
-  (3d7102e): Mac streamed mt 32 MiB 0.065 -> 0.043 ns/B.
-- API docs: each interface says whether it is built for top speed or a
-  low worst case (3d4b863); the name of the second aim is Zooko's to
-  settle.
-- bench-hashes: a fifth dot shape; `--trace-clocks` also traces the
-  after-idle bursts (3ef62fa).
-- Tried and dropped: wake fan-out as a tree (level on both machines).
+**Done this session** (September 28; details in the commits and the
+fork's NOTES "The planned API", "The queue", "The queue's small inputs"):
+- The planned API, test-first: every batch path takes the mode's key and
+  flags down to the kernels (level in perf_regress).
+- **The queue's feed**: submissions become tasks as they arrive (a piece:
+  the whole subtrees `Hasher::update` would hash in it, replayed in
+  order), published to a pool job that stays registered while tasks are
+  in flight; delivery in order as each is done. Mac, servil mt: streamed
+  32 MiB 0.213 -> 0.142 ns/B (servil st 0.238), many 256 KiB inputs 0.185
+  -> 0.114. Batch-at-once designs lost (in NOTES).
+- bench-hashes: the many-inputs use case (servil mt through
+  `Queue::messages`, every other contender its one-shot call), a queue
+  shim in perf_regress for older commits, and the runner's test job runs
+  the integration tests (from its next restart).
+- ThreadSanitizer (nightly, `-Zbuild-std`) on the queue and pool: clean.
+
+**For Zooko:**
+- **The queue's small inputs cost two wakes per round trip**: the
+  benchmark's program cycles four buffers and blocks when none is free,
+  and the engine sleeps once it has delivered them all. Mac many 64 B
+  inputs 21 ns/B through the queue against `hash`'s 0.68; streams below
+  64 KiB alike. Only keeping the engine awake after it delivers removes
+  its wake, which the rule against running between calls forbids; more
+  buffers in flight amortise both. Your call whether a bounded wait after
+  a delivery counts as inside the stream.
+- **Restart the Mac runner** (`sh ~/piplayground/blake3-servil/tools/runner/setup-mac.sh`):
+  its test job then runs `tests/api_plan.rs` natively too.
+- A release is due: `initialize()` changed meaning (the plan: a minor
+  version bump, 0.2.0 -> 0.3.0, with a changelog entry).
 
 **Found, open, for Zooko:**
 - **After-idle CHECKS compare within one clock state** (done, Zooko's
@@ -85,6 +82,10 @@ clock", "The clock after a pause, measured"):
 - A version bump makes cargo ignore a `[patch]` of a different version,
   with only a warning; perf_regress and the runner now lock the patched
   version first and fail stop unless the fork came from the checkout.
+- A panic on a thread a test spawned prints nothing when the harness
+  captures output and the process aborts: run the test binary with
+  `--nocapture`. gdb is installed with `apt-get install -y gdb`; to see a
+  hang, `timeout -s INT 20 gdb -batch -ex run -ex "thread apply all bt"`.
 - gdb needs `SHELL=/bin/sh` and `set startup-with-shell off`; bash
   process substitution (`<(...)`) fails here (no /dev/fd): use files.
 - The runner reruns any job it never finished; to clear one, move its
@@ -100,22 +101,18 @@ clock", "The clock after a pause, measured"):
 
 ### Next, in order
 
+0. **The queue, faster and complete**: `Queue::fixed` through the feed
+   (today each buffer at delivery); `Efficiency::Energy` as the plan's
+   energy form (today the engine thread alone); a delivery thread apart
+   from the engine if a measurement shows the handler calls slow the
+   hashing; FROZEN.md's planned `Queue::fixed` use case and the keyed
+   spot checks in perf_regress; the release above.
 1. **After-idle margin, recalibrated on mains power** (20%, job 338, was
    calibrated when the Mac's power state was unknown); and servil's small
    streams running at two speeds solo (1 KiB streamed: some rounds 4.5x
    slower than SHA-256 where the median is 1.85x; record 405's CHECKS).
-2. **A proper streaming mode with minimal pipeline bubbles** (Zooko,
-   September 27): the caller hands over pieces and moves on while our
-   threads hash behind it, so the engine never idles while the caller
-   handles results or produces input; the interface callers with a
-   stream of inputs are steered to, now that the pool keeps nothing
-   awake between calls. The whole API plan, this included, is in the
-   fork's `docs/api-design.md` for Zooko's review: a queue passing the
-   caller's buffers by ownership (no copy, a fixed set of buffers cycled,
-   a byte budget as back-pressure), an optional io_uring layer, chaining,
-   a Merkle tree as a worked example. After his review: encode the plan
-   into bench-hashes and freeze it (a manifest and a test, as the
-   document's last section says), then build.
+2. **The streaming mode**: built (item 0 has what remains); an optional
+   io_uring layer and chaining stay in `docs/api-design.md` for later.
 3. **servil behind BLAKE3 official**: 4 messages fixed (p4 as two scalars
    beside a pair, Zooko's decision despite E-cores +30%; Mac 20.3 against
    official's 21.6 ns/msg). Left: 12 messages shared (Mac 25.8 against
@@ -384,12 +381,13 @@ From `/workspace` in the VM, each with the prefix above:
 
     cargo test --release --lib [--features no_sme2 | --features pure]
     cargo test --release --doc
+    cargo test --release --test api_plan
     cargo test --release --manifest-path test_vectors/Cargo.toml
     cargo test --release --manifest-path bench-hashes/Cargo.toml
     pypy3 tools/perf_regress.py check | compare OLD NEW
     cargo run --release --example host_lab
 
-Expected: 84 / 80 / 69 library tests, 19 doc tests, 2 vectors, 7 benchmark
+Expected: 86 / 82 / 71 library tests, 21 doc tests, 12 in `--test api_plan`, 2 vectors, 9 benchmark
 tests. Release: `python3 tools/gen-ver.py X.Y.Z` from a clean tree (two
 version commits and a lightweight tag; push the branch, `servil` in the
 fork or `main` here, then the tag by name).
