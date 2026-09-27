@@ -3,7 +3,7 @@
 This file explains what a run measures, how it keeps the numbers honest,
 and what each contender runs. [README.md](README.md) says how to run it.
 
-Every run measures each contender in three use cases and three scenarios.
+Every run measures each contender in four use cases and three scenarios.
 **One message per call**: a call hashes one input, at twenty-seven sizes
 from 64 B to 128 MiB, reported per byte. **Many messages per call**: a call
 hashes a batch of 64-byte messages, at twenty-four batch sizes from 1 to
@@ -11,7 +11,10 @@ hashes a batch of 64-byte messages, at twenty-four batch sizes from 1 to
 inputs as one message, produced in 64 KiB pieces (the last one
 shorter), each copied as a read would copy it and fed to the contender's
 incremental API, then finalized, so the implementation never learns the
-total size in advance; reported per byte. **Solo**: one copy of the
+total size in advance; reported per byte. **Many inputs**: separate
+inputs of one size arriving one after another, at nine sizes from 64 B to
+4 MiB, each read into a buffer (a memory copy) and hashed, a sample
+covering many; reported per byte. **Solo**: one copy of the
 contender, the machine otherwise idle. **Shared**: two copies at once.
 **After idle**: one copy calling after its thread has slept. The report
 shows each use case once per scenario, solo first; the graph shows solo
@@ -88,6 +91,20 @@ built for efficiency: the program keeps four 64 KiB buffers, copies each
 piece into a free one, hands it over, and gets it back through the queue's
 handler, so reading and hashing overlap; the stream's digest arrives the
 same way after its end. The expected digests are the one-message ones.
+
+## The many-inputs use case
+
+A program that hashes many files, records, or network objects hands a
+hash one input after another. The many-inputs axis measures that at every
+factor of four from 64 B to 4 MiB: each input is read, timed, as a memory
+copy into a buffer of the program's, then hashed, and a sample covers
+many inputs, timed from the first read to the last digest. Every
+contender but BLAKE3 servil mt hashes each input with its one-shot call
+after reading it, so reading and hashing take turns. BLAKE3 servil mt
+takes the inputs through the fork's queue of messages, built for
+efficiency: the program keeps four buffers, reads each input into a free
+one, hands it over, and gets it back with its digest through the queue's
+handler, so reading and hashing overlap.
 
 ## The many-messages use case
 
@@ -335,7 +352,7 @@ The contenders run in a Williams design: a set of orders that together
 place every contender in every position equally often and realise every
 "Y right after X" adjacency equally often — the balance all permutations
 would give (n orders for an even count of contenders, 2n for odd). Point
-order (the seventy-eight points of the three use cases together) rotates independently. Each contender/point combination is
+order (the eighty-seven points of the four use cases together) rotates independently. Each contender/point combination is
 calibrated separately so its timed samples last about 1 ms each.
 
 A full run has 96 rounds, a `--quick` one 24 (and stops below 1 MiB and
@@ -424,7 +441,7 @@ end leaves its tick only once the pointer aims 3 px nearer another; the
 ticks under the ends light up while dragging. "All", shown whenever the
 range is narrowed, restores every input. The chips at the header's right
 show and hide plots, by scenario (solo, shared) and by use case (one
-input, batches, pieces); the plots shown close ranks, and a row keeps at
+input, batches, pieces, many inputs); the plots shown close ranks, and a row keeps at
 least one chip pressed. The header (title, strip, chips, and rate/time
 switch) sits at the top of the page.
 
