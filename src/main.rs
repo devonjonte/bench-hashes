@@ -238,7 +238,7 @@ type Samples = Vec<Vec<Vec<Measured>>>;
 struct RunSamples {
     solo: Samples,
     shared: Samples,
-    /// One call after IDLE_NS of sleep, in the solo sample's interval.
+    /// Calls after IDLE_NS of sleep, taken after the rounds (unpaired).
     after_idle: Samples,
     /// The round of each solo sample, by contender and point; the shared
     /// samples of that interval are the two at twice its index.
@@ -257,11 +257,12 @@ impl RunSamples {
         let values = |(algorithm, point): (usize, usize)| match scenario {
             Scenario::Solo => &self.solo[algorithm][point],
             Scenario::Shared => &self.shared[algorithm][point],
-            Scenario::AfterIdle => &self.after_idle[algorithm][point],
+            Scenario::AfterIdle => unreachable!("after-idle samples are taken apart from the rounds, and never paired"),
         };
         let per_round = match scenario {
-            Scenario::Solo | Scenario::AfterIdle => 1,
+            Scenario::Solo => 1,
             Scenario::Shared => 2,
+            Scenario::AfterIdle => unreachable!("after-idle samples are never paired"),
         };
         let b_index: std::collections::HashMap<usize, usize> =
             self.rounds[b.0][b.1].iter().enumerate().map(|(index, &round)| (round, index)).collect();
@@ -1470,18 +1471,6 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                  */
                 let copies = duo.run(algorithm, input, &duo_inputs[size_index], point, iterations);
 
-                /*
-                 * The after-idle sample: a burst of about IDLE_BURST_NS of
-                 * calls (one at least) after this thread has slept long
-                 * enough for a pool's workers to fall asleep, as a program
-                 * hashing now and then calls. The samples last TARGET_SAMPLE_NS
-                 * for `iterations`, so the burst is that share of them.
-                 */
-                let idle_iterations = (iterations as u128 * IDLE_BURST_NS).div_ceil(TARGET_SAMPLE_NS) as usize;
-                std::thread::sleep(std::time::Duration::from_nanos(IDLE_NS));
-                let started = clocks::now();
-                run_batch(algorithm, input, point, idle_iterations);
-                let idle_ns = clocks::since_ns(started);
 
                 let total_units = point.use_case.units(point, iterations);
                 let per_unit = |ns: u64| Measured::new(ns, total_units);
@@ -1490,7 +1479,6 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                 for copy in &copies {
                     samples.shared[algorithm_index][size_index].push(per_unit(copy.elapsed_ns));
                 }
-                samples.after_idle[algorithm_index][size_index].push(Measured::new(idle_ns, point.use_case.units(point, idle_iterations)));
 
                 if let Some(trace) = trace.as_deref_mut() {
                     let counts = counts0.zip(clocks::Counts::read()).map(|(before, after)| after.since(before));
@@ -1512,6 +1500,41 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
         }
     }
 
+    /*
+     * The after-idle samples, in a phase of their own after the rounds: each
+     * a burst of about IDLE_BURST_NS of calls (one at least; a cell's
+     * samples last TARGET_SAMPLE_NS for its iterations, so the burst is
+     * that share of them) after this thread has slept long enough for a
+     * pool's workers to fall asleep, as a program hashing now and then
+     * calls. Visits rotate over the cells as the rounds do. Apart from
+     * the rounds, so they run as they did, and after-idle samples, compared
+     * unpaired (see checks), need no round of their own. (Measured side by
+     * side, solo cells' 5th percentiles vary as much between runs with the
+     * phase as without it: VM, 1.40% against 1.53%.)
+     */
+    progress.phase("measuring after idle");
+    let visits = if roster.every_round { roster.rounds } else { STEADY_SAMPLES };
+    for visit in 0..visits {
+        for point_offset in 0..roster.points.len() {
+            let size_index = roster.points[(point_offset + visit) % roster.points.len()];
+            let point = POINTS[size_index];
+            for &algorithm_index in &roster.orders[visit % roster.orders.len()] {
+                let long = budgeted[algorithm_index][size_index];
+                if !roster.algorithms[algorithm_index].takes_part(point.use_case)
+                    || (!roster.every_round && long && visit % (STEADY_SAMPLES / LONG_SAMPLES) != 0)
+                {
+                    continue;
+                }
+                let iterations = (batch_iterations[algorithm_index][size_index] as u128 * IDLE_BURST_NS).div_ceil(TARGET_SAMPLE_NS) as usize;
+                std::thread::sleep(std::time::Duration::from_nanos(IDLE_NS));
+                let started = clocks::now();
+                run_batch(roster.algorithms[algorithm_index], &inputs[size_index], point, iterations);
+                let elapsed_ns = clocks::since_ns(started);
+                samples.after_idle[algorithm_index][size_index].push(Measured::new(elapsed_ns, point.use_case.units(point, iterations)));
+            }
+        }
+    }
+
     progress.finish(&samples.solo);
     let load = load.map(LoadMonitor::finish);
 
@@ -1527,7 +1550,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
             assert!(!solo.is_empty() && solo.len() <= roster.rounds, "one solo sample per round at most, and one at least");
             assert_eq!(shared.len(), 2 * solo.len(), "two shared samples, one per copy, beside every solo sample");
             let after_idle = &samples.after_idle[algorithm_index][size_index];
-            assert_eq!(after_idle.len(), solo.len(), "one after-idle sample beside every solo sample");
+            assert!(!after_idle.is_empty(), "a cell has after-idle samples");
             results[algorithm_index][size_index] = Some(Cell {
                 solo: summarize(&mut per_units(solo)),
                 shared: summarize(&mut per_units(shared)),

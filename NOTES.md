@@ -134,8 +134,14 @@ speeds about 3.5x apart (the vCPU woken cold or warm, independently per
 call), so CHECKS compares the two cells' fast speeds there: paired by
 round, the worse-speed rule turned the lottery into x6-9 findings
 against SHA-256, and even the median ratio misfired at 12 samples
-(servil mt against st at 3839 B, the same code). A default run: 15 s
--> 23 s.
+(servil mt against st at 3839 B, the same code). The samples are a
+phase of their own after the rounds, which run as before: solo cells'
+5th percentiles vary as much between runs with it as without (VM,
+alternated: 1.40% against 1.53%). A first comparison against an older
+sequence had read 1.3% against 0.48% and blamed the sleeps: the VM had
+been quieter when the older sequence ran, the mistake A B B A exists to
+prevent. perf_regress judges after-idle cells at a 20% margin and holds a
+change on them. A default run: 15 s -> about 20 s.
 
 **Full by default, `--quick` on request** (September 2026, for people
 who run it once and publish what they get). A full run: every point, 96
