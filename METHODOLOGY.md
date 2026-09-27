@@ -474,6 +474,20 @@ Hypervisors that report no steal time (Apple's Virtualization framework,
 for one) keep a VM's guest from seeing load on the host, so a VM can
 read quiet while the host is busy.
 
+## Power
+
+The run reads the machine's power state when it starts and when it
+finishes measuring: whether it draws from a battery (and the charge),
+and any power mode that trades speed for energy (macOS's Low Power Mode
+and High Power mode, through `pmset`; Linux's ACPI platform profile).
+The report, the samples file, and the graph's "About this run" section
+give it, and the graph's header says so when the run drew on a battery
+or saved power. On battery an Apple M4 Max moved a thread that paused
+between calls onto its efficiency cores at about 1 GHz, where it stayed
+after the pauses stopped: one 64 KiB hash took 20-41 µs against
+14.7 µs. A virtual machine sees no power supply, and its report says
+the OS reports none.
+
 ## Build settings and provenance
 
 Release builds use optimization level 3, fat LTO, one codegen unit,

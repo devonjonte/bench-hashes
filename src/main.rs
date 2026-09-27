@@ -925,6 +925,9 @@ struct MachineMetadata {
     /// Other programs' load during the measuring phase, where the OS
     /// reports it (Linux, macOS); set once measuring ends.
     load: Option<Load>,
+    /// The power state when the run starts and when measuring ends (set
+    /// then), where the OS reports one: see Power.
+    power: [Option<Power>; 2],
 }
 
 /*
@@ -1258,6 +1261,7 @@ fn main() {
     let roster = Roster::new(algorithms, quick, points, rounds);
     let (results, samples, load) = measure_all(&roster, trace.as_mut());
     machine.load = load;
+    machine.power[1] = Power::read();
 
     if let Some(trace) = &trace {
         trace.write();
@@ -2376,6 +2380,125 @@ impl Load {
     }
 }
 
+/*
+ * The machine's power state: whether it draws from a battery, the
+ * battery's charge, and a power mode that trades speed for energy. It can
+ * change results severalfold: an M4 Max on battery moved a thread that
+ * slept 1 ms between calls onto its efficiency cores at about 1 GHz, and
+ * the thread stayed there when the sleeps stopped (hash of 64 KiB 41 µs
+ * after sleeps, 20-24 µs back to back afterwards, against 14.7 µs before;
+ * fork runner job 351, September 27, 2026). macOS reports it through
+ * pmset, Linux through /sys/class/power_supply and the ACPI platform
+ * profile; a VM reports none.
+ */
+#[derive(Clone, PartialEq, Eq)]
+struct Power {
+    on_battery: bool,
+    /// The battery's charge in percent, where there is a battery.
+    battery_percent: Option<u64>,
+    /// The power mode as the OS names it ("Low Power Mode", "High Power
+    /// mode", "platform profile balanced"), where it reports one.
+    mode: Option<String>,
+    /// The mode trades speed for energy.
+    low_power: bool,
+}
+
+impl Power {
+    /// The power state now, or None where the OS reports none.
+    fn read() -> Option<Power> {
+        if cfg!(target_os = "macos") { Self::read_macos() } else { Self::read_linux() }
+    }
+
+    fn read_macos() -> Option<Power> {
+        let pmset = |args: &[&str]| {
+            let out = std::process::Command::new("pmset").args(args).output().ok()?;
+            out.status.success().then(|| String::from_utf8_lossy(&out.stdout).into_owned())
+        };
+        Self::parse_pmset(&pmset(&["-g", "batt"])?, &pmset(&["-g"]).unwrap_or_default())
+    }
+
+    /// The state from `pmset -g batt` and `pmset -g` (the settings in use).
+    fn parse_pmset(batt: &str, settings: &str) -> Option<Power> {
+        let source = batt.lines().next()?.split('\'').nth(1)?.to_owned();
+        let battery_percent = batt
+            .split_whitespace()
+            .find_map(|word| word.strip_suffix("%;").or_else(|| word.strip_suffix('%'))?.parse().ok());
+        /* The settings in use: "lowpowermode 1", or on Macs with a High Power mode "powermode 0|1|2". */
+        let setting = |key: &str| settings.lines().find_map(|line| {
+            let mut words = line.split_whitespace();
+            (words.next() == Some(key)).then(|| words.next()?.parse::<u64>().ok()).flatten()
+        });
+        let (mode, low_power) = match (setting("powermode"), setting("lowpowermode")) {
+            (Some(1), _) | (None, Some(1)) => (Some("Low Power Mode".to_owned()), true),
+            (Some(2), _) => (Some("High Power mode".to_owned()), false),
+            (Some(0), _) => (Some("automatic power mode".to_owned()), false),
+            _ => (None, false),
+        };
+        Some(Power { on_battery: source == "Battery Power", battery_percent, mode, low_power })
+    }
+
+    fn read_linux() -> Option<Power> {
+        let read = |path: std::path::PathBuf| fs::read_to_string(path).ok().map(|text| text.trim().to_owned());
+        let (mut on_battery, mut battery_percent, mut any) = (false, None, false);
+        for entry in fs::read_dir("/sys/class/power_supply").ok()?.flatten() {
+            let path = entry.path();
+            if read(path.join("type")).as_deref() == Some("Battery") {
+                any = true;
+                on_battery |= read(path.join("status")).as_deref() == Some("Discharging");
+                battery_percent = battery_percent.or(read(path.join("capacity")).and_then(|c| c.parse().ok()));
+            } else if read(path.join("type")).as_deref() == Some("Mains") {
+                any = true;
+            }
+        }
+        let profile = read("/sys/firmware/acpi/platform_profile".into());
+        if !any && profile.is_none() {
+            return None;
+        }
+        let low_power = profile.as_deref().is_some_and(|p| p.starts_with("low-power") || p == "quiet" || p == "cool");
+        Some(Power { on_battery, battery_percent, mode: profile.map(|p| format!("platform profile {p}")), low_power })
+    }
+
+    /// Whether this state can make results read slower than the machine
+    /// runs on mains power.
+    fn slowing(&self) -> bool {
+        self.on_battery || self.low_power
+    }
+
+    /// "mains power, High Power mode", "battery power (47% charged), Low Power Mode".
+    fn describe(&self) -> String {
+        let mut line = if self.on_battery { "battery power".to_owned() } else { "mains power".to_owned() };
+        if let (true, Some(percent)) = (self.on_battery, self.battery_percent) {
+            write!(line, " ({percent}% charged)").unwrap();
+        }
+        if let Some(mode) = &self.mode {
+            write!(line, ", {mode}").unwrap();
+        }
+        line
+    }
+}
+
+impl MachineMetadata {
+    /// Whether the power state at the start or the end can make results
+    /// read slow.
+    fn power_slowing(&self) -> bool {
+        self.power.iter().flatten().any(Power::slowing)
+    }
+
+    /// One line for readers: the power state, and its change where it
+    /// changed during the run; "not reported by this OS" where there is none.
+    fn describe_power(&self) -> String {
+        let [start, end] = &self.power;
+        let line = match (start, end) {
+            (None, None) => return "not reported by this OS".to_owned(),
+            (Some(start), Some(end)) if start.describe() != end.describe() => {
+                format!("{} at the start, {} at the end", start.describe(), end.describe())
+            }
+            (Some(one), _) | (None, Some(one)) => one.describe(),
+        };
+        if self.power_slowing() { line + "; some results may read slower than this machine runs on mains power" } else { line }
+    }
+}
+
 /// Reads the machine's and this process's CPU time at round boundaries.
 struct LoadMonitor {
     first: (std::time::Instant, cpu_times::CpuTimes, u64),
@@ -3033,6 +3156,7 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
     ] {
         writeln!(out, "# {key}: {value}").unwrap();
     }
+    writeln!(out, "# power: {}", machine.describe_power()).unwrap();
     if let Some(load) = &machine.load {
         let list = |pick: fn(&LoadReading) -> u64| load.windows.iter().map(|w| pick(w).to_string()).collect::<Vec<_>>().join(",");
         writeln!(out, "# load: {}", load.describe()).unwrap();
@@ -3152,6 +3276,7 @@ fn generate_text(roster: &Roster, results: &Results, samples: &RunSamples, machi
         Some(load) => writeln!(output, "  load during the run: {}", load.describe()).unwrap(),
         None => writeln!(output, "  load during the run: not measured on this platform").unwrap(),
     }
+    writeln!(output, "  power: {}", machine.describe_power()).unwrap();
 
     output
 }
@@ -3464,6 +3589,7 @@ fn machine_metadata() -> MachineMetadata {
         os_type,
         cpu_identity: cpu_identity(),
         load: None,
+        power: [Power::read(), None],
     }
 }
 
@@ -4049,11 +4175,18 @@ fn generate_svg(
     };
     let date = machine.timestamp.split(' ').next().unwrap_or(&machine.timestamp);
     let busy = machine.load.as_ref().is_some_and(|load| load.busy());
+    let on_battery = machine.power.iter().flatten().any(|power| power.on_battery);
+    let caveat = match (busy, machine.power_slowing()) {
+        (true, true) => " · other programs were busy and the machine saved power during the run, so some results may read slow",
+        (true, false) => " · other programs were busy during the run, so some results may read slow",
+        (false, true) if on_battery => " · the machine ran on battery power, so some results may read slow",
+        (false, true) => " · the machine ran in a low-power mode, so some results may read slow",
+        (false, false) => "",
+    };
     writeln!(
         svg,
-        r##"  <text x="{PLOT_LEFT:.0}" y="72" class="method">How fast each hash runs on {} ({os_name}), measured {date}{}</text>"##,
+        r##"  <text x="{PLOT_LEFT:.0}" y="72" class="method">How fast each hash runs on {} ({os_name}), measured {date}{caveat}</text>"##,
         xml_escape(&machine.cpu_type),
-        if busy { " · other programs were busy during the run, so some results may read slow" } else { "" },
     )
     .unwrap();
     writeln!(
@@ -4298,6 +4431,7 @@ fn generate_svg(
         )
             .unwrap();
     }
+    writeln!(svg, "    power: {}", xml_escape(&machine.describe_power())).unwrap();
 
     writeln!(svg, "  </metadata>").unwrap();
 
@@ -5108,7 +5242,7 @@ fn shared_provenance_cats(machine: &MachineMetadata, selection_note: &str) -> Ve
             key: "machine",
             name: "Machine",
             summary: format!(
-                "{} · {} CPUs · {}{}",
+                "{} · {} CPUs · {}{}{}",
                 machine.cpu_type,
                 machine.cpu_count,
                 machine.os_type,
@@ -5116,6 +5250,13 @@ fn shared_provenance_cats(machine: &MachineMetadata, selection_note: &str) -> Ve
                     Some(load) if load.busy() => " · busy during the run",
                     Some(_) => " · quiet during the run",
                     None => "",
+                },
+                if machine.power.iter().flatten().any(|power| power.on_battery) {
+                    " · on battery"
+                } else if machine.power_slowing() {
+                    " · low-power mode"
+                } else {
+                    ""
                 },
             ),
             lines: vec![
@@ -5127,6 +5268,7 @@ fn shared_provenance_cats(machine: &MachineMetadata, selection_note: &str) -> Ve
                     Some(load) => format!("Load during the run: {}", load.describe()),
                     None => "Load during the run: not measured on this platform".to_owned(),
                 },
+                format!("Power: {}", machine.describe_power()),
                 format!("Toolchain: {RUSTC_VERSION} · {BUILD_TARGET}"),
                 format!("Sample clock: {}", clocks::WALL_CLOCK),
             ],
@@ -6430,6 +6572,23 @@ fn xml_escape(input: &str) -> String {
 #[cfg(test)]
 mod correctness_tests {
     use super::*;
+
+    /// pmset's outputs on an M4 Max (fork runner jobs 350 and 351, September 27, 2026).
+    #[test]
+    fn power_from_pmset() {
+        let settings = "System-wide power settings:\nCurrently in use:\n standby              1\n sleep                1 (sleep prevented by powerd)\n powermode            2\n womp                 0\n";
+        let battery = "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=35389539)\t47%; discharging; 2:36 remaining present: true\n";
+        let power = Power::parse_pmset(battery, settings).unwrap();
+        assert!(power.on_battery && power.slowing());
+        assert_eq!(power.describe(), "battery power (47% charged), High Power mode");
+        let mains = "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35389539)\t48%; charging; 1:10 remaining present: true\n";
+        let power = Power::parse_pmset(mains, &settings.replace("powermode            2", "lowpowermode         1")).unwrap();
+        assert!(!power.on_battery && power.low_power);
+        assert_eq!(power.describe(), "mains power, Low Power Mode");
+        let desktop = Power::parse_pmset("Now drawing from 'AC Power'\n", "").unwrap();
+        assert!(!desktop.slowing());
+        assert_eq!(desktop.describe(), "mains power");
+    }
 
     /// Fixed and Measured: the one division rounds half up at 2^-64, the
     /// ratio is exact to its last bit, and the display rounds once, with
