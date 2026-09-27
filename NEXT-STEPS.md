@@ -9,74 +9,67 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
-## Resume here (checkpoint, September 26, 2026, end of the benchmark session)
+## Resume here (checkpoint, September 27, 2026, night; Zooko asleep)
 
-**State.** Fork `servil` (library code as f38786d; the `clocks/` crate;
-14db82c and later, documentation only); bench-hashes pinned to 14db82c. Records (VM and Mac `--all`) on
-servil ad24649 (bench-hashes 01e26d3, 0da1e22); they predate the
-after-idle scenario, so remake both when the fork next changes. Every
-promotion has its gate note in `refs/notes/perf`; both trees are clean.
-Runner jobs run to 341 (340 archived unrun: the runner was stopped); the
-next number is 342. The Mac runner must be running (Zooko restarts it with
-`setup-mac.sh`) before any gate job.
+**State.** Fork `servil` 3a1e948 (library code as 3d7102e; later commits
+docs and tools); bench-hashes `main` 50c3799, pinned to e5b0307 (3d7102e's
+code). Records (Mac job 380, mains power; VM) on e5b0307, committed in
+3d70e04. Every promotion has its gate note in `refs/notes/perf`; both
+trees clean. Runner jobs run to 381; the next number is 382. **Zooko:
+restart the runner** (`setup-mac.sh`): it installs perf_regress.py, whose
+fix (3a1e948) makes the Mac's records name bench-hashes' own commit (every
+runner record since September 26 names the fork's; the README speed chart
+cannot be redrawn from 380 until then: `tools/speed_chart.py` finds no
+bench-hashes commit). Then remake the Mac record and redraw the chart.
 
-**In flight: item 1 below, servil mt after idle.** Branch `probe/idle-wake`
-(pushed) replaces `examples/host_lab.rs` with a probe: one call after a
-1 ms sleep, st against mt, by size and thread budget, with the clock. Run
-it on the Mac as an `example` job (`host_lab`) while the Mac is quiet (a
-browser perturbs it). VM results so far (median of 101 calls):
-- 64 KiB after idle: st 15 us, mt 85-107 us; back to back mt 9 us.
-  128 KiB 33 against 105; 256 KiB 66 against 119; 1 MiB 232 against 180
-  (the pool wins after idle from about 1 MiB).
-- Budget 2 (the caller and one worker) pays the whole cost, because the
-  caller wakes every sleeper whatever its budget (`lanes.rs`, "a call
-  whose pieces outnumber the workers awake wakes every sleeper").
-- The cost grows with the sleepers woken: CPUs 2 / 4 / 8 / 16 (workers
-  1 / 3 / 7 / 15): mt after idle 31 / 32 / 53 / 107 us against st 15-20.
-  So two parts: the caller waking each sleeper synchronously (about 5 us
-  each in the VM, a halted vCPU kicked per wake), and a woken worker
-  arriving late (about 15 us even alone).
-- Fix directions to weigh, simplest first, judged by the after-idle
-  cells (now in the benchmark and held by perf_regress): wake only the
-  workers the call can use (at most pieces - 1, budget - 1); take the
-  wakes off the caller's path (the caller wakes one, each woken worker
-  wakes the next ones); stay on the caller's thread while the workers are
-  asleep and the input would finish before they could arrive (a
-  threshold measured, not tuned). The contract to meet: a multithreaded
-  call never slower than the single-threaded one (AGENTS.md, minimax).
-- With it: split `initialize()` (the self-test alone, 130-165 us) from
-  `initialize_multithreaded()` (plus the pool, 510-700 us), a behaviour
-  change of a public function (0.x minor bump, changelog); measure the
-  pool's memory cost then.
+**Done this session** (September 27; details in the commits and the
+fork's NOTES "Waking", "Holds", "Two aims", "Pauses slow the core's
+clock", "The clock after a pause, measured"):
+- Power state recorded everywhere (bench-hashes report, samples, graph;
+  perf_regress's verdict; the runner's verdict.json). Battery power moves
+  more calls after a pause onto E-cores; the clock's fall after a pause
+  happens on mains too.
+- The Mac's clock after a pause (jobs 358-359): sleeps of 500 µs-20 ms
+  leave about 85 µs of work at 1.06 GHz; 100 ms longer; a 1 ms spin
+  leaves 2.5 GHz. Told users in the crate docs.
+- **The pool keeps nothing awake between calls** (1046c10, Zooko's
+  decision and framing: a fix to the benchmark, not a slowdown users
+  meet): workers poll only while a job or Hold is registered; a call
+  wakes only the workers it can use (the caller one, the first woken the
+  rest); MIN_SPLIT_LEN 768 KiB. After idle mt now equals st below the
+  split and beats it above; back-to-back mt cells slowed (numbers in the
+  commit message).
+- **A multithreaded Stream holds the pool** while its next buffer waits
+  (3d7102e): Mac streamed mt 32 MiB 0.065 -> 0.043 ns/B.
+- API docs: each interface says whether it is built for top speed or a
+  low worst case (3d4b863); the name of the second aim is Zooko's to
+  settle.
+- bench-hashes: a fifth dot shape; `--trace-clocks` also traces the
+  after-idle bursts (3ef62fa).
+- Tried and dropped: wake fan-out as a tree (level on both machines).
 
-**Waiting on Zooko.** The graph on his iPhone (bench-hashes 20a87c6); a
-real x86-64 machine; perf_regress's 256 B batch points; upstream issue
-#590 / PR #591.
-
-**This session** (September 26; details in the commits, the fork's NOTES
-"perf_regress" and "The slow state, measured directly", and NOTES.md):
-- The benchmarks, faster: perf_regress 95 s -> about 20-40 s on the VM
-  (curtailment, targeted confirmation, 24 rounds recalibrated on both
-  machines, sides that own their builds and locks, `perf_regress.py
-  build`); a default full run 47 s -> about 20 s, `--all` 176 s -> about
-  50 s (12 samples a cell with no "unsure" doubling, no digest checks,
-  BLAKE3 official mt by request only); Mac gate jobs 104 s -> about 30-45 s
-  (the runner keeps its checkouts).
-- Found and fixed: the flat walk's scratch placement (the VM's 32-64 KiB
-  two speeds; f38786d); calibration timing a first call's one-time costs;
-  the thinned schedule seeing one Williams order; build.rs's missing
-  watched path (every worktree build rebuilt); the committed lock patched
-  and restored on every check.
-- Added: the after-idle scenario (text and CHECKS, not the graph; judged
-  by fast speeds; held by perf_regress at 20%); the `clocks/` crate, the
-  one place both repositories read clocks; PROCEDURES.md in both
-  repositories, apart from the principles.
-- Found, open: servil mt after idle (item 1); the VM's warm-up and the
-  Mac's falling P-core clock under load (set aside); SME2 batches of 16
-  switching between 10, 15, 20 ns/msg on the VM; a trivial change moving
-  shared 32-64 KiB by a fifth; a quarter of VM processes still slow at
-  32-64 KiB; a median exactly halfway between two display values
-  (check-report, NOTES.md).
+**Found, open, for Zooko:**
+- **The after-idle CHECKS compare clock states, not code.** In the Mac
+  record (380) every after-idle cell is two-speed (fast|slow about 2-2.5x
+  apart, every contender): after some 1 ms sleeps the clock stays up,
+  after others it falls. A traced run (381) caught the slow state every
+  time: every contender at about 1.26 GHz against 4.44, cycles per call
+  as back to back, so servil's ratio to SHA-256 after idle equals its
+  ratio back to back. CHECKS judge at the worse round-by-round ratio,
+  which pairs one contender's fast burst with another's slow one: its
+  "servil st x5 slower than SHA-256 after idle" lines are the machine's.
+  Proposed fix (AGENTS "Measuring": compare within one state): read the
+  counts around every after-idle burst where the platform has them, keep
+  each sample's state (cycles per ns) in the samples file, and compare
+  after-idle cells within a state; report the state mix. A samples-format
+  change (v4) and a CHECKS change: Zooko's review first.
+- **The gap sweep** (a caller doing real work between calls) was
+  proposed to judge lingering; with nothing kept awake every call meets
+  sleeping workers at any gap, so it now measures only the clock state,
+  which back to back and after idle already bracket. Worth building only
+  for in-core effects such as the SME unit's slow state (open problem 7).
+- The after-idle margin (20%, job 338) was calibrated when the Mac's power
+  state was unknown; recalibrate on mains after the state fix above.
 
 **Lessons (this guest).**
 - `pkill -f PATTERN` matches the shell running it and kills the command;
@@ -102,14 +95,8 @@ real x86-64 machine; perf_regress's 256 B batch points; upstream issue
 
 ### Next, in order
 
-1. **servil mt after idle** (found September 26; Zooko: prioritize): one
-   `hash_multithreaded(64 KiB)` after idle time takes 65-100 us (its
-   workers asleep, woken per call), against about 12 us single-threaded:
-   mt 5-8x slower than st for a program hashing now and then. The
-   benchmark sees it now (the after-idle scenario: CHECKS, servil mt 5-6x
-   slower than st at 64-512 KiB; perf_regress holds a change on after-idle
-   cells, 20% margin, a planted wake-up delay held). The measurements so
-   far and the fix directions are under "In flight" above.
+1. **The after-idle state fix** (above, "Found, open"): after Zooko's
+   review.
 2. **A proper streaming mode with minimal pipeline bubbles** (Zooko,
    September 27): the caller hands over pieces and moves on while our
    threads hash behind it, so the engine never idles while the caller
