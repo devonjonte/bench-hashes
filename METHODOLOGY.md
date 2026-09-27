@@ -83,9 +83,11 @@ handed to the contender's incremental API, so reading and hashing take
 turns (`Hasher::update` in crates.io BLAKE3 and in BLAKE3 servil st,
 `update_rayon` for BLAKE3 official mt, `Digest::update` in sha2 and
 sha1-checked, ring's `Context::update`, CommonCrypto's
-`CC_SHA256_Update`). BLAKE3 servil mt takes no part while the fork's
-streaming interfaces are redesigned. The expected digests are the
-one-message ones.
+`CC_SHA256_Update`). BLAKE3 servil mt streams through the fork's queue,
+built for efficiency: the program keeps four 64 KiB buffers, copies each
+piece into a free one, hands it over, and gets it back through the queue's
+handler, so reading and hashing overlap; the stream's digest arrives the
+same way after its end. The expected digests are the one-message ones.
 
 ## The many-messages use case
 

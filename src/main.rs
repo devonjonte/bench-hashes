@@ -563,13 +563,7 @@ impl Algorithm {
     fn takes_part(self, use_case: UseCase) -> bool {
         match use_case {
             UseCase::ManyMessages => !matches!(self, Self::Blake3Rayon),
-            UseCase::OneMessage => true,
-            /*
-             * The fork's streaming interfaces are being redesigned
-             * (its docs/api-design.md; Stream deleted, September 27, 2026):
-             * servil mt returns to the streamed axis with them.
-             */
-            UseCase::Streaming => !matches!(self, Self::Blake3ServilMt),
+            UseCase::OneMessage | UseCase::Streaming => true,
         }
     }
 
@@ -675,7 +669,7 @@ impl Algorithm {
             | Self::Sha3_256 => "single-threaded",
             Self::Blake3ServilSt => "single-threaded; blake3_servil::hash for one message, blake3_servil::hash_many for a batch, Hasher::update per piece for a stream",
             Self::Blake3Rayon => "multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread",
-            Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch: the fork chooses whether to use its shared resident workers; the kernel tables below show the thresholds",
+            Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, and Queue::pieces (efficiency in time) for a stream: the fork chooses whether to use its shared resident workers; the kernel tables below show the thresholds",
         }
     }
 
@@ -1876,7 +1870,7 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             pieces(&mut |piece| { hasher.update(piece); });
             *hasher.finalize().as_bytes()
         }, consume),
-        Algorithm::Blake3ServilMt => unreachable!("servil mt takes no part in the streamed use case (takes_part)"),
+        Algorithm::Blake3ServilMt => each_stream_queue(input, iterations, consume),
         Algorithm::Sha256 => each_stream(input, iterations, |pieces| {
             let mut hasher = Sha256::new();
             pieces(&mut |piece| hasher.update(piece));
@@ -1932,6 +1926,99 @@ fn each_stream<D: AsRef<[u8]>>(
     }
 }
 
+
+/*
+ * What the benchmark asks of the servil fork, by contender and use case:
+ * the fork's call and its usage pattern. FROZEN.md lists the same, with the
+ * reasons; a test compares them, so a change here needs FROZEN.md changed,
+ * with Zooko's decision. Keep the dispatch (hash_batch) calling exactly
+ * these.
+ */
+const SERVIL_CALLS: [(Algorithm, UseCase, &str); 6] = [
+    (Algorithm::Blake3ServilSt, UseCase::OneMessage, "hash(input), back to back"),
+    (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "hash_many(batch, 64, out), the padded batch contract"),
+    (Algorithm::Blake3ServilSt, UseCase::Streaming, "Hasher::update per 64 KiB piece, then finalize"),
+    (Algorithm::Blake3ServilMt, UseCase::OneMessage, "hash_multithreaded(input), back to back"),
+    (Algorithm::Blake3ServilMt, UseCase::ManyMessages, "hash_many_multithreaded(batch, 64, out), the padded batch contract"),
+    (Algorithm::Blake3ServilMt, UseCase::Streaming, "Queue::pieces(Mode::Hash, Efficiency::Time), four 64 KiB buffers cycled through the handler, each piece copied into a free one, the digest through the handler after finish"),
+];
+
+/// The frozen contract as text, from the code's own tables: FROZEN.md's
+/// block must read the same (the test frozen_contract_matches_frozen_md).
+fn frozen_contract() -> String {
+    let mut text = String::new();
+    for use_case in UseCase::ALL {
+        let labels: Vec<&str> = POINTS.iter().filter(|point| point.use_case == use_case).map(|point| point.label).collect();
+        text += &format!("use case {use_case:?}: {}\n", labels.join(", "));
+    }
+    let keys = |scenarios: &[Scenario]| scenarios.iter().map(|scenario| scenario.key()).collect::<Vec<_>>().join(", ");
+    text += &format!("scenarios: {}\n", keys(&Scenario::ALL));
+    text += &format!("graph plots: {}\n", keys(&Scenario::PLOTTED));
+    for (algorithm, use_case, call) in SERVIL_CALLS {
+        assert!(algorithm.takes_part(use_case), "{} takes part in {use_case:?}", algorithm.key());
+        text += &format!("{} {use_case:?}: {call}\n", algorithm.key());
+    }
+    text
+}
+
+/// Buffers a program cycles through the fork's queue: it fills a free one,
+/// submits it, and the queue's handler hands it back (FROZEN.md).
+const QUEUE_BUFFERS: usize = 4;
+
+/*
+ * `iterations` streams of `input` through the fork's queue, built for
+ * efficiency in time (FROZEN.md, "one input in pieces"): the program keeps
+ * QUEUE_BUFFERS buffers of PIECE_LEN, copies each piece into a free one (as
+ * a read would land it), submits it, and gets it back through the handler;
+ * the stream's digest arrives through the handler after finish. The
+ * handler forwards to this thread, which waits on the channel when it has
+ * no free buffer (the program's choice; the queue never blocks).
+ */
+fn each_stream_queue(input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8])) {
+    use std::sync::mpsc;
+    enum Back {
+        Piece(Vec<u8>),
+        Done(blake3_servil::Hash),
+    }
+    struct Handler(mpsc::Sender<Back>);
+    impl blake3_servil::PieceHandler for Handler {
+        type Buffer = Vec<u8>;
+        fn piece_done(&mut self, buffer: Vec<u8>) {
+            self.0.send(Back::Piece(buffer)).expect("the benchmark waits for every buffer");
+        }
+        fn finished(&mut self, hash: blake3_servil::Hash) {
+            self.0.send(Back::Done(hash)).expect("the benchmark waits for the digest");
+        }
+    }
+    let (sender, returned) = mpsc::channel();
+    let mut free: Vec<Vec<u8>> = (0..QUEUE_BUFFERS).map(|_| Vec::with_capacity(PIECE_LEN)).collect();
+    for _ in 0..iterations {
+        let queue = blake3_servil::Queue::pieces(blake3_servil::Mode::Hash, blake3_servil::Efficiency::Time, Handler(sender.clone()));
+        for piece in black_box(input).chunks(PIECE_LEN) {
+            let mut buffer = match free.pop() {
+                Some(buffer) => buffer,
+                None => loop {
+                    if let Back::Piece(buffer) = returned.recv().expect("a buffer comes back") {
+                        break buffer;
+                    }
+                },
+            };
+            buffer.clear();
+            buffer.extend_from_slice(piece);
+            queue.submit(buffer);
+        }
+        queue.finish();
+        loop {
+            match returned.recv().expect("the stream ends") {
+                Back::Piece(buffer) => free.push(buffer),
+                Back::Done(hash) => {
+                    consume(hash.as_bytes());
+                    break;
+                }
+            }
+        }
+    }
+}
 
 /// `iterations` passes over the batch through one of the fork's batch entry
 /// points, which take the messages back to back in one buffer with their
@@ -5513,7 +5600,7 @@ fn contender_provenance_lines(
             format!("{name}: {}", algorithm.thread_resources().expect("BLAKE3 mt runs on Rayon's pool")),
         ],
         Algorithm::Blake3ServilMt => vec![
-            format!("{name}: {} · hash_multithreaded, hash_many_multithreaded for a batch", short_git_source(BLAKE3_SERVIL_SOURCE_INFO)),
+            format!("{name}: {} · hash_multithreaded, hash_many_multithreaded for a batch, Queue::pieces for a stream", short_git_source(BLAKE3_SERVIL_SOURCE_INFO)),
             format!("{name}: multithreaded on the fork's own threads · platform {platform}"),
         ],
     }
@@ -6856,6 +6943,19 @@ mod correctness_tests {
         assert_eq!(samples.after_idle_states(), None);
         let (findings, _) = checks(&roster, &results, &samples);
         assert!(findings.iter().any(|f| f.contains("after-idle") && f.starts_with("x3.")), "{findings:#?}");
+    }
+
+    /// The benchmark asks of the fork exactly what FROZEN.md says it does.
+    #[test]
+    fn frozen_contract_matches_frozen_md() {
+        let manifest = include_str!("../FROZEN.md");
+        let start = manifest.find("```frozen\n").expect("FROZEN.md has a frozen block") + "```frozen\n".len();
+        let end = start + manifest[start..].find("```").expect("the frozen block ends");
+        assert_eq!(
+            &manifest[start..end],
+            frozen_contract(),
+            "the benchmark's contract with the fork changed: change FROZEN.md with it, with Zooko's decision and its reason"
+        );
     }
 
     /// Axis ticks below 1 keep two significant digits, so neighbouring
