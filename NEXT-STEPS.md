@@ -106,10 +106,12 @@ clock", "The clock after a pause, measured"):
    threads hash behind it, so the engine never idles while the caller
    handles results or produces input; the interface callers with a
    stream of inputs are steered to, now that the pool keeps nothing
-   awake between calls. Design points under "Idea: a truly streaming
-   (pipelined) hasher"; write the design up for Zooko before building,
-   with how the benchmark measures it (a producer doing real work per
-   piece, timed end to end).
+   awake between calls. `Stream` already covers one long input; the
+   design for many inputs, each with its own digest, is written up for
+   Zooko's review in the fork's `docs/design-pipelined-hashing.md` (a
+   `Queue`: our buffers, submission-order digests, a byte budget as
+   back-pressure, small inputs batched, a hold across inputs; five open
+   questions). Build after his answers.
 3. **servil behind BLAKE3 official**: 4 messages fixed (p4 as two scalars
    beside a pair, Zooko's decision despite E-cores +30%; Mac 20.3 against
    official's 21.6 ns/msg). Left: 12 messages shared (Mac 25.8 against
