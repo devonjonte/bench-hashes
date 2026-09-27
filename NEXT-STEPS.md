@@ -10,16 +10,13 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 
 ## Resume here (checkpoint, September 26, 2026, end of the benchmark session)
 
-**State.** Fork `servil` 14db82c (library code as f38786d; the `clocks/`
-crate); bench-hashes `main` pinned to it. Records (VM and Mac `--all`) on
+**State.** Fork `servil` (library code as f38786d; the `clocks/` crate;
+14db82c and later, documentation only); bench-hashes pinned to 14db82c. Records (VM and Mac `--all`) on
 servil ad24649 (bench-hashes 01e26d3, 0da1e22); they predate the
 after-idle scenario, so remake both when the fork next changes. Every
-promotion has its gate note in `refs/notes/perf`. The fork's working tree
-holds uncommitted doc edits (PROCEDURES.md's timings and pointer, and the
-Measuring principle's sentence on not scaling by cycles, in both AGENTS.md
-files): commit them through a candidate and the gate first. Runner jobs
-run to 339 (340 archived unrun: the runner was stopped); the next number
-is 341. The Mac runner must be running (Zooko restarts it with
+promotion has its gate note in `refs/notes/perf`; both trees are clean.
+Runner jobs run to 341 (340 archived unrun: the runner was stopped); the
+next number is 342. The Mac runner must be running (Zooko restarts it with
 `setup-mac.sh`) before any gate job.
 
 **In flight: item 1 below, servil mt after idle.** Branch `probe/idle-wake`
