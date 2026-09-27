@@ -2752,8 +2752,10 @@ enum Mark {
     Circle,
     Diamond,
     Square,
-    /// A fourth kernel, which only the multithreaded servil contender has.
+    /// A fourth kernel.
     Triangle,
+    /// A fifth, which only the multithreaded servil contender has.
+    DownTriangle,
 }
 
 impl Mark {
@@ -2764,6 +2766,7 @@ impl Mark {
             Mark::Diamond => '◆',
             Mark::Square => '■',
             Mark::Triangle => '▲',
+            Mark::DownTriangle => '▼',
         }
     }
 
@@ -2773,6 +2776,7 @@ impl Mark {
             Self::Diamond => "diamond",
             Self::Square => "square",
             Self::Triangle => "triangle",
+            Self::DownTriangle => "downward triangle",
         }
     }
 }
@@ -2983,7 +2987,7 @@ fn detect_ring_kernels() -> Kernels {
  * bencher adds only the dot shapes, in order.
  */
 fn servil_kernels(report: blake3_servil::KernelReport) -> Kernels {
-    const MARKS: [Mark; 4] = [Mark::Circle, Mark::Diamond, Mark::Square, Mark::Triangle];
+    const MARKS: [Mark; 5] = [Mark::Circle, Mark::Diamond, Mark::Square, Mark::Triangle, Mark::DownTriangle];
     assert!(
         report.kernels.len() <= MARKS.len(),
         "the graph has {} dot shapes; the fork reports {} kernels",
@@ -5219,6 +5223,16 @@ fn mark_shape(mark: Mark, color: &str, radius: f64) -> String {
                 left = -r,
             )
         }
+        Mark::DownTriangle => {
+            /* Point down; the centroid sits at the origin. */
+            let r = radius * 1.3;
+            format!(
+                r##"<path d="M 0 {bottom:.2} L {r:.2} {base:.2} L {left:.2} {base:.2} Z" fill="{color}" {stroke}/>"##,
+                bottom = r,
+                base = -r * 0.5,
+                left = -r,
+            )
+        }
     }
 }
 
@@ -6217,6 +6231,7 @@ function markGlyph(mark, color) {
   if (mark === "diamond") { el = document.createElementNS(NS, "path"); el.setAttribute("d", "M 0 -6.25 L 6.25 0 L 0 6.25 L -6.25 0 Z"); }
   else if (mark === "square") { el = document.createElementNS(NS, "rect"); el.setAttribute("x", -4.5); el.setAttribute("y", -4.5); el.setAttribute("width", 9); el.setAttribute("height", 9); }
   else if (mark === "triangle") { el = document.createElementNS(NS, "path"); el.setAttribute("d", "M 0 -6.5 L 6.5 3.25 L -6.5 3.25 Z"); }
+  else if (mark === "downward triangle") { el = document.createElementNS(NS, "path"); el.setAttribute("d", "M 0 6.5 L 6.5 -3.25 L -6.5 -3.25 Z"); }
   else { el = document.createElementNS(NS, "circle"); el.setAttribute("r", 5); }
   el.setAttribute("fill", color); el.setAttribute(...stroke); el.setAttribute(...sw);
   return el;
