@@ -10,14 +10,15 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 
 ## Resume here (checkpoint, September 26, 2026, late night)
 
-**State.** Fork `servil` 663f17e (library code as f38786d: the flat walk's
+**State.** Fork `servil` 14db82c (library code as f38786d: the flat walk's
 scratch on a 4 KiB boundary; the clocks crate); bench-hashes pinned to it; every promotion has its gate
 note in `refs/notes/perf`. Records (VM and Mac `--all`) are on servil
 ad24649 (bench-hashes 01e26d3, 0da1e22; the library code is today's).
-Runner jobs run to 336; the next job number is 337.
+Runner jobs run to 339; the next job number is 340.
 
 **Waiting on Zooko.**
-- The design of the after-idle measurement (item 1 below).
+- Whether to run a 10-minute traced Mac job to find the warm plateau
+  (the P-core clock falls 1-3% over 2.5 minutes of load; job 332).
 - Try the graph on his iPhone (bench-hashes 20a87c6), a real x86-64
   machine, perf_regress's 256 B batch points, upstream issue #590 / PR
   #591: as before.
@@ -69,10 +70,10 @@ cycles its contender orders by its own visits.
 1. **servil mt after idle** (found September 26; Zooko: prioritize): one
    `hash_multithreaded(64 KiB)` after idle time takes 65-100 us (its
    workers asleep, woken per call), against about 12 us single-threaded:
-   mt 5-8x slower than st for a program hashing now and then. First make
-   the benchmark see it (a measurement of calls after idle, judged by
-   CHECKS and perf_regress, so a regression of this kind is caught), then
-   fix it (e.g. stay on the caller's thread when the workers are asleep
+   mt 5-8x slower than st for a program hashing now and then. The
+   benchmark sees it now (the after-idle scenario: CHECKS, servil mt 5-6x
+   slower than st at 64-512 KiB; perf_regress holds a change on after-idle
+   cells, 20% margin, a planted wake-up delay held). Fix it (e.g. stay on the caller's thread when the workers are asleep
    and the input is small, or wake them before cutting). The pool's start
    (0.5-0.7 ms) and the self-test (0.13-0.17 ms) are one-time costs that
    `initialize()` moves, as its docs say.
