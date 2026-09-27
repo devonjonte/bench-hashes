@@ -67,6 +67,15 @@ const TARGET_SAMPLE_NS: u128 = 1_000_000;
  *   uncertainty, and a 4% threshold saved 1.5 s of the 6.
  */
 const LONG_HASH_NS: u128 = 4_000_000;
+/// How long a thread sleeps before its after-idle call: longer than a pool
+/// keeps its workers polling (the fork's, 200 us), so the call meets them
+/// asleep, as a call made now and then does.
+const IDLE_NS: u64 = 1_000_000;
+/// How long the calls after idle last: a single call, when it lasts this
+/// long or more (a multithreaded 64 KiB), else as many as fill it, so the
+/// clock's 41.7 ns ticks (24 MHz, on the Mac and the VM) stay under half a
+/// percent of a sample.
+const IDLE_BURST_NS: u128 = 10_000;
 const STEADY_SAMPLES: usize = 12;
 const LONG_SAMPLES: usize = 6;
 
@@ -229,6 +238,8 @@ type Samples = Vec<Vec<Vec<Measured>>>;
 struct RunSamples {
     solo: Samples,
     shared: Samples,
+    /// One call after IDLE_NS of sleep, in the solo sample's interval.
+    after_idle: Samples,
     /// The round of each solo sample, by contender and point; the shared
     /// samples of that interval are the two at twice its index.
     rounds: Vec<Vec<Vec<usize>>>,
@@ -246,9 +257,10 @@ impl RunSamples {
         let values = |(algorithm, point): (usize, usize)| match scenario {
             Scenario::Solo => &self.solo[algorithm][point],
             Scenario::Shared => &self.shared[algorithm][point],
+            Scenario::AfterIdle => &self.after_idle[algorithm][point],
         };
         let per_round = match scenario {
-            Scenario::Solo => 1,
+            Scenario::Solo | Scenario::AfterIdle => 1,
             Scenario::Shared => 2,
         };
         let b_index: std::collections::HashMap<usize, usize> =
@@ -838,15 +850,20 @@ const TWO_SPEED_RATIO_PERMILLE: u64 = 1250;
 enum Scenario {
     Solo,
     Shared,
+    AfterIdle,
 }
 
 impl Scenario {
-    const ALL: [Scenario; 2] = [Scenario::Solo, Scenario::Shared];
+    const ALL: [Scenario; 3] = [Scenario::Solo, Scenario::Shared, Scenario::AfterIdle];
+    /// The scenarios the graph plots; after-idle calls are reported in the
+    /// text and judged by the checks alone (Zooko, September 26, 2026).
+    const PLOTTED: [Scenario; 2] = [Scenario::Solo, Scenario::Shared];
 
     fn key(self) -> &'static str {
         match self {
             Self::Solo => "solo",
             Self::Shared => "shared",
+            Self::AfterIdle => "after-idle",
         }
     }
 
@@ -854,6 +871,7 @@ impl Scenario {
         match self {
             Self::Solo => "Solo",
             Self::Shared => "Shared",
+            Self::AfterIdle => "After idle",
         }
     }
 
@@ -862,6 +880,7 @@ impl Scenario {
         match self {
             Self::Solo => "one program hashing, the computer otherwise idle",
             Self::Shared => "two programs hashing at once; the time of either",
+            Self::AfterIdle => "one call after the program has been idle",
         }
     }
 
@@ -870,6 +889,7 @@ impl Scenario {
         match self {
             Self::Solo => "one copy of each contender on one thread, the machine otherwise idle",
             Self::Shared => "two copies of the contender at once, each hashing its own input on its own thread; the time of each copy",
+            Self::AfterIdle => "one copy, calling after its thread has slept 1 ms, the machine otherwise idle; the time of those calls (one call, or as many as fill 10 us)",
         }
     }
 }
@@ -879,6 +899,7 @@ impl Scenario {
 struct Cell {
     solo: Statistics,
     shared: Statistics,
+    after_idle: Statistics,
 }
 
 impl Cell {
@@ -886,6 +907,7 @@ impl Cell {
         match scenario {
             Scenario::Solo => self.solo,
             Scenario::Shared => self.shared,
+            Scenario::AfterIdle => self.after_idle,
         }
     }
 }
@@ -1384,6 +1406,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
     let mut samples = RunSamples {
         solo: empty(),
         shared: empty(),
+        after_idle: empty(),
         rounds: (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::new()).collect()).collect(),
     };
 
@@ -1447,6 +1470,19 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                  */
                 let copies = duo.run(algorithm, input, &duo_inputs[size_index], point, iterations);
 
+                /*
+                 * The after-idle sample: a burst of about IDLE_BURST_NS of
+                 * calls (one at least) after this thread has slept long
+                 * enough for a pool's workers to fall asleep, as a program
+                 * hashing now and then calls. The samples last TARGET_SAMPLE_NS
+                 * for `iterations`, so the burst is that share of them.
+                 */
+                let idle_iterations = (iterations as u128 * IDLE_BURST_NS).div_ceil(TARGET_SAMPLE_NS) as usize;
+                std::thread::sleep(std::time::Duration::from_nanos(IDLE_NS));
+                let started = clocks::now();
+                run_batch(algorithm, input, point, idle_iterations);
+                let idle_ns = clocks::since_ns(started);
+
                 let total_units = point.use_case.units(point, iterations);
                 let per_unit = |ns: u64| Measured::new(ns, total_units);
                 samples.solo[algorithm_index][size_index].push(per_unit(elapsed_ns));
@@ -1454,6 +1490,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                 for copy in &copies {
                     samples.shared[algorithm_index][size_index].push(per_unit(copy.elapsed_ns));
                 }
+                samples.after_idle[algorithm_index][size_index].push(Measured::new(idle_ns, point.use_case.units(point, idle_iterations)));
 
                 if let Some(trace) = trace.as_deref_mut() {
                     let counts = counts0.zip(clocks::Counts::read()).map(|(before, after)| after.since(before));
@@ -1489,8 +1526,13 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
             let shared = &samples.shared[algorithm_index][size_index];
             assert!(!solo.is_empty() && solo.len() <= roster.rounds, "one solo sample per round at most, and one at least");
             assert_eq!(shared.len(), 2 * solo.len(), "two shared samples, one per copy, beside every solo sample");
-            results[algorithm_index][size_index] =
-                Some(Cell { solo: summarize(&mut per_units(solo)), shared: summarize(&mut per_units(shared)) });
+            let after_idle = &samples.after_idle[algorithm_index][size_index];
+            assert_eq!(after_idle.len(), solo.len(), "one after-idle sample beside every solo sample");
+            results[algorithm_index][size_index] = Some(Cell {
+                solo: summarize(&mut per_units(solo)),
+                shared: summarize(&mut per_units(shared)),
+                after_idle: summarize(&mut per_units(after_idle)),
+            });
         }
     }
 
@@ -2985,6 +3027,7 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
             let rows = match scenario {
                 Scenario::Solo => &samples.solo,
                 Scenario::Shared => &samples.shared,
+                Scenario::AfterIdle => &samples.after_idle,
             };
             for (point_index, point) in POINTS.iter().enumerate() {
                 let cell_samples = &rows[algorithm_index][point_index];
@@ -3185,7 +3228,21 @@ fn checks(roster: &Roster, results: &Results, samples: &RunSamples) -> (Vec<Stri
             for use_case in UseCase::ALL.into_iter().filter(|&use_case| algorithm.takes_part(use_case)) {
                 let points: Vec<usize> = use_case.points().filter(|&index| roster.measures(index)).collect();
                 let stats = |algorithm_index: usize, point_index: usize| cell(results, algorithm_index, point_index).get(scenario);
-                let judged = |mine: (usize, usize), theirs: (usize, usize)| paired_slower(&samples.paired(scenario, mine, theirs));
+                /*
+                 * After idle, each sample wakes a core of its own, cold or
+                 * warm (the VM: 3.5x apart, for every contender alike), so a
+                 * round pairs one side's cold call with the other's warm
+                 * one by chance: the two cells' fast speeds are compared
+                 * instead, 5% apart or more with their intervals apart.
+                 */
+                let judged = |mine: (usize, usize), theirs: (usize, usize)| {
+                    if scenario != Scenario::AfterIdle {
+                        return paired_slower(&samples.paired(scenario, mine, theirs));
+                    }
+                    let (m, t) = (stats(mine.0, mine.1).speeds()[0], stats(theirs.0, theirs.1).speeds()[0]);
+                    let ratio = m.median.ratio(t.median);
+                    (m.low > t.high && ratio.cmp_permille(1000 + CHECK_GAP_PERMILLE).is_ge()).then(|| (ratio.permille(), m.median, t.median))
+                };
                 let unit = use_case.time_unit();
                 let span = |run: &[usize]| match (run, use_case) {
                     ([one], _) => POINTS[*one].name(),
@@ -3782,7 +3839,7 @@ fn generate_svg(
 
     /* Solo plots first, then shared: one per use case the run measured. */
     let mut plots: Vec<Plot> = Vec::new();
-    for scenario in Scenario::ALL {
+    for scenario in Scenario::PLOTTED {
         for use_case in UseCase::ALL {
             if use_case.points().any(|index| roster.measures(index)) {
                 plots.push(Plot::new(plots.len(), scenario, use_case, roster, results));
@@ -4062,11 +4119,12 @@ fn generate_svg(
     let chip_rows: [(&str, Vec<(String, &str, String)>); 2] = [
         ("scenario", {
             let mut v = Vec::new();
-            for scenario in [Scenario::Solo, Scenario::Shared] {
+            for scenario in Scenario::PLOTTED {
                 if plots.iter().any(|plot| plot.scenario == scenario) {
                     let tip = match scenario {
                         Scenario::Solo => "Show or hide the plots of one program hashing alone",
                         Scenario::Shared => "Show or hide the plots of two programs hashing at once",
+                        Scenario::AfterIdle => unreachable!("after-idle calls are not plotted"),
                     };
                     v.push((scenario.key().to_owned(), scenario.heading(), tip.to_owned()));
                 }
@@ -6408,11 +6466,11 @@ mod correctness_tests {
 
     /// Results and samples for two contenders over `rounds` rounds: each
     /// cell's sample in round r is `value(contender, point, r)` ns over one
-    /// unit, solo and
-    /// both shared copies alike, summarised as measure_all does.
+    /// unit, solo,
+    /// both shared copies, and after idle alike, summarised as measure_all does.
     fn run(roster: &Roster, rounds: usize, value: impl Fn(usize, usize, usize) -> u64) -> (Results, RunSamples) {
         let empty = || -> Samples { vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
-        let mut samples = RunSamples { solo: empty(), shared: empty(), rounds: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
+        let mut samples = RunSamples { solo: empty(), shared: empty(), after_idle: empty(), rounds: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
         let mut results: Results = vec![vec![None; POINT_COUNT]; roster.len()];
         for a in 0..roster.len() {
             for &p in &roster.points {
@@ -6420,11 +6478,13 @@ mod correctness_tests {
                     let v = Measured::new(value(a, p, r), 1);
                     samples.solo[a][p].push(v);
                     samples.shared[a][p].extend([v, v]);
+                    samples.after_idle[a][p].push(v);
                     samples.rounds[a][p].push(r);
                 }
                 results[a][p] = Some(Cell {
                     solo: summarize(&mut per_units(&samples.solo[a][p])),
                     shared: summarize(&mut per_units(&samples.shared[a][p])),
+                    after_idle: summarize(&mut per_units(&samples.after_idle[a][p])),
                 });
             }
         }

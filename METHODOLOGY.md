@@ -3,7 +3,7 @@
 This file explains what a run measures, how it keeps the numbers honest,
 and what each contender runs. [README.md](README.md) says how to run it.
 
-Every run measures each contender in three use cases and two scenarios.
+Every run measures each contender in three use cases and three scenarios.
 **One message per call**: a call hashes one input, at twenty-seven sizes
 from 64 B to 128 MiB, reported per byte. **Many messages per call**: a call
 hashes a batch of 64-byte messages, at twenty-four batch sizes from 1 to
@@ -13,8 +13,9 @@ shorter), each copied as a read would copy it and fed to the contender's
 incremental API, then finalized, so the implementation never learns the
 total size in advance; reported per byte. **Solo**: one copy of the
 contender, the machine otherwise idle. **Shared**: two copies at once.
-The report and the graph show each use case once per scenario, solo
-first.
+**After idle**: one copy calling after its thread has slept. The report
+shows each use case once per scenario, solo first; the graph shows solo
+and shared.
 
 ## Contenders
 
@@ -128,12 +129,12 @@ calls.
 Both scenarios apply unchanged: in the shared one each copy hashes its
 own batch.
 
-## Solo and shared
+## Solo, shared, and after idle
 
 A reader of these results wants to compare contenders on a load pattern,
 to spot a regression, or to estimate speed in a system they are
-designing. Each needs two numbers per contender, so every sample
-interval takes two samples of the same batch:
+designing. Each needs a few numbers per contender, so every sample
+interval takes three samples of the same batch:
 
 - **Solo**: one copy of the contender on one thread, the machine
   otherwise idle. What a program gets with the machine to itself.
@@ -142,6 +143,13 @@ interval takes two samples of the same batch:
   sample. What each of two users of the same code gets. They compete for
   every resource the code uses: cores and memory bandwidth, and for the
   SME2 fork an SME unit, which serves a whole cluster of cores.
+- **After idle**: one copy, calling after its thread has slept 1 ms:
+  one call, or as many as fill 10 µs where a call is shorter (the
+  clock ticks every 41.7 ns, so a single short call cannot be timed).
+  What a program gets that hashes now and then: a pool's workers have
+  fallen asleep, and a core may have slowed. In a VM every contender's
+  calls after idle come at two speeds, about 3.5 times apart, as the
+  host wakes the virtual CPU cold or warm.
 
 A single-threaded hash costs about the same in both. A multithreaded one
 shows in the shared scenario what its threads cost when the machine is
@@ -157,7 +165,10 @@ so a moment that slows both sides (an efficiency core, a lowered clock)
 cancels out, and a slowdown of one side (two copies sharing an SME unit)
 counts; where the round-by-round ratios split in two, the worse one is
 judged. A finding needs that ratio 5% or more above 1, with its 95%
-interval above 1; the worst come first.
+interval above 1; the worst come first. After idle, each call meets a
+state of its own (a cold or a warm core), so a round pairs one side's
+cold call with the other's warm one by chance; there the two cells'
+faster speeds are compared, 5% apart or more with their intervals apart.
 
 ## Hash implementations
 

@@ -119,8 +119,9 @@ def main():
     report = (record / "bench-hashes.result.txt").read_text().splitlines()
     scenario, use_case, columns, checked = None, None, None, 0
     for line in report:
-        if line.startswith("SOLO:") or line.startswith("SHARED:"):
-            scenario = "solo" if line.startswith("SOLO:") else "shared"
+        section = {"SOLO:": "solo", "SHARED:": "shared", "AFTER IDLE:": "after-idle"}
+        if any(line.startswith(heading) for heading in section):
+            scenario = next(key for heading, key in section.items() if line.startswith(heading))
             continue
         if line.startswith(("CHECKS", "TWO SPEEDS", "KERNELS", "PROVENANCE")):
             scenario = None

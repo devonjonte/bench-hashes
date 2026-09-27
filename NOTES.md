@@ -121,6 +121,22 @@ drew a second line nearly everywhere at 4% alone; SME2 unit sharing splits
 1.7–2.0×. Open: `perf_regress` judges a cell by its 5th percentile, the
 faster speed alone; a regression confined to the slower speed passes it.
 
+**After idle** (September 26, 2026, Zooko: so the benchmarks catch a
+slowdown that only calls made now and then meet; in the text and the
+checks, not the graph). Each sample interval ends with one copy sleeping
+IDLE_NS (1 ms, past the fork's 200 us of polling) and then calling: one
+call, or as many as fill IDLE_BURST_NS (10 us), since a single call
+shorter than a few microseconds cannot be timed on a 24 MHz counter. It
+found servil mt 5-6x slower than servil st at 64-512 KiB and 3-4x in
+batches of 1024-4096 (the pool's workers asleep, woken per call), in
+every run. On the VM every contender's calls after idle come at two
+speeds about 3.5x apart (the vCPU woken cold or warm, independently per
+call), so CHECKS compares the two cells' fast speeds there: paired by
+round, the worse-speed rule turned the lottery into x6-9 findings
+against SHA-256, and even the median ratio misfired at 12 samples
+(servil mt against st at 3839 B, the same code). A default run: 15 s
+-> 23 s.
+
 **Full by default, `--quick` on request** (September 2026, for people
 who run it once and publish what they get). A full run: every point, 96
 rounds, the long-cell budget, SHA-1DC in `--all`: 60 s on the VM for the
