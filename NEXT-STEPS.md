@@ -177,8 +177,25 @@ The fork's `PROCEDURES.md` (the regression check, the gate to `servil`, the Mac 
   gap scenario (no evidence it would catch anything). The graph plots back
   to back only; the rest stays behind a door. To be written into policy,
   procedure, and code comments once the whole plan is settled.
-  Still to settle: batches (`hash_many`), input arriving in pieces
-  (`Hasher`, `Stream`), and a stream of inputs (the `Queue` design).
+  The whole plan designs every interface together, consistent with the
+  others, and for each says which users and use cases it serves and how
+  the benchmark measures it (Zooko, September 27). Its dimensions:
+  - the shape of the work: one-shot one message; one-shot batch (the
+    padded batch contract, settled); streaming one message (input
+    arriving in pieces: `Hasher`, `Stream`); streaming batches (a stream
+    of separate inputs: the `Queue` design);
+  - threads: single-threaded, multithreaded, and a thread budget;
+  - energy efficiency against time efficiency (what each form spends,
+    and how a user chooses);
+  - the modes: plain, keyed, and key derivation, for every shape;
+  - the Rust type signatures, one consistent style across all of them;
+  - initialization (settled above), and the "built for" labels (to be
+    reworded: the one-shot forms are the simple ones; top speed belongs
+    to the streaming forms).
+  Settled so far: one-shot one message; the batch contract. Proposed for
+  batches (Zooko to confirm): the docs recommend hash_many_multithreaded
+  as hash_multithreaded is recommended; output stays 32-byte arrays;
+  perf_regress adds the 4- and 12-message points.
 - The pool keeps nothing awake between calls (Zooko, September 27):
   its workers poll only while a job is registered and sleep when none
   is; waiting inside a call stays. Every call therefore meets sleeping
