@@ -1,7 +1,8 @@
 # Next steps
 
 Read this file first. The work: make the servil fork the fastest BLAKE3 in
-every situation a user meets (minimax: judge by the worst plausible case),
+every situation a user meets, the streaming APIs first (Zooko, September
+27, replacing minimax: AGENTS.md, "The streaming APIs first"),
 natively on the Mac first, then in the VM (the user's decision,
 September 27, 2026: diagnose on the Mac), measured by this
 benchmark. Prefer changes that are simpler and faster together. The
