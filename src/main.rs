@@ -829,8 +829,13 @@ impl Fixed {
 
     /// `numerator` / self, in tenths, rounded once: a rate from a time.
     fn tenths_of(self, numerator: u64) -> u64 {
+        self.scaled_of(numerator, 10)
+    }
+
+    /// `numerator` / self times `scale`, rounded once.
+    fn scaled_of(self, numerator: u64, scale: u64) -> u64 {
         assert!(self.0 > 0);
-        u64::try_from((((u128::from(numerator) * 10) << 64) + self.0 / 2) / self.0).expect("a rate fits in u64")
+        u64::try_from((((u128::from(numerator) * u128::from(scale)) << 64) + self.0 / 2) / self.0).expect("a rate fits in u64")
     }
 }
 
@@ -6142,6 +6147,7 @@ const settled = (ns, p) => unit === "ns" ? ns : DATA.plots[p].scale / ns;
 function fmt(ns, p, digits) {
   const v = settled(ns, p);
   if (unit === "ns") return v.toFixed(digits === undefined ? 3 : digits);
+  if (v < 1 && digits !== undefined) return v.toFixed(Math.min(9, Math.max(2, Math.ceil(-Math.log10(v)) + 1)));
   return v >= 10 ? v.toFixed(digits === undefined ? 0 : Math.max(0, digits - 2)) : v.toFixed(digits === undefined ? 1 : Math.max(1, digits - 1));
 }
 const unitLabel = p => unit === "ns" ? DATA.plots[p].timeUnit : DATA.plots[p].rateUnit;
@@ -6903,14 +6909,24 @@ fn format_gbps_tick(value: f64) -> String {
 
 /// A measured value as a bare rate number, as the graph's value labels
 /// show it in the default unit: whole numbers at 10 and above, one
-/// decimal below.
+/// decimal from 1, and two significant digits below 1 (0.21, 0.012), as
+/// the axis ticks read; the script's fmt writes the same.
 fn format_rate_value(time: PerUnit, use_case: UseCase) -> String {
-    let rate = use_case.rate_scale() as f64 / time.ns_f64();
-    if rate >= 10.0 {
-        format!("{rate:.0}")
-    } else {
-        format!("{rate:.1}")
+    let scale = use_case.rate_scale();
+    let tenths = time.tenths_of(scale);
+    if tenths >= 100 {
+        return format!("{}", (tenths + 5) / 10);
     }
+    if time.scaled_of(scale, 100) >= 100 {
+        return format!("{}.{}", tenths / 10, tenths % 10);
+    }
+    /* Below 1: the fewest decimals (two to nine) that give two significant digits. */
+    let mut decimals = 2;
+    while decimals < 9 && time.scaled_of(scale, 10u64.pow(decimals)) < 10 {
+        decimals += 1;
+    }
+    let scaled = time.scaled_of(scale, 10u64.pow(decimals));
+    format!("0.{scaled:0width$}", width = decimals as usize)
 }
 
 fn xml_escape(input: &str) -> String {
@@ -7131,6 +7147,12 @@ mod correctness_tests {
         assert_eq!(ticks, ["70", "10", "7.0", "1.5", "1.0", "0.7", "0.2", "0.15", "0.1", "0.05", "0.015"]);
         let sizes: Vec<String> = [64, 192, 1024, 1025, 1536, 2304, 3072, 1 << 20, 3 << 20, 16 << 20].iter().map(|&b| format_bytes(b)).collect();
         assert_eq!(sizes, ["64 B", "192 B", "1 KiB", "1025 B", "1536 B", "2304 B", "3 KiB", "1 MiB", "3 MiB", "16 MiB"]);
+        /* Value labels: ns per byte (ns, bytes) to GB/s, two significant digits below 1. */
+        let values: Vec<String> = [(1, 10), (10, 100), (1, 1), (476, 100), (80, 1), (2155, 100), (1000, 1)]
+            .iter()
+            .map(|&(ns, bytes)| format_rate_value(Measured::new(ns, bytes).per_unit(), UseCase::OneMessage))
+            .collect();
+        assert_eq!(values, ["10", "10", "1.0", "0.21", "0.013", "0.046", "0.0010"]);
     }
 
     #[test]
