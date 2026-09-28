@@ -61,6 +61,10 @@ numbers):
   docs/api-design.md; the bound, 50 us, is his open question): long
   messages in 64 KiB pieces 2.4x faster (Mac 128 MiB 0.24 -> 0.098 ns/B,
   solo and shared), short ones level.
+- Contended words apart: the task list's lock and counts, and the
+  queue's locks, each on lines of their own, and free slots reused
+  oldest first: Mac 16 KiB messages 14% faster, 256 B-1 KiB 5-11%, 64 B
+  9% (fork NOTES, "Hot words on lines of their own").
 - The SME2 thread runs gathered tasks (short messages, small batches) on
   NEON: 64-byte messages and batches of 16 and 64 10-15% faster on the
   Mac; for subtree tasks its SME2 matches NEON in speed (jobs 604-607)
