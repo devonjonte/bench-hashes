@@ -194,7 +194,9 @@ after the gap win from 16 KiB (one buffer, pieces) and from 12 messages
    argument) no lingering. A lingering stream leaves about 1.6 ms of
    worker CPU behind in all, and seems to slow the cells run after it
    5-10% (fork NOTES, "WORKER_IDLE's length"). `clocks::process_energy_nj` (new, macOS)
-   reads the counter the probes used; not validated for energy cells.
+   reads the counter the probes used; not validated for energy cells:
+   single readings spread 1.5-3.4x, medians of ten agree within about 5%
+   (fork NOTES, "The energy counter's repeatability").
 4. The runner's `perf_regress` jobs need the runner restarted.
 5. **Shared 16 KiB messages** through the queue: the pair moves little
    more than one program alone. Found: `submit`'s push onto the task list
