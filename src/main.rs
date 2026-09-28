@@ -310,7 +310,9 @@ impl RunSamples {
         }
         clocks.sort_unstable();
         let (low, high) = (clocks[(clocks.len() - 1) * 5 / 100], clocks[(clocks.len() - 1) * 95 / 100]);
-        Some((high * 4 / 5, low * 5 / 4))
+        let (full_from, lowest_to) = (high * 4 / 5, low * 5 / 4);
+        /* The busy gap keeps the clock up: bounds that overlap mean one state. */
+        (lowest_to < full_from).then_some((full_from, lowest_to))
     }
 
     /// A synchronous cell's solo samples in the two clock states: [full,
