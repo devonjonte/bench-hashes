@@ -63,8 +63,8 @@ numbers):
   solo and shared), short ones level.
 - The SME2 thread runs gathered tasks (short messages, small batches) on
   NEON: 64-byte messages and batches of 16 and 64 10-15% faster on the
-  Mac. Whether it pays for subtree tasks at all is open (fork NOTES, "The
-  SME2 thread and gathered tasks").
+  Mac; for subtree tasks its SME2 matches NEON in speed (jobs 604-607)
+  and stays, for its lower energy per byte.
 - Idle workers and the SME2 thread sleep after 50 us with nothing to
   take, even while a queue holds the pool (they polled until the stream
   drained): about 10% less CPU for the queue's short messages, speed
