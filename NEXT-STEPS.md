@@ -69,8 +69,18 @@ numbers):
   (nightly, `-Zsanitizer=thread`) clean on api_plan and on a million
   64-byte messages through the queue.
 
-**Standing, Mac full run (job 503; the last pair's run is in
-`/workspace/tmp/overnight/`):** the continuous cells all win against
+**The fork's night, measured alone** (Mac, the current benchmark on the
+starting fork b467ba6 and the final one, full runs old/new/new/old, jobs
+572-575, in `/workspace/tmp/overnight/`; geometric mean of new/old
+medians by use case): messages one after another 0.48 (solo and shared),
+batches one after another 0.39 solo and 0.26 shared, a message in pieces
+(servil mt) 0.86 solo and 0.81 shared (long messages 0.4), the other
+synchronous cells 0.96-1.02 (their code is unchanged; single cells swing
+with the clock states after the gap, their 5th percentiles level). One
+cell slower beyond that noise: shared 256 KiB in pieces, +11% (both
+copies start lingering after their second piece).
+
+**Standing, Mac full run (job 543):** the continuous cells all win against
 SHA-256 but 64 B messages (servil 1.2 against 0.94 ns/B: a handover's
 cache lines cost about what SHA-256 spends on the whole message; the
 harness's channel alone takes 25 ns; `Queue::fixed` is the API that
