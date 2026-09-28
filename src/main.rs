@@ -1496,44 +1496,6 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
      * The digest checks have already called each contender at every point.
      * Startup and calibration both happen before the timed samples.
      */
-    progress.phase("calibrating");
-
-    let mut batch_iterations: Vec<Vec<usize>> = vec![vec![1usize; POINT_COUNT]; roster.len()];
-    /* Cells under the time budget (see LONG_HASH_NS). */
-    let mut budgeted: Vec<Vec<bool>> = vec![vec![false; POINT_COUNT]; roster.len()];
-
-    for (point_index, point) in POINTS.iter().enumerate() {
-        for algorithm_index in 0..roster.len() {
-            let algorithm = roster.algorithms[algorithm_index];
-            if algorithm.takes_part(point.use_case) && roster.measures(point_index) {
-                let (iterations, per_iteration_ns) = calibrate_batch(algorithm, &inputs[point_index], *point);
-                /*
-                 * A synchronous cell's sample: calls after the gap summing
-                 * about GAP_SAMPLE_NS (one at least), from calls timed
-                 * after the gap (sized from their time back to back, a
-                 * 64-byte call's sample summed about 50 calls, each after
-                 * its own 1 ms gap, where 7 fill it).
-                 */
-                batch_iterations[algorithm_index][point_index] = if point.use_case.after_gap() {
-                    let input = &inputs[point_index];
-                    let after_gap = clocks::measure_after_gaps(CALIBRATION_GAPS, GAP_NS, || run_batch(algorithm, input, *point, 1));
-                    let per_call_ns = u128::from(after_gap.wall_ns) / u128::from(CALIBRATION_GAPS);
-                    GAP_SAMPLE_NS.div_ceil(per_call_ns.max(per_iteration_ns).max(1)) as usize
-                } else {
-                    iterations
-                };
-                budgeted[algorithm_index][point_index] = per_iteration_ns >= LONG_HASH_NS;
-            }
-        }
-    }
-
-    /*
-     * No warm-up phase. Calibration has just run every contender at every
-     * size, and a cold-start cost that survived it would be one sample
-     * among the rounds, which the median drops. A separate warm-up would
-     * change nothing measurable and cost a minute of run time.
-     */
-
     let empty = || -> Samples {
         (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::with_capacity(2 * roster.rounds)).collect()).collect()
     };
@@ -1543,89 +1505,138 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
         gap_mhz: (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::new()).collect()).collect(),
         rounds: (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::new()).collect()).collect(),
     };
-
-    /*
-     * Point order rotates by round. Each point's contender order cycles
-     * through the Williams orders by the point's own visits (the rounds in
-     * which it takes samples), so a cell sampled at every visit sees every
-     * order in turn: cycled by round, a cell sampled every eighth round
-     * saw one order of the default roster's four and seven of --all's
-     * fourteen, and a neighbour's aftereffect stayed with it (servil mt at
-     * 1 MiB alternating 0.032 and 0.050 ns/B, Mac, September 26, 2026). A
-     * long cell, sampled at every second visit, sees half the orders; its
-     * samples are single hashes of 4 ms or more.
-     */
-    progress.phase("measuring");
+    let mut batch_iterations: Vec<Vec<usize>> = vec![vec![1usize; POINT_COUNT]; roster.len()];
+    /* Cells under the time budget (see LONG_HASH_NS). */
+    let mut budgeted: Vec<Vec<bool>> = vec![vec![false; POINT_COUNT]; roster.len()];
     let mut load = LoadMonitor::start();
     let mut visits = vec![0usize; POINT_COUNT];
 
-    for round in 0..roster.rounds {
-        progress.round(round, &samples.solo);
-        if let Some(load) = load.as_mut() {
-            load.round_boundary();
+    /*
+     * The continuous use cases in a phase of their own, calibrated and
+     * sampled before any call after the gap: in one set of rounds with the
+     * synchronous cells, the program's sleeps kept the core near 3.0 GHz
+     * through the continuous samples, where alone they ran near 4.4 GHz
+     * (SHA-256's 1 KiB messages 0.51 against 0.36 ns/B; Mac jobs 738-739,
+     * September 28, 2026). A program hashing one input after another does
+     * not sleep between them.
+     */
+    for after_gap in [false, true] {
+        progress.phase("calibrating");
+
+        for (point_index, point) in POINTS.iter().enumerate() {
+            for algorithm_index in 0..roster.len() {
+                let algorithm = roster.algorithms[algorithm_index];
+                if algorithm.takes_part(point.use_case) && roster.measures(point_index) && point.use_case.after_gap() == after_gap {
+                    let (iterations, per_iteration_ns) = calibrate_batch(algorithm, &inputs[point_index], *point);
+                    /*
+                     * A synchronous cell's sample: calls after the gap summing
+                     * about GAP_SAMPLE_NS (one at least), from calls timed
+                     * after the gap (sized from their time back to back, a
+                     * 64-byte call's sample summed about 50 calls, each after
+                     * its own 1 ms gap, where 7 fill it).
+                     */
+                    batch_iterations[algorithm_index][point_index] = if point.use_case.after_gap() {
+                        let input = &inputs[point_index];
+                        let after_gap = clocks::measure_after_gaps(CALIBRATION_GAPS, GAP_NS, || run_batch(algorithm, input, *point, 1));
+                        let per_call_ns = u128::from(after_gap.wall_ns) / u128::from(CALIBRATION_GAPS);
+                        GAP_SAMPLE_NS.div_ceil(per_call_ns.max(per_iteration_ns).max(1)) as usize
+                    } else {
+                        iterations
+                    };
+                    budgeted[algorithm_index][point_index] = per_iteration_ns >= LONG_HASH_NS;
+                }
+            }
         }
 
-        for point_offset in 0..roster.points.len() {
-            let size_index = roster.points[(point_offset + round) % roster.points.len()];
-            let point = POINTS[size_index];
-            let wants = |algorithm_index: usize| {
-                roster.algorithms[algorithm_index].takes_part(point.use_case)
-                    && (roster.every_round
-                        || cell_wants_sample(round + size_index, roster.rounds, budgeted[algorithm_index][size_index]))
-            };
-            if !(0..roster.len()).any(wants) {
-                continue;
+        /*
+         * No warm-up phase. Calibration has just run every contender at every
+         * size, and a cold-start cost that survived it would be one sample
+         * among the rounds, which the median drops. A separate warm-up would
+         * change nothing measurable and cost a minute of run time.
+         */
+
+        /*
+         * Point order rotates by round. Each point's contender order cycles
+         * through the Williams orders by the point's own visits (the rounds in
+         * which it takes samples), so a cell sampled at every visit sees every
+         * order in turn: cycled by round, a cell sampled every eighth round
+         * saw one order of the default roster's four and seven of --all's
+         * fourteen, and a neighbour's aftereffect stayed with it (servil mt at
+         * 1 MiB alternating 0.032 and 0.050 ns/B, Mac, September 26, 2026). A
+         * long cell, sampled at every second visit, sees half the orders; its
+         * samples are single hashes of 4 ms or more.
+         */
+        progress.phase(if after_gap { "measuring after the gap" } else { "measuring one after another" });
+
+        for round in 0..roster.rounds {
+            progress.round(round, &samples.solo);
+            if let Some(load) = load.as_mut() {
+                load.round_boundary();
             }
-            let algorithm_order = &roster.orders[visits[size_index] % roster.orders.len()];
-            visits[size_index] += 1;
 
-            let input = &inputs[size_index];
-
-            for (position, &algorithm_index) in algorithm_order.iter().enumerate() {
-                let algorithm = roster.algorithms[algorithm_index];
-                if !wants(algorithm_index) {
+            for point_offset in 0..roster.points.len() {
+                let size_index = roster.points[(point_offset + round) % roster.points.len()];
+                let point = POINTS[size_index];
+                let wants = |algorithm_index: usize| {
+                    point.use_case.after_gap() == after_gap
+                        && roster.algorithms[algorithm_index].takes_part(point.use_case)
+                        && (roster.every_round
+                            || cell_wants_sample(round + size_index, roster.rounds, budgeted[algorithm_index][size_index]))
+                };
+                if !(0..roster.len()).any(wants) {
                     continue;
                 }
-                let iterations =
-                    batch_iterations[algorithm_index][size_index];
+                let algorithm_order = &roster.orders[visits[size_index] % roster.orders.len()];
+                visits[size_index] += 1;
 
-                /* The solo sample: this thread runs the batch, alone. */
-                let DuoCopy { elapsed_ns, counts } = take_sample(algorithm, input, point, iterations);
+                let input = &inputs[size_index];
 
-                /*
-                 * The shared sample, under the same conditions: two copies
-                 * run a batch each at once, on two threads, and each copy's
-                 * own time is a sample.
-                 */
-                let copies = duo.run(algorithm, input, &duo_inputs[size_index], point, iterations);
+                for (position, &algorithm_index) in algorithm_order.iter().enumerate() {
+                    let algorithm = roster.algorithms[algorithm_index];
+                    if !wants(algorithm_index) {
+                        continue;
+                    }
+                    let iterations =
+                        batch_iterations[algorithm_index][size_index];
+
+                    /* The solo sample: this thread runs the batch, alone. */
+                    let DuoCopy { elapsed_ns, counts } = take_sample(algorithm, input, point, iterations);
+
+                    /*
+                     * The shared sample, under the same conditions: two copies
+                     * run a batch each at once, on two threads, and each copy's
+                     * own time is a sample.
+                     */
+                    let copies = duo.run(algorithm, input, &duo_inputs[size_index], point, iterations);
 
 
-                let total_units = point.use_case.units(point, iterations);
-                let per_unit = |ns: u64| Measured::new(ns, total_units);
-                samples.solo[algorithm_index][size_index].push(per_unit(elapsed_ns));
-                samples.rounds[algorithm_index][size_index].push(round);
-                if point.use_case.after_gap() {
-                    samples.gap_mhz[algorithm_index][size_index]
-                        .push(counts.filter(|c| c.p.time_ns + c.e.time_ns > 0).map_or(0, |c| c.mhz()));
-                }
-                for copy in &copies {
-                    samples.shared[algorithm_index][size_index].push(per_unit(copy.elapsed_ns));
-                }
+                    let total_units = point.use_case.units(point, iterations);
+                    let per_unit = |ns: u64| Measured::new(ns, total_units);
+                    samples.solo[algorithm_index][size_index].push(per_unit(elapsed_ns));
+                    samples.rounds[algorithm_index][size_index].push(round);
+                    if point.use_case.after_gap() {
+                        samples.gap_mhz[algorithm_index][size_index]
+                            .push(counts.filter(|c| c.p.time_ns + c.e.time_ns > 0).map_or(0, |c| c.mhz()));
+                    }
+                    for copy in &copies {
+                        samples.shared[algorithm_index][size_index].push(per_unit(copy.elapsed_ns));
+                    }
 
-                if let Some(trace) = trace.as_deref_mut() {
-                    let later_ns = copies.iter().map(|copy| copy.elapsed_ns).max().unwrap();
-                    trace.lines.push(format!(
-                        "{round},{},{},{},{iterations},{elapsed_ns},{},{:?},{later_ns},{},{},{},{}",
-                        point_offset * algorithm_order.len() + position,
-                        algorithm.key(),
-                        input.len(),
-                        counts_csv(counts),
-                        point.use_case,
-                        copies[0].elapsed_ns,
-                        counts_csv(copies[0].counts),
-                        copies[1].elapsed_ns,
-                        counts_csv(copies[1].counts),
-                    ) + ",solo and shared");
+                    if let Some(trace) = trace.as_deref_mut() {
+                        let later_ns = copies.iter().map(|copy| copy.elapsed_ns).max().unwrap();
+                        trace.lines.push(format!(
+                            "{round},{},{},{},{iterations},{elapsed_ns},{},{:?},{later_ns},{},{},{},{}",
+                            point_offset * algorithm_order.len() + position,
+                            algorithm.key(),
+                            input.len(),
+                            counts_csv(counts),
+                            point.use_case,
+                            copies[0].elapsed_ns,
+                            counts_csv(copies[0].counts),
+                            copies[1].elapsed_ns,
+                            counts_csv(copies[1].counts),
+                        ) + ",solo and shared");
+                    }
                 }
             }
         }
@@ -1686,7 +1697,7 @@ impl<'a> Progress<'a> {
     }
 
     fn phase(&mut self, name: &str) {
-        if name == "measuring" {
+        if name.starts_with("measuring") {
             self.measuring_started = Some(clocks::now());
         }
         self.draw(&format!("[{:>5}s] {name}…", tenths_of_seconds(self.started.elapsed())));
