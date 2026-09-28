@@ -12,6 +12,20 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 
 ## Resume here (handover, September 28-29, 2026, overnight session)
 
+**For the next session (John Servil, September 29).** Start with `sh
+/workspace/vm/setup.sh`; both repos are clean and pushed (fork
+`candidate/api-plan-simple`, bench-hashes `candidate/benchmark-plan`).
+Nightly Rust with rust-src and `linux-perf` were installed in the guest
+(gone after a restart). Lessons of the night: trace before guessing
+(`--trace-clocks`, and probes that time each stage found the calibration
+defect, the task-list lock, and the part-filled-task loop); A/B on the
+Mac with old/new/new/old and compare medians from the samples, since
+two-speed labels mislead; the VM and the Mac disagreed more than once
+(two task lists), so the Mac decides; contended words on lines of their
+own paid three times. Scratch probes live in `/workspace/tmp/qlab`
+(queue throughput with stage timers, VM) and `/workspace/tmp/idlecheck`
+(CPU a process spends while idle).
+
 **At a glance.** The benchmark asks the same of the fork (FROZEN.md
 unchanged); five measurement defects in it are fixed (the queue's cells
 timed a dozen messages, short streams paid a 64 KiB memset, batches an
