@@ -99,12 +99,8 @@ queue cell 1.1-3.5x slower on the Mac (jobs 440, 446, 448, 454 runs 6-7,
 
 ### Next, in order
 
-0. **The queue, faster and complete**: `Queue::fixed` through the feed
-   (today each buffer at delivery); `Efficiency::Energy` as the plan's
-   energy form (today the engine thread alone); a delivery thread apart
-   from the engine if a measurement shows the handler calls slow the
-   hashing; FROZEN.md's planned `Queue::fixed` use case and the keyed
-   spot checks in perf_regress; the release above.
+0. **The streaming API: unfreeze, clarify, refreeze** (above), then
+   land `candidate/queue-simple` (Mac gate, TSan rerun, the VM gap).
 1. **After-idle margin, recalibrated on mains power** (20%, job 338, was
    calibrated when the Mac's power state was unknown); and servil's small
    streams running at two speeds solo (1 KiB streamed: some rounds 4.5x
