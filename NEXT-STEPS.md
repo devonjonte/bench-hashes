@@ -12,6 +12,22 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 
 ## Resume here (handover, September 28-29, 2026, overnight session)
 
+**At a glance.** The benchmark asks the same of the fork (FROZEN.md
+unchanged); five measurement defects in it are fixed (the queue's cells
+timed a dozen messages, short streams paid a 64 KiB memset, batches an
+allocation, cells freed each other's buffers, gap samples summed 50
+gaps), and a full run takes 47 s on the Mac. The fork, measured alone on
+the current benchmark (jobs 572-575, and faster since): messages one
+after another 2x faster, batches one after another 2.6-3.9x, long
+messages through `update_multithreaded` 2.4x (lingering), synchronous
+calls level. Against SHA-256 on the Mac every continuous cell wins but
+64-byte messages (at two speeds, 0.78|1.11 against 0.93 ns/B); the small
+synchronous calls after the gap still lose (SHA-256's hardware below 8
+KiB). Decisions waiting for Zooko: lingering's bound and energy (4-6x
+the energy for 2.4x the speed), the 512 KiB split (Mac +40%, VM -25%),
+and the trades listed below. Everything is on `candidate/api-plan-simple`
+(fork) and `candidate/benchmark-plan` (bench-hashes), unmerged.
+
 **Where things stand.** The fork's work is on `candidate/api-plan-simple`
 (the API plan, `candidate/queue-simple` merged in, and tonight's
 changes); bench-hashes' on `candidate/benchmark-plan`. The Mac runner
