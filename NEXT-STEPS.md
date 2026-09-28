@@ -57,6 +57,20 @@ takes 56 s in the VM (was about 10 s). Stage 1's remaining work, in order:
 Before merging: point Cargo.toml back at the fork's `servil` branch once
 `candidate/api-plan` lands there.
 
+The quick run's results (VM, 24 rounds, default contenders) are in
+`/workspace/tmp/new-benchmark-quick/` (Zooko looked at them there; host
+path `~/piplayground/blake3-servil/tmp/new-benchmark-quick/`). Copy
+results into `/workspace/tmp/` for him to see: the VM's `/tmp` is its own.
+
+Open questions of the plan, each marked **Q** in `docs/api-design.md`:
+how long lingering between `update` calls may last (after the rest of
+the API is settled); the gap's length and what the program does in it
+(sleep today); what saving energy means for a multithreaded synchronous
+call, and the energy counter; batch lengths beyond 64 B (Remco's 256 B
+leaves); the multithreaded `Hasher` form's name. Revisit after building
+and measuring: whether "cannot tell? answer intermittent" still holds;
+optimising the energy-saving modes for a shared machine.
+
 ## Earlier checkpoint (September 28, 2026, late)
 
 **The question of the moment** (Zooko): can the streaming API (`Queue`)
@@ -217,6 +231,40 @@ commitment format (see "Idea: a full-fledged Merkle tree API").
 The fork's `PROCEDURES.md` (the regression check, the gate to `servil`, the Mac runner, probes, the VM) and this repository's `PROCEDURES.md` (records, runs, graphs, its environment).
 
 ## Decisions made (don't re-ask)
+
+- **The API plan, September 28** (Zooko; `docs/api-design.md` on the
+  fork's `candidate/api-plan`): four questions lead a user to one call,
+  the crate docs opening with them: several threads or not; the shape (a
+  message in one buffer, a message in pieces, a batch); time or energy
+  (several threads only); intermittent or continuous (several threads
+  only; "when you finish hashing a message, will there typically be
+  another one ready?", and "cannot tell" answers intermittent). Nine
+  calls: `hash`, `Hasher::update`, `hash_many` (single-threaded, built
+  for intermittent use, always saving time); their `_multithreaded`
+  forms; and the queue in three shapes matching the shape question. No
+  thread budget. `hash` keeps its name. The queue: event-based through
+  handler traits, no polling, no blocking, zero copies, no allocation
+  after warm-up. A `Hasher` between updates may linger (bounded; open).
+- **The benchmark measures each call only as its contract says users
+  call it** (Zooko, September 28): synchronous calls each after the gap
+  (1 ms asleep), never back to back; the queue with enough in flight, in
+  two use cases (messages, batches). Every cell summing calls shorter
+  than a few clock ticks sums single readings (`clocks::measure_after_gaps`;
+  the clock ticks at 24 MHz, 41.67 ns, on the M4 Max and the VM).
+  perf_regress judges after-gap cells at 20% to start.
+- **Shared scenarios stay for every use case** (Zooko, September 28): a
+  sanity check against designs that need the machine to themselves, and
+  a pessimistic estimate; not optimised for directly.
+- **Every clock read for a measurement goes through the fork's `clocks`
+  crate** (Zooko, September 28; AGENTS.md "Measuring"): it holds the
+  decisions of two earlier sessions on which clocks and how to read them.
+- **The VM configures itself with `sh /workspace/vm/setup.sh`**, once per
+  session (AGENTS.md "Where to start"): git and cargo then work with no
+  prefix (a system gitconfig includes `vm/home/.gitconfig`; cargo's
+  config sets `CC=clang-19` and the target directory; the Mac's `HOME`
+  and `TMPDIR`, which the shells inherit, are created). Nothing in the
+  guest runs it by itself: the disk resets and the shells read no
+  startup file.
 
 - **The API plan, being settled one use case at a time** (Zooko,
   September 27; write down, implement only once every use case is
@@ -446,7 +494,7 @@ From `/workspace` in the VM, after `sh /workspace/vm/setup.sh` once per boot:
     pypy3 tools/perf_regress.py check | compare OLD NEW
     cargo run --release --example host_lab
 
-Expected: 86 / 82 / 71 library tests, 21 doc tests, 12 in `--test api_plan`, 2 vectors, 9 benchmark
+Expected: 86 / 82 / 71 library tests, 22 doc tests, 12 in `--test api_plan`, 2 vectors, 10 benchmark
 tests. Release: `python3 tools/gen-ver.py X.Y.Z` from a clean tree (two
 version commits and a lightweight tag; push the branch, `servil` in the
 fork or `main` here, then the tag by name).
