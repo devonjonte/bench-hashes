@@ -28,6 +28,21 @@ again in `FROZEN.md`. The new plan (September 28) is in the fork's
 continuous load, time or energy) lead to six calls; no thread budget;
 the benchmark measures the six intermittent cells separately and the
 continuous column in two use cases. Its open questions are marked **Q**.
+Implementing it (September 28, overnight session; Zooko approved
+the plan and these defaults): stage 1, the benchmark on today's calls (synchronous
+calls measured only after the gap of 1 ms, their shared version two
+copies after the gap at once; queue use cases "messages" and "batches"
+with enough in flight, back to back, solo and shared); stage 2, the fork
+(`Hasher::update_multithreaded`, a first simple version; the time or
+energy argument on multithreaded synchronous calls; then lingering);
+stage 3, an energy counter and the energy endings. perf_regress judges
+after-gap cells at 20% to start (tightening toward 3% is its own work).
+Timing stays in the `clocks` crate; reuse the current benchmark's
+scheduling, made fast (5 min to 30 s) over two days. **Shared scenarios
+stay for every use case** (Zooko): a sanity check against designs that
+need the machine to themselves, and a pessimistic estimate; not
+optimised for directly. To revisit: optimise the energy-saving modes for
+a shared machine (background tasks), the time-saving ones for solo.
 Earlier points to settle with him (now partly answered there):
 - The many-inputs use case keeps four buffers in flight and blocks on
   the fifth: at small sizes that measures the round trip (latency), not
