@@ -488,11 +488,13 @@ impl UseCase {
     }
 
     /// How the program calls, for a reader of the results.
+    /// How the program calls, for the report's opening: the clause after
+    /// the tables' names.
     fn pattern(self) -> &'static str {
         if self.after_gap() {
-            "each call after the program has done other things for 1 ms (its thread asleep)"
+            "each call comes after the program has slept 1 ms, as a program that hashes now and then calls"
         } else {
-            "one after another, as fast as the program can"
+            "the program hashes one input after another, as fast as it can"
         }
     }
 
@@ -583,9 +585,8 @@ enum Algorithm {
     /// crates.io blake3 through Hasher::update_rayon, the crate's own
     /// multithreading, on Rayon's global pool as Rayon sizes it.
     Blake3Rayon,
-    /// The fork's hash_multithreaded: the caller's thread plus the fork's
-    /// own resident workers, shared fairly between concurrent callers in
-    /// one process.
+    /// The fork's multithreaded calls and its queue: the caller's thread
+    /// plus the fork's own workers, which sleep between calls.
     Blake3ServilMt,
     /// RustCrypto's SHA3-256 (the sha3 crate), with the ARMv8 SHA-3
     /// instructions where the CPU has them (keccak's run-time detection).
@@ -744,7 +745,7 @@ impl Algorithm {
             | Self::Sha3_256 => "single-threaded",
             Self::Blake3ServilSt => "single-threaded; blake3_servil::hash for one message, blake3_servil::hash_many for a batch, Hasher::update per piece for a message in pieces",
             Self::Blake3Rayon => "multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread",
-            Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, Hasher::update_multithreaded per piece for a message in pieces; for continuous loads its queue, efficient in time: Queue::messages for messages of up to 64 KiB, Queue::pieces for longer ones, Queue::fixed for batches: the fork chooses whether to use its shared resident workers; the kernel tables below show the thresholds",
+            Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, Hasher::update_multithreaded per piece for a message in pieces; for continuous loads its queue, efficient in time: Queue::messages for messages of up to 64 KiB, Queue::pieces for longer ones, Queue::fixed for batches: the fork chooses when to wake its worker threads; the kernel tables below show the thresholds",
         }
     }
 
@@ -2399,9 +2400,11 @@ fn each_message<D: AsRef<[u8]>>(
  * each copy takes it and polls a generation counter (yielding between
  * polls) until the caller has seen both arrive and flips it. Both copies
  * are then on a CPU, in the instruction stream, when the release happens,
- * and each reads the sample clock as its own first act; the later finish
- * is the later of the two finish times, each measured from that copy's
- * own start. A release through a barrier or condition variable would
+ * and each starts its sample as its own first act (take_sample): for a
+ * continuous use case it reads the sample clock, and the later finish is
+ * the later of the two finish times, each measured from that copy's own
+ * start; for a synchronous one it sleeps the gap and times each call
+ * alone, so the two copies' calls after the gap start together. A release through a barrier or condition variable would
  * instead need the operating system to wake a sleeping thread, which on a
  * busy machine can take hundreds of microseconds (a two-CPU virtual
  * machine measured 300 µs when the caller's own thread had just finished
@@ -3679,13 +3682,22 @@ fn generate_text(roster: &Roster, results: &Results, samples: &RunSamples, machi
     .unwrap();
     writeln!(output).unwrap();
 
-    writeln!(
-        output,
-        "The first three use cases call {}; the last two call {}.",
-        UseCase::OneMessage.pattern(),
-        UseCase::ContinuousMessages.pattern(),
-    )
-    .unwrap();
+    /* How the program calls, for the tables this run shows. */
+    for after_gap in [true, false] {
+        let names: Vec<String> = UseCase::ALL
+            .into_iter()
+            .filter(|&use_case| use_case.after_gap() == after_gap && roster.points.iter().any(|&index| POINTS[index].use_case == use_case))
+            .map(|use_case| format!("\u{201c}{}\u{201d}", use_case.heading()))
+            .collect();
+        let Some(pattern) = UseCase::ALL.into_iter().find(|use_case| use_case.after_gap() == after_gap).map(UseCase::pattern) else { continue };
+        let list = match names.as_slice() {
+            [] => continue,
+            [one] => one.clone(),
+            [first, second] => format!("{first} and {second}"),
+            [rest @ .., last] => format!("{}, and {last}", rest.join(", ")),
+        };
+        writeln!(output, "In {list}, {pattern}.").unwrap();
+    }
     if let Some((full_from, lowest_to)) = samples.gap_states() {
         let clocks: Vec<u64> = samples.gap_mhz.iter().flatten().flatten().copied().collect();
         let share = |count: usize| (count * 100 + clocks.len() / 2) / clocks.len();
@@ -5904,7 +5916,7 @@ fn contender_provenance_lines(
             kernels.kernels[0].name,
         )],
         Algorithm::Blake3ServilSt => vec![
-            format!("{name}: {} · hash, hash_many for a batch, Stream for a stream", short_git_source(BLAKE3_SERVIL_SOURCE_INFO)),
+            format!("{name}: {} · hash, hash_many for a batch, Hasher::update for a message in pieces", short_git_source(BLAKE3_SERVIL_SOURCE_INFO)),
             format!("{name}: single-threaded · platform {platform}"),
         ],
         Algorithm::Sha256CommonCrypto => vec![format!("{name}: {} · {}", algorithm.mode(), kernels.kernels[0].name)],
@@ -5922,7 +5934,7 @@ fn contender_provenance_lines(
             format!("{name}: {}", algorithm.thread_resources().expect("BLAKE3 mt runs on Rayon's pool")),
         ],
         Algorithm::Blake3ServilMt => vec![
-            format!("{name}: {} · hash_multithreaded, hash_many_multithreaded for a batch, Queue::pieces for a stream, Queue::messages for many inputs", short_git_source(BLAKE3_SERVIL_SOURCE_INFO)),
+            format!("{name}: {} · hash_multithreaded, hash_many_multithreaded for a batch, Hasher::update_multithreaded for a message in pieces; Queue::messages, Queue::pieces, and Queue::fixed for inputs one after another", short_git_source(BLAKE3_SERVIL_SOURCE_INFO)),
             format!("{name}: multithreaded on the fork's own threads · platform {platform}"),
         ],
     }
