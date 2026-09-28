@@ -10,7 +10,54 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
-## Resume here (checkpoint, September 28, 2026, late)
+## Resume here (handover, September 28, 2026, night)
+
+**Where things stand.** The new benchmark runs: bench-hashes branch
+`candidate/benchmark-plan` (a41c99a, checked out in the VM), which
+depends on the fork's `candidate/api-plan` (a11b990: the plan in
+`docs/api-design.md`, `clocks::measure_after_gaps`, public
+`Hasher::update_multithreaded`, perf_regress building both sides with the
+working tree's `clocks`). `FROZEN.md` is refrozen (Zooko, September 28).
+All 10 benchmark tests pass; a `--quick` run with the default contenders
+takes 56 s in the VM (was about 10 s). Stage 1's remaining work, in order:
+
+1. **perf_regress is stale; fix it before any fork commit that touches
+   code** (the pre-commit hook runs it with this benchmark). It still
+   knows the scenario `after-idle` (MARGIN, HOLDING) and the use cases
+   by old names. Wanted: solo cells of the synchronous use cases (after
+   the gap) at 20% (Zooko's default), solo continuous cells at 3%, shared
+   reported at 10% (20% after the gap?); its POINTS and use cases for the
+   new axes; and its run time measured (after-gap cells cost a 1 ms gap
+   per call: keep the check near its old 16 s, e.g. fewer after-gap
+   points).
+2. **Run time**: measure a full default run and `--all` (VM, then the
+   Mac); the after-gap cells cost `GAP_NS` per call, and `GAP_SAMPLE_NS`
+   (2 us of calls per sample) sets how many. The previous sessions cut a
+   full run from 5 minutes to 30 s; tune samples and points to get back
+   near that, reporting what each cut costs in precision.
+3. **Reread and fix the pages** as the three readers: the text report's
+   opening lines (the pattern sentence reads awkwardly), the graph (a
+   render: chips, subtitles, the "how it was made" door), README,
+   METHODOLOGY, CONTRIBUTING, and the fork's PROCEDURES and NOTES where
+   they describe the old use cases or the after-idle scenario. The Duo
+   comment still says each copy reads the clock as its first act (each
+   now sleeps the gap first).
+4. **First findings to explain** (quick run, VM): after the gap a 64 B
+   call costs about 500 ns (7.8 ns/B) against about 40 ns back to back,
+   for every hash alike; the queue loses to SHA-256 for 64 B-4 KiB
+   messages (3.3 against 1.3 ns/B at 64 B) and badly for batches of 16
+   (630 against 46 ns/msg), and wins from 64 KiB messages and 64-message
+   batches.
+5. Then the Mac: a runner job on the branch pair (Zooko launches it).
+6. Then stage 2 (the fork: `update_multithreaded` for 64 KiB pieces,
+   which today stay on the caller's thread; the time or energy argument
+   on the multithreaded synchronous calls; lingering between updates)
+   and stage 3 (an energy counter, then the energy endings).
+
+Before merging: point Cargo.toml back at the fork's `servil` branch once
+`candidate/api-plan` lands there.
+
+## Earlier checkpoint (September 28, 2026, late)
 
 **The question of the moment** (Zooko): can the streaming API (`Queue`)
 be implemented so that it is *way faster* than any other API? If not,
