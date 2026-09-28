@@ -92,9 +92,13 @@ numbers):
   tests).
 - Tried and left out tonight (fork NOTES has each with its numbers):
   slots on 128-byte lines, a delivery back-off, a short message's digest
-  in its slot, grouping a task's short messages into one entry, the
-  caller's later pieces on SME2, 4 KiB pieces, the minimax NEON plans
-  after the gap. Probes kept as `probe/*` branches, each cited there.
+  in its slot, grouping a task's short messages into one entry, linking a
+  task's members through their entries (candidate/member-links), pollers
+  pausing after a failed try_lock, wakes as a tree, the caller's later
+  pieces on SME2, 4 KiB pieces, the minimax NEON plans after the gap, no
+  SME2 thread. Trades left for Zooko: the 512 KiB split, lingering on
+  four threads, messages under 32 KiB gathered. Probes kept as `probe/*`
+  branches, each cited there.
 
 **The fork's night, measured alone** (Mac, the current benchmark on the
 starting fork b467ba6 and the final one, full runs old/new/new/old, jobs
