@@ -4634,15 +4634,16 @@ fn generate_svg(
     .series-hint { display: none; }
     .marks, .dots { transition: opacity 0.3s ease; }
     .marks { pointer-events: none; }
+    /* Hovering a name dims the other contenders' marks alone: every name
+       keeps its shown or hidden look, so the names always tell which
+       contenders are shown (a dimmed name read as a hidden one). */
+    .series[data-dim="true"] .marks, .dots[data-dim="true"] { opacity: 0.25; }
     .series[data-on="false"] .marks, .dots[data-on="false"] { opacity: 0; pointer-events: none; }
     .series[data-on="false"] .series-name { fill: #9a9a9a; }
     .series[data-on="false"] .series-detail { display: none; }
     .series[data-on="false"] .series-hint { display: inline; }
     .series[data-on="false"] .series-prov { display: none; }
-    .series[data-on="false"] .series-swatch * { fill: #fdfdfc; }
-    .series { transition: opacity 0.15s ease; }
-    .series[data-dim="true"], .dots[data-dim="true"] { opacity: 0.25; }
-    .series[data-dim="true"] .series-name { fill: #b5b5b5; }
+    .series[data-on="false"] .series-swatch * { fill: #fdfdfc; stroke: #b0b0b0; }
     .series[data-hl="true"] .series-name { text-decoration: underline; }
     .series-swatch { stroke-width: 2; transition: fill 0.3s ease; }
     #unit-switch { cursor: pointer; }
@@ -6731,7 +6732,8 @@ function highlightSeries(i, active) {
       if (!plot.series[j]) continue;
       const series = document.getElementById("series-" + p + "-" + j);
       const dots = document.getElementById("dots-" + p + "-" + j);
-      const dim = active && j !== i && on[j];
+      /* A hidden contender under the pointer dims nothing: it has no marks to single out. */
+      const dim = active && on[i] && j !== i && on[j];
       series.setAttribute("data-dim", dim ? "true" : "false");
       series.setAttribute("data-hl", active && j === i ? "true" : "false");
       if (dots) dots.setAttribute("data-dim", dim ? "true" : "false");
@@ -6742,6 +6744,7 @@ function highlightSeries(i, active) {
 function toggleSeries(i) {
   on[i] = !on[i];
   relayout();
+  if (labelUnderMouse !== null) highlightSeries(labelUnderMouse, true);
   if (hovered) showHover(hovered[0], hovered[1], hovered[2]);
 }
 
@@ -6952,7 +6955,13 @@ function tapDot(event, p, i, k) {
   showHover(p, i, k);
 }
 function tapAway() { pinned = null; hideHover(); }
-function hoverLabel(event, i, active) { if (event.pointerType === "mouse") highlightSeries(i, active); }
+/* The name under the mouse, so a click that shows or hides it redraws the dimming. */
+let labelUnderMouse = null;
+function hoverLabel(event, i, active) {
+  if (event.pointerType !== "mouse") return;
+  labelUnderMouse = active ? i : null;
+  highlightSeries(i, active);
+}
 
 window.toggleSeries = toggleSeries;
 window.toggleProv = toggleProv;
