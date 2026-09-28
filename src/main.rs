@@ -1988,7 +1988,7 @@ fn hash_continuous_messages(algorithm: Algorithm, input: &[u8], iterations: usiz
         buffer.extend_from_slice(black_box(input));
         hash_in_memory(algorithm, buffer, one, 1, &mut consume);
     }
-    keep_buffers(buffers);
+    keep_buffers(1, input.len(), buffers);
 }
 
 /*
@@ -2011,37 +2011,41 @@ fn hash_continuous_batches(algorithm: Algorithm, input: &[u8], point: Point, ite
         buffer.extend_from_slice(black_box(input));
         hash_in_memory(algorithm, buffer, batch, 1, &mut consume);
     }
-    keep_buffers(buffers);
+    keep_buffers(1, input.len(), buffers);
 }
 
 thread_local! {
     /*
      * The continuous use cases' read buffers, kept from one sample to the
-     * next on each thread: a fresh allocation of a large buffer would put
-     * its page faults inside the timed sample.
+     * next on each thread, a set per count and length: a fresh allocation
+     * of a large buffer would put its page faults inside the timed sample,
+     * and one set shared by every cell had each cell free or grow the
+     * last one's inside its own sample (SHA-256's 1 KiB messages took 2-5%
+     * more cycles per byte after the fork's queue's 1024 buffers,
+     * September 28, 2026).
      */
-    static INPUT_BUFFERS: std::cell::RefCell<Vec<Vec<u8>>> = const { std::cell::RefCell::new(Vec::new()) };
+    static INPUT_BUFFERS: std::cell::RefCell<std::collections::HashMap<(usize, usize), Vec<Vec<u8>>>> = std::cell::RefCell::new(std::collections::HashMap::new());
 }
 
-/// `count` empty buffers with room for `len` bytes, from this thread's
-/// kept ones where it has them; give them back with keep_buffers.
+/// `count` empty buffers with room for `len` bytes, this thread's kept set
+/// for the pair (made on first use); give them back with keep_buffers.
 fn take_buffers(count: usize, len: usize) -> Vec<Vec<u8>> {
-    let mut kept = INPUT_BUFFERS.with(|kept| std::mem::take(&mut *kept.borrow_mut()));
-    kept.truncate(count);
-    kept.resize_with(count, Vec::new);
+    let mut kept = INPUT_BUFFERS.with(|kept| kept.borrow_mut().remove(&(count, len))).unwrap_or_default();
+    assert!(kept.len() <= count, "a kept set holds the buffers taken for it");
+    kept.resize_with(count, || {
+        /* Touched once here, so later samples find it mapped. */
+        let mut buffer = vec![0u8; len];
+        buffer.clear();
+        buffer
+    });
     for buffer in &mut kept {
         buffer.clear();
-        if buffer.capacity() < len {
-            /* Touched once here, so later samples find it mapped. */
-            buffer.resize(len, 0);
-            buffer.clear();
-        }
     }
     kept
 }
 
-fn keep_buffers(buffers: Vec<Vec<u8>>) {
-    INPUT_BUFFERS.with(|kept| *kept.borrow_mut() = buffers);
+fn keep_buffers(count: usize, len: usize, buffers: Vec<Vec<u8>>) {
+    INPUT_BUFFERS.with(|kept| kept.borrow_mut().insert((count, len), buffers));
 }
 
 /*
@@ -2138,7 +2142,7 @@ fn queue_messages(input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8]
     while digests < iterations || free.len() < count {
         back(&mut free, &mut digests);
     }
-    keep_buffers(free);
+    keep_buffers(count, piece_len, free);
 }
 
 /*
@@ -2187,28 +2191,26 @@ fn queue_batches(input: &[u8], messages: usize, iterations: usize, mut consume: 
         free.push((buffer, digests));
     }
     let (buffers, digests): (Vec<Vec<u8>>, Vec<Vec<[u8; 32]>>) = free.into_iter().unzip();
-    keep_buffers(buffers);
-    keep_digests(digests);
+    keep_buffers(count, input.len(), buffers);
+    keep_digests(count, messages, digests);
 }
 
 thread_local! {
-    /// The continuous batches' digest spaces, kept as INPUT_BUFFERS are.
-    static DIGEST_BUFFERS: std::cell::RefCell<Vec<Vec<[u8; 32]>>> = const { std::cell::RefCell::new(Vec::new()) };
+    /// The continuous batches' digest spaces, kept as INPUT_BUFFERS are,
+    /// a set per count and batch length.
+    static DIGEST_BUFFERS: std::cell::RefCell<std::collections::HashMap<(usize, usize), Vec<Vec<[u8; 32]>>>> = std::cell::RefCell::new(std::collections::HashMap::new());
 }
 
-/// `count` digest spaces of `messages` digests each, from this thread's kept ones.
+/// `count` digest spaces of `messages` digests each, this thread's kept set.
 fn take_digests(count: usize, messages: usize) -> Vec<Vec<[u8; 32]>> {
-    let mut kept = DIGEST_BUFFERS.with(|kept| std::mem::take(&mut *kept.borrow_mut()));
-    kept.truncate(count);
-    kept.resize_with(count, Vec::new);
-    for digests in &mut kept {
-        digests.resize(messages, [0; 32]);
-    }
+    let mut kept = DIGEST_BUFFERS.with(|kept| kept.borrow_mut().remove(&(count, messages))).unwrap_or_default();
+    assert!(kept.len() <= count, "a kept set holds the digest spaces taken for it");
+    kept.resize_with(count, || vec![[0u8; 32]; messages]);
     kept
 }
 
-fn keep_digests(digests: Vec<Vec<[u8; 32]>>) {
-    DIGEST_BUFFERS.with(|kept| *kept.borrow_mut() = digests);
+fn keep_digests(count: usize, messages: usize, digests: Vec<Vec<[u8; 32]>>) {
+    DIGEST_BUFFERS.with(|kept| kept.borrow_mut().insert((count, messages), digests));
 }
 
 /// The pieces of one stream, each copied into a PIECE_LEN buffer (the
