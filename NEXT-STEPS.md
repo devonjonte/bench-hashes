@@ -104,9 +104,16 @@ after the gap win from 16 KiB (one buffer, pieces) and from 12 messages
    makes `perf_regress compare` across queue-simple give no verdict on
    the VM (the control moves). Open: what queue-simple leaves in the
    harness's state.
-3. **The lingering bound** (Zooko's Q): 50 us, reasoned as a wake's cost;
-   a lingering stream leaves about 1.6 ms of worker CPU behind in all
-   (15 workers).
+3. **The lingering bound, and its energy** (Zooko's Q): 50 us, reasoned
+   as a wake's cost. Measured (fork NOTES, "Lingering"; jobs 560-567):
+   a long message in 64 KiB pieces through `update_multithreaded` is
+   1.5-2.6x as fast as before and spends 4-6x the energy (1.7-2.6 nJ/B
+   against 0.4-0.48 for `update`): about eight cores poll between
+   updates. The time-saving form's trade to decide: keep, shorten the
+   bound, or give the energy-saving form (stage 2's time or energy
+   argument) no lingering. A lingering stream leaves about 1.6 ms of
+   worker CPU behind in all. `clocks::process_energy_nj` (new, macOS)
+   reads the counter the probes used; not validated for energy cells.
 4. The runner's `perf_regress` jobs need the runner restarted.
 5. **The multithreaded split at 512 KiB instead of 768** (Zooko's choice
    of September 27, fork NOTES at `MIN_SPLIT_LEN`, is the length where it
@@ -607,7 +614,7 @@ From `/workspace` in the VM, after `sh /workspace/vm/setup.sh` once per boot:
     pypy3 tools/perf_regress.py check | compare OLD NEW
     cargo run --release --example host_lab
 
-Expected: 86 / 82 / 71 library tests, 22 doc tests, 13 in `--test api_plan`, 2 vectors, 10 benchmark
+Expected: 86 / 82 / 71 library tests, 22 doc tests, 14 in `--test api_plan`, 2 vectors, 10 benchmark
 tests. Release: `python3 tools/gen-ver.py X.Y.Z` from a clean tree (two
 version commits and a lightweight tag; push the branch, `servil` in the
 fork or `main` here, then the tag by name).
