@@ -38,6 +38,22 @@ split two ways between runs by up to 2x (SHA-256 1 KiB 1.08|2.46 and
 1.71|2.59); their CHECKS are mostly noise. What the program does in the
 gap (sleep today) is Zooko's open question; a program that works in the
 gap keeps its clock up.
+**Measured again this morning** (Mac, the fixed benchmark; fork NOTES
+"The trades, measured again" and "The 64-byte cell at full clock"):
+members-32k, subtrees-32k, and linger-4 each still a trade (numbers
+there); the 64-byte continuous cell's spread (0.54-2.3 ns/B a sample,
+the fastest matching SHA-256) is stall cycles in the program's thread at
+a steady clock and instruction count; `submit` costs about 320
+instructions and 115 cycles a message; a slot prefetch was level. The
+Mac's test job passed on c46c57c (job 756).
+**Open, VM:** after the VM's restart this morning, servil mt's continuous
+cells read 3-5x slower than in last night's VM run (256 B 1.47 against
+0.43 ns/B, 1 KiB 1.32 against 0.24, 1 MiB 0.15-0.20 against 0.077), with
+last night's fork and benchmark alike (both rebuilt and run), SHA-256
+level or faster, 16 threads of integer work scaling (225 ms against 180
+alone), a condvar round trip 23 us, an atomic one 67 ns. Last night's
+run showed the slow speed too as one of two (256 B 0.43|2.31). Unexplained;
+the Mac decides, and the VM stays for Zooko's decision after the Mac.
 **The runner:** restarted by Zooko (installs `perf_regress.py` with the
 fix ed66897: the clocks patch followed the tool's own directory, not
 `--root`).
