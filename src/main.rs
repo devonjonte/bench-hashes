@@ -2938,12 +2938,33 @@ fn cell_wants_sample(slot: usize, rounds: usize, long: bool) -> bool {
 }
 
 /// (iterations per sample, nanoseconds per iteration measured).
+/*
+ * The fewest inputs a continuous cell's sample holds: twice the buffers
+ * its program keeps in flight (FROZEN.md), so the sample times the
+ * queue's steady flow over many inputs rather than one filling and
+ * draining. A queue's first inputs cost tens of microseconds to start
+ * (its pool and delivery thread wake), so a sample calibrated from one
+ * input held a dozen (September 28, 2026: 12 messages of 64 B, far short
+ * of the 1024 in flight).
+ */
+fn continuous_min_inputs(input: &[u8], point: Point) -> usize {
+    match point.use_case {
+        UseCase::ContinuousMessages => {
+            let pieces = input.len().div_ceil(PIECE_LEN).max(1);
+            2 * in_flight(input.len().min(PIECE_LEN)).div_ceil(pieces)
+        }
+        UseCase::ContinuousBatches => 2 * in_flight(input.len()),
+        UseCase::OneMessage | UseCase::ManyMessages | UseCase::Streaming => 1,
+    }
+}
+
 fn calibrate_batch(
     algorithm: Algorithm,
     input: &[u8],
     point: Point,
 ) -> (usize, u128) {
-    let mut iterations = 1usize;
+    let fewest = continuous_min_inputs(input, point);
+    let mut iterations = fewest;
 
     loop {
         let started = clocks::now();
@@ -2983,7 +3004,7 @@ fn calibrate_batch(
                     + elapsed_ns / 2
             ) / elapsed_ns;
 
-            let scaled = scaled.max(1);
+            let scaled = scaled.max(fewest as u128);
 
             assert!(
                 scaled <= usize::MAX as u128,
