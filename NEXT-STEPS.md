@@ -30,7 +30,7 @@ and the trades listed below. Everything is on `candidate/api-plan-simple`
 **Where things stand.** The fork's work is on `candidate/api-plan-simple`
 (the API plan, `candidate/queue-simple` merged in, and tonight's
 changes); bench-hashes' on `candidate/benchmark-plan`. The Mac runner
-built every job from those branches (jobs 475-693). Nothing is merged to
+built every job from those branches (jobs 475-733). Nothing is merged to
 `servil` or `main`; the gate (PROCEDURES.md) is still to run. Before
 merging: point bench-hashes' Cargo.toml at the fork's `servil` once
 `candidate/api-plan-simple` lands there (it names `candidate/api-plan`
@@ -123,8 +123,10 @@ numbers):
   task's members through their entries (candidate/member-links), pollers
   pausing after a failed try_lock, wakes as a tree, the caller's later
   pieces on SME2, 4 KiB pieces, the minimax NEON plans after the gap, no
-  SME2 thread. Trades left for Zooko: the 512 KiB split, lingering on
-  four threads, messages under 32 KiB gathered. Probes kept as `probe/*`
+  SME2 thread, member blocks, the pool's threads at user-interactive QoS.
+  Trades left for Zooko: the 512 KiB split, lingering on four threads,
+  messages under 32 KiB gathered, subtree tasks of 32 KiB (large messages
+  4-14% faster, 64 KiB 5% slower). Probes kept as `probe/*`
   branches, each cited there.
 
 **The fork's night, measured alone** (Mac, the current benchmark on the
