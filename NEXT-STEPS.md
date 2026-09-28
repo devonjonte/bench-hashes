@@ -76,6 +76,11 @@ numbers):
   tonight (Zooko): most commits went in with `--no-verify`.
 - `clocks::process_energy_nj` reads the process's energy on macOS (the
   counter probe/energy used), for stage 3; not validated for cells.
+- A flaky test fixed: `tests/queue_no_alloc.rs` failed once in 60-100
+  runs (half the time under TSan), from before tonight: the pool's task
+  list grew with the threads' timing. Each queue now makes room in it for
+  what its entries can have waiting; 0 failures in 150 runs and 8 under
+  TSan.
 - Tests: `tests/api_plan.rs` checks messages in pieces through
   `update_multithreaded` against the reference implementation, and one
   queue shared by several submitting threads; TSan (nightly,
