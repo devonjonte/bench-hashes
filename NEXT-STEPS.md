@@ -10,7 +10,107 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
-## Resume here (handover, September 28, 2026, night)
+## Resume here (handover, September 28-29, 2026, overnight session)
+
+**Where things stand.** The fork's work is on `candidate/api-plan-simple`
+(the API plan, `candidate/queue-simple` merged in, and tonight's
+changes); bench-hashes' on `candidate/benchmark-plan`. The Mac runner
+built every job from those branches (jobs 475-527). Nothing is merged to
+`servil` or `main`; the gate (PROCEDURES.md) is still to run. Before
+merging: point bench-hashes' Cargo.toml at the fork's `servil` once
+`candidate/api-plan-simple` lands there (it names `candidate/api-plan`
+for `clocks` today), and restart the Mac runner (`setup-mac.sh`) so its
+installed `perf_regress.py` is the new one.
+
+**What changed in the benchmark** (fixes to how it measures; what it asks
+of the fork, FROZEN.md, is unchanged):
+- The continuous cells were calibrated from one input: a queue's first
+  input costs tens of microseconds, so a sample held 12 messages of 64 B,
+  never the 1024 in flight FROZEN.md asks for. They now start calibration
+  at twice the buffers in flight, and no sample holds fewer (servil mt 64
+  B messages 97 -> 3.9 ns/B on the VM before any fork change).
+- The streaming use case allocated and zeroed a 64 KiB read buffer per
+  message (about 6 us after the gap, every contender alike: 64 B streams
+  read 95-105 ns/B); the batch use cases allocated their digest array per
+  call (256 KiB with page faults at 8192 messages, BLAKE3 contenders
+  only). Both are kept from call to call now.
+- The continuous cells' read buffers were one set shared by every cell,
+  so each cell freed or grew the previous cell's inside its own sample;
+  now a set per count and length.
+- A synchronous cell's sample was sized from the call's time back to
+  back (a 64-byte call's sample summed 50 calls, each after its own 1 ms
+  gap); now from four calls timed after the gap. Run time: VM `--quick`
+  46 -> 14 s, a full default run 32 s; Mac full run 96 -> 47 s (job 503),
+  builds included.
+- The report's opening names the tables it shows and how the program
+  calls in each; README, METHODOLOGY, CONTRIBUTING describe the five use
+  cases; the graph's door names today's calls.
+
+**What changed in the fork** (fork NOTES, "The queue, as rebuilt" and
+"Lingering between multithreaded updates", have the mechanisms and
+numbers):
+- The queue: submitters and the delivery thread share no lock on their
+  common paths (entries chained in submission order), locks polled
+  before parking, 64 short messages to a task, small `Queue::fixed`
+  batches gathered into tasks. Mac, solo, old -> new: 64 B messages 2.6 ->
+  1.15 ns/B, 256 B 0.63 -> 0.29, 16 KiB 0.165 -> 0.072; batches of 16 34
+  -> 8-19 ns/msg, of 64 21 -> 6.5, of 256 11 -> 4.2; shared batches of 16
+  84 -> 12-19. VM: continuous cells 2.3-2.6x faster (geometric mean),
+  synchronous cells level within their noise.
+- `Hasher::update_multithreaded` lingers (Zooko's decision in
+  docs/api-design.md; the bound, 50 us, is his open question): long
+  messages in 64 KiB pieces 2.4x faster (Mac 128 MiB 0.24 -> 0.098 ns/B,
+  solo and shared), short ones level.
+- `perf_regress` knows the five use cases: after-gap cells at 20%,
+  continuous 3% solo and 10% shared, 28 points, about 25-30 s of runs on
+  the VM. Advisory tonight (Zooko): commits went in with `--no-verify`.
+- `tests/api_plan.rs` checks messages in pieces through
+  `update_multithreaded` against the reference implementation; TSan
+  (nightly, `-Zsanitizer=thread`) clean on api_plan and on a million
+  64-byte messages through the queue.
+
+**Standing, Mac full run (job 503; the last pair's run is in
+`/workspace/tmp/overnight/`):** the continuous cells all win against
+SHA-256 but 64 B messages (servil 1.2 against 0.94 ns/B: a handover's
+cache lines cost about what SHA-256 spends on the whole message; the
+harness's channel alone takes 25 ns; `Queue::fixed` is the API that
+beats it). Streams of 64 KiB pieces win from 16 KiB. Synchronous calls
+after the gap win from 16 KiB (one buffer, pieces) and from 12 messages
+(batches); below they lose to SHA-256 by 1.3-2x.
+
+**Open, ours to explain or decide:**
+1. **Small synchronous calls after the gap** (128 B-8 KiB, batches of
+   1-8): probe/after-gap (jobs 478-479) found the core after the 1 ms
+   sleep at about 1.3 GHz and a quarter to half of the time on E-cores,
+   for SHA-256 alike; servil's cycles per call rise 1.7x there (4 KiB:
+   5300 -> 8900) where SHA-256's stay level (6260 -> 6390): the NEON
+   hybrids lose more on E-cores than SHA-256's dedicated instructions.
+   20 us of integer work before the call halves it (the clock ramp). Back
+   to back SHA-256 already leads below about 3 KiB (open problem 1).
+   Choices for Zooko: E-core-kinder kernels (the rejected "minimax"
+   plans: E -16-24%, P +17%) now that every synchronous call is measured
+   after the gap, or accept.
+2. **The queue's cells slow the next cell** (VM and Mac, reproduced
+   alone): SHA-256's continuous 1 KiB cell runs 3-5% slower beside the
+   new fork than the old (Mac jobs 524-527: same clock, 4.42 GHz, 2-5%
+   more cycles per byte), with no thread left running (a queue burst
+   leaves 30 us of CPU). It makes `perf_regress compare` across this
+   change give no verdict on the VM (the control moves). Unexplained;
+   next: which of the queue's traits (members, the chain, 64-task
+   gathering) carries it, by bisecting the fork's commits of tonight.
+3. **The lingering bound** (Zooko's Q): 50 us, reasoned as a wake's cost;
+   a lingering stream leaves about 1.6 ms of worker CPU behind in all
+   (15 workers).
+4. The runner's `perf_regress` jobs need the runner restarted.
+
+**Next, in order:** Zooko reviews the two branches (the benchmark fixes
+and the fork's changes); run the gate (all suites, `perf_regress` on the
+VM and the Mac) and land them; then stage 2's remaining items (the time
+or energy argument on the multithreaded synchronous calls) and stage 3
+(the energy counter).
+
+## Earlier checkpoint (September 28, 2026, night)
+
 
 **Where things stand.** The new benchmark runs: bench-hashes branch
 `candidate/benchmark-plan` (a41c99a, checked out in the VM), which
@@ -494,7 +594,7 @@ From `/workspace` in the VM, after `sh /workspace/vm/setup.sh` once per boot:
     pypy3 tools/perf_regress.py check | compare OLD NEW
     cargo run --release --example host_lab
 
-Expected: 86 / 82 / 71 library tests, 22 doc tests, 12 in `--test api_plan`, 2 vectors, 10 benchmark
+Expected: 86 / 82 / 71 library tests, 22 doc tests, 13 in `--test api_plan`, 2 vectors, 10 benchmark
 tests. Release: `python3 tools/gen-ver.py X.Y.Z` from a clean tree (two
 version commits and a lightweight tag; push the branch, `servil` in the
 fork or `main` here, then the tag by name).
