@@ -123,11 +123,12 @@ copies start lingering after their second piece).
 (0.43 against 0.52 ns/B; 1 MiB messages 0.077 against 0.35; batches 3.4-16
 against 32-39 ns/msg) and lose at 64 B (1.40 against 0.74).
 
-**Standing, Mac full run of the final pair (job 650,
+**Standing, Mac full run of the final pair (job 679,
 `/workspace/tmp/overnight/mac-final/`):** the continuous cells all win
-against SHA-256 but 64 B messages (servil 1.11 against 0.93 ns/B, and
-against ring's 1.22; 0.73-0.76 against 0.56 in runs of those cells
-alone, where the machine stays warm between samples: a handover's
+against SHA-256 but 64 B messages, which run at two speeds (servil
+0.78|1.11 against 0.93 ns/B; shared 1.22 against 0.90; 0.65-0.72 against
+0.56 in runs of those cells alone, where the machine stays warm between
+samples: a handover's
 cache lines cost about what SHA-256 spends on the whole message; the
 harness's channel alone takes 25 ns; `Queue::fixed` is the API that
 beats it). Streams of 64 KiB pieces win from 16 KiB. Synchronous calls
