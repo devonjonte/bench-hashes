@@ -110,7 +110,11 @@ built for throughput: `Queue::messages` for messages of up to 64 KiB,
 batches. The program keeps enough buffers in flight to cover the queue's
 round trip (about 1 MiB of them or 1024, whichever is fewer), reads each
 input into a free one, hands it over, and gets it back with its digest
-through the queue's handler, so reading and hashing overlap. BLAKE3
+through the queue's handler, so reading and hashing overlap. The
+program makes its queue once and keeps it, with a bounded channel (a ring
+allocated when it is made) that carries the returned buffers and digests
+from the handler to the program's thread, so after warm-up neither the
+program nor the queue allocates. BLAKE3
 servil st takes no part: the fork's answer to a continuous load is its
 multithreaded queue.
 

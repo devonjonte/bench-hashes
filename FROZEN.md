@@ -35,6 +35,14 @@ their users seldom make):
   length (one buffer each up to 64 KiB, pieces beyond), and batches of
   64-byte messages. Several threads only; efficient in time (the energy
   endings wait for an energy counter).
+- **The program's side of the queue allocates nothing after warm-up**
+  (Zooko, September 28, 2026, morning): the program makes its queue and
+  a bounded channel for the returns once and keeps both, as a program
+  makes one queue for its life, and the channel is a ring allocated when
+  it is made. Until then each sample made a new queue (its slots
+  allocated inside the sample) and returned buffers through an unbounded
+  channel, which allocates a block every few dozen messages; the queue's
+  own contract (no allocation after warm-up) was never reached.
 - **Batches under the padded batch contract** (Zooko, September 26): the
   caller lays out and zero-pads the messages.
 - **Shared scenarios for every use case** (Zooko, September 28): two
@@ -61,6 +69,6 @@ blake3-servil-st Streaming: Hasher::update per 64 KiB piece, then finalize, each
 blake3-servil-mt OneMessage: hash_multithreaded(input), each call after the gap
 blake3-servil-mt ManyMessages: hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after the gap
 blake3-servil-mt Streaming: Hasher::update_multithreaded per 64 KiB piece, then finalize, each message after the gap
-blake3-servil-mt ContinuousMessages: Queue::messages(Mode::Hash, Efficiency::Time) for messages of up to 64 KiB, Queue::pieces(Mode::Hash, Efficiency::Time) in 64 KiB pieces for longer ones, one message after another, each read into free buffers of the program's, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler
-blake3-servil-mt ContinuousBatches: Queue::fixed(64, Mode::Hash, Efficiency::Time), one batch after another, each read into a free buffer of the program's, submitted with its digests' space, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler
+blake3-servil-mt ContinuousMessages: Queue::messages(Mode::Hash, Efficiency::Time) for messages of up to 64 KiB, Queue::pieces(Mode::Hash, Efficiency::Time) in 64 KiB pieces for longer ones, one message after another, each read into free buffers of the program's, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept
+blake3-servil-mt ContinuousBatches: Queue::fixed(64, Mode::Hash, Efficiency::Time), one batch after another, each read into a free buffer of the program's, submitted with its digests' space, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept
 ```
