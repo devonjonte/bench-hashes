@@ -2217,7 +2217,13 @@ fn each_stream<D: AsRef<[u8]>>(
     hash: impl Fn(Pieces) -> D,
     mut consume: impl FnMut(&[u8]),
 ) {
-    let mut buffer = vec![0u8; PIECE_LEN];
+    /* The program's read buffer, kept from call to call (a fresh one per
+     * message would put its allocation and zeroing, microseconds after the
+     * gap, inside every short stream's time). */
+    let mut buffer = STREAM_BUFFER.with(|kept| std::mem::take(&mut *kept.borrow_mut()));
+    if buffer.len() < PIECE_LEN {
+        buffer = vec![0u8; PIECE_LEN];
+    }
     for _ in 0..iterations {
         let mut pieces = |each: &mut dyn FnMut(&[u8])| {
             for piece in black_box(input).chunks(PIECE_LEN) {
@@ -2227,6 +2233,12 @@ fn each_stream<D: AsRef<[u8]>>(
         };
         consume(hash(&mut pieces).as_ref());
     }
+    STREAM_BUFFER.with(|kept| *kept.borrow_mut() = buffer);
+}
+
+thread_local! {
+    /// The streaming use case's read buffer, kept as INPUT_BUFFERS are.
+    static STREAM_BUFFER: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
 
@@ -2282,11 +2294,30 @@ fn servil_batch(
     mut consume: impl FnMut(&[u8]),
 ) {
     assert_eq!(input.len(), messages * message_len);
-    let mut digests = vec![[0u8; 32]; messages];
+    let mut digests = take_batch_digests(messages);
     for _ in 0..iterations {
         hash_many(black_box(input), message_len, &mut digests);
         consume(digests.as_flattened());
     }
+    keep_batch_digests(digests);
+}
+
+thread_local! {
+    /* The batches' digest space, kept from call to call: a fresh one per
+     * call would put its allocation and zeroing (page faults for the
+     * largest batches) inside every call after the gap. */
+    static BATCH_DIGESTS: std::cell::RefCell<Vec<[u8; 32]>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// This thread's kept digest space, `messages` digests long.
+fn take_batch_digests(messages: usize) -> Vec<[u8; 32]> {
+    let mut digests = BATCH_DIGESTS.with(|kept| std::mem::take(&mut *kept.borrow_mut()));
+    digests.resize(messages, [0; 32]);
+    digests
+}
+
+fn keep_batch_digests(digests: Vec<[u8; 32]>) {
+    BATCH_DIGESTS.with(|kept| *kept.borrow_mut() = digests);
 }
 
 /// `iterations` passes over the batch through the blake3 crate's hidden
@@ -2313,7 +2344,7 @@ fn blake3_batch_of<const N: usize>(input: &[u8], iterations: usize, mut consume:
     let (messages, rest) = input.as_chunks::<N>();
     assert!(rest.is_empty(), "a batch is whole {N}-byte messages");
     let platform = blake3::platform::Platform::detect();
-    let mut digests = vec![[0u8; 32]; messages.len()];
+    let mut digests = take_batch_digests(messages.len());
     for _ in 0..iterations {
         for (group, out) in black_box(messages).chunks(16).zip(digests.chunks_mut(16)) {
             let mut table = [&group[0]; 16];
@@ -2324,6 +2355,7 @@ fn blake3_batch_of<const N: usize>(input: &[u8], iterations: usize, mut consume:
         }
         consume(digests.as_flattened());
     }
+    keep_batch_digests(digests);
 }
 
 /// `iterations` passes over the input, each hashing every message with one
