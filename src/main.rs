@@ -86,6 +86,8 @@ const GAP_NS: u64 = 1_000_000;
  * (after a gap a call starts at any clock from the lowest to the highest).
  */
 const GAP_SAMPLE_NS: u128 = 2_000;
+/// Calls timed after the gap to size a synchronous cell's sample.
+const CALIBRATION_GAPS: u64 = 4;
 const STEADY_SAMPLES: usize = 12;
 const LONG_SAMPLES: usize = 6;
 
@@ -1506,12 +1508,16 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                 let (iterations, per_iteration_ns) = calibrate_batch(algorithm, &inputs[point_index], *point);
                 /*
                  * A synchronous cell's sample: calls after the gap summing
-                 * about GAP_SAMPLE_NS (one at least), from the calls' time
-                 * back to back (after the gap they take longer, so a sample
-                 * sums more).
+                 * about GAP_SAMPLE_NS (one at least), from calls timed
+                 * after the gap (sized from their time back to back, a
+                 * 64-byte call's sample summed about 50 calls, each after
+                 * its own 1 ms gap, where 7 fill it).
                  */
                 batch_iterations[algorithm_index][point_index] = if point.use_case.after_gap() {
-                    GAP_SAMPLE_NS.div_ceil(per_iteration_ns.max(1)) as usize
+                    let input = &inputs[point_index];
+                    let after_gap = clocks::measure_after_gaps(CALIBRATION_GAPS, GAP_NS, || run_batch(algorithm, input, *point, 1));
+                    let per_call_ns = u128::from(after_gap.wall_ns) / u128::from(CALIBRATION_GAPS);
+                    GAP_SAMPLE_NS.div_ceil(per_call_ns.max(per_iteration_ns).max(1)) as usize
                 } else {
                     iterations
                 };
