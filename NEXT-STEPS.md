@@ -23,7 +23,12 @@ enough in flight (Little's law: in flight = rate x round trip).
 
 **Next: unfreeze, clarify, refreeze** (Zooko, agreed): the benchmark and
 the API both need to say what they are trying to achieve, then be frozen
-again in `FROZEN.md`. Known points to settle with him:
+again in `FROZEN.md`. The new plan (September 28) is in the fork's
+`docs/api-design.md`: three choices (the data's shape, intermittent or
+continuous load, time or energy) lead to six calls; no thread budget;
+the benchmark measures the six intermittent cells separately and the
+continuous column in two use cases. Its open questions are marked **Q**.
+Earlier points to settle with him (now partly answered there):
 - The many-inputs use case keeps four buffers in flight and blocks on
   the fifth: at small sizes that measures the round trip (latency), not
   throughput. Proposal: keep enough in flight to cover it (e.g. about
@@ -91,8 +96,6 @@ queue cell 1.1-3.5x slower on the Mac (jobs 440, 446, 448, 454 runs 6-7,
   wrong guesses.
 - In the VM a contended std Mutex parks the waiter (futex); use try_lock
   on paths that poll.
-- The pre-commit hook needs the VM's prefix on `git commit` too
-  (`CC=clang-19` etc.), or its SME2 check fails.
 - Allocation-free claims need a test (a counting global allocator in its
   own test binary); growth must follow the program's in-flight work, not
   thread timing.
@@ -371,7 +374,7 @@ it, or at least predicted (AGENTS.md, "we own every slowdown").
 
 ## Commands
 
-From `/workspace` in the VM, each with the prefix above:
+From `/workspace` in the VM, after `sh /workspace/vm/setup.sh` once per boot:
 
     cargo test --release --lib [--features no_sme2 | --features pure]
     cargo test --release --doc
