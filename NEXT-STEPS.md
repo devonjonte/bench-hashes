@@ -107,8 +107,10 @@ continuous cells win from 1 KiB (1 MiB messages 0.072 against 0.35 ns/B;
 batches 3.5-12 against 32-40 ns/msg) and lose at 64 B (1.38 against 0.75)
 and 256 B (0.88 against 0.53).
 
-**Standing, Mac full run (job 543):** the continuous cells all win against
-SHA-256 but 64 B messages (servil 1.2 against 0.94 ns/B: a handover's
+**Standing, Mac full run of the final pair (job 616,
+`/workspace/tmp/overnight/mac-final/`):** the continuous cells all win
+against SHA-256 but 64 B messages (servil 1.31 against 0.88 ns/B, 0.92-1.1
+against 0.56 in runs of those cells alone: a handover's
 cache lines cost about what SHA-256 spends on the whole message; the
 harness's channel alone takes 25 ns; `Queue::fixed` is the API that
 beats it). Streams of 64 KiB pieces win from 16 KiB. Synchronous calls
