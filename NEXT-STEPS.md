@@ -61,13 +61,31 @@ numbers):
   docs/api-design.md; the bound, 50 us, is his open question): long
   messages in 64 KiB pieces 2.4x faster (Mac 128 MiB 0.24 -> 0.098 ns/B,
   solo and shared), short ones level.
+- Idle workers and the SME2 thread sleep after 50 us with nothing to
+  take, even while a queue holds the pool (they polled until the stream
+  drained): about 10% less CPU for the queue's short messages, speed
+  level on both machines; the VM's continuous 64 B cell 3.9 -> 1.2-1.4
+  ns/B.
 - `perf_regress` knows the five use cases: after-gap cells at 20%,
   continuous 3% solo and 10% shared, 28 points, about 25-30 s of runs on
-  the VM. Advisory tonight (Zooko): commits went in with `--no-verify`.
-- `tests/api_plan.rs` checks messages in pieces through
-  `update_multithreaded` against the reference implementation; TSan
-  (nightly, `-Zsanitizer=thread`) clean on api_plan and on a million
-  64-byte messages through the queue.
+  the VM; a first calibration (fork NOTES, "perf_regress"). Advisory
+  tonight (Zooko): most commits went in with `--no-verify`.
+- `clocks::process_energy_nj` reads the process's energy on macOS (the
+  counter probe/energy used), for stage 3; not validated for cells.
+- Tests: `tests/api_plan.rs` checks messages in pieces through
+  `update_multithreaded` against the reference implementation, and one
+  queue shared by several submitting threads; TSan (nightly,
+  `-Zsanitizer=thread`) clean on api_plan, the library tests, and a
+  million 64-byte messages through the queue; ASan clean on api_plan and
+  queue_no_alloc; every suite passes on the VM (86 / 82 / 71 library
+  tests, 22 doc, 14 api_plan, 1 queue_no_alloc, 2 vectors, 10 benchmark)
+  and the Mac's test job (542; its runner predates the integration
+  tests).
+- Tried and left out tonight (fork NOTES has each with its numbers):
+  slots on 128-byte lines, a delivery back-off, a short message's digest
+  in its slot, grouping a task's short messages into one entry, the
+  caller's later pieces on SME2, 4 KiB pieces, the minimax NEON plans
+  after the gap. Probes kept as `probe/*` branches, each cited there.
 
 **The fork's night, measured alone** (Mac, the current benchmark on the
 starting fork b467ba6 and the final one, full runs old/new/new/old, jobs
@@ -79,6 +97,11 @@ synchronous cells 0.96-1.02 (their code is unchanged; single cells swing
 with the clock states after the gap, their 5th percentiles level). One
 cell slower beyond that noise: shared 256 KiB in pieces, +11% (both
 copies start lingering after their second piece).
+
+**VM standing** (full run, `/workspace/tmp/overnight/vm-full/`): the
+continuous cells win from 1 KiB (1 MiB messages 0.072 against 0.35 ns/B;
+batches 3.5-12 against 32-40 ns/msg) and lose at 64 B (1.38 against 0.75)
+and 256 B (0.88 against 0.53).
 
 **Standing, Mac full run (job 543):** the continuous cells all win against
 SHA-256 but 64 B messages (servil 1.2 against 0.94 ns/B: a handover's
