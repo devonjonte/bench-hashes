@@ -482,7 +482,10 @@ hides that contender in every plot: its marks fade out, each y axis
 rescales to the contenders still showing, and its provenance line drops
 out of the block below. The name stays in
 place, greyed with a hollow swatch and a "hidden · click to show" hint,
-anchored toward where its line would sit on the current axis. A viewer
+anchored toward where its line would sit on the current axis. Resting
+the mouse on a name underlines it and fades the other contenders' marks;
+the names themselves keep their look, so they always show which
+contenders are hidden. A viewer
 without script support shows every contender, laid out identically.
 
 ## Output
