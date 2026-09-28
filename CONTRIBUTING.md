@@ -54,10 +54,14 @@ benchmark.
 
 - **Contenders are black boxes.** The benchmark lists a contender, calls
   its plain entry point (single-threaded, multithreaded, a batch call, or
-  its incremental API for a stream) with no pool, cap, or wrapper of its
-  own, and asks the fork for its
+  its incremental API for a stream; for the fork's multithreaded
+  contender, its queue for inputs one after another) with no pool, cap,
+  or wrapper of its own, and asks the fork for its
   `kernel_report()`. A contender without a batch entry point hashes a
   batch as `for m in batch { hash(m) }`.
+- **What the benchmark asks of the fork is frozen.** `FROZEN.md` lists
+  each use case's calls and call pattern, and a test compares it with the
+  code; changing it is Zooko's decision, recorded there.
 - **The benchmark checks no digests.** Each crate's own tests establish
   that it is correct; the benchmark only keeps every digest from being
   optimized away (`black_box`).

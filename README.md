@@ -38,22 +38,27 @@ your CPU and operating system:
 - `bench-hashes.samples.tsv`: every single measurement, for your own
   analysis.
 
-The graph has eight plots. The upper four show one hash on a single
-thread of an idle machine. The lower four show two copies of a hash
-running at once, as when two programs hash side by side. In each four,
-the first plot hashes one input per call, from 64 B to 128 MiB. The
-second hashes a batch of 64-byte messages per call, as a Merkle tree
-hashes its nodes. The third hashes the same inputs as the first, handed
-over in 64 KiB pieces as a program reading a file would, so the hash
-never learns the total size in advance. The fourth hashes many separate
-inputs of one size, one after another, as a program hashing many files
+The graph has ten plots. The upper five show one hash on a single
+thread of an idle machine. The lower five show two copies of a hash
+running at once, as when two programs hash side by side. In each five,
+the first three call the hash now and then, each call after the program
+has slept for a millisecond, as a program that hashes and then does
+other things calls it. The first hashes one input per call, from 64 B to
+128 MiB. The second hashes a batch of 64-byte messages per call, as a
+Merkle tree hashes its nodes. The third hashes the same inputs as the
+first, handed over in 64 KiB pieces as a program reading a file would,
+so the hash never learns the total size in advance. The last two hash
+one input after another, as fast as the program can: separate messages
+of one size, as a program hashing many files would, and batches of
+64-byte messages, as a program building a Merkle tree from a stream
 would. Higher is faster.
 Hover over a dot, or tap it, to compare every contender at that point.
 Click a name at the right to show or hide that contender. The band on
 the strip at the top marks the part of the inputs every plot shows: drag
 either end of it, or the band itself, and "all" shows everything again.
-The chips at the top right show or hide plots: solo or shared, one input,
-64 B batches, pieces, or many inputs; show one, and it sits right under them.
+The chips at the top right show or hide plots: solo or shared, one buffer,
+a batch, pieces, messages nonstop, or batches nonstop; show one, and it
+sits right under them.
 
 Under the title, the graph names the computer and the day, and says so
 when other programs were busy or the computer ran on battery power
@@ -67,7 +72,8 @@ The contenders:
 
 - **BLAKE3 servil mt**: [a fork](https://github.com/johnservil/BLAKE3) of
   the official BLAKE3 Rust crate, with extra code for Apple M4-class
-  chips, spreading large inputs over all your CPU cores. On other CPUs it
+  chips, spreading large inputs over all your CPU cores, and hashing
+  inputs that come one after another through its queue. On other CPUs it
   runs the official crate's code.
 - **BLAKE3 servil st**: the same on one thread.
 - **SHA-256** (the `sha2` crate) and **SHA-256 ring** (the `ring`

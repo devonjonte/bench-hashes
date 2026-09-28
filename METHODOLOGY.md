@@ -3,22 +3,24 @@
 This file explains what a run measures, how it keeps the numbers honest,
 and what each contender runs. [README.md](README.md) says how to run it.
 
-Every run measures each contender in four use cases and three scenarios.
-**One message per call**: a call hashes one input, at twenty-seven sizes
-from 64 B to 128 MiB, reported per byte. **Many messages per call**: a call
-hashes a batch of 64-byte messages, at twenty-four batch sizes from 1 to
-262144 messages, reported per message. **Streamed**: the same
-inputs as one message, produced in 64 KiB pieces (the last one
-shorter), each copied as a read would copy it and fed to the contender's
-incremental API, then finalized, so the implementation never learns the
-total size in advance; reported per byte. **Many inputs**: separate
-inputs of one size arriving one after another, at nine sizes from 64 B to
-4 MiB, each read into a buffer (a memory copy) and hashed, a sample
-covering many; reported per byte. **Solo**: one copy of the
-contender, the machine otherwise idle. **Shared**: two copies at once.
-**After idle**: one copy calling after its thread has slept. The report
-shows each use case once per scenario, solo first; the graph shows solo
-and shared.
+Every run measures each contender in five use cases and two scenarios.
+The first three are the synchronous calls, each made after the program
+has slept 1 ms (the gap), as a program that hashes now and then calls
+them. **A message in one buffer**: a call hashes one input, at
+twenty-seven sizes from 64 B to 128 MiB, reported per byte. **A batch**:
+a call hashes a batch of 64-byte messages, at twenty-four batch sizes
+from 1 to 262144 messages, reported per message. **A message in
+pieces**: the same inputs as one message, produced in 64 KiB pieces (the
+last one shorter), each copied as a read would copy it and fed to the
+contender's incremental API, then finalized, so the implementation never
+learns the total size in advance; reported per byte. The last two hash
+one input after another, as fast as the program can: **messages one
+after another**, at eleven sizes from 64 B to 64 MiB, each read into a
+buffer (a memory copy) and hashed, reported per byte; and **batches one
+after another**, of 16 to 65536 64-byte messages, reported per message.
+**Solo**: one copy of the contender, the machine otherwise idle.
+**Shared**: two copies at once. The report shows each use case once per
+scenario, solo first; the graph shows both.
 
 ## Contenders
 
@@ -71,42 +73,48 @@ time on the platform's hardware counter (`CLOCK_UPTIME_RAW` on Darwin,
 clock, a busy SME unit, or a GPU's latency counts as the user would
 feel it.
 
-## The streamed use case
+## A message in pieces
 
 A program that reads a file or a socket hands a hash its input piece by
-piece. The streamed axis measures that at the one-message sizes, with
+piece. This use case measures that at the one-message sizes, with
 pieces of 64 KiB (a common read buffer): an input below 64 KiB is one
 piece, a larger one a piece per 64 KiB. Each piece is read, timed, as a
 memory copy from the input, the cheapest read there is (a read from the
 operating system's page cache adds a system call per piece), and every
 contender pays it once per byte.
 
-Each piece is read into a 64 KiB buffer of the program's and then
-handed to the contender's incremental API, so reading and hashing take
-turns (`Hasher::update` in crates.io BLAKE3 and in BLAKE3 servil st,
-`update_rayon` for BLAKE3 official mt, `Digest::update` in sha2 and
+Each piece is read into a 64 KiB buffer of the program's, kept from one
+message to the next, and then handed to the contender's incremental API,
+so reading and hashing take turns (`Hasher::update` in crates.io BLAKE3
+and in BLAKE3 servil st, `Hasher::update_multithreaded` in BLAKE3 servil
+mt, `update_rayon` for BLAKE3 official mt, `Digest::update` in sha2 and
 sha1-checked, ring's `Context::update`, CommonCrypto's
-`CC_SHA256_Update`). BLAKE3 servil mt streams through the fork's queue,
-built for efficiency: the program keeps four 64 KiB buffers, copies each
-piece into a free one, hands it over, and gets it back through the queue's
-handler, so reading and hashing overlap; the stream's digest arrives the
-same way after its end. The expected digests are the one-message ones.
+`CC_SHA256_Update`). The first piece comes after the gap, the rest in
+swift succession, then the message is finalized. The expected digests
+are the one-message ones.
 
-## The many-inputs use case
+## One input after another
 
-A program that hashes many files, records, or network objects hands a
-hash one input after another. The many-inputs axis measures that at every
-factor of four from 64 B to 4 MiB: each input is read, timed, as a memory
-copy into a buffer of the program's, then hashed, and a sample covers
-many inputs, timed from the first read to the last digest. Every
-contender but BLAKE3 servil mt hashes each input with its one-shot call
-after reading it, so reading and hashing take turns. BLAKE3 servil mt
-takes the inputs through the fork's queue of messages, built for
-efficiency: the program keeps four buffers, reads each input into a free
-one, hands it over, and gets it back with its digest through the queue's
-handler, so reading and hashing overlap.
+A program that hashes many files, records, or network objects, or the
+layers of a Merkle tree as they arrive, hands a hash one input after
+another. The two continuous use cases measure that: each input is read,
+timed, as a memory copy into a buffer of the program's, then hashed, and
+a sample covers many inputs (at least twice the buffers in flight, below),
+timed from the first read to the last digest. Every contender but BLAKE3
+servil mt hashes each input after reading it, so reading and hashing take
+turns: a message of up to 64 KiB through its one-shot call, a longer one
+through its incremental API per 64 KiB piece, a batch as the batch use
+case hashes it. BLAKE3 servil mt takes them through the fork's queue,
+built for throughput: `Queue::messages` for messages of up to 64 KiB,
+`Queue::pieces` in 64 KiB pieces for longer ones, and `Queue::fixed` for
+batches. The program keeps enough buffers in flight to cover the queue's
+round trip (about 1 MiB of them or 1024, whichever is fewer), reads each
+input into a free one, hands it over, and gets it back with its digest
+through the queue's handler, so reading and hashing overlap. BLAKE3
+servil st takes no part: the fork's answer to a continuous load is its
+multithreaded queue.
 
-## The many-messages use case
+## A batch
 
 A program with a queue of small messages to hash (a Merkle tree's
 nodes, a table of records) has two ways to spend a call: one message per
@@ -143,31 +151,34 @@ calls.
 Both scenarios apply unchanged: in the shared one each copy hashes its
 own batch.
 
-## Solo, shared, and after idle
+## Solo and shared, and the gap
 
 A reader of these results wants to compare contenders on a load pattern,
 to spot a regression, or to estimate speed in a system they are
 designing. Each needs a few numbers per contender, so every sample
-interval takes three samples of the same batch:
+interval takes two samples of the same batch:
 
 - **Solo**: one copy of the contender on one thread, the machine
   otherwise idle. What a program gets with the machine to itself.
 - **Shared**: two independent copies at once, each on its own thread
-  over its own input, released together; each copy's own time is a
+  over its own input, released together (for the synchronous use cases,
+  their calls after the gap start together); each copy's own time is a
   sample. What each of two users of the same code gets. They compete for
   every resource the code uses: cores and memory bandwidth, and for the
   SME2 fork an SME unit, which serves a whole cluster of cores.
-- **After idle**: one copy, calling after its thread has slept 1 ms:
-  one call, or as many as fill 10 µs where a call is shorter (the
-  clock ticks every 41.7 ns, so a single short call cannot be timed).
-  What a program gets that hashes now and then: a pool's workers have
-  fallen asleep, and a core may have slowed. The sleep leaves the core at
-  full clock, at its lowest, or at a step between, independently for each
-  call and for every contender alike: on an Apple M4 Max about 4.4 GHz,
-  1.26 GHz, and steps such as 2.1 and 3 GHz; in a VM two speeds about 3.5
-  times apart. Where the platform counts cycles (macOS), the run reads each
-  call's clock, the report says how many calls met the full clock and how
-  many the lowest, and the samples file keeps each clock.
+
+The synchronous use cases' samples are calls after the gap: one call, or
+as many as fill 2 µs where a call is shorter (the clock ticks every 41.7
+ns, so a single short call cannot be timed), each after its own 1 ms
+sleep, timed alone, and summed. What a program gets that hashes now and
+then: a pool's workers have fallen asleep, and a core may have slowed.
+The sleep leaves the core at full clock, at its lowest, or at a step
+between, independently for each call and for every contender alike: on
+an Apple M4 Max about 4.4 GHz, 1.26 GHz, and steps such as 2.1 and 3 GHz,
+and sometimes on an efficiency core; in a VM two speeds about 3.5 times
+apart. Where the platform counts cycles (macOS), the run reads each
+call's clock, the report says how many calls met the full clock and how
+many the lowest, and the samples file keeps each clock.
 
 A single-threaded hash costs about the same in both. A multithreaded one
 shows in the shared scenario what its threads cost when the machine is
@@ -183,11 +194,11 @@ so a moment that slows both sides (an efficiency core, a lowered clock)
 cancels out, and a slowdown of one side (two copies sharing an SME unit)
 counts; where the round-by-round ratios split in two, the worse one is
 judged. A finding needs that ratio 5% or more above 1, with its 95%
-interval above 1; the worst come first. After idle, each call meets a
-clock state of its own, so a round would pair one side's slow call with
-the other's fast one by chance. There the calls are compared within one
-of two clock states: full clock (within 20% of the run's high after-idle
-clock, its 95th percentile) and the lowest (within 25% of its low one,
+interval above 1; the worst come first. After the gap, each call meets
+a clock state of its own, so a round would pair one side's slow call
+with the other's fast one by chance. There the solo calls are compared
+within one of two clock states: full clock (within 20% of the run's high
+clock after the gap, its 95th percentile) and the lowest (within 25% of its low one,
 the 5th percentile); calls between are left out. For each state that both
 cells met in three calls or more, their medians must be 5% apart or more
 with their intervals apart; the worse state is judged. Where the platform counts no
@@ -352,8 +363,10 @@ The contenders run in a Williams design: a set of orders that together
 place every contender in every position equally often and realise every
 "Y right after X" adjacency equally often — the balance all permutations
 would give (n orders for an even count of contenders, 2n for odd). Point
-order (the eighty-seven points of the four use cases together) rotates independently. Each contender/point combination is
-calibrated separately so its timed samples last about 1 ms each.
+order (the ninety-six points of the five use cases together) rotates independently. Each contender/point combination is
+calibrated separately: a continuous cell's timed samples last about 1 ms
+each (and hold at least twice the buffers its program keeps in flight), a
+synchronous cell's sum about 2 µs of calls after the gap.
 
 A full run has 96 rounds, a `--quick` one 24 (and stops below 1 MiB and
 10,000 messages). Each combination samples in a share of them, spread
@@ -441,7 +454,7 @@ end leaves its tick only once the pointer aims 3 px nearer another; the
 ticks under the ends light up while dragging. "All", shown whenever the
 range is narrowed, restores every input. The chips at the header's right
 show and hide plots, by scenario (solo, shared) and by use case (one
-input, batches, pieces, many inputs); the plots shown close ranks, and a row keeps at
+buffer, a batch, pieces, messages nonstop, batches nonstop); the plots shown close ranks, and a row keeps at
 least one chip pressed. The header (title, strip, chips, and rate/time
 switch) sits at the top of the page.
 
@@ -476,8 +489,8 @@ report), `bench-hashes.graph.svg` (the graph), and
 `bench-hashes.samples.tsv` (every sample of every cell, every scenario,
 in the order taken, each as `ns/units`, with the provenance and the CPU's
 identity as `# key: value` lines, and where the platform counts cycles
-each after-idle call's clock as `# after-idle MHz` lines, in the order of
-that cell's samples, beside the bounds of the two clock states;
+each solo call's clock after the gap as `# solo MHz after the gap`
+lines, in the order of that cell's samples, beside the bounds of the two clock states;
 files from before September 26, 2026, marked `samples v2`, hold integer
 picoseconds per unit instead).
 
