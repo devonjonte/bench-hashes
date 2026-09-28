@@ -55,7 +55,9 @@ mt 1.13 against SHA-256's 0.52 at 64 B, 0.28 against 0.36 at 256 B, 0.17
 at 1 KiB, 0.05 from 256 KiB.
 **The runner:** restarted by Zooko (installs `perf_regress.py` with the
 fix ed66897: the clocks patch followed the tool's own directory, not
-`--root`).
+`--root`); its perf_regress jobs work again (open item 4 below is done):
+job 764, the split (c46c57c) against 80fed28 on the fixed benchmark, no
+regression on the Mac (the VM's pre-commit check agreed).
 
 ## Resume here (handover, September 28-29, 2026, overnight session)
 
