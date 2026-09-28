@@ -15,7 +15,7 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 **Where things stand.** The fork's work is on `candidate/api-plan-simple`
 (the API plan, `candidate/queue-simple` merged in, and tonight's
 changes); bench-hashes' on `candidate/benchmark-plan`. The Mac runner
-built every job from those branches (jobs 475-527). Nothing is merged to
+built every job from those branches (jobs 475-587). Nothing is merged to
 `servil` or `main`; the gate (PROCEDURES.md) is still to run. Before
 merging: point bench-hashes' Cargo.toml at the fork's `servil` once
 `candidate/api-plan-simple` lands there (it names `candidate/api-plan`
@@ -120,9 +120,11 @@ after the gap win from 16 KiB (one buffer, pieces) and from 12 messages
    hybrids lose more on E-cores than SHA-256's dedicated instructions.
    20 us of integer work before the call halves it (the clock ramp). Back
    to back SHA-256 already leads below about 3 KiB (open problem 1).
-   Choices for Zooko: E-core-kinder kernels (the rejected "minimax"
-   plans: E -16-24%, P +17%) now that every synchronous call is measured
-   after the gap, or accept.
+   The rejected "minimax" plans, measured again after the gap
+   (probe/plans-pairs, jobs 568-571), trade the two clock states at 4 KiB
+   and lose at 8 KiB; a first call's cold cost is SHA-256's too
+   (probe/first-call). What is left is kernel work for E-cores and low
+   clocks, or accepting SHA-256's hardware lead below 8 KiB.
 2. **The queue's cells slow the next cell** (VM and Mac, reproduced
    alone): SHA-256's continuous 1 KiB cell runs 2-5% slower beside the
    new fork than beside b467ba6 (Mac jobs 524-527: same clock, 4.42 GHz,
