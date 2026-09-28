@@ -153,7 +153,8 @@ after the gap win from 16 KiB (one buffer, pieces) and from 12 messages
    state around the cells (its heap, its buffers), not in the core. It
    makes `perf_regress compare` across queue-simple give no verdict on
    the VM (the control moves). Open: what queue-simple leaves in the
-   harness's state.
+   harness's state. With the final fork (idle workers asleep, the task
+   list's room fixed) it is about 2% on the VM (0.330 -> 0.337 ns/B).
 3. **The lingering bound, and its energy** (Zooko's Q): 50 us, reasoned
    as a wake's cost. Measured (fork NOTES, "Lingering"; jobs 560-567):
    a long message in 64 KiB pieces through `update_multithreaded` is
