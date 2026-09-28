@@ -237,6 +237,23 @@ Before publishing a result, commit first.
 These are the ways the benchmark has been wrong so far. Each was found
 by a result that looked too neat.
 
+00. **The busy gap, and what it leaves** (September 28, 2026, Mac jobs
+   774-775). With 1 ms of integer work in place of the sleep, the calls
+   after the gap run at full clock on P-cores (4.4-4.6 GHz, no E-core
+   samples in a traced run), and two runs agree closely; from 8 KiB the
+   cells read about as back to back. Small cells still split in two
+   (servil st 512 B 0.66-0.70 or 1.74-1.93 ns/B, SHA-256 0.46-0.53 or
+   0.98-1.03, all on P at full clock; the slow ones take about twice the
+   cycles). A probe of the same calls after the same gap in a fresh
+   process (probe/busy-gap, job 775) found one speed, with or without the
+   counts' system call around each call and with vector work in the gap.
+   In the traced run the slow samples mostly follow a large cell (a 32-128
+   MiB stream) or open their point: caches the neighbour left cold. So the
+   calls after the gap meet warm caches or the neighbour's aftermath, by
+   the schedule; which a program's gap should leave (warm, or evicted by
+   work that touches memory) is Zooko's to decide. perf_regress shows
+   these cells' slow speed and does not judge it until then.
+
 0. **The program's sleeps lower the clock of its later work** (September
    28, 2026, Mac jobs 735-741). Continuous cells sampled in the same
    rounds as the synchronous cells (each call after 1 ms asleep) ran at
