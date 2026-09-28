@@ -80,7 +80,8 @@ numbers):
   runs (half the time under TSan), from before tonight: the pool's task
   list grew with the threads' timing. Each queue now makes room in it for
   what its entries can have waiting; 0 failures in 150 runs and 8 under
-  TSan.
+  TSan. It also made the Mac's 64 B messages 22% faster (0.95 -> 0.74
+  ns/B) and 256 B 13% (jobs 646-649).
 - Tests: `tests/api_plan.rs` checks messages in pieces through
   `update_multithreaded` against the reference implementation, and one
   queue shared by several submitting threads; TSan (nightly,
