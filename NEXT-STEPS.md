@@ -15,8 +15,9 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 **For the next session (John Servil, September 29).** Start with `sh
 /workspace/vm/setup.sh`; both repos are clean and pushed (fork
 `candidate/api-plan-simple`, bench-hashes `candidate/benchmark-plan`).
-Nightly Rust with rust-src and `linux-perf` were installed in the guest
-(gone after a restart). Lessons of the night: trace before guessing
+The VM was not restarted, so nightly Rust (rust-src, for TSan and ASan)
+and `linux-perf` are still installed in the guest (a restart would
+remove them). Lessons of the night: trace before guessing
 (`--trace-clocks`, and probes that time each stage found the calibration
 defect, the task-list lock, and the part-filled-task loop); A/B on the
 Mac with old/new/new/old and compare medians from the samples, since
