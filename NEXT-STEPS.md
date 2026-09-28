@@ -151,7 +151,9 @@ after the gap win from 16 KiB (one buffer, pieces) and from 12 messages
    1.5-2.6x as fast as before and spends 4-6x the energy (1.7-2.6 nJ/B
    against 0.4-0.48 for `update`): about eight cores poll between
    updates. The time-saving form's trade to decide: keep, shorten the
-   bound, or give the energy-saving form (stage 2's time or energy
+   bound, cut a lingering job for four threads (probe/linger-4: 18% less
+   energy, half the CPU, long streams 7-12% slower solo, 1 MiB 20%
+   faster), or give the energy-saving form (stage 2's time or energy
    argument) no lingering. A lingering stream leaves about 1.6 ms of
    worker CPU behind in all. `clocks::process_energy_nj` (new, macOS)
    reads the counter the probes used; not validated for energy cells.
