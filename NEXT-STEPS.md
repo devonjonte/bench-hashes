@@ -126,14 +126,16 @@ numbers):
 
 **The fork's night, measured alone** (Mac, the current benchmark on the
 starting fork b467ba6 and the final one, full runs old/new/new/old, jobs
-572-575, in `/workspace/tmp/overnight/`; geometric mean of new/old
-medians by use case): messages one after another 0.48 (solo and shared),
-batches one after another 0.39 solo and 0.26 shared, a message in pieces
-(servil mt) 0.86 solo and 0.81 shared (long messages 0.4), the other
-synchronous cells 0.96-1.02 (their code is unchanged; single cells swing
-with the clock states after the gap, their 5th percentiles level). One
-cell slower beyond that noise: shared 256 KiB in pieces, +11% (both
-copies start lingering after their second piece).
+694-697, in `/workspace/tmp/overnight/`; geometric mean of new/old
+medians by use case): messages one after another 0.49 solo and 0.42
+shared, batches one after another 0.39 solo and 0.25 shared, a message
+in pieces (servil mt) 0.89 solo and 0.81 shared (long messages 0.4), the
+other synchronous cells 0.97-1.07 (their code is unchanged below the
+split; single cells swing with the clock states after the gap, cells of
+one code path moving opposite ways in st and mt, their 5th percentiles
+level). One cell slower beyond that noise in the earlier comparison
+(jobs 572-575): shared 256 KiB in pieces, +11% (both copies start
+lingering after their second piece).
 
 **VM standing** (full run of the final pair,
 `/workspace/tmp/overnight/vm-full/`): the continuous cells win from 256 B
