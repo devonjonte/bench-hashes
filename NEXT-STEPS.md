@@ -10,102 +10,92 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
-## Resume here (checkpoint, September 28, 2026)
+## Resume here (checkpoint, September 28, 2026, late)
 
-**State.** The API plan (fork `docs/api-design.md`) is built and on the
-main lines: fork `servil` 61502ef (`Mode`, `Threads`, `hash_with`,
-`hash_many_with`, `initialize` apart from `initialize_multithreaded`, the
-`_with_budget` functions gone, `Queue` in three shapes with handler
-traits); bench-hashes `main` pinned to it, with the many-inputs use case
-(FROZEN.md) and records remade on both machines (Mac job 421). The fork's
-`tests/api_plan.rs` states the contract and passes. Runner jobs run to
-421; the next number is 422.
+**The question of the moment** (Zooko): can the streaming API (`Queue`)
+be implemented so that it is *way faster* than any other API? If not,
+it is abandoned. Zooko's framing, settled: the streaming API maximises
+**throughput** (bytes or messages per second, or per joule) and spends
+latency to buy it; wanting the lowest latency per input from the one-shot
+forms is valid. Its throughput should be the hashing's, as long as
+handovers never slow the hashing threads, provided the program keeps
+enough in flight (Little's law: in flight = rate x round trip).
 
-**Done this session** (September 28; details in the commits and the
-fork's NOTES "The planned API", "The queue", "The queue's small inputs"):
-- The planned API, test-first: every batch path takes the mode's key and
-  flags down to the kernels (level in perf_regress).
-- **The queue's feed**: submissions become tasks as they arrive (a piece:
-  the whole subtrees `Hasher::update` would hash in it, replayed in
-  order), published to a pool job that stays registered while tasks are
-  in flight; delivery in order as each is done. Mac, servil mt: streamed
-  32 MiB 0.213 -> 0.142 ns/B (servil st 0.238), many 256 KiB inputs 0.185
-  -> 0.114. Batch-at-once designs lost (in NOTES).
-- bench-hashes: the many-inputs use case (servil mt through
-  `Queue::messages`, every other contender its one-shot call), a queue
-  shim in perf_regress for older commits, and the runner's test job runs
-  the integration tests (from its next restart).
-- ThreadSanitizer (nightly, `-Zbuild-std`) on the queue and pool: clean.
+**Next: unfreeze, clarify, refreeze** (Zooko, agreed): the benchmark and
+the API both need to say what they are trying to achieve, then be frozen
+again in `FROZEN.md`. Known points to settle with him:
+- The many-inputs use case keeps four buffers in flight and blocks on
+  the fifth: at small sizes that measures the round trip (latency), not
+  throughput. Proposal: keep enough in flight to cover it (e.g. about
+  1 MiB or about 1024 buffers, whichever is fewer); likewise consider the
+  streamed use case (four 64 KiB buffers cap it near 0.1 ns/B).
+- A per-message handler is serial by contract (in order, one call at a
+  time): the program's own per-message costs (a channel send and receive,
+  about 100 ns) bound `Queue::messages` below a `hash()` loop at 64 B. Tiny
+  messages belong to `Queue::fixed` (one call per batch) or `hash_many`;
+  the benchmark could measure `Queue::fixed` for them.
+- Whether "one delivery thread" stays (Zooko's decision): calling a
+  handler on the submitting thread would let one short input avoid the
+  handover, at the contract's cost.
 
-**For Zooko:**
-- **The queue's small inputs cost two wakes per round trip**: the
-  benchmark's program cycles four buffers and blocks when none is free,
-  and the engine sleeps once it has delivered them all. Mac many 64 B
-  inputs 21 ns/B through the queue against `hash`'s 0.68; streams below
-  64 KiB alike. Only keeping the engine awake after it delivers removes
-  its wake, which the rule against running between calls forbids; more
-  buffers in flight amortise both. Your call whether a bounded wait after
-  a delivery counts as inside the stream.
-- **Restart the Mac runner** (`sh ~/piplayground/blake3-servil/tools/runner/setup-mac.sh`):
-  its test job then runs `tests/api_plan.rs` natively too.
-- **`candidate/queue-speed` waits for your decision** (fork, fd79d44;
-  VM and Mac perf_regress no regression, jobs 434-435): the queue's
-  engine helps only with the front's tasks. Mac servil mt: streamed 1 MiB
-  0.151 -> 0.134 ns/B, 32 MiB 0.143 -> 0.113, many 64 KiB inputs 0.144 ->
-  0.116, 256 KiB 0.115 -> 0.107; a stream of four 64 KiB pieces 0.165 ->
-  0.193 (7 us more per stream; still ahead of servil st's 0.236 and every
-  other hash). Its cause is open (fork NOTES, "The engine helps only with
-  the front's tasks"). Promote, or keep the old rule.
-- Released: fork v0.3.0 (the changelog in the fork's `CHANGELOG.md`);
-  bench-hashes pinned to it.
+**State of the code (fork, all on branches; nothing merged since v0.3.0):**
+- `candidate/queue-simple` (d95eccc): the fresh design, the one to go on
+  with. `submit` cuts a submission into tasks on the caller's thread
+  (whole subtrees of at most 64 KiB, `plan_subtrees`; a message is a
+  stream of one piece; fixed-length batches as ranges of slots; messages
+  under 16 KiB several to a task, 16 per batch, one-block ones side by
+  side); one task list; an SME2 thread hashes tasks only on SME2 (under
+  the turn), the workers only on NEON (Zooko's suggestion); one delivery
+  thread replays and calls handlers, holding the pool while anything is
+  in flight. No allocation after warm-up (`tests/queue_no_alloc.rs`, a
+  counting global allocator). All suites pass; TSan clean on api_plan
+  (before the last two commits: rerun). Needs: Mac gate, NOTES, and the
+  VM gap below.
+- `candidate/queue-speed` (feed design, earlier today): superseded by
+  queue-simple on the Mac everywhere; drop it once queue-simple lands.
+- Probe branches from today: `probe/queue-timeline`,
+  `probe/queue-process-state`, `probe/queue-sme2-turn`,
+  `probe/task-len-32`, `probe/task-len-16`, `probe/queue-throughput`
+  (examples/host_lab.rs: many short messages in flight, the throughput
+  probe to reuse).
+- bench-hashes `main` 183010c: records on fork 61502ef (v0.3.0's code),
+  the many-inputs use case, the graph's two-significant-digit labels.
+  Runner jobs run to 474; the next number is 475.
 
-**Found, open, for Zooko:**
-- **After-idle CHECKS compare within one clock state** (done, Zooko's
-  go-ahead, bench-hashes 8fc9355): each after-idle call's clock is read
-  where the platform counts cycles; calls are compared at full clock
-  (within 20% of the run's high) or at the lowest (within 25% of its low),
-  those between left out, the worse shared state judged; the report gives
-  the state mix, the samples file every clock. Mac record 405: the
-  sleep left 10% of calls at full clock, 39% at the lowest; servil's
-  after-idle ratios to SHA-256 now match its solo ones (1 KiB x1.74
-  against x1.85). The VM counts no cycles and keeps the fast-speed rule.
-- **The gap sweep** (a caller doing real work between calls) was
-  proposed to judge lingering; with nothing kept awake every call meets
-  sleeping workers at any gap, so it now measures only the clock state,
-  which back to back and after idle already bracket. Worth building only
-  for in-core effects such as the SME unit's slow state (open problem 7).
-- The after-idle margin (20%, job 338) was calibrated when the Mac's power
-  state was unknown; recalibrate on mains after the state fix above.
+**Measured, Mac, servil mt through the queue (queue-simple):**
+- Benchmark as frozen (jobs 464-467), ns/B, against the best other API
+  (hash / hash_multithreaded; Hasher for streams): many inputs 64 KiB
+  0.109 (0.168), 256 KiB 0.065 (0.170), 1 MiB 0.043 (0.068), 4 MiB 0.035
+  (0.037); streamed 256 KiB 0.152 (0.236), 32 MiB 0.107 (0.238); losing
+  at 64 B-1 KiB inputs and the one-piece 64 KiB stream (latency-bound
+  with four buffers).
+- Throughput probe (job 474, many in flight): 1 KiB messages 3.7x a
+  hash() loop, 16 KiB 1.9x (the VM 2.8x: something serial left on the
+  Mac, unfound), 64 B 0.34x (the per-message serial path).
+- Tried and lost today (details in the fork's NOTES): the feed with help
+  rules; tasks of 16 or 32 KiB (16 KiB: streams 50% slower); a worker
+  taking the SME2 turn per task; waking after a 512 KiB burst.
+- The VM is behind the feed design on long streams (about 14%) and
+  16 KiB inputs; unresolved.
 
-**Lessons (this guest).**
-- Before promoting a kernel or plan change, measure E-cores (NOTES,
-  "Rejected", p4: how on this Mac) and read the comments above the plan
-  tables: perf_regress runs on P-cores, and its points skip some batch
-  sizes (4 messages among them).
-- `pkill -f PATTERN` matches the shell running it and kills the command;
-  kill by PID (`cmd & PID=$!`, then `kill $PID`). Each tool call is a
-  fresh shell: repeat the `HOME=... CARGO_TARGET_DIR=...` prefix on every
-  command, or cargo builds into another target directory. Run verification tools (Kani, CBMC) under `timeout`: a
-  symbolic divisor over all of usize ran 3.5 hours.
-- A version bump makes cargo ignore a `[patch]` of a different version,
-  with only a warning; perf_regress and the runner now lock the patched
-  version first and fail stop unless the fork came from the checkout.
-- A panic on a thread a test spawned prints nothing when the harness
-  captures output and the process aborts: run the test binary with
-  `--nocapture`. gdb is installed with `apt-get install -y gdb`; to see a
-  hang, `timeout -s INT 20 gdb -batch -ex run -ex "thread apply all bt"`.
-- gdb needs `SHELL=/bin/sh` and `set startup-with-shell off`; bash
-  process substitution (`<(...)`) fails here (no /dev/fd): use files.
-- The runner reruns any job it never finished; to clear one, move its
-  file out of `runner/jobs/` (into `runner/jobs-archive/`). A job that
-  never starts means the runner is stopped: ask Zooko, don't wait.
-- Compare only measurements taken side by side (alternated): a sequence
-  run earlier sat in another machine state (a quiet VM read solo spreads
-  of 0.48% where the same code, alternated later, read 1.4-1.5%), and a
-  conclusion drawn across the two was wrong.
-- A fork change that a bench-hashes change depends on (a new crate, an
-  API) is promoted first, with bench-hashes' edits stashed, since the
-  pre-commit check builds bench-hashes' working tree against `servil`.
+**Open, ours to explain:** some benchmark processes run every servil mt
+queue cell 1.1-3.5x slower on the Mac (jobs 440, 446, 448, 454 runs 6-7,
+463), servil st level; not reproduced by probes in fresh processes
+(jobs 450-451); `--trace-clocks` job 455 met no slow run.
+
+**Lessons (this session):**
+- Latency against throughput: a closed-loop program with k in flight
+  gets at most k per round trip; decide which one a benchmark measures.
+- Measure the stages before guessing: the queue's 1.7 us per message was
+  batches of one pushed under a lock, found in one probe after several
+  wrong guesses.
+- In the VM a contended std Mutex parks the waiter (futex); use try_lock
+  on paths that poll.
+- The pre-commit hook needs the VM's prefix on `git commit` too
+  (`CC=clang-19` etc.), or its SME2 check fails.
+- Allocation-free claims need a test (a counting global allocator in its
+  own test binary); growth must follow the program's in-flight work, not
+  thread timing.
 
 ### Next, in order
 
