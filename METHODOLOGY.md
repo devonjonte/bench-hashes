@@ -363,7 +363,13 @@ The contenders run in a Williams design: a set of orders that together
 place every contender in every position equally often and realise every
 "Y right after X" adjacency equally often — the balance all permutations
 would give (n orders for an even count of contenders, 2n for odd). Point
-order (the ninety-six points of the five use cases together) rotates independently. Each contender/point combination is
+order rotates independently. The run measures in two phases, each with
+its own calibration and rounds: first the two continuous use cases, then
+the three synchronous ones. A program that hashes one input after another
+never sleeps, and the core's clock follows the program's recent history:
+with the sleeps of the synchronous cells between them, continuous samples
+ran near 3.0 GHz on an Apple M4 Max, alone near 4.4 GHz (SHA-256's 1 KiB
+messages 0.51 against 0.36 ns/B). Each contender/point combination is
 calibrated separately: a continuous cell's timed samples last about 1 ms
 each (and hold at least twice the buffers its program keeps in flight), a
 synchronous cell's sum about 2 µs of calls after the gap.

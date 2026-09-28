@@ -237,6 +237,22 @@ Before publishing a result, commit first.
 These are the ways the benchmark has been wrong so far. Each was found
 by a result that looked too neat.
 
+0. **The program's sleeps lower the clock of its later work** (September
+   28, 2026, Mac jobs 735-741). Continuous cells sampled in the same
+   rounds as the synchronous cells (each call after 1 ms asleep) ran at
+   2.1-3.5 GHz, median 3.3, even right after another continuous cell;
+   the same cells alone ran at 4.3-4.5 GHz (the Mac's performance
+   controller follows the process's recent history, not one sample's).
+   Every contender's continuous cells read 30-100% slow (SHA-256's 64 B
+   0.95 against 0.56 ns/B), unlike main's back-to-back tables, which
+   took the after-idle samples after all the rounds. Now each phase
+   calibrates and samples on its own, continuous first (9869b27):
+   SHA-256's continuous cells 0.35-0.36 ns/B from 1 KiB, its old
+   back-to-back 0.34 plus the read's copy; two runs agree within 2%.
+   The synchronous cells now meet the clock of a program that only
+   sleeps and hashes (full clock after the gap in 11% of samples, was
+   18%); what the program does in the gap is Zooko's open question.
+
 1. **Waking a thread is not free.** The duo release was a
    `std::sync::Barrier`. On a 2-CPU VM, one copy woke 300 µs after the
    other because the caller's own thread had just used that CPU. The
