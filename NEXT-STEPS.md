@@ -91,17 +91,30 @@ after the gap win from 16 KiB (one buffer, pieces) and from 12 messages
    plans: E -16-24%, P +17%) now that every synchronous call is measured
    after the gap, or accept.
 2. **The queue's cells slow the next cell** (VM and Mac, reproduced
-   alone): SHA-256's continuous 1 KiB cell runs 3-5% slower beside the
-   new fork than the old (Mac jobs 524-527: same clock, 4.42 GHz, 2-5%
-   more cycles per byte), with no thread left running (a queue burst
-   leaves 30 us of CPU). It makes `perf_regress compare` across this
-   change give no verdict on the VM (the control moves). Unexplained;
-   next: which of the queue's traits (members, the chain, 64-task
-   gathering) carries it, by bisecting the fork's commits of tonight.
+   alone): SHA-256's continuous 1 KiB cell runs 2-5% slower beside the
+   new fork than beside b467ba6 (Mac jobs 524-527: same clock, 4.42 GHz,
+   2-5% more cycles per byte), with no thread left running (a queue
+   burst leaves 30 us of CPU). Bisected on the VM: all of it arrives with
+   the merge of `candidate/queue-simple` (221ef23: 0.329 -> 0.335 ns/B);
+   tonight's queue commits are level. A probe of SHA-256's own loop right
+   after a queue burst, an SME2 burst, a NEON burst, or
+   `hash_multithreaded` (probe/aftereffect, job 528) shows its cycles per
+   byte level (1.538-1.547), so the effect lives in the benchmark's
+   state around the cells (its heap, its buffers), not in the core. It
+   makes `perf_regress compare` across queue-simple give no verdict on
+   the VM (the control moves). Open: what queue-simple leaves in the
+   harness's state.
 3. **The lingering bound** (Zooko's Q): 50 us, reasoned as a wake's cost;
    a lingering stream leaves about 1.6 ms of worker CPU behind in all
    (15 workers).
 4. The runner's `perf_regress` jobs need the runner restarted.
+5. **The multithreaded split at 512 KiB instead of 768** (Zooko's choice
+   of September 27, fork NOTES at `MIN_SPLIT_LEN`, is the length where it
+   pays on both machines): branch `probe/split-512`. Mac, after the gap
+   (jobs 538-541): 512 KiB one message 0.35 -> 0.19-0.24 ns/B, batches of
+   8192 22.5 -> 13.3 ns/msg (about 40% faster); VM: 512 KiB 20-30% slower
+   than on the caller's thread (0.24-0.34 -> 0.30), 8192 level. A
+   decision for Zooko (native first; a VM loss needs his decision).
 
 **Next, in order:** Zooko reviews the two branches (the benchmark fixes
 and the fork's changes); run the gate (all suites, `perf_regress` on the
