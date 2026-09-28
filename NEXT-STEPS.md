@@ -772,6 +772,8 @@ From `/workspace` in the VM, after `sh /workspace/vm/setup.sh` once per boot:
     cargo test --release --doc
     cargo test --release --test api_plan
     cargo test --release --manifest-path test_vectors/Cargo.toml
+    cargo test --release --manifest-path clocks/Cargo.toml && pypy3 tools/speeds.py
+    pypy3 tools/ab.py OLD NEW NEW OLD   # runner jobs, speed with speed
     cargo test --release --manifest-path bench-hashes/Cargo.toml
     pypy3 tools/perf_regress.py check | compare OLD NEW
     cargo run --release --example host_lab

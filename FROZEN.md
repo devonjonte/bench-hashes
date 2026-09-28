@@ -25,8 +25,11 @@ their users seldom make):
 - **The synchronous calls, each after the gap**: `hash`,
   `hash_multithreaded`, `hash_many`, `hash_many_multithreaded`, and
   `Hasher::update` and `update_multithreaded` per piece, each call (for
-  pieces, each message) after the program's thread has slept 1 ms, as a
-  program that hashes and then does other things calls. None is measured
+  pieces, each message) after 1 ms of the program's own work on its
+  thread (integer arithmetic; Zooko, September 28, 2026, morning, in
+  place of 1 ms asleep, whose clock states split every cell in two and
+  left its results noisy), as a program that hashes and then does other
+  things calls. None is measured
   back to back. Single-threaded calls are built for this use and save
   time.
 - **The queue, one message or batch after another**, as fast as the

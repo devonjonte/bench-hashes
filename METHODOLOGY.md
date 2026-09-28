@@ -5,7 +5,7 @@ and what each contender runs. [README.md](README.md) says how to run it.
 
 Every run measures each contender in five use cases and two scenarios.
 The first three are the synchronous calls, each made after the program
-has slept 1 ms (the gap), as a program that hashes now and then calls
+has done 1 ms of other work (the gap), as a program that hashes now and then calls
 them. **A message in one buffer**: a call hashes one input, at
 twenty-seven sizes from 64 B to 128 MiB, reported per byte. **A batch**:
 a call hashes a batch of 64-byte messages, at twenty-four batch sizes
@@ -174,9 +174,10 @@ interval takes two samples of the same batch:
 The synchronous use cases' samples are calls after the gap: one call, or
 as many as fill 2 µs where a call is shorter (the clock ticks every 41.7
 ns, so a single short call cannot be timed), each after its own 1 ms
-sleep, timed alone, and summed. What a program gets that hashes now and
-then: a pool's workers have fallen asleep, and a core may have slowed.
-The sleep leaves the core at full clock, at its lowest, or at a step
+of other work (integer arithmetic on the program's thread), timed alone,
+and summed. What a program gets that hashes now and then between other
+work: a pool's workers have fallen asleep, and the caller's core is busy.
+A sleep in the gap, used until September 28, 2026, left the core at full clock, at its lowest, or at a step
 between, independently for each call and for every contender alike: on
 an Apple M4 Max about 4.4 GHz, 1.26 GHz, and steps such as 2.1 and 3 GHz,
 and sometimes on an efficiency core; in a VM two speeds about 3.5 times

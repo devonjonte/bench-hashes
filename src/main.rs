@@ -70,10 +70,11 @@ const LONG_HASH_NS: u128 = 4_000_000;
 /*
  * The gap: how long the program does other things before each call of a
  * synchronous use case (FROZEN.md: its calls are built for a program that
- * hashes, then goes off and does other things). Longer than a pool keeps
- * its workers polling (the fork's, 200 us), so each call meets them
- * asleep, and long enough for the core's clock to fall, as a call made
- * now and then meets them.
+ * hashes, then goes off and does other things): 1 ms of the program's
+ * own work (clocks::busy_work, integer arithmetic; Zooko, September 28,
+ * 2026: a busy core between calls, for steadier results than a sleep,
+ * whose clock states split every cell). Longer than a pool keeps its
+ * workers polling (the fork's, 200 us), so each call meets them asleep.
  */
 const GAP_NS: u64 = 1_000_000;
 /*
@@ -492,7 +493,7 @@ impl UseCase {
     /// the tables' names.
     fn pattern(self) -> &'static str {
         if self.after_gap() {
-            "each call comes after the program has slept 1 ms, as a program that hashes now and then calls"
+            "each call comes after 1 ms of the program's other work, as a program that hashes now and then calls"
         } else {
             "the program hashes one input after another, as fast as it can"
         }
@@ -945,19 +946,17 @@ impl Statistics {
     }
 }
 
-/// Bootstrap resamples per cell. 400 gives the 2.5th and 97.5th percentiles
-/// to within about one rank; the cost is microseconds per cell.
-const BOOTSTRAP_RESAMPLES: usize = 400;
-/// Consecutive sorted samples this far apart (permille of the median) split
-/// the cell into two speeds, when both sides hold at least MODE_MIN_SHARE
-/// and the slower side's median is at least TWO_SPEED_RATIO_PERMILLE of the
-/// faster's: a difference a designer would plan around. Measured on the
-/// VM: SME2 copies sharing a unit or not split 1.7–2.0×; the machine's
-/// own noise puts a tenth to a third of many cells' samples 10–14% slow,
-/// for every contender alike, which 1.25× leaves as one speed.
-const MODE_GAP_PERMILLE: u64 = 40;
-const MODE_MIN_SHARE_PERMILLE: usize = 100;
-const TWO_SPEED_RATIO_PERMILLE: u64 = 1250;
+/*
+ * A cell's speeds, their medians, and those medians' bootstrap intervals
+ * come from the clocks crate's speeds module, the one rule every
+ * measurement in both projects uses (its docs: a gap of 4% of the median
+ * between sorted neighbours, a tenth of the samples or more on each side,
+ * the sides' medians 1.25x apart or more). PerUnit's Q64.64 is its
+ * representation.
+ */
+fn raw(sorted: &[PerUnit]) -> Vec<u128> {
+    sorted.iter().map(|value| value.0).collect()
+}
 
 /*
  * The two scenarios every run measures. Solo: one copy of the contender
@@ -3159,15 +3158,7 @@ fn per_units(samples: &[Measured]) -> Vec<PerUnit> {
 }
 
 fn median_of_sorted(sorted: &[PerUnit]) -> PerUnit {
-    assert!(!sorted.is_empty(), "median requires at least one sample");
-    debug_assert!(sorted.windows(2).all(|pair| pair[0] <= pair[1]));
-
-    let middle = sorted.len() / 2;
-    if sorted.len() % 2 == 0 {
-        sorted[middle - 1].midpoint(sorted[middle])
-    } else {
-        sorted[middle]
-    }
+    Fixed(clocks::speeds::median_of_sorted(&raw(sorted)))
 }
 
 /// Requires a non-empty slice; sorts it. Zeros summarise to zeros.
@@ -3185,68 +3176,23 @@ fn summarize(samples: &mut [PerUnit]) -> Statistics {
         median,
         high,
         maximum: samples[samples.len() - 1],
-        two_speeds: two_speeds(samples, median),
+        two_speeds: two_speeds(samples),
     }
 }
 
-/*
- * 95% percentile-bootstrap interval of the median: resample with
- * replacement BOOTSTRAP_RESAMPLES times, take each resample's median, and
- * report the 2.5th and 97.5th percentiles of those. A fixed-seed
- * SplitMix64 makes the result reproducible run to run for the same samples.
- * Requires a sorted, non-empty slice.
- */
+/// The 95% bootstrap interval of a sorted, non-empty slice's median
+/// (clocks::speeds::bootstrap_median_interval).
 fn bootstrap_median_interval(sorted: &[PerUnit]) -> (PerUnit, PerUnit) {
-    let n = sorted.len();
-    /* SplitMix64 (Steele, Lea & Flood 2014), seeded by the sample count. */
-    let mut state: u64 = n as u64;
-    let mut next = || {
-        state = state.wrapping_add(0x9e37_79b9_7f4a_7c15);
-        let mut z = state;
-        z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
-        z ^ (z >> 31)
-    };
-    let mut medians = Vec::with_capacity(BOOTSTRAP_RESAMPLES);
-    let mut resample = vec![PerUnit::default(); n];
-    for _ in 0..BOOTSTRAP_RESAMPLES {
-        for slot in resample.iter_mut() {
-            /* The high half of a 64 × 64-bit product: an index in 0..n with
-               a bias below n / 2⁶⁴ (Lemire's multiply-shift). */
-            *slot = sorted[((u128::from(next()) * n as u128) >> 64) as usize];
-        }
-        resample.sort_unstable();
-        medians.push(median_of_sorted(&resample));
-    }
-    medians.sort_unstable();
-    (
-        medians[BOOTSTRAP_RESAMPLES * 25 / 1000],
-        medians[BOOTSTRAP_RESAMPLES * 975 / 1000],
-    )
+    let (low, high) = clocks::speeds::bootstrap_median_interval(&raw(sorted));
+    (Fixed(low), Fixed(high))
 }
 
-/*
- * Two clusters, if the sorted samples have a gap of MODE_GAP_PERMILLE of
- * the median between consecutive values with at least MODE_MIN_SHARE on
- * each side. The widest such gap splits them. Requires a sorted slice.
- */
-fn two_speeds(sorted: &[PerUnit], median: PerUnit) -> Option<[Speed; 2]> {
-    let n = sorted.len();
-    let min_side = (n * MODE_MIN_SHARE_PERMILLE).div_ceil(1000).max(1);
-    let mut best: Option<(usize, PerUnit)> = None;
-    for split in min_side..=n - min_side {
-        let gap = sorted[split] - sorted[split - 1];
-        if gap * 1000 >= median * MODE_GAP_PERMILLE && best.is_none_or(|(_, g)| gap > g) {
-            best = Some((split, gap));
-        }
-    }
-    let speed = |part: &[PerUnit]| {
-        let (low, high) = bootstrap_median_interval(part);
-        Speed { median: median_of_sorted(part), low, high, count: part.len() }
-    };
-    let (split, _) = best?;
-    let pair = [speed(&sorted[..split]), speed(&sorted[split..])];
-    (pair[1].median.ratio_permille(pair[0].median) >= TWO_SPEED_RATIO_PERMILLE).then_some(pair)
+/// The cell's two speeds, faster first, when the rule splits its sorted
+/// samples (clocks::speeds::speeds).
+fn two_speeds(sorted: &[PerUnit]) -> Option<[Speed; 2]> {
+    let found = clocks::speeds::speeds(&raw(sorted));
+    let speed = |s: &clocks::speeds::Speed| Speed { median: Fixed(s.median), low: Fixed(s.low), high: Fixed(s.high), count: s.count };
+    (found.len() == 2).then(|| [speed(&found[0]), speed(&found[1])])
 }
 
 /*
@@ -4928,7 +4874,7 @@ fn generate_svg(
         "The strip at the top narrows every plot to part of its inputs: drag an end of its band, or use the arrows at its ends.".to_owned(),
     ];
     if plots.iter().any(|plot| plot.use_case.after_gap()) {
-        howto.push("A message hashed now and then is timed after its program has done other things for 1 ms, which lets the processor slow down and a hash's helper threads fall asleep.".to_owned());
+        howto.push("A message hashed now and then is timed after its program has done 1 ms of other work, which lets a hash's helper threads fall asleep.".to_owned());
     }
     if plots.iter().any(|plot| plot.use_case == UseCase::Streaming) {
         howto.push("In the plots of a message arriving in pieces, each piece is first read into memory (timed; a memory copy, the cheapest read).".to_owned());

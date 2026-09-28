@@ -42,8 +42,8 @@ The graph has ten plots. The upper five show one hash on a single
 thread of an idle machine. The lower five show two copies of a hash
 running at once, as when two programs hash side by side. In each five,
 the first three call the hash now and then, each call after the program
-has slept for a millisecond, as a program that hashes and then does
-other things calls it. The first hashes one input per call, from 64 B to
+has done a millisecond of other work, as a program that hashes and then
+does other things calls it. The first hashes one input per call, from 64 B to
 128 MiB. The second hashes a batch of 64-byte messages per call, as a
 Merkle tree hashes its nodes. The third hashes the same inputs as the
 first, handed over in 64 KiB pieces as a program reading a file would,
