@@ -112,10 +112,10 @@ with the clock states after the gap, their 5th percentiles level). One
 cell slower beyond that noise: shared 256 KiB in pieces, +11% (both
 copies start lingering after their second piece).
 
-**VM standing** (full run, `/workspace/tmp/overnight/vm-full/`): the
-continuous cells win from 1 KiB (1 MiB messages 0.072 against 0.35 ns/B;
-batches 3.5-12 against 32-40 ns/msg) and lose at 64 B (1.38 against 0.75)
-and 256 B (0.88 against 0.53).
+**VM standing** (full run of the final pair,
+`/workspace/tmp/overnight/vm-full/`): the continuous cells win from 256 B
+(0.43 against 0.52 ns/B; 1 MiB messages 0.077 against 0.35; batches 3.4-16
+against 32-39 ns/msg) and lose at 64 B (1.40 against 0.74).
 
 **Standing, Mac full run of the final pair (job 650,
 `/workspace/tmp/overnight/mac-final/`):** the continuous cells all win
