@@ -10,6 +10,38 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
+## Resume here (September 28, 2026, morning: Zooko's decisions, the two phases)
+
+**Zooko's decisions (3:45 am):** the energy-saving form does not linger
+(docs/api-design.md; to build with the time-or-energy argument on the
+multithreaded synchronous calls); the split at 512 KiB, taken (fork
+c46c57c; the CHANGELOG says so); the trades (lingering on four threads,
+messages under 32 KiB gathered, subtree tasks of 32 KiB) still wait for
+him.
+
+**The continuous cells were measured at a low clock** (fixed, 9869b27;
+NOTES "Threats to validity" 0): sampled in the same rounds as the calls
+after the gap, they ran near 3.0-3.3 GHz on the Mac; alone, 4.4 GHz.
+Every contender's continuous cells read 30-100% slow, which is why they
+matched none of main's back-to-back tables. Now the run measures the
+continuous use cases first, in a phase of their own. Mac, the fork at
+c46c57c (jobs 740-741, two runs agreeing within 2%): SHA-256's messages
+one after another 0.35-0.36 ns/B from 1 KiB (main's back to back 0.34,
+plus the read's copy); servil mt 0.75 against 0.56 at 64 B, 0.19-0.20
+against 0.37 at 256 B, 0.12 against 0.36 at 1 KiB, 0.056-0.060 from 16
+KiB; batches one after another 5.3 -> 2.4 ns/msg against SHA-256's 31.
+Every A/B of the continuous cells before 9869b27 ran at the low clock;
+runs of those cells alone (the "alone" numbers below) did not.
+**The calls after the gap now meet a program that only sleeps and
+hashes:** full clock in 11% of solo samples (was 18%), and their medians
+split two ways between runs by up to 2x (SHA-256 1 KiB 1.08|2.46 and
+1.71|2.59); their CHECKS are mostly noise. What the program does in the
+gap (sleep today) is Zooko's open question; a program that works in the
+gap keeps its clock up.
+**The runner:** restarted by Zooko (installs `perf_regress.py` with the
+fix ed66897: the clocks patch followed the tool's own directory, not
+`--root`).
+
 ## Resume here (handover, September 28-29, 2026, overnight session)
 
 **For the next session (John Servil, September 29).** Start with `sh
