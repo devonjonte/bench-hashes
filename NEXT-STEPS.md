@@ -61,6 +61,10 @@ numbers):
   docs/api-design.md; the bound, 50 us, is his open question): long
   messages in 64 KiB pieces 2.4x faster (Mac 128 MiB 0.24 -> 0.098 ns/B,
   solo and shared), short ones level.
+- The SME2 thread runs gathered tasks (short messages, small batches) on
+  NEON: 64-byte messages and batches of 16 and 64 10-15% faster on the
+  Mac. Whether it pays for subtree tasks at all is open (fork NOTES, "The
+  SME2 thread and gathered tasks").
 - Idle workers and the SME2 thread sleep after 50 us with nothing to
   take, even while a queue holds the pool (they polled until the stream
   drained): about 10% less CPU for the queue's short messages, speed
