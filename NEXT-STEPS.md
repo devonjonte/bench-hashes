@@ -158,10 +158,13 @@ after the gap win from 16 KiB (one buffer, pieces) and from 12 messages
    worker CPU behind in all. `clocks::process_energy_nj` (new, macOS)
    reads the counter the probes used; not validated for energy cells.
 4. The runner's `perf_regress` jobs need the runner restarted.
-5. **Shared 16 KiB messages** through the queue: the pair moves no more
-   than one program alone (a ceiling near one 16 KiB task a
-   microsecond; fork NOTES, open); `probe/members-32k` gathers them into
-   tasks (shared -37%, solo +6%): a trade to decide or a cause to find.
+5. **Shared 16 KiB messages** through the queue: the pair moves little
+   more than one program alone. Found: `submit`'s push onto the task list
+   (its lock contended by pushers and pollers, 2 KiB tasks copied under
+   it; fork NOTES, "A ceiling near one 16 KiB task"). Next: two task
+   lists (small subtree tasks, gathered tasks with their arrays), or a
+   lock-free list; `probe/members-32k` (shared -37%, solo +6%) stays a
+   trade.
 6. **The multithreaded split at 512 KiB instead of 768** (Zooko's choice
    of September 27, fork NOTES at `MIN_SPLIT_LEN`, is the length where it
    pays on both machines): branch `probe/split-512`. Mac, after the gap
