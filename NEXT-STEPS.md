@@ -31,7 +31,7 @@ and the trades listed below. Everything is on `candidate/api-plan-simple`
 **Where things stand.** The fork's work is on `candidate/api-plan-simple`
 (the API plan, `candidate/queue-simple` merged in, and tonight's
 changes); bench-hashes' on `candidate/benchmark-plan`. The Mac runner
-built every job from those branches (jobs 475-587). Nothing is merged to
+built every job from those branches (jobs 475-693). Nothing is merged to
 `servil` or `main`; the gate (PROCEDURES.md) is still to run. Before
 merging: point bench-hashes' Cargo.toml at the fork's `servil` once
 `candidate/api-plan-simple` lands there (it names `candidate/api-plan`
@@ -68,10 +68,11 @@ numbers):
 - The queue: submitters and the delivery thread share no lock on their
   common paths (entries chained in submission order), locks polled
   before parking, 64 short messages to a task, small `Queue::fixed`
-  batches gathered into tasks. Mac, solo, old -> new: 64 B messages 2.6 ->
-  1.15 ns/B, 256 B 0.63 -> 0.29, 16 KiB 0.165 -> 0.072; batches of 16 34
-  -> 8-19 ns/msg, of 64 21 -> 6.5, of 256 11 -> 4.2; shared batches of 16
-  84 -> 12-19. VM: continuous cells 2.3-2.6x faster (geometric mean),
+  batches gathered into tasks. Mac, solo, the start of the night -> its
+  end (runs of those cells alone): 64 B messages 2.6 -> 0.65-0.72 ns/B,
+  256 B 0.63 -> 0.21, 16 KiB 0.165 -> 0.056; batches of 16 34 -> 5.5
+  ns/msg, of 64 21 -> 5, of 256 11 -> 3.3; shared batches of 16 84 ->
+  8-9. VM: continuous cells 2.3-2.6x faster (geometric mean),
   synchronous cells level within their noise.
 - `Hasher::update_multithreaded` lingers (Zooko's decision in
   docs/api-design.md; the bound, 50 us, is his open question): long
@@ -190,16 +191,18 @@ after the gap win from 16 KiB (one buffer, pieces) and from 12 messages
    energy, half the CPU, long streams 7-12% slower solo, 1 MiB 20%
    faster), or give the energy-saving form (stage 2's time or energy
    argument) no lingering. A lingering stream leaves about 1.6 ms of
-   worker CPU behind in all. `clocks::process_energy_nj` (new, macOS)
+   worker CPU behind in all, and seems to slow the cells run after it
+   5-10% (fork NOTES, "WORKER_IDLE's length"). `clocks::process_energy_nj` (new, macOS)
    reads the counter the probes used; not validated for energy cells.
 4. The runner's `perf_regress` jobs need the runner restarted.
 5. **Shared 16 KiB messages** through the queue: the pair moves little
    more than one program alone. Found: `submit`'s push onto the task list
    (its lock contended by pushers and pollers, 2 KiB tasks copied under
-   it; fork NOTES, "A ceiling near one 16 KiB task"). Next: two task
-   lists (small subtree tasks, gathered tasks with their arrays), or a
-   lock-free list; `probe/members-32k` (shared -37%, solo +6%) stays a
-   trade.
+   it; fork NOTES, "A ceiling near one 16 KiB task"). The contended
+   words apart made 16 KiB 14% faster solo and 9% shared; two task lists
+   (candidate/two-lists) made 64 B 50% slower on the Mac and were left
+   out. Next: a lock-free task list; `probe/members-32k` (shared -37%,
+   solo +6%) stays a trade.
 6. **The multithreaded split at 512 KiB instead of 768** (Zooko's choice
    of September 27, fork NOTES at `MIN_SPLIT_LEN`, is the length where it
    pays on both machines): branch `probe/split-512`. Mac, after the gap
