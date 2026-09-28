@@ -93,8 +93,10 @@ numbers):
   million 64-byte messages through the queue; ASan clean on api_plan and
   queue_no_alloc; every suite passes on the VM (86 / 82 / 71 library
   tests, 22 doc, 14 api_plan, 1 queue_no_alloc, 2 vectors, 10 benchmark)
-  and the Mac's test job (542; its runner predates the integration
-  tests).
+  and the Mac's test job (677; its runner predates the integration
+  tests); on the Mac, probe/queue-check (job 678) compared 1.1 million of
+  the queue's digests (every shape, many lengths, one queue shared by four
+  threads, lingering streams) with the one-shot calls: all equal.
 - Tried and left out tonight (fork NOTES has each with its numbers):
   slots on 128-byte lines, a delivery back-off, a short message's digest
   in its slot, grouping a task's short messages into one entry, linking a
