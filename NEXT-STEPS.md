@@ -10,6 +10,86 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
+## Resume here (September 30, 2026, morning: the table measured, the gap built, the guide)
+
+**Start**: `sh /workspace/vm/setup.sh`. Both repos clean and pushed:
+fork `candidate/api-plan-simple` 1820efb (hashing source unchanged
+since 5cfa2b4), bench-hashes `candidate/benchmark-plan` 9cf2787 (Cargo.lock
+pins the fork at 1820efb). Runner jobs run to 782; the next is 783.
+Probes: `probe/benchmark-alignment` (the native A/B driver),
+`probe/memory-gap` (fresh-process gap probe). Scratch results:
+`/workspace/tmp/benchmark-alignment/`.
+
+**For Zooko, first:**
+1. **Restart the Mac runner** (`sh ~/piplayground/blake3-servil/tools/runner/setup-mac.sh`):
+   its installed perf_regress.py imports speeds.py, which setup-mac.sh
+   left out (jobs 776-779 failed before measuring; setup now copies it).
+   Tonight's native runs went through a host_lab driver instead.
+2. **Job 782 ran on battery power** (the Mac was unplugged by 06:45);
+   repeat it on mains power (job file 782 with a new number) before any
+   verdict.
+3. **Open the guide**: `runner/results/782-preselect-ab.*/new-1/benchmark-results/AppleM4Max.darwin25/bench-hashes.guide.html`
+   (offline, one file, 1.2 MB).
+
+**Done tonight** (each commit message has its evidence):
+- The table in the benchmark: three new continuous axes with buffers
+  lent (`LentMessages`, `LentPieces`, `LentBatches`: `hash`/
+  `hash_multithreaded`, `update`/`update_multithreaded`, `hash_many`/
+  `hash_many_multithreaded`, back to back, reads timed), beside the
+  queue's owned-buffer axes; after-gap servil mt pieces now call `update`
+  (the table). FROZEN.md records it as your decision of September 28,
+  evening; perf_regress covers the new axes (8 points).
+- The gap as decided: `clocks::measure_after_gaps_prepared` sweeps a
+  kept 128 MiB buffer (written pages), integer work for the rest of 1 ms,
+  writes the input (timed apart; trace rows `preparation solo and
+  shared`), then times the call. VM perf_regress check passed.
+- The guide (`bench-hashes.guide.html`, every run): the five questions,
+  an "I'm not sure" default on each (one thread, one buffer, keeps up,
+  lent, time), the recommended call, and this run's graph focused on
+  that call beside SHA-256 ring. Synchronous calls open in latency (ns
+  per message or batch), the queue in throughput. Energy says pending.
+  Chromium test: 48 table routes, 21 clicked endings, defaults, Back.
+- Harness defects found by your historical check and fixed: dispatch
+  inside the timed call (API now selected before the gap); a batch of
+  one called `hash`, not the frozen `hash_many`; Python's speed split
+  disagreed with Rust at Q64 boundaries (13 shared vectors now); decimal
+  halfway medians rounded down (the open 51.3875 cell: displayed medians
+  now keep the exact measured ratios). The exact report checker passes
+  every one of 964 cells (VM and both Mac new runs).
+- A sparse `--points` run no longer panics in the graph (found by
+  perf_regress narrowing to one queue cell).
+
+**The historical comparison (your method)**, Mac, identical hashing
+code (job 780, mains power; `tools/compare-runs.py`):
+- Replaying the published record's exact pair (250a3dc on fork b9ec183)
+  today: servil and ring cells within 6-10% of the record at small sizes,
+  1-4% from 16 KiB: the machine today matches the record's machine.
+- New gap against old gap, same code: small calls slower for servil and
+  ring alike (64 B servil 61 -> 224 ns, ring 80 -> 202 ns). A
+  fresh-process probe (job 781) shows the cold caches' true cost is
+  smaller (64 B 52 -> 135 ns, one speed after 128 MiB); the rest was the
+  harness (about 101 instructions of dispatch in the interval). Job 782
+  (battery, provisional): preselection brings servil 64 B 3.66 -> 2.51
+  ns/B fast speed, batches of 16 28.1 -> 20.5 ns/msg (old/old and new/new
+  within 4%); ring's 1-message batch +19% beside a same-code spread of
+  10-21%: noise until the mains repeat says otherwise.
+- From 16 KiB and in the queue's cells: level (within 3-5%, old/old alike).
+- Lent against the old after-gap cells: not the same workload (back to
+  back with a read, versus after a gap); servil 64 B 0.67 -> 0.78 ns/B,
+  ring 0.63 -> 0.76: the read's copy at small sizes, level from 16 KiB.
+
+**Open** (each blocks a "measures correctly" claim until resolved):
+1. Small after-gap cells still split in two in the full benchmark (64 B,
+   1-4 KiB), where the fresh-process probe shows one speed at 64-512 B:
+   something the benchmark's schedule leaves remains. Probe: the same
+   cells alone (`--points`), then with neighbours, on mains power.
+2. 4 KiB splits even in the fresh probe (1396 ns 88% | 2151 ns 12%, all
+   P-cores at 4.5 GHz, cycles 6822 | 10247): servil's, to explain.
+3. perf_regress on the Mac with the new benchmark (after the restart).
+4. Decisions for you: whether 128 MiB is the gap's size (the gap lasts
+   about 3 ms on the Mac, longer than 1 ms); whether the guide belongs
+   on the Pages home; the queue's model and the trades still wait (below).
+
 ## Resume here (September 28, 2026, night: the new adventure; work all night)
 
 **Start**: `sh /workspace/vm/setup.sh`; both repos clean and pushed (fork
