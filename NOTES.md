@@ -846,3 +846,22 @@ median over cells: after other work -0.1%, after idling +0.3%, nonstop
 +0.05%, each inside its same-code spread (medians 3.1-3.6%, 3.0-3.6%,
 1.0-1.1%). Two sequential runs of each first read the gap cells 1-2%
 slower: drift, gone when interleaved.
+
+### Each way of calling in its own phase (jobs 818-823, September 30, late)
+
+The first consistency check ("after idling agrees with after other work
+from 8 MiB") fired on both machines for SHA-256: after idling 11-22%
+slower at 8-32 MiB. Traced (job 819): the same calls' core clock, 3.76-4.05
+GHz after idling against 4.48 after other work, all on P-cores. Measured
+alone with busy neighbours (job 818) they agreed (ring 32 MiB 0.291
+against 0.289). So the idle cells' clock followed their neighbours: in a
+full run a large idle cell samples every eighth round among hundreds of
+sleep-dominated calls, and macOS sets a core's clock from its recent use.
+
+The one mechanism that already existed for this (the nonstop cells in a
+phase of their own) now covers every pattern: three phases, nonstop,
+after other work, after idling. Interleaved Mac A/B (820-823, before
+8a0459d, after d2e4b1c): the idle large calls read slower, as a mostly
+idle program meets them (ring 8 MiB 0.31-0.32 -> 0.43-0.45 ns/B; servil
+st 8 MiB 0.155 -> 0.19), repeatably (821/822). The check was a wrong
+expectation, not a bug: removed; METHODOLOGY states the effect.

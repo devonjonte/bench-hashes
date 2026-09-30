@@ -3875,7 +3875,7 @@ fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, 
  * They go to a file of their own, for maintainers.
  */
 const CONSISTENCY_PERMILLE: u64 = 100;
-/// The largest work check 5 compares: inputs this size stay in the
+/// The largest work check 4 compares: inputs this size stay in the
 /// first-level data cache of the machines this benchmark targets (32-128
 /// KiB). Beyond it each level of the memory hierarchy costs more per
 /// byte, for every contender (SHA-256's batches: 32 ns a message up to
@@ -3899,18 +3899,7 @@ fn consistency(roster: &Roster, results: &Results) -> String {
         broken.push(format!("{check}: {}, {what}: x{}.{:03}", roster.algorithms[a].name(), permille / 1000, permille % 1000));
     };
     for (a, &algorithm) in roster.algorithms.iter().enumerate() {
-        /* 1. After idling and after other work agree from 8 MiB up, where the call's own work dominates. */
-        for (idle, busy) in [(UseCase::IdleOneMessage, UseCase::OneMessage), (UseCase::IdleStreaming, UseCase::Streaming)] {
-            for label in ["8 MiB", "32 MiB", "64 MiB", "128 MiB"] {
-                if let (Some(i), Some(b)) = (point(idle, label), point(busy, label)) {
-                    let (fi, fb) = (fast(a, i, Scenario::Solo), fast(a, b, Scenario::Solo));
-                    if let Some(r) = slower_by(fi, fb).or_else(|| slower_by(fb, fi)) {
-                        note("patterns disagree on large work", a, format!("{} at {label}, after idling {} against after other work {} ns/B", busy.short(), fi.median.format_ns(), fb.median.format_ns()), r);
-                    }
-                }
-            }
-        }
-        /* 2. Nonstop is no slower than after other work for small messages (its read of the input included). */
+        /* 1. Nonstop is no slower than after other work for small messages (its read of the input included). */
         for label in ["64 B", "256 B", "1 KiB", "4 KiB"] {
             if let (Some(n), Some(b)) = (point(UseCase::LentMessages, label), point(UseCase::OneMessage, label)) {
                 let (fnon, fb) = (fast(a, n, Scenario::Solo), fast(a, b, Scenario::Solo));
@@ -3921,7 +3910,7 @@ fn consistency(roster: &Roster, results: &Results) -> String {
         }
         for use_case in UseCase::ALL.into_iter().filter(|&u| algorithm.takes_part(u)) {
             let points: Vec<usize> = use_case.points().filter(|&p| roster.measures(p)).collect();
-            /* 3 and 4: two programs at once, for the use cases measured both ways. */
+            /* 2 and 3: two programs at once, for the use cases measured both ways. */
             if Scenario::Shared.measures(use_case) {
                 for &p in &points {
                     let (solo, shared) = (fast(a, p, Scenario::Solo), fast(a, p, Scenario::Shared));
@@ -3936,7 +3925,7 @@ fn consistency(roster: &Roster, results: &Results) -> String {
                 }
             }
             /*
-             * 5. Twice the work takes at most twice the time: no slower per
+             * 4. Twice the work takes at most twice the time: no slower per
              * unit than a size that divides it, for work that stays in the
              * first-level cache (up to CACHED_BYTES) and outside the idle
              * use cases (whose cells' fast speeds may be different clock
@@ -3959,7 +3948,7 @@ fn consistency(roster: &Roster, results: &Results) -> String {
     }
     let mut out = format!(
         "# bench-hashes consistency checks (for maintainers): relations that hold for every contender when the benchmark measures what it means to, judged on fast speeds, intervals apart and over {}% between them.\n\
-         # 1. After idling and after other work agree from 8 MiB. 2. Nonstop no slower than after other work, 64 B-4 KiB. 3. Shared no faster than solo. 4. A hash on the cores alone no slower shared. 5. No slower per unit than a size that divides the work, up to 32 KiB, outside the idle use cases.\n",
+         # 1. Nonstop no slower than after other work, 64 B-4 KiB. 2. Shared no faster than solo. 3. A hash on the cores alone no slower shared. 4. No slower per unit than a size that divides the work, up to 32 KiB, outside the idle use cases.\n",
         CONSISTENCY_PERMILLE / 10,
     );
     if broken.is_empty() {
@@ -7356,14 +7345,14 @@ mod correctness_tests {
         let (results, _) = run(&roster, 24, |_, _, r| 10_000 + jitter(r));
         assert!(consistency(&roster, &results).ends_with("all hold\n"), "{}", consistency(&roster, &results));
 
-        /* 1: idle slower at 8 MiB; 2: nonstop slower at 64 B; 5: 64 messages slower per message than 16. */
+        /* 1: nonstop slower at 64 B; 4: 64 messages slower per message than 16. */
         let (mut results, mut samples) = run(&roster, 24, |_, p, r| jitter(r) + match (POINTS[p].use_case, POINTS[p].label) {
             (UseCase::IdleOneMessage, _) => 15_000,
             (UseCase::LentMessages, _) => 20_000,
             (UseCase::LentBatches, "64") => 12_000,
             _ => 10_000,
         });
-        /* 3: servil's shared copies twice as fast at 16 messages; 4: SHA-256's (on the cores alone) half as fast. */
+        /* 2: servil's shared copies twice as fast at 16 messages; 3: SHA-256's (on the cores alone) half as fast. */
         let p16 = POINTS.iter().position(|p| p.use_case == UseCase::LentBatches && p.label == "16").unwrap();
         for (a, factor) in [(0usize, (1u64, 2u64)), (1, (3, 2))] {
             for sample in samples.shared[a][p16].iter_mut() {
@@ -7372,7 +7361,7 @@ mod correctness_tests {
             results[a][p16].as_mut().unwrap().shared = Some(summarize(&mut per_units(&samples.shared[a][p16])));
         }
         let report = consistency(&roster, &results);
-        for (check, who) in [("patterns disagree on large work", "BLAKE3 servil st"), ("nonstop slower than after other work", "SHA-256"),
+        for (check, who) in [("nonstop slower than after other work", "SHA-256"),
             ("more work, slower per unit", "SHA-256"), ("shared faster than solo", "BLAKE3 servil st"),
             ("a hash on the cores alone slowed by a second copy", "SHA-256")] {
             assert!(report.lines().any(|line| line.starts_with(&format!("{check}: {who}"))), "{check} for {who}:\n{report}");

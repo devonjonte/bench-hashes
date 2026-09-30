@@ -212,10 +212,13 @@ slowed or powered down, or the thread may wake on another core: an
 Apple M4 Max meets full clock, its lowest, or a step between, for each
 call and every contender alike, and in a VM two speeds about 3.5 times
 apart, so these cells often run at two speeds, which the report shows
-with their shares. Where the platform counts cycles (macOS), the run
-reads each call's clock, the report says how many calls met the full
-clock and how many the lowest, and the samples file keeps each clock.
-A full run takes about a minute.
+with their shares. Longer calls meet the clock of a mostly idle core
+too: on an Apple M4 Max, a call of several milliseconds after idling ran
+15-50% slower than after other work (SHA-256 at 8 MiB 0.43-0.51 against
+0.29-0.34 ns/B), its core near 3.8-4.0 GHz where after other work it ran
+near 4.5, which is what a server that mostly waits gets.
+`--trace-clocks` records each call's cycles and time, the clock it ran
+at. A full run takes about a minute.
 
 A single-threaded hash costs about the same in both. A multithreaded one
 shows in the shared scenario what its threads cost when the machine is
@@ -225,9 +228,7 @@ shared; an SME2 kernel shows what sharing its unit costs.
 
 Every run also writes `bench-hashes.checks.txt`, for people who maintain
 the benchmark or a contender: relations that hold for every contender
-alike when the benchmark measures what it means to. After idling and
-after other work agree from 8 MiB up, where the call's own work
-dominates; nonstop calls are no slower than calls after other work for
+alike when the benchmark measures what it means to. Nonstop calls are no slower than calls after other work for
 messages of 64 B-4 KiB; two copies at once are no faster than one; a hash
 that runs on its core alone (no shared SME unit, no helper threads) is no
 slower beside a second copy; and more work within the first-level cache
@@ -396,13 +397,17 @@ The contenders run in a Williams design: a set of orders that together
 place every contender in every position equally often and realise every
 "Y right after X" adjacency equally often — the balance all permutations
 would give (n orders for an even count of contenders, 2n for odd). Point
-order rotates independently. The run measures in two phases, each with
-its own calibration and rounds: first the two continuous use cases, then
-the three synchronous ones. A program that hashes one input after another
-never sleeps, and the core's clock follows the program's recent history:
-with the sleeps of the synchronous cells between them, continuous samples
-ran near 3.0 GHz on an Apple M4 Max, alone near 4.4 GHz (SHA-256's 1 KiB
-messages 0.51 against 0.36 ns/B). Each contender/point combination is
+order rotates independently. The run measures in three phases, each
+with its own calibration and rounds: the nonstop use cases, then the
+calls after other work, then the calls after idling. The operating
+system sets a core's clock from the program's recent use of it, so each
+way of calling is measured among its own kind: a program that hashes one
+input after another never sleeps, and one that idles between requests
+mostly sleeps. Mixed, the neighbours moved each other's clocks: nonstop
+samples ran near 3.0 GHz on an Apple M4 Max beside the sleeps, alone near
+4.4 GHz (SHA-256's 1 KiB messages 0.51 against 0.36 ns/B); calls after
+idling ran near full clock beside the busy calls, and near 3.8-4.0 GHz
+among other idle calls. Each contender/point combination is
 calibrated separately: a continuous cell's timed samples last about 1 ms
 each (and hold at least twice the buffers its program keeps in flight), a
 synchronous cell's sum about 2 µs of calls after the gap.
