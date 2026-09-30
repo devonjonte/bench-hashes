@@ -1453,7 +1453,17 @@ fn parse_selection(arguments: &[String]) -> (Selection, Vec<Algorithm>) {
     }
 }
 
+/// A layout perturbation for probe/layout-perturb: about 2 KiB of code the
+/// program never calls, shifting what follows it in the binary.
+#[inline(never)]
+pub fn layout_perturbation(x: u64) -> u64 {
+    let mut v = x;
+    for i in 0..64u64 { v = v.wrapping_mul(6364136223846793005 ^ i).rotate_left((i % 63) as u32).wrapping_add(i); }
+    v
+}
+
 fn main() {
+    if std::env::var_os("BENCH_LAYOUT_PERTURB").is_some() { black_box(layout_perturbation(1)); }
     let Options { selection, explicit, points, rounds, trace_path, quick } = parse_arguments();
     let mut trace = trace_path.map(ClockTrace::new);
     let mut machine = machine_metadata();
