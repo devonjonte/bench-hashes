@@ -552,7 +552,7 @@ repetitions beside a four-run comparison. An explicit --map names
 use cases whose workloads deserve comparison. Two-file comparisons make
 no claim about repetition. It uses the fork's shared Python rule.
 
-### Job 783 (mains) confirms 782 (battery), and finds a layout effect
+### Job 783 (mains) follows 782 (battery): observed differences, cause unresolved
 
 Job 783 repeated 782 on mains power: same-code repeats within 6%;
 preselection made servil's cold 64 B call 18% faster (fast speed 3.91
@@ -574,24 +574,22 @@ say so in the report, or warm the harness's own code (never the hash's)
 before the call. Until decided, differences under about 25% in cells
 below 1 µs after the gap are not evidence about the hash.
 
-### Cold cells under 1 µs vary per process, not per binary (job 788)
+### Cold-cell variability experiment (job 788): interpretation superseded
 
-A layout probe (bench-hashes probe/layout-perturb: 2 KiB of never-called
-code before main; fork with and without the warmed timing path, d005716;
-eight full Mac runs a1 ap1 b1 bp1 ap2 a2 bp2 b2) settles the question
-raised by jobs 782-783. From 512 B up, every servil st and ring cell
-after the gap agrees within about 5% across binaries and repeats. At
-64 B and in the 1-message batch (cold calls of 200-300 ns), repeats of
-the *same* binary differ by 15-65% (servil 64 B: 3.15|4.34 ns/B in one
-process, 5.21 in the next; ring 2.73 -> 3.55), the perturbed binary no
-more than the plain one, and the warmed timing path changed nothing.
-The layout hypothesis is refuted: the spread belongs to the process (its
-memory layout against the caches and the sweep, most likely), and a
-single run's figure for such a cell carries that spread. Remedy to
-decide: several processes per record for the cold cells (perf_regress
-already alternates eight), or state the spread beside each cell under
-1 µs. The warmed path stays: it is cheap and principled (the interval
-holds the call, and the helper's own code is warm as a program's is).
+The experiment used bench 805324f and the perturbed c5ac3a3, two
+repetitions of each at two requested fork commits. Some repetitions of
+a given build varied substantially in small cells. The earlier causal
+interpretation (“per-process, not per-binary”) exceeded the evidence;
+job 788 establishes variability, with its cause and user relevance open.
+
+At the context-reset audit we verified an additional confound:
+perf_regress.py patches clocks to ROOT/clocks. The diagnostic driver
+branch is based on 9cea065 and has no warm-up. Consequently the nominal
+1820efb/d005716 sides both used that same unwarmed helper. Job 788 gives
+no warm-versus-unwarmed measurement. Combining all eight configurations
+also overstates evidence about one executable's repeatability. The
+current NEXT-STEPS resume block records the corrected scope and next
+experiment; it supersedes prior causal statements here.
 
 **Archaeology (jobs 785-787):** v0.1.0, v0.2.0, and v0.3.0 each against
 today's fork under today's benchmark: no slower solo cell for one
@@ -609,3 +607,32 @@ those cells at a 20% margin, so a loss under 20% would pass it.
 function's fixed cost at the start of its axis (a Merkle layer of one
 node). It stays as the axis's first point and is the cell most exposed
 to the cold spread above.
+
+
+## Context-reset audit: scope of reliability and regression claims
+
+Zooko's current question: do the benchmark's large swings describe users'
+typical operation? This is unestablished. A direct-call probe demonstrates
+a cost under the 128 MiB sweep; that workload's typicality and the causes
+of the large swings remain questions. Cache, TLB, code placement, memory
+placement, and scheduler state are hypotheses to isolate. Claims about
+“ordinary noise”, “the cause is process layout”, and a universal 5% bound
+were premature. The guide currently omits confidence bands and any
+between-run uncertainty evidence. Its precise-looking lines therefore
+need review alongside diagnosis.
+
+Zooko rejected the multi-process aggregation proposal. Next work holds
+the implementation fixed and compares representative direct callers with
+the harness while varying documented work between calls, one factor at
+a time. It establishes user relevance and cause before remedy. The
+archaeology jobs' passed checks rule out only held regressions in their
+sampled, shim-compatible cells at the stated margins (20% after the gap);
+they do not prove all historical APIs equivalent. Historical back-to-back
+records and current cold-cache cells differ in workload.
+
+The fork's latest timing-helper warm-up (d005716) is committed and pinned,
+but its native effect needs an experiment that actually varies clocks.
+General regression comparisons intentionally share current clocks across
+sides: keep that purpose separate from clocks A/B experiments. See the
+newest NEXT-STEPS block for branches, raw evidence, UI fidelity issues,
+user decisions, and precise resumption instructions.

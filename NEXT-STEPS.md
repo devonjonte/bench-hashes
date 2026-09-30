@@ -10,7 +10,169 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
-## Resume here (September 30, 2026, morning: the table measured, the gap built, the guide)
+## Resume here (context reset, September 30, 2026)
+
+**Current task, from Zooko:** establish whether the benchmark's large
+small-cell swings describe typical real callers or originate in the
+harness. Explain the cause with controlled tests before choosing a fix.
+Zooko rejected the proposed multiple-process run as speculation. He wants
+reliable, reproducible, legible, accurate measurements, and a clarifying,
+beautiful guide with little text. The findings below supersede causal
+claims in the earlier checkpoints and in the preceding session's replies.
+
+### State saved
+
+- Fork: `candidate/api-plan-simple`, d005716, pushed. Hashing source in
+  `src/`, `c/`, build.rs, Cargo.toml/Cargo.lock is unchanged since 5cfa2b4.
+  Changes here are clocks, tools, docs. The latest clock change warms the
+  helper's counts/wall reads after the sweep; its claimed benefit needs
+  a valid native test (critical builder issue below).
+- Benchmark: `candidate/benchmark-plan`, 0e2742c before this handover,
+  pushed. Cargo.lock pins d005716. Fourteen Rust tests, nine compiled and
+  executed guide examples, Chromium checks (48 table routes, 21 endings)
+  passed. Candidate branches remain separate from main-line promotion.
+- Latest runner job: 788, complete on AC power. Next number 789.
+  Zooko restarted the runner; job 784 verified its normal benchmark path
+  works with speeds.py installed. Guest setup/browser tools were
+  reinstalled after a VM restart during this session; the user is now
+  resetting context only. Run `sh /workspace/vm/setup.sh` at session start.
+- `/workspace/tmp/benchmark-alignment/` and `runner/results/` hold the
+  evidence; they persist on the mount. Fork worktrees in tmp:
+  benchmark-driver (`probe/benchmark-alignment`, 573c7e2), memory-gap
+  (`probe/memory-gap`, 953b9b2). Benchmark `probe/layout-perturb` c5ac3a3
+  is pushed. All main working-tree code changes are committed.
+- Untracked `/workspace/README.html` appeared externally, contains an
+  older render of the README. Preserve it; its origin is unknown. A copy
+  is in `tmp/context-handover/README.html.preserved`. The tracked README
+  has the author sentence changed as Zooko requested.
+
+### Corrections essential to the investigation
+
+1. **User relevance is unestablished.** The observed workload sweeps a
+   fixed 128 MiB buffer before each call. Direct probes demonstrate a
+   cost after that sweep; neither its typicality nor the large swings'
+   cause is established. Cache/TLB/ASLR/memory placement/code layout are
+   hypotheses, not findings. The earlier statement that nonstop spread
+   is merely ordinary machine noise is also unestablished.
+2. **Eight runs were not eight identical executables.** Job 788 had two
+   benchmark builds (805324f and deliberately perturbed c5ac3a3), named
+   a/ap and b/bp, with two repetitions of each. Hashing code is identical,
+   but the maximum/minimum over all eight is confounded as an estimate
+   of one executable's reproducibility. Compare genuine same-build
+   repetitions separately, speed with speed and share with share.
+   The earlier claims that all cells above 512 B stay within 5%, or
+   that a quarter of typical-user cells vary by a given amount, exceed
+   the evidence. Some same-build repetitions do vary substantially.
+3. **Newly verified builder confound: job 788 did not test warming.**
+   `tools/perf_regress.py::clocks_patch()` patches clocks to ROOT/clocks,
+   irrespective of the requested fork commit. The diagnostic driver
+   branch descends from 9cea065, whose clocks helper lacks the warm-up.
+   Thus both its 1820efb and d005716 builds used the driver's unwarmed
+   clocks. The library provenance names the requested fork, but that
+   does not identify the patched clocks. The warm/no-warm conclusion
+   is unsupported. Inspect the actual patched source/build commands
+   before another experiment. This is a measurement-tool issue, not
+   evidence about BLAKE3. The general performance check intentionally
+   shares current clocks across sides; changing it needs care.
+4. **Archaeology is bounded evidence.** Jobs 785-787 compared v0.1/v0.2/
+   v0.3 against 1820efb using bench bc5c657. They found no held solo
+   regression in the sampled cells, at a 20% after-gap threshold, with
+   older APIs shimmed. This does not prove equality at all sizes or in
+   all real workloads. The historical records were back-to-back, unlike
+   current cold-cache cells. The latest claim that the regression was
+   conclusively refuted was too strong, especially for the pieces APIs.
+5. **Rendering omits uncertainty.** The main SVG carries within-run
+   confidence bands and two speeds; the new guide currently shows
+   median lines and fainter second-speed marks, without confidence
+   bands or evidence about repeat-run variability. A narrow within-run
+   band does not establish repeatability. Improve the representation
+   using verified evidence; do not disguise the unexplained spread.
+
+### Latest guide and user requests
+
+The user was confused by `hash` giving very different results depending
+on the load-pattern answer. He requested a fresh intuitive design rather
+than more explanation. Current page (`src/guide.html`, generated by
+`generate_guide` in src/main.rs): `Use hash`, one sentence, computed
+performance sentence, chips reading `Called [now and then / nonstop],
+[alone / beside another program]`, throughput chart, doors for the
+compiled example and measurement details. Table removed at his request.
+Kernel shapes and native hover titles restored; hover shows time per
+input, rate, kernel. Full SVG remains separate. New guide data payload
+is independent of the SVG, computed from the same Results. Tests in
+`tools/graph-check/guide.js`. Latest generated guide is VM data under
+`tmp/benchmark-alignment/vm-guide2/benchmark-results/`; screenshots
+`guide3-hash.png` and `guide3-hash-nonstop.png`. Job 784's Mac guide is the
+previous design (with a table); a new native guide job is still needed.
+
+**Review issues for the next session:**
+- A pattern toggle must preserve the actual function. For multithreaded
+  pieces the after-gap table calls `update`, while lent nonstop pieces
+  call `update_multithreaded`; the current generic toggle can therefore
+  falsely imply the same function. Restrict it to truly identical calls
+  or model the two functions explicitly. Likewise audit queue kernel
+  labels against what the fork reports for queue tasks.
+- Rust Mark::DownTriangle emits `downward triangle`, whereas the guide's
+  MARK map uses `down-triangle`; it falls back to a circle. Restore it.
+- Summary and ratio wording currently use fast-speed medians; assess
+  claims against both speeds/shares and uncertainty before stating a
+  winner. The temporary guide lost CI bands.
+- Read the whole page as newcomer, regular, maintainer. Follow both
+  AGENTS style guides. Revisit README/METHODOLOGY descriptions after the
+  latest guide changes; some still describe the earlier table design.
+- `bench-hashes/README.md` is the future Pages home. Zooko wants a
+  newcomer to see “Is BLAKE3 faster than SHA256?” first, with the guide
+  behind a programmer's door. Heading renamed “Which function to use”.
+  Published Pages/records still reflect older main-branch code; candidate
+  README is visible locally or on GitHub's candidate/benchmark-plan.
+
+### Next, in order
+
+1. Read this block, both AGENTS, PROCEDURES, and the relevant NOTES.
+   Preserve the user's scope: diagnose user relevance first.
+2. Make a small direct-call experiment for representative caller work
+   between calls. Hold implementation, inputs, timer, and producer
+   fixed; vary one documented factor at a time. Compare with the
+   benchmark harness on the same work and the same machine. Collect
+   raw samples, wall and per-core-kind cycles through clocks; analyze
+   speeds and shares through the shared rule. Native Mac first, VM
+   after. Keep the VM idle during native measurements.
+3. Treat the 128 MiB sweep as an experimental condition, not a premise
+   about normal programs. Investigate tiny hash/hash_many-one and 2-16
+   KiB pieces; distinguish genuine API costs from harness costs and
+   scheduler/hardware effects. A one-message batch is hash_many with
+   one message (same input bytes, batch API contract); its fixed costs
+   deserve direct comparison with hash, not hand-waving.
+4. Resolve or bound causes, then design the simplest measured remedy
+   and an honest visual indication. Zooko explicitly rejected increasing
+   processes to hide unexplained behavior. Keep unexplained slowdowns
+   open; no “reliable” or “no regression” claim until supported.
+5. Fix guide function/pattern fidelity and marks, check fresh renders
+   and browser tests, generate a Mac guide, update docs and handover.
+   Promotion/Pages publication waits for the contract and validation.
+
+### Evidence map
+
+- 780: 4f29643 versus f3515ab, same fork 9cea065, old/new/new/old;
+  historical replay 250a3dc on b9ec183. Mains. Raw traces and reports in
+  old-1/new-1/new-2/old-2/historical. Initial memory-gap change.
+- 781: fresh-process direct-hash register/8 MiB/128 MiB gap probe;
+  gap-samples.csv, gap-report.txt; source probe/memory-gap. Read raw
+  wall/cycles alongside distributions; code/context differs from harness.
+- 782 (battery), 783 (AC): f3515ab versus 9cf2787, fixed fork 1820efb;
+  API preselection and batch-one dispatch fix, old/new/new/old.
+  `tmp/benchmark-alignment/preselect-ab*.txt` are comparison outputs.
+- 784: native guide bc5c657 on 1820efb, default run ~50.8 s; exact
+  report checker 964 cells and browser tests passed. Old guide design.
+- 785-787: native perf_regress archaeology; read full logs and shims.
+  Against v0.2, shared mt OneMessage 256 KiB slower speed/share changed;
+  solo check passed at its margins.
+- 788: eight runs, source probe/benchmark-alignment 573c7e2, bench
+  805324f / c5ac3a3, a1/ap1/b1/bp1/ap2/a2/bp2/b2. AC throughout.
+  Clocks patch confound above means warming was held fixed, contrary
+  to the job's intended labels. Check source, not labels alone.
+
+## Earlier checkpoint (September 30, 2026, morning: the table measured, the gap built, the guide)
 
 **Start**: `sh /workspace/vm/setup.sh`. Both repos clean and pushed:
 fork `candidate/api-plan-simple` 1820efb (hashing source unchanged
