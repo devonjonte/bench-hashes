@@ -29,7 +29,18 @@ caller-relevance experiment (below), on a quiet Mac; measure a load
 reading's cost on the Mac. Open: `tools/speeds.py` is still a second
 implementation of `clocks::speeds` (held by shared vectors); replace it
 with the Rust rule's own output, or a small Rust command Python calls.
-**Found (jobs 789-791, NOTES "Cold calls: the harness doubles them"):**
+**Cause found (jobs 792-798, NOTES "The cause: where the hash's code
+is"):** the cold cells' excess and per-process swing are servil's
+instruction lines: a data sweep leaves them in the core's L1 instruction
+cache; the harness's other work, syscalls, sleeps, and moves evict them,
+and the call then fetches its code from DRAM (2x at 4-16 KiB; SHA-256's
+small code barely moves). Decisions for Zooko: which code state the
+cold cells model (reproducible options: code evicted from every cache,
+by invalidating the icache before the sweep; code in L2 only, by
+invalidating without the sweep; code near, by reading it after the
+sweep); and whether servil's cold-path code size is work for the fork.
+
+**Found earlier (jobs 789-791, NOTES "Cold calls: the harness doubles them"):**
 the benchmark's cold calls cost up to 2x the same calls in a direct probe
 (same instructions and clock, more stall cycles) and vary per process
 (4 KiB: 3.1 or 5.2 us). One syscall before the gap doubles 4 KiB through

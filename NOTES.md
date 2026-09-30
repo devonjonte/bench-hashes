@@ -696,3 +696,52 @@ measurement noise: until the mechanism is known, differences under about
 2x in cold cells from 4 to 16 KiB say nothing about the hash.
 VM (no cycle counts): the same pattern (probe 4 KiB 2359 ns, benchmark
 5729; without shared copies 3146-3250).
+
+### The cause: where the hash's code is (jobs 792-798, September 30, evening)
+
+Changing one thing at a time (fork `probe/caller-relevance`, benchmark
+`probe/harness-bisect`; Mac, mains, quiet by clocks::load; three probe
+processes agree within about 5%, and user-interactive QoS changes
+nothing) located the benchmark's cold-call excess in the hash's
+instruction lines. Probe, servil `hash`, median ns/call:
+
+| before the call | 64 B | 4 KiB | 16 KiB |
+|---|---|---|---|
+| 128 MiB sweep (base) | 104-167 | 1520-1800 | 3910-4090 |
+| open and close /dev/null, then the sweep | 230-410 | 2610-2960 | 5740-6180 |
+| the text's icache lines invalidated, then the sweep | 375-583 | 3570-3820 | 7100-7480 |
+| 10 ms of register work, then the sweep | 136-172 | 1980-2330 | 4700-5160 |
+| sleep 1 ms, then the sweep | 333-438 | 3390-3490 | 6730-6850 |
+| the sweep, then the text read as data, line by line | 52-94 | 1375-1510 | 3700-3920 |
+| the sweep, then one call on another buffer | 42-63 | 1234-1300 | 3740-3750 |
+| icache invalidated, no sweep | 146-156 | 1690-1710 | 4250-4280 |
+
+getpid, a write to an open /dev/null, fstat, dup and close, a yield, a
+small String, a fresh 1 MiB heap block, and reading the text's pages one
+byte each (warm translations, cold lines) change little. Instructions
+per call and the clock stay the same throughout; only stall cycles move.
+The thread stays on its CPU in 90-99% of calls; a moved call is slow,
+and the stayed calls after open-close are slow too.
+
+The mechanism: a 128 MiB data sweep empties L2 and the system-level
+cache but leaves the core's L1 instruction cache, so in the probe the
+hash's code survives next to the core. Whatever else runs on the core
+between calls (kernel code for open(), interrupts over longer gaps, a
+core idling in sleep, the harness's own code, a move to another core)
+takes those lines, and the call then fetches its code from DRAM.
+
+The benchmark confirms it: with its text read as data after each sweep
+(`HB_CODE_LINES`), servil's cold cells fall to 64 B 65-68 ns, 4 KiB
+1.59-1.72 us, 16 KiB 4.2-4.3 us in all four processes, each at one speed,
+with or without the shared copies (as it is: 190-302, 3083-3094,
+8667-8688; job 798). SHA-256 ring moves little (4 KiB 1448-1542 ->
+1333-1437, 16 KiB 5083-5542 -> 4875-5417): its code is small. So in the
+benchmark's cold cells ring beats servil at 4 and 16 KiB because
+servil's code comes from DRAM; with its code near, servil ties at 4 KiB
+and wins at 16 KiB. The VM agrees (servil 4 KiB 5916 -> 2083 ns, 16 KiB
+9958 -> 4583). The per-process swing and the shared copies' share are
+the same mechanism: how much of servil's code the harness's other work
+leaves in the instruction cache.
+
+Left open: the benchmark with its code warmed stays 10-20% above the
+probe at 4 KiB (1.6-1.7 against 1.38-1.44 us).
