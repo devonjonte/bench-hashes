@@ -36,7 +36,7 @@ your CPU and operating system:
 - `bench-hashes.graph.svg`: the graph. Open it in a web browser.
 - `bench-hashes.result.txt`: the same numbers as text tables.
 - `bench-hashes.guide.html`: for programmers who want to call BLAKE3
-  from their own code (see "Which call to use", below).
+  from their own code (see "Which function to use", below).
 - `bench-hashes.samples.tsv`: every single measurement, for your own
   analysis.
 
@@ -79,7 +79,7 @@ The contenders:
   crate): SHA-256 with the CPU's SHA-256 instructions where it has them.
   `sha2` is faster for the smallest inputs, `ring` from about 256 bytes.
 
-## Which call to use
+## Which function to use
 
 Programmers who want this speed in their own program open
 `bench-hashes.guide.html`. It asks a few questions about how the program

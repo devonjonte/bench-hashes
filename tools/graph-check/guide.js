@@ -25,7 +25,7 @@ const path = require('path');
     const call = keepsUp === 'yes' ? after[shape][threads === 'many' ? 1 : 0] : continuous[shape][threads === 'one' ? 0 : buffer === 'owned' ? 2 : 1];
     const use = keepsUp === 'yes' ? after[shape][2] : continuous[shape][threads === 'many' && buffer === 'owned' ? 4 : 3];
     assert.equal(r.call, call, JSON.stringify(a));
-    assert.equal(r.use, use, JSON.stringify(a));
+    assert.equal(r.uses[r.useIndex], use, JSON.stringify(a));
     routes++;
   }
   // Click every reachable ending; check what the reader sees.
@@ -37,8 +37,9 @@ const path = require('path');
     if (threads === 0) await page.locator('#choices button').nth(0).click();
     const state = await page.evaluate(() => ({
       call: current.call, example: document.getElementById('example').textContent, unmeasured: !document.getElementById('unmeasured').hidden,
-      rows: document.querySelectorAll('#latency tbody tr').length, dots: document.querySelectorAll('#chart circle').length,
-      cells: [...document.querySelectorAll('#latency tbody td')].map(td => td.textContent),
+      dots: document.querySelectorAll('#chart g.dot').length, titles: [...document.querySelectorAll('#chart g.dot title')].map(t => t.textContent),
+      chips: [...document.querySelectorAll('#how button')].map(b => [b.textContent, b.getAttribute('aria-pressed')]),
+      paths: document.querySelectorAll('#paths li').length,
       summary: document.getElementById('speed-summary').textContent, resultVisible: !document.getElementById('result').hidden,
     }));
     assert(state.resultVisible);
@@ -47,14 +48,24 @@ const path = require('path');
     if (state.unmeasured) { assert.equal(state.call, 'Queue::pieces', 'only the >64 KiB queue cells may be absent from a quick run'); }
     else {
       measured++;
-      assert(state.rows >= 1 && state.dots >= 2 * state.rows, `${state.call}: chart and table agree`);
-      // Every latency reads as three significant digits with a unit.
-      for (const cell of state.cells.filter((_, i) => i % (state.cells.length / state.rows) === 1)) assert(/^\d+(\.\d+)? (ns|µs|ms|s)/.test(cell), cell);
-      assert(/ran faster|measured alone/.test(state.summary), state.summary);
-      // The shared scenario redraws.
-      await page.locator('#chip-shared').click();
-      assert.equal(await page.evaluate(() => document.getElementById('chip-shared').getAttribute('aria-pressed')), 'true');
-      await page.locator('#chip-solo').click();
+      assert(state.dots >= 2, `${state.call}: dots`);
+      /* Every hover names the size, a time per call in a readable unit, a rate, and the code path. */
+      for (const t of state.titles) assert(/: \d+(\.\d+)? (ns|µs|ms|s) per (call|batch) · \d+(\.\d+)? (GB\/s|million messages\/s)/.test(t), t);
+      assert(state.paths >= 1, `${state.call}: code paths listed`);
+      assert(/Faster|Slower|measured alone/.test(state.summary), state.summary);
+      /* The chips: the pattern (two for a plain function), alone or beside another program. */
+      const pressed = state.chips.filter(([, p]) => p === 'true').map(([l]) => l);
+      assert(pressed.includes('alone'), JSON.stringify(state.chips));
+      if (!state.call.startsWith('Queue::')) assert(pressed.includes('now and then') || pressed.includes('nonstop'), JSON.stringify(state.chips));
+      await page.locator('#how button', { hasText: 'beside another program' }).click();
+      assert.equal(await page.evaluate(() => [...document.querySelectorAll('#how button')].find(b => b.textContent === 'beside another program').getAttribute('aria-pressed')), 'true');
+      await page.locator('#how button', { hasText: 'alone' }).click();
+      if (!state.call.startsWith('Queue::')) {
+        const other = pressed.includes('nonstop') ? 'now and then' : 'nonstop';
+        await page.locator('#how button', { hasText: other }).click();
+        assert.equal(await page.evaluate(() => current.call), state.call, 'the function stays; the pattern changes');
+        assert(await page.evaluate(() => document.querySelectorAll('#chart g.dot').length) >= 2);
+      }
     }
     endings++;
   }
@@ -62,12 +73,12 @@ const path = require('path');
   for (let i = 0; i < 3; i++) await page.locator('#choices button').last().click();
   assert.equal(await page.evaluate(() => current.call), 'hash');
   await page.locator('#back').click();
-  assert((await page.locator('#q-title').innerText()).includes('keep up'));
+  assert((await page.locator('#q-title').innerText()).includes('done with the last'));
   await page.locator('#restart').click();
   assert((await page.locator('#q-title').innerText()).includes('several threads'));
   const defaults = await page.evaluate(() => Object.fromEntries(Object.entries(QUESTIONS).map(([k, q]) => [k, q.choices.at(-1)[0]])));
   assert.deepEqual(defaults, { threads: 'one', shape: 'message', keepsUp: 'yes', buffer: 'lent', efficiency: 'time' });
   assert.deepEqual(errors, []);
-  console.log(`${routes} table routes, ${endings} clicked endings (${measured} measured), defaults, Back, restart, examples, charts, tables: pass`);
+  console.log(`${routes} table routes, ${endings} clicked endings (${measured} measured), defaults, Back, restart, examples, charts, hovers, chips: pass`);
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });

@@ -4769,6 +4769,8 @@ fn generate_guide(roster: &Roster, results: &Results, machine: &MachineMetadata)
             data.push_str(&points.iter().map(|&index| json_string(POINTS[index].label)).collect::<Vec<_>>().join(","));
             data.push_str("],\"units\":[");
             data.push_str(&points.iter().map(|&index| use_case.units(POINTS[index], 1).to_string()).collect::<Vec<_>>().join(","));
+            data.push_str("],\"bytes\":[");
+            data.push_str(&points.iter().map(|&index| POINTS[index].bytes.to_string()).collect::<Vec<_>>().join(","));
             data.push_str("],\"series\":{");
             let mut first_series = true;
             for (algorithm_index, algorithm) in roster.algorithms.iter().enumerate() {
@@ -4786,8 +4788,15 @@ fn generate_guide(roster: &Roster, results: &Results, machine: &MachineMetadata)
                 write!(data, "\"med2\":[{}],", per_point(&|t, _| t.two_speeds.map_or("null".to_owned(), |pair| pair[1].median.format_ns()))).unwrap();
                 write!(data, "\"share2\":[{}],", per_point(&|t, _| t.two_speeds.map_or("0".to_owned(), |pair| ((pair[1].count * 1000 + t.count / 2) / t.count).to_string()))).unwrap();
                 write!(data, "\"lat\":[{}],", per_point(&|t, units| t.speeds()[0].format_median(units))).unwrap();
-                write!(data, "\"lat2\":[{}]", per_point(&|t, units| t.two_speeds.map_or("null".to_owned(), |pair| pair[1].format_median(units)))).unwrap();
-                data.push('}');
+                write!(data, "\"lat2\":[{}],", per_point(&|t, units| t.two_speeds.map_or("null".to_owned(), |pair| pair[1].format_median(units)))).unwrap();
+                /* The code paths, by the first byte count each serves; the graph's marks name them. */
+                let kernels = detect_kernels(*algorithm, use_case).up_to(POINTS[*points.last().unwrap()].bytes);
+                data.push_str("\"kernels\":[");
+                for (k, kernel) in kernels.kernels.iter().enumerate() {
+                    if k > 0 { data.push(','); }
+                    write!(data, "{{\"from\":{},\"name\":{},\"mark\":\"{}\"}}", kernel.first, json_string(&kernel.name), kernel.mark.name()).unwrap();
+                }
+                data.push_str("]}");
             }
             data.push_str("}}");
         }
