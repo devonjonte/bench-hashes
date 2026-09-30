@@ -22,7 +22,13 @@ their users seldom make):
   measures the owned-buffer and lent-buffer columns separately.
 - **Calls after the gap**: `hash`, `hash_multithreaded`, `hash_many`,
   `hash_many_multithreaded`, and `Hasher::update` per 64 KiB piece,
-  each message or batch after 1 ms of the program's other work. A thread
+  each message or batch after at least 1 ms of the program's other work.
+  The gap walks a kept 128 MiB buffer at 64-byte intervals, then spends
+  any remaining millisecond on integer arithmetic. A complete sweep is
+  required even when it lasts longer. The producer writes the input
+  after the gap, before the call; its write is timed separately and
+  excluded from the hashing sample (Zooko, September 28, evening: evict
+  the preceding cell's cache state, then measure freshly produced input). A thread
   that keeps up with arriving pieces uses `update` in both servil
   contenders; its multithreaded incremental call belongs to the lent,
   continuous column. This changes servil mt's after-gap pieces cell

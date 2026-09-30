@@ -30,10 +30,15 @@ accurate when nothing else busy runs on the computer meanwhile.
 
 ## Read your results
 
-The run writes three files to `benchmark-results/`, in a folder named after
+The run writes four files to `benchmark-results/`, in a folder named after
 your CPU and operating system:
 
-- `bench-hashes.graph.svg`: the graph. Open it in a web browser.
+- `bench-hashes.guide.html`: choose a BLAKE3 call by answering questions
+  about your program, then see that call's measured speed. Open it in a
+  web browser; it includes its graph and works offline. Synchronous
+  recommendations open in latency (time per message or batch); queue
+  recommendations open in throughput (bytes or messages per second).
+- `bench-hashes.graph.svg`: the full graph. Open it in a web browser.
 - `bench-hashes.result.txt`: the same numbers as text tables.
 - `bench-hashes.samples.tsv`: every single measurement, for your own
   analysis.

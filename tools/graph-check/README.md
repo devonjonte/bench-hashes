@@ -18,3 +18,18 @@ resulting SVG, for `rsvg-convert` to render and a person to look at.
 and the Code paths section open.
 
 In the VM: `apt-get install -y nodejs npm` first (lost on restart).
+
+## Checking the API guide
+
+`guide.js` uses Playwright and a real browser to check the generated
+`bench-hashes.guide.html`: 48 decision-table combinations, 21 clicked
+endings, every uncertain-answer default, Back and restart, and the actual
+visible plots and contenders in the embedded graph. Install Playwright
+1.55.1 (works with Node 18 or later) and Chromium, then:
+
+    npm install playwright@1.55.1
+    node tools/graph-check/guide.js GUIDE.html /usr/bin/chromium
+
+With Playwright's own Chromium installed, omit the last argument. The
+guide's Rust test also checks escaping so embedded graph data stays
+inside its script string.

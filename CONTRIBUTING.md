@@ -8,10 +8,11 @@ it measures, and keep your results comparable with ours.
 
 - `src/main.rs`: the whole benchmark (contenders, timing, statistics, the
   text report, the SVG and its script).
+- `src/guide.html`: the offline API decision guide, generated with the run’s SVG.
 - `build.rs`: embeds the provenance (this repository's commit and state,
   and each contender crate's version and source).
 - `tools/graph-check/`: drives the graph's script in jsdom and checks its
-  layout (its README says how).
+  layout; `guide.js` exercises the HTML guide in Chromium (its README says how).
 - `tools/check-report.py`: recomputes every table cell of a run's report
   from its samples, as exact fractions, and compares.
 

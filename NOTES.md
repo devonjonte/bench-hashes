@@ -443,3 +443,54 @@ rounds it half up to 51.388; the benchmark shows 51.387, since each
 sample's ns/units becomes Q64.64 rounded down before the median, a
 rounding before the page's. Fix: the median of two middle samples as an
 exact midpoint of the measured values (Measured), rounded once. Most VM cells stay unsure at 2% and take 48.
+
+## Aligning the five-question table (September 30, 2026)
+
+The benchmark adds `LentMessages`, `LentPieces`, and `LentBatches` at the
+owned-buffer continuous axes' sizes, using kept producer buffers and
+synchronous calls back to back. Whole messages remain whole beyond
+64 KiB; pieces use incremental calls. Both servil contenders take part,
+measuring the one-thread and several-threads columns separately.
+After-gap servil mt pieces use `update`; `update_multithreaded` belongs
+to continuous lent pieces. FROZEN carries the September 28 evening
+decision and dispatch contract.
+
+The gap now walks a kept 128 MiB buffer at 64-byte intervals, spends any
+remaining part of 1 ms on integer work, then writes the input. Written
+counter bytes give the working set physical pages. The complete sweep is
+required even when it outlasts 1 ms; preparation follows it and is timed
+apart. Hashing and preparation have their own wall time and counts in
+`--trace-clocks` (the latter's rows: `preparation solo and shared`). The
+trace analyzer keeps preparation apart. The native effect, especially
+the small cells' speed split, still requires evidence; a VM alone gives
+no per-thread cycles and makes no verdict about the native effect.
+
+The offline HTML guide follows the table, with explicit defaults at each
+question and honest energy-pending endings. Its embedded SVG uses the
+same run data. Synchronous endings show per-input latency, scaled from
+Q64.64 before rounding; queue endings show throughput. Queue::messages
+shows sizes up to 64 KiB and Queue::pieces beyond. A missing measurement
+has an explicit unmeasured ending. Chromium checks 48 decision-table
+combinations, 21 clicked endings, defaults, Back and restart, the actual
+visible plots and contenders, and latency/throughput units. Desktop and
+mobile renders were read as newcomer, regular, and maintainer. Twelve
+Rust tests and the full graph's jsdom check pass. VM default full run:
+42.4 s of measurements, under tmp/benchmark-alignment/vm-final.
+
+The regression tool's narrowing exposed an existing graph failure: a
+run selecting only a queue cell still selected servil st (which takes
+no part), and graph provenance expected a plot for it. Graph eligibility
+now requires a measured cell for each selected contender and two points
+per shown axis. Sparse runs retain text and samples; dedicated tests
+hold these cases. JSON encoding now escapes control characters, including
+newlines, so a whole SVG can travel inside the guide's script string;
+'<' is escaped there to keep embedded text inside its string.
+
+Zooko asked for a historical sanity check: compare similar tasks for
+servil and SHA-256 ring against git's recorded results, distinguish
+implementation changes, defects, fixed old measurements, and correctly
+different workloads. Native job evidence and the detailed comparison
+will follow here and in NEXT-STEPS; each unexplained difference stays
+open. The first four native jobs (776-779) failed before measurement,
+from installed perf_regress.py's missing speeds.py dependency. The fork's
+setup now copies it; native diagnostics use the checkout's tool tonight.

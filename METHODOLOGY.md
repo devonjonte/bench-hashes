@@ -171,7 +171,7 @@ interval takes two samples of the same batch:
   otherwise idle. What a program gets with the machine to itself.
 - **Shared**: two independent copies at once, each on its own thread
   over its own input, released together (for the synchronous use cases,
-  their calls after the gap start together); each copy's own time is a
+  their gaps start together and each call follows its own preparation); each copy's own time is a
   sample. What each of two users of the same code gets. They compete for
   every resource the code uses: cores and memory bandwidth, and for the
   SME2 fork an SME unit, which serves a whole cluster of cores.
@@ -179,8 +179,19 @@ interval takes two samples of the same batch:
 The synchronous use cases' samples are calls after the gap: one call, or
 as many as fill 2 µs where a call is shorter (the clock ticks every 41.7
 ns, so a single short call cannot be timed), each after its own 1 ms
-of other work (integer arithmetic on the program's thread), timed alone,
-and summed. What a program gets that hashes now and then between other
+of other work, timed alone, and summed. Each thread walks its own kept
+128 MiB working buffer at 64-byte intervals, then spends any remaining
+millisecond on integer arithmetic. A complete sweep is required, so the
+gap can last longer on machines with lower memory bandwidth. The thread
+then writes the input, as a read or producer would, before the hash call.
+That write is measured separately and excluded from the hash sample.
+The working buffer's pages are written when it is made, so operating
+systems that share untouched zero pages give it real physical memory.
+Each thread keeps one work buffer and one producer buffer across samples.
+The gap and producer replace the preceding cell's accidental cache state
+with a specified workload. `--trace-clocks` records the producer's wall
+time and counts on rows labelled `preparation solo and shared`; the
+hashing rows describe the call alone. What a program gets that hashes now and then between other
 work: a pool's workers have fallen asleep, and the caller's core is busy.
 A sleep in the gap, used until September 28, 2026, left the core at full clock, at its lowest, or at a step
 between, independently for each call and for every contender alike: on
@@ -558,3 +569,31 @@ repository's own commit and whether its tree was clean. The report, the
 samples file, and the graph's "About this run" section carry them, so a result
 names the exact code it measured. `Cargo.lock` is checked in, so every
 build of one commit measures the same code.
+
+
+## Choosing a call and reading its speed
+
+`bench-hashes.guide.html` asks how the program receives data, recommends
+one servil call, and selects that call's measured workload in an embedded
+copy of this run's graph. Each question has an uncertain-answer default:
+one thread, one buffer, keeps up, lent buffer, measured time. The energy
+choice explains that energy measurements are being developed.
+
+Synchronous recommendations show latency: elapsed nanoseconds per whole
+message or batch, averaged over the calls in each sample. For continuous
+synchronous calls this includes the producer's copied read; for after-gap
+calls the preparation is separate (pieces still include their per-piece
+reads). The queue recommendations show throughput: bytes or messages
+per second over the producer and the queue together, including the final
+drain. Throughput intervals support a rate comparison; individual
+queue-input latencies require their own experiment.
+
+Latency is derived from the same statistics as the normalized plot,
+multiplied by that point's bytes or message count in fixed point before
+display rounding. Each speed keeps its own median and share. The full
+SVG and text report retain normalized time per byte or per batch message
+for comparisons across sizes; the guide presents what the selected
+call's caller waits for. Queue::messages plots cover up to 64 KiB;
+Queue::pieces plots cover longer messages in 64 KiB pieces. A run that
+omits the selected call or its sizes says the recommendation is
+unmeasured. The guide carries its graph and scripts in one offline file.

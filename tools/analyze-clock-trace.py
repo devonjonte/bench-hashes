@@ -95,6 +95,10 @@ def main():
     after_idle = 0
     with open(path) as handle:
         for row in csv.DictReader(handle):
+            # Preparation has its own rows and clocks; keep it apart from
+            # the hashing intervals this analysis describes.
+            if row.get("scenario", "").startswith("preparation"):
+                continue
             # After-idle bursts (traces from September 27, 2026) are not rounds.
             if row.get("scenario") == "after idle":
                 after_idle += 1

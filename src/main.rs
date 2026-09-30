@@ -77,6 +77,9 @@ const LONG_HASH_NS: u128 = 4_000_000;
  * workers polling (the fork's, 200 us), so each call meets them asleep.
  */
 const GAP_NS: u64 = 1_000_000;
+/// Fixed working set per measuring thread, larger than the target Mac's
+/// caches. A complete sweep is required even when it outlasts GAP_NS.
+const GAP_WORK_BYTES: usize = 128 * 1024 * 1024;
 /*
  * How much call time a synchronous cell's sample sums: one call when it
  * lasts this long or more, else as many calls as fill it, each after its
@@ -535,7 +538,7 @@ impl UseCase {
     /// the tables' names.
     fn pattern(self) -> &'static str {
         if self.after_gap() {
-            "each call comes after 1 ms of the program's other work, as a program that hashes now and then calls"
+            "each call comes after at least 1 ms of the program's other work, as a program that hashes now and then calls"
         } else {
             "the program hashes one input after another, as fast as it can"
         }
@@ -1158,10 +1161,11 @@ impl Roster {
     /// start to the run's limit for it (a quick run's shorter axes count):
     /// the graph needs axes without holes.
     fn whole_axes(&self) -> bool {
-        UseCase::ALL.iter().all(|&use_case| {
-            let measured: Vec<usize> = use_case.points().filter(|&index| self.measures(index)).collect();
-            measured.is_empty() || measured == (use_case.points().start..measured.last().unwrap() + 1).collect::<Vec<_>>()
-        })
+        self.algorithms.iter().all(|algorithm| self.points.iter().any(|&index| algorithm.takes_part(POINTS[index].use_case)))
+            && UseCase::ALL.iter().all(|&use_case| {
+                let measured: Vec<usize> = use_case.points().filter(|&index| self.measures(index)).collect();
+                measured.is_empty() || (measured.len() >= 2 && measured == (use_case.points().start..measured.last().unwrap() + 1).collect::<Vec<_>>())
+            })
     }
 
     /// Whether this run measures POINTS[point_index].
@@ -1473,6 +1477,11 @@ fn main() {
         fs::write(&svg_path, svg).unwrap_or_else(|error| {
             panic!("failed to write {}: {error}", svg_path.display())
         });
+        let guide_path = directory.join(format!("{stem}.guide.html"));
+        fs::write(&guide_path, generate_guide(&roster, svg)).unwrap_or_else(|error| {
+            panic!("failed to write {}: {error}", guide_path.display())
+        });
+        println!("# API guide (HTML) is in \"{}\" .", guide_path.display());
     }
 
     println!(
@@ -1481,7 +1490,7 @@ fn main() {
     );
     match svg {
         Some(_) => println!("# Graph results (SVG) are in \"{}\" .", svg_path.display()),
-        None => println!("# No graph: --points measured part of an axis."),
+        None => println!("# No graph: plots need at least two consecutive points from each axis’s start and a measured cell for every selected contender."),
     }
     println!("# Samples (TSV) are in \"{}\" .", samples_path.display());
 }
@@ -1596,8 +1605,8 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                      */
                     batch_iterations[algorithm_index][point_index] = if point.use_case.after_gap() {
                         let input = &inputs[point_index];
-                        let after_gap = clocks::measure_after_gaps(CALIBRATION_GAPS, GAP_NS, || run_batch(algorithm, input, *point, 1));
-                        let per_call_ns = u128::from(after_gap.wall_ns) / u128::from(CALIBRATION_GAPS);
+                        let after_gap = take_sample(algorithm, input, *point, CALIBRATION_GAPS as usize);
+                        let per_call_ns = u128::from(after_gap.elapsed_ns) / u128::from(CALIBRATION_GAPS);
                         GAP_SAMPLE_NS.div_ceil(per_call_ns.max(per_iteration_ns).max(1)) as usize
                     } else {
                         iterations
@@ -1659,7 +1668,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                         batch_iterations[algorithm_index][size_index];
 
                     /* The solo sample: this thread runs the batch, alone. */
-                    let DuoCopy { elapsed_ns, counts } = take_sample(algorithm, input, point, iterations);
+                    let DuoCopy { elapsed_ns, counts, preparation } = take_sample(algorithm, input, point, iterations);
 
                     /*
                      * The shared sample, under the same conditions: two copies
@@ -1695,6 +1704,17 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                             copies[1].elapsed_ns,
                             counts_csv(copies[1].counts),
                         ) + ",solo and shared");
+                        if let Some(preparation) = preparation {
+                            let shared = copies.map(|copy| copy.preparation.expect("shared copies prepare the same use case"));
+                            trace.lines.push(format!(
+                                "{round},{},{},{},{iterations},{},{},{:?},{},{},{},{},{}",
+                                point_offset * algorithm_order.len() + position, algorithm.key(), input.len(),
+                                preparation.wall_ns, counts_csv(preparation.counts), point.use_case,
+                                shared.iter().map(|batch| batch.wall_ns).max().unwrap(),
+                                shared[0].wall_ns, counts_csv(shared[0].counts),
+                                shared[1].wall_ns, counts_csv(shared[1].counts),
+                            ) + ",preparation solo and shared");
+                        }
                     }
                 }
             }
@@ -1879,15 +1899,30 @@ fn run_batch(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize
  */
 fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize) -> DuoCopy {
     if point.use_case.after_gap() {
-        let batch = clocks::measure_after_gaps(iterations as u64, GAP_NS, || run_batch(algorithm, input, point, 1));
-        return DuoCopy { elapsed_ns: batch.wall_ns, counts: batch.counts };
+        return GAP_BUFFERS.with(|kept| {
+            let mut buffers = kept.borrow_mut();
+            let (work, produced) = &mut *buffers;
+            produced.resize(input.len(), 0);
+            let measured = clocks::measure_after_gaps_prepared(iterations as u64, GAP_NS, work,
+                produced.as_mut_slice(),
+                |produced| produced.copy_from_slice(black_box(input)),
+                |produced| run_batch(algorithm, black_box(produced), point, 1));
+            DuoCopy { elapsed_ns: measured.calls.wall_ns, counts: measured.calls.counts, preparation: Some(measured.preparation) }
+        });
     }
     let counts0 = clocks::Counts::read();
     let started = clocks::now();
     run_batch(algorithm, input, point, iterations);
     let elapsed_ns = clocks::since_ns(started);
     let counts = counts0.zip(clocks::Counts::read()).map(|(before, after)| after.since(before));
-    DuoCopy { elapsed_ns, counts }
+    DuoCopy { elapsed_ns, counts, preparation: None }
+}
+
+thread_local! {
+    /// Written counter bytes give the working set physical pages, including
+    /// on systems that share untouched zero pages. Keep one work buffer and
+    /// one producer buffer per measuring thread, outside timed intervals.
+    static GAP_BUFFERS: std::cell::RefCell<(Vec<u8>, Vec<u8>)> = std::cell::RefCell::new((make_input(GAP_WORK_BYTES), Vec::new()));
 }
 
 /*
@@ -2549,8 +2584,7 @@ fn each_message<D: AsRef<[u8]>>(
 
 /*
  * The duo measurement: two independent copies of a contender run at once,
- * each on its own thread over its own input, and the sample is the time
- * from a shared release to the later finish. A hash that takes the whole
+ * each on its own thread over its own input, and each sample is one copy's own elapsed time. A hash that takes the whole
  * machine to go faster alone runs beside a copy of itself here and shows
  * what that costs; a hash that leaves room finishes at its solo speed.
  * Every run measures duo; with --solo every sample interval takes a solo
@@ -2564,8 +2598,9 @@ fn each_message<D: AsRef<[u8]>>(
  * and each starts its sample as its own first act (take_sample): for a
  * continuous use case it reads the sample clock, and the later finish is
  * the later of the two finish times, each measured from that copy's own
- * start; for a synchronous one it sleeps the gap and times each call
- * alone, so the two copies' calls after the gap start together. A release through a barrier or condition variable would
+ * start; for a synchronous one it walks its own work buffer, prepares the input,
+ * and times each call alone. Both gaps begin at the shared release; each
+ * call follows its own preparation. A release through a barrier or condition variable would
  * instead need the operating system to wake a sleeping thread, which on a
  * busy machine can take hundreds of microseconds (a two-CPU virtual
  * machine measured 300 µs when the caller's own thread had just finished
@@ -2604,6 +2639,7 @@ struct Duo {
 struct DuoCopy {
     elapsed_ns: u64,
     counts: Option<clocks::Counts>,
+    preparation: Option<clocks::Batch>,
 }
 
 #[derive(Clone, Copy)]
@@ -4597,6 +4633,15 @@ impl Plot {
     }
 }
 
+/// A self-contained decision guide with this run's graph embedded. Escape
+/// '<' in script data so graph text cannot close the outer HTML script.
+fn generate_guide(roster: &Roster, svg: &str) -> String {
+    let keys = roster.algorithms.iter().map(|algorithm| json_string(algorithm.key())).collect::<Vec<_>>().join(",");
+    include_str!("guide.html")
+        .replace("@CONTENDERS@", &format!("[{keys}]"))
+        .replace("@GRAPH@", &json_string(svg).replace('<', "\\u003c"))
+}
+
 fn generate_svg(
     roster: &Roster,
     results: &Results,
@@ -4964,7 +5009,7 @@ fn generate_svg(
         "The strip at the top narrows every plot to part of its inputs: drag an end of its band, or use the arrows at its ends.".to_owned(),
     ];
     if plots.iter().any(|plot| plot.use_case.after_gap()) {
-        howto.push("A message hashed now and then is timed after its program has done 1 ms of other work, which lets a hash's helper threads fall asleep.".to_owned());
+        howto.push("A message hashed now and then is timed after its program has done at least 1 ms of memory-working activity, then written the input; this lets a hash's helper threads fall asleep.".to_owned());
     }
     if plots.iter().any(|plot| matches!(plot.use_case, UseCase::Streaming | UseCase::LentPieces)) {
         howto.push("In the plots of messages arriving in pieces, each piece is first read into memory (timed; a memory copy, the cheapest read).".to_owned());
@@ -5819,7 +5864,20 @@ fn format_bytes(bytes: usize) -> String {
 }
 
 fn json_string(text: &str) -> String {
-    format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
+    let mut quoted = String::from("\"");
+    for c in text.chars() {
+        match c {
+            '\\' => quoted.push_str("\\\\"),
+            '\"' => quoted.push_str("\\\""),
+            '\n' => quoted.push_str("\\n"),
+            '\r' => quoted.push_str("\\r"),
+            '\t' => quoted.push_str("\\t"),
+            c if c < ' ' || matches!(c, '\u{2028}' | '\u{2029}') => write!(quoted, "\\u{:04x}", c as u32).unwrap(),
+            c => quoted.push(c),
+        }
+    }
+    quoted.push('\"');
+    quoted
 }
 
 /*
@@ -6192,7 +6250,33 @@ fn write_interaction_script(
                 if k > 0 { data.push(','); }
                 data.push_str(if cell_at(k).get(plot.scenario).two_speeds.is_some() { "1" } else { "0" });
             }
-            data.push_str("]}");
+            data.push(']');
+            // Per-call presentation is derived in fixed point from the same
+            // statistics, before their display rounding. Queue samples are
+            // throughput intervals; they measure delivery of many inputs.
+            if !matches!(plot.use_case, UseCase::ContinuousMessages | UseCase::ContinuousBatches) {
+                data.push_str(",\"latency\":{");
+                let fields: [(&str, fn(Statistics) -> Fixed); 8] = [
+                    ("min", |t| t.minimum), ("max", |t| t.maximum),
+                    ("med", |t| t.speeds()[0].median), ("low", |t| t.speeds()[0].low), ("high", |t| t.speeds()[0].high),
+                    ("med2", |t| { let s = t.speeds(); s[s.len() - 1].median }),
+                    ("low2", |t| { let s = t.speeds(); s[s.len() - 1].low }),
+                    ("high2", |t| { let s = t.speeds(); s[s.len() - 1].high }),
+                ];
+                for (j, (key, pick)) in fields.into_iter().enumerate() {
+                    if j > 0 { data.push(','); }
+                    write!(data, "\"{key}\":[").unwrap();
+                    for k in 0..plot.len() {
+                        if k > 0 { data.push(','); }
+                        let point = POINTS[plot.points.start + k];
+                        let units = point.use_case.units(point, 1);
+                        data.push_str(&(pick(cell_at(k).get(plot.scenario)) * units).format_ns());
+                    }
+                    data.push(']');
+                }
+                data.push('}');
+            }
+            data.push('}');
         }
         data.push_str("]}");
     }
@@ -7441,6 +7525,26 @@ mod correctness_tests {
             .map(|&(ns, bytes)| format_rate_value(Measured::new(ns, bytes).per_unit(), UseCase::OneMessage))
             .collect();
         assert_eq!(values, ["10", "10", "1.0", "0.21", "0.013", "0.046", "0.0010"]);
+    }
+
+    #[test]
+    fn sparse_regression_runs_write_samples_without_a_graph() {
+        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt, Algorithm::Sha256],
+            true, Some(vec![point("64 B", UseCase::ContinuousMessages)]), Some(24));
+        assert!(!roster.whole_axes());
+        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt, Algorithm::Sha256],
+            true, Some(vec![point("64 B", UseCase::ContinuousMessages), point("256 B", UseCase::ContinuousMessages)]), Some(24));
+        assert!(!roster.whole_axes(), "one selected contender has no cells here");
+    }
+
+    #[test]
+    fn graph_strings_escape_controls_and_guide_keeps_script_data_inside() {
+        assert_eq!(json_string("a\n\r\t\0\"\\"), "\"a\\n\\r\\t\\u0000\\\"\\\\\"");
+        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], true, None, Some(24));
+        let guide = generate_guide(&roster, "</script>\n<svg>");
+        assert!(guide.contains("\\u003c/script>\\n\\u003csvg>"));
+        assert_eq!(guide.matches("</script>").count(), 1, "only the template closes the outer script");
+        assert!(!guide.contains("@GRAPH@") && !guide.contains("@CONTENDERS@"));
     }
 
     #[test]
