@@ -284,7 +284,7 @@ function drawSpeed() {
 function escapeXml(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
 function methodText(plot) {
-  const where = `on ${DATA.machine}, ${DATA.date}`, sc = scenario === "solo" ? "one program hashing on an otherwise idle computer" : "two programs hashing at once; the time of either";
+  const where = `on ${DATA.machine}, ${DATA.date}`, sc = scenario === "solo" ? "one program hashing" : "two programs hashing at once; the time of either";
   const use = plot.use;
   if (use === "ContinuousMessages" || use === "ContinuousBatches")
     return `Measured ${where}, ${sc}. The program read each input into one of its own buffers (a memory copy, the cheapest read) and handed it to the queue, keeping about 1 MiB or 1024 buffers in flight; the time runs from the first read to the last digest, so reading and hashing overlap. SHA-256 ran the same producer with a plain call per input.`;
@@ -292,7 +292,7 @@ function methodText(plot) {
     return `Measured ${where}, ${sc}. The program read each input into a buffer (a memory copy) and called the function, one input after another with nothing between; the read is inside the time. Every contender ran the same loop.`;
   if (use.startsWith("Idle"))
     return `Measured ${where}, ${sc}. The program called the function, slept a millisecond, as a server waits for its next request, wrote the next input, and called again; the function found helper threads asleep and a core that may have slowed or powered down. The second call alone is timed${use === "IdleStreaming" ? ", with each piece's read" : ""}.`;
-  return `Measured ${where}, ${sc}. The program called the function, then ran a fixed other program (about 1 MiB of code) and read 128 MiB of data, at least a millisecond in all, wrote the next input, and called again: the function found its code and data out of the caches and its helper threads asleep, as in a program that hashes between other tasks, or on a busy machine. The second call alone is timed${use === "Streaming" ? ", with each piece's read" : ""}.`;
+  return `Measured ${where}, ${sc}. The program called the function, then ran a fixed other program (about 1 MiB of code) and read 128 MiB of data, at least a millisecond in all, wrote the next input, and called again: the function found its code and data out of the caches and its helper threads asleep, as in a program that hashes between its other tasks. The second call alone is timed${use === "Streaming" ? ", with each piece's read" : ""}.`;
 }
 
 el("back").onclick = () => { const last = history.pop(); delete answers[last.key]; show(); };

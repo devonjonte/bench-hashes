@@ -44,7 +44,7 @@ The graph shows eleven tasks. Three hash now and then: a message in one
 buffer, a batch of 64-byte messages (a Merkle tree's nodes), and a
 message arriving in 64 KiB pieces. Each is measured twice. *After other
 work*: before each call the program runs other code and reads a lot of
-memory, as a program does between other tasks or on a busy machine, so
+memory, as a program does between its other tasks, so
 the hash finds its own code and data out of the caches. *After idling*:
 before each call the program sleeps a millisecond, as a server waits for
 its next request, so the hash may find a slowed or sleeping core. In

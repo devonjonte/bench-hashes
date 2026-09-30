@@ -660,11 +660,11 @@ impl UseCase {
     /// the tables' names.
     fn pattern(self) -> &'static str {
         if self.idle() {
-            "each timed call follows the same call and 1 ms of sleep, as a server handles a request, waits, and handles the next"
+            "the program hashes, sleeps 1 ms, and hashes again, as a server handles a request, waits, and handles the next; the second call is timed"
         } else if self.after_gap() {
-            "each timed call follows the same call and then other work (a fixed other program and a read of 128 MiB, at least 1 ms), as a program hashes between other tasks, or on a machine busy with other programs"
+            "the program hashes, runs other code and reads 128 MiB of memory (at least 1 ms), and hashes again, as a program hashes between its other tasks; the second call is timed"
         } else {
-            "the program hashes one input after another, as fast as it can; these alone are also measured with two programs at once"
+            "the program hashes one input after another, as fast as it can, alone and with a second program doing the same at once"
         }
     }
 
@@ -1236,7 +1236,7 @@ impl Scenario {
     /// The scenario in a plot's subtitle.
     fn subtitle(self) -> &'static str {
         match self {
-            Self::Solo => "one program hashing, no other program running at the same time",
+            Self::Solo => "one program hashing",
             Self::Shared => "two programs hashing at once; the time of either",
         }
     }
@@ -1244,7 +1244,7 @@ impl Scenario {
     /// What a reader of the results needs to know about the scenario.
     fn description(self) -> &'static str {
         match self {
-            Self::Solo => "one copy of each contender on one thread, no other program running at the same time",
+            Self::Solo => "one copy of each contender, on one thread",
             Self::Shared => "two copies of the contender at once, each hashing its own input on its own thread, inputs one after another; the time of each copy",
         }
     }
@@ -5202,7 +5202,7 @@ fn generate_svg(
         "The strip at the top narrows every plot to part of its inputs: drag an end of its band, or use the arrows at its ends.".to_owned(),
     ];
     if plots.iter().any(|plot| plot.use_case.after_gap() && !plot.use_case.idle()) {
-        howto.push("After other work: the program calls the hash, runs a fixed other program (about 1 MiB of code) and reads 128 MiB of data, at least 1 ms in all, writes the input, and calls again; the second call is timed. So a program works that hashes between other tasks, or one on a busy machine.".to_owned());
+        howto.push("After other work: the program calls the hash, runs a fixed other program (about 1 MiB of code) and reads 128 MiB of data, at least 1 ms in all, writes the input, and calls again; the second call is timed. So a program works that hashes between its other tasks.".to_owned());
     }
     if plots.iter().any(|plot| plot.use_case.idle()) {
         howto.push("After idling: the program calls the hash, sleeps 1 ms, writes the input, and calls again; the second call is timed. So a server works that waits for its next request.".to_owned());
@@ -5388,10 +5388,22 @@ fn write_plot(svg: &mut String, plot: &Plot, roster: &Roster, results: &Results,
     let top = plot.top;
     let bottom = plot.bottom;
 
+    /*
+     * A plot after a gap has one scenario (one program), so its subtitle
+     * says what the program did between calls; a nonstop plot's names its
+     * scenario.
+     */
+    let lead = if plot.use_case.idle() {
+        "the program hashes, sleeps 1 ms, and hashes again; the time of the second call"
+    } else if plot.use_case.after_gap() {
+        "the program hashes, runs other code and reads 128 MiB of memory, and hashes again; the time of the second call"
+    } else {
+        plot.scenario.subtitle()
+    };
     let heading_note = match plot.use_case {
-        UseCase::OneMessage | UseCase::IdleOneMessage => plot.scenario.subtitle().to_owned(),
-        UseCase::ManyMessages | UseCase::IdleManyMessages => format!("{} · each hash takes the whole batch where it can, else one message at a time", plot.scenario.subtitle()),
-        UseCase::Streaming | UseCase::IdleStreaming => format!("{} · as a program reading a file receives it", plot.scenario.subtitle()),
+        UseCase::OneMessage | UseCase::IdleOneMessage => lead.to_owned(),
+        UseCase::ManyMessages | UseCase::IdleManyMessages => format!("{lead} · each hash takes the whole batch where it can, else one message at a time"),
+        UseCase::Streaming | UseCase::IdleStreaming => format!("{lead} · as a program reading a file receives it"),
         UseCase::ContinuousMessages => format!("{} · as a program reading many files receives them", plot.scenario.subtitle()),
         UseCase::ContinuousBatches => format!("{} · producing and hashing can overlap", plot.scenario.subtitle()),
         UseCase::LentMessages | UseCase::LentPieces | UseCase::LentBatches => format!("{} · producing and hashing take turns", plot.scenario.subtitle()),
@@ -5400,7 +5412,7 @@ fn write_plot(svg: &mut String, plot: &Plot, roster: &Roster, results: &Results,
         svg,
         r##"  <text x="{PLOT_LEFT:.0}" y="{:.1}" class="plot-title">{}</text>"##,
         top - 26.0,
-        xml_escape(&format!("{} · {}", plot.scenario.heading(), plot.use_case.heading())),
+        xml_escape(&if plot.use_case.after_gap() { plot.use_case.heading().to_owned() } else { format!("{} · {}", plot.scenario.heading(), plot.use_case.heading()) }),
     )
     .unwrap();
     writeln!(
