@@ -100,7 +100,7 @@ const STREAM_COUNT: usize = INPUT_COUNT;
 /// Points on the continuous axes: message lengths, and messages per batch.
 const CONTINUOUS_MESSAGE_COUNT: usize = 11;
 const CONTINUOUS_BATCH_COUNT: usize = 7;
-const POINT_COUNT: usize = INPUT_COUNT + BATCH_COUNT + STREAM_COUNT + CONTINUOUS_MESSAGE_COUNT + CONTINUOUS_BATCH_COUNT;
+const POINT_COUNT: usize = INPUT_COUNT + BATCH_COUNT + STREAM_COUNT + 3 * CONTINUOUS_MESSAGE_COUNT + 2 * CONTINUOUS_BATCH_COUNT;
 /// The streaming use case feeds its input to each contender's incremental
 /// API in pieces of this many bytes (a typical read buffer), the last one
 /// shorter.
@@ -269,6 +269,35 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::continuous_batch("4096", 4096),
     Point::continuous_batch("16384", 16384),
     Point::continuous_batch("65536", 65536),
+    Point::lent("64 B", 64),
+    Point::lent("256 B", 256),
+    Point::lent("1 KiB", 1024),
+    Point::lent("4 KiB", 4 * 1024),
+    Point::lent("16 KiB", 16 * 1024),
+    Point::lent("64 KiB", 64 * 1024),
+    Point::lent("256 KiB", 256 * 1024),
+    Point::lent("1 MiB", 1024 * 1024),
+    Point::lent("4 MiB", 4 * 1024 * 1024),
+    Point::lent("16 MiB", 16 * 1024 * 1024),
+    Point::lent("64 MiB", 64 * 1024 * 1024),
+    Point::lent_pieces("64 B", 64),
+    Point::lent_pieces("256 B", 256),
+    Point::lent_pieces("1 KiB", 1024),
+    Point::lent_pieces("4 KiB", 4 * 1024),
+    Point::lent_pieces("16 KiB", 16 * 1024),
+    Point::lent_pieces("64 KiB", 64 * 1024),
+    Point::lent_pieces("256 KiB", 256 * 1024),
+    Point::lent_pieces("1 MiB", 1024 * 1024),
+    Point::lent_pieces("4 MiB", 4 * 1024 * 1024),
+    Point::lent_pieces("16 MiB", 16 * 1024 * 1024),
+    Point::lent_pieces("64 MiB", 64 * 1024 * 1024),
+    Point::lent_batch("16", 16),
+    Point::lent_batch("64", 64),
+    Point::lent_batch("256", 256),
+    Point::lent_batch("1024", 1024),
+    Point::lent_batch("4096", 4096),
+    Point::lent_batch("16384", 16384),
+    Point::lent_batch("65536", 65536),
 ];
 
 /// results[contender_index][point_index], contenders in the roster's
@@ -384,11 +413,16 @@ enum UseCase {
     /// Batches of the point's count of 64-byte messages, one after
     /// another, each read into a buffer, then hashed.
     ContinuousBatches,
+    /// Continuous synchronous calls: the producer lends each buffer until
+    /// the call returns, so producing and hashing take turns.
+    LentMessages,
+    LentPieces,
+    LentBatches,
 }
 
 impl UseCase {
-    const ALL: [UseCase; 5] =
-        [UseCase::OneMessage, UseCase::ManyMessages, UseCase::Streaming, UseCase::ContinuousMessages, UseCase::ContinuousBatches];
+    const ALL: [UseCase; 8] =
+        [UseCase::OneMessage, UseCase::ManyMessages, UseCase::Streaming, UseCase::ContinuousMessages, UseCase::ContinuousBatches, UseCase::LentMessages, UseCase::LentPieces, UseCase::LentBatches];
 
     /// Whether each call comes after the gap (the synchronous use cases),
     /// or one follows another (the continuous ones).
@@ -398,14 +432,14 @@ impl UseCase {
 
     /// Whether a call hashes a batch of messages.
     fn batch(self) -> bool {
-        matches!(self, Self::ManyMessages | Self::ContinuousBatches)
+        matches!(self, Self::ManyMessages | Self::ContinuousBatches | Self::LentBatches)
     }
 
     /// Each message's length in a batch use case.
     fn message_len(self) -> usize {
         match self {
-            Self::ManyMessages | Self::ContinuousBatches => MESSAGE_LEN,
-            Self::OneMessage | Self::Streaming | Self::ContinuousMessages => panic!("{self:?} hashes one message of the point's size"),
+            Self::ManyMessages | Self::ContinuousBatches | Self::LentBatches => MESSAGE_LEN,
+            Self::OneMessage | Self::Streaming | Self::ContinuousMessages | Self::LentMessages | Self::LentPieces => panic!("{self:?} hashes one message of the point's size"),
         }
     }
 
@@ -420,8 +454,8 @@ impl UseCase {
     /// What the x axis counts.
     fn x_axis(self) -> &'static str {
         match self {
-            Self::OneMessage | Self::Streaming => "Message length (logarithmic spacing)",
-            Self::ManyMessages | Self::ContinuousBatches => "Messages per batch, 64 B each (logarithmic spacing)",
+            Self::OneMessage | Self::Streaming | Self::LentMessages | Self::LentPieces => "Message length (logarithmic spacing)",
+            Self::ManyMessages | Self::ContinuousBatches | Self::LentBatches => "Messages per batch, 64 B each (logarithmic spacing)",
             Self::ContinuousMessages => "Length of each message (logarithmic spacing)",
         }
     }
@@ -431,8 +465,11 @@ impl UseCase {
             Self::OneMessage => "A message in one buffer",
             Self::ManyMessages => "A batch of 64-byte messages",
             Self::Streaming => "A message arriving in 64 KiB pieces",
-            Self::ContinuousMessages => "Messages one after another",
-            Self::ContinuousBatches => "Batches one after another",
+            Self::ContinuousMessages => "Messages one after another, buffers owned",
+            Self::ContinuousBatches => "Batches one after another, buffers owned",
+            Self::LentMessages => "Messages one after another, buffers lent",
+            Self::LentPieces => "Messages in pieces one after another, buffers lent",
+            Self::LentBatches => "Batches one after another, buffers lent",
         }
     }
 
@@ -442,16 +479,19 @@ impl UseCase {
             Self::OneMessage => "one buffer",
             Self::ManyMessages => "a batch",
             Self::Streaming => "pieces",
-            Self::ContinuousMessages => "messages, continuous",
-            Self::ContinuousBatches => "batches, continuous",
+            Self::ContinuousMessages => "messages, owned buffers",
+            Self::ContinuousBatches => "batches, owned buffers",
+            Self::LentMessages => "messages, lent buffers",
+            Self::LentPieces => "pieces, lent buffers",
+            Self::LentBatches => "batches, lent buffers",
         }
     }
 
     /// The x column's header in the text report.
     fn column(self) -> &'static str {
         match self {
-            Self::OneMessage | Self::Streaming | Self::ContinuousMessages => "size",
-            Self::ManyMessages | Self::ContinuousBatches => "messages",
+            Self::OneMessage | Self::Streaming | Self::ContinuousMessages | Self::LentMessages | Self::LentPieces => "size",
+            Self::ManyMessages | Self::ContinuousBatches | Self::LentBatches => "messages",
         }
     }
 
@@ -463,8 +503,8 @@ impl UseCase {
      */
     fn units(self, point: Point, iterations: usize) -> u64 {
         match self {
-            Self::OneMessage | Self::Streaming | Self::ContinuousMessages => point.bytes as u64 * iterations as u64,
-            Self::ManyMessages | Self::ContinuousBatches => point.messages as u64 * iterations as u64,
+            Self::OneMessage | Self::Streaming | Self::ContinuousMessages | Self::LentMessages | Self::LentPieces => point.bytes as u64 * iterations as u64,
+            Self::ManyMessages | Self::ContinuousBatches | Self::LentBatches => point.messages as u64 * iterations as u64,
         }
     }
 
@@ -509,6 +549,9 @@ impl UseCase {
             Self::Streaming => "streamed ",
             Self::ContinuousMessages => "continuous ",
             Self::ContinuousBatches => "continuous batch ",
+            Self::LentMessages => "lent ",
+            Self::LentPieces => "lent streamed ",
+            Self::LentBatches => "lent batch ",
         }
     }
 }
@@ -533,6 +576,9 @@ impl Point {
             UseCase::ManyMessages if self.messages == 1 => "1 message".to_owned(),
             UseCase::ManyMessages => format!("{} messages", self.label),
             UseCase::ContinuousBatches => format!("batches of {}, continuous", self.label),
+            UseCase::LentMessages => format!("{} messages, lent buffers", self.label),
+            UseCase::LentPieces => format!("{} streamed, lent buffers", self.label),
+            UseCase::LentBatches => format!("batches of {}, lent buffers", self.label),
         }
     }
 
@@ -554,6 +600,18 @@ impl Point {
 
     const fn continuous_batch(label: &'static str, messages: usize) -> Self {
         Self { label, bytes: messages * MESSAGE_LEN, messages, use_case: UseCase::ContinuousBatches }
+    }
+
+    const fn lent(label: &'static str, bytes: usize) -> Self {
+        Self { label, bytes, messages: 1, use_case: UseCase::LentMessages }
+    }
+
+    const fn lent_pieces(label: &'static str, bytes: usize) -> Self {
+        Self { label, bytes, messages: 1, use_case: UseCase::LentPieces }
+    }
+
+    const fn lent_batch(label: &'static str, messages: usize) -> Self {
+        Self { label, bytes: messages * MESSAGE_LEN, messages, use_case: UseCase::LentBatches }
     }
 
     /// Whether a quick run measures this point: inputs below QUICK_BYTES,
@@ -639,10 +697,10 @@ impl Algorithm {
     /// to a continuous load is its multithreaded queue (FROZEN.md).
     fn takes_part(self, use_case: UseCase) -> bool {
         match use_case {
-            UseCase::ManyMessages => !matches!(self, Self::Blake3Rayon),
+            UseCase::ManyMessages | UseCase::LentBatches => !matches!(self, Self::Blake3Rayon),
             UseCase::ContinuousBatches => !matches!(self, Self::Blake3Rayon | Self::Blake3ServilSt),
             UseCase::ContinuousMessages => !matches!(self, Self::Blake3ServilSt),
-            UseCase::OneMessage | UseCase::Streaming => true,
+            UseCase::OneMessage | UseCase::Streaming | UseCase::LentMessages | UseCase::LentPieces => true,
         }
     }
 
@@ -1285,7 +1343,7 @@ fn parse_arguments() -> Options {
                  * prefix first); a plain label the others.
                  */
                 let label = label.trim();
-                let (use_case, label) = [UseCase::ContinuousBatches, UseCase::ContinuousMessages, UseCase::Streaming]
+                let (use_case, label) = [UseCase::LentPieces, UseCase::LentBatches, UseCase::LentMessages, UseCase::ContinuousBatches, UseCase::ContinuousMessages, UseCase::Streaming]
                     .into_iter()
                     .find_map(|use_case| label.strip_prefix(use_case.label_prefix()).map(|rest| (Some(use_case), rest)))
                     .unwrap_or((None, label));
@@ -1859,9 +1917,10 @@ fn hash_batch(
     assert!(algorithm.takes_part(point.use_case), "{} takes no part in {:?}", algorithm.key(), point.use_case);
 
     match point.use_case {
-        UseCase::Streaming => return hash_stream(algorithm, input, iterations, consume),
+        UseCase::Streaming | UseCase::LentPieces => return hash_stream(algorithm, input, iterations, point.use_case == UseCase::LentPieces, consume),
         UseCase::ContinuousMessages => return hash_continuous_messages(algorithm, input, iterations, consume),
         UseCase::ContinuousBatches => return hash_continuous_batches(algorithm, input, point, iterations, consume),
+        UseCase::LentMessages | UseCase::LentBatches => return hash_lent(algorithm, input, point, iterations, consume),
         UseCase::OneMessage | UseCase::ManyMessages => hash_in_memory(algorithm, input, point, iterations, consume),
     }
 }
@@ -1921,7 +1980,7 @@ fn hash_in_memory(algorithm: Algorithm, input: &[u8], point: Point, iterations: 
  * contender gets each piece read into a PIECE_LEN buffer and then hashes
  * it through its incremental API, so reading and hashing take turns.
  */
-fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: impl FnMut(&[u8])) {
+fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, multithreaded_pieces: bool, consume: impl FnMut(&[u8])) {
     use sha2::Digest as _;
     use sha1_checked::digest::Update as _;
     match algorithm {
@@ -1942,7 +2001,10 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
         }, consume),
         Algorithm::Blake3ServilMt => each_stream(input, iterations, |pieces| {
             let mut hasher = blake3_servil::Hasher::new();
-            pieces(&mut |piece| { hasher.update_multithreaded(piece); });
+            pieces(&mut |piece| {
+                if multithreaded_pieces { hasher.update_multithreaded(piece); }
+                else { hasher.update(piece); }
+            });
             *hasher.finalize().as_bytes()
         }, consume),
         Algorithm::Sha256 => each_stream(input, iterations, |pieces| {
@@ -1990,7 +2052,7 @@ fn hash_continuous_messages(algorithm: Algorithm, input: &[u8], iterations: usiz
         return queue_messages(input, iterations, consume);
     }
     if input.len() > PIECE_LEN {
-        return hash_stream(algorithm, input, iterations, consume);
+        return hash_stream(algorithm, input, iterations, false, consume);
     }
     let one = Point { label: "", bytes: input.len(), messages: 1, use_case: UseCase::OneMessage };
     let mut buffers = take_buffers(1, input.len());
@@ -2022,6 +2084,21 @@ fn hash_continuous_batches(algorithm: Algorithm, input: &[u8], point: Point, ite
         buffer.clear();
         buffer.extend_from_slice(black_box(input));
         hash_in_memory(algorithm, buffer, batch, 1, &mut consume);
+    }
+    keep_buffers(1, input.len(), buffers);
+}
+
+/// The producer lends a whole message or batch for one synchronous call.
+/// Each read is timed; the kept buffer and digest space avoid allocation
+/// after calibration, just as the queue's producer does.
+fn hash_lent(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
+    let in_memory = Point { use_case: if point.use_case.batch() { UseCase::ManyMessages } else { UseCase::OneMessage }, ..point };
+    let mut buffers = take_buffers(1, input.len());
+    for _ in 0..iterations {
+        let buffer = &mut buffers[0];
+        buffer.clear();
+        buffer.extend_from_slice(black_box(input));
+        hash_in_memory(algorithm, buffer, in_memory, 1, &mut consume);
     }
     keep_buffers(1, input.len(), buffers);
 }
@@ -2335,15 +2412,21 @@ thread_local! {
  * these.
  */
 #[cfg(test)]
-const SERVIL_CALLS: [(Algorithm, UseCase, &str); 8] = [
+const SERVIL_CALLS: [(Algorithm, UseCase, &str); 14] = [
     (Algorithm::Blake3ServilSt, UseCase::OneMessage, "hash(input), each call after the gap"),
     (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "hash_many(batch, 64, out), the padded batch contract, each call after the gap"),
     (Algorithm::Blake3ServilSt, UseCase::Streaming, "Hasher::update per 64 KiB piece, then finalize, each message after the gap"),
     (Algorithm::Blake3ServilMt, UseCase::OneMessage, "hash_multithreaded(input), each call after the gap"),
     (Algorithm::Blake3ServilMt, UseCase::ManyMessages, "hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after the gap"),
-    (Algorithm::Blake3ServilMt, UseCase::Streaming, "Hasher::update_multithreaded per 64 KiB piece, then finalize, each message after the gap"),
+    (Algorithm::Blake3ServilMt, UseCase::Streaming, "Hasher::update per 64 KiB piece, then finalize, each message after the gap"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "Queue::messages(Mode::Hash, Efficiency::Time) for messages of up to 64 KiB, Queue::pieces(Mode::Hash, Efficiency::Time) in 64 KiB pieces for longer ones, one message after another, each read into free buffers of the program's, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "Queue::fixed(64, Mode::Hash, Efficiency::Time), one batch after another, each read into a free buffer of the program's, submitted with its digests' space, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept"),
+    (Algorithm::Blake3ServilSt, UseCase::LentMessages, "hash(input), one message after another, each read into a kept buffer and lent until the call returns"),
+    (Algorithm::Blake3ServilSt, UseCase::LentPieces, "Hasher::update per 64 KiB piece, then finalize, messages one after another, each piece read into a kept buffer and lent until the update returns"),
+    (Algorithm::Blake3ServilSt, UseCase::LentBatches, "hash_many(batch, 64, out), the padded batch contract, batches one after another, each read into a kept buffer and lent with kept digests until the call returns"),
+    (Algorithm::Blake3ServilMt, UseCase::LentMessages, "hash_multithreaded(input), one message after another, each read into a kept buffer and lent until the call returns"),
+    (Algorithm::Blake3ServilMt, UseCase::LentPieces, "Hasher::update_multithreaded per 64 KiB piece, then finalize, messages one after another, each piece read into a kept buffer and lent until the update returns"),
+    (Algorithm::Blake3ServilMt, UseCase::LentBatches, "hash_many_multithreaded(batch, 64, out), the padded batch contract, batches one after another, each read into a kept buffer and lent with kept digests until the call returns"),
 ];
 
 /// The frozen contract as text, from the code's own tables: FROZEN.md's
@@ -3073,7 +3156,7 @@ fn continuous_min_inputs(input: &[u8], point: Point) -> usize {
             2 * in_flight(input.len().min(PIECE_LEN)).div_ceil(pieces)
         }
         UseCase::ContinuousBatches => 2 * in_flight(input.len()),
-        UseCase::OneMessage | UseCase::ManyMessages | UseCase::Streaming => 1,
+        UseCase::OneMessage | UseCase::ManyMessages | UseCase::Streaming | UseCase::LentMessages | UseCase::LentPieces | UseCase::LentBatches => 1,
     }
 }
 
@@ -3487,12 +3570,13 @@ fn detect_kernels(algorithm: Algorithm, use_case: UseCase) -> Kernels {
         Algorithm::Blake3ServilMt => servil_kernels(blake3_servil::kernel_report_multithreaded()),
     };
     match use_case {
-        UseCase::OneMessage => one_message,
+        UseCase::OneMessage | UseCase::LentMessages => one_message,
         /* A stream runs the one-message kernels piece by piece, so those that start past PIECE_LEN never run. */
-        UseCase::Streaming => one_message.up_to(PIECE_LEN),
+        UseCase::Streaming if algorithm == Algorithm::Blake3ServilMt => servil_kernels(blake3_servil::kernel_report()).up_to(PIECE_LEN),
+        UseCase::Streaming | UseCase::LentPieces => one_message.up_to(PIECE_LEN),
         /* A message of up to PIECE_LEN is one call's input; a longer one arrives in pieces. */
         UseCase::ContinuousMessages => one_message.up_to(PIECE_LEN),
-        UseCase::ContinuousBatches => detect_kernels(algorithm, UseCase::ManyMessages),
+        UseCase::ContinuousBatches | UseCase::LentBatches => detect_kernels(algorithm, UseCase::ManyMessages),
         UseCase::ManyMessages if algorithm == Algorithm::Blake3 => {
             detect_blake3_many_kernels(use_case.message_len())
         }
@@ -3934,6 +4018,7 @@ fn checks(roster: &Roster, results: &Results, samples: &RunSamples) -> (Vec<Stri
                     ([first, .., last], UseCase::Streaming) => format!("{} to {} streamed", POINTS[*first].label, POINTS[*last].label),
                     ([first, .., last], UseCase::ContinuousMessages) => format!("{} to {} messages, continuous", POINTS[*first].label, POINTS[*last].label),
                     ([first, .., last], UseCase::ContinuousBatches) => format!("batches of {} to {}, continuous", POINTS[*first].label, POINTS[*last].label),
+                    ([first, .., last], UseCase::LentMessages | UseCase::LentPieces | UseCase::LentBatches) => format!("{} to {} ({})", POINTS[*first].label, POINTS[*last].label, use_case.short()),
                     ([], _) => unreachable!("a run holds a point"),
                 };
                 /* The runs of consecutive points where `flag` holds. */
@@ -4288,7 +4373,7 @@ const PLOT_LEFT: f64 = 110.0;
 const PLOT_RIGHT: f64 = 1000.0;
 /// The first plot's top, below the title, two method lines, and its own
 /// heading; each further plot sits PLOT_PITCH lower.
-const PLOT_TOP: f64 = 172.0;
+const PLOT_TOP: f64 = 220.0;
 const PLOT_HEIGHT: f64 = 340.0;
 /// Room under a plot for its x labels, axis title, and shape legend, and
 /// above the next for its heading.
@@ -4830,8 +4915,11 @@ fn generate_svg(
                         UseCase::OneMessage => ("One buffer", "Show or hide the plots of a message in one buffer, hashed now and then"),
                         UseCase::ManyMessages => ("A batch", "Show or hide the plots of a batch of 64-byte messages, hashed now and then"),
                         UseCase::Streaming => ("Pieces", "Show or hide the plots of a message arriving in 64 KiB pieces, hashed now and then"),
-                        UseCase::ContinuousMessages => ("Messages, nonstop", "Show or hide the plots of messages hashed one after another"),
-                        UseCase::ContinuousBatches => ("Batches, nonstop", "Show or hide the plots of batches hashed one after another"),
+                        UseCase::ContinuousMessages => ("Messages, owned", "Show or hide nonstop messages in buffers the producer owns"),
+                        UseCase::ContinuousBatches => ("Batches, owned", "Show or hide nonstop batches in buffers the producer owns"),
+                        UseCase::LentMessages => ("Messages, lent", "Show or hide nonstop synchronous calls on lent message buffers"),
+                        UseCase::LentPieces => ("Pieces, lent", "Show or hide nonstop synchronous calls on lent 64 KiB pieces"),
+                        UseCase::LentBatches => ("Batches, lent", "Show or hide nonstop synchronous calls on lent batch buffers"),
                     };
                     v.push((format!("{use_case:?}"), label, tip.to_owned()));
                 }
@@ -4878,10 +4966,11 @@ fn generate_svg(
     if plots.iter().any(|plot| plot.use_case.after_gap()) {
         howto.push("A message hashed now and then is timed after its program has done 1 ms of other work, which lets a hash's helper threads fall asleep.".to_owned());
     }
-    if plots.iter().any(|plot| plot.use_case == UseCase::Streaming) {
-        howto.push("In the plots of a message arriving in pieces, each piece is first read into memory (timed; a memory copy, the cheapest read).".to_owned());
+    if plots.iter().any(|plot| matches!(plot.use_case, UseCase::Streaming | UseCase::LentPieces)) {
+        howto.push("In the plots of messages arriving in pieces, each piece is first read into memory (timed; a memory copy, the cheapest read).".to_owned());
     }
     if plots.iter().any(|plot| !plot.use_case.after_gap()) {
+        howto.push("Owned buffers can pass to a queue while the producer fills the next. Lent buffers return when each synchronous call finishes; producing and hashing take turns.".to_owned());
         howto.push("In the continuous plots, each message or batch is first read into memory (timed, as above); a hash that takes the program's buffers hashes one while the next is read.".to_owned());
     }
     if two_speeds {
@@ -5063,7 +5152,8 @@ fn write_plot(svg: &mut String, plot: &Plot, roster: &Roster, results: &Results,
         UseCase::ManyMessages => format!("{} · each now and then; each hash takes the whole batch where it can, else one message at a time", plot.scenario.subtitle()),
         UseCase::Streaming => format!("{} · each now and then, as a program reading a file receives it", plot.scenario.subtitle()),
         UseCase::ContinuousMessages => format!("{} · as a program reading many files receives them", plot.scenario.subtitle()),
-        UseCase::ContinuousBatches => format!("{} · as a program building a Merkle tree's layers from a stream receives them", plot.scenario.subtitle()),
+        UseCase::ContinuousBatches => format!("{} · producing and hashing can overlap", plot.scenario.subtitle()),
+        UseCase::LentMessages | UseCase::LentPieces | UseCase::LentBatches => format!("{} · producing and hashing take turns", plot.scenario.subtitle()),
     };
     writeln!(
         svg,
@@ -5527,7 +5617,7 @@ const BETTER_ARROW_X: f64 = Y_TITLE_X + 7.0;
 fn absent_reason(algorithm: Algorithm, use_case: UseCase) -> String {
     let how = match (algorithm, use_case) {
         (Algorithm::Blake3ServilSt, _) => "for messages one after another, BLAKE3 servil offers its multithreaded queue",
-        (_, UseCase::ManyMessages | UseCase::ContinuousBatches) => "it has no way to hash a batch of messages over threads",
+        (_, UseCase::ManyMessages | UseCase::ContinuousBatches | UseCase::LentBatches) => "it has no way to hash a batch of messages over threads",
         _ => "it has no way to hash these inputs",
     };
     format!("{} is measured in the other plots; {how}.", algorithm.name())
@@ -5715,7 +5805,7 @@ const UNIT_SWITCH_LEFT: f64 = Y_TITLE_X - 7.0;
 const UNIT_SWITCH_TOP: f64 = 86.0;
 
 /// The zoom row's top, between the method lines and the first plot's title.
-const ZOOM_ROW_TOP: f64 = 100.0;
+const ZOOM_ROW_TOP: f64 = 148.0;
 /// An input size: whole MiB or KiB where it is one, else exact bytes
 /// ("16 MiB", "3 KiB", "2304 B", "1025 B").
 fn format_bytes(bytes: usize) -> String {
@@ -7360,7 +7450,18 @@ mod correctness_tests {
         assert_eq!(UseCase::Streaming.points(), INPUT_COUNT + BATCH_COUNT..INPUT_COUNT + BATCH_COUNT + STREAM_COUNT);
         let continuous = INPUT_COUNT + BATCH_COUNT + STREAM_COUNT;
         assert_eq!(UseCase::ContinuousMessages.points(), continuous..continuous + CONTINUOUS_MESSAGE_COUNT);
-        assert_eq!(UseCase::ContinuousBatches.points(), continuous + CONTINUOUS_MESSAGE_COUNT..POINT_COUNT);
+        assert_eq!(UseCase::ContinuousBatches.points(), continuous + CONTINUOUS_MESSAGE_COUNT..continuous + CONTINUOUS_MESSAGE_COUNT + CONTINUOUS_BATCH_COUNT);
+        let lent = continuous + CONTINUOUS_MESSAGE_COUNT + CONTINUOUS_BATCH_COUNT;
+        assert_eq!(UseCase::LentMessages.points(), lent..lent + CONTINUOUS_MESSAGE_COUNT);
+        assert_eq!(UseCase::LentPieces.points(), lent + CONTINUOUS_MESSAGE_COUNT..lent + 2 * CONTINUOUS_MESSAGE_COUNT);
+        assert_eq!(UseCase::LentBatches.points(), lent + 2 * CONTINUOUS_MESSAGE_COUNT..POINT_COUNT);
+        let covered: Vec<_> = UseCase::ALL.into_iter().flat_map(UseCase::points).collect();
+        assert_eq!(covered, (0..POINT_COUNT).collect::<Vec<_>>());
+        for use_case in [UseCase::LentMessages, UseCase::LentPieces] {
+            for (owned, lent) in POINTS[UseCase::ContinuousMessages.points()].iter().zip(&POINTS[use_case.points()]) {
+                assert_eq!((owned.label, owned.bytes), (lent.label, lent.bytes));
+            }
+        }
         for (one, streamed) in POINTS[UseCase::OneMessage.points()].iter().zip(&POINTS[UseCase::Streaming.points()]) {
             assert_eq!((one.label, one.bytes), (streamed.label, streamed.bytes), "the streamed axis repeats the one-message sizes");
         }
@@ -7397,13 +7498,17 @@ mod correctness_tests {
     /// message or batch on the continuous axes, the fork's queues
     /// included (one buffer per message, pieces, and batches), with fewer,
     /// as many, and more messages or batches than it keeps in flight; and
-    /// every digest is the message's hash (servil's queues against
+    /// every digest is the message's hash (servil's queues and lent calls against
     /// servil's hash, the others against their own one-shot call).
     #[test]
     fn continuous_use_cases_observe_every_digest() {
         let long = make_input(PIECE_LEN * 3 + 1000);
         let batch = make_input(16 * MESSAGE_LEN);
         let cases = [
+            (Point::lent("", 1000), make_input(1000)),
+            (Point::lent("", long.len()), long.clone()),
+            (Point::lent_pieces("", long.len()), long.clone()),
+            (Point::lent_batch("", 16), batch.clone()),
             (Point::continuous("", 1000), make_input(1000)),
             (Point::continuous("", long.len()), long),
             (Point::continuous_batch("", 16), batch),

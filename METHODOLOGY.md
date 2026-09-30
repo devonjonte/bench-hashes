@@ -3,7 +3,7 @@
 This file explains what a run measures, how it keeps the numbers honest,
 and what each contender runs. [README.md](README.md) says how to run it.
 
-Every run measures each contender in five use cases and two scenarios.
+Every run measures each contender in eight use cases and two scenarios.
 The first three are the synchronous calls, each made after the program
 has done 1 ms of other work (the gap), as a program that hashes now and then calls
 them. **A message in one buffer**: a call hashes one input, at
@@ -13,11 +13,17 @@ from 1 to 262144 messages, reported per message. **A message in
 pieces**: the same inputs as one message, produced in 64 KiB pieces (the
 last one shorter), each copied as a read would copy it and fed to the
 contender's incremental API, then finalized, so the implementation never
-learns the total size in advance; reported per byte. The last two hash
+learns the total size in advance; reported per byte. Two further tasks hash
 one input after another, as fast as the program can: **messages one
 after another**, at eleven sizes from 64 B to 64 MiB, each read into a
 buffer (a memory copy) and hashed, reported per byte; and **batches one
 after another**, of 16 to 65536 64-byte messages, reported per message.
+Three more continuous tasks measure buffers that the producer lends
+until the hashing call returns: whole messages, messages in 64 KiB
+pieces, and batches. Their sizes match the owned-buffer continuous
+axes. Whole messages use one-shot calls at every size; pieces use the
+incremental API, with `update_multithreaded` for servil mt; batches use
+batch calls. Each read is timed, and reading and hashing take turns.
 **Solo**: one copy of the contender, the machine otherwise idle.
 **Shared**: two copies at once. The report shows each use case once per
 scenario, solo first; the graph shows both.
@@ -86,8 +92,7 @@ contender pays it once per byte.
 Each piece is read into a 64 KiB buffer of the program's, kept from one
 message to the next, and then handed to the contender's incremental API,
 so reading and hashing take turns (`Hasher::update` in crates.io BLAKE3
-and in BLAKE3 servil st, `Hasher::update_multithreaded` in BLAKE3 servil
-mt, `update_rayon` for BLAKE3 official mt, `Digest::update` in sha2 and
+and in both BLAKE3 servil contenders, `update_rayon` for BLAKE3 official mt, `Digest::update` in sha2 and
 sha1-checked, ring's `Context::update`, CommonCrypto's
 `CC_SHA256_Update`). The first piece comes after the gap, the rest in
 swift succession, then the message is finalized. The expected digests
@@ -97,7 +102,7 @@ are the one-message ones.
 
 A program that hashes many files, records, or network objects, or the
 layers of a Merkle tree as they arrive, hands a hash one input after
-another. The two continuous use cases measure that: each input is read,
+another. The owned-buffer continuous use cases measure that: each input is read,
 timed, as a memory copy into a buffer of the program's, then hashed, and
 a sample covers many inputs (at least twice the buffers in flight, below),
 timed from the first read to the last digest. Every contender but BLAKE3
@@ -114,9 +119,9 @@ through the queue's handler, so reading and hashing overlap. The
 program makes its queue once and keeps it, with a bounded channel (a ring
 allocated when it is made) that carries the returned buffers and digests
 from the handler to the program's thread, so after warm-up neither the
-program nor the queue allocates. BLAKE3
-servil st takes no part: the fork's answer to a continuous load is its
-multithreaded queue.
+program nor the queue allocates. The servil single-threaded contender measures continuous load in the
+lent-buffer tasks, where its synchronous calls serve the one-thread
+column of the API plan.
 
 ## A batch
 
