@@ -29,6 +29,16 @@ caller-relevance experiment (below), on a quiet Mac; measure a load
 reading's cost on the Mac. Open: `tools/speeds.py` is still a second
 implementation of `clocks::speeds` (held by shared vectors); replace it
 with the Rust rule's own output, or a small Rust command Python calls.
+**Done (evening): two gaps and the comparisons** (fork b06c074,
+bench db459e5; NOTES "The new benchmark against the previous one and
+against v0.7.0"). Every call made now and then is measured after idling
+and amid other work (clocks::Gap, Zooko's decision, FROZEN.md). The new
+benchmark agrees with the previous where both intend the same (nonstop
+cells within 1%), and its differences elsewhere follow from what changed.
+Open: the first job of a series ran 5-7% fast on the cores (confirm with
+cycles); servil's lent 64-256 KiB cells pay 5x the read copy others do
+(SME2 and freshly written lines?); servil's cold-path code size.
+
 **Cause found (jobs 792-798, NOTES "The cause: where the hash's code
 is"):** the cold cells' excess and per-process swing are servil's
 instruction lines: a data sweep leaves them in the core's L1 instruction

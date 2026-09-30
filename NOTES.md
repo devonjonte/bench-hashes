@@ -745,3 +745,48 @@ leaves in the instruction cache.
 
 Left open: the benchmark with its code warmed stays 10-20% above the
 probe at 4 KiB (1.6-1.7 against 1.38-1.44 us).
+
+### The new benchmark against the previous one and against v0.7.0 (jobs 799-804, September 30)
+
+Fixed contenders: servil at hashing source 5cfa2b4 (fork b06c074, and
+d005716 for the previous benchmark's clocks), crates.io blake3 1.8.7,
+ring 0.17.14, sha1-checked 0.10.0, sha3 0.11 (not in v0.7.0). Mac, mains,
+every run quiet by its load detector; order previous, new, tagged,
+tagged, new, previous; full default runs of six contenders (tagged: five).
+The tag (bench-hashes v0.7.0, 86b5c5b) ran as `probe/v0.7.0-on-current-fork`
+(8a3006a): its batch calls in today's form with its slice vector still
+built, today's key for servil st, dot shapes repeating: nothing else.
+Its samples (v2) and the previous (v3) were read with the fork's d005716
+loader, the new (v4) with tools/samples.py, all through tools/speeds.py.
+Scripts and outputs: `/workspace/tmp/cmp/` (part1-part5).
+
+Same intention, previous and new (nonstop owned and lent cells): runs
+new 1, new 2, and previous 2 agree within 1% (median over each
+contender's 29-47 solo cells: -3 to +6 permille against new 1). The
+first run of the series (799, previous 1) read 5-7% faster for the
+contenders on the cores (SHA-1DC, ring, SHA3, crates.io BLAKE3) and level
+for servil (SME2): machine state at the start of a series after the Mac
+had idled, most likely the P-cores' clock. Open: confirm with cycles (a
+traced first job after an idle Mac); until then, the first job of a
+series is not evidence against the rest.
+
+Different intention, previous and new (calls amid other work): from 1 MiB
+every contender agrees within 1-3%; below, all are slower, by their code
+size (64 B: servil st 2.5 -> 10-11.5 ns/B, crates.io BLAKE3 3.5-3.9 ->
+10.4-12, ring 2.9-3.4 -> 7.3-7.5, SHA3 4.4-4.6 -> 7.2, SHA-1DC 10.5-11.3
+-> 39-40), as the other program intends. After idling: two speeds in
+most small cells (a fast one near the busy gap's, a slow one 2-4x),
+15-25% slower at 1 MiB (the clock after a sleep), level from 8 MiB.
+
+The tag measured back to back without a read (one message; batches).
+Against the lent cells (back to back, each input read first): large
+inputs pay the read's copy, about 0.012-0.019 ns/B for every contender
+(64 MiB); small ones about 4-9 ns a message (64 B). servil at 64-256 KiB
+pays much more for the copy (64 KiB 0.167 -> 0.227 ns/B; ring 0.293 ->
+0.308): a hypothesis to test, that SME2 reading freshly written lines
+costs more than the cores do. crates.io BLAKE3's batches halve (46.6 ->
+23.8 ns/msg): the tag called it once per message, today's benchmark
+through Platform::hash_many. Against the calls amid other work, the
+single-threaded contenders agree within about 3% from 8 MiB; servil mt
+is slower after a gap at 1-8 MiB (1 MiB 0.068 -> 0.092-0.125 ns/B) where
+back to back kept its workers awake, level by 128 MiB.
