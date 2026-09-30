@@ -1984,6 +1984,63 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
     DuoCopy { elapsed_ns, counts, preparation: None }
 }
 
+/// probe/harness-bisect (HB_ICACHE): this executable's text.
+fn text() -> &'static [u8] {
+    let hash = blake3_servil::hash as fn(&[u8]) -> blake3_servil::Hash as usize;
+    #[cfg(target_vendor = "apple")]
+    {
+        unsafe extern "C" { static _mh_execute_header: u8; }
+        let file = std::fs::read(std::env::current_exe().unwrap()).unwrap();
+        let word = |at: usize| u32::from_le_bytes(file[at..at + 4].try_into().unwrap()) as usize;
+        let long = |at: usize| u64::from_le_bytes(file[at..at + 8].try_into().unwrap()) as usize;
+        assert_eq!(word(0), 0xfeedfacf, "a 64-bit Mach-O executable");
+        let (mut at, commands) = (32, word(16));
+        for _ in 0..commands {
+            if word(at) == 0x19 && &file[at + 8..at + 14] == b"__TEXT" && file[at + 14] == 0 {
+                let (vmaddr, vmsize) = (long(at + 24), long(at + 32));
+                let start = &raw const _mh_execute_header as usize;
+                assert!(start <= hash && hash < start + vmsize, "hash lies in __TEXT");
+                let _ = vmaddr;
+                // Sound: __TEXT is mapped readable for its whole vmsize.
+                return unsafe { std::slice::from_raw_parts(start as *const u8, vmsize) };
+            }
+            at += word(at + 4);
+        }
+        panic!("no __TEXT segment");
+    }
+    #[cfg(not(target_vendor = "apple"))]
+    {
+        for line in std::fs::read_to_string("/proc/self/maps").unwrap().lines() {
+            let mut fields = line.split_whitespace();
+            let (range, perms) = (fields.next().unwrap(), fields.next().unwrap());
+            let (a, b) = range.split_once('-').unwrap();
+            let (a, b) = (usize::from_str_radix(a, 16).unwrap(), usize::from_str_radix(b, 16).unwrap());
+            if perms.starts_with("r-x") && a <= hash && hash < b {
+                // Sound: the mapping is readable for its whole length.
+                return unsafe { std::slice::from_raw_parts(a as *const u8, b - a) };
+            }
+        }
+        panic!("no executable mapping holds hash");
+    }
+}
+
+/// Invalidate the instruction-cache lines of `code`.
+fn invalidate_icache(code: &[u8]) {
+    #[cfg(target_vendor = "apple")]
+    {
+        unsafe extern "C" { fn sys_icache_invalidate(start: *mut std::ffi::c_void, len: usize); }
+        // Sound: invalidating instruction-cache lines changes no memory.
+        unsafe { sys_icache_invalidate(code.as_ptr() as *mut _, code.len()) };
+    }
+    #[cfg(not(target_vendor = "apple"))]
+    {
+        unsafe extern "C" { fn __clear_cache(start: *mut std::ffi::c_void, end: *mut std::ffi::c_void); }
+        let range = code.as_ptr_range();
+        // Sound: cleaning and invalidating cache lines changes no memory.
+        unsafe { __clear_cache(range.start as *mut _, range.end as *mut _) };
+    }
+}
+
 /// Prepare and time an already-selected call. The producer and work
 /// buffers stay outside the API's interval, as does dispatch selection.
 fn take_prepared_sample(input: &[u8], iterations: usize, mut call: impl FnMut(&[u8])) -> DuoCopy {
@@ -1999,10 +2056,23 @@ fn take_prepared_sample(input: &[u8], iterations: usize, mut call: impl FnMut(&[
                 blake3_servil::hash as fn(&[u8]) -> blake3_servil::Hash as usize);
             std::fs::OpenOptions::new().create(true).append(true).open("addrs.csv").unwrap().write_all(line.as_bytes()).unwrap();
         }
-        let measured = clocks::measure_after_gaps_prepared(iterations as u64, GAP_NS, work,
+        let invalidate = std::env::var_os("HB_ICACHE").is_some();
+        let measured = if invalidate {
+            let code = text();
+            clocks::measure_after(iterations as u64, || {
+                invalidate_icache(code);
+                let started = clocks::now();
+                let mut sum = 0u64;
+                for &byte in black_box(&work[..]).iter().step_by(64) { sum = sum.wrapping_add(u64::from(byte)); }
+                black_box(sum);
+                clocks::busy_work(GAP_NS.saturating_sub(clocks::since_ns(started)));
+            }, produced.as_mut_slice(),
+            |produced| produced.copy_from_slice(black_box(input)),
+            |produced| call(black_box(produced)))
+        } else { clocks::measure_after_gaps_prepared(iterations as u64, GAP_NS, work,
             produced.as_mut_slice(),
             |produced| produced.copy_from_slice(black_box(input)),
-            |produced| call(black_box(produced)));
+            |produced| call(black_box(produced))) };
         DuoCopy { elapsed_ns: measured.calls.wall_ns, counts: measured.calls.counts, preparation: Some(measured.preparation) }
     })
 }
