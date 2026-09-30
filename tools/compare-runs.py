@@ -15,13 +15,10 @@ from pathlib import Path
 
 
 def load(path):
-    cells = {}
-    for line in Path(path).read_text().splitlines():
-        if not line or line.startswith('#') or line.startswith('contender'):
-            continue
-        contender, scenario, use_case, point, unit, values = line.split('\t')
-        cells[(contender, scenario, use_case, point)] = (unit, [Fraction(*map(int, x.split('/'))) for x in values.split(',') if x])
-    return cells
+    run = SAMPLES.read(path)
+    if run.busy:
+        print(f'{path}: other programs kept the machine busy: {run.load}')
+    return {key: (run.units[key], values) for key, values in run.cells.items()}
 
 
 def decimal(value, places=4):
@@ -52,6 +49,10 @@ def main():
     spec = importlib.util.spec_from_file_location('speed_rule', args.rules)
     rule = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(rule)
+    global SAMPLES
+    spec = importlib.util.spec_from_file_location('samples', args.rules.parent / 'samples.py')
+    SAMPLES = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(SAMPLES)
     assert len(args.files) in (2, 4), 'supply two files for a historical comparison, or four for old/new/new/old'
     repeated = len(args.files) == 4
     if repeated:

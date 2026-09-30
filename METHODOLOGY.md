@@ -517,12 +517,12 @@ contender at the largest input size), and writes three files to
 `benchmark-results/{CPU}.{OS}/`: `bench-hashes.result.txt` (the
 report), `bench-hashes.graph.svg` (the graph), and
 `bench-hashes.samples.tsv` (every sample of every cell, every scenario,
-in the order taken, each as `ns/units`, with the provenance and the CPU's
-identity as `# key: value` lines, and where the platform counts cycles
-each solo call's clock after the gap as `# solo MHz after the gap`
-lines, in the order of that cell's samples, beside the bounds of the two clock states;
-files from before September 26, 2026, marked `samples v2`, hold integer
-picoseconds per unit instead).
+in the order taken, each as `ns/units`, and in a last column the
+millisecond each sample started, with the provenance, the CPU's identity,
+and the load windows as `# key: value` lines, and where the platform
+counts cycles each solo call's clock after the gap as `# solo MHz after
+the gap` lines, in the order of that cell's samples, beside the bounds of
+the two clock states). The fork's `tools/samples.py` reads it.
 
 ## Load from other programs
 
@@ -531,11 +531,16 @@ spent busy and how much this process used; the difference is CPU time
 other programs took. Linux also reports steal time, CPU time a
 hypervisor withheld from a virtual machine's CPUs for other work on the
 host. The OS counts both in 10 ms ticks, so the run sums them over
-windows of 5 seconds. The report, the samples file, and the graph's
+windows of about a second, read between samples (a reading takes about
+9 µs, once a second, outside every timed interval); on 16 CPUs a window
+reads within 0.16 CPUs. The report, the samples file, and the graph's
 "About this run" section give the run's average and its busiest window, in
-CPUs kept busy, and call the run busy when the busiest window reached a
-whole CPU (other programs or steal). Measured in a quiet 16-CPU Linux
-VM: 0.02 CPUs on average; with two busy loops beside the run: 2.04. An
+CPUs kept busy, and call the run busy when a window reached a whole CPU
+(other programs or steal), naming the busy windows. The samples file
+lists every window and when each sample started, so a sample's window
+is known. Measured in a quiet 16-CPU Linux
+VM: 0.00 CPUs on average, 0.02 in the busiest window; two busy loops
+beside the run read 1.98-2.01 in each of their windows. An
 Apple M4 Max desktop running a Linux VM keeps 0.40-0.56 CPUs busy, and
 its results then match a quieter run's to about 1%.
 

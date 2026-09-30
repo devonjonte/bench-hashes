@@ -321,6 +321,10 @@ struct RunSamples {
     /// The round of each solo sample, by contender and point; the shared
     /// samples of that interval are the two at twice its index.
     rounds: Vec<Vec<Vec<usize>>>,
+    /// When each solo sample started (clocks::load::now_ns, the load
+    /// windows' scale), parallel to rounds; its shared samples follow it
+    /// within milliseconds.
+    started_ns: Vec<Vec<Vec<u64>>>,
 }
 
 impl RunSamples {
@@ -1133,9 +1137,10 @@ struct MachineMetadata {
     /// that report the same brand (every Linux VM on Apple silicon says
     /// "aarch64") can be told apart: see cpu_identity.
     cpu_identity: String,
-    /// Other programs' load during the measuring phase, where the OS
-    /// reports it (Linux, macOS); set once measuring ends.
-    load: Option<Load>,
+    /// Other programs' load during the measuring phase, window by window
+    /// (clocks::load), where the OS reports it (Linux, macOS; empty
+    /// elsewhere); set once measuring ends.
+    load: Vec<clocks::load::Window>,
     /// The power state when the run starts and when measuring ends (set
     /// then), where the OS reports one: see Power.
     power: [Option<Power>; 2],
@@ -1580,7 +1585,7 @@ fn cell(results: &Results, algorithm_index: usize, point_index: usize) -> &Cell 
         .expect("the contender takes part in this point's use case")
 }
 
-fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results, RunSamples, Option<Load>) {
+fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results, RunSamples, Vec<clocks::load::Window>) {
     /* Inputs for the points measured; an empty buffer stands in for the rest. */
     let inputs: Vec<Vec<u8>> = (0..POINT_COUNT)
         .map(|index| if roster.measures(index) { make_input(POINTS[index].bytes) } else { Vec::new() })
@@ -1610,11 +1615,14 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
         shared: empty(),
         gap_mhz: (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::new()).collect()).collect(),
         rounds: (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::new()).collect()).collect(),
+        started_ns: (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::new()).collect()).collect(),
     };
     let mut batch_iterations: Vec<Vec<usize>> = vec![vec![1usize; POINT_COUNT]; roster.len()];
     /* Cells under the time budget (see LONG_HASH_NS). */
     let mut budgeted: Vec<Vec<bool>> = vec![vec![false; POINT_COUNT]; roster.len()];
-    let mut load = LoadMonitor::start();
+    /* Other programs' load: clocks reads it between samples, by itself. */
+    clocks::load::tick();
+    let measuring_from_ns = clocks::load::now_ns();
     let mut visits = vec![0usize; POINT_COUNT];
 
     /*
@@ -1676,9 +1684,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
 
         for round in 0..roster.rounds {
             progress.round(round, &samples.solo);
-            if let Some(load) = load.as_mut() {
-                load.round_boundary();
-            }
+            clocks::load::tick();
 
             for point_offset in 0..roster.points.len() {
                 let size_index = roster.points[(point_offset + round) % roster.points.len()];
@@ -1706,6 +1712,8 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                         batch_iterations[algorithm_index][size_index];
 
                     /* The solo sample: this thread runs the batch, alone. */
+                    clocks::load::tick();
+                    let started_ns = clocks::load::now_ns();
                     let DuoCopy { elapsed_ns, counts, preparation } = take_sample(algorithm, input, point, iterations);
 
                     /*
@@ -1720,6 +1728,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                     let per_unit = |ns: u64| Measured::new(ns, total_units);
                     samples.solo[algorithm_index][size_index].push(per_unit(elapsed_ns));
                     samples.rounds[algorithm_index][size_index].push(round);
+                    samples.started_ns[algorithm_index][size_index].push(started_ns);
                     if point.use_case.after_gap() {
                         samples.gap_mhz[algorithm_index][size_index]
                             .push(counts.filter(|c| c.p.time_ns + c.e.time_ns > 0).map_or(0, |c| c.mhz()));
@@ -1760,7 +1769,8 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
     }
 
     progress.finish(&samples.solo);
-    let load = load.map(LoadMonitor::finish);
+    let load: Vec<clocks::load::Window> =
+        clocks::load::windows().into_iter().filter(|window| window.end_ns > measuring_from_ns).collect();
 
     let mut results: Results = vec![vec![None; POINT_COUNT]; roster.len()];
 
@@ -2960,143 +2970,6 @@ fn counts_csv(counts: Option<clocks::Counts>) -> String {
 }
 
 /*
- * Load from other programs during the measuring phase. The OS counts the
- * CPU time every CPU spent busy; this process counts its own (every
- * thread: the harness, the contenders, their worker threads). The
- * difference is CPU time other programs took, and over a stretch of wall
- * time it says how many CPUs they kept busy. On Linux the OS also counts
- * steal time, which a hypervisor took from the virtual CPUs to run other
- * work on the host: load a VM's guest cannot see any other way.
- *
- * The OS counts in ticks of 10 ms per CPU, so readings taken a second
- * apart would carry an error of a few tenths of a CPU. The monitor reads
- * at round boundaries and closes a window once LOAD_WINDOW_NS have passed;
- * the report gives the run's average and its busiest window. Load in
- * milli-CPUs: 1000 is one CPU kept busy throughout.
- */
-const LOAD_WINDOW_NS: u64 = 5_000_000_000;
-/// A run whose busiest window had other programs (or the hypervisor)
-/// keep a whole CPU or more busy is reported as busy: a core taken from
-/// the shared scenario and the multithreaded contenders, which use every
-/// CPU. An M4 Max desktop running a Linux VM beside the benchmark keeps
-/// 0.40-0.56 CPUs busy, with results level with a quieter run's.
-const LOAD_BUSY_MILLI_CPUS: u64 = 1000;
-
-mod cpu_times {
-    /// The machine's CPU time since boot, all CPUs summed: busy (not idle,
-    /// not waiting on I/O) and stolen by a hypervisor, in nanoseconds.
-    #[derive(Clone, Copy)]
-    pub struct CpuTimes {
-        pub busy_ns: u64,
-        pub steal_ns: u64,
-    }
-
-    #[cfg(unix)]
-    unsafe extern "C" {
-        fn sysconf(name: i32) -> i64;
-    }
-
-    #[cfg(target_os = "linux")]
-    pub fn read() -> Option<CpuTimes> {
-        const SC_CLK_TCK: i32 = 2;
-        let ticks_per_second = u64::try_from(unsafe { sysconf(SC_CLK_TCK) }).expect("sysconf(_SC_CLK_TCK) is positive");
-        let stat = std::fs::read_to_string("/proc/stat").ok()?;
-        let fields: Vec<u64> = stat
-            .lines()
-            .next()?
-            .strip_prefix("cpu ")?
-            .split_whitespace()
-            .map(|field| field.parse().expect("/proc/stat counts are integers"))
-            .collect();
-        /* user nice system idle iowait irq softirq steal (guest time is inside user). */
-        assert!(fields.len() >= 8, "/proc/stat's cpu line has at least eight fields");
-        let busy = fields[0] + fields[1] + fields[2] + fields[5] + fields[6];
-        let to_ns = |ticks: u64| ticks * 1_000_000_000 / ticks_per_second;
-        Some(CpuTimes { busy_ns: to_ns(busy), steal_ns: to_ns(fields[7]) })
-    }
-
-    #[cfg(target_vendor = "apple")]
-    pub fn read() -> Option<CpuTimes> {
-        /* host_statistics(HOST_CPU_LOAD_INFO): user, system, idle, nice ticks. */
-        const HOST_CPU_LOAD_INFO: i32 = 3;
-        const SC_CLK_TCK: i32 = 3;
-        unsafe extern "C" {
-            fn mach_host_self() -> u32;
-            fn host_statistics(host: u32, flavor: i32, info: *mut u32, count: *mut u32) -> i32;
-        }
-        let ticks_per_second = u64::try_from(unsafe { sysconf(SC_CLK_TCK) }).expect("sysconf(_SC_CLK_TCK) is positive");
-        let mut ticks = [0u32; 4];
-        let mut count = 4u32;
-        let rc = unsafe { host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, ticks.as_mut_ptr(), &mut count) };
-        if rc != 0 || count != 4 {
-            return None;
-        }
-        /* The counters are 32-bit and wrap; LoadMonitor takes wrapping differences. */
-        let busy = u64::from(ticks[0]) + u64::from(ticks[1]) + u64::from(ticks[3]);
-        Some(CpuTimes { busy_ns: busy * 1_000_000_000 / ticks_per_second, steal_ns: 0 })
-    }
-
-    #[cfg(not(any(target_os = "linux", target_vendor = "apple")))]
-    pub fn read() -> Option<CpuTimes> {
-        None
-    }
-}
-
-/// Other programs' load over one window, or over the whole run, in
-/// milli-CPUs.
-#[derive(Clone, Copy)]
-struct LoadReading {
-    other: u64,
-    steal: u64,
-}
-
-/// The load during a run: its average and each window's, in order.
-#[derive(Clone)]
-struct Load {
-    average: LoadReading,
-    windows: Vec<LoadReading>,
-}
-
-impl Load {
-    fn busiest(&self) -> LoadReading {
-        LoadReading {
-            other: self.windows.iter().map(|w| w.other).max().unwrap_or(self.average.other),
-            steal: self.windows.iter().map(|w| w.steal).max().unwrap_or(self.average.steal),
-        }
-    }
-
-    fn busy(&self) -> bool {
-        let busiest = self.busiest();
-        busiest.other.max(busiest.steal) >= LOAD_BUSY_MILLI_CPUS
-    }
-
-    /// One line for readers: "quiet: other programs kept 0.02 CPUs busy on
-    /// average, 0.10 in the busiest 5 s" (with the hypervisor's share
-    /// where it took any).
-    fn describe(&self) -> String {
-        let cpus = |milli: u64| {
-            let hundredths = (milli + 5) / 10;
-            format!("{}.{:02}", hundredths / 100, hundredths % 100)
-        };
-        let busiest = self.busiest();
-        let mut line = format!(
-            "{}: other programs kept {} CPUs busy on average, {} in the busiest {} s",
-            if self.busy() { "busy" } else { "quiet" },
-            cpus(self.average.other),
-            cpus(busiest.other),
-            LOAD_WINDOW_NS / 1_000_000_000,
-        );
-        if busiest.steal > 0 {
-            write!(line, "; the hypervisor withheld {} CPUs on average, {} at most", cpus(self.average.steal), cpus(busiest.steal)).unwrap();
-        }
-        if self.busy() {
-            line.push_str("; some results may read slower than this machine can run");
-        }
-        line
-    }
-}
-
-/*
  * The machine's power state: whether it draws from a battery, the
  * battery's charge, and a power mode that trades speed for energy. It
  * changes where the OS runs threads: an M4 Max on battery ran 233 of 400
@@ -3211,55 +3084,6 @@ impl MachineMetadata {
             (Some(one), _) | (None, Some(one)) => one.describe(),
         };
         if self.power_slowing() { line + "; results may differ from a run on mains power in the normal mode" } else { line }
-    }
-}
-
-/// Reads the machine's and this process's CPU time at round boundaries.
-struct LoadMonitor {
-    first: (std::time::Instant, cpu_times::CpuTimes, u64),
-    window: (std::time::Instant, cpu_times::CpuTimes, u64),
-    windows: Vec<LoadReading>,
-}
-
-impl LoadMonitor {
-    fn reading() -> Option<(std::time::Instant, cpu_times::CpuTimes, u64)> {
-        let times = cpu_times::read()?;
-        Some((clocks::now(), times, clocks::process_cpu_ns()))
-    }
-
-    /// None where the OS reports no CPU times.
-    fn start() -> Option<Self> {
-        let now = Self::reading()?;
-        Some(Self { first: now, window: now, windows: Vec::new() })
-    }
-
-    /// Other load between two readings, in milli-CPUs. Tick rounding can
-    /// put the machine's busy time a little under this process's own; that
-    /// reads as none.
-    fn between(from: (std::time::Instant, cpu_times::CpuTimes, u64), to: (std::time::Instant, cpu_times::CpuTimes, u64)) -> LoadReading {
-        let wall_ns = u64::try_from(to.0.duration_since(from.0).as_nanos()).expect("a run lasts under 584 years").max(1);
-        let busy_ns = to.1.busy_ns.wrapping_sub(from.1.busy_ns);
-        let own_ns = to.2 - from.2;
-        let steal_ns = to.1.steal_ns.wrapping_sub(from.1.steal_ns);
-        let milli = |ns: u64| u64::try_from(u128::from(ns) * 1000 / u128::from(wall_ns)).expect("load fits in u64");
-        LoadReading { other: milli(busy_ns.saturating_sub(own_ns)), steal: milli(steal_ns) }
-    }
-
-    fn round_boundary(&mut self) {
-        let now = Self::reading().expect("the OS kept reporting CPU times");
-        if now.0.duration_since(self.window.0).as_nanos() >= u128::from(LOAD_WINDOW_NS) {
-            self.windows.push(Self::between(self.window, now));
-            self.window = now;
-        }
-    }
-
-    fn finish(mut self) -> Load {
-        let now = Self::reading().expect("the OS kept reporting CPU times");
-        /* The last stretch counts as a window when it is at least half one long. */
-        if now.0.duration_since(self.window.0).as_nanos() >= u128::from(LOAD_WINDOW_NS / 2) {
-            self.windows.push(Self::between(self.window, now));
-        }
-        Load { average: Self::between(self.first, now), windows: self.windows }
     }
 }
 
@@ -3841,7 +3665,7 @@ fn append_kernel_report(output: &mut String, algorithm: Algorithm, use_case: Use
  */
 fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &MachineMetadata, selection_note: &str) -> String {
     let mut out = String::new();
-    writeln!(out, "# bench-hashes samples v3").unwrap();
+    writeln!(out, "# bench-hashes samples v4").unwrap();
     for (key, value) in [
         ("timestamp", machine.timestamp.as_str()),
         ("bench-hashes version", BENCH_VERSION),
@@ -3865,12 +3689,11 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
         writeln!(out, "# {key}: {value}").unwrap();
     }
     writeln!(out, "# power: {}", machine.describe_power()).unwrap();
-    if let Some(load) = &machine.load {
-        let list = |pick: fn(&LoadReading) -> u64| load.windows.iter().map(|w| pick(w).to_string()).collect::<Vec<_>>().join(",");
-        writeln!(out, "# load: {}", load.describe()).unwrap();
-        writeln!(out, "# other load by {} s window (milli-CPUs): {}", LOAD_WINDOW_NS / 1_000_000_000, list(|w| w.other)).unwrap();
-        writeln!(out, "# steal by {} s window (milli-CPUs): {}", LOAD_WINDOW_NS / 1_000_000_000, list(|w| w.steal)).unwrap();
-    }
+    writeln!(out, "# load: {}", clocks::load::describe(&machine.load)).unwrap();
+    let windows: Vec<String> = machine.load.iter()
+        .map(|w| format!("{}-{}:{}:{}", w.start_ns / 1_000_000, w.end_ns / 1_000_000, w.other_milli_cpus, w.steal_milli_cpus))
+        .collect();
+    writeln!(out, "# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): {}", windows.join(",")).unwrap();
     for &algorithm in &roster.algorithms {
         for use_case in UseCase::ALL.iter().filter(|&&use_case| algorithm.takes_part(use_case)) {
             writeln!(out, "# kernel platform {} {:?}: {}", algorithm.key(), use_case, detect_kernels(algorithm, *use_case).platform).unwrap();
@@ -3888,7 +3711,7 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
             }
         }
     }
-    writeln!(out, "contender\tscenario\tuse_case\tpoint\tunit\tns/units").unwrap();
+    writeln!(out, "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms").unwrap();
     for (algorithm_index, &algorithm) in roster.algorithms.iter().enumerate() {
         for scenario in Scenario::ALL {
             let rows = match scenario {
@@ -3901,15 +3724,22 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
                     continue;
                 }
                 let values: Vec<String> = cell_samples.iter().map(|m| format!("{}/{}", m.ns, m.units)).collect();
+                /* A shared sample starts with its interval's solo sample. */
+                let per_start = cell_samples.len() / samples.started_ns[algorithm_index][point_index].len();
+                let starts: Vec<String> = samples.started_ns[algorithm_index][point_index].iter()
+                    .flat_map(|&ns| std::iter::repeat_n(ns / 1_000_000, per_start))
+                    .map(|ms| ms.to_string())
+                    .collect();
                 writeln!(
                     out,
-                    "{}\t{}\t{:?}\t{}\t{}\t{}",
+                    "{}\t{}\t{:?}\t{}\t{}\t{}\t{}",
                     algorithm.key(),
                     scenario.key(),
                     point.use_case,
                     point.label,
                     point.use_case.unit_key(),
                     values.join(","),
+                    starts.join(","),
                 )
                 .unwrap();
             }
@@ -4020,10 +3850,7 @@ fn generate_text(roster: &Roster, results: &Results, samples: &RunSamples, machi
     writeln!(output, "  CPU: {}", machine.cpu_identity).unwrap();
     writeln!(output, "  {RUSTC_VERSION}; target {BUILD_TARGET}; features {TARGET_FEATURES}").unwrap();
     writeln!(output, "  clock: {}", clocks::WALL_CLOCK).unwrap();
-    match &machine.load {
-        Some(load) => writeln!(output, "  load during the run: {}", load.describe()).unwrap(),
-        None => writeln!(output, "  load during the run: not measured on this platform").unwrap(),
-    }
+    writeln!(output, "  load during the run: {}", clocks::load::describe(&machine.load)).unwrap();
     writeln!(output, "  power: {}", machine.describe_power()).unwrap();
 
     output
@@ -4357,7 +4184,7 @@ fn machine_metadata() -> MachineMetadata {
         cpu_count: cpus.len(),
         os_type,
         cpu_identity: cpu_identity(),
-        load: None,
+        load: Vec::new(),
         power: [Power::read(), None],
     }
 }
@@ -5023,7 +4850,7 @@ fn generate_svg(
         os => os,
     };
     let date = machine.timestamp.split(' ').next().unwrap_or(&machine.timestamp);
-    let busy = machine.load.as_ref().is_some_and(|load| load.busy());
+    let busy = machine.load.iter().any(clocks::load::Window::busy);
     let on_battery = machine.power.iter().flatten().any(|power| power.on_battery);
     let caveat = match (busy, machine.power_slowing()) {
         (true, true) => " · other programs were busy and the machine saved power during the run, so some results may read slow",
@@ -6134,9 +5961,9 @@ fn shared_provenance_cats(machine: &MachineMetadata, selection_note: &str) -> Ve
                 machine.cpu_count,
                 machine.os_type,
                 match &machine.load {
-                    Some(load) if load.busy() => " · busy during the run",
-                    Some(_) => " · quiet during the run",
-                    None => "",
+                    load if load.iter().any(clocks::load::Window::busy) => " · busy during the run",
+                    load if !load.is_empty() => " · quiet during the run",
+                    _ => "",
                 },
                 if machine.power.iter().flatten().any(|power| power.on_battery) {
                     " · on battery"
@@ -6151,10 +5978,7 @@ fn shared_provenance_cats(machine: &MachineMetadata, selection_note: &str) -> Ve
                     "Machine: {} · {} logical CPUs · {}",
                     machine.cpu_type, machine.cpu_count, machine.os_type,
                 ),
-                match &machine.load {
-                    Some(load) => format!("Load during the run: {}", load.describe()),
-                    None => "Load during the run: not measured on this platform".to_owned(),
-                },
+                format!("Load during the run: {}", clocks::load::describe(&machine.load)),
                 format!("Power: {}", machine.describe_power()),
                 format!("Toolchain: {RUSTC_VERSION} · {BUILD_TARGET}"),
                 format!("Sample clock: {}", clocks::WALL_CLOCK),
@@ -7592,7 +7416,7 @@ mod correctness_tests {
     /// clock counted), summarised as measure_all does.
     fn run(roster: &Roster, rounds: usize, value: impl Fn(usize, usize, usize) -> u64) -> (Results, RunSamples) {
         let empty = || -> Samples { vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
-        let mut samples = RunSamples { solo: empty(), shared: empty(), gap_mhz: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], rounds: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
+        let mut samples = RunSamples { solo: empty(), shared: empty(), gap_mhz: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], rounds: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
         let mut results: Results = vec![vec![None; POINT_COUNT]; roster.len()];
         for a in 0..roster.len() {
             for &p in &roster.points {
@@ -7604,6 +7428,7 @@ mod correctness_tests {
                         samples.gap_mhz[a][p].push(0);
                     }
                     samples.rounds[a][p].push(r);
+                    samples.started_ns[a][p].push(r as u64 * 1_000_000);
                 }
                 results[a][p] = Some(Cell {
                     solo: summarize(&mut per_units(&samples.solo[a][p])),
@@ -7747,6 +7572,25 @@ mod correctness_tests {
         let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt, Algorithm::Sha256],
             true, Some(vec![point("64 B", UseCase::ContinuousMessages), point("256 B", UseCase::ContinuousMessages)]), Some(24));
         assert!(!roster.whole_axes(), "one selected contender has no cells here");
+    }
+
+    #[test]
+    fn samples_file_places_each_sample_in_the_load_windows() {
+        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], true,
+            Some(vec![point("64 B", UseCase::OneMessage), point("128 B", UseCase::OneMessage)]), Some(3));
+        let (_, samples) = run(&roster, 3, |_, _, r| 10_000 + r as u64);
+        let mut machine = machine_metadata();
+        machine.load = vec![
+            clocks::load::Window { start_ns: 0, end_ns: 1_500_000, other_milli_cpus: 1200, steal_milli_cpus: 0 },
+            clocks::load::Window { start_ns: 1_500_000, end_ns: 3_000_000, other_milli_cpus: 100, steal_milli_cpus: 7 },
+        ];
+        let tsv = generate_samples_tsv(&roster, &samples, &machine, "test");
+        assert!(tsv.starts_with("# bench-hashes samples v4\n"));
+        assert!(tsv.contains("\n# load: busy: "), "{tsv}");
+        assert!(tsv.contains("\n# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1:1200:0,1-3:100:7\n"), "{tsv}");
+        assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\n"));
+        assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\n"), "{tsv}");
+        assert!(tsv.contains("\nblake3-servil-st\tshared\tOneMessage\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t0,0,1,1,2,2\n"), "{tsv}");
     }
 
     #[test]

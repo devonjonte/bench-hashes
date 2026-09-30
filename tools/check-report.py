@@ -3,7 +3,8 @@
 
     python3 tools/check-report.py benchmark-results/AppleM4Max.darwin25
 
-Reads bench-hashes.samples.tsv (samples v3: each sample as measured,
+Reads bench-hashes.samples.tsv (through the fork's
+tools/samples.py: each sample as measured,
 ns/units) as exact fractions, recomputes every table cell of
 bench-hashes.result.txt with the benchmark's rules, and compares them with
 the report: the median (the middle sample, or the mean of the two middle
@@ -28,6 +29,9 @@ assert rules.is_file(), "check-report uses the enclosing fork's tools/speeds.py 
 spec = importlib.util.spec_from_file_location('speed_rule', rules)
 speed_rule = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(speed_rule)
+spec = importlib.util.spec_from_file_location('samples', rules.parent / 'samples.py')
+samples = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(samples)
 
 HEADINGS = {
     "A message in one buffer": "OneMessage",
@@ -47,21 +51,8 @@ MASK = (1 << 64) - 1
 
 def load(path):
     """{(contender, scenario, use_case, point): [Fraction ns per unit]}, and the contenders in order."""
-    cells, order, header = {}, [], None
-    for line in path.read_text().splitlines():
-        if line.startswith("#"):
-            assert not line.startswith("# bench-hashes samples v") or line == "# bench-hashes samples v3", line
-            continue
-        fields = line.split("\t")
-        if header is None:
-            header = fields
-            assert header == ["contender", "scenario", "use_case", "point", "unit", "ns/units"], header
-            continue
-        contender, scenario, use_case, point, _unit, values = fields
-        if contender not in order:
-            order.append(contender)
-        cells[(contender, scenario, use_case, point)] = [Fraction(*map(int, v.split("/"))) for v in values.split(",")]
-    return cells, order
+    run = samples.read(path)
+    return run.cells, run.order
 
 
 def median(sorted_values):

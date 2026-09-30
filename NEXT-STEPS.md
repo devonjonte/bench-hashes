@@ -10,6 +10,29 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
+## Update (September 30, 2026, evening): load in clocks
+
+Done at Zooko's request (fork a07a576; this repository's next commit):
+`clocks::load` records other programs' load in about-1 s windows during
+every measurement, each sample stamped with its start; samples v4 carries
+both; `tools/samples.py` (fork) is the one Python reader; perf_regress
+gives no verdict when a run was busy. AGENTS (both): "Contracts change
+everywhere at once" and "one implementation of every rule".
+
+Consequences for the evidence below: jobs 780 and 782 ran busy in every
+run (1.1-1.4 CPUs of other load, Zooko's browser), 783 new-1 and 788 b2
+had busy windows. Treat their comparisons as busy-machine evidence.
+
+Next: **Zooko restarts the Mac runner** (`setup-mac.sh` now installs
+samples.py; the installed perf_regress must be the new one); then the
+caller-relevance experiment (below), on a quiet Mac; measure a load
+reading's cost on the Mac. Open: `tools/speeds.py` is still a second
+implementation of `clocks::speeds` (held by shared vectors); replace it
+with the Rust rule's own output, or a small Rust command Python calls.
+Open question for Zooko: perf_regress's shims for older fork commits
+(PROCEDURES, "perf_regress and older commits") are compatibility code
+under the new rule.
+
 ## Resume here (context reset, September 30, 2026)
 
 **Current task, from Zooko:** establish whether the benchmark's large

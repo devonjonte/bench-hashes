@@ -190,6 +190,22 @@ hypervisor reports no steal (0 since boot through Mac jobs), so host load
 stays invisible in the guest; a reference loop timed beside the samples
 would see it.
 
+**Load moved into clocks** (September 30, 2026, after Zooko noticed he had
+run Brave through the day's Mac jobs): the benchmark's own detector had
+flagged jobs 780 and 782 busy in every run (1.1-1.4 CPUs of other load on
+average) and single runs of 783 and 788, and nobody read it. It also
+summed macOS's four 32-bit tick counters before a wrapping difference, so
+one counter wrapping would have read as enormous load. Now `clocks::load`
+(the fork) is the one implementation, and every measurement records load
+without code of its own: windows of about a second, read between samples
+(VM: a reading 8.6 us, a tick between readings 18 ns), each `Batch`
+stamped with its start, a busy window reported on stderr as it closes.
+Samples v4 carries every window (`# load windows`) and each sample's start
+(`start ms`); `tools/samples.py` (the fork) is the one Python reader, and
+perf_regress gives no verdict when any of its runs was busy. VM: quiet
+0.00 average, 0.02 worst window; two `yes` loops 1.98-2.01 in each of
+their windows, 2859 of 5904 samples in them.
+
 **Graph labels** (September 2026, after overlaps in the published
 graph): right-hand names stack 34 px apart, so eight fit inside a plot;
 x labels place the powers of two first, then the sizes between, on two

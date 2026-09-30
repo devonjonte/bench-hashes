@@ -76,7 +76,9 @@ benchmark.
 - **The fork's regression check depends on this interface**:
   `--contenders`, `--points`, `--rounds`, and the columns of
   `bench-hashes.samples.tsv` (`contender`, `scenario`, `use_case`,
-  `point`, `unit`, `ns/units`, each sample as measured).
+  `point`, `unit`, `ns/units`, each sample as measured, `start ms`),
+  read through the fork's `tools/samples.py`; a change to them changes
+  that reader in the same change.
 
 ## Results from other machines
 
