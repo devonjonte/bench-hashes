@@ -25,11 +25,18 @@ Probes: `probe/benchmark-alignment` (the native A/B driver),
    its installed perf_regress.py imports speeds.py, which setup-mac.sh
    left out (jobs 776-779 failed before measuring; setup now copies it).
    Tonight's native runs went through a host_lab driver instead.
-2. **Job 782 ran on battery power** (the Mac was unplugged by 06:45);
-   repeat it on mains power (job file 782 with a new number) before any
-   verdict.
-3. **Open the guide**: `runner/results/782-preselect-ab.*/new-1/benchmark-results/AppleM4Max.darwin25/bench-hashes.guide.html`
-   (offline, one file, 1.2 MB).
+2. Done: job 783 repeated 782 on mains and agrees (NOTES, "Job 783");
+   battery changed nothing measurable with the busy gap (0 E-core calls
+   in both). New finding there: cells under about 1 µs after the gap
+   move about 20% with the harness's code layout (a recompile), for ring
+   as for servil. Decision wanted: accept and state, or warm the
+   harness's code before the call.
+3. The guide was redone after your review (bc5c657: one scrolling page,
+   a compiled example per call, throughput chart, latency table in
+   ns/µs/ms). Job 784 makes one from Mac data through the restarted
+   runner: `runner/results/784-guide-mac.*/benchmark-results/AppleM4Max.darwin25/bench-hashes.guide.html`.
+   Read it as the three readers; the README now leads newcomers to the
+   graph and programmers to the guide (Pages after your reading).
 
 **Done tonight** (each commit message has its evidence):
 - The table in the benchmark: three new continuous axes with buffers

@@ -551,3 +551,25 @@ four old/new/new/old, prints each speed and share, and puts same-code
 repetitions beside a four-run comparison. An explicit --map names
 use cases whose workloads deserve comparison. Two-file comparisons make
 no claim about repetition. It uses the fork's shared Python rule.
+
+### Job 783 (mains) confirms 782 (battery), and finds a layout effect
+
+Job 783 repeated 782 on mains power: same-code repeats within 6%;
+preselection made servil's cold 64 B call 18% faster (fast speed 3.91
+-> 3.18 ns/B; 782: 3.66 -> 2.51) and batches of 16 11% (28.6 -> 25.5
+ns/msg; 782: 27%). Battery power changed nothing measurable with the busy
+gap: in jobs 780 (mains) and 782 (battery) 0 of about 3600 after-gap
+calls ran on E-cores, and the clock distribution was the same (median
+4.04-4.07 GHz, p10 3.32-3.33). The battery finding of September 2026
+(233 of 400 calls on E-cores) belonged to the sleeping gap.
+
+Both jobs also show the 1-message batch 17-27% slower on the new side
+for servil and ring alike, with same-code repeats within 3-8%. Ring's
+code path in that cell is unchanged; the servil cell moved from `hash`
+to the frozen `hash_many`. A call of about 200 ns after a 128 MiB sweep
+runs from cold instruction caches, so it measures the harness's code
+layout beside the hash: any recompile can move such a cell by about
+20%. Open: whether to accept that spread as the cold cells' nature and
+say so in the report, or warm the harness's own code (never the hash's)
+before the call. Until decided, differences under about 25% in cells
+below 1 µs after the gap are not evidence about the hash.
