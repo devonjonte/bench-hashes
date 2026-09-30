@@ -85,11 +85,10 @@ const GAP_WORK_BYTES: usize = 128 * 1024 * 1024;
 /*
  * How much call time a synchronous cell's sample sums: one call when it
  * lasts this long or more, else as many calls as fill it, each after its
- * own gap and timed alone (clocks::measure_after_gaps; the crate's
- * "Resolution" says why a sum of single readings is exact on average).
- * Each call costs a gap of GAP_NS, so this sets the run time of the small
- * cells; the spread it leaves is the clock states' more than the ticks'
- * (after a gap a call starts at any clock from the lowest to the highest).
+ * own gap and timed alone, after one untimed call
+ * (clocks::measure_after_gaps_prepared; the crate's "Resolution" says why
+ * a sum of single readings is exact on average). Each call costs a gap of
+ * GAP_NS, so this sets the run time of the small cells.
  */
 const GAP_SAMPLE_NS: u128 = 2_000;
 /// Calls timed after the gap to size a synchronous cell's sample.
@@ -401,15 +400,16 @@ struct RunSamples {
 
 
 /*
- * The use cases (FROZEN.md). Three synchronous ones, each call made after
- * the gap, as a program that hashes and then goes off and does other
- * things calls: one message in one buffer; a batch of 64-byte messages (a
- * Merkle tree's inner nodes; a contender with a batch entry point hands
- * it the batch, see hash_batch, every other one loops its plain entry
- * point over it); one message arriving in pieces. Two continuous ones, a
- * program hashing one after another as fast as it can: messages of one
- * length, and batches of 64-byte messages, each read into a buffer of the
- * program's first.
+ * The use cases (FROZEN.md). Three synchronous calls, each made now and
+ * then, after other work and, as their idle twins, after idling: one
+ * message in one buffer; a batch of 64-byte messages (a Merkle tree's
+ * inner nodes; a contender with a batch entry point hands it the batch,
+ * see hash_batch, every other one loops its plain entry point over it);
+ * one message arriving in pieces. Five nonstop ones, a program hashing
+ * one input after another as fast as it can: messages and batches through
+ * buffers the program owns (the queue), and messages, pieces, and
+ * batches through buffers it lends to a synchronous call, each read into
+ * a buffer of the program's first.
  */
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum UseCase {
@@ -3792,12 +3792,11 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
 }
 
 /*
- * The text report, for three readers in turn: one comparing contenders on
- * a load pattern, one looking for a regression, one estimating speed for
- * a design. Results come first, one table per scenario and use case, the
- * median alone in each cell; then the checks a regression hunter wants
- * made for them; then which code path each contender ran, and where the
- * numbers came from, for whoever needs to trust or reproduce them.
+ * The text report: results first, one table per scenario and use case,
+ * the median alone in each cell (both where a cell ran at two speeds);
+ * then which code path each contender ran, and where the numbers came
+ * from, for whoever needs to trust or reproduce them. The consistency
+ * checks go to a file of their own (consistency).
  */
 fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, selection_note: &str) -> String {
     let mut output = String::new();
@@ -7316,8 +7315,8 @@ mod correctness_tests {
 
     /// Results and samples for two contenders over `rounds` rounds: each
     /// cell's sample in round r is `value(contender, point, r)` ns over one
-    /// unit, solo and both shared copies alike (after the gap with no
-    /// clock counted), summarised as measure_all does.
+    /// unit, solo and both shared copies alike (the shared ones for the
+    /// nonstop use cases alone), summarised as measure_all does.
     fn run(roster: &Roster, rounds: usize, value: impl Fn(usize, usize, usize) -> u64) -> (Results, RunSamples) {
         let empty = || -> Samples { vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
         let mut samples = RunSamples { solo: empty(), shared: empty(), started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
