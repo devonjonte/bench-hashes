@@ -573,3 +573,39 @@ layout beside the hash: any recompile can move such a cell by about
 say so in the report, or warm the harness's own code (never the hash's)
 before the call. Until decided, differences under about 25% in cells
 below 1 µs after the gap are not evidence about the hash.
+
+### Cold cells under 1 µs vary per process, not per binary (job 788)
+
+A layout probe (bench-hashes probe/layout-perturb: 2 KiB of never-called
+code before main; fork with and without the warmed timing path, d005716;
+eight full Mac runs a1 ap1 b1 bp1 ap2 a2 bp2 b2) settles the question
+raised by jobs 782-783. From 512 B up, every servil st and ring cell
+after the gap agrees within about 5% across binaries and repeats. At
+64 B and in the 1-message batch (cold calls of 200-300 ns), repeats of
+the *same* binary differ by 15-65% (servil 64 B: 3.15|4.34 ns/B in one
+process, 5.21 in the next; ring 2.73 -> 3.55), the perturbed binary no
+more than the plain one, and the warmed timing path changed nothing.
+The layout hypothesis is refuted: the spread belongs to the process (its
+memory layout against the caches and the sweep, most likely), and a
+single run's figure for such a cell carries that spread. Remedy to
+decide: several processes per record for the cold cells (perf_regress
+already alternates eight), or state the spread beside each cell under
+1 µs. The warmed path stays: it is cheap and principled (the interval
+holds the call, and the helper's own code is warm as a program's is).
+
+**Archaeology (jobs 785-787):** v0.1.0, v0.2.0, and v0.3.0 each against
+today's fork under today's benchmark: no slower solo cell for one
+message, pieces, or batches (one shared two-speed cell, mt 256 KiB,
+against v0.2.0). The published Mac records since September 25 (calls
+back to back) show servil st tying ring at 4 KiB (0.29-0.33 against
+0.29-0.31 ns/B), losing 2x at 1 KiB, winning from 16 KiB; today's
+nonstop cells reproduce that. The "now and then" crossing at 32 KiB is
+the cold-cache pattern's, for code that has not changed in effect:
+servil's cold cost between 4 and 32 KiB exceeds ring's, an open
+finding about servil rather than a regression. perf_regress judges
+those cells at a 20% margin, so a loss under 20% would pass it.
+
+**A 1-message batch** is `hash_many` called with one message: the batch
+function's fixed cost at the start of its axis (a Merkle layer of one
+node). It stays as the axis's first point and is the cell most exposed
+to the cold spread above.
