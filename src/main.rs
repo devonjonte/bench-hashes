@@ -2993,6 +2993,13 @@ impl Duo {
                 std::thread::yield_now();
             }
             seen = self.generation.load(Ordering::Acquire);
+            // probe/shared-after-gap: HB_DUO_SERIAL starts copy 1 only after
+            // copy 0 has finished, so the copies never overlap.
+            if copy == 1 && std::env::var_os("HB_DUO_SERIAL").is_some() {
+                while self.finished.lock().unwrap()[0].is_none() {
+                    std::thread::yield_now();
+                }
+            }
             // Sound: run() holds the borrows until both finishes are read.
             let sample = take_sample(job.algorithm, unsafe { &*job.inputs[copy] }, job.point, job.iterations);
             let mut finished = self.finished.lock().unwrap();
