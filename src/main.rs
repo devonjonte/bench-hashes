@@ -2057,13 +2057,15 @@ fn take_prepared_sample(input: &[u8], iterations: usize, mut call: impl FnMut(&[
             std::fs::OpenOptions::new().create(true).append(true).open("addrs.csv").unwrap().write_all(line.as_bytes()).unwrap();
         }
         let invalidate = std::env::var_os("HB_ICACHE").is_some();
-        let measured = if invalidate {
+        let code_step = if std::env::var_os("HB_CODE_PAGES").is_some() { 16384 } else if std::env::var_os("HB_CODE_LINES").is_some() { 64 } else { 0 };
+        let measured = if invalidate || code_step > 0 {
             let code = text();
             clocks::measure_after(iterations as u64, || {
-                invalidate_icache(code);
+                if invalidate { invalidate_icache(code); }
                 let started = clocks::now();
                 let mut sum = 0u64;
                 for &byte in black_box(&work[..]).iter().step_by(64) { sum = sum.wrapping_add(u64::from(byte)); }
+                if code_step > 0 { for &byte in black_box(code).iter().step_by(code_step) { sum = sum.wrapping_add(u64::from(byte)); } }
                 black_box(sum);
                 clocks::busy_work(GAP_NS.saturating_sub(clocks::since_ns(started)));
             }, produced.as_mut_slice(),
