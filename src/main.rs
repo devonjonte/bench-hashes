@@ -1847,6 +1847,9 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                     /* The solo sample: this thread runs the batch, alone. */
                     clocks::load::tick();
                     let started_ns = clocks::load::now_ns();
+                    // probe/shared-after-gap: HB_SHARED_FIRST takes the shared sample before the solo one.
+                    let shared_first = std::env::var_os("HB_SHARED_FIRST").is_some();
+                    let early = shared_first.then(|| duo.run(algorithm, input, &duo_inputs[size_index], point, iterations));
                     let DuoCopy { elapsed_ns, counts, preparation } = take_sample(algorithm, input, point, iterations);
 
                     /*
@@ -1854,7 +1857,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                      * run a batch each at once, on two threads, and each copy's
                      * own time is a sample.
                      */
-                    let copies = duo.run(algorithm, input, &duo_inputs[size_index], point, iterations);
+                    let copies = match early { Some(copies) => copies, None => duo.run(algorithm, input, &duo_inputs[size_index], point, iterations) };
 
 
                     let total_units = point.use_case.units(point, iterations);
