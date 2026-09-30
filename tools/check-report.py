@@ -34,9 +34,9 @@ samples = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(samples)
 
 HEADINGS = {
-    "A message in one buffer, amid other work": "OneMessage",
-    "A batch of 64-byte messages, amid other work": "ManyMessages",
-    "A message arriving in 64 KiB pieces, amid other work": "Streaming",
+    "A message in one buffer, after other work": "OneMessage",
+    "A batch of 64-byte messages, after other work": "ManyMessages",
+    "A message arriving in 64 KiB pieces, after other work": "Streaming",
     "A message in one buffer, after idling": "IdleOneMessage",
     "A batch of 64-byte messages, after idling": "IdleManyMessages",
     "A message arriving in 64 KiB pieces, after idling": "IdleStreaming",

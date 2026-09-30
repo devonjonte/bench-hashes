@@ -27,7 +27,7 @@ pre code { background: none; padding: 0; }
 dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: .8rem 0; }
 dt { color: #5b6a72; }
 dd { margin: 0; }
-/* The chips read as a sentence: "called [after idling] [amid other work] [nonstop], [alone] [beside another program]". */
+/* The chips read as a sentence: "called [after idling] [after other work] [nonstop], [alone] [beside another program]". */
 .how { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .8rem 0 .4rem; color: #5b6a72; }
 .how button { border-radius: 999px; padding: .15rem .8rem; font-size: .9rem; color: #242b30; }
 .how button[aria-pressed="true"] { background: #e6dcff; border-color: #7a5cc4; }
@@ -196,14 +196,18 @@ function drawChips(plot) {
   text("Called");
   if (current.uses.length === 3) {
     const measured = current.uses.map(use => !!plotFor(use, scenario));
-    ["after idling", "amid other work", "nonstop"].forEach((label, i) => { if (measured[i]) add(label, useIndex === i, () => { useIndex = i; drawSpeed(); }); });
+    ["after idling", "after other work", "nonstop"].forEach((label, i) => { if (measured[i]) add(label, useIndex === i, () => { useIndex = i; drawSpeed(); }); });
   } else text("nonstop");
-  text(",");
-  add("alone", scenario === "solo", () => { scenario = "solo"; drawSpeed(); });
-  add("beside another program", scenario === "shared", () => { scenario = "shared"; drawSpeed(); });
+  /* Two programs at once are measured nonstop alone (a gap's twin warmed the other's code). */
+  if (plotFor(current.uses[useIndex], "shared")) {
+    text(",");
+    add("alone", scenario === "solo", () => { scenario = "solo"; drawSpeed(); });
+    add("beside another program", scenario === "shared", () => { scenario = "shared"; drawSpeed(); });
+  } else text(", alone");
 }
 
 function drawSpeed() {
+  if (!plotFor(current.uses[useIndex], scenario)) scenario = "solo";
   const r = current, plot = plotFor(r.uses[useIndex], scenario);
   drawChips(plot);
   const points = plot ? pointsFor(plot) : [];
@@ -287,8 +291,8 @@ function methodText(plot) {
   if (use.startsWith("Lent"))
     return `Measured ${where}, ${sc}. The program read each input into a buffer (a memory copy) and called the function, one input after another with nothing between; the read is inside the time. Every contender ran the same loop.`;
   if (use.startsWith("Idle"))
-    return `Measured ${where}, ${sc}. Before each call the program slept a millisecond, as a server waits for its next request, then wrote the input; the function found helper threads asleep and a core that may have slowed or powered down. The call alone is timed${use === "IdleStreaming" ? ", with each piece's read" : ""}.`;
-  return `Measured ${where}, ${sc}. Before each call the program ran a fixed other program (about 1 MiB of code) and read 128 MiB of data, at least a millisecond in all, so the function found its code and data out of the caches and its helper threads asleep, as on a machine busy with other programs. The call alone is timed${use === "Streaming" ? ", with each piece's read" : ""}.`;
+    return `Measured ${where}, ${sc}. The program called the function, slept a millisecond, as a server waits for its next request, wrote the next input, and called again; the function found helper threads asleep and a core that may have slowed or powered down. The second call alone is timed${use === "IdleStreaming" ? ", with each piece's read" : ""}.`;
+  return `Measured ${where}, ${sc}. The program called the function, then ran a fixed other program (about 1 MiB of code) and read 128 MiB of data, at least a millisecond in all, wrote the next input, and called again: the function found its code and data out of the caches and its helper threads asleep, as in a program that hashes between other tasks, or on a busy machine. The second call alone is timed${use === "Streaming" ? ", with each piece's read" : ""}.`;
 }
 
 el("back").onclick = () => { const last = history.pop(); delete answers[last.key]; show(); };

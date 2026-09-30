@@ -790,3 +790,28 @@ through Platform::hash_many. Against the calls amid other work, the
 single-threaded contenders agree within about 3% from 8 MiB; servil mt
 is slower after a gap at 1-8 MiB (1 MiB 0.068 -> 0.092-0.125 ns/B) where
 back to back kept its workers awake, level by 128 MiB.
+
+### Shared after a gap (jobs 808-809, September 30)
+
+After either gap, a shared copy of a small call read 10-50% faster than
+the solo call, for every contender (ring, SHA-1DC too). Not two copies
+of one code warming each other at once: run one after the other
+(`HB_DUO_SERIAL`, probe/shared-after-gap), the copies stayed faster
+(servil 4 KiB after other work: solo 5.17 us, copies 4.1-4.3; ring 1 KiB
+652 against 486-500 ns), with the same instructions and clock, only
+more stall cycles solo. Reversing each interval's order (shared first,
+`HB_SHARED_FIRST`) reversed the advantage: servil 4 KiB after idling,
+solo 2.0-2.1 us (fast speed) against the copies' 5.5-7.0. So whichever
+sample ran second found the code the first had just run, through the
+sleep (in the cores' caches) and even through the other program and the
+128 MiB walk (most likely the system-level cache). A timed call's cost
+depended on the benchmark's schedule: small cells' later calls followed
+the same call, large cells' single call another cell, a copy its own
+solo sample.
+
+The fix (Zooko, September 30): each timed call follows the same call,
+one untimed call before a sample's first (clocks::measure_after_gaps_prepared);
+the shared scenario measures the nonstop use cases alone. The walk and
+the other program stay as the busy program's other work, no longer as a
+way to erase what ran before. Each gap cell now takes the full 12
+samples; a full VM run takes 64 s (was 45).

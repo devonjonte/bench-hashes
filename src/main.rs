@@ -71,15 +71,16 @@ const LONG_HASH_NS: u128 = 4_000_000;
  * The gap: how long the program does something else before each call of
  * a synchronous use case (FROZEN.md: a program that hashes now and then).
  * Two kinds, each measured (Zooko, September 30, 2026; clocks::Gap):
- * amid other work, a fixed other program (about 1 MiB of distinct code),
+ * after other work, a fixed other program (about 1 MiB of distinct code),
  * a walk of GAP_WORK_BYTES, then integer work to 1 ms, as on a machine
  * busy with other programs; after idling, a 1 ms sleep, as a server
  * waiting for its next request. Longer than a pool keeps its workers
  * polling (the fork's, 200 us), so each call meets them asleep.
  */
 const GAP_NS: u64 = 1_000_000;
-/// Fixed working set per measuring thread, larger than the target Mac's
-/// caches. A complete sweep is required even when it outlasts GAP_NS.
+/// The data the other work reads, per measuring thread: larger than the
+/// target Mac's caches, as other programs' data fill them. A complete
+/// sweep is required even when it outlasts GAP_NS.
 const GAP_WORK_BYTES: usize = 128 * 1024 * 1024;
 /*
  * How much call time a synchronous cell's sample sums: one call when it
@@ -94,6 +95,10 @@ const GAP_SAMPLE_NS: u128 = 2_000;
 /// Calls timed after the gap to size a synchronous cell's sample.
 const CALIBRATION_GAPS: u64 = 4;
 const STEADY_SAMPLES: usize = 12;
+/// A cell after a gap takes this many times fewer samples. Its samples
+/// run alone (no shared copies), one untimed call and a gap more each;
+/// 1 keeps them as many as a nonstop cell's (September 30, 2026).
+const AFTER_GAP_DIVISOR: usize = 1;
 const LONG_SAMPLES: usize = 6;
 
 /// Points on the one-message axis, and on each many-messages axis.
@@ -494,7 +499,7 @@ enum UseCase {
     /// would, through the incremental API.
     Streaming,
     /// The same three calls, each after the program idled (the first
-    /// three: each amid other work; clocks::Gap).
+    /// three: each after other work; clocks::Gap).
     IdleOneMessage,
     IdleManyMessages,
     IdleStreaming,
@@ -517,7 +522,7 @@ impl UseCase {
         UseCase::LentMessages, UseCase::LentPieces, UseCase::LentBatches];
 
     /// Whether each call comes after a gap (the synchronous use cases:
-    /// amid other work, or after idling), or one follows another (the
+    /// after other work, or after idling), or one follows another (the
     /// continuous ones).
     fn after_gap(self) -> bool {
         matches!(self.call(), Self::OneMessage | Self::ManyMessages | Self::Streaming)
@@ -576,9 +581,9 @@ impl UseCase {
 
     fn heading(self) -> &'static str {
         match self {
-            Self::OneMessage => "A message in one buffer, amid other work",
-            Self::ManyMessages => "A batch of 64-byte messages, amid other work",
-            Self::Streaming => "A message arriving in 64 KiB pieces, amid other work",
+            Self::OneMessage => "A message in one buffer, after other work",
+            Self::ManyMessages => "A batch of 64-byte messages, after other work",
+            Self::Streaming => "A message arriving in 64 KiB pieces, after other work",
             Self::IdleOneMessage => "A message in one buffer, after idling",
             Self::IdleManyMessages => "A batch of 64-byte messages, after idling",
             Self::IdleStreaming => "A message arriving in 64 KiB pieces, after idling",
@@ -593,9 +598,9 @@ impl UseCase {
     /// The plot's name in a list of plots.
     fn short(self) -> &'static str {
         match self {
-            Self::OneMessage => "one buffer, amid other work",
-            Self::ManyMessages => "a batch, amid other work",
-            Self::Streaming => "pieces, amid other work",
+            Self::OneMessage => "one buffer, after other work",
+            Self::ManyMessages => "a batch, after other work",
+            Self::Streaming => "pieces, after other work",
             Self::IdleOneMessage => "one buffer, after idling",
             Self::IdleManyMessages => "a batch, after idling",
             Self::IdleStreaming => "pieces, after idling",
@@ -655,11 +660,11 @@ impl UseCase {
     /// the tables' names.
     fn pattern(self) -> &'static str {
         if self.idle() {
-            "each call comes after 1 ms of sleep, as on a server waiting for its next request"
+            "each timed call follows the same call and 1 ms of sleep, as a server handles a request, waits, and handles the next"
         } else if self.after_gap() {
-            "each call comes after at least 1 ms of other work (a fixed other program, and a walk of 128 MiB of data), as on a machine busy with other programs"
+            "each timed call follows the same call and then other work (a fixed other program and a read of 128 MiB, at least 1 ms), as a program hashes between other tasks, or on a machine busy with other programs"
         } else {
-            "the program hashes one input after another, as fast as it can"
+            "the program hashes one input after another, as fast as it can; these alone are also measured with two programs at once"
         }
     }
 
@@ -724,7 +729,7 @@ impl Point {
             UseCase::OneMessage => UseCase::IdleOneMessage,
             UseCase::ManyMessages => UseCase::IdleManyMessages,
             UseCase::Streaming => UseCase::IdleStreaming,
-            _ => panic!("only the calls amid other work have idle twins"),
+            _ => panic!("only the calls after other work have idle twins"),
         };
         Self { use_case, ..self }
     }
@@ -1231,7 +1236,7 @@ impl Scenario {
     /// The scenario in a plot's subtitle.
     fn subtitle(self) -> &'static str {
         match self {
-            Self::Solo => "one program hashing, the computer otherwise idle",
+            Self::Solo => "one program hashing, no other program running at the same time",
             Self::Shared => "two programs hashing at once; the time of either",
         }
     }
@@ -1239,24 +1244,35 @@ impl Scenario {
     /// What a reader of the results needs to know about the scenario.
     fn description(self) -> &'static str {
         match self {
-            Self::Solo => "one copy of each contender on one thread, the machine otherwise idle",
-            Self::Shared => "two copies of the contender at once, each hashing its own input on its own thread, their calls after the gap starting together; the time of each copy",
+            Self::Solo => "one copy of each contender on one thread, no other program running at the same time",
+            Self::Shared => "two copies of the contender at once, each hashing its own input on its own thread, inputs one after another; the time of each copy",
         }
+    }
+
+    /// Whether this scenario measures `use_case`. Two copies at once
+    /// measure the nonstop use cases alone: after a gap, a copy whose twin
+    /// had just run the same code met that code in a cache the gap left
+    /// warm, and read faster than one program alone (bench-hashes NOTES,
+    /// "Shared after a gap"; Zooko, September 30, 2026).
+    fn measures(self, use_case: UseCase) -> bool {
+        self == Self::Solo || !use_case.after_gap()
     }
 }
 
-/// One (contender, point) cell: measured time per unit in each scenario.
+/// One (contender, point) cell: measured time per unit in each scenario
+/// that measures its use case (Scenario::measures).
 #[derive(Clone, Copy)]
 struct Cell {
     solo: Statistics,
-    shared: Statistics,
+    shared: Option<Statistics>,
 }
 
 impl Cell {
+    /// Requires `scenario` to measure the cell's use case.
     fn get(&self, scenario: Scenario) -> Statistics {
         match scenario {
             Scenario::Solo => self.solo,
-            Scenario::Shared => self.shared,
+            Scenario::Shared => self.shared.expect("a shared cell exists for the nonstop use cases alone"),
         }
     }
 }
@@ -1520,7 +1536,7 @@ fn parse_arguments() -> Options {
                 /*
                  * A label's prefix names its use cases ("streamed 64 KiB",
                  * "idle 16", "continuous batch 1024"): the longest prefix
-                 * that matches, the plain label the calls amid other work.
+                 * that matches, the plain label the calls after other work.
                  */
                 let label = label.trim();
                 let (prefix, label) = UseCase::ALL
@@ -1850,11 +1866,12 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                     let DuoCopy { elapsed_ns, counts, preparation } = take_sample(algorithm, input, point, iterations);
 
                     /*
-                     * The shared sample, under the same conditions: two copies
-                     * run a batch each at once, on two threads, and each copy's
-                     * own time is a sample.
+                     * The shared sample, under the same conditions, for the
+                     * nonstop use cases: two copies run a batch each at once,
+                     * on two threads, and each copy's own time is a sample.
                      */
-                    let copies = duo.run(algorithm, input, &duo_inputs[size_index], point, iterations);
+                    let copies = Scenario::Shared.measures(point.use_case)
+                        .then(|| duo.run(algorithm, input, &duo_inputs[size_index], point, iterations));
 
 
                     let total_units = point.use_case.units(point, iterations);
@@ -1866,34 +1883,33 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                         samples.gap_mhz[algorithm_index][size_index]
                             .push(counts.filter(|c| c.p.time_ns + c.e.time_ns > 0).map_or(0, |c| c.mhz()));
                     }
-                    for copy in &copies {
+                    for copy in copies.iter().flatten() {
                         samples.shared[algorithm_index][size_index].push(per_unit(copy.elapsed_ns));
                     }
 
                     if let Some(trace) = trace.as_deref_mut() {
-                        let later_ns = copies.iter().map(|copy| copy.elapsed_ns).max().unwrap();
+                        /* A solo row leaves the shared columns empty. */
+                        let (later, copy_fields) = match &copies {
+                            Some(copies) => (copies.iter().map(|copy| copy.elapsed_ns).max().unwrap().to_string(),
+                                format!("{},{},{},{}", copies[0].elapsed_ns, counts_csv(copies[0].counts), copies[1].elapsed_ns, counts_csv(copies[1].counts))),
+                            None => (String::new(), format!(",{NO_COUNTS},,{NO_COUNTS}")),
+                        };
+                        let scenario = if copies.is_some() { "solo and shared" } else { "solo" };
                         trace.lines.push(format!(
-                            "{round},{},{},{},{iterations},{elapsed_ns},{},{:?},{later_ns},{},{},{},{}",
+                            "{round},{},{},{},{iterations},{elapsed_ns},{},{:?},{later},{copy_fields},{scenario}",
                             point_offset * algorithm_order.len() + position,
                             algorithm.key(),
                             input.len(),
                             counts_csv(counts),
                             point.use_case,
-                            copies[0].elapsed_ns,
-                            counts_csv(copies[0].counts),
-                            copies[1].elapsed_ns,
-                            counts_csv(copies[1].counts),
-                        ) + ",solo and shared");
+                        ));
                         if let Some(preparation) = preparation {
-                            let shared = copies.map(|copy| copy.preparation.expect("shared copies prepare the same use case"));
+                            assert!(copies.is_none(), "a use case with a preparation runs after a gap, alone");
                             trace.lines.push(format!(
-                                "{round},{},{},{},{iterations},{},{},{:?},{},{},{},{},{}",
+                                "{round},{},{},{},{iterations},{},{},{:?},,,{NO_COUNTS},,{NO_COUNTS},preparation solo",
                                 point_offset * algorithm_order.len() + position, algorithm.key(), input.len(),
                                 preparation.wall_ns, counts_csv(preparation.counts), point.use_case,
-                                shared.iter().map(|batch| batch.wall_ns).max().unwrap(),
-                                shared[0].wall_ns, counts_csv(shared[0].counts),
-                                shared[1].wall_ns, counts_csv(shared[1].counts),
-                            ) + ",preparation solo and shared");
+                            ));
                         }
                     }
                 }
@@ -1914,11 +1930,12 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
             }
             let solo = &samples.solo[algorithm_index][size_index];
             let shared = &samples.shared[algorithm_index][size_index];
+            let copies = if Scenario::Shared.measures(point.use_case) { 2 } else { 0 };
             assert!(!solo.is_empty() && solo.len() <= roster.rounds, "one solo sample per round at most, and one at least");
-            assert_eq!(shared.len(), 2 * solo.len(), "two shared samples, one per copy, beside every solo sample");
+            assert_eq!(shared.len(), copies * solo.len(), "two shared samples, one per copy, beside every solo sample of a nonstop cell");
             results[algorithm_index][size_index] = Some(Cell {
                 solo: summarize_measured(solo),
-                shared: summarize_measured(shared),
+                shared: (copies > 0).then(|| summarize_measured(shared)),
             });
         }
     }
@@ -2115,7 +2132,7 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
 }
 
 /// Prepare and time an already-selected call, each after the program
-/// idled (`idle`) or amid its other work. The producer and work buffers
+/// idled (`idle`) or after its other work. The producer and work buffers
 /// stay outside the API's interval, as does dispatch selection.
 fn take_prepared_sample(input: &[u8], iterations: usize, idle: bool, mut call: impl FnMut(&[u8])) -> DuoCopy {
     GAP_BUFFERS.with(|kept| {
@@ -2691,12 +2708,12 @@ thread_local! {
  */
 #[cfg(test)]
 const SERVIL_CALLS: [(Algorithm, UseCase, &str); 20] = [
-    (Algorithm::Blake3ServilSt, UseCase::OneMessage, "hash(input), each call amid other work"),
-    (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "hash_many(batch, 64, out), the padded batch contract, each call amid other work"),
-    (Algorithm::Blake3ServilSt, UseCase::Streaming, "Hasher::update per 64 KiB piece, then finalize, each message amid other work"),
-    (Algorithm::Blake3ServilMt, UseCase::OneMessage, "hash_multithreaded(input), each call amid other work"),
-    (Algorithm::Blake3ServilMt, UseCase::ManyMessages, "hash_many_multithreaded(batch, 64, out), the padded batch contract, each call amid other work"),
-    (Algorithm::Blake3ServilMt, UseCase::Streaming, "Hasher::update per 64 KiB piece, then finalize, each message amid other work"),
+    (Algorithm::Blake3ServilSt, UseCase::OneMessage, "hash(input), each call after other work"),
+    (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "hash_many(batch, 64, out), the padded batch contract, each call after other work"),
+    (Algorithm::Blake3ServilSt, UseCase::Streaming, "Hasher::update per 64 KiB piece, then finalize, each message after other work"),
+    (Algorithm::Blake3ServilMt, UseCase::OneMessage, "hash_multithreaded(input), each call after other work"),
+    (Algorithm::Blake3ServilMt, UseCase::ManyMessages, "hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after other work"),
+    (Algorithm::Blake3ServilMt, UseCase::Streaming, "Hasher::update per 64 KiB piece, then finalize, each message after other work"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "Queue::messages(Mode::Hash, Efficiency::Time) for messages of up to 64 KiB, Queue::pieces(Mode::Hash, Efficiency::Time) in 64 KiB pieces for longer ones, one message after another, each read into free buffers of the program's, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "Queue::fixed(64, Mode::Hash, Efficiency::Time), one batch after another, each read into a free buffer of the program's, submitted with its digests' space, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept"),
     (Algorithm::Blake3ServilSt, UseCase::LentMessages, "hash(input), one message after another, each read into a kept buffer and lent until the call returns"),
@@ -2724,6 +2741,8 @@ fn frozen_contract() -> String {
     }
     let keys = |scenarios: &[Scenario]| scenarios.iter().map(|scenario| scenario.key()).collect::<Vec<_>>().join(", ");
     text += &format!("scenarios: {}\n", keys(&Scenario::ALL));
+    let shared: Vec<String> = UseCase::ALL.into_iter().filter(|&use_case| Scenario::Shared.measures(use_case)).map(|use_case| format!("{use_case:?}")).collect();
+    text += &format!("shared measures: {}\n", shared.join(", "));
     text += &format!("graph plots: {}\n", keys(&Scenario::PLOTTED));
     for (algorithm, use_case, call) in SERVIL_CALLS {
         assert!(algorithm.takes_part(use_case), "{} takes part in {use_case:?}", algorithm.key());
@@ -3106,6 +3125,9 @@ impl ClockTrace {
 
 /// A trace's six count fields (P cycles, instructions, time; then E), zeros
 /// where the platform counts none.
+/// The six counts columns of a copy that took no sample: empty.
+const NO_COUNTS: &str = ",,,,,";
+
 fn counts_csv(counts: Option<clocks::Counts>) -> String {
     let c = counts.unwrap_or_default();
     format!("{},{},{},{},{},{}", c.p.cycles, c.p.instructions, c.p.time_ns, c.e.cycles, c.e.instructions, c.e.time_ns)
@@ -3232,11 +3254,10 @@ impl MachineMetadata {
 /// Whether a cell takes a sample this round (`slot` is the round plus the
 /// cell's own offset): in every `every`-th round of a run of `rounds`,
 /// where `every` spreads STEADY_SAMPLES (or, for a `long` cell,
-/// LONG_SAMPLES) over the run, half as many for a cell after a gap (two
-/// gaps, amid other work and after idling, each half: Zooko, September
-/// 30, 2026, to keep a full run near 50 s).
+/// LONG_SAMPLES) over the run, and AFTER_GAP_DIVISOR times fewer for a
+/// cell after a gap.
 fn cell_wants_sample(slot: usize, rounds: usize, long: bool, after_gap: bool) -> bool {
-    let target = if long { LONG_SAMPLES } else { STEADY_SAMPLES } / if after_gap { 2 } else { 1 };
+    let target = if long { LONG_SAMPLES } else { STEADY_SAMPLES } / if after_gap { AFTER_GAP_DIVISOR } else { 1 };
     slot % (rounds / target).max(1) == 0
 }
 
@@ -3949,7 +3970,7 @@ fn generate_text(roster: &Roster, results: &Results, samples: &RunSamples, machi
     for scenario in Scenario::ALL {
         writeln!(output, "{}: {}.", scenario.heading().to_uppercase(), scenario.description()).unwrap();
         writeln!(output).unwrap();
-        for use_case in UseCase::ALL {
+        for use_case in UseCase::ALL.into_iter().filter(|&use_case| scenario.measures(use_case)) {
             append_table(&mut output, roster, results, scenario, use_case);
         }
     }
@@ -4097,7 +4118,7 @@ fn checks(roster: &Roster, results: &Results, samples: &RunSamples) -> (Vec<Stri
             continue;
         }
         for scenario in Scenario::ALL {
-            for use_case in UseCase::ALL.into_iter().filter(|&use_case| algorithm.takes_part(use_case)) {
+            for use_case in UseCase::ALL.into_iter().filter(|&use_case| algorithm.takes_part(use_case) && scenario.measures(use_case)) {
                 let points: Vec<usize> = use_case.points().filter(|&index| roster.measures(index)).collect();
                 let stats = |algorithm_index: usize, point_index: usize| cell(results, algorithm_index, point_index).get(scenario);
                 /*
@@ -4733,7 +4754,7 @@ fn generate_guide(roster: &Roster, results: &Results, machine: &MachineMetadata)
     write!(data, "],\"machine\":{},\"date\":{},\"plots\":[", json_string(&machine.cpu_type), json_string(machine.timestamp.split(' ').next().unwrap_or(""))).unwrap();
     let mut first = true;
     for scenario in Scenario::PLOTTED {
-        for use_case in UseCase::ALL {
+        for use_case in UseCase::ALL.into_iter().filter(|&use_case| scenario.measures(use_case)) {
             let points: Vec<usize> = use_case.points().filter(|&index| roster.measures(index)).collect();
             if points.is_empty() { continue; }
             if !first { data.push(','); }
@@ -4810,7 +4831,7 @@ fn generate_svg(
     /* Solo plots first, then shared: one per use case the run measured. */
     let mut plots: Vec<Plot> = Vec::new();
     for scenario in Scenario::PLOTTED {
-        for use_case in UseCase::ALL {
+        for use_case in UseCase::ALL.into_iter().filter(|&use_case| scenario.measures(use_case)) {
             if use_case.points().any(|index| roster.measures(index)) {
                 plots.push(Plot::new(plots.len(), scenario, use_case, roster, results));
             }
@@ -5090,7 +5111,7 @@ fn generate_svg(
 
     /*
      * Chips that show and hide plots: one row for who is hashing (solo,
-     * shared), one for how the program calls (after idling, amid other
+     * shared), one for how the program calls (after idling, after other
      * work, nonstop), one for what it hashes (one buffer, a batch,
      * pieces; messages and batches continuously), from the plots this
      * run has. Pressed chips show their plots; the plots shown close
@@ -5114,7 +5135,7 @@ fn generate_svg(
             let mut v = Vec::new();
             for (key, label, tip) in [
                 ("idle", "After idling", "Show or hide the plots of calls each made after the program slept 1 ms, as a server waiting for its next request"),
-                ("busy", "Amid work", "Show or hide the plots of calls each made after the program ran other code and read 128 MiB, as on a busy machine"),
+                ("busy", "After work", "Show or hide the plots of calls each made after the program ran other code and read 128 MiB, as on a busy machine"),
                 ("nonstop", "Nonstop", "Show or hide the plots of inputs hashed one after another"),
             ] {
                 if plots.iter().any(|plot| plot.use_case.pattern_key() == key) {
@@ -5181,10 +5202,10 @@ fn generate_svg(
         "The strip at the top narrows every plot to part of its inputs: drag an end of its band, or use the arrows at its ends.".to_owned(),
     ];
     if plots.iter().any(|plot| plot.use_case.after_gap() && !plot.use_case.idle()) {
-        howto.push("Amid other work: before each call its program runs a fixed other program (about 1 MiB of code) and reads 128 MiB of data, at least 1 ms in all, then writes the input, as on a machine busy with other programs.".to_owned());
+        howto.push("After other work: the program calls the hash, runs a fixed other program (about 1 MiB of code) and reads 128 MiB of data, at least 1 ms in all, writes the input, and calls again; the second call is timed. So a program works that hashes between other tasks, or one on a busy machine.".to_owned());
     }
     if plots.iter().any(|plot| plot.use_case.idle()) {
-        howto.push("After idling: before each call its program sleeps 1 ms, then writes the input, as a server waiting for its next request.".to_owned());
+        howto.push("After idling: the program calls the hash, sleeps 1 ms, writes the input, and calls again; the second call is timed. So a server works that waits for its next request.".to_owned());
     }
     if plots.iter().any(|plot| matches!(plot.use_case.call(), UseCase::Streaming | UseCase::LentPieces)) {
         howto.push("In the plots of messages arriving in pieces, each piece is first read into memory (timed; a memory copy, the cheapest read).".to_owned());
@@ -7589,7 +7610,9 @@ mod correctness_tests {
                 for r in 0..rounds {
                     let v = Measured::new(value(a, p, r), 1);
                     samples.solo[a][p].push(v);
-                    samples.shared[a][p].extend([v, v]);
+                    if Scenario::Shared.measures(POINTS[p].use_case) {
+                        samples.shared[a][p].extend([v, v]);
+                    }
                     if POINTS[p].use_case.after_gap() {
                         samples.gap_mhz[a][p].push(0);
                     }
@@ -7598,7 +7621,7 @@ mod correctness_tests {
                 }
                 results[a][p] = Some(Cell {
                     solo: summarize(&mut per_units(&samples.solo[a][p])),
-                    shared: summarize(&mut per_units(&samples.shared[a][p])),
+                    shared: Scenario::Shared.measures(POINTS[p].use_case).then(|| summarize(&mut per_units(&samples.shared[a][p]))),
                 });
             }
         }
@@ -7633,15 +7656,19 @@ mod correctness_tests {
         let (findings, _) = checks(&roster, &results, &samples);
         assert!(findings.is_empty(), "{findings:#?}");
 
-        /* servil alone twice as slow in 40% of rounds at 64: slower than SHA-256 there, at about x2, and two-speed. */
+        /* servil alone twice as slow in 40% of rounds at 64, nonstop (where the
+           shared copies pair samples round by round): slower than SHA-256
+           there, at about x2, and two-speed. */
+        let lent = |label| point(label, UseCase::LentBatches);
+        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256], true, Some(vec![lent("16"), lent("64"), lent("256")]), Some(24));
         let (results, samples) = run(&roster, 24, |a, p, r| {
             if a == 1 { return 20_000 + jitter(r); }
             let v = 15_000 + jitter(r);
             if POINTS[p].label == "64" && r % 5 < 2 { v * 2 } else { v }
         });
         let (findings, two_speed) = checks(&roster, &results, &samples);
-        assert!(findings.iter().any(|f| f.starts_with("x1.5") && f.contains("slower than SHA-256: 64 messages;")), "{findings:#?}");
-        assert!(two_speed.iter().any(|line| line.contains("two speeds: 64 messages")), "{two_speed:#?}");
+        assert!(findings.iter().any(|f| f.starts_with("x1.5") && f.contains("slower than SHA-256: batches of 64, lent buffers;")), "{findings:#?}");
+        assert!(two_speed.iter().any(|line| line.contains("two speeds: batches of 64, lent buffers")), "{two_speed:#?}");
     }
 
     /// After the gap, servil's solo samples caught only the slow clock
@@ -7727,7 +7754,8 @@ mod correctness_tests {
         let input = make_input(MESSAGE_LEN);
         take_sample(Algorithm::Blake3ServilSt, &input, Point::one("", MESSAGE_LEN), 2);
         take_sample(Algorithm::Blake3ServilSt, &input, Point::many("", 1), 3);
-        assert_eq!(CALLS.with(|calls| calls.borrow().clone()), ["hash", "hash", "hash_many", "hash_many", "hash_many"]);
+        /* One untimed call before each sample's timed ones (clocks: each timed call follows the same call). */
+        assert_eq!(CALLS.with(|calls| calls.borrow().clone()), ["hash", "hash", "hash", "hash_many", "hash_many", "hash_many", "hash_many"]);
     }
 
     #[test]
@@ -7743,7 +7771,7 @@ mod correctness_tests {
     #[test]
     fn samples_file_places_each_sample_in_the_load_windows() {
         let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], true,
-            Some(vec![point("64 B", UseCase::OneMessage), point("128 B", UseCase::OneMessage)]), Some(3));
+            Some(vec![point("64 B", UseCase::OneMessage), point("128 B", UseCase::OneMessage), point("64 B", UseCase::LentMessages), point("256 B", UseCase::LentMessages)]), Some(3));
         let (_, samples) = run(&roster, 3, |_, _, r| 10_000 + r as u64);
         let mut machine = machine_metadata();
         machine.load = vec![
@@ -7756,7 +7784,8 @@ mod correctness_tests {
         assert!(tsv.contains("\n# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1:1200:0,1-3:100:7\n"), "{tsv}");
         assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\n"));
         assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\n"), "{tsv}");
-        assert!(tsv.contains("\nblake3-servil-st\tshared\tOneMessage\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t0,0,1,1,2,2\n"), "{tsv}");
+        assert!(tsv.contains("\nblake3-servil-st\tshared\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t0,0,1,1,2,2\n"), "{tsv}");
+        assert!(!tsv.contains("\tshared\tOneMessage\t"), "calls after a gap run alone: {tsv}");
     }
 
     #[test]
