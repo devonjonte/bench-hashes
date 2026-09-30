@@ -581,9 +581,9 @@ power supply, and its report says the OS reports none.
 ## Build settings and provenance
 
 Release builds use optimization level 3, fat LTO, one codegen unit,
-abort-on-panic, no incremental compilation, and target-cpu=native, so
-the executable may fail on a different CPU: build on the machine being
-measured.
+abort-on-panic, and no incremental compilation, for the target's
+generic CPU, as programs are shipped: every contender chooses its code
+path from the CPU it finds at run time (the kernel tables say which).
 
 The build script reads `Cargo.lock` and embeds each contender crate's
 resolved version, registry checksum or git commit, and source, and this
