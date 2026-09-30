@@ -1634,23 +1634,21 @@ fn cell(results: &Results, algorithm_index: usize, point_index: usize) -> &Cell 
 fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results, RunSamples, Vec<clocks::load::Window>) {
     /* Inputs for the points measured; an empty buffer stands in for the rest. */
     /*
-     * One input per size: points of one size (in different use cases)
-     * hash the same bytes, which make_input derives from the size alone,
-     * so they share a buffer (a full run held 3.3 GB where one per size
-     * needs about 0.6). The second copy in a duo sample hashes its own
-     * buffer of the same size and different contents, as two independent
-     * programs would, for the use cases measured with two copies alone.
+     * The bytes are irrelevant to every contender's speed, so each point
+     * hashes a prefix of one buffer, written once (every page backed by
+     * memory of its own); the second copy in a duo sample hashes a prefix
+     * of a second buffer, so two copies share no cache lines, for the use
+     * cases measured with two copies alone. (A buffer per point held 3.3 GB
+     * in a full run.)
      */
-    let by_size = |seed: u64, wanted: &dyn Fn(usize) -> bool| -> std::collections::BTreeMap<usize, Vec<u8>> {
-        (0..POINT_COUNT).filter(|&index| roster.measures(index) && wanted(index))
-            .map(|index| POINTS[index].bytes).collect::<std::collections::BTreeSet<usize>>()
-            .into_iter().map(|bytes| (bytes, make_input_seeded(bytes, seed))).collect()
+    let largest = |wanted: &dyn Fn(usize) -> bool| (0..POINT_COUNT).filter(|&index| roster.measures(index) && wanted(index)).map(|index| POINTS[index].bytes).max().unwrap_or(0);
+    let own = make_input_seeded(largest(&|_| true), 0);
+    let other = make_input_seeded(largest(&|index| Scenario::Shared.measures(POINTS[index].use_case)), 1);
+    let prefixes = |buffer: &[u8]| -> Vec<std::ops::Range<usize>> {
+        (0..POINT_COUNT).map(|index| if roster.measures(index) && POINTS[index].bytes <= buffer.len() { 0..POINTS[index].bytes } else { 0..0 }).collect()
     };
-    let own = by_size(0, &|_| true);
-    let other = by_size(1, &|index| Scenario::Shared.measures(POINTS[index].use_case));
-    let empty: &[u8] = &[];
-    let inputs: Vec<&[u8]> = (0..POINT_COUNT).map(|index| own.get(&POINTS[index].bytes).map_or(empty, Vec::as_slice)).collect();
-    let duo_inputs: Vec<&[u8]> = (0..POINT_COUNT).map(|index| other.get(&POINTS[index].bytes).map_or(empty, Vec::as_slice)).collect();
+    let inputs: Vec<&[u8]> = prefixes(&own).into_iter().map(|range| &own[range]).collect();
+    let duo_inputs: Vec<&[u8]> = prefixes(&other).into_iter().map(|range| &other[range]).collect();
     let mut progress = Progress::new(roster);
     let duo = Duo::new();
 
@@ -3849,8 +3847,8 @@ fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, 
         }
     }
 
-    writeln!(output, "KERNELS: the code path each contender ran, from the point named on.").unwrap();
-    for use_case in UseCase::ALL {
+    writeln!(output, "KERNELS: the code path each contender ran, from the point named on (a call after idling runs the same as after other work).").unwrap();
+    for use_case in UseCase::ALL.into_iter().filter(|&use_case| use_case.call() == use_case) {
         writeln!(output, "  {}:", use_case.heading()).unwrap();
         for &algorithm in roster.algorithms.iter().filter(|algorithm| algorithm.takes_part(use_case)) {
             append_kernel_report(&mut output, algorithm, use_case);
@@ -7374,6 +7372,16 @@ mod correctness_tests {
             assert!(report.lines().any(|line| line.starts_with(&format!("{check}: {who}"))), "{check} for {who}:\n{report}");
         }
         assert!(!report.contains("a hash on the cores alone slowed by a second copy: BLAKE3 servil st"), "servil shares its SME unit: exempt\n{report}");
+    }
+
+    /// Every point hashes a prefix of one buffer: the input of each size is
+    /// the first bytes of every larger one.
+    #[test]
+    fn inputs_are_prefixes_of_the_largest() {
+        let largest = make_input_seeded(1 << 20, 1);
+        for bytes in [0, 1, 63, 64, 4096, 4470, 1 << 20] {
+            assert_eq!(make_input_seeded(bytes, 1), largest[..bytes], "{bytes} bytes");
+        }
     }
 
     /// The benchmark asks of the fork exactly what FROZEN.md says it does.

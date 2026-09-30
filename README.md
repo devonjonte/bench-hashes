@@ -24,8 +24,8 @@ cd bench-hashes
 cargo run --release
 ```
 
-The first build takes a minute or two; the run then measures for under
-a minute. The numbers come out most
+The first build takes a minute or two; the run then measures for about
+a minute and needs about 1 GB of free memory. The numbers come out most
 accurate when nothing else busy runs on the computer meanwhile.
 
 ## Read your results
@@ -56,8 +56,9 @@ after another: separate messages and batches through a queue that hashes
 one buffer while the program fills the next, and whole messages, pieces,
 and batches through plain calls, where filling and hashing take turns.
 The nonstop tasks are also measured with two copies running at once, as
-when two programs hash side by side. Higher is faster.
-Hover over a dot, or tap it, to compare every contender at that point.
+when two programs hash side by side.
+
+In every plot, higher is faster. Hover over a dot, or tap it, to compare every contender at that point.
 Click a name at the right to show or hide that contender. The band on
 the strip at the top marks the part of the inputs every plot shows: drag
 either end of it, or the band itself, and "all" shows everything again.
@@ -83,8 +84,9 @@ The contenders:
   runs the official crate's code.
 - **BLAKE3 servil st**: the same on one thread.
 - **SHA-256** (the `sha2` crate) and **SHA-256 ring** (the `ring`
-  crate): SHA-256 with the CPU's SHA-256 instructions where it has them.
-  `sha2` is faster for the smallest inputs, `ring` from about 256 bytes.
+  crate): SHA-256 with the CPU's SHA-256 instructions where it has them;
+  two implementations, since each is fastest at some sizes on some
+  computers.
 
 ## Which function to use
 
