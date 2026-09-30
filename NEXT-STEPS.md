@@ -62,8 +62,10 @@ Probes: `probe/benchmark-alignment` (the native A/B driver),
 **The historical comparison (your method)**, Mac, identical hashing
 code (job 780, mains power; `tools/compare-runs.py`):
 - Replaying the published record's exact pair (250a3dc on fork b9ec183)
-  today: servil and ring cells within 6-10% of the record at small sizes,
-  1-4% from 16 KiB: the machine today matches the record's machine.
+  today, new/old fast speed: from 16 KiB within 1-3% (servil 128 KiB +4%);
+  below 16 KiB servil +3-11%, ring +0-8% (solo, one message and pieces).
+  The machine matches the record's from 16 KiB; the small cells' drift
+  since September 27 is open (both hashes alike, after the gap only).
 - New gap against old gap, same code: small calls slower for servil and
   ring alike (64 B servil 61 -> 224 ns, ring 80 -> 202 ns). A
   fresh-process probe (job 781) shows the cold caches' true cost is
@@ -86,8 +88,8 @@ code (job 780, mains power; `tools/compare-runs.py`):
 2. 4 KiB splits even in the fresh probe (1396 ns 88% | 2151 ns 12%, all
    P-cores at 4.5 GHz, cycles 6822 | 10247): servil's, to explain.
 3. perf_regress on the Mac with the new benchmark (after the restart).
-4. Decisions for you: whether 128 MiB is the gap's size (the gap lasts
-   about 3 ms on the Mac, longer than 1 ms); whether the guide belongs
+4. Decisions for you: whether 128 MiB is the gap's size (the sweep's
+   duration is unmeasured: it sets a gap of at least 1 ms); whether the guide belongs
    on the Pages home; the queue's model and the trades still wait (below).
 
 ## Resume here (September 28, 2026, night: the new adventure; work all night)
