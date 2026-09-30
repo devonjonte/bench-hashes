@@ -1991,6 +1991,14 @@ fn take_prepared_sample(input: &[u8], iterations: usize, mut call: impl FnMut(&[
         let mut buffers = kept.borrow_mut();
         let (work, produced) = &mut *buffers;
         produced.resize(input.len(), 0);
+        if std::env::var_os("HB_ADDRS").is_some() {
+            use std::io::Write as _;
+            let local = 0u8;
+            let line = format!("{},{},{:#x},{:#x},{:#x},{:#x},{:#x}\n", std::thread::current().name().unwrap_or("?"), input.len(),
+                produced.as_ptr() as usize, input.as_ptr() as usize, work.as_ptr() as usize, &raw const local as usize,
+                blake3_servil::hash as fn(&[u8]) -> blake3_servil::Hash as usize);
+            std::fs::OpenOptions::new().create(true).append(true).open("addrs.csv").unwrap().write_all(line.as_bytes()).unwrap();
+        }
         let measured = clocks::measure_after_gaps_prepared(iterations as u64, GAP_NS, work,
             produced.as_mut_slice(),
             |produced| produced.copy_from_slice(black_box(input)),
