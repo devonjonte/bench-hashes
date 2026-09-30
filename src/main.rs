@@ -430,7 +430,7 @@ impl Algorithm {
             Self::Blake3 => "blake3",
             Self::Sha256 => "sha256",
             Self::Sha1Dc => "sha1dc",
-            Self::Blake3Servil => "blake3-servil",
+            Self::Blake3Servil => "blake3-servil-st", // probe/v0.7.0-on-current-fork: today's key, so today's tools name it
             Self::Sha256CommonCrypto => "sha256-cc",
             Self::Sha256Ring => "sha256-ring",
             Self::Blake3Rayon => "blake3-mt",
@@ -1599,23 +1599,30 @@ fn hash_batch(
 }
 
 /// `iterations` passes over the batch through one of the fork's batch entry
-/// points, which take the messages as a slice of slices and fill a slice
-/// of digests; the whole batch's digests go to `consume` per pass.
+/// points; the whole batch's digests go to `consume` per pass.
+///
+/// probe/v0.7.0-on-current-fork (September 30, 2026): this tag called the
+/// fork's slice-of-slices batch API; to measure today's fork, the same
+/// entry points are called in their current form (the messages back to
+/// back, their length, a slice of 32-byte digests). The slice vector the
+/// old call needed is still built each pass, as the tag did, so the
+/// harness's own cost is unchanged.
 #[inline(always)]
 fn servil_batch(
     input: &[u8],
     messages: usize,
     iterations: usize,
-    hash_many: impl Fn(&[&[u8]], &mut [blake3_servil::Hash]),
+    hash_many: impl Fn(&[u8], usize, &mut [[u8; 32]]),
     mut consume: impl FnMut(&[u8]),
 ) {
     let batch: Vec<&[u8]> = input.chunks_exact(MESSAGE_LEN).collect();
     assert_eq!(batch.len(), messages);
-    let mut digests = vec![blake3_servil::Hash::from_bytes([0; 32]); messages];
+    black_box(&batch);
+    let mut digests = vec![[0u8; 32]; messages];
     for _ in 0..iterations {
-        hash_many(black_box(&batch), &mut digests);
+        hash_many(black_box(input), MESSAGE_LEN, &mut digests);
         for digest in &digests {
-            consume(digest.as_bytes());
+            consume(digest);
         }
     }
 }
@@ -2700,16 +2707,12 @@ fn detect_ring_kernels() -> Kernels {
  */
 fn servil_kernels(report: blake3_servil::KernelReport) -> Kernels {
     const MARKS: [Mark; 4] = [Mark::Circle, Mark::Diamond, Mark::Square, Mark::Triangle];
-    assert!(
-        report.kernels.len() <= MARKS.len(),
-        "the graph has {} dot shapes; the fork reports {} kernels",
-        MARKS.len(),
-        report.kernels.len(),
-    );
+    // probe/v0.7.0-on-current-fork: today's fork reports more kernels than
+    // this tag had shapes; the shapes repeat (the graph alone).
     let kernels = report
         .kernels
         .iter()
-        .zip(MARKS)
+        .zip(MARKS.into_iter().cycle())
         .map(|(kernel, mark)| Kernel { first: kernel.from_len, name: kernel.name.to_owned(), why: kernel.why.to_owned(), mark })
         .collect();
     Kernels::new(report.platform, kernels)
@@ -2734,10 +2737,10 @@ fn detect_kernels(algorithm: Algorithm, use_case: UseCase) -> Kernels {
         UseCase::OneMessage => one_message,
         UseCase::ManyMessages if algorithm == Algorithm::AbBlake3 => detect_ab_blake3_many_kernels(),
         UseCase::ManyMessages if algorithm == Algorithm::Blake3Servil => {
-            servil_kernels(blake3_servil::kernel_report_many())
+            servil_kernels(blake3_servil::kernel_report_many(MESSAGE_LEN))
         }
         UseCase::ManyMessages if algorithm == Algorithm::Blake3ServilMt => {
-            servil_kernels(blake3_servil::kernel_report_many_multithreaded())
+            servil_kernels(blake3_servil::kernel_report_many_multithreaded(MESSAGE_LEN))
         }
         UseCase::ManyMessages => {
             /* One call per 64-byte message: the 64 B kernel, whatever the batch size. */
