@@ -861,7 +861,7 @@ sleep-dominated calls, and macOS sets a core's clock from its recent use.
 The one mechanism that already existed for this (the nonstop cells in a
 phase of their own) now covers every pattern: three phases, nonstop,
 after other work, after idling. Interleaved Mac A/B (820-823, before
-8a0459d, after d2e4b1c): the idle large calls read slower, as a mostly
+8a0459d, after 4b1c1c9): the idle large calls read slower, as a mostly
 idle program meets them (ring 8 MiB 0.31-0.32 -> 0.43-0.45 ns/B; servil
 st 8 MiB 0.155 -> 0.19), repeatably (821/822). The check was a wrong
 expectation, not a bug: removed; METHODOLOGY states the effect.
