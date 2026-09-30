@@ -589,8 +589,10 @@ drain. Throughput intervals support a rate comparison; individual
 queue-input latencies require their own experiment.
 
 Latency is derived from the same statistics as the normalized plot,
-multiplied by that point's bytes or message count in fixed point before
-display rounding. Each speed keeps its own median and share. The full
+multiplied by that point's bytes or message count as an exact midpoint
+of the measured ratios, before display rounding. Comparisons and
+confidence intervals use fixed point; the displayed median retains the
+original ratios so an exact decimal halfway rounds once. Each speed keeps its own median and share. The full
 SVG and text report retain normalized time per byte or per batch message
 for comparisons across sizes; the guide presents what the selected
 call's caller waits for. Queue::messages plots cover up to 64 KiB;

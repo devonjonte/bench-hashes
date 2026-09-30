@@ -18,11 +18,26 @@ SplitMix64 seeded by the sample count, 400 resamples, indices by the high
 half of a 64 x 64-bit product). Exits 1 on the first cell that differs.
 """
 import re
+import importlib.util
 import sys
 from fractions import Fraction
 from pathlib import Path
 
+rules = Path(__file__).resolve().parents[2] / 'tools/speeds.py'
+assert rules.is_file(), "check-report uses the enclosing fork's tools/speeds.py (CONTRIBUTING.md)"
+spec = importlib.util.spec_from_file_location('speed_rule', rules)
+speed_rule = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(speed_rule)
+
 HEADINGS = {
+    "A message in one buffer": "OneMessage",
+    "A batch of 64-byte messages": "ManyMessages",
+    "A message arriving in 64 KiB pieces": "Streaming",
+    "Messages one after another, buffers owned": "ContinuousMessages",
+    "Batches one after another, buffers owned": "ContinuousBatches",
+    "Messages one after another, buffers lent": "LentMessages",
+    "Messages in pieces one after another, buffers lent": "LentPieces",
+    "Batches one after another, buffers lent": "LentBatches",
     "One input at a time": "OneMessage",
     "Batches of 64-byte messages": "ManyMessages",
     "One input arriving in 64 KiB pieces": "Streaming",
@@ -84,18 +99,9 @@ def permille(a, b):
 def speeds(values):
     """[(median, low, high)] for one speed or two, faster first."""
     v = sorted(values)
-    n, whole = len(v), median(v)
-    side = max(1, -(-n * 100 // 1000))
-    best = None
-    for split in range(side, n - side + 1):
-        gap = v[split] - v[split - 1]
-        if gap * 1000 >= whole * 40 and (best is None or gap > best[1]):
-            best = (split, gap)
-    if best:
-        parts = [v[:best[0]], v[best[0]:]]
-        if permille(median(parts[1]), median(parts[0])) >= 1250:
-            return [(median(p), *bootstrap(p)) for p in parts]
-    return [(whole, *bootstrap(v))]
+    at = speed_rule.split(v)
+    parts = [v] if at is None else [v[:at], v[at:]]
+    return [(median(p), *bootstrap(p)) for p in parts]
 
 
 def shown(ns):

@@ -856,6 +856,36 @@ impl Measured {
     }
 }
 
+/// The exact midpoint of two measured times per unit (repeat a sample
+/// for an odd median). Keep it for display: Q64.64 is ample for statistics,
+/// yet a half-way decimal can move one display tick if approximated first.
+#[derive(Clone, Copy)]
+struct ExactMedian(Measured, Measured);
+
+impl ExactMedian {
+    fn of_sorted(samples: &[Measured]) -> Self {
+        assert!(!samples.is_empty(), "a median needs samples");
+        Self(samples[(samples.len() - 1) / 2], samples[samples.len() / 2])
+    }
+
+    /// Scale the measured ratio before its one rounding for the reader.
+    /// Requires cross-products and display scaling to fit in u128.
+    fn format_ns(self, factor: u64) -> String {
+        let (a, b) = (self.0, self.1);
+        let numerator = (u128::from(a.ns) * u128::from(b.units) + u128::from(b.ns) * u128::from(a.units))
+            .checked_mul(u128::from(factor)).expect("a scaled median fits in u128");
+        let denominator = (2 * u128::from(a.units)).checked_mul(u128::from(b.units)).expect("a median denominator fits in u128");
+        let mut decimals = 3u32;
+        while decimals < 6 && numerator * 10u128.pow(decimals - 2) < denominator {
+            decimals += 1;
+        }
+        let scale = 10u128.pow(decimals);
+        let rounded = numerator.checked_mul(scale).and_then(|n| n.checked_add(denominator / 2))
+            .expect("a rounded median fits in u128") / denominator;
+        format!("{}.{:0width$}", rounded / scale, rounded % scale, width = decimals as usize)
+    }
+}
+
 /// A non-negative number in fixed point, 64 integer and 64 fractional bits
 /// (Q64.64). Times are Fixed nanoseconds per unit (PerUnit), ratios of
 /// times are plain Fixed; arithmetic on them is exact, and each method that
@@ -976,6 +1006,7 @@ struct Statistics {
     high: PerUnit,
     maximum: PerUnit,
     two_speeds: Option<[Speed; 2]>,
+    exact_median: Option<ExactMedian>,
 }
 
 /// One speed a cell ran at: the median of its samples, the 95% bootstrap
@@ -983,9 +1014,16 @@ struct Statistics {
 #[derive(Clone, Copy)]
 struct Speed {
     median: PerUnit,
+    exact_median: Option<ExactMedian>,
     low: PerUnit,
     high: PerUnit,
     count: usize,
+}
+
+impl Speed {
+    fn format_median(self, factor: u64) -> String {
+        self.exact_median.map_or_else(|| (self.median * factor).format_ns(), |m| m.format_ns(factor))
+    }
 }
 
 impl Statistics {
@@ -993,7 +1031,7 @@ impl Statistics {
     fn speeds(&self) -> Vec<Speed> {
         match self.two_speeds {
             Some(pair) => pair.to_vec(),
-            None => vec![Speed { median: self.median, low: self.low, high: self.high, count: self.count }],
+            None => vec![Speed { median: self.median, exact_median: self.exact_median, low: self.low, high: self.high, count: self.count }],
         }
     }
 
@@ -1736,8 +1774,8 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
             assert!(!solo.is_empty() && solo.len() <= roster.rounds, "one solo sample per round at most, and one at least");
             assert_eq!(shared.len(), 2 * solo.len(), "two shared samples, one per copy, beside every solo sample");
             results[algorithm_index][size_index] = Some(Cell {
-                solo: summarize(&mut per_units(solo)),
-                shared: summarize(&mut per_units(shared)),
+                solo: summarize_measured(solo),
+                shared: summarize_measured(shared),
             });
         }
     }
@@ -1899,16 +1937,30 @@ fn run_batch(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize
  */
 fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize) -> DuoCopy {
     if point.use_case.after_gap() {
-        return GAP_BUFFERS.with(|kept| {
-            let mut buffers = kept.borrow_mut();
-            let (work, produced) = &mut *buffers;
-            produced.resize(input.len(), 0);
-            let measured = clocks::measure_after_gaps_prepared(iterations as u64, GAP_NS, work,
-                produced.as_mut_slice(),
-                |produced| produced.copy_from_slice(black_box(input)),
-                |produced| run_batch(algorithm, black_box(produced), point, 1));
-            DuoCopy { elapsed_ns: measured.calls.wall_ns, counts: measured.calls.counts, preparation: Some(measured.preparation) }
-        });
+        if point.use_case == UseCase::OneMessage {
+            // Select the API before the gap and clocks. A cold call should
+            // pay for its API, rather than the benchmark's dispatch tree.
+            return take_prepared_sample(input, iterations, one_message_call(algorithm));
+        }
+        if point.use_case == UseCase::ManyMessages {
+            let hash_many: Option<fn(&[u8], usize, &mut [[u8; 32]])> = match algorithm {
+                Algorithm::Blake3ServilSt => Some(blake3_servil::hash_many),
+                Algorithm::Blake3ServilMt => Some(blake3_servil::hash_many_multithreaded),
+                _ => None,
+            };
+            if let Some(hash_many) = hash_many {
+                let mut digests = take_batch_digests(point.messages);
+                let measured = take_prepared_sample(input, iterations, |input| {
+                    #[cfg(test)]
+                    observe_call("hash_many");
+                    hash_many(black_box(input), MESSAGE_LEN, &mut digests);
+                    black_box(digests.as_flattened());
+                });
+                keep_batch_digests(digests);
+                return measured;
+            }
+        }
+        return take_prepared_sample(input, iterations, |input| run_batch(algorithm, input, point, 1));
     }
     let counts0 = clocks::Counts::read();
     let started = clocks::now();
@@ -1916,6 +1968,51 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
     let elapsed_ns = clocks::since_ns(started);
     let counts = counts0.zip(clocks::Counts::read()).map(|(before, after)| after.since(before));
     DuoCopy { elapsed_ns, counts, preparation: None }
+}
+
+/// Prepare and time an already-selected call. The producer and work
+/// buffers stay outside the API's interval, as does dispatch selection.
+fn take_prepared_sample(input: &[u8], iterations: usize, mut call: impl FnMut(&[u8])) -> DuoCopy {
+    GAP_BUFFERS.with(|kept| {
+        let mut buffers = kept.borrow_mut();
+        let (work, produced) = &mut *buffers;
+        produced.resize(input.len(), 0);
+        let measured = clocks::measure_after_gaps_prepared(iterations as u64, GAP_NS, work,
+            produced.as_mut_slice(),
+            |produced| produced.copy_from_slice(black_box(input)),
+            |produced| call(black_box(produced)));
+        DuoCopy { elapsed_ns: measured.calls.wall_ns, counts: measured.calls.counts, preparation: Some(measured.preparation) }
+    })
+}
+
+#[cfg(test)]
+thread_local! {
+    static CALLS: std::cell::RefCell<Vec<&'static str>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+#[cfg(test)]
+fn observe_call(call: &'static str) {
+    CALLS.with(|calls| calls.borrow_mut().push(call));
+}
+
+/// One whole message through the contender's plain API. Selection happens
+/// once, before the gap; every result remains observable to the optimizer.
+fn one_message_call(algorithm: Algorithm) -> fn(&[u8]) {
+    match algorithm {
+        Algorithm::Blake3 => |input| { black_box(blake3::hash(input)); },
+        Algorithm::Blake3ServilSt => |input| {
+            #[cfg(test)]
+            observe_call("hash");
+            black_box(blake3_servil::hash(input));
+        },
+        Algorithm::Blake3ServilMt => |input| { black_box(blake3_servil::hash_multithreaded(input)); },
+        Algorithm::Sha256 => |input| { black_box(Sha256::digest(input)); },
+        Algorithm::Sha256Ring => |input| { black_box(ring::digest::digest(&ring::digest::SHA256, input)); },
+        Algorithm::Sha256CommonCrypto => |input| { black_box(common_crypto::sha256(input)); },
+        Algorithm::Sha3_256 => |input| { black_box(sha3::Sha3_256::digest(input)); },
+        Algorithm::Sha1Dc => |input| { black_box(sha1_checked::Sha1::try_digest(input)); },
+        Algorithm::Blake3Rayon => |input| { black_box(blake3::Hasher::new().update_rayon(input).finalize()); },
+    }
 }
 
 thread_local! {
@@ -1967,7 +2064,7 @@ fn hash_in_memory(algorithm: Algorithm, input: &[u8], point: Point, iterations: 
     let message_len = if point.use_case.batch() { point.use_case.message_len() } else { input.len() };
     match algorithm {
         Algorithm::Blake3 => {
-            if messages == 1 {
+            if !point.use_case.batch() {
                 each_message(input, message_len, iterations, |m| *blake3::hash(m).as_bytes(), consume)
             } else {
                 blake3_batch(input, message_len, iterations, consume)
@@ -1985,7 +2082,7 @@ fn hash_in_memory(algorithm: Algorithm, input: &[u8], point: Point, iterations: 
             digest
         }, consume),
         Algorithm::Blake3ServilSt => {
-            if messages == 1 {
+            if !point.use_case.batch() {
                 each_message(input, message_len, iterations, |m| *blake3_servil::hash(m).as_bytes(), consume)
             } else {
                 servil_batch(input, messages, message_len, iterations, blake3_servil::hash_many, consume)
@@ -1998,7 +2095,7 @@ fn hash_in_memory(algorithm: Algorithm, input: &[u8], point: Point, iterations: 
             each_message(input, message_len, iterations, |m| *blake3::Hasher::new().update_rayon(m).finalize().as_bytes(), consume)
         }
         Algorithm::Blake3ServilMt => {
-            if messages == 1 {
+            if !point.use_case.batch() {
                 each_message(input, message_len, iterations, |m| *blake3_servil::hash_multithreaded(m).as_bytes(), consume)
             } else {
                 servil_batch(input, messages, message_len, iterations, blake3_servil::hash_many_multithreaded, consume)
@@ -3282,6 +3379,22 @@ fn median_of_sorted(sorted: &[PerUnit]) -> PerUnit {
     Fixed(clocks::speeds::median_of_sorted(&raw(sorted)))
 }
 
+/// Statistics use the shared Q64.64 rule; displayed medians keep their
+/// original measured ratios. The same split selects both representations.
+fn summarize_measured(samples: &[Measured]) -> Statistics {
+    let mut measured = samples.to_vec();
+    measured.sort_unstable_by(|a, b| (u128::from(a.ns) * u128::from(b.units)).cmp(&(u128::from(b.ns) * u128::from(a.units))));
+    let mut values = per_units(&measured);
+    let mut statistics = summarize(&mut values);
+    statistics.exact_median = Some(ExactMedian::of_sorted(&measured));
+    if let Some(pair) = statistics.two_speeds.as_mut() {
+        let at = clocks::speeds::split(&raw(&values)).expect("the shared rule selected two speeds");
+        pair[0].exact_median = Some(ExactMedian::of_sorted(&measured[..at]));
+        pair[1].exact_median = Some(ExactMedian::of_sorted(&measured[at..]));
+    }
+    statistics
+}
+
 /// Requires a non-empty slice; sorts it. Zeros summarise to zeros.
 fn summarize(samples: &mut [PerUnit]) -> Statistics {
     assert!(!samples.is_empty(), "a cell has at least one sample");
@@ -3298,6 +3411,7 @@ fn summarize(samples: &mut [PerUnit]) -> Statistics {
         high,
         maximum: samples[samples.len() - 1],
         two_speeds: two_speeds(samples),
+        exact_median: None,
     }
 }
 
@@ -3312,7 +3426,7 @@ fn bootstrap_median_interval(sorted: &[PerUnit]) -> (PerUnit, PerUnit) {
 /// samples (clocks::speeds::speeds).
 fn two_speeds(sorted: &[PerUnit]) -> Option<[Speed; 2]> {
     let found = clocks::speeds::speeds(&raw(sorted));
-    let speed = |s: &clocks::speeds::Speed| Speed { median: Fixed(s.median), low: Fixed(s.low), high: Fixed(s.high), count: s.count };
+    let speed = |s: &clocks::speeds::Speed| Speed { median: Fixed(s.median), exact_median: None, low: Fixed(s.low), high: Fixed(s.high), count: s.count };
     (found.len() == 2).then(|| [speed(&found[0]), speed(&found[1])])
 }
 
@@ -3933,7 +4047,7 @@ fn append_table(output: &mut String, roster: &Roster, results: &Results, scenari
         for &algorithm_index in &contenders {
             let statistics = cell(results, algorithm_index, point_index).get(scenario);
             let mark = if statistics.widest_spread_permille() >= SPREAD_WIDE_PERMILLE { "~" } else { " " };
-            let figures: Vec<String> = statistics.speeds().iter().map(|speed| speed.median.format_ns()).collect();
+            let figures: Vec<String> = statistics.speeds().iter().map(|speed| speed.format_median(1)).collect();
             write!(output, "  {:>13}{mark}", figures.join("|")).unwrap();
         }
         writeln!(output).unwrap();
@@ -4039,7 +4153,7 @@ fn checks(roster: &Roster, results: &Results, samples: &RunSamples) -> (Vec<Stri
                     let (m, t) = (samples.gap_by_state(mine, bounds), samples.gap_by_state(theirs, bounds));
                     let median = |state: &[Measured]| {
                         let s = summarize(&mut per_units(state));
-                        Speed { median: s.median, low: s.low, high: s.high, count: s.count }
+                        Speed { median: s.median, exact_median: None, low: s.low, high: s.high, count: s.count }
                     };
                     (0..2)
                         .filter(|&state| m[state].len() >= GAP_STATE_MIN && t[state].len() >= GAP_STATE_MIN)
@@ -6232,7 +6346,7 @@ fn write_interaction_script(
             for speed in 0..2 {
                 let suffix = if speed == 0 { "" } else { "2" };
                 for (key, pick) in [
-                    ("med", (|v: Speed| v.median.format_ns()) as fn(Speed) -> String),
+                    ("med", (|v: Speed| v.format_median(1)) as fn(Speed) -> String),
                     ("low", |v| v.low.format_ns()),
                     ("high", |v| v.high.format_ns()),
                     ("cnt", |v| v.count.to_string()),
@@ -6270,7 +6384,14 @@ fn write_interaction_script(
                         if k > 0 { data.push(','); }
                         let point = POINTS[plot.points.start + k];
                         let units = point.use_case.units(point, 1);
-                        data.push_str(&(pick(cell_at(k).get(plot.scenario)) * units).format_ns());
+                        let statistics = cell_at(k).get(plot.scenario);
+                        if key == "med" || key == "med2" {
+                            let speeds = statistics.speeds();
+                            let speed = if key == "med" { speeds[0] } else { *speeds.last().unwrap() };
+                            data.push_str(&speed.format_median(units));
+                        } else {
+                            data.push_str(&(pick(statistics) * units).format_ns());
+                        }
                     }
                     data.push(']');
                 }
@@ -7525,6 +7646,27 @@ mod correctness_tests {
             .map(|&(ns, bytes)| format_rate_value(Measured::new(ns, bytes).per_unit(), UseCase::OneMessage))
             .collect();
         assert_eq!(values, ["10", "10", "1.0", "0.21", "0.013", "0.046", "0.0010"]);
+    }
+
+    #[test]
+    fn medians_at_decimal_halfways_round_the_original_measurement_once() {
+        // Independently established rational values: 2135/400 = 5.3375,
+        // 20555/400 = 51.3875; half-up decimal rounding gives these anchors.
+        for (ns, expected) in [(2135, "5.338"), (20555, "51.388")] {
+            let measured = [Measured::new(ns, 400), Measured::new(ns, 400)];
+            let statistics = summarize_measured(&measured);
+            assert_eq!(statistics.speeds()[0].format_median(1), expected);
+            assert_eq!(statistics.speeds()[0].format_median(400), format!("{ns}.000"));
+        }
+    }
+
+    #[test]
+    fn prepared_samples_select_the_promised_api_and_keep_digest_space() {
+        CALLS.with(|calls| calls.borrow_mut().clear());
+        let input = make_input(MESSAGE_LEN);
+        take_sample(Algorithm::Blake3ServilSt, &input, Point::one("", MESSAGE_LEN), 2);
+        take_sample(Algorithm::Blake3ServilSt, &input, Point::many("", 1), 3);
+        assert_eq!(CALLS.with(|calls| calls.borrow().clone()), ["hash", "hash", "hash_many", "hash_many", "hash_many"]);
     }
 
     #[test]

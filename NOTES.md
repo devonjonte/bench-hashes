@@ -494,3 +494,60 @@ will follow here and in NEXT-STEPS; each unexplained difference stays
 open. The first four native jobs (776-779) failed before measurement,
 from installed perf_regress.py's missing speeds.py dependency. The fork's
 setup now copies it; native diagnostics use the checkout's tool tonight.
+
+### Historical checks found dispatch and display defects
+
+Mac job 780 ran old/new/new/old on the identical hashing implementation
+(fork 9cea065; benchmark 4f29643 versus f3515ab), then replayed a published
+record's exact old pair (250a3dc, fork b9ec183). Mains power and High Power
+mode throughout; compiler f428d123a matches the historical record. Full
+default runs took 49.3-50.0 s of measurements, meeting the time target.
+
+The memory-working gap changes the workload, and its cold costs are
+real. At 64 B, servil st's old fast speed was about 61 ns and the new
+fast speed about 224 ns; ring moved from about 80 to 202 ns. New small
+calls ran around 4.1 GHz versus the old 4.4-4.5, and instructions were
+steady (about 11 extra instructions from the prepared-call path); cycles
+increased. That establishes a workload effect, and leaves room for a
+harness effect. Small cells still split after the sweep: the promised
+one-speed outcome remains open, rather than a success claim.
+
+Fresh-process probe/memory-gap (953b9b2, job 781) made the distinction:
+48 samples per cell, four separately timed calls per sample after their
+own gaps, lengths 64 B/512 B/1 KiB/4 KiB/64 KiB, register work versus
+8 MiB and 128 MiB sweeps. 64 B after 128 MiB: one speed at 135 ns, versus
+52 ns (85%) / 291 ns (15%) after register work, near 4.47 GHz. 512 B:
+417 ns versus 344; 4 KiB: 1396 ns (88%) / 2151 ns (12%) even in this
+fresh process, all on P-cores. The full benchmark's 224/406 ns at 64 B
+and 2490/3708 ns at 4 KiB therefore contain additional effects. Its
+64 B interval also executed about 101 instructions beyond the direct
+probe. Whole-message API selection now occurs before the gap and clocks,
+so the interval enters one preselected call rather than the dispatch
+and assertions for every use case. The native A/B of this fix follows.
+
+The frozen batch call also exposed a dispatch defect: a batch of one
+used `hash`, where FROZEN promised `hash_many`. All batch points now use
+the batch API, including one message. Servil after-gap batches select
+their call and take their kept digest space before the gap. A test
+observes the actual selected hash versus hash_many calls, supplementing
+the textual contract test.
+
+The independent report check found two numerical defects. Python's
+speed splitter used exact Fractions where Rust uses nearest Q64.64 and a
+half-up Q64 midpoint; the fork's twin now matches that representation,
+held to 13 shared vectors. Separately, an exact decimal halfway could
+round down after Q64 approximation (the earlier open 51.3875 cell, and
+5.3375 in this session). Each displayed median now retains the original
+two middle measured ratios. Integer cross-products form their exact
+midpoint, scale it for per-call latency where needed, and round once for
+the reader. Comparisons and bootstrap intervals stay in fixed point.
+Independent rational anchors hold both halfway cases. The exact checker
+now verifies all 964 cells of a default full VM run, including every
+new axis. Fourteen Rust tests pass. These changes correct representation
+and dispatch, while every stored clock reading remains as measured.
+
+`tools/compare-runs.py` accepts two files for a historical comparison or
+four old/new/new/old, prints each speed and share, and puts same-code
+repetitions beside a four-run comparison. An explicit --map names
+use cases whose workloads deserve comparison. Two-file comparisons make
+no claim about repetition. It uses the fork's shared Python rule.

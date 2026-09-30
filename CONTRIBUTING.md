@@ -14,7 +14,12 @@ it measures, and keep your results comparable with ours.
 - `tools/graph-check/`: drives the graph's script in jsdom and checks its
   layout; `guide.js` exercises the HTML guide in Chromium (its README says how).
 - `tools/check-report.py`: recomputes every table cell of a run's report
-  from its samples, as exact fractions, and compares.
+  from its samples, as exact fractions, and compares. This maintainer
+  tool uses the enclosing fork's `tools/speeds.py` for the shared split.
+- `tools/compare-runs.py`: compares two historical samples files or four
+  files old/new/new/old, speed with speed and share with share. `--map`
+  explicitly names comparable use cases; `--rules` can locate the fork's
+  `tools/speeds.py` in a separate checkout.
 
 ## Build and test
 
