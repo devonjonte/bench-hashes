@@ -1721,7 +1721,11 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                      * run a batch each at once, on two threads, and each copy's
                      * own time is a sample.
                      */
-                    let copies = duo.run(algorithm, input, &duo_inputs[size_index], point, iterations);
+                    let copies = if std::env::var_os("HB_NO_DUO").is_some() {
+                        [DuoCopy { elapsed_ns, counts, preparation }; 2]
+                    } else {
+                        duo.run(algorithm, input, &duo_inputs[size_index], point, iterations)
+                    };
 
 
                     let total_units = point.use_case.units(point, iterations);
