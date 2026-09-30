@@ -675,8 +675,9 @@ benchmark (3080 at 64 B, 47,606-47,626 at 4 KiB), and so is the clock
 stall cycles in the same instructions. Four processes of the probe agree
 within 5% per cell. The benchmark's per-process state moves 4 KiB by 1.65x
 (3146 against 5188 ns, same build, one speed each). Removing the shared
-copies (probe/harness-bisect `HB_NO_DUO`) takes away about a third of the
-excess at 64 B-1 KiB and about 15% at 16 KiB, and none at 4 KiB. One call a sample
+copies (probe/harness-bisect `HB_NO_DUO`) takes away about two thirds of
+the excess over the probe at 64 B-1 KiB, a quarter at 16 KiB, and none at
+4 KiB. One call a sample
 (each after another cell's call) and a branchy sort after the sweep cost
 the probe at most about 20%. Appending one line to a file before each
 sample's gap (`HB_ADDRS`: open, write, close, then the 1 ms gap and the
