@@ -1670,21 +1670,24 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
     let mut visits = vec![0usize; POINT_COUNT];
 
     /*
-     * The continuous use cases in a phase of their own, calibrated and
-     * sampled before any call after the gap: in one set of rounds with the
-     * synchronous cells, the program's sleeps kept the core near 3.0 GHz
-     * through the continuous samples, where alone they ran near 4.4 GHz
-     * (SHA-256's 1 KiB messages 0.51 against 0.36 ns/B; Mac jobs 738-739,
-     * September 28, 2026). A program hashing one input after another does
-     * not sleep between them.
+     * Each way of calling in a phase of its own, calibrated and sampled
+     * apart: the OS sets a core's clock from its recent use, so neighbours
+     * that call differently move a cell's clock. In one set of rounds with
+     * the calls after a gap, the nonstop cells ran near 3.0 GHz where alone
+     * they ran near 4.4 (SHA-256's 1 KiB messages 0.51 against 0.36 ns/B;
+     * Mac jobs 738-739, September 28, 2026); beside the calls after other
+     * work, the large calls after idling ran at 3.8-4.0 GHz where alone they
+     * ran at 4.4 (SHA-256 ring 32 MiB 0.327 against 0.291 ns/B; jobs 818-819,
+     * September 30). A program that hashes one input after another does not
+     * sleep between them, and one that idles between calls mostly sleeps.
      */
-    for after_gap in [false, true] {
+    for pattern in ["nonstop", "busy", "idle"] {
         progress.phase("calibrating");
 
         for (point_index, point) in POINTS.iter().enumerate() {
             for algorithm_index in 0..roster.len() {
                 let algorithm = roster.algorithms[algorithm_index];
-                if algorithm.takes_part(point.use_case) && roster.measures(point_index) && point.use_case.after_gap() == after_gap {
+                if algorithm.takes_part(point.use_case) && roster.measures(point_index) && point.use_case.pattern_key() == pattern {
                     let (iterations, per_iteration_ns) = calibrate_batch(algorithm, &inputs[point_index], *point);
                     /*
                      * A synchronous cell's sample: calls after the gap summing
@@ -1695,8 +1698,8 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                      */
                     batch_iterations[algorithm_index][point_index] = if point.use_case.after_gap() {
                         let input = &inputs[point_index];
-                        let after_gap = take_sample(algorithm, input, *point, CALIBRATION_GAPS as usize);
-                        let per_call_ns = u128::from(after_gap.elapsed_ns) / u128::from(CALIBRATION_GAPS);
+                        let timed = take_sample(algorithm, input, *point, CALIBRATION_GAPS as usize);
+                        let per_call_ns = u128::from(timed.elapsed_ns) / u128::from(CALIBRATION_GAPS);
                         GAP_SAMPLE_NS.div_ceil(per_call_ns.max(per_iteration_ns).max(1)) as usize
                     } else {
                         iterations
@@ -1724,7 +1727,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
          * long cell, sampled at every second visit, sees half the orders; its
          * samples are single hashes of 4 ms or more.
          */
-        progress.phase(if after_gap { "measuring after the gap" } else { "measuring one after another" });
+        progress.phase(match pattern { "nonstop" => "measuring one after another", "busy" => "measuring after other work", _ => "measuring after idling" });
 
         for round in 0..roster.rounds {
             progress.round(round, &samples.solo);
@@ -1734,7 +1737,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                 let size_index = roster.points[(point_offset + round) % roster.points.len()];
                 let point = POINTS[size_index];
                 let wants = |algorithm_index: usize| {
-                    point.use_case.after_gap() == after_gap
+                    point.use_case.pattern_key() == pattern
                         && roster.algorithms[algorithm_index].takes_part(point.use_case)
                         && (roster.every_round
                             || cell_wants_sample(round + size_index, roster.rounds, budgeted[algorithm_index][size_index]))
