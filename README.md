@@ -30,7 +30,7 @@ accurate when nothing else busy runs on the computer meanwhile.
 
 ## Read your results
 
-The run writes four files to `benchmark-results/`, in a folder named after
+The run writes these files to `benchmark-results/`, in a folder named after
 your CPU and operating system:
 
 - `bench-hashes.graph.svg`: the graph. Open it in a web browser.
@@ -39,6 +39,8 @@ your CPU and operating system:
   from their own code (see "Which function to use", below).
 - `bench-hashes.samples.tsv`: every single measurement, for your own
   analysis.
+- `bench-hashes.checks.txt`: consistency checks, for people who
+  maintain the benchmark or a hash.
 
 The graph shows eleven tasks. Three hash now and then: a message in one
 buffer, a batch of 64-byte messages (a Merkle tree's nodes), and a

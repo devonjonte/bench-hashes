@@ -221,25 +221,21 @@ A single-threaded hash costs about the same in both. A multithreaded one
 shows in the shared scenario what its threads cost when the machine is
 shared; an SME2 kernel shows what sharing its unit costs.
 
-The report's CHECKS section lists, for the servil contenders, every cell
-slower than another contender (single-threaded servil against the
-single-threaded contenders, servil mt against all, and servil mt against
-servil), and every larger point slower per unit than a smaller point that
-divides it, which could have been done as that smaller work repeated.
-Each comparison pairs the samples taken in the same round, back to back,
-so a moment that slows both sides (an efficiency core, a lowered clock)
-cancels out, and a slowdown of one side (two copies sharing an SME unit)
-counts; where the round-by-round ratios split in two, the worse one is
-judged. A finding needs that ratio 5% or more above 1, with its 95%
-interval above 1; the worst come first. After the gap, each call meets
-a clock state of its own, so a round would pair one side's slow call
-with the other's fast one by chance. There the solo calls are compared
-within one of two clock states: full clock (within 20% of the run's high
-clock after the gap, its 95th percentile) and the lowest (within 25% of its low one,
-the 5th percentile); calls between are left out. For each state that both
-cells met in three calls or more, their medians must be 5% apart or more
-with their intervals apart; the worse state is judged. Where the platform counts no
-cycles, the two cells' faster speeds are compared instead.
+## Consistency checks
+
+Every run also writes `bench-hashes.checks.txt`, for people who maintain
+the benchmark or a contender: relations that hold for every contender
+alike when the benchmark measures what it means to. After idling and
+after other work agree from 8 MiB up, where the call's own work
+dominates; nonstop calls are no slower than calls after other work for
+messages of 64 B-4 KiB; two copies at once are no faster than one; a hash
+that runs on its core alone (no shared SME unit, no helper threads) is no
+slower beside a second copy; and more work within the first-level cache
+(up to 32 KiB) is no slower per byte or message than a size that divides
+it. Each is judged on the cells' fast speeds, with their 95% intervals
+apart and over 10% between them. A broken relation names a bug in the
+benchmark or in the contender, or a finding to explain; the file lists
+each, or says that all hold.
 
 ## Hash implementations
 
@@ -444,8 +440,7 @@ the share of rounds in each state varies from run to run, so a single
 median would land on either speed by chance. A cell has two speeds when
 its sorted samples split at a gap of 4% or more, with a tenth or more of
 the samples on each side and the two sides' medians 1.25× or more apart.
-The text tables print such a cell as `a|b`, and the TWO SPEEDS section
-lists the servil cells that did. In the graph the contender's line
+The text tables print such a cell as `a|b`. In the graph the contender's line
 follows each point's common speed (the one with more samples); where a
 point ran at two, the rare speed adds its own dot and line segments,
 drawn fainter in proportion to its share (its samples over the common
@@ -529,16 +524,17 @@ without script support shows every contender, laid out identically.
 
 The run prints the text report on stdout and progress on stderr (the
 phase, a bar over the sample rounds, and the running median of every
-contender at the largest input size), and writes three files to
+contender at the largest input size), and writes five files to
 `benchmark-results/{CPU}.{OS}/`: `bench-hashes.result.txt` (the
-report), `bench-hashes.graph.svg` (the graph), and
-`bench-hashes.samples.tsv` (every sample of every cell, every scenario,
+report), `bench-hashes.graph.svg` (the graph), `bench-hashes.guide.html`
+(the guide for programmers), `bench-hashes.checks.txt` (the consistency
+checks, above), and `bench-hashes.samples.tsv` (every sample of every cell, every scenario,
 in the order taken, each as `ns/units`, and in a last column the
 millisecond each sample started, with the provenance, the CPU's identity,
-and the load windows as `# key: value` lines, and where the platform
-counts cycles each solo call's clock after the gap as `# solo MHz after
-the gap` lines, in the order of that cell's samples, beside the bounds of
-the two clock states). The fork's `tools/samples.py` reads it.
+and the load windows as `# key: value` lines). The fork's
+`tools/samples.py` reads it. `--trace-clocks PATH` also writes each
+sample's thread counts per core kind (cycles, instructions, time), the
+clock each call ran at.
 
 ## Load from other programs
 

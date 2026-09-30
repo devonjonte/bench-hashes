@@ -815,3 +815,34 @@ the shared scenario measures the nonstop use cases alone. The walk and
 the other program stay as the busy program's other work, no longer as a
 way to erase what ran before. Each gap cell now takes the full 12
 samples; a full VM run takes 64 s (was 45).
+
+### Consistency checks replace CHECKS (September 30, late)
+
+Zooko: servil-only checks do not belong in bench-hashes (improving the
+benchmark and improving BLAKE3 are separate projects). Removed: the
+report's CHECKS and TWO SPEEDS sections (servil slower than others, mt
+against st, two-speed servil cells; the fork's tools/losses.py keeps the
+to-do list), the clock-state split they used, the per-sample rounds and
+clocks kept for them, the samples file's per-call clock lines
+(--trace-clocks has the counts), AFTER_GAP_DIVISOR (1), Scenario::PLOTTED
+(Scenario::ALL). main.rs 7927 -> about 7530 lines.
+
+Added: `bench-hashes.checks.txt`, relations every contender keeps
+(METHODOLOGY, "Consistency checks"), with a test that each fires. First
+VM findings: servil mt's lent pieces faster shared than solo at 256 KiB
+and 1 MiB (two copies keep the pool's lingering workers awake?);
+servil's batches of 256 slower per message than of 64 (17-24%); SHA-256
+after idling 11-21% slower than after other work at 8-32 MiB (VM); in
+one process of four, ring's nonstop batches 30% slower solo than shared
+(54 against 42 ns/msg; the same executable read 42 in the others): a
+per-process state, open. Check 5 at first compared work past the caches
+(each level of the memory hierarchy costs more per byte, for every
+contender), and fast speeds of idle cells (different clock states):
+narrowed to 32 KiB, outside the idle use cases.
+
+Evidence of no change in what is measured (VM, full default runs,
+`tmp/simplify/`): interleaved before, after, after, before, new/old
+median over cells: after other work -0.1%, after idling +0.3%, nonstop
++0.05%, each inside its same-code spread (medians 3.1-3.6%, 3.0-3.6%,
+1.0-1.1%). Two sequential runs of each first read the gap cells 1-2%
+slower: drift, gone when interleaved.

@@ -95,10 +95,6 @@ const GAP_SAMPLE_NS: u128 = 2_000;
 /// Calls timed after the gap to size a synchronous cell's sample.
 const CALIBRATION_GAPS: u64 = 4;
 const STEADY_SAMPLES: usize = 12;
-/// A cell after a gap takes this many times fewer samples. Its samples
-/// run alone (no shared copies), one untimed call and a gap more each;
-/// 1 keeps them as many as a nonstop cell's (September 30, 2026).
-const AFTER_GAP_DIVISOR: usize = 1;
 const LONG_SAMPLES: usize = 6;
 
 /// Points on the one-message axis, and on each many-messages axis.
@@ -397,87 +393,12 @@ type Samples = Vec<Vec<Vec<Measured>>>;
 struct RunSamples {
     solo: Samples,
     shared: Samples,
-    /// The caller's clock in each solo sample of a synchronous use case
-    /// (calls after the gap), MHz (its cycles over its time on cores), by
-    /// contender and point, parallel to solo; 0 where the platform counts
-    /// no cycles, and empty for the continuous use cases.
-    gap_mhz: Vec<Vec<Vec<u64>>>,
-    /// The round of each solo sample, by contender and point; the shared
-    /// samples of that interval are the two at twice its index.
-    rounds: Vec<Vec<Vec<usize>>>,
     /// When each solo sample started (clocks::load::now_ns, the load
-    /// windows' scale), parallel to rounds; its shared samples follow it
+    /// windows' scale), by contender and point; its shared samples follow it
     /// within milliseconds.
     started_ns: Vec<Vec<Vec<u64>>>,
 }
 
-impl RunSamples {
-    /*
-     * The two clock states samples after the gap are compared in, as MHz
-     * bounds (full_from, lowest_to): at full clock, within 20% of the run's
-     * high clock after the gap (its 95th percentile over every contender
-     * and point), and at the lowest clock, within 25% of its low one (the
-     * 5th percentile). A 1 ms gap leaves the core anywhere between (M4
-     * Max: 4.4 GHz, 1.26 GHz, and steps such as 2.1 and 3 GHz between
-     * them); samples between the two states, among them samples whose
-     * calls met both, are left out of comparisons. None where the platform
-     * counts no cycles.
-     */
-    fn gap_states(&self) -> Option<(u64, u64)> {
-        let mut clocks: Vec<u64> = self.gap_mhz.iter().flatten().flatten().copied().filter(|&mhz| mhz > 0).collect();
-        if clocks.is_empty() {
-            return None;
-        }
-        clocks.sort_unstable();
-        let (low, high) = (clocks[(clocks.len() - 1) * 5 / 100], clocks[(clocks.len() - 1) * 95 / 100]);
-        let (full_from, lowest_to) = (high * 4 / 5, low * 5 / 4);
-        /* The busy gap keeps the clock up: bounds that overlap mean one state. */
-        (lowest_to < full_from).then_some((full_from, lowest_to))
-    }
-
-    /// A synchronous cell's solo samples in the two clock states: [full,
-    /// lowest] (gap_states' bounds), those between left out.
-    fn gap_by_state(&self, (algorithm_index, point_index): (usize, usize), (full_from, lowest_to): (u64, u64)) -> [Vec<Measured>; 2] {
-        let mut states = [Vec::new(), Vec::new()];
-        for (&sample, &mhz) in self.solo[algorithm_index][point_index].iter().zip(&self.gap_mhz[algorithm_index][point_index]) {
-            if mhz >= full_from {
-                states[0].push(sample);
-            } else if mhz <= lowest_to {
-                states[1].push(sample);
-            }
-        }
-        states
-    }
-
-    /*
-     * Samples of two cells taken in the same sample interval: for each
-     * round both cells were sampled in, the solo samples, or the shared
-     * samples copy with copy. The cells of one round run back to back, so
-     * a pair shares whatever state the machine was in: an efficiency core,
-     * a lowered clock, a busy memory system.
-     */
-    fn paired(&self, scenario: Scenario, a: (usize, usize), b: (usize, usize)) -> Vec<(PerUnit, PerUnit)> {
-        let values = |(algorithm, point): (usize, usize)| match scenario {
-            Scenario::Solo => &self.solo[algorithm][point],
-            Scenario::Shared => &self.shared[algorithm][point],
-        };
-        let per_round = match scenario {
-            Scenario::Solo => 1,
-            Scenario::Shared => 2,
-        };
-        let b_index: std::collections::HashMap<usize, usize> =
-            self.rounds[b.0][b.1].iter().enumerate().map(|(index, &round)| (round, index)).collect();
-        let mut pairs = Vec::new();
-        for (index, round) in self.rounds[a.0][a.1].iter().enumerate() {
-            if let Some(&other) = b_index.get(round) {
-                for copy in 0..per_round {
-                    pairs.push((values(a)[index * per_round + copy].per_unit(), values(b)[other * per_round + copy].per_unit()));
-                }
-            }
-        }
-        pairs
-    }
-}
 
 /*
  * The use cases (FROZEN.md). Three synchronous ones, each call made after
@@ -696,25 +617,6 @@ struct Point {
 }
 
 impl Point {
-    /// The point as a reader names it: "64 KiB", "512 messages".
-    fn name(&self) -> String {
-        match self.use_case {
-            UseCase::OneMessage => self.label.to_owned(),
-            UseCase::Streaming => format!("{} streamed", self.label),
-            UseCase::IdleOneMessage => format!("{}, after idling", self.label),
-            UseCase::IdleStreaming => format!("{} streamed, after idling", self.label),
-            UseCase::IdleManyMessages if self.messages == 1 => "1 message, after idling".to_owned(),
-            UseCase::IdleManyMessages => format!("{} messages, after idling", self.label),
-            UseCase::ContinuousMessages => format!("{} messages, continuous", self.label),
-            UseCase::ManyMessages if self.messages == 1 => "1 message".to_owned(),
-            UseCase::ManyMessages => format!("{} messages", self.label),
-            UseCase::ContinuousBatches => format!("batches of {}, continuous", self.label),
-            UseCase::LentMessages => format!("{} messages, lent buffers", self.label),
-            UseCase::LentPieces => format!("{} streamed, lent buffers", self.label),
-            UseCase::LentBatches => format!("batches of {}, lent buffers", self.label),
-        }
-    }
-
     const fn one(label: &'static str, bytes: usize) -> Self {
         Self { label, bytes, messages: 1, use_case: UseCase::OneMessage }
     }
@@ -827,9 +729,10 @@ impl Algorithm {
     }
 
 
-    /// Whether this contender may use more than the calling thread.
-    fn multithreaded(self) -> bool {
-        matches!(self, Self::Blake3Rayon | Self::Blake3ServilMt)
+    /// Whether this contender runs on the calling thread's core alone:
+    /// no SME unit shared with other cores, no helper threads.
+    fn core_only(self) -> bool {
+        !matches!(self, Self::Blake3ServilSt | Self::Blake3ServilMt | Self::Blake3Rayon)
     }
 
     /// Whether this contender is measured in a use case. BLAKE3 mt stays
@@ -1053,12 +956,8 @@ impl std::ops::Mul<u64> for Fixed {
 }
 
 impl Fixed {
+    #[cfg(test)]
     const ONE: Fixed = Fixed(1 << 64);
-
-    /// The mean of two values, rounded half up.
-    fn midpoint(self, other: Fixed) -> Fixed {
-        Fixed((self.0 + other.0 + 1) / 2)
-    }
 
     /// self / other, as a Fixed, rounded down at the last bit: a long
     /// division, 24 bits at a time so that no step overflows. Both values
@@ -1183,10 +1082,6 @@ impl Statistics {
         self.speeds().into_iter().map(spread_permille).max().unwrap()
     }
 
-    /// The slower speed: what a user may meet in this cell.
-    fn slowest(&self) -> Speed {
-        *self.speeds().last().unwrap()
-    }
 }
 
 /*
@@ -1216,8 +1111,6 @@ enum Scenario {
 
 impl Scenario {
     const ALL: [Scenario; 2] = [Scenario::Solo, Scenario::Shared];
-    /// The scenarios the graph plots: both.
-    const PLOTTED: [Scenario; 2] = [Scenario::Solo, Scenario::Shared];
 
     fn key(self) -> &'static str {
         match self {
@@ -1637,7 +1530,7 @@ fn main() {
         trace.write();
     }
 
-    let text = generate_text(&roster, &results, &samples, &machine, &selection_note);
+    let text = generate_text(&roster, &results, &machine, &selection_note);
     /* The graph draws whole axes: every point of each use case it shows. */
     let svg = roster.whole_axes().then(|| generate_svg(&roster, &results, &machine, &selection_note));
 
@@ -1663,6 +1556,10 @@ fn main() {
 
     fs::write(&text_path, &text).unwrap_or_else(|error| {
         panic!("failed to write {}: {error}", text_path.display())
+    });
+    let checks_path = directory.join(format!("{stem}.checks.txt"));
+    fs::write(&checks_path, consistency(&roster, &results)).unwrap_or_else(|error| {
+        panic!("failed to write {}: {error}", checks_path.display())
     });
 
     if let Some(svg) = &svg {
@@ -1762,8 +1659,6 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
     let mut samples = RunSamples {
         solo: empty(),
         shared: empty(),
-        gap_mhz: (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::new()).collect()).collect(),
-        rounds: (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::new()).collect()).collect(),
         started_ns: (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::new()).collect()).collect(),
     };
     let mut batch_iterations: Vec<Vec<usize>> = vec![vec![1usize; POINT_COUNT]; roster.len()];
@@ -1842,7 +1737,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                     point.use_case.after_gap() == after_gap
                         && roster.algorithms[algorithm_index].takes_part(point.use_case)
                         && (roster.every_round
-                            || cell_wants_sample(round + size_index, roster.rounds, budgeted[algorithm_index][size_index], point.use_case.after_gap()))
+                            || cell_wants_sample(round + size_index, roster.rounds, budgeted[algorithm_index][size_index]))
                 };
                 if !(0..roster.len()).any(wants) {
                     continue;
@@ -1877,12 +1772,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                     let total_units = point.use_case.units(point, iterations);
                     let per_unit = |ns: u64| Measured::new(ns, total_units);
                     samples.solo[algorithm_index][size_index].push(per_unit(elapsed_ns));
-                    samples.rounds[algorithm_index][size_index].push(round);
                     samples.started_ns[algorithm_index][size_index].push(started_ns);
-                    if point.use_case.after_gap() {
-                        samples.gap_mhz[algorithm_index][size_index]
-                            .push(counts.filter(|c| c.p.time_ns + c.e.time_ns > 0).map_or(0, |c| c.mhz()));
-                    }
                     for copy in copies.iter().flatten() {
                         samples.shared[algorithm_index][size_index].push(per_unit(copy.elapsed_ns));
                     }
@@ -2743,7 +2633,6 @@ fn frozen_contract() -> String {
     text += &format!("scenarios: {}\n", keys(&Scenario::ALL));
     let shared: Vec<String> = UseCase::ALL.into_iter().filter(|&use_case| Scenario::Shared.measures(use_case)).map(|use_case| format!("{use_case:?}")).collect();
     text += &format!("shared measures: {}\n", shared.join(", "));
-    text += &format!("graph plots: {}\n", keys(&Scenario::PLOTTED));
     for (algorithm, use_case, call) in SERVIL_CALLS {
         assert!(algorithm.takes_part(use_case), "{} takes part in {use_case:?}", algorithm.key());
         text += &format!("{} {use_case:?}: {call}\n", algorithm.key());
@@ -3254,10 +3143,9 @@ impl MachineMetadata {
 /// Whether a cell takes a sample this round (`slot` is the round plus the
 /// cell's own offset): in every `every`-th round of a run of `rounds`,
 /// where `every` spreads STEADY_SAMPLES (or, for a `long` cell,
-/// LONG_SAMPLES) over the run, and AFTER_GAP_DIVISOR times fewer for a
-/// cell after a gap.
-fn cell_wants_sample(slot: usize, rounds: usize, long: bool, after_gap: bool) -> bool {
-    let target = if long { LONG_SAMPLES } else { STEADY_SAMPLES } / if after_gap { AFTER_GAP_DIVISOR } else { 1 };
+/// LONG_SAMPLES) over the run.
+fn cell_wants_sample(slot: usize, rounds: usize, long: bool) -> bool {
+    let target = if long { LONG_SAMPLES } else { STEADY_SAMPLES };
     slot % (rounds / target).max(1) == 0
 }
 
@@ -3866,18 +3754,6 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
             writeln!(out, "# kernel platform {} {:?}: {}", algorithm.key(), use_case, detect_kernels(algorithm, *use_case).platform).unwrap();
         }
     }
-    if let Some((full_from, lowest_to)) = samples.gap_states() {
-        writeln!(out, "# clock states after the gap: full from {full_from} MHz, lowest to {lowest_to} MHz").unwrap();
-        for (algorithm_index, &algorithm) in roster.algorithms.iter().enumerate() {
-            for (point_index, point) in POINTS.iter().enumerate() {
-                let clocks = &samples.gap_mhz[algorithm_index][point_index];
-                if !clocks.is_empty() {
-                    let list: Vec<String> = clocks.iter().map(u64::to_string).collect();
-                    writeln!(out, "# solo MHz after the gap {} {:?} {}: {}", algorithm.key(), point.use_case, point.label, list.join(",")).unwrap();
-                }
-            }
-        }
-    }
     writeln!(out, "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms").unwrap();
     for (algorithm_index, &algorithm) in roster.algorithms.iter().enumerate() {
         for scenario in Scenario::ALL {
@@ -3923,7 +3799,7 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
  * made for them; then which code path each contender ran, and where the
  * numbers came from, for whoever needs to trust or reproduce them.
  */
-fn generate_text(roster: &Roster, results: &Results, samples: &RunSamples, machine: &MachineMetadata, selection_note: &str) -> String {
+fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, selection_note: &str) -> String {
     let mut output = String::new();
 
     writeln!(output, "Hash speed on {} ({}, {} CPUs), {}", machine.cpu_type, machine.os_type, machine.cpu_count, machine.timestamp).unwrap();
@@ -3954,17 +3830,6 @@ fn generate_text(roster: &Roster, results: &Results, samples: &RunSamples, machi
         };
         writeln!(output, "In {list}, {pattern}.").unwrap();
     }
-    if let Some((full_from, lowest_to)) = samples.gap_states() {
-        let clocks: Vec<u64> = samples.gap_mhz.iter().flatten().flatten().copied().collect();
-        let share = |count: usize| (count * 100 + clocks.len() / 2) / clocks.len();
-        writeln!(
-            output,
-            "After either gap the core ran at full clock ({full_from} MHz or more) through {}% of the solo samples, at its lowest ({lowest_to} MHz or less) through {}%, and between through the rest; CHECKS compare solo samples after a gap in the same state.",
-            share(clocks.iter().filter(|&&mhz| mhz >= full_from).count()),
-            share(clocks.iter().filter(|&&mhz| mhz <= lowest_to).count()),
-        )
-        .unwrap();
-    }
     writeln!(output).unwrap();
 
     for scenario in Scenario::ALL {
@@ -3974,30 +3839,6 @@ fn generate_text(roster: &Roster, results: &Results, samples: &RunSamples, machi
             append_table(&mut output, roster, results, scenario, use_case);
         }
     }
-
-    let (findings, two_speed) = checks(roster, results, samples);
-    writeln!(
-        output,
-        "CHECKS: where BLAKE3 servil st or servil mt is slower than another contender, or slower per unit on larger work than on a size that divides it; compared round by round (samples taken in the same moment), judged at the worse ratio where the ratios split in two, and solo after the gap within one clock state, by {}% or more with the ratio's 95% interval above 1.",
-        CHECK_GAP_PERMILLE / 10,
-    )
-    .unwrap();
-    if findings.is_empty() {
-        writeln!(output, "  none").unwrap();
-    }
-    for finding in &findings {
-        writeln!(output, "  {finding}").unwrap();
-    }
-    writeln!(output).unwrap();
-
-    writeln!(output, "TWO SPEEDS: the servil cells whose samples split into two speeds; a|b gives both medians, faster first, wherever a table shows one.").unwrap();
-    if two_speed.is_empty() {
-        writeln!(output, "  none").unwrap();
-    }
-    for line in &two_speed {
-        writeln!(output, "  {line}").unwrap();
-    }
-    writeln!(output).unwrap();
 
     writeln!(output, "KERNELS: the code path each contender ran, from the point named on.").unwrap();
     for use_case in UseCase::ALL {
@@ -4021,6 +3862,112 @@ fn generate_text(roster: &Roster, results: &Results, samples: &RunSamples, machi
     writeln!(output, "  power: {}", machine.describe_power()).unwrap();
 
     output
+}
+
+/*
+ * Consistency checks: relations that hold for every contender alike when
+ * the benchmark measures what it means to, each judged on cells' fast
+ * speeds with their 95% intervals apart and CONSISTENCY_PERMILLE between
+ * them (bench-hashes NOTES, "Consistency checks"). A broken one is a bug
+ * in the benchmark or in the code under test, or a finding to explain.
+ * They go to a file of their own, for maintainers.
+ */
+const CONSISTENCY_PERMILLE: u64 = 100;
+/// The largest work check 5 compares: inputs this size stay in the
+/// first-level data cache of the machines this benchmark targets (32-128
+/// KiB). Beyond it each level of the memory hierarchy costs more per
+/// byte, for every contender (SHA-256's batches: 32 ns a message up to
+/// 16 KiB, 36 from 256 KiB, VM), which is no bug.
+const CACHED_BYTES: usize = 32 * 1024;
+
+/// Where `slow` is slower than `fast` by more than the margin with the
+/// intervals apart: slow over fast, in permille.
+fn slower_by(slow: Speed, fast: Speed) -> Option<u64> {
+    (slow.low > fast.high && fast.median.cmp_permille(0).is_gt()
+        && slow.median.ratio(fast.median).cmp_permille(1000 + CONSISTENCY_PERMILLE).is_gt())
+        .then(|| slow.median.ratio(fast.median).permille())
+}
+
+/// The consistency checks' report: one line per broken relation.
+fn consistency(roster: &Roster, results: &Results) -> String {
+    let fast = |a: usize, p: usize, scenario: Scenario| cell(results, a, p).get(scenario).speeds()[0];
+    let point = |use_case: UseCase, label: &str| use_case.points().find(|&p| POINTS[p].label == label && roster.measures(p));
+    let mut broken: Vec<String> = Vec::new();
+    let mut note = |check: &str, a: usize, what: String, permille: u64| {
+        broken.push(format!("{check}: {}, {what}: x{}.{:03}", roster.algorithms[a].name(), permille / 1000, permille % 1000));
+    };
+    for (a, &algorithm) in roster.algorithms.iter().enumerate() {
+        /* 1. After idling and after other work agree from 8 MiB up, where the call's own work dominates. */
+        for (idle, busy) in [(UseCase::IdleOneMessage, UseCase::OneMessage), (UseCase::IdleStreaming, UseCase::Streaming)] {
+            for label in ["8 MiB", "32 MiB", "64 MiB", "128 MiB"] {
+                if let (Some(i), Some(b)) = (point(idle, label), point(busy, label)) {
+                    let (fi, fb) = (fast(a, i, Scenario::Solo), fast(a, b, Scenario::Solo));
+                    if let Some(r) = slower_by(fi, fb).or_else(|| slower_by(fb, fi)) {
+                        note("patterns disagree on large work", a, format!("{} at {label}, after idling {} against after other work {} ns/B", busy.short(), fi.median.format_ns(), fb.median.format_ns()), r);
+                    }
+                }
+            }
+        }
+        /* 2. Nonstop is no slower than after other work for small messages (its read of the input included). */
+        for label in ["64 B", "256 B", "1 KiB", "4 KiB"] {
+            if let (Some(n), Some(b)) = (point(UseCase::LentMessages, label), point(UseCase::OneMessage, label)) {
+                let (fnon, fb) = (fast(a, n, Scenario::Solo), fast(a, b, Scenario::Solo));
+                if let Some(r) = slower_by(fnon, fb) {
+                    note("nonstop slower than after other work", a, format!("{label}, {} against {} ns/B", fnon.median.format_ns(), fb.median.format_ns()), r);
+                }
+            }
+        }
+        for use_case in UseCase::ALL.into_iter().filter(|&u| algorithm.takes_part(u)) {
+            let points: Vec<usize> = use_case.points().filter(|&p| roster.measures(p)).collect();
+            /* 3 and 4: two programs at once, for the use cases measured both ways. */
+            if Scenario::Shared.measures(use_case) {
+                for &p in &points {
+                    let (solo, shared) = (fast(a, p, Scenario::Solo), fast(a, p, Scenario::Shared));
+                    if let Some(r) = slower_by(solo, shared) {
+                        note("shared faster than solo", a, format!("{}, {}: solo {} against shared {} {}", use_case.short(), POINTS[p].label, solo.median.format_ns(), shared.median.format_ns(), use_case.time_unit()), r);
+                    }
+                    if algorithm.core_only() {
+                        if let Some(r) = slower_by(shared, solo) {
+                            note("a hash on the cores alone slowed by a second copy", a, format!("{}, {}: shared {} against solo {} {}", use_case.short(), POINTS[p].label, shared.median.format_ns(), solo.median.format_ns(), use_case.time_unit()), r);
+                        }
+                    }
+                }
+            }
+            /*
+             * 5. Twice the work takes at most twice the time: no slower per
+             * unit than a size that divides it, for work that stays in the
+             * first-level cache (up to CACHED_BYTES) and outside the idle
+             * use cases (whose cells' fast speeds may be different clock
+             * states).
+             */
+            let size = |p: usize| if use_case.batch() { POINTS[p].messages } else { POINTS[p].bytes };
+            let cached: Vec<usize> = points.iter().copied().filter(|&p| POINTS[p].bytes <= CACHED_BYTES && !use_case.idle()).collect();
+            let points = cached;
+            for &large in &points {
+                for &small in points.iter().filter(|&&small| size(small) < size(large) && size(large) % size(small) == 0) {
+                    for scenario in Scenario::ALL.into_iter().filter(|&scenario| scenario.measures(use_case)) {
+                        let (l, m) = (fast(a, large, scenario), fast(a, small, scenario));
+                        if let Some(r) = slower_by(l, m) {
+                            note("more work, slower per unit", a, format!("{} ({}), {} against {}: {} against {} {}", use_case.short(), scenario.key(), POINTS[large].label, POINTS[small].label, l.median.format_ns(), m.median.format_ns(), use_case.time_unit()), r);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let mut out = format!(
+        "# bench-hashes consistency checks (for maintainers): relations that hold for every contender when the benchmark measures what it means to, judged on fast speeds, intervals apart and over {}% between them.\n\
+         # 1. After idling and after other work agree from 8 MiB. 2. Nonstop no slower than after other work, 64 B-4 KiB. 3. Shared no faster than solo. 4. A hash on the cores alone no slower shared. 5. No slower per unit than a size that divides the work, up to 32 KiB, outside the idle use cases.\n",
+        CONSISTENCY_PERMILLE / 10,
+    );
+    if broken.is_empty() {
+        out += "all hold\n";
+    }
+    for line in broken {
+        out += &line;
+        out.push('\n');
+    }
+    out
 }
 
 /// One results table: a row per point, a column per contender taking part.
@@ -4049,248 +3996,6 @@ fn append_table(output: &mut String, roster: &Roster, results: &Results, scenari
     writeln!(output).unwrap();
 }
 
-/*
- * The checks a regression hunter would make by eye, for the servil
- * contenders. A cell is judged by its slower speed, which a user may meet.
- * Each check compares two such speeds whose 95% intervals are apart and
- * whose medians differ by CHECK_GAP_PERMILLE or more:
- * - slower than another contender at the same point: BLAKE3 servil st
- *   against the single-threaded ones, BLAKE3 servil mt against all (BLAKE3
- *   servil too: it could have run single-threaded);
- * - slower per unit at a point N than at a smaller point M that divides
- *   it (it could have done M's work N / M times).
- * Beside them, the servil cells that ran at two speeds. Consecutive points
- * with the same finding share a line; identical lines merge across the two
- * contenders and the two scenarios; the worst comes first.
- */
-const CHECK_GAP_PERMILLE: u64 = 50;
-
-/// The fewest solo samples after the gap in one clock state that CHECKS compare.
-const GAP_STATE_MIN: usize = 3;
-
-/*
- * How much slower the first samples of `pairs` are than the second, round
- * by round: the ratio a user may meet (the slower of two speeds where the
- * ratios split), in permille, and the two sides' medians over the rounds
- * at that ratio. None unless that ratio is CHECK_GAP_PERMILLE above even
- * with its 95% interval above 1. A round that slows both sides (an
- * efficiency core, a lowered clock) leaves the ratio alone; a slowdown of
- * one side (two copies sharing an SME unit) raises it.
- */
-fn paired_slower(pairs: &[(PerUnit, PerUnit)]) -> Option<(u64, PerUnit, PerUnit)> {
-    if pairs.is_empty() {
-        return None;
-    }
-    let mut ratios: Vec<Fixed> = pairs.iter().map(|&(mine, theirs)| mine.ratio(theirs)).collect();
-    let statistics = summarize(&mut ratios);
-    let worst = statistics.slowest();
-    if worst.low <= Fixed::ONE || worst.median.cmp_permille(1000 + CHECK_GAP_PERMILLE).is_lt() {
-        return None;
-    }
-    /* The rounds at that ratio: all of them, or those past the split. */
-    let floor = match statistics.two_speeds {
-        Some([fast, slow]) => fast.median.midpoint(slow.median),
-        None => Fixed::default(),
-    };
-    let at: Vec<&(PerUnit, PerUnit)> = pairs.iter().filter(|&&(mine, theirs)| mine.ratio(theirs) >= floor).collect();
-    let median_of = |side: fn(&(PerUnit, PerUnit)) -> PerUnit| {
-        let mut values: Vec<PerUnit> = at.iter().map(|pair| side(pair)).collect();
-        values.sort_unstable();
-        median_of_sorted(&values)
-    };
-    Some((worst.median.permille(), median_of(|pair| pair.0), median_of(|pair| pair.1)))
-}
-
-/// (checks, two-speed cells), each a list of report lines.
-fn checks(roster: &Roster, results: &Results, samples: &RunSamples) -> (Vec<String>, Vec<String>) {
-    /* A claim about one contender in one scenario; its worst case in figures. */
-    struct Claim {
-        contender: Algorithm,
-        scenario: Scenario,
-        text: String,
-        worst_permille: u64,
-        worst: String,
-    }
-    let mut claims: Vec<Claim> = Vec::new();
-    let mut pairs: Vec<Claim> = Vec::new();
-    for (a, &algorithm) in roster.algorithms.iter().enumerate() {
-        if !matches!(algorithm, Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt) {
-            continue;
-        }
-        for scenario in Scenario::ALL {
-            for use_case in UseCase::ALL.into_iter().filter(|&use_case| algorithm.takes_part(use_case) && scenario.measures(use_case)) {
-                let points: Vec<usize> = use_case.points().filter(|&index| roster.measures(index)).collect();
-                let stats = |algorithm_index: usize, point_index: usize| cell(results, algorithm_index, point_index).get(scenario);
-                /*
-                 * After the gap, each call wakes a core that the sleep left
-                 * at full clock or at a fraction of it (M4 Max: 4.4 against
-                 * 1.26 GHz, steps between; the VM 3.5x apart), for every
-                 * contender alike and independently per call, so a round
-                 * pairs one side's slow sample with the other's fast one by
-                 * chance. Where the platform counts cycles, the medians of
-                 * the calls in one clock state are compared (AGENTS.md,
-                 * "Measuring"), at the worse state the two cells share;
-                 * elsewhere their fast speeds. Each comparison asks 5% apart
-                 * or more with intervals apart.
-                 */
-                let slower = |m: Speed, t: Speed| {
-                    let ratio = m.median.ratio(t.median);
-                    (m.low > t.high && ratio.cmp_permille(1000 + CHECK_GAP_PERMILLE).is_ge()).then(|| (ratio.permille(), m.median, t.median))
-                };
-                let judged = |mine: (usize, usize), theirs: (usize, usize)| {
-                    if scenario != Scenario::Solo || !use_case.after_gap() {
-                        return paired_slower(&samples.paired(scenario, mine, theirs));
-                    }
-                    let Some(bounds) = samples.gap_states() else {
-                        return slower(stats(mine.0, mine.1).speeds()[0], stats(theirs.0, theirs.1).speeds()[0]);
-                    };
-                    let (m, t) = (samples.gap_by_state(mine, bounds), samples.gap_by_state(theirs, bounds));
-                    let median = |state: &[Measured]| {
-                        let s = summarize(&mut per_units(state));
-                        Speed { median: s.median, exact_median: None, low: s.low, high: s.high, count: s.count }
-                    };
-                    (0..2)
-                        .filter(|&state| m[state].len() >= GAP_STATE_MIN && t[state].len() >= GAP_STATE_MIN)
-                        .filter_map(|state| slower(median(&m[state]), median(&t[state])))
-                        .max_by_key(|verdict| verdict.0)
-                };
-                let unit = use_case.time_unit();
-                let span = |run: &[usize]| match (run, use_case) {
-                    ([one], _) => POINTS[*one].name(),
-                    ([first, .., last], UseCase::ManyMessages | UseCase::IdleManyMessages) => format!("{} to {} messages", POINTS[*first].label, POINTS[*last].label),
-                    ([first, .., last], UseCase::OneMessage | UseCase::IdleOneMessage) => format!("{} to {}", POINTS[*first].label, POINTS[*last].label),
-                    ([first, .., last], UseCase::Streaming | UseCase::IdleStreaming) => format!("{} to {} streamed", POINTS[*first].label, POINTS[*last].label),
-                    ([first, .., last], UseCase::ContinuousMessages) => format!("{} to {} messages, continuous", POINTS[*first].label, POINTS[*last].label),
-                    ([first, .., last], UseCase::ContinuousBatches) => format!("batches of {} to {}, continuous", POINTS[*first].label, POINTS[*last].label),
-                    ([first, .., last], UseCase::LentMessages | UseCase::LentPieces | UseCase::LentBatches) => format!("{} to {} ({})", POINTS[*first].label, POINTS[*last].label, use_case.short()),
-                    ([], _) => unreachable!("a run holds a point"),
-                };
-                /* The runs of consecutive points where `flag` holds. */
-                let runs = |flag: &dyn Fn(usize) -> bool| -> Vec<Vec<usize>> {
-                    let mut runs: Vec<Vec<usize>> = Vec::new();
-                    let mut current: Vec<usize> = Vec::new();
-                    for &index in &points {
-                        if flag(index) {
-                            current.push(index);
-                        } else if !current.is_empty() {
-                            runs.push(std::mem::take(&mut current));
-                        }
-                    }
-                    if !current.is_empty() {
-                        runs.push(current);
-                    }
-                    runs
-                };
-                let claim = |into: &mut Vec<Claim>, text: String, worst_permille: u64, worst: String| {
-                    into.push(Claim { contender: algorithm, scenario, text, worst_permille, worst });
-                };
-                let against = |at_point: String, slow: PerUnit, fast: PerUnit| format!("{at_point}, {} against {} {unit}", slow.format_ns(), fast.format_ns());
-
-                /* Slower than another contender. */
-                for (b, &other) in roster.algorithms.iter().enumerate() {
-                    /* A single-threaded contender answers to single-threaded ones alone. */
-                    if b == a || !other.takes_part(use_case) || (!algorithm.multithreaded() && other.multithreaded()) {
-                        continue;
-                    }
-                    let verdict: Vec<Option<(u64, PerUnit, PerUnit)>> = POINTS.iter().enumerate()
-                        .map(|(index, _)| if points.contains(&index) { judged((a, index), (b, index)) } else { None })
-                        .collect();
-                    for run in runs(&|index| verdict[index].is_some()) {
-                        let worst = *run.iter().max_by_key(|&&index| verdict[index].unwrap().0).unwrap();
-                        let (ratio, mine, theirs) = verdict[worst].unwrap();
-                        claim(&mut claims, format!("slower than {}: {}", other.name(), span(&run)), ratio, against(POINTS[worst].name(), mine, theirs));
-                    }
-                }
-
-                /* Larger work slower per unit than a size that divides it, runs sharing that size. */
-                let size = |index: usize| if use_case.batch() { POINTS[index].messages } else { POINTS[index].bytes };
-                /* For each point: the divisor it is most slower than, with the verdict. */
-                let divisor: Vec<Option<(usize, (u64, PerUnit, PerUnit))>> = POINTS.iter().enumerate()
-                    .map(|(large, _)| {
-                        if !points.contains(&large) {
-                            return None;
-                        }
-                        points
-                            .iter()
-                            .copied()
-                            .filter(|&small| size(small) < size(large) && size(large) % size(small) == 0)
-                            .filter_map(|small| judged((a, large), (a, small)).map(|verdict| (small, verdict)))
-                            .max_by_key(|(_, verdict)| verdict.0)
-                    })
-                    .collect();
-                let divisor_for = |large: usize| divisor[large].map(|(small, _)| small);
-                let mut k = 0;
-                while k < points.len() {
-                    let Some(small) = divisor_for(points[k]) else {
-                        k += 1;
-                        continue;
-                    };
-                    let start = k;
-                    while k < points.len() && divisor_for(points[k]) == Some(small) {
-                        k += 1;
-                    }
-                    let run = &points[start..k];
-                    let worst = *run.iter().max_by_key(|&&index| divisor[index].unwrap().1 .0).unwrap();
-                    let (ratio, large, base) = divisor[worst].unwrap().1;
-                    claim(
-                        &mut claims,
-                        format!("slower per unit at {} than at {}", span(run), POINTS[small].name()),
-                        ratio,
-                        against(POINTS[worst].name(), large, base),
-                    );
-                }
-
-                /* Two-speed cells. */
-                for run in runs(&|index| stats(a, index).two_speeds.is_some()) {
-                    let pair = |index: usize| stats(a, index).two_speeds.unwrap();
-                    let worst = *run.iter().max_by_key(|&&index| pair(index)[1].median.ratio(pair(index)[0].median)).unwrap();
-                    let [fast, slow] = pair(worst);
-                    claim(
-                        &mut pairs,
-                        format!("two speeds: {}", span(&run)),
-                        slow.median.ratio_permille(fast.median),
-                        format!(
-                            "{}, {}|{} {unit}, {}% of samples at the faster",
-                            POINTS[worst].name(), fast.median.format_ns(), slow.median.format_ns(),
-                            fast.count * 100 / (fast.count + slow.count),
-                        ),
-                    );
-                }
-            }
-        }
-    }
-    /* Claims with the same text merge across contenders and scenarios; the worst case leads. */
-    let render = |claims: Vec<Claim>| -> Vec<String> {
-        let mut merged: Vec<(Vec<Algorithm>, Vec<Scenario>, String, u64, String)> = Vec::new();
-        for claim in claims {
-            match merged.iter_mut().find(|entry| entry.2 == claim.text) {
-                Some(entry) => {
-                    if !entry.0.contains(&claim.contender) {
-                        entry.0.push(claim.contender);
-                    }
-                    if !entry.1.contains(&claim.scenario) {
-                        entry.1.push(claim.scenario);
-                    }
-                    if claim.worst_permille > entry.3 {
-                        entry.3 = claim.worst_permille;
-                        entry.4 = claim.worst;
-                    }
-                }
-                None => merged.push((vec![claim.contender], vec![claim.scenario], claim.text, claim.worst_permille, claim.worst)),
-            }
-        }
-        merged.sort_by(|x, y| y.3.cmp(&x.3));
-        merged
-            .into_iter()
-            .map(|(contenders, scenarios, text, permille, worst)| {
-                let who: Vec<&str> = contenders.iter().map(|algorithm| algorithm.name()).collect();
-                let when: Vec<&str> = scenarios.iter().map(|scenario| scenario.key()).collect();
-                format!("x{}.{:02} {} ({}) {text}; most at {worst}", permille / 1000, permille % 1000 / 10, who.join(", "), when.join(", "))
-            })
-            .collect()
-    };
-    (render(claims), render(pairs))
-}
 
 /// Column heading that fits the 13-character summary columns.
 fn column_heading(algorithm: Algorithm) -> &'static str {
@@ -4753,7 +4458,7 @@ fn generate_guide(roster: &Roster, results: &Results, machine: &MachineMetadata)
     }
     write!(data, "],\"machine\":{},\"date\":{},\"plots\":[", json_string(&machine.cpu_type), json_string(machine.timestamp.split(' ').next().unwrap_or(""))).unwrap();
     let mut first = true;
-    for scenario in Scenario::PLOTTED {
+    for scenario in Scenario::ALL {
         for use_case in UseCase::ALL.into_iter().filter(|&use_case| scenario.measures(use_case)) {
             let points: Vec<usize> = use_case.points().filter(|&index| roster.measures(index)).collect();
             if points.is_empty() { continue; }
@@ -4830,7 +4535,7 @@ fn generate_svg(
 
     /* Solo plots first, then shared: one per use case the run measured. */
     let mut plots: Vec<Plot> = Vec::new();
-    for scenario in Scenario::PLOTTED {
+    for scenario in Scenario::ALL {
         for use_case in UseCase::ALL.into_iter().filter(|&use_case| scenario.measures(use_case)) {
             if use_case.points().any(|index| roster.measures(index)) {
                 plots.push(Plot::new(plots.len(), scenario, use_case, roster, results));
@@ -5120,7 +4825,7 @@ fn generate_svg(
     let chip_rows: [(&str, Vec<(String, &str, String)>); 3] = [
         ("scenario", {
             let mut v = Vec::new();
-            for scenario in Scenario::PLOTTED {
+            for scenario in Scenario::ALL {
                 if plots.iter().any(|plot| plot.scenario == scenario) {
                     let tip = match scenario {
                         Scenario::Solo => "Show or hide the plots of one program hashing alone",
@@ -7615,7 +7320,7 @@ mod correctness_tests {
     /// clock counted), summarised as measure_all does.
     fn run(roster: &Roster, rounds: usize, value: impl Fn(usize, usize, usize) -> u64) -> (Results, RunSamples) {
         let empty = || -> Samples { vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
-        let mut samples = RunSamples { solo: empty(), shared: empty(), gap_mhz: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], rounds: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
+        let mut samples = RunSamples { solo: empty(), shared: empty(), started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
         let mut results: Results = vec![vec![None; POINT_COUNT]; roster.len()];
         for a in 0..roster.len() {
             for &p in &roster.points {
@@ -7625,10 +7330,6 @@ mod correctness_tests {
                     if Scenario::Shared.measures(POINTS[p].use_case) {
                         samples.shared[a][p].extend([v, v]);
                     }
-                    if POINTS[p].use_case.after_gap() {
-                        samples.gap_mhz[a][p].push(0);
-                    }
-                    samples.rounds[a][p].push(r);
                     samples.started_ns[a][p].push(r as u64 * 1_000_000);
                 }
                 results[a][p] = Some(Cell {
@@ -7640,83 +7341,41 @@ mod correctness_tests {
         (results, samples)
     }
 
-    /// The checks flag what a regression hunter would, and only that:
-    /// larger work slower per unit than a size that divides it (not 3
-    /// messages against 2); a contender slower round by round, judged at
-    /// its worse ratio; never a slowdown that hits both sides of a round.
+    /// Each consistency check fires on the relation it holds, and a run
+    /// that keeps every relation reads "all hold".
     #[test]
-    fn checks_flag_slower_cells_and_divisible_work_only() {
-        let many = |label| point(label, UseCase::ManyMessages);
-        let points = vec![many("2"), many("3"), many("64"), many("128")];
-        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256], true, Some(points.clone()), Some(24));
-        /* A little jitter per round, so intervals have width. */
+    fn consistency_checks_name_each_broken_relation() {
+        let points = vec![point("8 MiB", UseCase::OneMessage), point("8 MiB", UseCase::IdleOneMessage), point("64 B", UseCase::OneMessage),
+            point("64 B", UseCase::LentMessages), point("16", UseCase::LentBatches), point("64", UseCase::LentBatches)];
+        let mut points = points;
+        points.sort_unstable();
+        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256], true, Some(points), Some(24));
         let jitter = |r: usize| (r % 5) as u64 * 20;
+        let (results, _) = run(&roster, 24, |_, _, r| 10_000 + jitter(r));
+        assert!(consistency(&roster, &results).ends_with("all hold\n"), "{}", consistency(&roster, &results));
 
-        /* servil: 3 slower than 2 (no divisor), 128 slower than 64 (divisor); SHA-256 slower everywhere. */
-        let base = |p: usize| match POINTS[p].label { "2" => 20_000, "3" => 26_000, "64" => 10_000, _ => 15_000 };
-        let (results, samples) = run(&roster, 24, |a, p, r| if a == 0 { base(p) + jitter(r) } else { 30_000 + jitter(r) });
-        let (findings, two_speed) = checks(&roster, &results, &samples);
-        assert!(two_speed.is_empty(), "{two_speed:#?}");
-        assert_eq!(findings.len(), 1, "{findings:#?}");
-        assert!(findings[0].contains("slower per unit at 128 messages than at 64 messages"), "{findings:#?}");
-
-        /* Rounds 0-4 slow both contenders threefold at every point: no finding from them. */
-        let (results, samples) = run(&roster, 24, |a, p, r| {
-            let v = if a == 0 { base(p).min(10_000) } else { 30_000 } + jitter(r);
-            if r < 5 { v * 3 } else { v }
+        /* 1: idle slower at 8 MiB; 2: nonstop slower at 64 B; 5: 64 messages slower per message than 16. */
+        let (mut results, mut samples) = run(&roster, 24, |_, p, r| jitter(r) + match (POINTS[p].use_case, POINTS[p].label) {
+            (UseCase::IdleOneMessage, _) => 15_000,
+            (UseCase::LentMessages, _) => 20_000,
+            (UseCase::LentBatches, "64") => 12_000,
+            _ => 10_000,
         });
-        let (findings, _) = checks(&roster, &results, &samples);
-        assert!(findings.is_empty(), "{findings:#?}");
-
-        /* servil alone twice as slow in 40% of rounds at 64, nonstop (where the
-           shared copies pair samples round by round): slower than SHA-256
-           there, at about x2, and two-speed. */
-        let lent = |label| point(label, UseCase::LentBatches);
-        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256], true, Some(vec![lent("16"), lent("64"), lent("256")]), Some(24));
-        let (results, samples) = run(&roster, 24, |a, p, r| {
-            if a == 1 { return 20_000 + jitter(r); }
-            let v = 15_000 + jitter(r);
-            if POINTS[p].label == "64" && r % 5 < 2 { v * 2 } else { v }
-        });
-        let (findings, two_speed) = checks(&roster, &results, &samples);
-        assert!(findings.iter().any(|f| f.starts_with("x1.5") && f.contains("slower than SHA-256: batches of 64, lent buffers;")), "{findings:#?}");
-        assert!(two_speed.iter().any(|line| line.contains("two speeds: batches of 64, lent buffers")), "{two_speed:#?}");
-    }
-
-    /// After the gap, servil's solo samples caught only the slow clock
-    /// state and SHA-256's both states, half each: compared within the
-    /// state they share, servil is 10% slower (33 against 30 µs), where its
-    /// one speed against SHA-256's fast one would read x3.3.
-    #[test]
-    fn checks_after_the_gap_compare_within_a_clock_state() {
-        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256], true, Some(vec![point("64 KiB", UseCase::OneMessage)]), Some(24));
-        let jitter = |r: usize| (r % 5) as u64 * 20;
-        let (mut results, mut samples) = run(&roster, 24, |_, _, r| 10_000 + jitter(r));
-        let p = roster.points[0];
-        for a in 0..2 {
-            samples.solo[a][p].clear();
-            samples.gap_mhz[a][p].clear();
-            for r in 0..24 {
-                let fast = a == 1 && r % 2 == 0;
-                let ns = if a == 0 { 33_000 } else if fast { 10_000 } else { 30_000 };
-                samples.solo[a][p].push(Measured::new(ns + jitter(r), 1));
-                samples.gap_mhz[a][p].push(if fast { 4400 } else { 1260 });
+        /* 3: servil's shared copies twice as fast at 16 messages; 4: SHA-256's (on the cores alone) half as fast. */
+        let p16 = POINTS.iter().position(|p| p.use_case == UseCase::LentBatches && p.label == "16").unwrap();
+        for (a, factor) in [(0usize, (1u64, 2u64)), (1, (3, 2))] {
+            for sample in samples.shared[a][p16].iter_mut() {
+                *sample = Measured::new(sample.ns * factor.0 / factor.1, sample.units);
             }
-            results[a][p].as_mut().unwrap().solo = summarize(&mut per_units(&samples.solo[a][p]));
+            results[a][p16].as_mut().unwrap().shared = Some(summarize(&mut per_units(&samples.shared[a][p16])));
         }
-        assert_eq!(samples.gap_states(), Some((3520, 1575)));
-        let (findings, _) = checks(&roster, &results, &samples);
-        let solo: Vec<&String> = findings.iter().filter(|f| f.contains("(solo)")).collect();
-        assert_eq!(solo.len(), 1, "{findings:#?}");
-        assert!(solo[0].starts_with("x1.1") && solo[0].contains("slower than SHA-256"), "{findings:#?}");
-
-        /* Without cycle counts (every clock 0), the fast speeds are compared. */
-        for a in 0..2 {
-            samples.gap_mhz[a][p].iter_mut().for_each(|mhz| *mhz = 0);
+        let report = consistency(&roster, &results);
+        for (check, who) in [("patterns disagree on large work", "BLAKE3 servil st"), ("nonstop slower than after other work", "SHA-256"),
+            ("more work, slower per unit", "SHA-256"), ("shared faster than solo", "BLAKE3 servil st"),
+            ("a hash on the cores alone slowed by a second copy", "SHA-256")] {
+            assert!(report.lines().any(|line| line.starts_with(&format!("{check}: {who}"))), "{check} for {who}:\n{report}");
         }
-        assert_eq!(samples.gap_states(), None);
-        let (findings, _) = checks(&roster, &results, &samples);
-        assert!(findings.iter().any(|f| f.contains("(solo)") && f.starts_with("x3.")), "{findings:#?}");
+        assert!(!report.contains("a hash on the cores alone slowed by a second copy: BLAKE3 servil st"), "servil shares its SME unit: exempt\n{report}");
     }
 
     /// The benchmark asks of the fork exactly what FROZEN.md says it does.

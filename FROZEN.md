@@ -93,7 +93,6 @@ use case LentPieces: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 
 use case LentBatches: 16, 64, 256, 1024, 4096, 16384, 65536
 scenarios: solo, shared
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, LentPieces, LentBatches
-graph plots: solo, shared
 blake3-servil-st OneMessage: hash(input), each call after other work
 blake3-servil-st ManyMessages: hash_many(batch, 64, out), the padded batch contract, each call after other work
 blake3-servil-st Streaming: Hasher::update per 64 KiB piece, then finalize, each message after other work

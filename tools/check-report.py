@@ -120,7 +120,7 @@ def main():
         if any(line.startswith(heading) for heading in section):
             scenario = next(key for heading, key in section.items() if line.startswith(heading))
             continue
-        if line.startswith(("CHECKS", "TWO SPEEDS", "KERNELS", "PROVENANCE")):
+        if line.startswith(("KERNELS", "PROVENANCE")):
             scenario = None
         if scenario is None:
             continue
