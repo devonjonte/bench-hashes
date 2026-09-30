@@ -33,28 +33,24 @@ accurate when nothing else busy runs on the computer meanwhile.
 The run writes four files to `benchmark-results/`, in a folder named after
 your CPU and operating system:
 
-- `bench-hashes.guide.html`: choose a BLAKE3 call by answering questions
-  about your program, then see that call's measured speed. Open it in a
-  web browser; it includes its graph and works offline. Synchronous
-  recommendations open in latency (time per message or batch); queue
-  recommendations open in throughput (bytes or messages per second).
-- `bench-hashes.graph.svg`: the full graph. Open it in a web browser.
+- `bench-hashes.graph.svg`: the graph. Open it in a web browser.
 - `bench-hashes.result.txt`: the same numbers as text tables.
+- `bench-hashes.guide.html`: for programmers who want to call BLAKE3
+  from their own code (see "Which call to use", below).
 - `bench-hashes.samples.tsv`: every single measurement, for your own
   analysis.
 
-The graph shows eight tasks, each alone and with two copies hashing
-at once, as when two programs hash side by side. Three tasks hash now
-and then, after the program has done a millisecond of other work: a
-message in one buffer, a batch of 64-byte messages (a Merkle tree's
-nodes), and a message arriving in 64 KiB pieces.
-
-The other five hash nonstop. Two let the producer keep ownership of
-its buffers: separate messages, and batches. A queue can hash one
-buffer while the producer fills the next. Three measure buffers that
-are lent only until a call returns: whole messages, messages in 64 KiB
-pieces, and batches. Here producing and hashing take turns. Comparing
-these tasks shows when pipelining pays. Higher is faster.
+The graph shows eight tasks, each alone and with two copies running at
+once, as when two programs hash side by side. Three tasks hash now and
+then: a message in one buffer, a batch of 64-byte messages (a Merkle
+tree's nodes), and a message arriving in 64 KiB pieces. Before each of
+these calls the program does a millisecond of other work, so the hash
+finds cold caches and idle helper threads, as it does in a program that
+hashes between other things. The other five tasks hash nonstop, one
+input after another: separate messages and batches through a queue that
+hashes one buffer while the program fills the next, and whole messages,
+pieces, and batches through plain calls, where filling and hashing take
+turns. Higher is faster.
 Hover over a dot, or tap it, to compare every contender at that point.
 Click a name at the right to show or hide that contender. The band on
 the strip at the top marks the part of the inputs every plot shows: drag
@@ -82,6 +78,16 @@ The contenders:
 - **SHA-256** (the `sha2` crate) and **SHA-256 ring** (the `ring`
   crate): SHA-256 with the CPU's SHA-256 instructions where it has them.
   `sha2` is faster for the smallest inputs, `ring` from about 256 bytes.
+
+## Which call to use
+
+Programmers who want this speed in their own program open
+`bench-hashes.guide.html`. It asks a few questions about how the program
+receives its data (one thread or several; one message, pieces, or a
+batch; whether the thread keeps up; whose buffer the data lands in) and
+answers with one call from the servil crate, a complete Rust example, and
+that call's measured speed on your computer beside SHA-256. Every
+question has an "I'm not sure" answer that leads to a safe choice.
 
 `cargo run --release -- --all` adds every other hash the benchmark knows
 (the official BLAKE3 crate, SHA3-256, SHA-1DC, and on Apple

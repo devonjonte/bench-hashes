@@ -3,189 +3,335 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Choose a BLAKE3 call</title>
+<title>Which BLAKE3 call fits your program?</title>
 <style>
-:root { color-scheme: light; font: 17px/1.5 system-ui, sans-serif; color: #242b30; background: #fdfdfc; }
+:root { font: 17px/1.5 system-ui, sans-serif; color: #242b30; background: #fdfdfc; }
 body { margin: 0; }
-main { max-width: 76rem; margin: 2rem auto; padding: 0 1rem; }
-h1 { font-size: 2rem; margin-bottom: .4rem; }
-h2 { font-size: 1.35rem; }
-.intro, #question, #result { max-width: 48rem; }
-#choices { display: grid; gap: .65rem; margin: 1rem 0; }
-button { font: inherit; border: 1px solid #b6c4cb; border-radius: .5rem; padding: .75rem 1rem; color: inherit; background: white; cursor: pointer; text-align: left; }
-button:hover, button:focus-visible { background: #edf5f8; border-color: #226a90; }
-nav { display: flex; gap: .7rem; margin: 1rem 0; }
+main { max-width: 46rem; margin: 2rem auto 4rem; padding: 0 1rem; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .5rem; }
+h2 { font-size: 1.3rem; margin: 2rem 0 .5rem; }
+h3 { font-size: 1.05rem; margin: 1.4rem 0 .3rem; }
+p { margin: .5rem 0; }
+.muted { color: #5b6a72; }
+#trail { font-size: .95rem; color: #5b6a72; }
+#choices { display: grid; gap: .6rem; margin: 1rem 0; }
+button { font: inherit; border: 1px solid #b6c4cb; border-radius: .5rem; padding: .7rem 1rem; color: inherit; background: white; cursor: pointer; text-align: left; }
+button:hover, button:focus-visible { background: #edf5f8; border-color: #226a90; outline: none; }
+button.unsure { color: #5b6a72; }
+nav { display: flex; gap: .6rem; margin: 1.2rem 0 0; }
 nav button { padding: .4rem .8rem; }
-code { overflow-wrap: anywhere; background: #edf2f4; padding: .15rem .3rem; }
-small, #answers { color: #52636d; }
-iframe { width: 100%; border: 0; display: block; min-height: 25rem; }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; }
+code { background: #edf2f4; padding: .1rem .3rem; border-radius: .2rem; }
+pre { background: #f3f5f6; border: 1px solid #e1e6e9; border-radius: .5rem; padding: .9rem 1rem; overflow-x: auto; line-height: 1.45; }
+pre code { background: none; padding: 0; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: .8rem 0; }
+dt { color: #5b6a72; }
+dd { margin: 0; }
+.chips { display: flex; gap: .4rem; margin: .6rem 0; }
+.chips button { border-radius: 999px; padding: .2rem .8rem; font-size: .9rem; }
+.chips button[aria-pressed="true"] { background: #e6dcff; border-color: #7a5cc4; }
+svg { width: 100%; height: auto; display: block; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: .95rem; margin: .5rem 0; }
+th, td { text-align: right; padding: .25rem .5rem; border-bottom: 1px solid #e6eaec; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 600; color: #5b6a72; }
+td.win { font-weight: 600; }
+td.win .muted { font-weight: 400; }
+details { margin: 1rem 0; }
+summary { cursor: pointer; color: #226a90; }
 [hidden] { display: none !important; }
-#answers { font-size: .9rem; }
 </style>
 </head>
 <body>
 <main>
-<h1>Choose a BLAKE3 call</h1>
-<p class="intro">Tell us how your program receives data. Get a Rust API recommendation and see its measured speed alongside SHA-256, on the computer named in the graph.</p>
-<noscript>This guide uses JavaScript. The accompanying SVG graph and text report contain this run’s measurements.</noscript>
-<p id="answers"></p>
-<section id="question" aria-labelledby="question-title">
-<h2 id="question-title" tabindex="-1"></h2>
-<p id="question-help"></p>
+<h1>Which BLAKE3 call fits your program?</h1>
+<p class="muted">Answer a few questions about how your program receives data. You get one call from the <a href="https://github.com/johnservil/BLAKE3">BLAKE3 servil</a> crate, a complete Rust example, and how fast that call ran on this computer beside SHA-256.</p>
+<p id="trail" aria-live="polite"></p>
+
+<section id="question">
+<h2 id="q-title" tabindex="-1"></h2>
+<p id="q-help" class="muted"></p>
 <div id="choices"></div>
 </section>
-<section id="result" hidden aria-live="polite">
-<h2>Your call</h2>
-<p><code id="api"></code></p>
-<p id="reason"></p>
-<p id="energy"></p>
-<h2>Speed for this workload</h2>
-<p id="measurement"></p>
-<p id="missing" hidden>This run leaves this recommendation unmeasured. A default full run includes the servil single-threaded and multithreaded calls and SHA-256.</p>
+
+<section id="result" hidden>
+<h2>Your call: <code id="api"></code></h2>
+<p id="summary"></p>
+<dl>
+<dt>You pass</dt><dd id="pass"></dd>
+<dt>You get</dt><dd id="get"></dd>
+<dt>Keep in mind</dt><dd id="mind"></dd>
+</dl>
+<h3>A complete program</h3>
+<pre><code id="example"></code></pre>
+<p class="muted">Add <code>blake3-servil</code> to your <code>Cargo.toml</code>; this program is one of the benchmark's compiled examples.</p>
+<p id="energy" hidden>Energy measurements are on the way. Until then, this call's measured time is the guide.</p>
+
+<h2>How fast, on this computer</h2>
+<p id="speed-summary"></p>
+<div class="chips" role="group" aria-label="Scenario">
+<button id="chip-solo" aria-pressed="true">This program alone</button>
+<button id="chip-shared" aria-pressed="false">Two programs at once</button>
+</div>
+<div id="chart"></div>
+<p id="chart-caption" class="muted"></p>
+<table id="latency"><thead></thead><tbody></tbody></table>
+<p id="unmeasured" hidden>This run holds no measurement of this call. A default run of the benchmark measures every call in this guide.</p>
+<details><summary>How these numbers were measured</summary>
+<p id="method"></p>
+<p>Each figure is the median of that cell's samples: the time one call took, or one batch. Where the samples fell into two distinct speeds, the faster one comes first and the slower follows with the share of samples that ran at it. The full graph (<code>bench-hashes.graph.svg</code>) and text report hold every cell.</p>
+</details>
 </section>
+
 <nav aria-label="Change your answers"><button id="back" hidden>Back</button><button id="restart" hidden>Start again</button></nav>
-<div id="chart" hidden><iframe id="graph" title="Benchmark plots for your recommended call" sandbox="allow-scripts allow-same-origin"></iframe></div>
-<p><small>The recommendation follows the servil API plan. Measurements describe this run’s machine and workload; your program’s data production and other work also affect its speed.</small></p>
 </main>
 <script>
 "use strict";
-const GRAPH = @GRAPH@;
-const CONTENDERS = @CONTENDERS@;
-const questions = {
-  threads: { title: "Can your program use several threads?", help: "Helper threads can hash while your receiving thread produces more data, or shorten a large synchronous call.", choices: [["many", "Yes, helper threads are available"], ["one", "Use one thread"], ["one", "I’m not sure — start with one thread"]] },
-  shape: { title: "What shape is your data?", help: "A batch holds many separate messages of one length. A message in pieces produces one final digest.", choices: [["message", "One message, all in one buffer"], ["pieces", "One message arriving in pieces"], ["batch", "A batch of equal-length messages"], ["message", "I’m not sure — start with one buffer"]] },
-  keepsUp: { title: "Does your receiving thread keep up?", help: "When more data arrives, has this thread finished producing and hashing the last input? A network upload often leaves time between inputs; a file in the page cache often has more ready immediately.", choices: [["yes", "Yes — it waits for more data"], ["no", "There is always more ready"], ["yes", "I’m not sure — use calls now and then"]] },
-  buffer: { title: "Who controls the buffer the data first lands in?", help: "A queue can take ownership of a buffer and return it later. A synchronous call borrows it only until the call returns.", choices: [["owned", "My code chooses the buffer"], ["owned", "Someone else’s buffer, mine until I’m done"], ["lent", "It is lent only until I return"], ["lent", "I’m not sure — borrow it until the call returns"]] },
-  efficiency: { title: "Time or energy?", help: "The current benchmark measures time. Energy-saving multithreaded calls and their measurements are being developed.", choices: [["time", "Show the time-saving recommendation"], ["energy", "I care about energy — show what is measured today"], ["time", "I’m not sure — start with measured time"]] }
+const DATA = @DATA@;
+const EXAMPLES = @EXAMPLES@;
+
+/* The questions. The last choice of each is the answer for a reader who cannot tell. */
+const QUESTIONS = {
+  threads: {
+    title: "Can your program use several threads for hashing?",
+    help: "With helper threads, a large message finishes sooner, and a stream of inputs can be hashed while your own thread produces the next one.",
+    choices: [["many", "Yes"], ["one", "No, one thread"], ["one", "I'm not sure: start with one thread"]],
+  },
+  shape: {
+    title: "What shape is your data?",
+    help: "A batch is many separate messages of one length, each with its own digest. A message in pieces arrives over time and gets one digest at the end.",
+    choices: [["message", "One message, all in one buffer"], ["pieces", "One message arriving in pieces"], ["batch", "A batch of equal-length messages"], ["message", "I'm not sure: start with one buffer"]],
+  },
+  keepsUp: {
+    title: "Does your thread keep up with the data?",
+    help: "When the next input arrives, has your thread finished with the last one? An upload over a network usually leaves time to spare; a file already in memory usually has the next piece ready at once.",
+    choices: [["yes", "Yes, it waits for more data"], ["no", "No, there is always more ready"], ["yes", "I'm not sure: a plain call is never far wrong"]],
+  },
+  buffer: {
+    title: "Whose buffer does the data land in?",
+    help: "A queue takes ownership of a buffer and hands it back later with its digest. A plain call only borrows a buffer until it returns.",
+    choices: [["owned", "Mine: my code chooses the buffer"], ["owned", "Someone else's, but mine until I'm done"], ["lent", "Someone else's, lent only until I return"], ["lent", "I'm not sure: borrow it for the call"]],
+  },
+  efficiency: {
+    title: "Save time, or save energy?",
+    help: "Every call here saves time. Energy-saving forms of the multithreaded calls are being built and measured.",
+    choices: [["time", "Time"], ["energy", "Energy"], ["time", "I'm not sure: time"]],
+  },
 };
 
-// Pure decision table; tests exercise every route and every default.
-function recommendation(a) {
-  const many = a.threads === "many", continuous = a.keepsUp === "no";
-  const queue = many && continuous && a.buffer === "owned";
-  const shape = a.shape;
-  const after = { message: "OneMessage", pieces: "Streaming", batch: "ManyMessages" };
-  const lent = { message: "LentMessages", pieces: "LentPieces", batch: "LentBatches" };
-  if (queue) {
-    const names = { message: "messages", pieces: "pieces", batch: "fixed" };
-    const args = shape === "batch" ? "message_len, Mode::Hash, Efficiency::Time, handler" : "Mode::Hash, Efficiency::Time, handler";
-    return { api: `Queue::${names[shape]}(${args})`, contender: "blake3-servil-mt", use: shape === "batch" ? "ContinuousBatches" : "ContinuousMessages", shape,
-      reason: "Cycle a fixed set of owned buffers through the queue. Your receiving thread produces data while hashing threads work on earlier inputs.",
-      measurement: shape === "batch" ? "Batches of 64-byte messages, read into owned buffers and pipelined through Queue::fixed; reads and hashing are timed together." : shape === "pieces" ? "Messages longer than 64 KiB, read in 64 KiB pieces and pipelined through Queue::pieces; reads and hashing are timed together." : "Messages of up to 64 KiB, read into owned buffers and pipelined through Queue::messages; reads and hashing are timed together." };
-  }
-  const mt = many && (shape !== "pieces" || continuous);
-  const suffix = mt ? "_multithreaded" : "";
-  const api = shape === "message" ? `hash${suffix}(input)` : shape === "batch" ? `hash_many${suffix}(input, message_len, out)` : `Hasher::update${suffix}(piece), then finalize()`;
-  return { api, contender: mt ? "blake3-servil-mt" : "blake3-servil-st", use: continuous ? lent[shape] : after[shape], shape,
-    reason: shape === "batch" ? "Lay messages out in one buffer, each starting at the message length rounded up to 64 bytes (64 for an empty message). Zero the padding; provide one 32-byte digest per message." : shape === "pieces" ? "Feed each piece in order, then finalize the message. When your thread keeps up, update hashes each piece on that thread." : "Borrow the input for the call and receive its digest when it returns.",
-    measurement: continuous ? (shape === "pieces" ? "Messages in 64 KiB pieces, read and hashed in swift succession through synchronous updates; reads and hashing are timed together." : shape === "batch" ? "Batches of 64-byte messages, read and hashed back to back through synchronous calls; reads and hashing are timed together." : "Whole messages, read and hashed back to back through synchronous calls; reads and hashing are timed together.") : "Each message or batch follows the program’s other work. The graph measures hashing; for pieces, it also times each piece’s read. The graph’s details describe the gap." };
-}
 function steps(a) {
   const list = ["threads", "shape", "keepsUp"];
   if (a.threads === "many" && a.keepsUp === "no") list.push("buffer");
   if (a.threads === "many") list.push("efficiency");
   return list;
 }
-let answers = {}, history = [], graphReady = false, current = null;
-const el = id => document.getElementById(id);
-function choose(key, value, label) {
-  answers[key] = value;
-  history.push({ key, label });
-  show();
+
+/* The decision table (the crate's docs, "Five questions lead a user to one call"). */
+function recommendation(a) {
+  const many = a.threads === "many", continuous = a.keepsUp === "no", queue = many && continuous && a.buffer === "owned";
+  const s = a.shape;
+  if (queue) {
+    const call = { message: "Queue::messages", pieces: "Queue::pieces", batch: "Queue::fixed" }[s];
+    return {
+      call, api: s === "batch" ? "Queue::fixed(message_len, Mode::Hash, Efficiency::Time, handler)" : `${call}(Mode::Hash, Efficiency::Time, handler)`,
+      contender: "blake3-servil-mt", use: s === "batch" ? "ContinuousBatches" : "ContinuousMessages", shape: s,
+      summary: "A queue. You hand over buffers you own and go on producing the next one; the queue's threads hash them and hand each back, with its digest, to a handler you write.",
+      pass: s === "batch" ? "A buffer of equal-length messages laid out back to back, plus space for their digests. Both come back to your handler." : s === "pieces" ? "Each piece of the message, in order, then finish(). Each piece comes back to your handler once hashed; the digest comes last." : "One buffer per message. Each comes back to your handler with its digest.",
+      get: "Calls to your handler, in the order you submitted, one at a time. submit() itself returns at once.",
+      mind: "Keep the handler short: it runs on the queue's delivery thread. Keep a fixed set of buffers cycling; when none is free, wait for one to come back. Make the queue once and keep it.",
+    };
+  }
+  const mt = many && (s !== "pieces" || continuous);
+  const call = { message: "hash", pieces: "update", batch: "hash_many" }[s] + (mt ? "_multithreaded" : "");
+  const api = s === "message" ? `${call}(input) -> Hash` : s === "batch" ? `${call}(input, message_len, &mut digests)` : `Hasher::new(), then ${call}(piece) per piece, then finalize() -> Hash`;
+  const use = continuous ? { message: "LentMessages", pieces: "LentPieces", batch: "LentBatches" }[s] : { message: "OneMessage", pieces: "Streaming", batch: "ManyMessages" }[s];
+  return {
+    call, api, contender: mt ? "blake3-servil-mt" : "blake3-servil-st", use, shape: s,
+    summary: s === "batch"
+      ? `One call hashes every message in the buffer${mt ? ", spread over your spare cores" : ""}. Merkle trees and record stores hash this way.`
+      : s === "pieces"
+        ? `A Hasher keeps the message's state between pieces${mt ? "; helper threads share each piece and stay ready for the next for a short while" : ""}. A file read or a network stream hashes this way.`
+        : `The plain call: it reads the buffer and returns the digest${mt ? ", spreading a large message over your spare cores; small messages stay on your thread" : ""}.`,
+    pass: s === "batch" ? "One buffer holding all the messages, each starting at a multiple of the message length rounded up to 64 bytes (zero the padding), and a slice of 32-byte arrays for the digests." : s === "pieces" ? "Each piece as a byte slice, in order. Pieces may be any size." : "The whole message as a byte slice.",
+    get: s === "batch" ? "The digests, filled in message order." : s === "pieces" ? "The digest of the whole message from finalize(), the same whatever the piece sizes were." : "A Hash: 32 bytes, with to_hex() and constant-time equality.",
+    mind: mt ? "Call initialize_multithreaded() once at startup so the first call finds its threads ready. The result equals the single-threaded call's." : "This runs on your thread alone: the least energy per byte, and the right choice on a machine whose other cores are busy.",
+  };
 }
+
+/* Times for people: three significant digits in ns, µs, ms, or s. */
+function humanTime(ns) {
+  const units = [[1e9, "s"], [1e6, "ms"], [1e3, "µs"], [1, "ns"]];
+  for (const [scale, unit] of units) {
+    if (ns >= scale || unit === "ns") {
+      const v = ns / scale;
+      const digits = v >= 100 ? 0 : v >= 10 ? 1 : 2;
+      return `${v.toFixed(digits)} ${unit}`;
+    }
+  }
+}
+function humanRate(nsPerUnit, batch) {
+  /* GB/s for bytes, million messages per second for messages. */
+  const v = batch ? 1000 / nsPerUnit : 1 / nsPerUnit;
+  const digits = v >= 100 ? 0 : v >= 10 ? 1 : 2;
+  return `${v.toFixed(digits)} ${batch ? "Mmsg/s" : "GB/s"}`;
+}
+
+const el = id => document.getElementById(id);
+let answers = {}, history = [], current = null, scenario = "solo";
+
+function choose(key, value, label) { answers[key] = value; history.push({ key, label }); show(); }
+
 function show() {
-  el("answers").textContent = history.map(h => h.label).join(" → ");
+  el("trail").textContent = history.map(h => h.label).join(" · ");
   el("back").hidden = el("restart").hidden = history.length === 0;
   const next = steps(answers).find(key => !(key in answers));
   el("question").hidden = !next;
   el("result").hidden = !!next;
-  el("chart").hidden = !!next;
   if (next) {
-    current = null;
-    const q = questions[next];
-    el("question-title").textContent = q.title;
-    el("question-help").textContent = q.help;
-    el("choices").replaceChildren(...q.choices.map(([value, label]) => {
-      const button = document.createElement("button");
-      button.textContent = label;
-      button.onclick = () => choose(next, value, label);
-      return button;
+    const q = QUESTIONS[next];
+    el("q-title").textContent = q.title;
+    el("q-help").textContent = q.help;
+    el("choices").replaceChildren(...q.choices.map(([value, label], i) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      if (i === q.choices.length - 1) b.className = "unsure";
+      b.onclick = () => choose(next, value, label);
+      return b;
     }));
-    el("question-title").focus();
+    el("q-title").focus();
     return;
   }
   current = recommendation(answers);
   el("api").textContent = current.api;
-  el("reason").textContent = current.reason;
-  el("measurement").textContent = current.measurement + (current.api.startsWith("Queue::")
-    ? " The plots show throughput: bytes or messages per second."
-    : " The plots show latency: elapsed nanoseconds per message or batch, averaged over the calls in each sample.");
-  el("energy").textContent = answers.efficiency === "energy" ? "Energy results are pending. This is the available call and its measured time; the graph supports a time comparison." : "";
-  if (graphReady) focusGraph();
-  else loadGraph();
+  el("summary").textContent = current.summary;
+  el("pass").textContent = current.pass;
+  el("get").textContent = current.get;
+  el("mind").textContent = current.mind;
+  el("example").textContent = EXAMPLES[current.call];
+  el("energy").hidden = answers.efficiency !== "energy";
+  drawSpeed();
+  el("api").closest("h2").scrollIntoView({ block: "start" });
 }
-function focusGraph() {
-  const found = el("graph").contentWindow.focusRecommendation(current, CONTENDERS);
-  el("missing").hidden = found;
-  el("chart").hidden = !found;
-  resizeGraph();
+
+/* The plot for the recommendation: the recommended contender and the fastest SHA-256 present. */
+function plotFor(r) {
+  return DATA.plots.find(p => p.scenario === scenario && p.use === r.use && p.series[r.contender]);
 }
-function resizeGraph() {
-  if (graphReady) el("graph").style.height = `${el("graph").contentDocument.body.scrollHeight + 12}px`;
+function rival(plot) {
+  return ["sha256-ring", "sha256", "sha256-cc"].find(key => plot.series[key]);
 }
-function loadGraph() {
-  const script = GRAPH.match(/<script><!\[CDATA\[([\s\S]*)\]\]><\/script>/)[1];
-  const markup = GRAPH.replace(/^<\?xml[^>]*>/, "").replace(/<script><!\[CDATA\[[\s\S]*\]\]><\/script>/, "");
-  // The iframe keeps the graph's existing script and its document isolated.
-  const adapter = `
-window.focusRecommendation = (r, keys) => {
-  const i = keys.indexOf(r.contender);
-  const plots = DATA.plots.filter(p => p.use === r.use && i >= 0 && p.series[i]);
-  if (!plots.length) return false;
-  for (const key of Object.keys(chipOn.use)) chipOn.use[key] = key === r.use;
-  document.querySelectorAll('.chip[data-kind="use"]').forEach(c => {
-    c.setAttribute('data-on', chipOn.use[c.dataset.value] ? 'true' : 'false');
-    c.style.display = 'none';
-  });
-  document.querySelectorAll('.series-absent-row').forEach(row => row.style.display = 'none');
-  on.forEach((_, j) => on[j] = j === i || keys[j] === 'sha256-ring');
-  const synchronous = !r.api.startsWith('Queue::');
-  if (synchronous) for (const plot of plots) {
-    if (plot.guideLatency) continue;
-    for (const series of plot.series) if (series) Object.assign(series, series.latency);
-    const batch = ['ManyMessages', 'LentBatches'].includes(plot.use);
-    plot.timeUnit = batch ? 'ns/batch' : 'ns/message';
-    plot.timeLong = batch ? 'Nanoseconds per batch' : 'Nanoseconds per message';
-    plot.rateUnit = batch ? 'batches/s' : 'messages/s';
-    plot.rateLong = batch ? 'Batches per second' : 'Messages per second';
-    plot.scale = 1000000000;
-    plot.guideLatency = true;
+/* Points the recommendation covers: Queue::messages up to 64 KiB, Queue::pieces beyond, else all. */
+function pointsFor(plot, r) {
+  const n = plot.labels.length;
+  if (plot.use !== "ContinuousMessages") return [...Array(n).keys()];
+  const upTo64 = plot.units.map((u, k) => u <= 65536 ? k : -1).filter(k => k >= 0);
+  return r.shape === "pieces" ? [...Array(n).keys()].filter(k => plot.units[k] > 65536) : upTo64;
+}
+
+function drawSpeed() {
+  const r = current, plot = plotFor(r);
+  const points = plot ? pointsFor(plot, r) : [];
+  const measured = plot && points.length > 0;
+  el("unmeasured").hidden = measured;
+  for (const id of ["chart", "latency", "chart-caption", "speed-summary"]) el(id).hidden = !measured;
+  el("chip-solo").setAttribute("aria-pressed", scenario === "solo");
+  el("chip-shared").setAttribute("aria-pressed", scenario === "shared");
+  if (!measured) return;
+  const other = rival(plot);
+  const mine = DATA.contenders.find(c => c.key === r.contender), theirs = DATA.contenders.find(c => c.key === other);
+  const series = [[mine, plot.series[r.contender]]].concat(theirs ? [[theirs, plot.series[other]]] : []);
+  const xLabel = plot.batch ? "Messages per batch" : "Message length";
+  const perUnit = plot.batch ? "per message" : "per byte";
+
+  /* Summary sentence, computed from the same numbers the table shows: the
+     size from which the recommended call stays ahead through the largest. */
+  let text = `${mine.name}, measured alone; this run has no SHA-256 to compare with.`;
+  if (theirs) {
+    const ahead = points.map(k => +plot.series[r.contender].med[k] < +plot.series[other].med[k]);
+    let from = ahead.length;
+    while (from > 0 && ahead[from - 1]) from--;
+    const unit = plot.batch ? " messages" : "";
+    if (from === 0) text = `${mine.name} ran faster than ${theirs.name} at every size measured here.`;
+    else if (from === ahead.length) text = `${theirs.name} ran faster than ${mine.name} at every size measured here.`;
+    else {
+      const below = ahead.slice(0, from).some(x => x) ? "below that the two traded places" : `${theirs.name} led below that`;
+      text = `${mine.name} ran faster than ${theirs.name} from ${plot.labels[points[from]]}${unit} up; ${below}.`;
+    }
   }
-  // A guide opens at its selected plots. The full graph keeps its own
-  // original height rule; the iframe starts with this focused height.
-  layoutProv.floor = 0;
-  layoutPlots(); relayout();
-  setUnit(synchronous ? 'ns' : 'gbps');
-  const owned = r.use === 'ContinuousMessages';
-  const lo = owned && r.shape === 'pieces' ? ALLB.findIndex(b => b > 65536) : 0;
-  const hi = owned && r.shape === 'message' ? ALLB.findLastIndex(b => b <= 65536) : ALLB.length - 1;
-  if (lo < 0 || hi <= lo) return false;
-  setZoom(lo, hi, 1);
-  return true;
-};`;
-  el("graph").onload = () => {
-    graphReady = true;
-    if (current) focusGraph();
-  };
-  el("graph").srcdoc = `<!doctype html><html><head><style>body{margin:0}svg{width:100%;height:auto}</style></head><body>${markup}<script>${script}\n${adapter}<\/script></body></html>`;
+  el("speed-summary").textContent = text;
+
+  /* The chart: throughput on a log scale, so every size gets the same room. */
+  const W = 640, H = 300, L = 56, R = 150, T = 16, B = 44;
+  const logs = points.map(k => Math.log2(plot.units[k]));
+  const [x0, x1] = [Math.min(...logs), Math.max(...logs)];
+  const xs = logs.map(v => L + (x1 === x0 ? 0.5 : (v - x0) / (x1 - x0)) * (W - L - R));
+  /* Labels: powers of two first, then the rest, each at least 58 px from those placed. */
+  const placed = [];
+  const order = points.map((k, i) => i).sort((a, b) => (Number.isInteger(logs[b]) - Number.isInteger(logs[a])) || a - b);
+  for (const i of order) if (placed.every(j => Math.abs(xs[i] - xs[j]) >= 58)) placed.push(i);
+  const vals = series.flatMap(([, s]) => points.flatMap(k => [+s.med[k], s.med2[k] === null ? +s.med[k] : +s.med2[k]]));
+  const rate = ns => (plot.batch ? 1000 : 1) / ns;
+  const lo = Math.min(...vals.map(rate)) / 1.15, hi = Math.max(...vals.map(rate)) * 1.15;
+  const y = v => T + (Math.log(hi) - Math.log(v)) / (Math.log(hi) - Math.log(lo)) * (H - T - B);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${xLabel} against throughput; the table below has the same numbers">`;
+  const ticks = [];
+  for (let e = Math.floor(Math.log10(lo)); e <= Math.ceil(Math.log10(hi)); e++) for (const m of [1, 2, 5]) { const v = m * 10 ** e; if (v >= lo && v <= hi) ticks.push(v); }
+  for (const v of ticks) svg += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#e6eaec"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#5b6a72">${v >= 1 ? v : v.toPrecision(1)}</text>`;
+  svg += `<text transform="translate(14 ${(T + H - B) / 2}) rotate(-90)" text-anchor="middle" font-size="11" fill="#5b6a72">${plot.batch ? "Million messages per second" : "Gigabytes per second"} · higher is better</text>`;
+  points.forEach((k, i) => {
+    svg += `<line x1="${xs[i]}" x2="${xs[i]}" y1="${H - B}" y2="${H - B + (placed.includes(i) ? 6 : 3)}" stroke="#b6c4cb"/>`;
+    if (placed.includes(i)) svg += `<text x="${xs[i]}" y="${H - B + 19}" text-anchor="middle" font-size="11" fill="#5b6a72">${plot.labels[k]}</text>`;
+  });
+  svg += `<text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle" font-size="11" fill="#5b6a72">${xLabel}</text>`;
+  const labelYs = [];
+  for (const [c, s] of series) {
+    const line = points.map((k, i) => `${xs[i]},${y(rate(+s.med[k]))}`).join(" ");
+    svg += `<polyline points="${line}" fill="none" stroke="${c.color}" stroke-width="2.2"/>`;
+    points.forEach((k, i) => {
+      svg += `<circle cx="${xs[i]}" cy="${y(rate(+s.med[k]))}" r="3.5" fill="${c.color}"/>`;
+      if (s.med2[k] !== null) svg += `<circle cx="${xs[i]}" cy="${y(rate(+s.med2[k]))}" r="3" fill="${c.color}" opacity="${Math.max(0.2, s.share2[k] / 1000)}"/>`;
+    });
+    let ly = y(rate(+s.med[points.at(-1)]));
+    for (const other of labelYs) if (Math.abs(ly - other) < 16) ly = other + 16;
+    labelYs.push(ly);
+    svg += `<text x="${W - R + 8}" y="${ly + 4}" font-size="12" font-weight="600" fill="${c.color}">${c.name}</text>`;
+  }
+  svg += "</svg>";
+  el("chart").innerHTML = svg;
+  const queue = r.call.startsWith("Queue::");
+  el("chart-caption").textContent = `Throughput ${perUnit}, ${scenario === "solo" ? "one program hashing on an otherwise idle computer" : "two programs hashing at once, the time of either"}. A fainter dot marks a second, slower speed that some samples ran at.${queue ? " The table's times are the stream's average per input, with many in flight: a throughput figure, since a queue trades one input's wait for the whole stream's speed." : " The table's times are what one call took."}`;
+
+  /* The table: what a caller waits for, per message or batch. */
+  const head = `<tr><th>${xLabel}</th>${series.map(([c]) => `<th>${c.name}</th>`).join("")}${theirs ? `<th>${mine.name} is</th>` : ""}</tr>`;
+  const rows = points.map(k => {
+    const cells = series.map(([, s]) => humanTime(+s.lat[k]) + (s.lat2[k] === null ? "" : `<span class="muted"> · ${Math.round(s.share2[k] / 10)}% at ${humanTime(+s.lat2[k])}</span>`));
+    let ratio = "";
+    if (theirs) {
+      const q = +plot.series[other].med[k] / +plot.series[r.contender].med[k];
+      const x = v => `${v >= 10 ? v.toFixed(0) : v.toFixed(v >= 2 ? 1 : 2)}×`;
+      ratio = q >= 1.05 ? `${x(q)} faster` : q <= 1 / 1.05 ? `${x(1 / q)} slower` : "about the same";
+    }
+    const best = theirs ? (+series[0][1].med[k] <= +series[1][1].med[k] ? 0 : 1) : -1;
+    return `<tr><td>${plot.labels[k]}${plot.batch ? " messages" : ""}</td>${cells.map((c, i) => `<td class="${i === best ? "win" : ""}">${c}</td>`).join("")}${theirs ? `<td class="muted">${ratio}</td>` : ""}</tr>`;
+  });
+  el("latency").querySelector("thead").innerHTML = head;
+  el("latency").querySelector("tbody").innerHTML = rows.join("");
+  el("method").textContent = methodText(r, plot);
 }
-el("back").onclick = () => {
-  const last = history.pop();
-  delete answers[last.key];
-  show();
-};
-el("restart").onclick = () => { answers = {}; history = []; show(); };
-window.addEventListener("resize", resizeGraph);
+
+function methodText(r, plot) {
+  const where = `on ${DATA.machine}, ${DATA.date}`;
+  if (r.use === "ContinuousMessages" || r.use === "ContinuousBatches")
+    return `Measured ${where}: the program read each input into one of its own buffers (a memory copy, the cheapest read) and handed it to the queue, keeping about 1 MiB or 1024 buffers in flight; time runs from the first read to the last digest, so reading and hashing overlap. SHA-256 ran the same producer with a plain call per input.`;
+  if (r.use.startsWith("Lent"))
+    return `Measured ${where}: the program read each input into a buffer (a memory copy) and called the hash, one input after another with nothing between; the read is inside the time. Every contender ran the same loop.`;
+  return `Measured ${where}: before each call the program did at least a millisecond of other work that touched 128 MiB of memory, so the hash found cold caches and idle helper threads, as it does in a program that hashes now and then. The call alone is timed${r.use === "Streaming" ? ", with each piece's read" : ""}.`;
+}
+
+el("chip-solo").onclick = () => { scenario = "solo"; drawSpeed(); };
+el("chip-shared").onclick = () => { scenario = "shared"; drawSpeed(); };
+el("back").onclick = () => { const last = history.pop(); delete answers[last.key]; show(); };
+el("restart").onclick = () => { answers = {}; history = []; show(); window.scrollTo(0, 0); };
 show();
 </script>
 </body>

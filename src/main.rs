@@ -1516,7 +1516,7 @@ fn main() {
             panic!("failed to write {}: {error}", svg_path.display())
         });
         let guide_path = directory.join(format!("{stem}.guide.html"));
-        fs::write(&guide_path, generate_guide(&roster, svg)).unwrap_or_else(|error| {
+        fs::write(&guide_path, generate_guide(&roster, &results, &machine)).unwrap_or_else(|error| {
             panic!("failed to write {}: {error}", guide_path.display())
         });
         println!("# API guide (HTML) is in \"{}\" .", guide_path.display());
@@ -4747,14 +4747,75 @@ impl Plot {
     }
 }
 
-/// A self-contained decision guide with this run's graph embedded. Escape
-/// '<' in script data so graph text cannot close the outer HTML script.
-fn generate_guide(roster: &Roster, svg: &str) -> String {
-    let keys = roster.algorithms.iter().map(|algorithm| json_string(algorithm.key())).collect::<Vec<_>>().join(",");
-    include_str!("guide.html")
-        .replace("@CONTENDERS@", &format!("[{keys}]"))
-        .replace("@GRAPH@", &json_string(svg).replace('<', "\\u003c"))
+/// A self-contained decision guide: the questions, a complete example per
+/// call (compiled as this crate's examples), and this run's medians for
+/// every plot, drawn by the page's own small chart. Escape '<' inside
+/// script data so graph text cannot close the page's script.
+fn generate_guide(roster: &Roster, results: &Results, machine: &MachineMetadata) -> String {
+    let mut data = String::from("{\"contenders\":[");
+    for (index, algorithm) in roster.algorithms.iter().enumerate() {
+        if index > 0 { data.push(','); }
+        write!(data, "{{\"key\":{},\"name\":{},\"color\":\"{}\"}}", json_string(algorithm.key()), json_string(algorithm.name()), algorithm.color()).unwrap();
+    }
+    write!(data, "],\"machine\":{},\"date\":{},\"plots\":[", json_string(&machine.cpu_type), json_string(machine.timestamp.split(' ').next().unwrap_or(""))).unwrap();
+    let mut first = true;
+    for scenario in Scenario::PLOTTED {
+        for use_case in UseCase::ALL {
+            let points: Vec<usize> = use_case.points().filter(|&index| roster.measures(index)).collect();
+            if points.is_empty() { continue; }
+            if !first { data.push(','); }
+            first = false;
+            write!(data, "{{\"scenario\":\"{}\",\"use\":\"{:?}\",\"batch\":{},\"labels\":[", scenario.key(), use_case, use_case.batch()).unwrap();
+            data.push_str(&points.iter().map(|&index| json_string(POINTS[index].label)).collect::<Vec<_>>().join(","));
+            data.push_str("],\"units\":[");
+            data.push_str(&points.iter().map(|&index| use_case.units(POINTS[index], 1).to_string()).collect::<Vec<_>>().join(","));
+            data.push_str("],\"series\":{");
+            let mut first_series = true;
+            for (algorithm_index, algorithm) in roster.algorithms.iter().enumerate() {
+                if !algorithm.takes_part(use_case) { continue; }
+                if !first_series { data.push(','); }
+                first_series = false;
+                write!(data, "{}:{{", json_string(algorithm.key())).unwrap();
+                /* Per point: the fast speed's median (ns per unit), its 95% interval, the slow speed's median and share, and each speed's exact per-call latency. */
+                let per_point = |f: &dyn Fn(Statistics, u64) -> String| -> String {
+                    points.iter().map(|&index| f(cell(results, algorithm_index, index).get(scenario), use_case.units(POINTS[index], 1))).collect::<Vec<_>>().join(",")
+                };
+                write!(data, "\"med\":[{}],", per_point(&|t, _| t.speeds()[0].median.format_ns())).unwrap();
+                write!(data, "\"low\":[{}],", per_point(&|t, _| t.speeds()[0].low.format_ns())).unwrap();
+                write!(data, "\"high\":[{}],", per_point(&|t, _| t.speeds()[0].high.format_ns())).unwrap();
+                write!(data, "\"med2\":[{}],", per_point(&|t, _| t.two_speeds.map_or("null".to_owned(), |pair| pair[1].median.format_ns()))).unwrap();
+                write!(data, "\"share2\":[{}],", per_point(&|t, _| t.two_speeds.map_or("0".to_owned(), |pair| ((pair[1].count * 1000 + t.count / 2) / t.count).to_string()))).unwrap();
+                write!(data, "\"lat\":[{}],", per_point(&|t, units| t.speeds()[0].format_median(units))).unwrap();
+                write!(data, "\"lat2\":[{}]", per_point(&|t, units| t.two_speeds.map_or("null".to_owned(), |pair| pair[1].format_median(units)))).unwrap();
+                data.push('}');
+            }
+            data.push_str("}}");
+        }
+    }
+    data.push_str("]}");
+    let mut examples = String::from("{");
+    for (index, (call, source)) in GUIDE_EXAMPLES.iter().enumerate() {
+        if index > 0 { examples.push(','); }
+        write!(examples, "{}:{}", json_string(call), json_string(source)).unwrap();
+    }
+    examples.push('}');
+    let escape = |text: String| text.replace('<', "\\u003c");
+    include_str!("guide.html").replace("@DATA@", &escape(data)).replace("@EXAMPLES@", &escape(examples))
 }
+
+/// Each recommended call's complete program, compiled as an example of
+/// this crate (`cargo build --examples`), so what the guide shows builds.
+const GUIDE_EXAMPLES: [(&str, &str); 9] = [
+    ("hash", include_str!("../examples/guide_hash.rs")),
+    ("hash_multithreaded", include_str!("../examples/guide_hash_multithreaded.rs")),
+    ("hash_many", include_str!("../examples/guide_hash_many.rs")),
+    ("hash_many_multithreaded", include_str!("../examples/guide_hash_many_multithreaded.rs")),
+    ("update", include_str!("../examples/guide_update.rs")),
+    ("update_multithreaded", include_str!("../examples/guide_update_multithreaded.rs")),
+    ("Queue::messages", include_str!("../examples/guide_queue_messages.rs")),
+    ("Queue::pieces", include_str!("../examples/guide_queue_pieces.rs")),
+    ("Queue::fixed", include_str!("../examples/guide_queue_fixed.rs")),
+];
 
 fn generate_svg(
     roster: &Roster,
@@ -7683,10 +7744,14 @@ mod correctness_tests {
     fn graph_strings_escape_controls_and_guide_keeps_script_data_inside() {
         assert_eq!(json_string("a\n\r\t\0\"\\"), "\"a\\n\\r\\t\\u0000\\\"\\\\\"");
         let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], true, None, Some(24));
-        let guide = generate_guide(&roster, "</script>\n<svg>");
-        assert!(guide.contains("\\u003c/script>\\n\\u003csvg>"));
+        let (results, _) = run(&roster, 24, |_, _, r| 10_000 + r as u64);
+        let mut machine = machine_metadata();
+        machine.cpu_type = "</script><b>".to_owned();
+        let guide = generate_guide(&roster, &results, &machine);
+        assert!(guide.contains("\\u003c/script>\\u003cb>"));
         assert_eq!(guide.matches("</script>").count(), 1, "only the template closes the outer script");
-        assert!(!guide.contains("@GRAPH@") && !guide.contains("@CONTENDERS@"));
+        assert!(!guide.contains("@DATA@") && !guide.contains("@EXAMPLES@"));
+        assert!(guide.contains("\"lat\":["), "each series carries per-call latency");
     }
 
     #[test]

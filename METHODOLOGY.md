@@ -573,29 +573,21 @@ build of one commit measures the same code.
 
 ## Choosing a call and reading its speed
 
-`bench-hashes.guide.html` asks how the program receives data, recommends
-one servil call, and selects that call's measured workload in an embedded
-copy of this run's graph. Each question has an uncertain-answer default:
-one thread, one buffer, keeps up, lent buffer, measured time. The energy
-choice explains that energy measurements are being developed.
+`bench-hashes.guide.html` asks how a program receives its data,
+recommends one servil call, shows a complete program that calls it (one
+of this crate's compiled examples, so it builds), and draws that call's
+measured cells from this run beside the fastest SHA-256 present. Each
+question ends with an "I'm not sure" answer: one thread, one buffer, a
+thread that keeps up, a borrowed buffer, time.
 
-Synchronous recommendations show latency: elapsed nanoseconds per whole
-message or batch, averaged over the calls in each sample. For continuous
-synchronous calls this includes the producer's copied read; for after-gap
-calls the preparation is separate (pieces still include their per-piece
-reads). The queue recommendations show throughput: bytes or messages
-per second over the producer and the queue together, including the final
-drain. Throughput intervals support a rate comparison; individual
-queue-input latencies require their own experiment.
-
-Latency is derived from the same statistics as the normalized plot,
-multiplied by that point's bytes or message count as an exact midpoint
-of the measured ratios, before display rounding. Comparisons and
-confidence intervals use fixed point; the displayed median retains the
-original ratios so an exact decimal halfway rounds once. Each speed keeps its own median and share. The full
-SVG and text report retain normalized time per byte or per batch message
-for comparisons across sizes; the guide presents what the selected
-call's caller waits for. Queue::messages plots cover up to 64 KiB;
-Queue::pieces plots cover longer messages in 64 KiB pieces. A run that
-omits the selected call or its sizes says the recommendation is
-unmeasured. The guide carries its graph and scripts in one offline file.
+The chart shows throughput on log scales, so every size gets the same
+room. The table shows what a caller waits for: the time of one call, or
+one batch, in nanoseconds, microseconds, or milliseconds to three
+significant digits, and how many times faster or slower the recommended
+call was. For the queue, the table's times are the stream's average per
+input with many in flight, a throughput figure by nature. Where a cell
+ran at two speeds, the faster leads and the slower follows with its
+share of the samples. Each figure is the exact midpoint of the measured
+ratios, scaled to the call and rounded once for the page.
+`Queue::messages` covers messages up to 64 KiB and `Queue::pieces` the
+longer ones. A run that lacks the recommended cells says so.
