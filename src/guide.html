@@ -27,7 +27,7 @@ pre code { background: none; padding: 0; }
 dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: .8rem 0; }
 dt { color: #5b6a72; }
 dd { margin: 0; }
-/* The chips read as a sentence: "called [now and then] [nonstop], [alone] [beside another program]". */
+/* The chips read as a sentence: "called [after idling] [amid other work] [nonstop], [alone] [beside another program]". */
 .how { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .8rem 0 .4rem; color: #5b6a72; }
 .how button { border-radius: 999px; padding: .15rem .8rem; font-size: .9rem; color: #242b30; }
 .how button[aria-pressed="true"] { background: #e6dcff; border-color: #7a5cc4; }
@@ -101,7 +101,7 @@ function steps(a) {
 }
 
 /* The decision table (the crate's docs, "Five questions lead a user to one call"). */
-const PATTERNS = { message: ["OneMessage", "LentMessages"], pieces: ["Streaming", "LentPieces"], batch: ["ManyMessages", "LentBatches"] };
+const PATTERNS = { message: ["IdleOneMessage", "OneMessage", "LentMessages"], pieces: ["IdleStreaming", "Streaming", "LentPieces"], batch: ["IdleManyMessages", "ManyMessages", "LentBatches"] };
 function recommendation(a) {
   const many = a.threads === "many", nonstop = a.keepsUp === "no", s = a.shape;
   if (many && nonstop && a.buffer === "owned") {
@@ -114,7 +114,7 @@ function recommendation(a) {
   }
   const mt = many && (s !== "pieces" || nonstop);
   const call = { message: "hash", pieces: "update", batch: "hash_many" }[s] + (mt ? "_multithreaded" : "");
-  return { call, contender: mt ? "blake3-servil-mt" : "blake3-servil-st", uses: PATTERNS[s], useIndex: nonstop ? 1 : 0, shape: s,
+  return { call, contender: mt ? "blake3-servil-mt" : "blake3-servil-st", uses: PATTERNS[s], useIndex: nonstop ? 2 : 1, shape: s,
     summary: s === "batch" ? `One call hashes every message in the buffer${mt ? ", spread over your spare cores" : ""}: how a Merkle tree hashes a layer.`
       : s === "pieces" ? `A Hasher keeps the message's state between pieces${mt ? "; helper threads share each piece" : ""}: how a file or a stream is hashed as it arrives.`
       : `The plain function: it reads the buffer and returns the digest${mt ? ", spreading a large message over your spare cores" : ""}.`,
@@ -194,9 +194,9 @@ function drawChips(plot) {
   const add = (label, pressed, onclick) => { const b = document.createElement("button"); b.textContent = label; b.setAttribute("aria-pressed", pressed); b.onclick = onclick; how.appendChild(b); };
   const text = t => { const s = document.createElement("span"); s.textContent = t; how.appendChild(s); };
   text("Called");
-  if (current.uses.length === 2) {
+  if (current.uses.length === 3) {
     const measured = current.uses.map(use => !!plotFor(use, scenario));
-    ["now and then", "nonstop"].forEach((label, i) => { if (measured[i]) add(label, useIndex === i, () => { useIndex = i; drawSpeed(); }); });
+    ["after idling", "amid other work", "nonstop"].forEach((label, i) => { if (measured[i]) add(label, useIndex === i, () => { useIndex = i; drawSpeed(); }); });
   } else text("nonstop");
   text(",");
   add("alone", scenario === "solo", () => { scenario = "solo"; drawSpeed(); });
@@ -286,7 +286,9 @@ function methodText(plot) {
     return `Measured ${where}, ${sc}. The program read each input into one of its own buffers (a memory copy, the cheapest read) and handed it to the queue, keeping about 1 MiB or 1024 buffers in flight; the time runs from the first read to the last digest, so reading and hashing overlap. SHA-256 ran the same producer with a plain call per input.`;
   if (use.startsWith("Lent"))
     return `Measured ${where}, ${sc}. The program read each input into a buffer (a memory copy) and called the function, one input after another with nothing between; the read is inside the time. Every contender ran the same loop.`;
-  return `Measured ${where}, ${sc}. Before each call the program did at least a millisecond of other work that touched 128 MiB of memory, so the function found cold caches and idle helper threads, as it does in a program that hashes between other things. The call alone is timed${use === "Streaming" ? ", with each piece's read" : ""}.`;
+  if (use.startsWith("Idle"))
+    return `Measured ${where}, ${sc}. Before each call the program slept a millisecond, as a server waits for its next request, then wrote the input; the function found helper threads asleep and a core that may have slowed or powered down. The call alone is timed${use === "IdleStreaming" ? ", with each piece's read" : ""}.`;
+  return `Measured ${where}, ${sc}. Before each call the program ran a fixed other program (about 1 MiB of code) and read 128 MiB of data, at least a millisecond in all, so the function found its code and data out of the caches and its helper threads asleep, as on a machine busy with other programs. The call alone is timed${use === "Streaming" ? ", with each piece's read" : ""}.`;
 }
 
 el("back").onclick = () => { const last = history.pop(); delete answers[last.key]; show(); };

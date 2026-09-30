@@ -12,7 +12,7 @@ const path = require('path');
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(pathToFileURL(path.resolve(process.argv[2])).href);
   // The table, written independently of the page's function.
-  const after = { message: ['hash', 'hash_multithreaded', 'OneMessage'], pieces: ['update', 'update', 'Streaming'], batch: ['hash_many', 'hash_many_multithreaded', 'ManyMessages'] };
+  const after = { message: ['hash', 'hash_multithreaded', 'OneMessage'], pieces: ['update', 'update', 'Streaming'], batch: ['hash_many', 'hash_many_multithreaded', 'ManyMessages'] };  // amid other work, the default for a program that keeps up
   const continuous = {
     message: ['hash', 'hash_multithreaded', 'Queue::messages', 'LentMessages', 'ContinuousMessages'],
     pieces: ['update', 'update_multithreaded', 'Queue::pieces', 'LentPieces', 'ContinuousMessages'],
@@ -53,18 +53,21 @@ const path = require('path');
       for (const t of state.titles) assert(/: \d+(\.\d+)? (ns|µs|ms|s) per (call|batch) · \d+(\.\d+)? (GB\/s|million messages\/s)/.test(t), t);
       assert(state.paths >= 1, `${state.call}: code paths listed`);
       assert(/Faster|Slower|measured alone/.test(state.summary), state.summary);
-      /* The chips: the pattern (two for a plain function), alone or beside another program. */
+      /* The chips: the pattern (three for a plain function), alone or beside another program. */
       const pressed = state.chips.filter(([, p]) => p === 'true').map(([l]) => l);
+      const patterns = ['after idling', 'amid other work', 'nonstop'];
       assert(pressed.includes('alone'), JSON.stringify(state.chips));
-      if (!state.call.startsWith('Queue::')) assert(pressed.includes('now and then') || pressed.includes('nonstop'), JSON.stringify(state.chips));
+      if (!state.call.startsWith('Queue::')) assert.equal(pressed.filter(l => patterns.includes(l)).length, 1, JSON.stringify(state.chips));
       await page.locator('#how button', { hasText: 'beside another program' }).click();
       assert.equal(await page.evaluate(() => [...document.querySelectorAll('#how button')].find(b => b.textContent === 'beside another program').getAttribute('aria-pressed')), 'true');
       await page.locator('#how button', { hasText: 'alone' }).click();
       if (!state.call.startsWith('Queue::')) {
-        const other = pressed.includes('nonstop') ? 'now and then' : 'nonstop';
-        await page.locator('#how button', { hasText: other }).click();
-        assert.equal(await page.evaluate(() => current.call), state.call, 'the function stays; the pattern changes');
-        assert(await page.evaluate(() => document.querySelectorAll('#chart g.dot').length) >= 2);
+        for (const other of patterns.filter(l => !pressed.includes(l))) {
+          await page.locator('#how button', { hasText: other }).click();
+          assert.equal(await page.evaluate(() => current.call), state.call, 'the function stays; the pattern changes');
+          assert.equal(await page.evaluate(o => [...document.querySelectorAll('#how button')].find(b => b.textContent === o).getAttribute('aria-pressed'), other), 'true');
+          assert(await page.evaluate(() => document.querySelectorAll('#chart g.dot').length) >= 2);
+        }
       }
     }
     endings++;

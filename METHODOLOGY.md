@@ -3,10 +3,13 @@
 This file explains what a run measures, how it keeps the numbers honest,
 and what each contender runs. [README.md](README.md) says how to run it.
 
-Every run measures each contender in eight use cases and two scenarios.
-The first three are the synchronous calls, each made after the program
-has done 1 ms of other work (the gap), as a program that hashes now and then calls
-them. **A message in one buffer**: a call hashes one input, at
+Every run measures each contender in eleven use cases and two scenarios.
+The first three are the synchronous calls, each made after a gap, as a
+program that hashes now and then calls them, in two ways, each measured:
+**amid other work**, after the program has run a fixed other program and
+read 128 MiB of data, as on a machine busy with other programs; and
+**after idling**, after the program has slept 1 ms, as a server waiting
+for its next request. **A message in one buffer**: a call hashes one input, at
 twenty-seven sizes from 64 B to 128 MiB, reported per byte. **A batch**:
 a call hashes a batch of 64-byte messages, at twenty-four batch sizes
 from 1 to 262144 messages, reported per message. **A message in
@@ -180,10 +183,15 @@ The synchronous use cases' samples are calls after the gap: one call, or
 as many as fill 2 µs where a call is shorter (the clock ticks every 41.7
 ns, so a single short call cannot be timed), each after its own 1 ms
 of other work, timed alone, and summed. Each thread walks its own kept
-128 MiB working buffer at 64-byte intervals, then spends any remaining
-millisecond on integer arithmetic. A complete sweep is required, so the
-gap can last longer on machines with lower memory bandwidth. The thread
-then writes the input, as a read or producer would, before the hash call.
+Amid other work, each thread runs a fixed other program (1024 generated
+functions, about 1.1 MiB of distinct machine code, run once), walks its
+own kept 128 MiB working buffer at 64-byte intervals, then spends any
+remaining millisecond on integer arithmetic. The whole program runs even
+past 1 ms, so the gap can last longer on slower machines. The other
+code matters: a data walk alone leaves the hash's own code in the
+core's instruction cache, and whatever else ran decided how much, so a
+large hash's cold call varied twofold between processes. After idling,
+the thread sleeps 1 ms. Either way the thread then writes the input, as a read or producer would, before the hash call.
 That write is measured separately and excluded from the hash sample.
 The working buffer's pages are written when it is made, so operating
 systems that share untouched zero pages give it real physical memory.
@@ -191,15 +199,18 @@ Each thread keeps one work buffer and one producer buffer across samples.
 The gap and producer replace the preceding cell's accidental cache state
 with a specified workload. `--trace-clocks` records the producer's wall
 time and counts on rows labelled `preparation solo and shared`; the
-hashing rows describe the call alone. What a program gets that hashes now and then between other
-work: a pool's workers have fallen asleep, and the caller's core is busy.
-A sleep in the gap, used until September 28, 2026, left the core at full clock, at its lowest, or at a step
-between, independently for each call and for every contender alike: on
-an Apple M4 Max about 4.4 GHz, 1.26 GHz, and steps such as 2.1 and 3 GHz,
-and sometimes on an efficiency core; in a VM two speeds about 3.5 times
-apart. Where the platform counts cycles (macOS), the run reads each
-call's clock, the report says how many calls met the full clock and how
-many the lowest, and the samples file keeps each clock.
+hashing rows describe the call alone. In both, a pool's workers have
+fallen asleep. Amid other work the caller's core is busy and its caches
+hold the other program's code and data. After idling the core may have
+slowed or powered down, or the thread may wake on another core: an
+Apple M4 Max meets full clock, its lowest, or a step between, for each
+call and every contender alike, and in a VM two speeds about 3.5 times
+apart, so these cells often run at two speeds, which the report shows
+with their shares. Where the platform counts cycles (macOS), the run
+reads each call's clock, the report says how many calls met the full
+clock and how many the lowest, and the samples file keeps each clock.
+Each gap's cells take half the samples of a continuous cell, keeping a
+full run near 50 seconds.
 
 A single-threaded hash costs about the same in both. A multithreaded one
 shows in the shared scenario what its threads cost when the machine is

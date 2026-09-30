@@ -40,24 +40,27 @@ your CPU and operating system:
 - `bench-hashes.samples.tsv`: every single measurement, for your own
   analysis.
 
-The graph shows eight tasks, each alone and with two copies running at
+The graph shows eleven tasks, each alone and with two copies running at
 once, as when two programs hash side by side. Three tasks hash now and
 then: a message in one buffer, a batch of 64-byte messages (a Merkle
-tree's nodes), and a message arriving in 64 KiB pieces. Before each of
-these calls the program does a millisecond of other work, so the hash
-finds cold caches and idle helper threads, as it does in a program that
-hashes between other things. The other five tasks hash nonstop, one
-input after another: separate messages and batches through a queue that
-hashes one buffer while the program fills the next, and whole messages,
-pieces, and batches through plain calls, where filling and hashing take
-turns. Higher is faster.
+tree's nodes), and a message arriving in 64 KiB pieces. Each is measured
+twice. *Amid other work*: before each call the program runs other code
+and reads a lot of memory, as on a busy machine, so the hash finds its
+own code and data out of the caches. *After idling*: before each call the
+program sleeps a millisecond, as a server waits for its next request, so
+the hash may find a slowed or sleeping core. In both, helper threads have
+fallen asleep. The other five tasks hash nonstop, one input after
+another: separate messages and batches through a queue that hashes one
+buffer while the program fills the next, and whole messages, pieces,
+and batches through plain calls, where filling and hashing take turns.
+Higher is faster.
 Hover over a dot, or tap it, to compare every contender at that point.
 Click a name at the right to show or hide that contender. The band on
 the strip at the top marks the part of the inputs every plot shows: drag
 either end of it, or the band itself, and "all" shows everything again.
-The chips at the top right show or hide plots: solo or shared, one buffer,
-a batch, pieces, or nonstop tasks with owned or lent buffers; show one, and it
-sits right under them.
+The chips at the top right show or hide plots: solo or shared; after
+idling, amid work, or nonstop; one buffer, a batch, pieces, or nonstop
+tasks with owned or lent buffers. Show one, and it sits right under them.
 
 Under the title, the graph names the computer and the day, and says so
 when other programs were busy or the computer ran on battery power

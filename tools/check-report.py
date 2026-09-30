@@ -34,17 +34,17 @@ samples = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(samples)
 
 HEADINGS = {
-    "A message in one buffer": "OneMessage",
-    "A batch of 64-byte messages": "ManyMessages",
-    "A message arriving in 64 KiB pieces": "Streaming",
+    "A message in one buffer, amid other work": "OneMessage",
+    "A batch of 64-byte messages, amid other work": "ManyMessages",
+    "A message arriving in 64 KiB pieces, amid other work": "Streaming",
+    "A message in one buffer, after idling": "IdleOneMessage",
+    "A batch of 64-byte messages, after idling": "IdleManyMessages",
+    "A message arriving in 64 KiB pieces, after idling": "IdleStreaming",
     "Messages one after another, buffers owned": "ContinuousMessages",
     "Batches one after another, buffers owned": "ContinuousBatches",
     "Messages one after another, buffers lent": "LentMessages",
     "Messages in pieces one after another, buffers lent": "LentPieces",
     "Batches one after another, buffers lent": "LentBatches",
-    "One input at a time": "OneMessage",
-    "Batches of 64-byte messages": "ManyMessages",
-    "One input arriving in 64 KiB pieces": "Streaming",
 }
 MASK = (1 << 64) - 1
 
@@ -116,7 +116,7 @@ def main():
     report = (record / "bench-hashes.result.txt").read_text().splitlines()
     scenario, use_case, columns, checked = None, None, None, 0
     for line in report:
-        section = {"SOLO:": "solo", "SHARED:": "shared", "AFTER IDLE:": "after-idle"}
+        section = {"SOLO:": "solo", "SHARED:": "shared"}
         if any(line.startswith(heading) for heading in section):
             scenario = next(key for heading, key in section.items() if line.startswith(heading))
             continue
