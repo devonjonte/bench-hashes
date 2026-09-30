@@ -15,7 +15,7 @@ of September 27, whose queue cells measured a round trip rather than
 throughput and whose synchronous cells measured calls back to back, which
 their users seldom make):
 
-- **Four questions lead a user to one call** (`docs/api-design.md`): can
+- **Four questions lead a user to one call** (`docs/api-design.md`; its five questions of September 28, evening, replace these, and this contract follows in step 2 there): can
   the program use several threads; the shape of the data (a message in
   one buffer, a message in pieces, a batch); time or energy (several
   threads only); and, with several threads, whether another message is

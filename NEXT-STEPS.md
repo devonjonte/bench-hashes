@@ -10,6 +10,90 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
+## Resume here (September 28, 2026, night: the new adventure; work all night)
+
+**Start**: `sh /workspace/vm/setup.sh`; both repos clean and pushed (fork
+`candidate/api-plan-simple`, bench-hashes `candidate/benchmark-plan`,
+whose Cargo.toml now follows the fork's `candidate/api-plan-simple` for
+both `clocks` and `blake3-servil`). The Mac runner is running (Zooko
+restarted it this morning); runner jobs run to 775, the next is 776.
+Build the benchmark against the working tree with `pypy3
+tools/perf_regress.py build` (a plain `cargo build` in bench-hashes links
+the fork from git: the VM "slowdown" of the morning was that).
+
+**The plan for tonight (Zooko, September 28, night)**:
+1. Done: the fork's `docs/api-design.md`, "Five questions lead a user to
+   one call": the adventure and table rewritten (does the program's
+   thread keep up with its data; who controls the buffer the data first
+   lands in). Read it first.
+2. **Update the benchmark so each cell of that table is measured as its
+   users call it**, `FROZEN.md` with it (each cell's call, pattern,
+   reason; its test compares). A proposal to build, cell by cell:
+   - one thread: `hash`, `Hasher::update` per 64 KiB piece, `hash_many`,
+     each call (each message) after the gap: as today's servil st cells;
+   - several threads, keeps up: `hash_multithreaded` and
+     `hash_many_multithreaded` after the gap (today's); pieces:
+     `Hasher::update`, which is servil st's cell (servil mt's streamed
+     cell through `update_multithreaded` leaves this column);
+   - several threads, does not keep up, buffer yours: the queue's
+     continuous cells (today's, from a fixed set of buffers kept across
+     samples);
+   - several threads, does not keep up, buffer lent: new continuous
+     cells of synchronous calls back to back: `hash_multithreaded` per
+     message, `update_multithreaded` per 64 KiB piece (the streamed
+     message's pieces in swift succession, messages one after another),
+     `hash_many_multithreaded` per batch; the other contenders run the
+     same producer through their own calls;
+   - the gap as decided: walk a fixed buffer larger than the caches
+     (evicting code and data), then write the input (untimed, a read),
+     then call (api-design.md, "How the benchmark measures each"); build
+     it in `clocks::measure_after_gaps` (the buffer and the write belong
+     to the caller: a closure for the preparation, timed apart) and
+     measure that small cells come out at one speed (NOTES "The busy
+     gap": today they split by the previous cell).
+   Keep run time near 50 s on the Mac; check the graph (tools/graph-
+   check) and the report as the three readers.
+3. **Benchmark the code, then optimise under it**: Mac full runs, A/Bs
+   old/new/new/old read with `pypy3 tools/ab.py` (speed with speed, beside
+   old-vs-old and new-vs-new); never a pooled median (AGENTS, "every cell
+   may run at two speeds").
+
+**Decisions of today (Zooko)**, each in its document:
+- the energy form does not linger; the energy form itself deferred until
+  the benchmark, API, and architecture are settled;
+- the split at 512 KiB (taken, c46c57c);
+- the continuous cells in a phase of their own (a measurement fix,
+  9869b27);
+- the queue and its returns kept across samples in a bounded channel
+  (no allocation after warm-up; FROZEN.md, c027bfe);
+- the gap is busy work (done, ea7621b/bafa9ec), and it will evict the
+  caches and write the input before each call (to build, step 2);
+- the two-speed rule is shared code (`clocks::speeds`, `tools/speeds.py`,
+  `tools/ab.py`, perf_regress; AGENTS in both repos);
+- no merge to `servil`/`main` until the APIs and how the benchmark calls
+  them are settled.
+
+**Open, for Zooko or for measurement**:
+- The concurrency models (fork api-design.md "The queue" has today's; the
+  chat of September 28 walked three: today's queue with the program's
+  buffers; one process-wide ring of BLAKE3's buffers with fill and hashed
+  events; BLAKE3 doing the reads, `hash_range(file, offset, len, tag)`).
+  My proposal: keep today's as the base for data in memory, move delivery
+  onto the worker that completes the oldest entry (one handover fewer,
+  and no delivery thread polling while entries are in flight), model 3
+  later for files and sockets. Zooko has not chosen.
+- A lone message in the queue waits about 1 us for company, then a wake
+  of 15-45 us: hand the first message into an empty queue over at once?
+- The queue's shares swing per run (256 B messages, batches of 16, 1 KiB:
+  whole runs near 0% or 90% at the slow speed; jobs 766-773): something
+  set at process start (thread placement?). Probe where each queue thread
+  runs; 15 short runs a side of those cells before any A/B of them.
+- The three trades (members-32k, subtrees-32k, linger-4) to measure again
+  speed with speed (their earlier readings pooled two speeds).
+- The Choose-your-own-adventure is not yet in the crate docs (src/lib.rs
+  opens with "For best performance"): write it there once the table
+  settles.
+
 ## Resume here (September 28, 2026, morning: Zooko's decisions, the two phases)
 
 **Zooko's decisions (3:45 am):** the energy-saving form does not linger
