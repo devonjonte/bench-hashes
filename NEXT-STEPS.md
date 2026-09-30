@@ -10,6 +10,38 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
+## Resume here (September 30, 2026, late evening)
+
+**State:** fork `candidate/api-plan-simple` d410d24 (clocks: two gaps,
+each timed call after a gap follows the same call; hashing source
+unchanged since 5cfa2b4); bench-hashes `candidate/benchmark-plan`
+68d57a9 (calls after a gap run alone; patterns after idling / after
+other work / nonstop; plots after a gap say what the program did). Both
+pushed. Latest clean Mac run: job 812 (next job number 814). AGENTS in
+both repos: "Revisit complexity as you learn" (a second solution to one
+problem means fixing or removing the first).
+
+**Waiting for Zooko:**
+1. Whether "after other work" (its other program and 128 MiB walk)
+   earns its complexity: he judges from the plots (job 812).
+2. Whether the benchmark's CHECKS list ("servil slower than ...") and
+   the mt-against-st check move to the fork's tools (improving BLAKE3,
+   a separate project from the benchmark), and whether servil's docs
+   keep the promise "no slower than hash".
+
+**Next, agreed:** item 5 of the grid discussion, the consistency checks
+as code, for every contender alike, in a maintainers' file: patterns
+agree at large sizes; nonstop fastest when small; shared never faster
+than solo; ordinary-core hashes barely slowed when shared; twice the
+data at most twice the time. Then, if the busy pattern stays, a clearer
+drawing of two-speed cells (the after-idling lines jump between speeds).
+
+**Open findings:** the first job of a series ran 5-7% fast on the cores
+(confirm with cycles); servil's lent 64-256 KiB cells pay about 4x the
+read copy ring does (SME2 and freshly written lines?); servil's code size
+on calls after a gap (improving BLAKE3). Brave in the background moved
+nothing measurable (811 against 812, `tmp/cmp/brave.txt`).
+
 ## Update (September 30, 2026, evening): load in clocks
 
 Done at Zooko's request (fork a07a576; this repository's next commit):
