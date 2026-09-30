@@ -3938,7 +3938,7 @@ fn generate_text(roster: &Roster, results: &Results, samples: &RunSamples, machi
         let share = |count: usize| (count * 100 + clocks.len() / 2) / clocks.len();
         writeln!(
             output,
-            "After the gap the core ran at full clock ({full_from} MHz or more) through {}% of the solo samples, at its lowest ({lowest_to} MHz or less) through {}%, and between through the rest; CHECKS compare solo samples after the gap in the same state.",
+            "After either gap the core ran at full clock ({full_from} MHz or more) through {}% of the solo samples, at its lowest ({lowest_to} MHz or less) through {}%, and between through the rest; CHECKS compare solo samples after a gap in the same state.",
             share(clocks.iter().filter(|&&mhz| mhz >= full_from).count()),
             share(clocks.iter().filter(|&&mhz| mhz <= lowest_to).count()),
         )
@@ -4496,7 +4496,7 @@ const PLOT_LEFT: f64 = 110.0;
 const PLOT_RIGHT: f64 = 1000.0;
 /// The first plot's top, below the title, two method lines, and its own
 /// heading; each further plot sits PLOT_PITCH lower.
-const PLOT_TOP: f64 = 220.0;
+const PLOT_TOP: f64 = 244.0;
 const PLOT_HEIGHT: f64 = 340.0;
 /// Room under a plot for its x labels, axis title, and shape legend, and
 /// above the next for its heading.
