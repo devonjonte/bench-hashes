@@ -865,3 +865,20 @@ after other work, after idling. Interleaved Mac A/B (820-823, before
 idle program meets them (ring 8 MiB 0.31-0.32 -> 0.43-0.45 ns/B; servil
 st 8 MiB 0.155 -> 0.19), repeatably (821/822). The check was a wrong
 expectation, not a bug: removed; METHODOLOGY states the effect.
+
+### Release readiness, first pass (September 30, late night; jobs 824-835)
+
+- CI (`.github/workflows/ci.yml`): build, test, quick run on Linux x86-64
+  and arm64, macOS, Windows. It found two defects: `target-cpu=native`
+  (in `.cargo/config.toml`) broke ring's build on GitHub's macOS VM (its
+  native CPU lacks features every Apple arm64 has); Windows checkouts
+  turned FROZEN.md to CRLF and failed its test (`.gitattributes` now
+  keeps LF). The Linux jobs' quick runs had not finished at the handover.
+- No native: Mac interleaved (828-831) every contender about 0.5% slower
+  nonstop and 0.2-1.2% after other work, alike (the harness's code);
+  comparisons unchanged. Builds are now for the target's generic CPU.
+- Memory: a buffer per point held 3.3 GB; one per size 1.0 GB (Mac A/B
+  824-827: nonstop +0.1%, after other work +0.4%, after idling -0.15%);
+  one buffer for every point, each a prefix, 0.87 GB (832-835: +0.06%,
+  +0.7%, -1.6%, each inside its same-code spread; a test pins the
+  prefix property).

@@ -10,6 +10,73 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
+## Resume here (September 30, 2026, night): readiness for announcing
+
+**Goal now (Zooko):** correctness, accuracy, trustworthiness, clarity,
+ready to announce the benchmark for everyone to use and build on. Not
+simplification for its own sake. Everything below is pushed; the VM
+may be idle; run `sh /workspace/vm/setup.sh` first.
+
+**State:** fork `candidate/api-plan-simple` d410d24 (clocks: two gaps,
+each timed call after a gap follows the same call, one untimed first);
+bench-hashes `candidate/benchmark-plan` 93fa3a2. Next runner job 836.
+
+**Done this session (NOTES has each with evidence):**
+- Load detection moved into clocks (every measurement; samples v4 with
+  sample starts and load windows; tools/samples.py the one reader;
+  perf_regress gives no verdict when busy). AGENTS: contracts change
+  everywhere at once; one implementation of every rule; revisit
+  complexity as you learn.
+- Cause of the cold-cell swings: the hash's instruction lines (NOTES,
+  "The cause: where the hash's code is"); then two gaps (after idling,
+  after other work), each timed call following the same call, shared
+  measured nonstop only (NOTES, "Shared after a gap"); plots after a gap
+  without "Solo" and with subtitles saying what the program did.
+- Comparisons of the new benchmark with the previous and with v0.7.0 on
+  fixed contenders (jobs 799-804): agree where they intend the same.
+- servil-only CHECKS removed (Zooko: they belong to the fork's tools);
+  `bench-hashes.checks.txt` holds four consistency checks for every
+  contender (nonstop no slower than after other work at 64 B-4 KiB;
+  shared no faster than solo; core-only hashes no slower shared; no
+  slower per unit than a divisor, within 32 KiB, outside idle). A fifth
+  (idle agrees with busy at 8 MiB+) was a wrong expectation: macOS clocks
+  a mostly idle core lower (3.8-4.0 against 4.5 GHz); now three phases
+  (nonstop, after other work, after idling), each among its own kind.
+- Portability and memory: CI on four platforms; no target-cpu=native;
+  LF line endings; one input buffer (3.3 -> 0.87 GB); all with Mac A/Bs.
+
+**Blocking an announcement, in order:**
+1. CI green on all four platforms (check the latest run of
+   candidate/benchmark-plan: `sh /workspace/tmp/gh-runs.sh`; the Linux
+   quick runs were slow on hosted runners, see if they finish in time).
+2. Consistency findings to resolve or state (both machines unless noted):
+   servil mt's lent pieces faster shared than solo (256 KiB-4 MiB);
+   servil's shared batches of 64 1.4-1.7x slower per message than of 16
+   (SME unit shared) and of 256 slower than of 64 (17-24%); servil st's
+   batch of 4 after other work 1.5-1.75x slower per message than of 2;
+   VM only: ring's nonstop batches 30% slower solo in one process of four
+   (per-process state), SHA-256 slowed beside a second copy at 64-256 B.
+   Each is a finding about a contender or the machine; decide per item:
+   explain in METHODOLOGY, or fix the benchmark if it is ours.
+3. Pages: the published records are from the old benchmark; make new
+   Mac and VM records (PROCEDURES: records on the pinned fork) once the
+   fork is promoted, and point bench-hashes' Cargo.toml at the fork's
+   `servil` branch (today `candidate/api-plan-simple`). Promotion waits
+   for Zooko (Sept 28: no merge until the APIs and how the benchmark
+   calls them are settled).
+4. A fresh reading, as newcomer, regular, maintainer, of README (Zooko
+   wants "Is BLAKE3 faster than SHA-256?" first for newcomers, the guide
+   behind a programmer's door), METHODOLOGY (long; check every claim
+   against the current code), the graph (22 plots, long; two-speed lines
+   jump), the guide, CONTRIBUTING, the report.
+5. Open measurement findings: the first job of a series ran 5-7% fast on
+   the cores (confirm with cycles); servil's lent 64-256 KiB cells pay
+   about 4x ring's read copy.
+
+**Decisions waiting for Zooko:** whether "after other work" earns its
+complexity (he judges from plots, e.g. job 812 or a fresh run); whether
+servil's docs keep "no slower than hash" (fork's project).
+
 ## Resume here (September 30, 2026, late evening)
 
 **State:** fork `candidate/api-plan-simple` d410d24 (clocks: two gaps,
