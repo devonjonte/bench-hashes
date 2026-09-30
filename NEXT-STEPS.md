@@ -29,6 +29,15 @@ caller-relevance experiment (below), on a quiet Mac; measure a load
 reading's cost on the Mac. Open: `tools/speeds.py` is still a second
 implementation of `clocks::speeds` (held by shared vectors); replace it
 with the Rust rule's own output, or a small Rust command Python calls.
+**Found (jobs 789-791, NOTES "Cold calls: the harness doubles them"):**
+the benchmark's cold calls cost up to 2x the same calls in a direct probe
+(same instructions and clock, more stall cycles) and vary per process
+(4 KiB: 3.1 or 5.2 us). One syscall before the gap doubles 4 KiB through
+the 128 MiB sweep. Next: find which state survives the sweep (vary one
+factor at a time: a syscall without file I/O, the sweep writing instead of
+reading, the thread pinned by QoS, a sweep of the system-level cache's
+size), then choose a gap that models real callers reproducibly.
+
 Open question for Zooko: perf_regress's shims for older fork commits
 (PROCEDURES, "perf_regress and older commits") are compatibility code
 under the new rule.

@@ -652,3 +652,46 @@ General regression comparisons intentionally share current clocks across
 sides: keep that purpose separate from clocks A/B experiments. See the
 newest NEXT-STEPS block for branches, raw evidence, UI fidelity issues,
 user decisions, and precise resumption instructions.
+
+### Cold calls: the harness doubles them (jobs 789-791, September 30, evening)
+
+A direct-call probe (fork `probe/caller-relevance`, host_lab) times the
+benchmark's own calls with the same producer and the same clocks function
+(`measure_after_gaps_prepared`, 128 MiB), after seven kinds of caller
+work, in fresh processes, each beside a benchmark run of the same cells
+(servil st; ring beside it). Mac, mains, every run quiet by clocks::load
+(0.12-0.23 CPUs). Median ns/call, cycles/call in brackets:
+
+| cell | probe, busy 1 ms | probe, 128 MiB | benchmark | benchmark without shared copies |
+|---|---|---|---|---|
+| 64 B | 42-62 | 104-136 [990-1110] | 203-229 [1450-1540] | 155-161; 229-274 with HB_ADDRS |
+| 4 KiB | 1300-1370 | 1450-1640 [7200-7800] | 3094-3230, and 5188 in one process [14400-23300] | 3052-3219; 5208-5791 with HB_ADDRS |
+| 16 KiB | 3690-3770 | 3920-4150 [13500-14200] | 8580-8770 [29200-29500] | 7500-7520; 8812-9125 with HB_ADDRS |
+| 64 KiB | 13600 | 13800-13930 | 14850-14960 | 14540-14560 |
+
+Findings. Instructions per call are identical in the probe and the
+benchmark (3080 at 64 B, 47,606-47,626 at 4 KiB), and so is the clock
+(about 4.5 GHz; 3.3 on the SME2 path), so the benchmark's extra time is
+stall cycles in the same instructions. Four processes of the probe agree
+within 5% per cell. The benchmark's per-process state moves 4 KiB by 1.65x
+(3146 against 5188 ns, same build, one speed each). Removing the shared
+copies (probe/harness-bisect `HB_NO_DUO`) takes away about a third of the
+excess at 64 B-1 KiB and about 15% at 16 KiB, and none at 4 KiB. One call a sample
+(each after another cell's call) and a branchy sort after the sweep cost
+the probe at most about 20%. Appending one line to a file before each
+sample's gap (`HB_ADDRS`: open, write, close, then the 1 ms gap and the
+sweep) moved 4 KiB from 3.1 to 5.2-5.8 us in all eight processes. So what
+the program does before the gap reaches through the 128 MiB sweep, and
+a sweep does not make the cold call reproducible. The mechanism is open:
+which state survives a 128 MiB read sweep (the system-level cache, the
+predictors, the kernel's work after a syscall, thread placement)?
+Buffer addresses show no pattern (produced page-aligned in every process).
+
+User relevance. Real programs do system calls and other work between
+hashes, so the benchmark's slow state may well be what users meet, and the
+probe's fast one what a tight probe meets; neither is established as
+typical. The cold cells' spread is the harness's state and not
+measurement noise: until the mechanism is known, differences under about
+2x in cold cells from 4 to 16 KiB say nothing about the hash.
+VM (no cycle counts): the same pattern (probe 4 KiB 2359 ns, benchmark
+5729; without shared copies 3146-3250).
