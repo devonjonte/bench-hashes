@@ -1633,17 +1633,24 @@ fn cell(results: &Results, algorithm_index: usize, point_index: usize) -> &Cell 
 
 fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results, RunSamples, Vec<clocks::load::Window>) {
     /* Inputs for the points measured; an empty buffer stands in for the rest. */
-    let inputs: Vec<Vec<u8>> = (0..POINT_COUNT)
-        .map(|index| if roster.measures(index) { make_input(POINTS[index].bytes) } else { Vec::new() })
-        .collect();
     /*
-     * The second copy in a duo sample hashes its own buffer of the same
-     * size and different contents, as two independent programs would;
-     * sharing one buffer would let the copies share cache lines.
+     * One input per size: points of one size (in different use cases)
+     * hash the same bytes, which make_input derives from the size alone,
+     * so they share a buffer (a full run held 3.3 GB where one per size
+     * needs about 0.6). The second copy in a duo sample hashes its own
+     * buffer of the same size and different contents, as two independent
+     * programs would, for the use cases measured with two copies alone.
      */
-    let duo_inputs: Vec<Vec<u8>> = (0..POINT_COUNT)
-        .map(|index| if roster.measures(index) { make_input_seeded(POINTS[index].bytes, 1) } else { Vec::new() })
-        .collect();
+    let by_size = |seed: u64, wanted: &dyn Fn(usize) -> bool| -> std::collections::BTreeMap<usize, Vec<u8>> {
+        (0..POINT_COUNT).filter(|&index| roster.measures(index) && wanted(index))
+            .map(|index| POINTS[index].bytes).collect::<std::collections::BTreeSet<usize>>()
+            .into_iter().map(|bytes| (bytes, make_input_seeded(bytes, seed))).collect()
+    };
+    let own = by_size(0, &|_| true);
+    let other = by_size(1, &|index| Scenario::Shared.measures(POINTS[index].use_case));
+    let empty: &[u8] = &[];
+    let inputs: Vec<&[u8]> = (0..POINT_COUNT).map(|index| own.get(&POINTS[index].bytes).map_or(empty, Vec::as_slice)).collect();
+    let duo_inputs: Vec<&[u8]> = (0..POINT_COUNT).map(|index| other.get(&POINTS[index].bytes).map_or(empty, Vec::as_slice)).collect();
     let mut progress = Progress::new(roster);
     let duo = Duo::new();
 
@@ -1688,7 +1695,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
             for algorithm_index in 0..roster.len() {
                 let algorithm = roster.algorithms[algorithm_index];
                 if algorithm.takes_part(point.use_case) && roster.measures(point_index) && point.use_case.pattern_key() == pattern {
-                    let (iterations, per_iteration_ns) = calibrate_batch(algorithm, &inputs[point_index], *point);
+                    let (iterations, per_iteration_ns) = calibrate_batch(algorithm, inputs[point_index], *point);
                     /*
                      * A synchronous cell's sample: calls after the gap summing
                      * about GAP_SAMPLE_NS (one at least), from calls timed
@@ -1697,7 +1704,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                      * its own 1 ms gap, where 7 fill it).
                      */
                     batch_iterations[algorithm_index][point_index] = if point.use_case.after_gap() {
-                        let input = &inputs[point_index];
+                        let input = inputs[point_index];
                         let timed = take_sample(algorithm, input, *point, CALIBRATION_GAPS as usize);
                         let per_call_ns = u128::from(timed.elapsed_ns) / u128::from(CALIBRATION_GAPS);
                         GAP_SAMPLE_NS.div_ceil(per_call_ns.max(per_iteration_ns).max(1)) as usize
@@ -1748,7 +1755,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                 let algorithm_order = &roster.orders[visits[size_index] % roster.orders.len()];
                 visits[size_index] += 1;
 
-                let input = &inputs[size_index];
+                let input = inputs[size_index];
 
                 for (position, &algorithm_index) in algorithm_order.iter().enumerate() {
                     let algorithm = roster.algorithms[algorithm_index];
@@ -1769,7 +1776,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                      * on two threads, and each copy's own time is a sample.
                      */
                     let copies = Scenario::Shared.measures(point.use_case)
-                        .then(|| duo.run(algorithm, input, &duo_inputs[size_index], point, iterations));
+                        .then(|| duo.run(algorithm, input, duo_inputs[size_index], point, iterations));
 
 
                     let total_units = point.use_case.units(point, iterations);
