@@ -41,6 +41,8 @@ const path = require('path');
       chips: [...document.querySelectorAll('#how button')].map(b => [b.textContent, b.getAttribute('aria-pressed')]),
       paths: document.querySelectorAll('#paths li').length,
       summary: document.getElementById('speed-summary').textContent, resultVisible: !document.getElementById('result').hidden,
+      standIn: !document.getElementById('stand-in').hidden,
+      uses: current.uses,
     }));
     assert(state.resultVisible);
     assert(state.example.includes('fn main'), `${state.call}: a complete program`);
@@ -52,7 +54,12 @@ const path = require('path');
       /* Every hover names the size, a time per call in a readable unit, a rate, and the code path. */
       for (const t of state.titles) assert(/: \d+(\.\d+)? (ns|µs|ms|s) per (call|batch) · \d+(\.\d+)? (GB\/s|million messages\/s)/.test(t), t);
       assert(state.paths >= 1, `${state.call}: code paths listed`);
-      assert(/Faster|Slower|measured alone/.test(state.summary), state.summary);
+      assert(/Faster|Slower|Matched|trade places|measured alone/.test(state.summary), state.summary);
+      if (state.call.startsWith('Queue::')) assert(!state.standIn, 'queue measurements are actual queue calls');
+      if (shape === 1 && threads === 0 && !state.call.startsWith('Queue::')) {
+        assert.deepEqual(state.uses, state.call === 'update_multithreaded' ? [null, null, 'LentPieces'] : ['IdleOneMessage', 'OneMessage', null],
+          'piece patterns keep the measured API');
+      }
       /* The chips: the pattern (three for a plain function), alone or beside another program. */
       const pressed = state.chips.filter(([, p]) => p === 'true').map(([l]) => l);
       const patterns = ['after idling', 'after other work', 'nonstop'];
@@ -65,7 +72,9 @@ const path = require('path');
         await page.locator('#how button', { hasText: 'alone' }).click();
       }
       if (!state.call.startsWith('Queue::')) {
-        for (const other of patterns.filter(l => !pressed.includes(l))) {
+        // Quick runs omit LentPieces; some calls have only one measured
+        // pattern. Drive only the buttons actually offered to the reader.
+        for (const other of patterns.filter(l => state.chips.some(([label]) => label === l) && !pressed.includes(l))) {
           await page.locator('#how button', { hasText: other }).click();
           assert.equal(await page.evaluate(() => current.call), state.call, 'the function stays; the pattern changes');
           assert.equal(await page.evaluate(o => [...document.querySelectorAll('#how button')].find(b => b.textContent === o).getAttribute('aria-pressed'), other), 'true');
@@ -87,6 +96,8 @@ const path = require('path');
   assert((await page.locator('#q-title').innerText()).includes('several threads'));
   const defaults = await page.evaluate(() => Object.fromEntries(Object.entries(QUESTIONS).map(([k, q]) => [k, q.choices.at(-1)[0]])));
   assert.deepEqual(defaults, { threads: 'one', shape: 'message', keepsUp: 'yes', buffer: 'lent', efficiency: 'time' });
+  assert(await page.evaluate(() => mark('downward triangle', 4, 0, 0, 'red').includes('<path')),
+    'the Rust downward-triangle name produces the matching shape');
   assert.deepEqual(errors, []);
   console.log(`${routes} table routes, ${endings} clicked endings (${measured} measured), defaults, Back, restart, examples, charts, hovers, chips: pass`);
   await browser.close();

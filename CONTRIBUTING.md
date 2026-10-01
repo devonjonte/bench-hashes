@@ -36,6 +36,9 @@ The harness regression tests also check allocation-free warmed batch
 producers, retained output storage, independently called official batch
 hashes, and removal of stale visualizations. Report validation requires
 one report cell for every sampled cell and rejects duplicate cells.
+Load-attribution tests give solo and each shared copy separate timestamps.
+The guide browser test works on quick and full runs and checks that
+pattern toggles preserve the actual incremental API.
 
 ```sh
 BENCH_SPEED_RULES=/path/to/BLAKE3/tools/speeds.py python3 tools/test-check-report.py

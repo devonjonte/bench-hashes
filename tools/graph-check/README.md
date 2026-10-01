@@ -24,7 +24,11 @@ In the VM: `apt-get install -y nodejs npm` first (lost on restart).
 `guide.js` uses Playwright and a real browser to check the generated
 `bench-hashes.guide.html`: 48 decision-table combinations, 21 clicked
 endings, every uncertain-answer default, Back and restart, and the actual
-visible plots and contenders in the embedded graph. Install Playwright
+visible plots and contenders in the chart. Run it on both quick and full
+results: quick runs omit the long pieces axis, while full runs exercise
+its single point. The test checks that pattern toggles keep the actual
+API, queues retain their own measurement labels, and downward-triangle
+marks match the Rust payload. Install Playwright
 1.55.1 (works with Node 18 or later) and Chromium, then:
 
     npm install playwright@1.55.1
