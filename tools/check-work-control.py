@@ -17,6 +17,8 @@ def check(folder, reader):
     samples = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(samples)
     run = samples.read(folder / 'samples.tsv')
+    assert run.meta['work control version'] == '2', 'work accounting contract v2 required'
+    assert run.meta['logical requests per block'] == '100'
     with (folder / 'accounting.csv').open() as stream:
         accounting = list(csv.DictReader(stream))
     with (folder / 'clocks.csv').open() as stream:
@@ -27,10 +29,12 @@ def check(folder, reader):
     total = 0
     for row in accounting:
         key = (row['contender'], 'solo', 'PositiveWorkControl', row['length'] + ' B')
-        calls, batches, factor, completed = (int(row[k]) for k in
-            ['calls_per_batch', 'measured_batches', 'factor', 'completed_including_calibration'])
-        assert calls > 0 and batches > 0 and factor in (1, 2)
-        assert completed == (batches + 1) * calls * factor, 'all completions including calibration'
+        calls, blocks, batches, hashes, completed = (int(row[k]) for k in
+            ['calls_per_batch', 'blocks_per_batch', 'measured_batches', 'hashes_per_block', 'completed_including_calibration'])
+        assert blocks > 0 and calls == blocks * 100 and batches > 0 and 100 <= hashes <= 200
+        extra = int(run.meta['control extra per100' if row['contender'] == 'sha256' else 'subject extra per100'])
+        assert hashes == 100 + extra, 'declared extra work agrees with actual block'
+        assert completed == (batches + 1) * blocks * hashes, 'all completions including calibration'
         readings = run.measured[key]
         assert len(readings) == batches and run.units[key] == 'call'
         selected = [(i, r) for i, r in enumerate(trace) if r['contender'] == row['contender'] and r['length'] == row['length']]
@@ -39,8 +43,8 @@ def check(folder, reader):
             assert index not in checked
             checked.add(index)
             assert int(t['sample']) == sample
-            assert int(t['factor']) == factor and int(t['calls']) == calls
-            assert int(t['completed_hashes']) == calls * factor, 'observed hashes per logical request'
+            assert int(t['hashes_per_block']) == hashes and int(t['calls']) == calls and int(t['blocks']) == blocks
+            assert int(t['completed_hashes']) == blocks * hashes, 'observed hashes per logical request'
             assert (int(t['wall_ns']), int(t['calls'])) == (ns, units), 'exact recorded ns/work'
         total += completed
     assert len(checked) == len(trace), 'all trace rows checked'

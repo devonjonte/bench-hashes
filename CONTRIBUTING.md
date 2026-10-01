@@ -37,6 +37,16 @@ python3 tools/test-check-report.py      # the report check's own tests
 node tools/graph-check/guide-summary.js # the guide's sentences (Playwright)
 ```
 
+## Work-control diagnostics
+
+`examples/work_control.rs` uses accounting contract2: `SUBJECT_EXTRA_PER100
+BATCHES CONTROL_EXTRA_PER100`. Each block observes100 base hashes plus0–100
+extra hashes, with time normalized per logical request and calibration included
+in completion counts. `tools/check-work-control.py` requires the matching
+version2 record. Historical factor controls use the source/tools at3d448f8.
+`audit/near-margin-plan.md` freezes calibration and held-out decision controls;
+`tools/run-near-margin.py` executes them with an explicit process-group supervisor.
+
 ## Adding a contender
 
 Copy what SHA3-256 does: `grep -n Sha3_256 src/main.rs build.rs` lists
