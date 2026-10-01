@@ -10,6 +10,55 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
+## Resume here (October 1, 2026, day)
+
+**State.** Fork `servil` 6afda66 (promoted: suites and perf_regress on
+both machines, job 913; perf note on the commit); its working branch
+`candidate/api-plan-simple` 0b44518 (comment and notes since). bench-hashes
+`main` and `candidate/benchmark-plan` at 63a505f, **released as 0.8.1**
+(tag v0.8.1+8727bb2..., GitHub Release with notes; v0.8.0's tag holds a
+flaky test, use 0.8.1); Cargo.toml follows the fork's `servil`, the lock
+pins 6afda66; records from it (Mac job 915, VM --all), Pages serve them.
+CI green on four platforms. Next runner job 916. Issues enabled on both
+repositories. PRs #1 (Arqu: old benchmark, native build, busy; asked to
+rerun 0.8.1) and #2 (Devon Jonte's audit: cherry-picked, adjusted,
+closed) answered.
+
+**Done today** (NOTES of each repository hold the evidence):
+- Devon's audit: harness defects fixed; the fork's queue hung on one CPU
+  without SME2 (fixed, tests/one_cpu.rs).
+- perf_regress was wrong about one check in five on the Mac: layout luck
+  per side in the calls after a gap (one executable on both sides holds
+  nothing), and a slow-speed rule that fired on identical code. Both
+  removed (Zooko); it measures the nonstop use cases alone (fork NOTES,
+  "perf_regress on the Mac: layout luck per side").
+- AGENTS.md: "Every piece earns its place" (both repositories).
+- Measured and left out: 64-byte function alignment; the split from 256
+  KiB while workers are ready (never triggers in a stream of such calls).
+- Job 852's held 64 B cell was layout luck: no regression.
+
+**Next, in order:**
+1. perf_regress's remaining false verdicts: servil's lent batches of 16,
+   a two-speed nonstop cell whose share swings, gave "faster" on code it
+   never runs (VM today) and held once on the Mac (job 883): its 5th
+   percentile moves with the share. Decide by "Every piece earns its
+   place" with self-compares (rate on identical code).
+2. The run-order effect (the second run of a short pair 1.5x slower at
+   64 B after other work, Mac): cause unknown; it touches the benchmark's
+   cells after a gap too.
+3. The shared bands: a shared sample's two copies vary together, so the
+   bootstrap reads their bands narrow; the remedy is the shared rule's
+   (clocks::speeds, tools/speeds.py, vectors), with the two-speed split
+   designed together.
+4. clocks::load says "not measured on this platform" for a run under
+   half a second on Linux and macOS (no window closed); `--points` lists
+   labels without their use-case prefixes.
+5. The earlier list below (graph's two-speed lines, fresh reads, the
+   consistency findings: servil batch of 4 after other work 1.2-1.8x a
+   batch of 2 per message, on both records).
+6. The fork's `candidate/api-plan-simple` stays as the working branch
+   (old bench commits' Cargo.toml name it).
+
 ## Resume here (October 1, 2026, night): Zooko asleep, work autonomously
 
 Read this block, then the "early morning" block below it, both AGENTS,
