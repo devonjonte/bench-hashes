@@ -33,6 +33,7 @@ windows; obtaining adequate narrowed-process coverage remains open.
 - [Committed go/no-go decision procedure](reliability-assessment.md)
 - [Supporting effect-resolution profile and baseline metric](reliability-profile.md)
 - [Current-source fixed-context and actual-work gate controls](results/fixed-context/README.md)
+- [Final-window coverage, failed snapshot design and stronger abstention controls](results/final-load-coverage/README.md)
 - [Historical adaptive gate null pilot](results/live-gate/README.md)
 - [Deterministic gate contracts, including narrowing](results/gate-contract/README.md)
 - [Recorded runtime accounting](runtime-accounting.md)
@@ -55,6 +56,18 @@ caller controls hold three cells near2x, with exact completions/raw accounting.
 These are pilots, not the acceptance campaign. Recorded-start coverage also
 exposes uncovered tails despite quiet windows, so T7 remains open. Details,
 failed-before tests and every process are preserved in the linked record.
+
+The subsequent shared-load candidate3a240a0 observes short final tails over
+an existing sufficiently long quiet interval, preserves busy findings, and
+seals each extension so frequent snapshots cannot hide bursts. That last defect
+was reproduced in the first prototype and its failed control is retained.
+The stronger shared-reader/gate policy rejects uncovered recorded starts,
+including confirmation. Corrected-source nulls and2x callers have zero
+uncovered starts; short processes and externally busy controls remain exit2.
+All66 prototype/follow-up processes,22 report checks and264 direct accounting
+cells are retained. These are diagnostic comparisons across two instruments,
+not the finite acceptance campaign. Millisecond starts still cannot certify
+full timed intervals; T2–T8 closure and independent review remain outstanding.
 
 Confirmations retain their original scope. No new refutations or acceptance
 responses were received at this check; experimental counterexamples are our

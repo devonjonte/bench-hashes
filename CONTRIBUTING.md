@@ -22,8 +22,9 @@ it measures, and keep your results comparable with ours.
   files old/new/new/old, speed with speed and share with share. `--map`
   explicitly names comparable use cases; `--rules` can locate the fork's
   `tools/speeds.py` in a separate checkout. Use the shared reader with
-  `Run.load_observed` (the load-verdict contribution); busy or unobserved
-  runs are labeled descriptive only, with no speed evidence.
+  `Run.sample_starts_observed` (the load-coverage contribution); busy or
+  incompletely observed runs are labeled descriptive only, with no speed
+  evidence. Recorded-start coverage remains distinct from full interval coverage.
 
 ## Build and test
 
