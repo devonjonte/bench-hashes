@@ -18,20 +18,22 @@ the median spans 5% of it or more; the bootstrap is the benchmark's:
 SplitMix64 seeded by the sample count, 400 resamples, indices by the high
 half of a 64 x 64-bit product). Exits 1 on the first cell that differs.
 """
+import argparse
 import re
 import importlib.util
 import sys
 from fractions import Fraction
 from pathlib import Path
 
-rules = Path(__file__).resolve().parents[2] / 'tools/speeds.py'
-assert rules.is_file(), "check-report uses the enclosing fork's tools/speeds.py (CONTRIBUTING.md)"
-spec = importlib.util.spec_from_file_location('speed_rule', rules)
-speed_rule = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(speed_rule)
-spec = importlib.util.spec_from_file_location('samples', rules.parent / 'samples.py')
-samples = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(samples)
+def load_rules(rules):
+    """Use the pinned fork's readers, including with a standalone checkout."""
+    assert rules.is_file(), "use --rules PATH to the fork's tools/speeds.py (CONTRIBUTING.md)"
+    def module(name, path):
+        spec = importlib.util.spec_from_file_location(name, path)
+        loaded = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(loaded)
+        return loaded
+    return module('speed_rule', rules), module('samples', rules.parent / 'samples.py')
 
 HEADINGS = {
     "A message in one buffer, after other work": "OneMessage",
@@ -109,10 +111,17 @@ def expected(values):
 
 
 def main():
-    record = Path(sys.argv[1])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('record', type=Path)
+    parser.add_argument('--rules', type=Path, default=Path(__file__).resolve().parents[2] / 'tools/speeds.py',
+                        help="the measured fork's tools/speeds.py, alongside its samples.py")
+    args = parser.parse_args()
+    global speed_rule, samples
+    speed_rule, samples = load_rules(args.rules)
+    record = args.record
     cells, order = load(record / "bench-hashes.samples.tsv")
     report = (record / "bench-hashes.result.txt").read_text().splitlines()
-    scenario, use_case, columns, checked = None, None, None, 0
+    scenario, use_case, columns, checked = None, None, None, set()
     for line in report:
         section = {"SOLO:": "solo", "SHARED:": "shared"}
         if any(line.startswith(heading) for heading in section):
@@ -135,13 +144,16 @@ def main():
         label = " ".join(tokens[:-len(columns)])
         for contender, figure in zip(columns, figures):
             key = (contender, scenario, use_case, label)
+            assert key not in checked, f"duplicate report cell: {key}"
             want = expected(cells[key])
             if figure != want:
                 print(f"check-report: {key}: the report shows {figure}, the samples give {want}")
                 return 1
-            checked += 1
-    assert checked > 0, "no table cells found"
-    print(f"check-report: all {checked} cells agree with the samples")
+            checked.add(key)
+    assert checked, "no table cells found"
+    missing = set(cells) - checked
+    assert not missing, f"report omitted {len(missing)} sampled cells: {sorted(missing)[:5]}"
+    print(f"check-report: all {len(checked)} cells agree with the samples")
     return 0
 
 

@@ -16,6 +16,8 @@ it measures, and keep your results comparable with ours.
 - `tools/check-report.py`: recomputes every table cell of a run's report
   from its samples, as exact fractions, and compares. This maintainer
   tool uses the enclosing fork's `tools/speeds.py` for the shared split.
+  A standalone checkout supplies `--rules /path/to/BLAKE3/tools/speeds.py`;
+  use the fork commit named in the run's provenance.
 - `tools/compare-runs.py`: compares two historical samples files or four
   files old/new/new/old, speed with speed and share with share. `--map`
   explicitly names comparable use cases; `--rules` can locate the fork's
@@ -29,6 +31,20 @@ cargo run --release -- --quick     # seconds; a full run takes minutes
 node tools/graph-check/check.js benchmark-results/FOLDER/bench-hashes.graph.svg
 python3 tools/check-report.py benchmark-results/FOLDER
 ```
+
+The harness regression tests also check allocation-free warmed batch
+producers, retained output storage, independently called official batch
+hashes, and removal of stale visualizations. Report validation requires
+one report cell for every sampled cell and rejects duplicate cells.
+
+```sh
+BENCH_SPEED_RULES=/path/to/BLAKE3/tools/speeds.py python3 tools/test-check-report.py
+node tools/graph-check/guide-summary.js /path/to/chromium
+```
+
+The guide-summary test uses Playwright, as `guide.js` does, with synthetic
+measurements that exercise middle-only wins and ties as well as uniform
+wins and losses.
 
 ## Working on the fork alongside
 
