@@ -9,14 +9,31 @@ jobs:
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      # Line tables name the code in a stack trace; the code is the same.
+      CARGO_PROFILE_RELEASE_DEBUG: line-tables-only
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo build --release
       - run: cargo test --release
+      # A quick run takes about a minute. On Linux, one that is still
+      # running after ten prints every thread's stack and fails, so a hang
+      # shows where it is.
       - name: A quick run
-        run: cargo run --release -- --quick
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" != Linux ]; then exec cargo run --release -- --quick; fi
+          sudo apt-get install -y -qq gdb > /dev/null
+          ./target/release/bench-hashes --quick & pid=$!
+          for i in $(seq 600); do if ! kill -0 $pid 2> /dev/null; then wait $pid; exit $?; fi; sleep 1; done
+          echo "the quick run is still running after 10 minutes; its threads:"
+          sudo gdb -p $pid -batch -ex "thread apply all bt" 2>&1 | grep -v '^\[New LWP'
+          kill $pid
+          exit 1
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: results-${{ matrix.os }}
           path: benchmark-results/
