@@ -10,6 +10,32 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
+## Resume here (October 1, 2026, early morning)
+
+**State:** fork `candidate/api-plan-simple` 3d02b04; bench-hashes
+`candidate/benchmark-plan` (Cargo.lock pins the fork at 7270b21). Next
+runner job 853. **CI green on all four platforms** (run 36805969393,
+755cad7): blocker 1 below is done.
+
+Done since the evening (each commit has its evidence):
+- **The queue hung on every machine without SME2** (fork 7270b21; NOTES
+  "The queue hung without SME2"): a worker slept on tasks pushed before
+  the delivery thread's hold. It hung every Linux CI run since September
+  30. Found with gdb in CI and in the VM (no_sme2); fixed by the simpler
+  sleep condition; `tests/api_plan.rs` bursts test hangs on the old code.
+- hash_multithreaded with no CPU to spare hashes as hash() does (802b6a5).
+- CI prints every thread's stack when a Linux quick run hangs.
+- The split below 512 KiB measured (no constant wins; decision for Zooko).
+- Owned/lent in plain words; CONTRIBUTING's contender checklist; README
+  opens with "Is BLAKE3 faster than SHA-256?"; METHODOLOGY corrected
+  against the code (eight stale or false claims).
+
+**Open, blocking a "no regression" claim:** the Mac held 7270b21 against
+fa1ec7b (job 852) on servil st 64 B after other work, +34% fast / +17%
+slow, a path the change never enters (likely layout, job 783's
+effect): needs a layout control. The fork has no CI of its own: its
+suites (both builds) ran only in the VM.
+
 ## Update (October 1, 2026): pieces measured at one long message
 
 Done (NOTES, "A message in pieces: one long message, nonstop"; FROZEN.md):
@@ -1341,7 +1367,7 @@ From `/workspace` in the VM, after `sh /workspace/vm/setup.sh` once per boot:
     pypy3 tools/perf_regress.py check | compare OLD NEW
     cargo run --release --example host_lab
 
-Expected: 86 / 82 / 71 library tests, 22 doc tests, 14 in `--test api_plan`, 2 vectors, 10 benchmark
+Expected: 86 / 82 / 71 library tests, 22 doc tests, 15 in `--test api_plan`, 2 vectors, 10 benchmark
 tests. Release: `python3 tools/gen-ver.py X.Y.Z` from a clean tree (two
 version commits and a lightweight tag; push the branch, `servil` in the
 fork or `main` here, then the tag by name).
