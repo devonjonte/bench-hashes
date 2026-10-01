@@ -10,6 +10,68 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
+## Resume here (October 1, 2026, night): Zooko asleep, work autonomously
+
+Read this block, then the "early morning" block below it, both AGENTS,
+and PROCEDURES. Run `sh /workspace/vm/setup.sh` first (if the guest
+restarted: node, npm, chromium, gdb are apt-installed and lost on a
+restart; `cd /workspace/tmp && npm install jsdom@22 playwright@1.55.1`
+for the graph and guide checks, run with NODE_PATH=/workspace/tmp/node_modules).
+
+**Zooko's requests, in order (October 1, night):**
+1. **A versioned release of bench-hashes** for other people to download
+   and use. Done so far: looked at the Linux engineer's fork,
+   github.com/devonjonte/bench-hashes: no commits of its own (every branch
+   equals ours), no issues or PRs from him. Open PR #1 on our repository
+   ("Results for my computer", user Arqu, September 25): read it; take
+   its results if they are clean and from a comparable commit, or say
+   why not. Release mechanics: `python3 tools/gen-ver.py X.Y.Z` from a
+   clean tree (PROCEDURES; semver, before 1.0 a breaking change bumps the
+   minor; the last release is v0.7.0). Releases are tagged on `main`, so
+   the release needs `candidate/benchmark-plan` promoted to `main`, and
+   bench-hashes' Cargo.toml then names the fork's branch it should
+   follow (today `candidate/api-plan-simple`; the fork's `servil` is
+   older). Zooko asking for the release is his word to promote the
+   benchmark; promoting the fork's candidate to `servil` is a separate
+   gate (PROCEDURES: both machines' verdicts). If the fork cannot be
+   promoted tonight, release with Cargo.toml following the fork's
+   candidate branch and Cargo.lock pinning a commit, and say so in the
+   release notes. Before releasing: fresh Mac and VM records in
+   `benchmark-results/` (PROCEDURES: records on the pinned fork), README's
+   links point at them, CI green, the guide and graph checks pass.
+2. **Split from 256 KiB while the workers are awake** (Zooko: "sure, I
+   guess"): in the fork's `lanes.rs`, `MIN_SPLIT_LEN` 512 KiB when the
+   workers sleep, 256 KiB when they are polling (the pool's `sleepers`
+   below its worker count, or `registered`/`lingering`). Evidence: fork
+   NOTES "The split below 512 KiB, measured again" (nonstop 256 KiB
+   x0.81, batches of 4096 x0.81-0.84; after a gap a lower split is up to
+   2.3x slower, so it must stay 512 there). Do it after the release (the
+   release ships fork code the Mac has measured), with a Mac A/B
+   (old/new/new/old) and perf_regress on both machines.
+3. **The held 64 B cell** (job 852): servil st 64 B after other work
+   +34% on 7270b21 against fa1ec7b, a path the change never enters.
+   Build a layout control (the old code laid out differently, e.g.
+   probe/layout-perturb's never-called code) and A/B it on the Mac; until
+   then no "no regression" claim for 802b6a5/7270b21.
+4. Then the next-session list below (graph's two-speed lines, the fresh
+   read of the guide and the report, consistency findings).
+
+**Facts the next session needs:**
+- The Mac runner works (Zooko restarted it); next job 853. Keep the VM
+  idle while a Mac job runs. Jobs 837-840 ran on battery: check every
+  verdict's power lines.
+- Never `pkill -f bench-hashes` in a command that contains that string:
+  it kills the shell itself. Use `pgrep -x bench-hashes`.
+- A NEON-only benchmark build (what x86 and most Arm run):
+  `cd tmp/perf-ab/new/src/bench-hashes && CARGO_TARGET_DIR=/tmp/target/nosme2 cargo build --release --features blake3-servil/no_sme2 --config 'patch."https://github.com/johnservil/BLAKE3".blake3-servil.path=".."'`
+  (after `pypy3 tools/perf_regress.py build` refreshed that copy).
+  Test both builds for any pool or queue change: the SME2 thread hides
+  bugs elsewhere (the hang of 7270b21).
+- The fork has no CI; its suites ran only in the VM. bench-hashes' CI
+  (four platforms, green at 755cad7) prints thread stacks on a Linux hang.
+- `tmp/gh-runs.sh` shows the latest CI run; each push starts two runs
+  (push and the open PR's pull_request).
+
 ## Resume here (October 1, 2026, early morning)
 
 **State:** fork `candidate/api-plan-simple` 3d02b04; bench-hashes
