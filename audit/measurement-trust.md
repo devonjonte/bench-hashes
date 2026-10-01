@@ -30,7 +30,8 @@ The focused load guard is [BLAKE3 PR#5](https://github.com/johnservil/BLAKE3/pul
 building on reader PR#3. It supplies exit2 on missing initial/confirmation
 windows; obtaining adequate narrowed-process coverage remains open.
 
-- [Effect-resolution assessment and baseline metric](reliability-assessment.md)
+- [Committed go/no-go decision procedure](reliability-assessment.md)
+- [Supporting effect-resolution profile and baseline metric](reliability-profile.md)
 - [Actual adaptive gate null pilot](results/live-gate/README.md)
 - [Deterministic gate contracts, including narrowing](results/gate-contract/README.md)
 - [Recorded runtime accounting](runtime-accounting.md)

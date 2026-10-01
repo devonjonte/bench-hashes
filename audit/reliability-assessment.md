@@ -1,115 +1,94 @@
-# Reliability assessment: workload-specific effect resolution
+# Go/no-go: recommending reliance on bench-hashes
 
-For maintainers deciding which optimization claims bench-hashes can support.
-This is a proposed assessment, with a diagnostic baseline. The user decides
-when the evidence is sufficient; John’s item-by-item review remains pending.
-Optimization, promotion and broad batch expansion remain paused.
+**Current decision: NO-GO.** Sharing code and provisional evidence for
+investigation remains appropriate; recommending performance decisions waits.
 
-## The question to answer
+I will apply this procedure. These are my acceptance requirements, rather
+than upstream policy. Every requirement must pass for the advertised scope.
 
-Can the instrument distinguish a specified effect, at a specified workload,
-from changes it produces with identical code? Specify the API/input, producer,
-gap, completion boundary, solo/shared scenario, affinity/topology, selected
-neighbors, build contract, speed estimand and smallest effect of interest.
-A result applies to that tuple. Generalizing across tuples requires controls.
+## 1. Commit the claim and test plan
 
-Use an **effect-resolution profile**, with these separate entries:
+Before validation, name the exact versions/build, hardware/OS, APIs/inputs,
+solo/shared scenarios, workload context, comparison statistic and minimum
+performance difference **E** we will recommend acting on. Specify fast/slow
+speeds and shares separately; a fast-only claim cannot certify all states.
 
-1. **Accounting/provenance prerequisites:** fixed digest anchors, submitted and
-   completed work, raw ns/units, complete cells, realized scheduling, artifact
-   SHA-256 and actual clocks source. Exact invariants allow zero discrepancies.
-   Trace agreement covers recorded work; internal work/calibration require
-   separate observation. A failed prerequisite leaves the comparison open.
-2. **Null envelope D:** the largest symmetric multiplicative deviation between
-   independent processes of the exact same artifact, within each declared
-   context: `D = max(max(r, 1/r) - 1)`. Compute each available speed separately
-   through shared speeds, retain shares and split mismatches. Report `D/m`,
-   the fraction of the intended decision margin consumed by observed variation.
-   This is a descriptive stress envelope, with no confidence-bound interpretation.
-3. **Gate operating characteristics:** run the complete adaptive gate on exact-
-   artifact nulls and known extra-completed-work controls. Report false solo
-   holds / all scheduled null checks, shared flags separately, detections /
-   scheduled positive checks, and no-verdict/timeouts separately. Also report
-   conditional rates among checks that supplied verdicts. Unknown observations
-   stay visible; an instrument that routinely abstains has low usable coverage.
-4. **Context sensitivity C:** vary neighbors/order/calibration/buffer history
-   while retaining the artifact. Use the same symmetric deviation, per speed.
-   Retain broad and narrow stages separately. A narrow pass addresses its own
-   context; it does not bound costs in the initial context.
-5. **Uncertainty coverage:** the fraction of predeclared synthetic trials whose
-   shared-rule interval contains the known estimand, across one/two-speed,
-   correlated-copy and serial-dependence models. Specify grouping and selected
-   speed identity before treating an interval as inferential evidence.
+Start by testing the existing margins: solo continuous 3%, shared continuous 10%,
+after-gap 20%. They are resolution targets to validate. General endorsement
+requires native x86 Linux and native Apple ARM/macOS evidence at minimum;
+VMs and other configurations need their own validation. Keep unvalidated
+configurations explicitly outside the recommendation.
 
-A single aggregate score could conceal a failure in the intended workload.
-D and C describe observed sensitivity; gate rates describe decisions. Neither
-report/sample agreement nor a passing gate supplies calibrated uncertainty.
+## 2. Clear the blockers
 
-## Decision proposal for review
+Require zero unexplained discrepancies in independently anchored digests,
+actual submitted/completed work (including calibration), time/work units,
+realized scheduling, reports versus samples, and source/artifact provenance.
+Exercise every advertised adapter and boundary outside production timing.
 
-Before a campaign, declare an effect E and an acceptable false-hold risk.
-A reasonable conservative starting proposal is to seek observed D and C below
-half E, calibrated intervals at their stated level, at least 90% detection of
-an E-sized positive control, and an upper false-hold bound below 5% per whole
-check. These are proposed targets, not accepted project policy or a sufficiency
-verdict. Review practical tolerances by workload with John and the user.
+Executable tests must withhold decisions on busy/unobserved load, including
+confirmation; narrowing must preserve or separately report broad-context
+costs. API/kernel labels must reflect known information; consistency checks
+must state conditional premises. Compared speed subsets need a defensible
+meaning across runs.
 
-Independent checks with zero false holds require at least 59 checks to put a
-one-sided exact 95% binomial upper bound below 5%; below 1% requires 299.
-These counts follow `P(zero failures) = (1-p)^N`. Process dependence, selecting
-favorable runs, reusing calibration data, or multiple workload claims require
-additional design. A two-check pilot cannot establish a low error rate.
-Retain every attempted check and recheck after instrument/gate changes.
-An effect twice as large validates sensitivity to that large effect; it says
-little about detecting a 3% change. Separate design/calibration and validation
-sets to keep the acceptance threshold from fitting the observed results.
+For intervals advertised as 95%, require at least 95% truth coverage in each
+4,000-trial validation model: correlated copies, serial dependence, and
+one/two-speed selection. Freeze models/estimands and use fresh seeds. This is
+an empirical threshold, not universal proof. Alternatively, remove unvalidated
+intervals and claims based on them from user-facing output and narrow the
+recommendation explicitly.
 
-## Current diagnostic profile
+## 3. Freeze the instrument; run fresh acceptance tests
 
-- **Accounting:** seven historical traces pass recorded accounting and within-
-  point Williams balance; independent adapter/delivery anchors pass. Internal
-  calibration and all direct one-message timing paths remain open.
-- **D:** [resolution.json](results/exact-artifact-nulls/resolution.json),
-  recomputed from all six process pairs in each of four retained ABBA blocks,
-  has 36 cells; 18 fast-speed envelopes exceed the gate's numeric margin.
-  These are neither gate flags nor population error estimates. Solo servil MT
-  envelopes: batch16 **24.23%**, batch4096 **19.40%**, owned1KiB **34.76%**,
-  lent1MiB **20.24%**, pieces64MiB **4.57%**. They span declared affinity
-  blocks, taking the maximum within a block, rather than comparing different
-  affinities directly. Split mismatches constrain the physical interpretation.
-- **Actual gate:** [four checks](results/live-gate/README.md) preserve every
-  adaptive process. Original: one pass and **one confirmed solo hold on an
-  identical executable**; each has ten processes without load windows.
-  Patched: two no-verdict outcomes due to missing windows. This demonstrates
-  a policy gap and its guard; the pilot supplies no stable false-hold rate.
-- **C:** retained context controls show batch16 B/A about **7–9% solo** and
-  **10–14% shared**; calibration, allocation, neighbors and duration co-vary.
-  Deterministic actual-gate controls reproduce broad-only cost dismissal on
-  narrow confirmation. No immediate-predecessor cause is inferred.
-- **Intervals:** flattened shared-copy coverage is about **79–85%** in the
-  retained nominal95% one-speed synthetic model; grouping reaches about
-  **92–94%**, still below nominal in those trials. Model/estimand agreement
-  and serial/two-speed coverage remain pending.
-- **Diagnostics/labels:** topology-controlled correct SHA-256 calls refute a
-  universal core-only shared/solo inequality. API labels and consistency
-  premise revisions await review. Load windows observe OS-visible load, with
-  Linux thread cycles unavailable; quiet windows alone cannot bound all state.
+Commit the schedule, controls, seeds and stopping rules after exploratory
+fixes/tuning. Use shared clocks/readers/statistics and bounded process-group
+supervision. Preserve every attempt and adaptive stage. For each advertised
+platform/configuration, require:
 
-**Present assessment:** the evidence supports selected large-effect direct
-caller controls and exact recorded-accounting claims. It currently leaves
-small-effect optimization decisions unresolved in several queue/MT workloads,
-and shared confidence bands remain outside acceptance arguments. This is a
-scoped evidence assessment, with maintainer review pending.
+| Test | Required result |
+|---|---|
+| Exact-artifact nulls and identical-source rebuild controls | 66 scheduled whole comparisons (33 of each control type), at least 60 valid verdicts, zero false improvement/regression decisions across the advertised scope |
+| Positive controls through the actual decision path | Per workload family/scenario: 30 checks at E and 30 at 2E; at least 27/30 correct detections at each level; abstentions/timeouts count as misses |
+| Repeats and context controls | At least 12 ABBA blocks across three sessions; maximum observed within-context null deviation and neighbor/order-induced deviation each below E/2 for every claimed speed |
+| Direct-caller corroboration | Each workload family agrees within E/2 under matched conditions, or the recommendation explicitly separates the different workloads |
 
-## Reproduce D
+Positive controls add observed, completed hashing work; establish their effect
+on a separate calibration dataset. Doubling work cannot validate 3% sensitivity.
+Cover short, queued and incremental paths, slow states, and broad-context-only
+costs. Whole comparisons include narrowing, confirmation and user-facing
+winner/regression decisions. Shared flags count even when they allow a commit.
+Do not count cells as independent trials or discard failed/abstaining attempts.
 
-From this branch, using the fork's shared rules (reader PR #3 or its descendant):
+These are finite release criteria, not an error-rate guarantee; statistical
+generalization needs justified independence and multiplicity treatment.
 
-```sh
-PYTHONDONTWRITEBYTECODE=1 python3 tools/assess-null-resolution.py audit/results/exact-artifact-nulls --rules /path/to/BLAKE3/tools/speeds.py
-```
+## 4. Review and issue the decision
 
-The optional `--artifact PATH` verifies the retained executable against its
-manifest. Exact fractions stay in the JSON; rounding is for presentation only.
-The historical records remain unchanged. The metric introduces no timer,
-load classifier, bootstrap, speed splitter or samples parser.
+Publish a pass/fail table with reproducible commands, raw evidence and open
+claims. Obtain John's item-by-item T1–T8 assessment and independent reproduction
+by another operator for the declared configuration. Keep disagreements visible;
+an unresolved objection affecting the recommendation blocks that scope.
+Maintainer approval supplements the tests; it cannot replace them.
+
+I will issue:
+
+- **GO:** every requirement passes for the entire advertised scope.
+- **LIMITED GO:** a predeclared subset passes; reports, guide and documentation
+  mark everything else provisional and withhold unsupported decisions.
+- **NO-GO:** required evidence is failed, missing or unresolved.
+
+A changed scope/threshold requires a new committed plan and fresh validation;
+it cannot retroactively rescue failed controls. Material timing, scheduling,
+accounting, statistics or decision-policy changes reopen validation. Historical
+failures remain available. This decision leaves the separate optimization and
+promotion pause in place.
+
+## Today's blockers
+
+The [live gate](results/live-gate/README.md) held an identical-artifact
+regression; narrowed processes lack load windows; changed context can dismiss
+broad costs; shared intervals under-cover. Accounting/interpretation items,
+maintainer reviews and the acceptance campaign remain incomplete. Therefore
+**NO-GO for recommending reliance**, while audit publication continues.
+The [supporting profile](reliability-profile.md) retains details and metrics.
