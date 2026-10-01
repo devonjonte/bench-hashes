@@ -17,8 +17,11 @@ the pieces sweeps after a gap are gone, nonstop lent pieces keep 64 MiB;
 the graph draws a one-point plot, the guide shows `hash`'s cells for
 pieces now and then. VM: tests, check-report (668 cells), check.js,
 guide.js (48 routes, 21 endings) pass; a full run 64 -> about 40 s.
-Next number for the Mac: see runner/jobs. Item 1 of "Next session" below
-is done.
+Mac job 836 (fork 1794a57, bench 2400dfe; quiet, mains): the same
+checks pass; measuring 65 -> 41 s; servil mt 64 MiB pieces 0.098 ns/B
+(829-830: 0.099-0.102). Next job 837. **Zooko restarts the runner**
+before any perf_regress job (its installed copy asks for the removed
+"streamed" points). Item 1 of "Next session" below is done.
 
 **Zooko, October 1, to test (fork):** servil mt went single-threaded
 below 768 KiB (now 512 KiB) for a minimax reason since abandoned; earlier
