@@ -35,26 +35,23 @@ answered and closed.
   KiB while workers are ready (never triggers in a stream of such calls).
 - Job 852's held 64 B cell was layout luck: no regression.
 
-**Next, in order:**
-1. perf_regress on identical code is clean now: 16 of 16 self-compares
-   (Mac jobs 916-923, VM 8) with no verdict. Watch servil's lent batches
-   of 16 (two speeds; one "faster" in a VM check of a real change).
-2. The run-order effect (the second run of a short pair 1.5x slower at
-   64 B after other work, Mac): cause unknown; it mattered for
-   perf_regress's after-gap cells, which are gone, so it waits.
-3. Done: the median intervals went (bands, ~, both bootstraps), and every
-   rule has one implementation, in Rust (`bench-hashes compare`; the
-   Python twins gone). The fork's `servil` (6afda66) still carries the
-   bootstrap in clocks::speeds, unused; it leaves at the next promotion.
-   The Mac runner's installed perf_regress.py (used to build) still finds
-   its old speeds.py beside it; the next setup-mac.sh installs the new one.
-4. Done: clocks::load's message for a run under half a second; `--points`
-   names the points that share the requested prefix.
-5. The earlier list below (graph's two-speed lines, fresh reads, the
-   consistency findings: servil batch of 4 after other work 1.2-1.8x a
-   batch of 2 per message, on both records).
-6. The fork's `candidate/api-plan-simple` stays as the working branch
-   (old bench commits' Cargo.toml name it).
+**Next, in order: freeze the benchmark** (Zooko: reliable and simple
+enough to freeze, then use it to benchmark BLAKE3).
+1. Validate the fixed-context perf_regress (fork 3a29cb8: every pair over
+   every point, no verdict without a load window, the last window takes
+   the tail): Mac self-compares, jobs 927-934; VM 77 s per check of
+   unchanged code. Watch servil mt's shared queue 64 B (one false
+   "faster", -22.6%, report-only) and servil's lent batches of 16.
+2. Promote the fork's candidate through the gate; pin it here; release
+   with records (graphs drawn proportionally; queue labels honest).
+3. Zooko freezes it in FROZEN.md. Then Devon's x86 work (BLAKE3#1) and
+   our own optimisations are judged by it.
+Open, waiting: the run-order effect (only back-to-back short runs met
+it); the consistency findings (servil's batch of 4 after other work;
+shared lent batches of 64-256 x1.6-1.7, the SME unit shared).
+Devon Jonte: bench-hashes #4 is the review thread (answered item by
+item); his perf_regress PRs closed as superseded by 3a29cb8; BLAKE3#1
+open as a draft until the freeze.
 
 ## Resume here (October 1, 2026, night): Zooko asleep, work autonomously
 
