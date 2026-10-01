@@ -3673,7 +3673,9 @@ fn read_samples(path: &str) -> SamplesFile {
                 let (ns, units) = sample.split_once('/').expect("ns/units");
                 Measured::new(ns.parse().expect("ns"), units.parse().expect("units"))
             }).collect();
-            cells.push((fields[..4].join("|"), samples));
+            let key = fields[..4].join("|");
+            assert!(cells.iter().all(|(k, _)| *k != key), "{path}: a samples file holds each cell once: {key} twice");
+            cells.push((key, samples));
         }
     }
     SamplesFile { load: load.unwrap_or_else(|| panic!("{path}: a load line")), cells }
