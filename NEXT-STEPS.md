@@ -73,9 +73,45 @@ bench-hashes `candidate/benchmark-plan` 93fa3a2. Next runner job 836.
    the cores (confirm with cycles); servil's lent 64-256 KiB cells pay
    about 4x ring's read copy.
 
-**Decisions waiting for Zooko:** whether "after other work" earns its
-complexity (he judges from plots, e.g. job 812 or a fresh run); whether
-servil's docs keep "no slower than hash" (fork's project).
+**Zooko's decisions (September 30, night):** "after other work" stays.
+Remove the "message arriving in 64 KiB pieces" use cases after a gap
+(Streaming, IdleStreaming) entirely: FROZEN.md, the guide's pieces shape
+(its keeps-up pattern then points at the one-buffer call or the lent
+pieces; decide which the guide shows), perf_regress's points, docs.
+Evidence reviewed before removal (job 834, solo, after other work): up
+to 64 KiB pieces are one buffer plus the timed read and the Hasher's
+overhead (+5-20%; 64 B: servil 3.8 -> 15 ns/B, ring 3.8 -> 8.3); above,
+servil in 64 KiB updates stays at 0.24 ns/B (one buffer 0.155; mt 0.033
+at 8 MiB), SHA-256 within 1-7%: a servil property the nonstop lent-pieces
+cells also show. No sign of a bug.
+
+**Next session, in order:**
+1. Remove the pieces-after-a-gap use cases (above). Tests, graph check,
+   guide test, check-report; a VM run and a Mac run.
+2. Graph chips, usable without understanding: group the chips so a row
+   that means something only with another is visibly tied to it (the
+   what-row's "Messages/Batches/Pieces, owned/lent" are nonstop-only; the
+   "One buffer/A batch" chips belong to after idling and after other
+   work), show which chips are relevant under the current selection (dim
+   the others), and keep every row from being emptied (today the
+   Messages/Batches/Pieces row can be emptied in ways others cannot).
+3. Plain words for owned and lent: owned, the program hands each buffer
+   over for good and fills the next while it is hashed; lent, the
+   program waits for each call to return before refilling its buffer.
+   Subtitles say that and nothing else; "Messages" / "Batches" name what
+   is hashed. Check every page for the same terms.
+4. The fresh read-through (item 4 of the blockers): README first screen
+   for newcomers, "Is BLAKE3 faster than SHA-256?", the guide behind a
+   programmer's door; then METHODOLOGY, graph, guide, report, CONTRIBUTING.
+5. CI: https://github.com/johnservil/bench-hashes/actions (Windows passed
+   build, tests, and a quick run at a799687; the others passed build and
+   tests, their quick runs slow on hosted runners: confirm they finish).
+
+**Still waiting for Zooko:** whether servil's docs keep the promise that
+hash_multithreaded "runs no slower than hash" (untested since the
+benchmark's servil-only checks left; the fork's project); promotion
+(fork candidate -> servil, bench -> main, Pages records), which waits for
+his word that the APIs and how the benchmark calls them are settled.
 
 ## Resume here (September 30, 2026, late evening)
 
