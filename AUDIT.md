@@ -5,6 +5,11 @@ x86_64 Linux, with Rust 1.98.1. This is a maintainer's record of confirmed
 harness defects and remaining measurement concerns. The fixes preserve
 `FROZEN.md`'s entry points, input axes, and call patterns.
 
+The code-only review branch is submitted as
+[draft upstream PR #2](https://github.com/johnservil/bench-hashes/pull/2),
+targeting `candidate/benchmark-plan`. Results remain on the published
+audit branch, separate from the code-only PR.
+
 ## Confirmed defects addressed here
 
 1. **Allocation in warmed queue-batch samples.** Pairing the input and
@@ -82,6 +87,14 @@ case, rather than evidence that the multi-CPU lost-wakeup fix should be
 reverted. [The reproducible report](audit/single-cpu-queue.md) documents
 it. GitHub reports upstream issues disabled; an authenticated issue
 submission returned HTTP 410, so no upstream issue was created.
+
+Additional bounded baseline checks at `3d02b04`: the `pure` library/API/
+allocation suites pass (77 / 15 / 1 tests), 22 doctests pass, and both
+published-vector tests pass. Plain `cargo test --release --features pure`
+fails while compiling the existing `examples/host_lab.rs`, which imports
+private `lanes::probe`; targeted `--lib --tests` and `--doc` checks avoid
+that example. This is a build/test-entry-point defect to review separately;
+the contender source remains unchanged.
 
 Upstream records an unresolved Mac cold-cell slowdown on these commits.
 This audit provides x86 correctness evidence; it makes no Mac performance
