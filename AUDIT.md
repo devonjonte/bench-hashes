@@ -100,6 +100,19 @@ Upstream records an unresolved Mac cold-cell slowdown on these commits.
 This audit provides x86 correctness evidence; it makes no Mac performance
 or regression-free claim.
 
+## Optimization sufficiency decision
+
+The [workload-specific gate](audit/optimization-gate.md) admits controlled
+solo comparisons after auditing calls, producers, result observation,
+warmed storage and realized schedules. Each performance claim additionally
+requires quiet alternating builds and same-build repeats. Shared bootstrap
+bands stay excluded from inferential verdicts. This permits the BLAKE3
+phase to proceed while preserving the remaining limitations.
+
+Queue and incremental MT labels now name their actual API, explicitly
+leaving the kernel schedule unreported. A regression test holds this
+metadata correction; historical artifacts remain unchanged.
+
 ## Measurement concerns still open
 
 - **Correlated shared samples:** the two simultaneous copies can be
@@ -112,8 +125,9 @@ or regression-free claim.
   Shared core-only work can compete for SMT and memory bandwidth.
   Findings from those checks need explanation rather than automatic
   attribution to a contender bug.
-- **Kernel labels:** queue and incremental multithreaded APIs inherit
-  one-shot labels that may omit their actual helper-thread behavior.
+- **Kernel reporting:** queue and incremental multithreaded APIs provide
+  no exact schedule report. Current labels disclose this; historical
+  artifacts retain the inherited one-shot labels.
 - **Provenance cache:** incidental untracked-file changes can leave a
   previously embedded dirty fingerprint cached until the build script
   runs again.
@@ -153,7 +167,8 @@ The [published full record](benchmark-results/12thGenIntelRCoreTMi712700K.linux7
 contains the five original artifacts, reproducible commands, validation
 scope, and remaining limitations. It is a diagnostic baseline rather
 than an optimization comparison. Source code in John's BLAKE3 checkout
-remains unchanged; the benchmark assurance gate is still open.
+remains preserved unchanged. The workload-specific gate above now permits
+controlled optimization in a separate candidate checkout.
 
 The clean `391ab30` quick run completed in 55.6 s on a quiet machine:
 all 720 report cells match the raw samples, and SVG interaction checks

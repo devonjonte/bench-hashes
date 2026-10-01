@@ -3,6 +3,21 @@ use super::*;
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 
+#[test]
+fn asynchronous_kernel_labels_keep_the_reported_api() {
+    for (use_case, api) in [
+        (UseCase::ContinuousMessages, "Queue::messages / Queue::pieces"),
+        (UseCase::ContinuousBatches, "Queue::fixed"),
+        (UseCase::LentPieces, "Hasher::update_multithreaded"),
+    ] {
+        let kernels = detect_kernels(Algorithm::Blake3ServilMt, use_case);
+        assert_eq!(kernels.platform, "API (kernel unreported)");
+        assert_eq!(kernels.kernels.len(), 1);
+        assert_eq!(kernels.kernels[0].name, api);
+        assert_eq!(kernels.kernels[0].first, 0);
+    }
+}
+
 struct CountingAllocator;
 thread_local! {
     static TRACK: Cell<bool> = const { Cell::new(false) };

@@ -3530,6 +3530,25 @@ fn servil_kernels(report: blake3_servil::KernelReport) -> Kernels {
 /// The contender must take part in the use case.
 fn detect_kernels(algorithm: Algorithm, use_case: UseCase) -> Kernels {
     assert!(algorithm.takes_part(use_case), "{} takes no part in {use_case:?}", algorithm.name());
+    // These APIs have no kernel-report entry point. Preserve the known API
+    // and leave its scheduling unspecified rather than borrowing hash()'s
+    // one-shot thresholds for queues or incremental helper threads.
+    if algorithm == Algorithm::Blake3ServilMt {
+        let api = match use_case {
+            UseCase::ContinuousMessages => Some("Queue::messages / Queue::pieces"),
+            UseCase::ContinuousBatches => Some("Queue::fixed"),
+            UseCase::LentPieces => Some("Hasher::update_multithreaded"),
+            _ => None,
+        };
+        if let Some(api) = api {
+            return Kernels::new("API (kernel unreported)", vec![Kernel {
+                first: 0,
+                name: api.to_owned(),
+                why: "The contender reports no kernel schedule for this API; one-shot thread thresholds do not describe it.".to_owned(),
+                mark: Mark::Circle,
+            }]);
+        }
+    }
     let one_message = match algorithm {
         Algorithm::Blake3 => detect_blake3_kernels(),
         Algorithm::Sha256 => detect_sha256_kernels(),
