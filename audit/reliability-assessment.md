@@ -96,3 +96,10 @@ The [supporting profile](reliability-profile.md) retains details and metrics.
 [Fixed-context pilots](results/fixed-context/README.md) improve context and
 empty-window behavior, but also expose uncovered sample starts despite quiet
 windows. They leave the acceptance requirements and NO-GO decision intact.
+
+[Predeclared near-margin controls](results/near-margin/README.md) now establish
+~3%/~6% timing effects on separate calibration data. Held-out confirmation is
+0/8 at~3% for each direct-caller size; at~6%,64/2048 B are8/8 while102400 B is4/8.
+All6% whole comparisons return a hold, so whole exits conceal bulk misses.
+The3% pilot readiness target and a blanket6% scope both fail. A fresh narrow
+scope or changed detector needs a new frozen plan; no acceptance criteria change.

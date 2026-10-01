@@ -34,6 +34,7 @@ windows; obtaining adequate narrowed-process coverage remains open.
 - [Supporting effect-resolution profile and baseline metric](reliability-profile.md)
 - [Current-source fixed-context and actual-work gate controls](results/fixed-context/README.md)
 - [Final-window coverage, failed snapshot design and stronger abstention controls](results/final-load-coverage/README.md)
+- [Near-margin calibration and per-size held-out sensitivity failures](results/near-margin/README.md)
 - [Historical adaptive gate null pilot](results/live-gate/README.md)
 - [Deterministic gate contracts, including narrowing](results/gate-contract/README.md)
 - [Recorded runtime accounting](runtime-accounting.md)
@@ -68,6 +69,13 @@ All66 prototype/follow-up processes,22 report checks and264 direct accounting
 cells are retained. These are diagnostic comparisons across two instruments,
 not the finite acceptance campaign. Millisecond starts still cannot certify
 full timed intervals; T2–T8 closure and independent review remain outstanding.
+
+Predeclared near-margin work controls separately calibrate timing shifts
+~3%/~6%, with all work accounted. Held-out actual-gate3% confirmations are0/8
+at every size. At6%,64/2048 B confirm8/8;102400 B confirms4/8 despite all eight
+whole comparisons returning exit1. Single below-margin pairs suppress bulk
+findings. These diagnostic failures keep both3% and blanket6% NO-GO; the two
+small direct-caller cases motivate a fresh narrow scope, not retroactive rescue.
 
 Confirmations retain their original scope. No new refutations or acceptance
 responses were received at this check; experimental counterexamples are our
