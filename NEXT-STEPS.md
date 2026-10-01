@@ -12,17 +12,15 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 
 ## Resume here (October 1, 2026, day)
 
-**State.** Fork `servil` 6afda66 (promoted: suites and perf_regress on
-both machines, job 913; perf note on the commit); its working branch
-`candidate/api-plan-simple` 0b44518 (comment and notes since). bench-hashes
-`main` and `candidate/benchmark-plan` at 63a505f, **released as 0.8.1**
-(tag v0.8.1+8727bb2..., GitHub Release with notes; v0.8.0's tag holds a
-flaky test, use 0.8.1); Cargo.toml follows the fork's `servil`, the lock
-pins 6afda66; records from it (Mac job 915, VM --all), Pages serve them.
-CI green on four platforms. Next runner job 916. Issues enabled on both
-repositories. PRs #1 (Arqu: old benchmark, native build, busy; asked to
-rerun 0.8.1) and #2 (Devon Jonte's audit: cherry-picked, adjusted,
-closed) answered.
+**State.** Fork `servil` b0f19b1 (promoted twice today: suites and
+perf_regress on both machines, jobs 913, 924-925; perf notes on the
+commits), equal to `candidate/api-plan-simple`. bench-hashes `main` and
+`candidate/benchmark-plan` released as **0.9.0** (tag
+v0.9.0+43479fd..., GitHub Release; 0.8.1 before it); Cargo.toml follows
+the fork's `servil`, the lock pins b0f19b1; records from it (Mac job 926,
+VM --all, both quiet), Pages serve them. CI green on four platforms. Next
+runner job 927. Issues enabled on both repositories. PRs #1 and #2
+answered and closed.
 
 **Done today** (NOTES of each repository hold the evidence):
 - Devon's audit: harness defects fixed; the fork's queue hung on one CPU
