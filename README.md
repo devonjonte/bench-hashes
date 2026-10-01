@@ -27,6 +27,11 @@ cd bench-hashes
 cargo run --release
 ```
 
+To measure a released version, so that others can compare their results
+with yours, check out its tag first: `git checkout` followed by a tag
+that [Releases](https://github.com/johnservil/bench-hashes/releases)
+lists.
+
 The first build takes a minute or two; the run then measures for about
 a minute and needs about 1 GB of free memory. The numbers come out most
 accurate when nothing else busy runs on the computer meanwhile.
