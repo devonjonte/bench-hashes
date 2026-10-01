@@ -1,0 +1,1 @@
+These are the exact gate sources used in the live pilot. Their hashes match the per-check manifests. Supply the tools/samples.py and tools/speeds.py from the corresponding fork branch alongside a snapshot to execute it. Final PR text also clarifies the exit2 docstring; decision code is unchanged.

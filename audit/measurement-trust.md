@@ -8,6 +8,36 @@ The user asks for measurement validation and John Servil's review before
 acting on performance results. Further contender optimization and the broad
 batch-axis extension are paused. The existing BLAKE3 proposal stays draft.
 
+## Latest review checkpoint — October 1, 2026, 16:11 UTC API check
+
+The issue bodies/comments and both PRs' reviews/inline comments were checked.
+John has supplied no new response on bench issue#4/PR#3 or BLAKE3 PR#3/issue#4.
+The initial source-plan ledger below remains historical context; the links here
+record subsequent evidence. Pending review stays pending.
+
+| Claim | Existing maintainer assessment | New evidence / pending assessment |
+|---|---|---|
+| T1 scheduling/carryover | Original design defects confirmed and fixed | Seven runtime traces balanced; selected-context costs remain open |
+| T2 shared uncertainty | Copy correlation confirmed; round grouping proposed | Coverage controls show flattened undercoverage; grouped/serial/split estimand review pending |
+| T3 consistency | Boundary exceptions acknowledged | Correct SMT-contended SHA-256 counterexample; universal premise review pending |
+| T4 kernel labels | One-shot inheritance marked for checking | bench PR#3 has no review; API-specific unreported schedule proposal pending |
+| T5 accounting | Reporting/allocation defects confirmed and fixed | Raw reader/anchors/traces extend scope; BLAKE3 PR#3 has no review |
+| T6 null/gate/context | Earlier variability acknowledged in NOTES | Actual identical-artifact solo hold; narrow-context dismissal control; review pending |
+| T7 load/provenance | Stale untracked fingerprint acknowledged | Missing-window verdict reproduced; focused guard proposed; BLAKE3 issue#4 has no response |
+| T8 direct caller | No requested confirmation yet | Observed extra-work control near2x; first stage lacks load and remains failed coverage |
+
+- [Effect-resolution assessment and baseline metric](reliability-assessment.md)
+- [Actual adaptive gate null pilot](results/live-gate/README.md)
+- [Deterministic gate contracts, including narrowing](results/gate-contract/README.md)
+- [Recorded runtime accounting](runtime-accounting.md)
+- [Paired uncertainty](results/paired-ci/README.md),
+  [context sensitivity](results/context-sensitivity/README.md),
+  [SMT premises](results/smt-consistency/README.md)
+
+Confirmations retain their original scope. No new refutations or acceptance
+responses were received at this check; experimental counterexamples are our
+findings awaiting John's assessment, rather than attributed responses.
+
 ## Evidence already reviewed
 
 John's [PR #2 response](https://github.com/johnservil/bench-hashes/pull/2#issuecomment-5924871773)

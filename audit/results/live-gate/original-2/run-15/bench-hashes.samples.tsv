@@ -1,0 +1,52 @@
+# bench-hashes samples v4
+# timestamp: 2026-10-01 16:17:26 UTC
+# bench-hashes version: 0.7.0+115ddb91e7ab86e85e9430de171de1cf2347834e
+# git commit: 547e82e612a6560f32a9cdb81b1c75077c9ec08a
+# git clean status: clean
+# blake3-servil source: blake3-servil 0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5 (local checkout ..); source https://github.com/johnservil/BLAKE3; branch HEAD; commit 8825450d29cd7c41b62abd40f41dbc81c1c12918; clean
+# blake3 source: blake3 1.8.7; crate archive SHA-256 6d9e454fc11f76977dc803893aff6304ed33d6a26efae8696573bea74baa27ae; source registry+https://github.com/rust-lang/crates.io-index
+# sha256 source: sha2 0.11.0; crate archive SHA-256 446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4; source registry+https://github.com/rust-lang/crates.io-index
+# cpu type: 12th Gen Intel(R) Core(TM) i7-12700K
+# cpu count: 20
+# os type: linux7.0.0-34-generic
+# cpu identity: model name: 12th Gen Intel(R) Core(TM) i7-12700K · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l2 cdp_l2 ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdt_a rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize pconfig arch_lbr ibt flush_l1d arch_capabilities · machine: B748
+# rust compiler: rustc 1.98.1 (48a229cea 2026-09-01)
+# build target: x86_64-unknown-linux-gnu
+# target features: fxsr,sse,sse2
+# sample clock: std::time::Instant → CLOCK_MONOTONIC (stops during suspend, NTP slew only)
+# contenders: --contenders sha256,blake3-servil-st,blake3-servil-mt
+# rounds: 24
+# points: 64 B
+# power: not reported by this OS
+# load: not measured on this platform
+# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 
+# kernel platform sha256 OneMessage: sha2
+# kernel platform sha256 ManyMessages: sha2
+# kernel platform sha256 IdleOneMessage: sha2
+# kernel platform sha256 IdleManyMessages: sha2
+# kernel platform sha256 ContinuousMessages: sha2
+# kernel platform sha256 ContinuousBatches: sha2
+# kernel platform sha256 LentMessages: sha2
+# kernel platform sha256 LentPieces: sha2
+# kernel platform sha256 LentBatches: sha2
+# kernel platform blake3-servil-st OneMessage: AVX2
+# kernel platform blake3-servil-st ManyMessages: AVX2
+# kernel platform blake3-servil-st IdleOneMessage: AVX2
+# kernel platform blake3-servil-st IdleManyMessages: AVX2
+# kernel platform blake3-servil-st LentMessages: AVX2
+# kernel platform blake3-servil-st LentPieces: AVX2
+# kernel platform blake3-servil-st LentBatches: AVX2
+# kernel platform blake3-servil-mt OneMessage: AVX2
+# kernel platform blake3-servil-mt ManyMessages: AVX2
+# kernel platform blake3-servil-mt IdleOneMessage: AVX2
+# kernel platform blake3-servil-mt IdleManyMessages: AVX2
+# kernel platform blake3-servil-mt ContinuousMessages: AVX2
+# kernel platform blake3-servil-mt ContinuousBatches: AVX2
+# kernel platform blake3-servil-mt LentMessages: AVX2
+# kernel platform blake3-servil-mt LentPieces: AVX2
+# kernel platform blake3-servil-mt LentBatches: AVX2
+contender	scenario	use_case	point	unit	ns/units	start ms
+sha256	solo	ContinuousMessages	64 B	B	980997/1002560,1005427/1002560,984385/1002560,987151/1002560,976302/1002560,987372/1002560,978356/1002560,989318/1002560,977787/1002560,1001533/1002560,978258/1002560,978358/1002560,986969/1002560,1000681/1002560,990389/1002560,1002423/1002560,980569/1002560,1012402/1002560,1016693/1002560,1005346/1002560,1013366/1002560,987695/1002560,981182/1002560,997125/1002560	1,4,6,9,11,13,15,18,20,23,25,28,30,33,35,38,40,43,46,48,50,54,55,58
+sha256	shared	ContinuousMessages	64 B	B	973275/1002560,1009725/1002560,1014557/1002560,980002/1002560,959922/1002560,981395/1002560,1014921/1002560,1011756/1002560,1012151/1002560,1013150/1002560,985896/1002560,978413/1002560,963337/1002560,980980/1002560,958883/1002560,977404/1002560,977261/1002560,978260/1002560,1000376/1002560,991048/1002560,977861/1002560,976580/1002560,977632/1002560,979394/1002560,994913/1002560,998389/1002560,996994/1002560,999091/1002560,990458/1002560,992998/1002560,992992/1002560,994634/1002560,982072/1002560,982130/1002560,1009452/1002560,1007325/1002560,1000532/1002560,1001045/1002560,997270/1002560,997998/1002560,1003474/1002560,999102/1002560,991454/1002560,989004/1002560,975732/1002560,976747/1002560,989009/1002560,991304/1002560	2,2,5,5,7,7,10,10,12,12,14,14,16,16,19,19,21,21,24,24,26,26,29,29,31,31,34,34,36,36,39,39,41,41,44,44,47,47,49,49,51,51,54,54,56,56,59,59
+blake3-servil-mt	solo	ContinuousMessages	64 B	B	233668/144832,110130/144832,172098/144832,137489/144832,132993/144832,110723/144832,160558/144832,301021/144832,134063/144832,131194/144832,158123/144832,114801/144832,170041/144832,173169/144832,153141/144832,159731/144832,167583/144832,137469/144832,181327/144832,194302/144832,188125/144832,138853/144832,174110/144832,112079/144832	3,4,8,8,13,13,17,18,22,23,27,28,32,33,37,38,42,43,48,48,52,53,57,58
+blake3-servil-mt	shared	ContinuousMessages	64 B	B	426288/144832,420629/144832,219710/144832,217230/144832,258136/144832,258314/144832,193437/144832,206213/144832,232108/144832,229678/144832,192378/144832,185167/144832,323812/144832,293381/144832,209584/144832,211329/144832,276665/144832,274690/144832,284497/144832,222031/144832,191160/144832,189142/144832,345527/144832,381231/144832,328270/144832,329955/144832,183420/144832,185067/144832,377157/144832,322780/144832,208143/144832,209957/144832,243026/144832,247328/144832,410129/144832,412167/144832,191163/144832,251091/144832,208650/144832,266872/144832,402690/144832,401285/144832,209542/144832,206295/144832,466122/144832,468142/144832,171793/144832,173560/144832	3,3,4,4,8,8,9,9,13,13,13,13,18,18,18,18,23,23,23,23,28,28,28,28,33,33,33,33,38,38,38,38,42,42,43,43,48,48,48,48,53,53,53,53,58,58,58,58

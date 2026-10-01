@@ -17,7 +17,9 @@ from pathlib import Path
 def load(path):
     run = SAMPLES.read(path)
     if run.busy:
-        print(f'{path}: other programs kept the machine busy: {run.load}')
+        print(f'{path}: other programs kept the machine busy: {run.load}; descriptive values only, no speed evidence')
+    elif not run.load_observed:
+        print(f'{path}: no load observation; descriptive values only, no speed evidence: {run.load}')
     return {key: (run.units[key], values) for key, values in run.cells.items()}
 
 

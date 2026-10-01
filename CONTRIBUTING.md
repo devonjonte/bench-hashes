@@ -21,7 +21,9 @@ it measures, and keep your results comparable with ours.
 - `tools/compare-runs.py`: compares two historical samples files or four
   files old/new/new/old, speed with speed and share with share. `--map`
   explicitly names comparable use cases; `--rules` can locate the fork's
-  `tools/speeds.py` in a separate checkout.
+  `tools/speeds.py` in a separate checkout. Use the shared reader with
+  `Run.load_observed` (the load-verdict contribution); busy or unobserved
+  runs are labeled descriptive only, with no speed evidence.
 
 ## Build and test
 

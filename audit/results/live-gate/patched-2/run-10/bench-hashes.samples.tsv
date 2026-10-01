@@ -1,0 +1,51 @@
+# bench-hashes samples v4
+# timestamp: 2026-10-01 16:19:23 UTC
+# bench-hashes version: 0.7.0+115ddb91e7ab86e85e9430de171de1cf2347834e
+# git commit: 547e82e612a6560f32a9cdb81b1c75077c9ec08a
+# git clean status: clean
+# blake3-servil source: blake3-servil 0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5 (local checkout ..); source https://github.com/johnservil/BLAKE3; branch HEAD; commit 8825450d29cd7c41b62abd40f41dbc81c1c12918; clean
+# blake3 source: blake3 1.8.7; crate archive SHA-256 6d9e454fc11f76977dc803893aff6304ed33d6a26efae8696573bea74baa27ae; source registry+https://github.com/rust-lang/crates.io-index
+# sha256 source: sha2 0.11.0; crate archive SHA-256 446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4; source registry+https://github.com/rust-lang/crates.io-index
+# cpu type: 12th Gen Intel(R) Core(TM) i7-12700K
+# cpu count: 20
+# os type: linux7.0.0-34-generic
+# cpu identity: model name: 12th Gen Intel(R) Core(TM) i7-12700K · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l2 cdp_l2 ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdt_a rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize pconfig arch_lbr ibt flush_l1d arch_capabilities · machine: B748
+# rust compiler: rustc 1.98.1 (48a229cea 2026-09-01)
+# build target: x86_64-unknown-linux-gnu
+# target features: fxsr,sse,sse2
+# sample clock: std::time::Instant → CLOCK_MONOTONIC (stops during suspend, NTP slew only)
+# contenders: --contenders sha256,blake3-servil-st,blake3-servil-mt
+# rounds: 24
+# points: 16
+# power: not reported by this OS
+# load: not measured on this platform
+# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 
+# kernel platform sha256 OneMessage: sha2
+# kernel platform sha256 ManyMessages: sha2
+# kernel platform sha256 IdleOneMessage: sha2
+# kernel platform sha256 IdleManyMessages: sha2
+# kernel platform sha256 ContinuousMessages: sha2
+# kernel platform sha256 ContinuousBatches: sha2
+# kernel platform sha256 LentMessages: sha2
+# kernel platform sha256 LentPieces: sha2
+# kernel platform sha256 LentBatches: sha2
+# kernel platform blake3-servil-st OneMessage: AVX2
+# kernel platform blake3-servil-st ManyMessages: AVX2
+# kernel platform blake3-servil-st IdleOneMessage: AVX2
+# kernel platform blake3-servil-st IdleManyMessages: AVX2
+# kernel platform blake3-servil-st LentMessages: AVX2
+# kernel platform blake3-servil-st LentPieces: AVX2
+# kernel platform blake3-servil-st LentBatches: AVX2
+# kernel platform blake3-servil-mt OneMessage: AVX2
+# kernel platform blake3-servil-mt ManyMessages: AVX2
+# kernel platform blake3-servil-mt IdleOneMessage: AVX2
+# kernel platform blake3-servil-mt IdleManyMessages: AVX2
+# kernel platform blake3-servil-mt ContinuousMessages: AVX2
+# kernel platform blake3-servil-mt ContinuousBatches: AVX2
+# kernel platform blake3-servil-mt LentMessages: AVX2
+# kernel platform blake3-servil-mt LentPieces: AVX2
+# kernel platform blake3-servil-mt LentBatches: AVX2
+contender	scenario	use_case	point	unit	ns/units	start ms
+sha256	solo	IdleManyMessages	16	msg	2323/32,3623/32,3485/32,3832/32,2289/32,4973/32,3499/32,2104/32,2692/32,2628/32,2046/32,4609/32,2585/32,2402/32,2655/32,2337/32,1985/32,3696/32,4203/32,3405/32,4578/32,2607/32,2015/32,2363/32	46,67,76,91,94,110,118,140,148,164,167,183,191,212,221,236,239,255,264,285,294,309,312,327
+blake3-servil-st	solo	IdleManyMessages	16	msg	445/32,470/32,885/32,924/32,858/32,406/32,946/32,1899/32,461/32,1719/32,897/32,449/32,2150/32,1700/32,1592/32,677/32,443/32,665/32,905/32,895/32,962/32,920/32,897/32,419/32	49,58,79,88,103,106,122,131,151,160,176,179,195,203,224,233,248,251,267,276,297,306,321,324
+blake3-servil-mt	solo	IdleManyMessages	16	msg	3531/64,2827/64,1098/64,908/64,3545/64,1302/64,1077/64,1107/64,2970/64,2406/64,3792/64,1575/64,1319/64,1573/64,1948/64,1965/64,2632/64,1086/64,2124/64,1096/64,1113/64,1707/64,2174/64,3850/64	53,61,70,82,97,113,125,134,143,155,170,186,198,207,216,228,243,258,270,279,288,300,315,331
