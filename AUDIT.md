@@ -79,7 +79,9 @@ CPU. The source tested was `3d02b04`, whose library code matches
 affinity and hangs with `taskset -c 0`. The handler-resubmission test also
 hangs with that restriction. This is an additional execution-capacity
 case, rather than evidence that the multi-CPU lost-wakeup fix should be
-reverted. An upstream issue should document it.
+reverted. [The reproducible report](audit/single-cpu-queue.md) documents
+it. GitHub reports upstream issues disabled; an authenticated issue
+submission returned HTTP 410, so no upstream issue was created.
 
 Upstream records an unresolved Mac cold-cell slowdown on these commits.
 This audit provides x86 correctness evidence; it makes no Mac performance
@@ -123,6 +125,22 @@ SHA-256 measurements as executable-specific evidence rather than typical
 SHA-256 performance.
 
 ## Validation scope
+
+Final clean-source `ba4a327` runs, under external process-group deadlines:
+
+- Quick: 56.6 s, quiet (0.13 CPUs average / 0.16 maximum window), all
+  720 cells verified, SVG checks and all 48 guide routes pass.
+- Full, eight contenders: 278.7 s, quiet (0.13 / 0.21 CPUs), all
+  1,296 cells verified, SVG checks and all 48 guide routes pass.
+- 23 Rust tests, 4 Python checker tests, synthetic browser summary tests
+  pass; all nine guide examples compile. Fresh desktop SVG and guide
+  renders were inspected. No Mac tests were performed.
+
+The [published full record](benchmark-results/12thGenIntelRCoreTMi712700K.linux70034generic.devon-audit/README.md)
+contains the five original artifacts, reproducible commands, validation
+scope, and remaining limitations. It is a diagnostic baseline rather
+than an optimization comparison. Source code in John's BLAKE3 checkout
+remains unchanged; the benchmark assurance gate is still open.
 
 The clean `391ab30` quick run completed in 55.6 s on a quiet machine:
 all 720 report cells match the raw samples, and SVG interaction checks
