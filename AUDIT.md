@@ -43,6 +43,15 @@ harness defects and remaining measurement concerns. The fixes preserve
    Downward-triangle marks match the Rust payload. A single-point tie is
    labelled matched. Browser tests drive the available chips on both
    quick and full runs, including the one-point pieces axis.
+9. **Order aliasing and absent participants.** All contenders at a point
+   now sample the same visits. Default sample counts round twelve up to
+   complete Williams cycles; long hashes participate in every visit.
+   Designs include only contenders taking part in that use case, rather
+   than filtering a larger design afterward. Exhaustive deterministic
+   tests cover every roster prefix, use case, quick/full round count and
+   point offset, checking realized positions and predecessor counts.
+   This removes the long-cell budget and accepts longer runs in exchange
+   for a balanced design; frozen calls and workloads are unchanged.
 
 Regression tests cover these changes. A differential test also checks the
 official crate's hidden batch wrapper against separate plain `hash`
@@ -78,10 +87,6 @@ or regression-free claim.
 
 ## Measurement concerns still open
 
-- **Order aliasing:** when short cells take every visit and long cells
-  take every second visit, the latter see only two of four Williams
-  positions in the default design. A diagnostic test records that
-  imbalance; the scheduling policy remains unchanged.
 - **Correlated shared samples:** the two simultaneous copies can be
   correlated, while the bootstrap resamples individual observations.
   Duplicating six synthetic observations narrows the interval without
@@ -127,8 +132,13 @@ quick and full historical payloads in the revised template (48 decision
 routes and 21 endings each). Rust tests and all nine examples compile.
 
 For optimization A/Bs, use an explicit `--rounds` count that is a multiple
-of the roster's Williams order count. This samples every selected cell
-in every round, avoiding adaptive-thinning order aliasing. Shared
+of each measured use case's participating Williams order count. This
+samples every selected cell in every round. Defaults now complete each
+use case's design as well. The earlier `53297ff` full eight-contender,
+24-round run predates the per-use-case design fix; its report, SVG and
+all 48 guide routes pass, but it remains diagnostic historical evidence.
+It completed in 419.5 s, quiet (0.12 CPUs average, 0.19 maximum window),
+and all 1,296 cells agree with the samples. Shared
 confidence intervals remain descriptive pending a clustered-bootstrap
 review. Compare speeds and shares through the shared rules; require
 quiet runs and same-build repeats before judging a gain. The guide's

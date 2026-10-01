@@ -143,8 +143,8 @@ over the fork's worker threads. The crates.io BLAKE3 crate has a hidden
 one, `blake3::platform::Platform::hash_many::<N>`, which programs that
 want its batch speed call directly (WHIR's Merkle trees do): the bencher
 calls it as they do, sixteen messages per call, with the flags that make
-each digest the message's hash. A batch of one message is one call of
-the plain entry point for every contender.
+each digest the message's hash. A batch of one message uses the batch entry point where one is available,
+and the plain entry point otherwise.
 
 The axis counts messages per batch: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32,
 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536,
@@ -390,11 +390,12 @@ two programs would.
 
 ## Interleaving and precision
 
-The contenders run in a Williams design: a set of orders that together
-place every contender in every position equally often and realise every
-"Y right after X" adjacency equally often — the balance all permutations
-would give (n orders for an even count of contenders, 2n for odd). Point
-order rotates independently. The run measures in three phases, each
+The participating contenders in each use case run in a Williams design:
+a set of orders that together place every contender in every position
+equally often and realise every "Y right after X" adjacency equally
+often (n orders for an even count of contenders, 2n for odd). A contender
+that sits out the use case is excluded before the design is built.
+One participating contender has one order. Point order rotates independently. The run measures in three phases, each
 with its own calibration and rounds: the nonstop use cases, then the
 calls after other work, then the calls after idling. The operating
 system sets a core's clock from the program's recent use of it, so each
@@ -410,29 +411,32 @@ each (and hold at least twice the buffers its program keeps in flight), a
 synchronous cell's sum about 2 µs of calls after the gap.
 
 A full run has 96 rounds, a `--quick` one 24 (and stops below 1 MiB and
-10,000 messages). Each combination samples in a share of them, spread
-over the run at an offset of its own: 12 solo samples and 24 shared
-ones. The
-rounds cycle through the orders and rotate the point that starts a
-round; a round count that is no multiple of the order or point count
-leaves some orders or starting points once more than others, a fraction
-of a sample per cell, far below the difference between two runs. The
-runtime budget favours sample count over sample length: the median's
-interval narrows with the square root of the count, and a 1 ms sample
-is long enough that the clock's resolution is far below noise.
+10,000 messages). Each point samples at least 12 visits, rounded up to a
+whole number of Williams cycles and spread over the rounds at an offset
+of its own. Every participating contender samples every selected visit,
+including long hashes. A shared visit contributes two observations, one
+per copy. This balances positions and predecessors in the realized
+contender orders. Starting-point rotation is approximate when the round
+count is not a multiple of the point count.
 
-Cells whose single hash takes 4 ms or more (the
-plateau sizes, where a sample is one hash of tens of milliseconds) get a
-time budget: such a cell takes 6 solo samples and 12 shared ones. Shorter samples
-(0.5 ms) were tried and rejected: every median read 1.6% slower, since
-a sample's fixed cost weighs twice as much.
+With `--contenders ... --rounds N`, every cell samples every round.
+Choose N as a multiple of each measured use case's order count for
+complete balance; other counts give a partial design. For example, a
+roster of eight has eight orders for messages, while seven participants
+in its batch use case have fourteen: 56 rounds completes both designs.
+
+Shorter samples (0.5 ms) were tried and rejected: every median read 1.6%
+slower, since a sample's fixed cost weighs twice as much.
 
 The band around each median line is the **95% bootstrap confidence
 interval of the median**: the cell's samples are resampled with
 replacement 400 times, each resample's median taken, and the 2.5th and
-97.5th percentiles of those medians drawn. That interval says how well
-the median is known. The hover panel also gives each cell's minimum and
-maximum, which describe the run's environment.
+97.5th percentiles of those medians drawn. This calculation assumes
+independent observations. The shared copies can be correlated; their
+bands may therefore overstate precision. They are descriptive pending a
+clustered-bootstrap review, and establish neither repeat-run reliability
+nor a statistically significant lead. The hover panel also gives each
+cell's minimum and maximum, which describe the run's environment.
 
 Some cells run at two speeds, and then every report shows both, with
 equal weight, faster first. The clearest case: two copies of an SME2
@@ -618,4 +622,8 @@ hover.
 longer ones. For a message arriving in pieces now and then, the guide
 shows `hash`'s cells, labelled by piece length: each piece costs about
 what `hash` costs on a buffer that long. A run that lacks the
-recommended cells says so.
+recommended cells says so. Pattern switches preserve the actual call:
+`update_multithreaded` has nonstop measurements, while the several-thread
+choice after a gap recommends `update` and shows the labelled `hash`
+proxy. The summary compares faster-speed medians where cells have two
+speeds; it describes this run rather than establishing a repeatable lead.

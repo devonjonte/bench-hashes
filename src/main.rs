@@ -11,8 +11,8 @@ use sysinfo::System;
 compile_error!("bench-hashes currently supports native targets only");
 
 /*
- * Every (contender, size) cell collects SAMPLE_ROUNDS samples of about
- * TARGET_SAMPLE_NS each (fewer for long cells: see LONG_HASH_NS). The two
+ * Every (contender, size) cell collects complete cycles of contender
+ * orders, with samples of about TARGET_SAMPLE_NS each. The two
  * knobs trade off differently:
  *
  * - Fewer rounds thin the evidence behind the min–max band, so the band can
@@ -25,11 +25,10 @@ compile_error!("bench-hashes currently supports native targets only");
  * So the runtime budget goes to rounds first. 1 ms is long enough that the
  * clock's own resolution (tens of nanoseconds) is under 0.01% of a sample.
  *
- * Rounds cycle through the contender orders and rotate the point that
- * starts a round. A round count that is no multiple of the order count
- * or the point count leaves some orders or starting points used once more
- * than others; that imbalance is a fraction of a sample per cell, far
- * below the difference between two runs, so any count serves.
+ * Sampled visits cycle through the participating contenders' orders and
+ * rotate the point that starts a round. Default sample counts are complete
+ * Williams cycles. Explicit --rounds samples every round; a multiple of
+ * each measured use case's order count balances those orders too.
  */
 const FULL_ROUNDS: usize = 96;
 /// A quick run (`--quick`): seconds, not minutes, for a first look while
@@ -47,11 +46,10 @@ const TARGET_SAMPLE_NS: u128 = 1_000_000;
 /*
  * Every cell samples in a share of the rounds, spread over the run at an
  * offset of its own, so drift and other programs' load reach every cell
- * alike: STEADY_SAMPLES samples, or LONG_SAMPLES for a cell whose single
- * hash takes LONG_HASH_NS or more (every sample is then one hash, tens of
- * milliseconds for the plateau sizes, itself an average over the input).
- * The shares follow the run's rounds, so a quick run samples each cell in
- * every second round.
+ * alike: at least STEADY_SAMPLES, rounded up to whole Williams cycles.
+ * Every participating contender at a point samples the same visits.
+ * Thinning long contenders separately aliased their orders and compared
+ * different moments. Complete cycles cost more time for long hashes.
  *
  * Measured on the VM (September 26, 2026), full default runs old / new /
  * new / old / old / new, cell medians' |log ratio| between runs, solo:
@@ -66,7 +64,6 @@ const TARGET_SAMPLE_NS: u128 = 1_000_000;
  *   tenth to a third of them 10-14% slow, more than a median's
  *   uncertainty, and a 4% threshold saved 1.5 s of the 6.
  */
-const LONG_HASH_NS: u128 = 4_000_000;
 /*
  * The gap: how long the program does something else before each call of
  * a synchronous use case (FROZEN.md: a program that hashes now and then).
@@ -94,7 +91,6 @@ const GAP_SAMPLE_NS: u128 = 2_000;
 /// Calls timed after the gap to size a synchronous cell's sample.
 const CALIBRATION_GAPS: u64 = 4;
 const STEADY_SAMPLES: usize = 12;
-const LONG_SAMPLES: usize = 6;
 
 /// Points on the one-message axis, and on each many-messages axis.
 const INPUT_COUNT: usize = 27;
@@ -1141,7 +1137,6 @@ struct MachineMetadata {
  */
 struct Roster {
     algorithms: Vec<Algorithm>,
-    orders: Vec<Vec<usize>>,
     /// The points measured, as ascending indices into POINTS: every point,
     /// or the subset --points names.
     points: Vec<usize>,
@@ -1177,13 +1172,12 @@ impl Roster {
                 panic!("{} cannot run here: {reason}", algorithm.name());
             }
         }
-        let orders = williams_orders(algorithms.len());
         let points = points.unwrap_or_else(|| (0..POINT_COUNT).filter(|&index| !quick || POINTS[index].quick()).collect());
         assert!(!points.is_empty() && points.windows(2).all(|w| w[0] < w[1]), "points ascend, without repeats");
         let every_round = rounds.is_some();
         let rounds = rounds.unwrap_or(if quick { QUICK_ROUNDS } else { FULL_ROUNDS });
         assert!(rounds > 0, "--rounds must be positive");
-        Self { algorithms, orders, points, rounds, every_round }
+        Self { algorithms, points, rounds, every_round }
     }
 
     /// Whether every point of each use case measured runs from the axis's
@@ -1218,11 +1212,23 @@ impl Roster {
     }
 }
 
+/// Orders over the contenders actually called in a use case. Filtering a
+/// larger design afterward can unbalance both positions and predecessors.
+fn participating_orders(algorithms: &[Algorithm], use_case: UseCase) -> Vec<Vec<usize>> {
+    let participants: Vec<usize> = algorithms.iter().enumerate()
+        .filter_map(|(index, algorithm)| algorithm.takes_part(use_case).then_some(index)).collect();
+    match participants.len() {
+        0 => Vec::new(),
+        1 => vec![participants],
+        n => williams_orders(n).into_iter()
+            .map(|order| order.into_iter().map(|rank| participants[rank]).collect()).collect(),
+    }
+}
+
 /*
  * A Williams design on n contenders: n orders when n is even, 2n when odd.
  * Every contender takes every position equally often and every ordered
- * adjacency "Y right after X" occurs equally often, so the set balances
- * carry-over effects the way all n! permutations would.
+ * adjacency "Y right after X" occurs equally often.
  */
 fn williams_orders(n: usize) -> Vec<Vec<usize>> {
     assert!(n >= 2, "a Williams design needs at least two contenders");
@@ -1623,8 +1629,8 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
         shared_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
     };
     let mut batch_iterations: Vec<Vec<usize>> = vec![vec![1usize; POINT_COUNT]; roster.len()];
-    /* Cells under the time budget (see LONG_HASH_NS). */
-    let mut budgeted: Vec<Vec<bool>> = vec![vec![false; POINT_COUNT]; roster.len()];
+    let point_orders: Vec<_> = POINTS.iter()
+        .map(|point| participating_orders(&roster.algorithms, point.use_case)).collect();
     /* Other programs' load: clocks reads it between samples, by itself. */
     clocks::load::tick();
     let measuring_from_ns = clocks::load::now_ns();
@@ -1665,7 +1671,6 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                     } else {
                         iterations
                     };
-                    budgeted[algorithm_index][point_index] = per_iteration_ns >= LONG_HASH_NS;
                 }
             }
         }
@@ -1678,15 +1683,11 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
          */
 
         /*
-         * Point order rotates by round. Each point's contender order cycles
-         * through the Williams orders by the point's own visits (the rounds in
-         * which it takes samples), so a cell sampled at every visit sees every
-         * order in turn: cycled by round, a cell sampled every eighth round
-         * saw one order of the default roster's four and seven of --all's
-         * fourteen, and a neighbour's aftereffect stayed with it (servil mt at
-         * 1 MiB alternating 0.032 and 0.050 ns/B, Mac, September 26, 2026). A
-         * long cell, sampled at every second visit, sees half the orders; its
-         * samples are single hashes of 4 ms or more.
+         * Point order rotates by round. All participating contenders sample
+         * each selected visit, and every visit advances the Williams order.
+         * Default sample counts complete the design; explicit --rounds
+         * samples every round. No contender skips a position because its
+         * calibrated call is slower.
          */
         progress.phase(match pattern { "nonstop" => "measuring one after another", "busy" => "measuring after other work", _ => "measuring after idling" });
 
@@ -1697,25 +1698,18 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
             for point_offset in 0..roster.points.len() {
                 let size_index = roster.points[(point_offset + round) % roster.points.len()];
                 let point = POINTS[size_index];
-                let wants = |algorithm_index: usize| {
-                    point.use_case.pattern_key() == pattern
-                        && roster.algorithms[algorithm_index].takes_part(point.use_case)
-                        && (roster.every_round
-                            || cell_wants_sample(round + size_index, roster.rounds, budgeted[algorithm_index][size_index]))
-                };
-                if !(0..roster.len()).any(wants) {
+                let orders = &point_orders[size_index];
+                if point.use_case.pattern_key() != pattern || orders.is_empty()
+                    || (!roster.every_round && !cell_wants_sample(round + size_index, roster.rounds, orders.len())) {
                     continue;
                 }
-                let algorithm_order = &roster.orders[visits[size_index] % roster.orders.len()];
+                let algorithm_order = &orders[visits[size_index] % orders.len()];
                 visits[size_index] += 1;
 
                 let input = inputs[size_index];
 
                 for (position, &algorithm_index) in algorithm_order.iter().enumerate() {
                     let algorithm = roster.algorithms[algorithm_index];
-                    if !wants(algorithm_index) {
-                        continue;
-                    }
                     let iterations =
                         batch_iterations[algorithm_index][size_index];
 
@@ -3091,13 +3085,13 @@ impl MachineMetadata {
     }
 }
 
-/// Whether a cell takes a sample this round (`slot` is the round plus the
-/// cell's own offset): in every `every`-th round of a run of `rounds`,
-/// where `every` spreads STEADY_SAMPLES (or, for a `long` cell,
-/// LONG_SAMPLES) over the run.
-fn cell_wants_sample(slot: usize, rounds: usize, long: bool) -> bool {
-    let target = if long { LONG_SAMPLES } else { STEADY_SAMPLES };
-    slot % (rounds / target).max(1) == 0
+/// Spread complete cycles of `orders` over `rounds`, at a point's offset.
+/// Requires positive counts. Defaults have room for the whole design;
+/// explicit --rounds bypasses thinning and accepts partial designs.
+fn cell_wants_sample(slot: usize, rounds: usize, orders: usize) -> bool {
+    assert!(rounds > 0 && orders > 0);
+    let target = STEADY_SAMPLES.next_multiple_of(orders).min(rounds);
+    (slot % rounds) * target % rounds < target
 }
 
 /// (iterations per sample, nanoseconds per iteration measured).
@@ -4845,7 +4839,7 @@ fn generate_svg(
      */
     let mut howto = vec![
         format!("Each line is one hash. Each dot is the median of up to {} timings at that size.", 2 * roster.rounds),
-        "The shaded band around a line shows how precisely its median is known (95% confidence); a deeper tint marks a less certain median.".to_owned(),
+        "The shaded band is a 95% bootstrap interval assuming independent observations; shared copies may be correlated, so their bands can overstate precision. A deeper tint marks a wider interval. Repeat runs are needed to establish a repeatable lead.".to_owned(),
         "A dot's shape marks the method the hash used at that size. The section \"Code paths\" at the bottom names each method.".to_owned(),
         "Rate counts bytes or messages per second, time the nanoseconds per byte or message; the switch at right changes every plot.".to_owned(),
         "The strip at the top narrows every plot to part of its inputs: drag an end of its band, or use the arrows at its ends.".to_owned(),
