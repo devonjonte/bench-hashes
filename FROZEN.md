@@ -20,9 +20,8 @@ their users seldom make):
   the receiving thread keeps up; who controls the buffer; time or energy
   (the energy choice waits for a validated counter). The benchmark now
   measures the owned-buffer and lent-buffer columns separately.
-- **Calls after a gap**: `hash`, `hash_multithreaded`, `hash_many`,
-  `hash_many_multithreaded`, and `Hasher::update` per 64 KiB piece,
-  each message or batch after a gap of one of two kinds, each measured
+- **Calls after a gap**: `hash`, `hash_multithreaded`, `hash_many`, and
+  `hash_many_multithreaded`, each message or batch after a gap of one of two kinds, each measured
   and compared (Zooko, September 30, 2026; `clocks::Gap`). *After
   other work*, as a program hashes between other tasks, or on a machine
   busy with other programs: a fixed other program (about 1 MiB of
@@ -36,26 +35,35 @@ their users seldom make):
   would otherwise decide what that was (bench-hashes NOTES, "Shared
   after a gap"). The producer writes the input after the gap, before the
   call; its write is timed separately and excluded from the hashing
-  sample (Zooko, September 28, evening). A thread
-  that keeps up with arriving pieces uses `update` in both servil
-  contenders; its multithreaded incremental call belongs to the lent,
-  continuous column. This changes servil mt's after-gap pieces cell
-  (September 28, evening: the new table).
+  sample (Zooko, September 28, evening).
 - **Continuous load, buffers owned**: the queue, one message or batch
   after another, with about 1 MiB or 1024 buffers in flight, whichever
   is fewer. Messages up to 64 KiB arrive in one buffer, longer messages
   in 64 KiB pieces. The other contenders use the same producer and
   synchronous calls, serving as the comparison for pipelining.
 - **Continuous load, buffers lent** (Zooko, September 28, evening):
-  three new axes, whole messages, messages in 64 KiB pieces, and batches,
-  read and hashed back to back through synchronous calls. The producer's
-  buffer is lent until each call returns; reads and hashing take turns.
-  The servil single-threaded calls measure the one-thread column; its
-  multithreaded calls measure the several-threads, lent-buffer column.
-  Message lengths and batch counts match the owned-buffer continuous
-  axes, so the comparisons use the same work quantities. Whole messages
-  arrive in one buffer even beyond 64 KiB. Pieces use `update` on one
-  thread and `update_multithreaded` on several threads.
+  whole messages, a long message in 64 KiB pieces, and batches, read and
+  hashed back to back through synchronous calls. The producer's buffer is
+  lent until each call returns; reads and hashing take turns. The servil
+  single-threaded calls measure the one-thread column; its multithreaded
+  calls measure the several-threads, lent-buffer column. Message lengths
+  and batch counts match the owned-buffer continuous axes, so the
+  comparisons use the same work quantities. Whole messages arrive in one
+  buffer even beyond 64 KiB. Pieces use `update` on one thread and
+  `update_multithreaded` on several threads.
+- **A message in pieces: one long message, nonstop** (Zooko, October 1,
+  2026, replacing a sweep of the one-message sizes after each gap and
+  nonstop): a message in 64 KiB pieces is measured at 64 MiB, nonstop
+  alone. A message of up to 64 KiB is one piece, the one-message call's
+  work, so its cell repeated the one-message cell (within 0.5% at 64 KiB
+  on the Mac, jobs 829-830). On one thread the cost of a long message's
+  pieces follows from the 64 KiB one-message cell (3-8% above it). A
+  multithreaded incremental call can spread a long message's pieces over
+  threads, a rate no one-message size predicts (servil mt 0.10 ns/B,
+  against 0.23 for one 64 KiB message and 0.036 for one 64 MiB buffer):
+  one long message shows it, and the sweep added nothing more (0.10-0.12
+  ns/B from 256 KiB to 64 MiB). The sweep after a gap took a third of
+  each gap phase's time.
 - **The program's side of the queue allocates nothing after warm-up**
   (Zooko, September 28, 2026, morning): the program makes its queue and
   a bounded channel for the returns once and keeps both, as a program
@@ -82,23 +90,19 @@ their users seldom make):
 ```frozen
 use case OneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case ManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
-use case Streaming: 64 B, 128 B, 256 B, 512 B, 1 KiB, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case IdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case IdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
-use case IdleStreaming: 64 B, 128 B, 256 B, 512 B, 1 KiB, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case ContinuousMessages: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case ContinuousBatches: 16, 64, 256, 1024, 4096, 16384, 65536
 use case LentMessages: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
-use case LentPieces: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
+use case LentPieces: 64 MiB
 use case LentBatches: 16, 64, 256, 1024, 4096, 16384, 65536
 scenarios: solo, shared
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, LentPieces, LentBatches
 blake3-servil-st OneMessage: hash(input), each call after other work
 blake3-servil-st ManyMessages: hash_many(batch, 64, out), the padded batch contract, each call after other work
-blake3-servil-st Streaming: Hasher::update per 64 KiB piece, then finalize, each message after other work
 blake3-servil-mt OneMessage: hash_multithreaded(input), each call after other work
 blake3-servil-mt ManyMessages: hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after other work
-blake3-servil-mt Streaming: Hasher::update per 64 KiB piece, then finalize, each message after other work
 blake3-servil-mt ContinuousMessages: Queue::messages(Mode::Hash, Efficiency::Time) for messages of up to 64 KiB, Queue::pieces(Mode::Hash, Efficiency::Time) in 64 KiB pieces for longer ones, one message after another, each read into free buffers of the program's, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept
 blake3-servil-mt ContinuousBatches: Queue::fixed(64, Mode::Hash, Efficiency::Time), one batch after another, each read into a free buffer of the program's, submitted with its digests' space, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept
 blake3-servil-st LentMessages: hash(input), one message after another, each read into a kept buffer and lent until the call returns
@@ -109,8 +113,6 @@ blake3-servil-mt LentPieces: Hasher::update_multithreaded per 64 KiB piece, then
 blake3-servil-mt LentBatches: hash_many_multithreaded(batch, 64, out), the padded batch contract, batches one after another, each read into a kept buffer and lent with kept digests until the call returns
 blake3-servil-st IdleOneMessage: hash(input), each call after idling
 blake3-servil-st IdleManyMessages: hash_many(batch, 64, out), the padded batch contract, each call after idling
-blake3-servil-st IdleStreaming: Hasher::update per 64 KiB piece, then finalize, each message after idling
 blake3-servil-mt IdleOneMessage: hash_multithreaded(input), each call after idling
 blake3-servil-mt IdleManyMessages: hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after idling
-blake3-servil-mt IdleStreaming: Hasher::update per 64 KiB piece, then finalize, each message after idling
 ```

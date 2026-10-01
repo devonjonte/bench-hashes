@@ -25,7 +25,9 @@ function noNaN(tag) {
 function checkLayout(tag) {
   D.plots.forEach((plot, p) => {
     const x = T.currentX[p], wd = T.win()[p];
-    check(Math.abs(x[wd.k0] - L) < 0.05 && Math.abs(x[wd.k1] - R) < 0.05, `${tag}: plot ${p} window ends at ${x[wd.k0]}, ${x[wd.k1]}`);
+    /* A plot of one point keeps it in the middle; every other window spans the plot. */
+    if (x.length === 1) check(Math.abs(x[0] - (L + R) / 2) < 0.05, `${tag}: plot ${p}'s one point at ${x[0]}, not the middle`);
+    else check(Math.abs(x[wd.k0] - L) < 0.05 && Math.abs(x[wd.k1] - R) < 0.05, `${tag}: plot ${p} window ends at ${x[wd.k0]}, ${x[wd.k1]}`);
     for (let k = 0; k < x.length; k++) {
       const inside = k >= wd.k0 && k <= wd.k1;
       check(inside === (x[k] >= L - 0.05 && x[k] <= R + 0.05), `${tag}: plot ${p} point ${k} at ${x[k]} inside=${inside}`);

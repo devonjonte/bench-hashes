@@ -42,9 +42,9 @@ your CPU and operating system:
 - `bench-hashes.checks.txt`: consistency checks, for people who
   maintain the benchmark or a hash.
 
-The graph shows eleven tasks. Three hash now and then: a message in one
-buffer, a batch of 64-byte messages (a Merkle tree's nodes), and a
-message arriving in 64 KiB pieces. Each is measured twice. *After other
+The graph shows nine tasks. Two hash now and then: a message in one
+buffer, and a batch of 64-byte messages (a Merkle tree's nodes). Each is
+measured twice. *After other
 work*: before each call the program runs other code and reads a lot of
 memory, as a program does between its other tasks, so
 the hash finds its own code and data out of the caches. *After idling*:
@@ -53,8 +53,9 @@ its next request, so the hash may find a slowed or sleeping core. In
 both, the program called the same function before the pause, and helper
 threads have fallen asleep. The other five tasks hash nonstop, one input
 after another: separate messages and batches through a queue that hashes
-one buffer while the program fills the next, and whole messages, pieces,
-and batches through plain calls, where filling and hashing take turns.
+one buffer while the program fills the next, and whole messages, 64 MiB
+messages in 64 KiB pieces, and batches through plain calls, where
+filling and hashing take turns.
 The nonstop tasks are also measured with two copies running at once, as
 when two programs hash side by side.
 
@@ -63,8 +64,8 @@ Click a name at the right to show or hide that contender. The band on
 the strip at the top marks the part of the inputs every plot shows: drag
 either end of it, or the band itself, and "all" shows everything again.
 The chips at the top right show or hide plots: solo or shared; after
-idling, after other work, or nonstop; one buffer, a batch, pieces, or
-nonstop tasks with owned or lent buffers. Show one, and it sits right
+idling, after other work, or nonstop; one buffer, a batch, or nonstop
+tasks with owned or lent buffers. Show one, and it sits right
 under them.
 
 Under the title, the graph names the computer and the day, and says so

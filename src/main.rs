@@ -99,15 +99,14 @@ const LONG_SAMPLES: usize = 6;
 /// Points on the one-message axis, and on each many-messages axis.
 const INPUT_COUNT: usize = 27;
 const BATCH_COUNT: usize = 24;
-/// Every measured (contender, x) cell lies on one of the four axes.
-const STREAM_COUNT: usize = INPUT_COUNT;
 /// Points on the continuous axes: message lengths, and messages per batch.
 const CONTINUOUS_MESSAGE_COUNT: usize = 11;
 const CONTINUOUS_BATCH_COUNT: usize = 7;
-const POINT_COUNT: usize = 2 * (INPUT_COUNT + BATCH_COUNT + STREAM_COUNT) + 3 * CONTINUOUS_MESSAGE_COUNT + 2 * CONTINUOUS_BATCH_COUNT;
-/// The streaming use case feeds its input to each contender's incremental
-/// API in pieces of this many bytes (a typical read buffer), the last one
-/// shorter.
+/// A message in pieces is measured at one length, a long message (FROZEN.md).
+const LENT_PIECES_COUNT: usize = 1;
+const POINT_COUNT: usize = 2 * (INPUT_COUNT + BATCH_COUNT) + 2 * CONTINUOUS_MESSAGE_COUNT + LENT_PIECES_COUNT + 2 * CONTINUOUS_BATCH_COUNT;
+/// A message in pieces reaches each contender's incremental API in pieces
+/// of this many bytes (a typical read buffer), the last one shorter.
 const PIECE_LEN: usize = 64 * 1024;
 /// Every message in the batches is one BLAKE3 block of 64 bytes, the size
 /// of a Merkle tree's inner node (two 32-byte children).
@@ -153,11 +152,13 @@ const BLAKE3_SERVIL_SOURCE_INFO: &str = env!("BLAKE3_SERVIL_SOURCE_INFO");
  * and dropped: interpolated from 8 and 32 MiB, every contender's median
  * fell within the difference between two runs, on both machines.
  *
- * The streamed axis repeats the one-message sizes, each input produced
- * in PIECE_LEN pieces, each piece copied as a read would copy it, and fed
- * to the contender's incremental API (then finalized): below PIECE_LEN one
- * piece, above it one per PIECE_LEN, so the implementation never sees the
- * total up front.
+ * A message in pieces is measured nonstop at one length, 64 MiB: each
+ * PIECE_LEN piece copied as a read would copy it and fed to the
+ * contender's incremental API (then finalized), so the implementation
+ * never sees the total up front. A message up to PIECE_LEN is one piece,
+ * the one-message call's work; a long one shows the rate a contender
+ * sustains piece after piece, which for a multithreaded incremental API
+ * no one-message size predicts (Zooko, October 1, 2026; FROZEN.md).
  *
  * The continuous messages axis takes a length every factor of four from
  * 64 B to 64 MiB: a program hashing messages of that length one after
@@ -228,33 +229,6 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::many("65536", 65536),
     Point::many("131072", 131072),
     Point::many("262144", 262144),
-    Point::streamed("64 B", 64),
-    Point::streamed("128 B", 128),
-    Point::streamed("256 B", 256),
-    Point::streamed("512 B", 512),
-    Point::streamed("1 KiB", 1024),
-    Point::streamed("2 KiB", 2 * 1024),
-    Point::streamed("2304 B", 2304),
-    Point::streamed("3 KiB", 3 * 1024),
-    Point::streamed("3839 B", 3839),
-    Point::streamed("4 KiB", 4 * 1024),
-    Point::streamed("4470 B", 4470),
-    Point::streamed("7935 B", 7935),
-    Point::streamed("8 KiB", 8 * 1024),
-    Point::streamed("16 KiB", 16 * 1024),
-    Point::streamed("32 KiB", 32 * 1024),
-    Point::streamed("64 KiB", 64 * 1024),
-    Point::streamed("128 KiB", 128 * 1024),
-    Point::streamed("256 KiB", 256 * 1024),
-    Point::streamed("512 KiB", 512 * 1024),
-    Point::streamed("1 MiB", 1024 * 1024),
-    Point::streamed("2 MiB", 2 * 1024 * 1024),
-    Point::streamed("3 MiB", 3 * 1024 * 1024),
-    Point::streamed("4 MiB", 4 * 1024 * 1024),
-    Point::streamed("8 MiB", 8 * 1024 * 1024),
-    Point::streamed("32 MiB", 32 * 1024 * 1024),
-    Point::streamed("64 MiB", 64 * 1024 * 1024),
-    Point::streamed("128 MiB", 128 * 1024 * 1024),
     Point::one("64 B", 64).idle(),
     Point::one("128 B", 128).idle(),
     Point::one("256 B", 256).idle(),
@@ -306,33 +280,6 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::many("65536", 65536).idle(),
     Point::many("131072", 131072).idle(),
     Point::many("262144", 262144).idle(),
-    Point::streamed("64 B", 64).idle(),
-    Point::streamed("128 B", 128).idle(),
-    Point::streamed("256 B", 256).idle(),
-    Point::streamed("512 B", 512).idle(),
-    Point::streamed("1 KiB", 1024).idle(),
-    Point::streamed("2 KiB", 2 * 1024).idle(),
-    Point::streamed("2304 B", 2304).idle(),
-    Point::streamed("3 KiB", 3 * 1024).idle(),
-    Point::streamed("3839 B", 3839).idle(),
-    Point::streamed("4 KiB", 4 * 1024).idle(),
-    Point::streamed("4470 B", 4470).idle(),
-    Point::streamed("7935 B", 7935).idle(),
-    Point::streamed("8 KiB", 8 * 1024).idle(),
-    Point::streamed("16 KiB", 16 * 1024).idle(),
-    Point::streamed("32 KiB", 32 * 1024).idle(),
-    Point::streamed("64 KiB", 64 * 1024).idle(),
-    Point::streamed("128 KiB", 128 * 1024).idle(),
-    Point::streamed("256 KiB", 256 * 1024).idle(),
-    Point::streamed("512 KiB", 512 * 1024).idle(),
-    Point::streamed("1 MiB", 1024 * 1024).idle(),
-    Point::streamed("2 MiB", 2 * 1024 * 1024).idle(),
-    Point::streamed("3 MiB", 3 * 1024 * 1024).idle(),
-    Point::streamed("4 MiB", 4 * 1024 * 1024).idle(),
-    Point::streamed("8 MiB", 8 * 1024 * 1024).idle(),
-    Point::streamed("32 MiB", 32 * 1024 * 1024).idle(),
-    Point::streamed("64 MiB", 64 * 1024 * 1024).idle(),
-    Point::streamed("128 MiB", 128 * 1024 * 1024).idle(),
     Point::continuous("64 B", 64),
     Point::continuous("256 B", 256),
     Point::continuous("1 KiB", 1024),
@@ -362,16 +309,6 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::lent("4 MiB", 4 * 1024 * 1024),
     Point::lent("16 MiB", 16 * 1024 * 1024),
     Point::lent("64 MiB", 64 * 1024 * 1024),
-    Point::lent_pieces("64 B", 64),
-    Point::lent_pieces("256 B", 256),
-    Point::lent_pieces("1 KiB", 1024),
-    Point::lent_pieces("4 KiB", 4 * 1024),
-    Point::lent_pieces("16 KiB", 16 * 1024),
-    Point::lent_pieces("64 KiB", 64 * 1024),
-    Point::lent_pieces("256 KiB", 256 * 1024),
-    Point::lent_pieces("1 MiB", 1024 * 1024),
-    Point::lent_pieces("4 MiB", 4 * 1024 * 1024),
-    Point::lent_pieces("16 MiB", 16 * 1024 * 1024),
     Point::lent_pieces("64 MiB", 64 * 1024 * 1024),
     Point::lent_batch("16", 16),
     Point::lent_batch("64", 64),
@@ -400,30 +337,26 @@ struct RunSamples {
 
 
 /*
- * The use cases (FROZEN.md). Three synchronous calls, each made now and
+ * The use cases (FROZEN.md). Two synchronous calls, each made now and
  * then, after other work and, as their idle twins, after idling: one
  * message in one buffer; a batch of 64-byte messages (a Merkle tree's
  * inner nodes; a contender with a batch entry point hands it the batch,
- * see hash_batch, every other one loops its plain entry point over it);
- * one message arriving in pieces. Five nonstop ones, a program hashing
- * one input after another as fast as it can: messages and batches through
- * buffers the program owns (the queue), and messages, pieces, and
- * batches through buffers it lends to a synchronous call, each read into
- * a buffer of the program's first.
+ * see hash_batch, every other one loops its plain entry point over it).
+ * Five nonstop ones, a program hashing one input after another as fast
+ * as it can: messages and batches through buffers the program owns (the
+ * queue), and messages, long messages in pieces, and batches through
+ * buffers it lends to a synchronous call, each read into a buffer of the
+ * program's first.
  */
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum UseCase {
     OneMessage,
     /// Batches of 64-byte messages.
     ManyMessages,
-    /// One message produced in PIECE_LEN pieces, each copied as a read
-    /// would, through the incremental API.
-    Streaming,
-    /// The same three calls, each after the program idled (the first
-    /// three: each after other work; clocks::Gap).
+    /// The same two calls, each after the program idled (the first
+    /// two: each after other work; clocks::Gap).
     IdleOneMessage,
     IdleManyMessages,
-    IdleStreaming,
     /// Messages of the point's length, one after another, each read into
     /// a buffer in pieces of up to PIECE_LEN, then hashed.
     ContinuousMessages,
@@ -433,20 +366,22 @@ enum UseCase {
     /// Continuous synchronous calls: the producer lends each buffer until
     /// the call returns, so producing and hashing take turns.
     LentMessages,
+    /// One long message after another, each produced in PIECE_LEN pieces,
+    /// each copied as a read would, through the incremental API.
     LentPieces,
     LentBatches,
 }
 
 impl UseCase {
-    const ALL: [UseCase; 11] = [UseCase::OneMessage, UseCase::ManyMessages, UseCase::Streaming, UseCase::IdleOneMessage,
-        UseCase::IdleManyMessages, UseCase::IdleStreaming, UseCase::ContinuousMessages, UseCase::ContinuousBatches,
+    const ALL: [UseCase; 9] = [UseCase::OneMessage, UseCase::ManyMessages, UseCase::IdleOneMessage,
+        UseCase::IdleManyMessages, UseCase::ContinuousMessages, UseCase::ContinuousBatches,
         UseCase::LentMessages, UseCase::LentPieces, UseCase::LentBatches];
 
     /// Whether each call comes after a gap (the synchronous use cases:
     /// after other work, or after idling), or one follows another (the
     /// continuous ones).
     fn after_gap(self) -> bool {
-        matches!(self.call(), Self::OneMessage | Self::ManyMessages | Self::Streaming)
+        matches!(self.call(), Self::OneMessage | Self::ManyMessages)
     }
 
     /// How the program calls, as the graph's chips name it.
@@ -456,7 +391,7 @@ impl UseCase {
 
     /// Whether the program idles before each call.
     fn idle(self) -> bool {
-        matches!(self, Self::IdleOneMessage | Self::IdleManyMessages | Self::IdleStreaming)
+        matches!(self, Self::IdleOneMessage | Self::IdleManyMessages)
     }
 
     /// The use case whose call this one makes: an idle use case makes its
@@ -465,7 +400,6 @@ impl UseCase {
         match self {
             Self::IdleOneMessage => Self::OneMessage,
             Self::IdleManyMessages => Self::ManyMessages,
-            Self::IdleStreaming => Self::Streaming,
             other => other,
         }
     }
@@ -479,7 +413,7 @@ impl UseCase {
     fn message_len(self) -> usize {
         match self {
             Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => MESSAGE_LEN,
-            Self::OneMessage | Self::IdleOneMessage | Self::Streaming | Self::IdleStreaming | Self::ContinuousMessages | Self::LentMessages | Self::LentPieces => panic!("{self:?} hashes one message of the point's size"),
+            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::LentPieces => panic!("{self:?} hashes one message of the point's size"),
         }
     }
 
@@ -494,7 +428,7 @@ impl UseCase {
     /// What the x axis counts.
     fn x_axis(self) -> &'static str {
         match self {
-            Self::OneMessage | Self::IdleOneMessage | Self::Streaming | Self::IdleStreaming | Self::LentMessages | Self::LentPieces => "Message length (logarithmic spacing)",
+            Self::OneMessage | Self::IdleOneMessage | Self::LentMessages | Self::LentPieces => "Message length (logarithmic spacing)",
             Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => "Messages per batch, 64 B each (logarithmic spacing)",
             Self::ContinuousMessages => "Length of each message (logarithmic spacing)",
         }
@@ -504,14 +438,12 @@ impl UseCase {
         match self {
             Self::OneMessage => "A message in one buffer, after other work",
             Self::ManyMessages => "A batch of 64-byte messages, after other work",
-            Self::Streaming => "A message arriving in 64 KiB pieces, after other work",
             Self::IdleOneMessage => "A message in one buffer, after idling",
             Self::IdleManyMessages => "A batch of 64-byte messages, after idling",
-            Self::IdleStreaming => "A message arriving in 64 KiB pieces, after idling",
             Self::ContinuousMessages => "Messages one after another, buffers owned",
             Self::ContinuousBatches => "Batches one after another, buffers owned",
             Self::LentMessages => "Messages one after another, buffers lent",
-            Self::LentPieces => "Messages in pieces one after another, buffers lent",
+            Self::LentPieces => "64 MiB messages in 64 KiB pieces, one after another, buffers lent",
             Self::LentBatches => "Batches one after another, buffers lent",
         }
     }
@@ -521,10 +453,8 @@ impl UseCase {
         match self {
             Self::OneMessage => "one buffer, after other work",
             Self::ManyMessages => "a batch, after other work",
-            Self::Streaming => "pieces, after other work",
             Self::IdleOneMessage => "one buffer, after idling",
             Self::IdleManyMessages => "a batch, after idling",
-            Self::IdleStreaming => "pieces, after idling",
             Self::ContinuousMessages => "messages, owned buffers",
             Self::ContinuousBatches => "batches, owned buffers",
             Self::LentMessages => "messages, lent buffers",
@@ -536,7 +466,7 @@ impl UseCase {
     /// The x column's header in the text report.
     fn column(self) -> &'static str {
         match self {
-            Self::OneMessage | Self::IdleOneMessage | Self::Streaming | Self::IdleStreaming | Self::ContinuousMessages | Self::LentMessages | Self::LentPieces => "size",
+            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::LentPieces => "size",
             Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => "messages",
         }
     }
@@ -549,7 +479,7 @@ impl UseCase {
      */
     fn units(self, point: Point, iterations: usize) -> u64 {
         match self {
-            Self::OneMessage | Self::IdleOneMessage | Self::Streaming | Self::IdleStreaming | Self::ContinuousMessages | Self::LentMessages | Self::LentPieces => point.bytes as u64 * iterations as u64,
+            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::LentPieces => point.bytes as u64 * iterations as u64,
             Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => point.messages as u64 * iterations as u64,
         }
     }
@@ -590,17 +520,15 @@ impl UseCase {
     }
 
     /// The prefix that names this use case's points on the command line
-    /// ("streamed 64 KiB"), empty for the first two.
+    /// ("lent pieces 64 MiB"), empty for the first two.
     fn label_prefix(self) -> &'static str {
         match self {
             Self::OneMessage | Self::ManyMessages => "",
-            Self::Streaming => "streamed ",
             Self::IdleOneMessage | Self::IdleManyMessages => "idle ",
-            Self::IdleStreaming => "idle streamed ",
             Self::ContinuousMessages => "continuous ",
             Self::ContinuousBatches => "continuous batch ",
             Self::LentMessages => "lent ",
-            Self::LentPieces => "lent streamed ",
+            Self::LentPieces => "lent pieces ",
             Self::LentBatches => "lent batch ",
         }
     }
@@ -621,16 +549,11 @@ impl Point {
         Self { label, bytes, messages: 1, use_case: UseCase::OneMessage }
     }
 
-    const fn streamed(label: &'static str, bytes: usize) -> Self {
-        Self { label, bytes, messages: 1, use_case: UseCase::Streaming }
-    }
-
     /// The same point, its call made after idling.
     const fn idle(self) -> Self {
         let use_case = match self.use_case {
             UseCase::OneMessage => UseCase::IdleOneMessage,
             UseCase::ManyMessages => UseCase::IdleManyMessages,
-            UseCase::Streaming => UseCase::IdleStreaming,
             _ => panic!("only the calls after other work have idle twins"),
         };
         Self { use_case, ..self }
@@ -748,7 +671,7 @@ impl Algorithm {
             UseCase::ManyMessages | UseCase::IdleManyMessages | UseCase::LentBatches => !matches!(self, Self::Blake3Rayon),
             UseCase::ContinuousBatches => !matches!(self, Self::Blake3Rayon | Self::Blake3ServilSt),
             UseCase::ContinuousMessages => !matches!(self, Self::Blake3ServilSt),
-            UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::Streaming | UseCase::IdleStreaming | UseCase::LentMessages | UseCase::LentPieces => true,
+            UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::LentMessages | UseCase::LentPieces => true,
         }
     }
 
@@ -1249,7 +1172,7 @@ impl Roster {
         self.algorithms.iter().all(|algorithm| self.points.iter().any(|&index| algorithm.takes_part(POINTS[index].use_case)))
             && UseCase::ALL.iter().all(|&use_case| {
                 let measured: Vec<usize> = use_case.points().filter(|&index| self.measures(index)).collect();
-                measured.is_empty() || (measured.len() >= 2 && measured == (use_case.points().start..measured.last().unwrap() + 1).collect::<Vec<_>>())
+                measured.is_empty() || (measured.len() >= use_case.points().len().min(2) && measured == (use_case.points().start..measured.last().unwrap() + 1).collect::<Vec<_>>())
             })
     }
 
@@ -1325,9 +1248,7 @@ const SHOWN_AT_FIRST: [Algorithm; 3] = [Algorithm::Blake3ServilMt, Algorithm::Sh
  * Contenders that run only when --contenders names them, left out of
  * --all: BLAKE3 official mt, which BLAKE3 servil mt beats at every point
  * (Zooko, September 26, 2026: kept so that the crate's maintainers, or
- * anyone, can see it measured on request). Its streamed inputs, one
- * update_rayon per 64 KiB piece, took two fifths of an --all run and two
- * thirds of its digest checks.
+ * anyone, can see it measured on request).
  */
 const BY_REQUEST: [Algorithm; 1] = [Algorithm::Blake3Rayon];
 
@@ -1367,7 +1288,7 @@ cell sampled in a share of them.
                                    --all
   --points LABEL,...               measure only these points (labels as in the
                                    report: \"64 B\", \"8 MiB\", \"1024\" messages,
-                                   \"streamed 64 KiB\", \"continuous 64 KiB\",
+                                   \"lent pieces 64 MiB\", \"continuous 64 KiB\",
                                    \"continuous batch 1024\"); with
                                    --contenders only
   --rounds N                       exactly N sample rounds, every cell sampled in each
@@ -1427,7 +1348,7 @@ fn parse_arguments() -> Options {
             .split(',')
             .map(|label| {
                 /*
-                 * A label's prefix names its use cases ("streamed 64 KiB",
+                 * A label's prefix names its use cases ("lent pieces 64 MiB",
                  * "idle 16", "continuous batch 1024"): the longest prefix
                  * that matches, the plain label the calls after other work.
                  */
@@ -1579,7 +1500,7 @@ fn main() {
     );
     match svg {
         Some(_) => println!("# Graph results (SVG) are in \"{}\" .", svg_path.display()),
-        None => println!("# No graph: plots need at least two consecutive points from each axis’s start and a measured cell for every selected contender."),
+        None => println!("# No graph: plots need at least two consecutive points from each axis’s start (its one point, on an axis of one) and a measured cell for every selected contender."),
     }
     println!("# Samples (TSV) are in \"{}\" .", samples_path.display());
 }
@@ -2110,7 +2031,7 @@ fn hash_batch(
     assert!(algorithm.takes_part(point.use_case), "{} takes no part in {:?}", algorithm.key(), point.use_case);
 
     match point.use_case {
-        UseCase::Streaming | UseCase::IdleStreaming | UseCase::LentPieces => return hash_stream(algorithm, input, iterations, point.use_case == UseCase::LentPieces, consume),
+        UseCase::LentPieces => return hash_stream(algorithm, input, iterations, consume),
         UseCase::ContinuousMessages => return hash_continuous_messages(algorithm, input, iterations, consume),
         UseCase::ContinuousBatches => return hash_continuous_batches(algorithm, input, point, iterations, consume),
         UseCase::LentMessages | UseCase::LentBatches => return hash_lent(algorithm, input, point, iterations, consume),
@@ -2166,14 +2087,14 @@ fn hash_in_memory(algorithm: Algorithm, input: &[u8], point: Point, iterations: 
 }
 
 /*
- * The streaming use case: one message produced in PIECE_LEN pieces, each
+ * A message in pieces (LentPieces): one message produced in PIECE_LEN pieces, each
  * copied from `input` as a read would (one copy when the message is
  * shorter, none when empty), then finalized; one digest per pass into
  * `consume`. The copy stands for a read, the cheapest one there is. Every
  * contender gets each piece read into a PIECE_LEN buffer and then hashes
  * it through its incremental API, so reading and hashing take turns.
  */
-fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, multithreaded_pieces: bool, consume: impl FnMut(&[u8])) {
+fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: impl FnMut(&[u8])) {
     use sha2::Digest as _;
     use sha1_checked::digest::Update as _;
     match algorithm {
@@ -2194,10 +2115,7 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, multithrea
         }, consume),
         Algorithm::Blake3ServilMt => each_stream(input, iterations, |pieces| {
             let mut hasher = blake3_servil::Hasher::new();
-            pieces(&mut |piece| {
-                if multithreaded_pieces { hasher.update_multithreaded(piece); }
-                else { hasher.update(piece); }
-            });
+            pieces(&mut |piece| { hasher.update_multithreaded(piece); });
             *hasher.finalize().as_bytes()
         }, consume),
         Algorithm::Sha256 => each_stream(input, iterations, |pieces| {
@@ -2245,7 +2163,7 @@ fn hash_continuous_messages(algorithm: Algorithm, input: &[u8], iterations: usiz
         return queue_messages(input, iterations, consume);
     }
     if input.len() > PIECE_LEN {
-        return hash_stream(algorithm, input, iterations, false, consume);
+        return hash_stream(algorithm, input, iterations, consume);
     }
     let one = Point { label: "", bytes: input.len(), messages: 1, use_case: UseCase::OneMessage };
     let mut buffers = take_buffers(1, input.len());
@@ -2605,13 +2523,11 @@ thread_local! {
  * these.
  */
 #[cfg(test)]
-const SERVIL_CALLS: [(Algorithm, UseCase, &str); 20] = [
+const SERVIL_CALLS: [(Algorithm, UseCase, &str); 16] = [
     (Algorithm::Blake3ServilSt, UseCase::OneMessage, "hash(input), each call after other work"),
     (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "hash_many(batch, 64, out), the padded batch contract, each call after other work"),
-    (Algorithm::Blake3ServilSt, UseCase::Streaming, "Hasher::update per 64 KiB piece, then finalize, each message after other work"),
     (Algorithm::Blake3ServilMt, UseCase::OneMessage, "hash_multithreaded(input), each call after other work"),
     (Algorithm::Blake3ServilMt, UseCase::ManyMessages, "hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after other work"),
-    (Algorithm::Blake3ServilMt, UseCase::Streaming, "Hasher::update per 64 KiB piece, then finalize, each message after other work"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "Queue::messages(Mode::Hash, Efficiency::Time) for messages of up to 64 KiB, Queue::pieces(Mode::Hash, Efficiency::Time) in 64 KiB pieces for longer ones, one message after another, each read into free buffers of the program's, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "Queue::fixed(64, Mode::Hash, Efficiency::Time), one batch after another, each read into a free buffer of the program's, submitted with its digests' space, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept"),
     (Algorithm::Blake3ServilSt, UseCase::LentMessages, "hash(input), one message after another, each read into a kept buffer and lent until the call returns"),
@@ -2622,10 +2538,8 @@ const SERVIL_CALLS: [(Algorithm, UseCase, &str); 20] = [
     (Algorithm::Blake3ServilMt, UseCase::LentBatches, "hash_many_multithreaded(batch, 64, out), the padded batch contract, batches one after another, each read into a kept buffer and lent with kept digests until the call returns"),
     (Algorithm::Blake3ServilSt, UseCase::IdleOneMessage, "hash(input), each call after idling"),
     (Algorithm::Blake3ServilSt, UseCase::IdleManyMessages, "hash_many(batch, 64, out), the padded batch contract, each call after idling"),
-    (Algorithm::Blake3ServilSt, UseCase::IdleStreaming, "Hasher::update per 64 KiB piece, then finalize, each message after idling"),
     (Algorithm::Blake3ServilMt, UseCase::IdleOneMessage, "hash_multithreaded(input), each call after idling"),
     (Algorithm::Blake3ServilMt, UseCase::IdleManyMessages, "hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after idling"),
-    (Algorithm::Blake3ServilMt, UseCase::IdleStreaming, "Hasher::update per 64 KiB piece, then finalize, each message after idling"),
 ];
 
 /// The frozen contract as text, from the code's own tables: FROZEN.md's
@@ -3174,7 +3088,7 @@ fn continuous_min_inputs(input: &[u8], point: Point) -> usize {
             2 * in_flight(input.len().min(PIECE_LEN)).div_ceil(pieces)
         }
         UseCase::ContinuousBatches => 2 * in_flight(input.len()),
-        UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::ManyMessages | UseCase::IdleManyMessages | UseCase::Streaming | UseCase::IdleStreaming | UseCase::LentMessages | UseCase::LentPieces | UseCase::LentBatches => 1,
+        UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::ManyMessages | UseCase::IdleManyMessages | UseCase::LentMessages | UseCase::LentPieces | UseCase::LentBatches => 1,
     }
 }
 
@@ -3606,11 +3520,10 @@ fn detect_kernels(algorithm: Algorithm, use_case: UseCase) -> Kernels {
     };
     match use_case {
         /* An idle use case makes its twin's call. */
-        UseCase::IdleOneMessage | UseCase::IdleManyMessages | UseCase::IdleStreaming => detect_kernels(algorithm, use_case.call()),
+        UseCase::IdleOneMessage | UseCase::IdleManyMessages => detect_kernels(algorithm, use_case.call()),
         UseCase::OneMessage | UseCase::LentMessages => one_message,
         /* A stream runs the one-message kernels piece by piece, so those that start past PIECE_LEN never run. */
-        UseCase::Streaming if algorithm == Algorithm::Blake3ServilMt => servil_kernels(blake3_servil::kernel_report()).up_to(PIECE_LEN),
-        UseCase::Streaming | UseCase::LentPieces => one_message.up_to(PIECE_LEN),
+        UseCase::LentPieces => one_message.up_to(PIECE_LEN),
         /* A message of up to PIECE_LEN is one call's input; a longer one arrives in pieces. */
         UseCase::ContinuousMessages => one_message.up_to(PIECE_LEN),
         UseCase::ContinuousBatches | UseCase::LentBatches => detect_kernels(algorithm, UseCase::ManyMessages),
@@ -4007,8 +3920,12 @@ fn column_heading(algorithm: Algorithm) -> &'static str {
 }
 
 /// A point's x position on an axis of the points in `range`, as a
-/// fraction of the axis width; both axes are logarithmic in bytes.
+/// fraction of the axis width; both axes are logarithmic in bytes. An
+/// axis of one point puts it in the middle.
 fn x_fraction(point_index: usize, range: std::ops::Range<usize>) -> f64 {
+    if range.len() == 1 {
+        return 0.5;
+    }
     let smallest = (POINTS[range.start].bytes as f64).log2();
     let largest = (POINTS[range.end - 1].bytes as f64).log2();
     ((POINTS[point_index].bytes as f64).log2() - smallest) / (largest - smallest)
@@ -4852,8 +4769,7 @@ fn generate_svg(
                     let (label, tip) = match use_case {
                         UseCase::OneMessage => ("One buffer", "Show or hide the plots of a message in one buffer, hashed now and then"),
                         UseCase::ManyMessages => ("A batch", "Show or hide the plots of a batch of 64-byte messages, hashed now and then"),
-                        UseCase::Streaming => ("Pieces", "Show or hide the plots of a message arriving in 64 KiB pieces, hashed now and then"),
-                        UseCase::IdleOneMessage | UseCase::IdleManyMessages | UseCase::IdleStreaming => unreachable!("the chips name each call once"),
+                        UseCase::IdleOneMessage | UseCase::IdleManyMessages => unreachable!("the chips name each call once"),
                         UseCase::ContinuousMessages => ("Messages, owned", "Show or hide nonstop messages in buffers the producer owns"),
                         UseCase::ContinuousBatches => ("Batches, owned", "Show or hide nonstop batches in buffers the producer owns"),
                         UseCase::LentMessages => ("Messages, lent", "Show or hide nonstop synchronous calls on lent message buffers"),
@@ -4908,8 +4824,8 @@ fn generate_svg(
     if plots.iter().any(|plot| plot.use_case.idle()) {
         howto.push("After idling: the program calls the hash, sleeps 1 ms, writes the input, and calls again; the second call is timed. So a server works that waits for its next request.".to_owned());
     }
-    if plots.iter().any(|plot| matches!(plot.use_case.call(), UseCase::Streaming | UseCase::LentPieces)) {
-        howto.push("In the plots of messages arriving in pieces, each piece is first read into memory (timed; a memory copy, the cheapest read).".to_owned());
+    if plots.iter().any(|plot| matches!(plot.use_case.call(), UseCase::LentPieces)) {
+        howto.push("In the plot of messages in pieces, each 64 KiB piece is first read into memory (timed; a memory copy, the cheapest read).".to_owned());
     }
     if plots.iter().any(|plot| !plot.use_case.after_gap()) {
         howto.push("Owned buffers can pass to a queue while the producer fills the next. Lent buffers return when each synchronous call finishes; producing and hashing take turns.".to_owned());
@@ -5104,7 +5020,6 @@ fn write_plot(svg: &mut String, plot: &Plot, roster: &Roster, results: &Results,
     let heading_note = match plot.use_case {
         UseCase::OneMessage | UseCase::IdleOneMessage => lead.to_owned(),
         UseCase::ManyMessages | UseCase::IdleManyMessages => format!("{lead} · each hash takes the whole batch where it can, else one message at a time"),
-        UseCase::Streaming | UseCase::IdleStreaming => format!("{lead} · as a program reading a file receives it"),
         UseCase::ContinuousMessages => format!("{} · as a program reading many files receives them", plot.scenario.subtitle()),
         UseCase::ContinuousBatches => format!("{} · producing and hashing can overlap", plot.scenario.subtitle()),
         UseCase::LentMessages | UseCase::LentPieces | UseCase::LentBatches => format!("{} · producing and hashing take turns", plot.scenario.subtitle()),
@@ -6231,6 +6146,8 @@ function windowFor(p, lo, hi) {
     ks = b.map((_, k) => k).sort((x, y) => d(x) - d(y) || x - y).slice(0, 2).sort((x, y) => x - y);
   }
   const k0 = ks[0], k1 = ks[ks.length - 1];
+  /* A plot of one point keeps it in the middle, whatever the zoom. */
+  if (b.length === 1) return { k0, k1, w0: Math.log2(b[0]) - 1, w1: Math.log2(b[0]) + 1 };
   return { k0, k1, w0: Math.log2(b[k0]), w1: Math.log2(b[k1]) };
 }
 /* The window each plot moves to, the one it moves from, and how far along (eased, 0 to 1). */
@@ -7483,9 +7400,8 @@ mod correctness_tests {
     fn use_case_axes_are_contiguous_and_cover_every_point() {
         assert_eq!(UseCase::OneMessage.points(), 0..INPUT_COUNT);
         assert_eq!(UseCase::ManyMessages.points(), INPUT_COUNT..INPUT_COUNT + BATCH_COUNT);
-        assert_eq!(UseCase::Streaming.points(), INPUT_COUNT + BATCH_COUNT..INPUT_COUNT + BATCH_COUNT + STREAM_COUNT);
-        let idle = INPUT_COUNT + BATCH_COUNT + STREAM_COUNT;
-        for use_case in [UseCase::IdleOneMessage, UseCase::IdleManyMessages, UseCase::IdleStreaming] {
+        let idle = INPUT_COUNT + BATCH_COUNT;
+        for use_case in [UseCase::IdleOneMessage, UseCase::IdleManyMessages] {
             let (twin, mine) = (use_case.call().points(), use_case.points());
             assert_eq!(mine, twin.start + idle..twin.end + idle, "each idle axis follows its twin's pattern");
             for (a, b) in POINTS[twin].iter().zip(&POINTS[mine]) {
@@ -7497,18 +7413,16 @@ mod correctness_tests {
         assert_eq!(UseCase::ContinuousBatches.points(), continuous + CONTINUOUS_MESSAGE_COUNT..continuous + CONTINUOUS_MESSAGE_COUNT + CONTINUOUS_BATCH_COUNT);
         let lent = continuous + CONTINUOUS_MESSAGE_COUNT + CONTINUOUS_BATCH_COUNT;
         assert_eq!(UseCase::LentMessages.points(), lent..lent + CONTINUOUS_MESSAGE_COUNT);
-        assert_eq!(UseCase::LentPieces.points(), lent + CONTINUOUS_MESSAGE_COUNT..lent + 2 * CONTINUOUS_MESSAGE_COUNT);
-        assert_eq!(UseCase::LentBatches.points(), lent + 2 * CONTINUOUS_MESSAGE_COUNT..POINT_COUNT);
+        let pieces = lent + CONTINUOUS_MESSAGE_COUNT;
+        assert_eq!(UseCase::LentPieces.points(), pieces..pieces + LENT_PIECES_COUNT);
+        assert_eq!(UseCase::LentBatches.points(), pieces + LENT_PIECES_COUNT..POINT_COUNT);
         let covered: Vec<_> = UseCase::ALL.into_iter().flat_map(UseCase::points).collect();
         assert_eq!(covered, (0..POINT_COUNT).collect::<Vec<_>>());
-        for use_case in [UseCase::LentMessages, UseCase::LentPieces] {
-            for (owned, lent) in POINTS[UseCase::ContinuousMessages.points()].iter().zip(&POINTS[use_case.points()]) {
-                assert_eq!((owned.label, owned.bytes), (lent.label, lent.bytes));
-            }
+        for (owned, lent) in POINTS[UseCase::ContinuousMessages.points()].iter().zip(&POINTS[UseCase::LentMessages.points()]) {
+            assert_eq!((owned.label, owned.bytes), (lent.label, lent.bytes));
         }
-        for (one, streamed) in POINTS[UseCase::OneMessage.points()].iter().zip(&POINTS[UseCase::Streaming.points()]) {
-            assert_eq!((one.label, one.bytes), (streamed.label, streamed.bytes), "the streamed axis repeats the one-message sizes");
-        }
+        let long = POINTS[UseCase::LentPieces.points()][0];
+        assert!(long.bytes == 64 << 20 && long.label == "64 MiB", "a message in pieces is one long message, 64 MiB");
         for (k, point) in POINTS[UseCase::ContinuousMessages.points()].iter().enumerate() {
             assert_eq!(point.bytes, 64 << (2 * k), "the continuous messages go up by factors of four from 64 B");
         }

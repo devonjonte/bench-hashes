@@ -36,14 +36,12 @@ spec.loader.exec_module(samples)
 HEADINGS = {
     "A message in one buffer, after other work": "OneMessage",
     "A batch of 64-byte messages, after other work": "ManyMessages",
-    "A message arriving in 64 KiB pieces, after other work": "Streaming",
     "A message in one buffer, after idling": "IdleOneMessage",
     "A batch of 64-byte messages, after idling": "IdleManyMessages",
-    "A message arriving in 64 KiB pieces, after idling": "IdleStreaming",
     "Messages one after another, buffers owned": "ContinuousMessages",
     "Batches one after another, buffers owned": "ContinuousBatches",
     "Messages one after another, buffers lent": "LentMessages",
-    "Messages in pieces one after another, buffers lent": "LentPieces",
+    "64 MiB messages in 64 KiB pieces, one after another, buffers lent": "LentPieces",
     "Batches one after another, buffers lent": "LentBatches",
 }
 MASK = (1 << 64) - 1

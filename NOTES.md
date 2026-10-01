@@ -882,3 +882,43 @@ expectation, not a bug: removed; METHODOLOGY states the effect.
   one buffer for every point, each a prefix, 0.87 GB (832-835: +0.06%,
   +0.7%, -1.6%, each inside its same-code spread; a test pins the
   prefix property).
+
+### A message in pieces: one long message, nonstop (October 1)
+
+Zooko's decision (FROZEN.md): the pieces sweeps after other work and
+after idling go, and nonstop lent pieces keep one point, 64 MiB.
+Evidence (Mac jobs 829-830, nonstop, solo, ns/B): a message of up to 64
+KiB is one piece and reads as the one-message cell (256 B-64 KiB within
++-3%, 64 KiB within 0.5%; 64 B: the Hasher's fixed cost, servil +16-17%,
+SHA-256 -6 to -12%). A long message on one thread costs 3-8% above the
+64 KiB one-message cell (servil st 0.235-0.245 against 0.228; ring
+0.309-0.319 against 0.302). servil mt's `update_multithreaded` sustains
+0.099-0.121 from 256 KiB to 64 MiB, a rate no one-message cell predicts
+(0.228 at 64 KiB, 0.036 for one 64 MiB buffer): the 64 MiB point keeps
+it. After a gap the sweep took a third of each gap phase; a full VM run
+now takes about 40 s (was 64 s).
+
+Analysis for other machines: the pieces are 64 KiB, inside every
+current core's own cache, so on one thread their cost follows from the
+64 KiB one-message cell anywhere; the only machine-independent unknown
+is whether an incremental API spreads a long message over threads, which
+one long message shows.
+
+What the cut loses, stated: the VM finding "servil mt's lent pieces
+faster shared than solo at 256 KiB-4 MiB" is no longer measured (at 64
+MiB the VM reads shared 17% slower, as expected; the Mac 3% apart), and
+perf_regress no longer covers lingering's ramp (pieces of a 256 KiB-4
+MiB message). Both are the fork's to probe.
+
+The graph draws a plot of one point in its middle, whatever the zoom
+(`x_fraction`, `windowFor`; check.js holds it); the guide shows that
+cell for nonstop pieces, and for pieces now and then shows `hash`'s
+cells, labelled by piece length ("each piece costs about what hash costs
+on one buffer of the piece's length"). Its chart's range now reaches a
+gridline at each end, so a chart of close values has numbers on its axis.
+
+Kept after review (Zooko, October 1): the 27 one-message sizes and 24
+batch counts (engineers come for the number at their size and for where
+contenders cross); both pause kinds; shared; servil mt below its split
+(where it starts using threads depends on the machine, and the full
+sweep is what would show a change there).

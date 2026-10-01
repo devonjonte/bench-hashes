@@ -12,7 +12,7 @@ const path = require('path');
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(pathToFileURL(path.resolve(process.argv[2])).href);
   // The table, written independently of the page's function.
-  const after = { message: ['hash', 'hash_multithreaded', 'OneMessage'], pieces: ['update', 'update', 'Streaming'], batch: ['hash_many', 'hash_many_multithreaded', 'ManyMessages'] };  // after other work, the default for a program that keeps up
+  const after = { message: ['hash', 'hash_multithreaded', 'OneMessage'], pieces: ['update', 'update', 'OneMessage'], batch: ['hash_many', 'hash_many_multithreaded', 'ManyMessages'] };  // after other work, the default for a program that keeps up
   const continuous = {
     message: ['hash', 'hash_multithreaded', 'Queue::messages', 'LentMessages', 'ContinuousMessages'],
     pieces: ['update', 'update_multithreaded', 'Queue::pieces', 'LentPieces', 'ContinuousMessages'],
@@ -45,7 +45,7 @@ const path = require('path');
     assert(state.resultVisible);
     assert(state.example.includes('fn main'), `${state.call}: a complete program`);
     assert(state.example.includes(state.call.replace('Queue::', '')), `${state.call}: the example calls it`);
-    if (state.unmeasured) { assert.equal(state.call, 'Queue::pieces', 'only the >64 KiB queue cells may be absent from a quick run'); }
+    if (state.unmeasured) { assert(['Queue::pieces', 'update', 'update_multithreaded'].includes(state.call), `${state.call}: only cells past 1 MiB may be absent from a quick run`); }
     else {
       measured++;
       assert(state.dots >= 2, `${state.call}: dots`);

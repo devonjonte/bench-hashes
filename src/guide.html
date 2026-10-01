@@ -58,6 +58,7 @@ ul.paths svg { display: inline; width: 14px; height: 14px; vertical-align: -2px;
 <h2>Use <code id="fn"></code></h2>
 <p id="summary"></p>
 <p id="speed-summary"></p>
+<p id="stand-in" hidden class="muted"></p>
 <div class="how" id="how"></div>
 <div id="chart"></div>
 <p id="unmeasured" hidden class="muted">This run holds no measurement of this function called this way. A full run of the benchmark measures every function in this guide.</p>
@@ -101,7 +102,8 @@ function steps(a) {
 }
 
 /* The decision table (the crate's docs, "Five questions lead a user to one call"). */
-const PATTERNS = { message: ["IdleOneMessage", "OneMessage", "LentMessages"], pieces: ["IdleStreaming", "Streaming", "LentPieces"], batch: ["IdleManyMessages", "ManyMessages", "LentBatches"] };
+/* A message in pieces now and then: each piece costs about what hash costs on a buffer that long, so its plots are hash's. */
+const PATTERNS = { message: ["IdleOneMessage", "OneMessage", "LentMessages"], pieces: ["IdleOneMessage", "OneMessage", "LentPieces"], batch: ["IdleManyMessages", "ManyMessages", "LentBatches"] };
 function recommendation(a) {
   const many = a.threads === "many", nonstop = a.keepsUp === "no", s = a.shape;
   if (many && nonstop && a.buffer === "owned") {
@@ -214,11 +216,15 @@ function drawSpeed() {
   const measured = plot && points.length > 0;
   el("unmeasured").hidden = measured;
   el("chart").hidden = el("speed-summary").hidden = !measured;
-  if (!measured) { el("paths").replaceChildren(); el("method").textContent = ""; return; }
+  if (!measured) { el("paths").replaceChildren(); el("method").textContent = ""; el("stand-in").hidden = true; return; }
   const other = rival(plot);
   const mine = DATA.contenders.find(c => c.key === r.contender), theirs = DATA.contenders.find(c => c.key === other);
   const series = [[mine, plot.series[r.contender]]].concat(theirs ? [[theirs, plot.series[other]]] : []);
-  const xLabel = plot.batch ? "Messages per batch" : "Message length";
+  /* hash's plot standing in for update's pieces now and then: its x is each piece's length. */
+  const standIn = r.shape === "pieces" && plot.use !== "LentPieces";
+  el("stand-in").hidden = !standIn;
+  el("stand-in").textContent = standIn ? "Each piece costs about what hash costs on one buffer of the piece's length: these are hash's measurements, and a message of up to 64 KiB is a single piece." : "";
+  const xLabel = plot.batch ? "Messages per batch" : standIn ? "Length of each piece" : "Message length";
   const unit = plot.batch ? " messages" : "";
 
   /* The sentence, from the same numbers as the dots: the size from which the lead holds to the largest. */
@@ -227,7 +233,8 @@ function drawSpeed() {
     const ahead = points.map(k => +plot.series[r.contender].med[k] < +plot.series[other].med[k]);
     let from = ahead.length;
     while (from > 0 && ahead[from - 1]) from--;
-    if (from === 0) text = `Faster than ${theirs.name} at every size measured.`;
+    if (points.length === 1) text = `${ahead[0] ? "Faster" : "Slower"} than ${theirs.name} on a ${plot.labels[points[0]]} message in 64 KiB pieces.`;
+    else if (from === 0) text = `Faster than ${theirs.name} at every size measured.`;
     else if (from === ahead.length) text = `Slower than ${theirs.name} at every size measured.`;
     else text = `Faster than ${theirs.name} from ${plot.labels[points[from]]}${unit} up; ${ahead.slice(0, from).some(x => x) ? "the two trade places below that" : `${theirs.name} leads below that`}.`;
   }
@@ -242,7 +249,9 @@ function drawSpeed() {
   for (const i of points.map((_, i) => i).sort((a, b) => (Number.isInteger(logs[b]) - Number.isInteger(logs[a])) || a - b)) if (placed.every(j => Math.abs(xs[i] - xs[j]) >= 58)) placed.push(i);
   const rate = ns => (plot.batch ? 1000 : 1) / ns;
   const vals = series.flatMap(([, s]) => points.flatMap(k => [+s.med[k], s.med2[k] === null ? +s.med[k] : +s.med2[k]]));
-  const lo = Math.min(...vals.map(rate)) / 1.15, hi = Math.max(...vals.map(rate)) * 1.15;
+  /* The range reaches out to a gridline (1, 2, or 5 times a power of ten) at each end, so every chart has numbers on its axis. */
+  const nice = (v, up) => { const e = 10 ** Math.floor(Math.log10(v)); const ms = up ? [1, 2, 5, 10] : [10, 5, 2, 1]; return e * ms.find(m => up ? e * m >= v : e * m <= v); };
+  const lo = nice(Math.min(...vals.map(rate)) / 1.15, false), hi = nice(Math.max(...vals.map(rate)) * 1.15, true);
   const y = v => T + (Math.log(hi) - Math.log(v)) / (Math.log(hi) - Math.log(lo)) * (H - T - B);
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${xLabel} against throughput, higher is better">`;
   for (let e = Math.floor(Math.log10(lo)); e <= Math.ceil(Math.log10(hi)); e++) for (const m of [1, 2, 5]) {
@@ -289,10 +298,10 @@ function methodText(plot) {
   if (use === "ContinuousMessages" || use === "ContinuousBatches")
     return `Measured ${where}, ${sc}. The program read each input into one of its own buffers (a memory copy, the cheapest read) and handed it to the queue, keeping about 1 MiB or 1024 buffers in flight; the time runs from the first read to the last digest, so reading and hashing overlap. SHA-256 ran the same producer with a plain call per input.`;
   if (use.startsWith("Lent"))
-    return `Measured ${where}, ${sc}. The program read each input into a buffer (a memory copy) and called the function, one input after another with nothing between; the read is inside the time. Every contender ran the same loop.`;
+    return `Measured ${where}, ${sc}. The program read each input${use === "LentPieces" ? ", 64 KiB at a time," : ""} into a buffer (a memory copy) and called the function, one input after another with nothing between; the read is inside the time. Every contender ran the same loop.`;
   if (use.startsWith("Idle"))
-    return `Measured ${where}, ${sc}. The program called the function, slept a millisecond, as a server waits for its next request, wrote the next input, and called again; the function found helper threads asleep and a core that may have slowed or powered down. The second call alone is timed${use === "IdleStreaming" ? ", with each piece's read" : ""}.`;
-  return `Measured ${where}, ${sc}. The program called the function, then ran a fixed other program (about 1 MiB of code) and read 128 MiB of data, at least a millisecond in all, wrote the next input, and called again: the function found its code and data out of the caches and its helper threads asleep, as in a program that hashes between its other tasks. The second call alone is timed${use === "Streaming" ? ", with each piece's read" : ""}.`;
+    return `Measured ${where}, ${sc}. The program called the function, slept a millisecond, as a server waits for its next request, wrote the next input, and called again; the function found helper threads asleep and a core that may have slowed or powered down. The second call alone is timed.`;
+  return `Measured ${where}, ${sc}. The program called the function, then ran a fixed other program (about 1 MiB of code) and read 128 MiB of data, at least a millisecond in all, wrote the next input, and called again: the function found its code and data out of the caches and its helper threads asleep, as in a program that hashes between its other tasks. The second call alone is timed.`;
 }
 
 el("back").onclick = () => { const last = history.pop(); delete answers[last.key]; show(); };

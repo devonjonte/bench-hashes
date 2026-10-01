@@ -96,8 +96,8 @@ folder name of its own.
 A contender is a variant of `Algorithm` in `src/main.rs`, with an entry
 in `Algorithm::ALL`, a key, a name, a colour, a provenance string, a mode
 description, a kernel description (`detect_kernels`), an arm in
-`hash_batch`, and one in `hash_stream` (or `takes_part` false for the
-streamed use case). The harness handles selection, interleaving, checking, and
+`hash_batch`, and one in `hash_stream`, its incremental API for a
+message in pieces. The harness handles selection, interleaving, checking, and
 reporting for any count from two to eight.
 
 ## Text in the graph and the report

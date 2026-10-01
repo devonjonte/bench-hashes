@@ -3,7 +3,7 @@
 This file explains what a run measures, how it keeps the numbers honest,
 and what each contender runs. [README.md](README.md) says how to run it.
 
-Every run measures each contender in eleven use cases and two scenarios.
+Every run measures each contender in nine use cases and two scenarios.
 The first three are the synchronous calls, each made after a gap, as a
 program that hashes now and then calls them, in two ways, each measured:
 **after other work**, after the program has run a fixed other program and
@@ -12,19 +12,15 @@ read 128 MiB of data, as on a machine busy with other programs; and
 for its next request. **A message in one buffer**: a call hashes one input, at
 twenty-seven sizes from 64 B to 128 MiB, reported per byte. **A batch**:
 a call hashes a batch of 64-byte messages, at twenty-four batch sizes
-from 1 to 262144 messages, reported per message. **A message in
-pieces**: the same inputs as one message, produced in 64 KiB pieces (the
-last one shorter), each copied as a read would copy it and fed to the
-contender's incremental API, then finalized, so the implementation never
-learns the total size in advance; reported per byte. Two further tasks hash
+from 1 to 262144 messages, reported per message. Two further tasks hash
 one input after another, as fast as the program can: **messages one
 after another**, at eleven sizes from 64 B to 64 MiB, each read into a
 buffer (a memory copy) and hashed, reported per byte; and **batches one
 after another**, of 16 to 65536 64-byte messages, reported per message.
 Three more continuous tasks measure buffers that the producer lends
-until the hashing call returns: whole messages, messages in 64 KiB
-pieces, and batches. Their sizes match the owned-buffer continuous
-axes. Whole messages use one-shot calls at every size; pieces use the
+until the hashing call returns: whole messages, 64 MiB messages in 64
+KiB pieces, and batches. Messages and batches match the owned-buffer
+continuous axes. Whole messages use one-shot calls at every size; pieces use the
 incremental API, with `update_multithreaded` for servil mt; batches use
 batch calls. Each read is timed, and reading and hashing take turns.
 **Solo**: one copy of the contender, no other program running at the
@@ -86,21 +82,25 @@ feel it.
 ## A message in pieces
 
 A program that reads a file or a socket hands a hash its input piece by
-piece. This use case measures that at the one-message sizes, with
-pieces of 64 KiB (a common read buffer): an input below 64 KiB is one
-piece, a larger one a piece per 64 KiB. Each piece is read, timed, as a
-memory copy from the input, the cheapest read there is (a read from the
-operating system's page cache adds a system call per piece), and every
-contender pays it once per byte.
+piece, so the hash never learns the total size in advance. This use case
+measures that on 64 MiB messages, one after another, in pieces of 64 KiB
+(a common read buffer). One length is enough. A message of up to 64 KiB
+is a single piece, so it costs what the one-message call costs on it.
+On one thread, a long message's pieces each cost about what the
+one-message call costs at 64 KiB. A multithreaded incremental API can
+spread a long message's pieces over threads, a rate no one-message
+size predicts; one long message shows it. Each piece is read, timed, as
+a memory copy from the input, the cheapest read there is (a read from
+the operating system's page cache adds a system call per piece), and
+every contender pays it once per byte.
 
 Each piece is read into a 64 KiB buffer of the program's, kept from one
 message to the next, and then handed to the contender's incremental API,
 so reading and hashing take turns (`Hasher::update` in crates.io BLAKE3
 and in both BLAKE3 servil contenders, `update_rayon` for BLAKE3 official mt, `Digest::update` in sha2 and
 sha1-checked, ring's `Context::update`, CommonCrypto's
-`CC_SHA256_Update`). The first piece comes after the gap, the rest in
-swift succession, then the message is finalized. The expected digests
-are the one-message ones.
+`CC_SHA256_Update`), and the message is finalized; the next message
+follows at once. BLAKE3 servil mt calls `Hasher::update_multithreaded`.
 
 ## One input after another
 
@@ -497,7 +497,7 @@ end leaves its tick only once the pointer aims 3 px nearer another; the
 ticks under the ends light up while dragging. "All", shown whenever the
 range is narrowed, restores every input. The chips at the header's right
 show and hide plots, by scenario (solo, shared) and by use case (one
-buffer, a batch, pieces, messages nonstop, batches nonstop); the plots shown close ranks, and a row keeps at
+buffer, a batch, messages, pieces, and batches nonstop, owned or lent); the plots shown close ranks, and a row keeps at
 least one chip pressed. The header (title, strip, chips, and rate/time
 switch) sits at the top of the page.
 
@@ -612,4 +612,7 @@ ran at two speeds, the faster leads and the slower follows with its
 share of the samples. Each figure is the exact midpoint of the measured
 ratios, scaled to the call and rounded once for the page.
 `Queue::messages` covers messages up to 64 KiB and `Queue::pieces` the
-longer ones. A run that lacks the recommended cells says so.
+longer ones. For a message arriving in pieces now and then, the guide
+shows `hash`'s cells, labelled by piece length: each piece costs about
+what `hash` costs on a buffer that long. A run that lacks the
+recommended cells says so.

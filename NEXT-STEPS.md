@@ -10,6 +10,27 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
+## Update (October 1, 2026): pieces measured at one long message
+
+Done (NOTES, "A message in pieces: one long message, nonstop"; FROZEN.md):
+the pieces sweeps after a gap are gone, nonstop lent pieces keep 64 MiB;
+the graph draws a one-point plot, the guide shows `hash`'s cells for
+pieces now and then. VM: tests, check-report (668 cells), check.js,
+guide.js (48 routes, 21 endings) pass; a full run 64 -> about 40 s.
+Next number for the Mac: see runner/jobs. Item 1 of "Next session" below
+is done.
+
+**Zooko, October 1, to test (fork):** servil mt went single-threaded
+below 768 KiB (now 512 KiB) for a minimax reason since abandoned; earlier
+it led its competitors from 32 KiB. Test whether `hash_multithreaded`
+should use threads at smaller sizes again, natively, after a gap and
+nonstop. He also warns that every measurement cut can hide a later
+regression: cut only what no plausible change could make informative.
+
+**Open, moved to the fork's probes:** servil mt's lent pieces faster
+shared than solo at 256 KiB-4 MiB (VM; no longer measured), and
+lingering's ramp at those lengths (perf_regress covers 64 MiB only).
+
 ## Resume here (September 30, 2026, night): readiness for announcing
 
 **Goal now (Zooko):** correctness, accuracy, trustworthiness, clarity,
