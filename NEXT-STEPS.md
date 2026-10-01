@@ -38,11 +38,9 @@ closed) answered.
 - Job 852's held 64 B cell was layout luck: no regression.
 
 **Next, in order:**
-1. perf_regress's remaining false verdicts: servil's lent batches of 16,
-   a two-speed nonstop cell whose share swings, gave "faster" on code it
-   never runs (VM today) and held once on the Mac (job 883): its 5th
-   percentile moves with the share. Decide by "Every piece earns its
-   place" with self-compares (rate on identical code).
+1. perf_regress on identical code is clean now: 16 of 16 self-compares
+   (Mac jobs 916-923, VM 8) with no verdict. Watch servil's lent batches
+   of 16 (two speeds; one "faster" in a VM check of a real change).
 2. The run-order effect (the second run of a short pair 1.5x slower at
    64 B after other work, Mac): cause unknown; it touches the benchmark's
    cells after a gap too.
