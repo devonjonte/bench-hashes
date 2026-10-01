@@ -15,12 +15,11 @@ compile_error!("bench-hashes currently supports native targets only");
  * orders, with samples of about TARGET_SAMPLE_NS each. The two
  * knobs trade off differently:
  *
- * - Fewer rounds thin the evidence behind the min–max band, so the band can
- *   look tight while the true spread is wider: false precision.
+ * - Fewer rounds thin the evidence behind each median and its speeds: a
+ *   second speed held by a few samples goes unseen.
  * - Shorter samples keep the sample count. Any disturbance (an interrupt, a
- *   clock step) is a larger share of a short sample, so it widens the band
- *   rather than averaging away inside it. The band then tells the truth
- *   about how noisy the run was.
+ *   clock step) is a larger share of a short sample, so it shows as a slow
+ *   sample rather than averaging away inside one.
  *
  * So the runtime budget goes to rounds first. 1 ms is long enough that the
  * clock's own resolution (tens of nanoseconds) is under 0.01% of a sample.
@@ -924,12 +923,6 @@ impl Fixed {
         u64::try_from((self.0 * 1000 + (1 << 63)) >> 64).expect("a permille figure fits in u64")
     }
 
-    /// self / other in permille, rounded once.
-    fn ratio_permille(self, other: Fixed) -> u64 {
-        assert!(other.0 > 0);
-        u64::try_from((self.0 * 1000 + other.0 / 2) / other.0).expect("a ratio fits in u64")
-    }
-
     /// Nanoseconds, for the SVG's log axis only.
     fn ns_f64(self) -> f64 {
         self.0 as f64 / (1u128 << 64) as f64
@@ -962,11 +955,8 @@ impl Fixed {
 
 
 /*
- * Summary of one cell's samples. `low` and `high` bound the band the graph
- * draws: a 95% bootstrap confidence interval of the median. That interval
- * says how well the median is known; it narrows as 1/√n with more rounds,
- * and outliers barely move it. `minimum` and `maximum` are the extremes
- * seen, for the text report.
+ * Summary of one cell's samples: its median, and `minimum` and `maximum`,
+ * the extremes seen.
  *
  * `two_speeds` is set when the samples split into two clusters at least
  * 4% apart, their medians at least 1.25× apart, with a tenth or more of
@@ -974,7 +964,7 @@ impl Fixed {
  * at two speeds in this context (two SME2 copies sharing a unit or not,
  * the interleaving's neighbours), which a single median cannot express and
  * would report as whichever cluster happens to hold the middle sample.
- * Each speed then carries its own median and interval, and every report
+ * Each speed then carries its own median, and every report
  * shows both, the faster first.
  */
 #[derive(Clone, Copy)]
@@ -982,22 +972,18 @@ struct Statistics {
     /// Samples behind these figures.
     count: usize,
     minimum: PerUnit,
-    low: PerUnit,
     median: PerUnit,
-    high: PerUnit,
     maximum: PerUnit,
     two_speeds: Option<[Speed; 2]>,
     exact_median: Option<ExactMedian>,
 }
 
-/// One speed a cell ran at: the median of its samples, the 95% bootstrap
-/// interval of that median, and how many samples it holds.
+/// One speed a cell ran at: the median of its samples, and how many
+/// samples it holds.
 #[derive(Clone, Copy)]
 struct Speed {
     median: PerUnit,
     exact_median: Option<ExactMedian>,
-    low: PerUnit,
-    high: PerUnit,
     count: usize,
 }
 
@@ -1012,21 +998,13 @@ impl Statistics {
     fn speeds(&self) -> Vec<Speed> {
         match self.two_speeds {
             Some(pair) => pair.to_vec(),
-            None => vec![Speed { median: self.median, exact_median: self.exact_median, low: self.low, high: self.high, count: self.count }],
+            None => vec![Speed { median: self.median, exact_median: self.exact_median, count: self.count }],
         }
     }
-
-    /// The widest 95% interval among the cell's speeds, in permille of
-    /// its median (see spread_permille).
-    fn widest_spread_permille(&self) -> u64 {
-        self.speeds().into_iter().map(spread_permille).max().unwrap()
-    }
-
 }
 
 /*
- * A cell's speeds, their medians, and those medians' bootstrap intervals
- * come from the clocks crate's speeds module, the one rule every
+ * A cell's speeds and their medians come from the clocks crate's speeds module, the one rule every
  * measurement in both projects uses (its docs: a gap of 4% of the median
  * between sorted neighbours, a tenth of the samples or more on each side,
  * the sides' medians 1.25x apart or more). PerUnit's Q64.64 is its
@@ -3223,32 +3201,22 @@ fn summarize(samples: &mut [PerUnit]) -> Statistics {
     samples.sort_unstable();
 
     let median = median_of_sorted(samples);
-    let (low, high) = bootstrap_median_interval(samples);
 
     Statistics {
         count: samples.len(),
         minimum: samples[0],
-        low,
         median,
-        high,
         maximum: samples[samples.len() - 1],
         two_speeds: two_speeds(samples),
         exact_median: None,
     }
 }
 
-/// The 95% bootstrap interval of a sorted, non-empty slice's median
-/// (clocks::speeds::bootstrap_median_interval).
-fn bootstrap_median_interval(sorted: &[PerUnit]) -> (PerUnit, PerUnit) {
-    let (low, high) = clocks::speeds::bootstrap_median_interval(&raw(sorted));
-    (Fixed(low), Fixed(high))
-}
-
 /// The cell's two speeds, faster first, when the rule splits its sorted
 /// samples (clocks::speeds::speeds).
 fn two_speeds(sorted: &[PerUnit]) -> Option<[Speed; 2]> {
     let found = clocks::speeds::speeds(&raw(sorted));
-    let speed = |s: &clocks::speeds::Speed| Speed { median: Fixed(s.median), exact_median: None, low: Fixed(s.low), high: Fixed(s.high), count: s.count };
+    let speed = |s: &clocks::speeds::Speed| Speed { median: Fixed(s.median), exact_median: None, count: s.count };
     (found.len() == 2).then(|| [speed(&found[0]), speed(&found[1])])
 }
 
@@ -3751,11 +3719,10 @@ fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, 
     writeln!(output, "Hash speed on {} ({}, {} CPUs), {}", machine.cpu_type, machine.os_type, machine.cpu_count, machine.timestamp).unwrap();
     writeln!(
         output,
-        "{} run: {} rounds{}. Each cell is the median time per unit, lower is better; a|b: the cell ran at two speeds, both medians given, faster first; ~ marks a median known only to within {}%.",
+        "{} run: {} rounds{}. Each cell is the median time per unit, lower is better; a|b: the cell ran at two speeds, both medians given, faster first.",
         if roster.points.iter().all(|&index| POINTS[index].quick()) { "Quick" } else { "Full" },
         roster.rounds,
         if roster.points.iter().all(|&index| POINTS[index].quick()) { "; a full run confirms and adds the largest inputs and batches" } else { "" },
-        SPREAD_WIDE_PERMILLE / 10,
     )
     .unwrap();
     writeln!(output).unwrap();
@@ -3813,8 +3780,8 @@ fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, 
 /*
  * Consistency checks: relations that hold for every contender alike when
  * the benchmark measures what it means to, each judged on cells' fast
- * speeds with their 95% intervals apart and CONSISTENCY_PERMILLE between
- * them (bench-hashes NOTES, "Consistency checks"). A broken one is a bug
+ * speeds, CONSISTENCY_PERMILLE apart or more (bench-hashes NOTES,
+ * "Consistency checks"). A broken one is a bug
  * in the benchmark or in the code under test, or a finding to explain.
  * They go to a file of their own, for maintainers.
  */
@@ -3826,10 +3793,10 @@ const CONSISTENCY_PERMILLE: u64 = 100;
 /// 16 KiB, 36 from 256 KiB, VM), which is no bug.
 const CACHED_BYTES: usize = 32 * 1024;
 
-/// Where `slow` is slower than `fast` by more than the margin with the
-/// intervals apart: slow over fast, in permille.
+/// Where `slow` is slower than `fast` by more than the margin: slow over
+/// fast, in permille.
 fn slower_by(slow: Speed, fast: Speed) -> Option<u64> {
-    (slow.low > fast.high && fast.median.cmp_permille(0).is_gt()
+    (fast.median.cmp_permille(0).is_gt()
         && slow.median.ratio(fast.median).cmp_permille(1000 + CONSISTENCY_PERMILLE).is_gt())
         .then(|| slow.median.ratio(fast.median).permille())
 }
@@ -3891,7 +3858,7 @@ fn consistency(roster: &Roster, results: &Results) -> String {
         }
     }
     let mut out = format!(
-        "# bench-hashes consistency checks (for maintainers): relations that hold for every contender when the benchmark measures what it means to, judged on fast speeds, intervals apart and over {}% between them.\n\
+        "# bench-hashes consistency checks (for maintainers): relations that hold for every contender when the benchmark measures what it means to, judged on fast speeds, over {}% apart.\n\
          # 1. Nonstop no slower than after other work, 64 B-4 KiB. 2. Shared no faster than solo. 3. A hash on the cores alone no slower shared. 4. No slower per unit than a size that divides the work, up to 32 KiB, outside the idle use cases.\n",
         CONSISTENCY_PERMILLE / 10,
     );
@@ -3922,9 +3889,8 @@ fn append_table(output: &mut String, roster: &Roster, results: &Results, scenari
         write!(output, "  {:<8}", POINTS[point_index].label).unwrap();
         for &algorithm_index in &contenders {
             let statistics = cell(results, algorithm_index, point_index).get(scenario);
-            let mark = if statistics.widest_spread_permille() >= SPREAD_WIDE_PERMILLE { "~" } else { " " };
             let figures: Vec<String> = statistics.speeds().iter().map(|speed| speed.format_median(1)).collect();
-            write!(output, "  {:>13}{mark}", figures.join("|")).unwrap();
+            write!(output, "  {:>13} ", figures.join("|")).unwrap();
         }
         writeln!(output).unwrap();
     }
@@ -4278,8 +4244,8 @@ impl Plot {
         let visible: Vec<usize> = contenders.iter().copied().filter(|&a| shown[a]).collect();
         assert!(!visible.is_empty(), "every contender shown at first takes part in every use case");
         let cells = || visible.iter().flat_map(|&a| points.clone().map(move |s| (a, s))).map(|(a, s)| cell(results, a, s));
-        let observed_max = cells().map(|cell| cell.get(scenario).high).max().expect("there are results");
-        let observed_min = cells().map(|cell| cell.get(scenario).low).min().expect("there are results");
+        let observed_max = cells().map(|cell| cell.get(scenario).speeds().last().unwrap().median).max().expect("there are results");
+        let observed_min = cells().map(|cell| cell.get(scenario).speeds()[0].median).min().expect("there are results");
 
         /*
          * The static render shows gigabytes per second, the default unit:
@@ -4416,13 +4382,11 @@ fn generate_guide(roster: &Roster, results: &Results, machine: &MachineMetadata)
                 if !first_series { data.push(','); }
                 first_series = false;
                 write!(data, "{}:{{", json_string(algorithm.key())).unwrap();
-                /* Per point: the fast speed's median (ns per unit), its 95% interval, the slow speed's median and share, and each speed's exact per-call latency. */
+                /* Per point: the fast speed's median (ns per unit), the slow speed's median and share, and each speed's exact per-call latency. */
                 let per_point = |f: &dyn Fn(Statistics, u64) -> String| -> String {
                     points.iter().map(|&index| f(cell(results, algorithm_index, index).get(scenario), use_case.units(POINTS[index], 1))).collect::<Vec<_>>().join(",")
                 };
                 write!(data, "\"med\":[{}],", per_point(&|t, _| t.speeds()[0].format_median(1))).unwrap();
-                write!(data, "\"low\":[{}],", per_point(&|t, _| t.speeds()[0].low.format_ns())).unwrap();
-                write!(data, "\"high\":[{}],", per_point(&|t, _| t.speeds()[0].high.format_ns())).unwrap();
                 write!(data, "\"med2\":[{}],", per_point(&|t, _| t.two_speeds.map_or("null".to_owned(), |pair| pair[1].format_median(1)))).unwrap();
                 write!(data, "\"share2\":[{}],", per_point(&|t, _| t.two_speeds.map_or("0".to_owned(), |pair| ((pair[1].count * 1000 + t.count / 2) / t.count).to_string()))).unwrap();
                 write!(data, "\"lat\":[{}],", per_point(&|t, units| t.speeds()[0].format_median(units))).unwrap();
@@ -4839,7 +4803,6 @@ fn generate_svg(
      */
     let mut howto = vec![
         format!("Each line is one hash. Each dot is the median of up to {} timings at that size.", 2 * roster.rounds),
-        "The shaded band around a line shows how precisely its median is known (95% confidence; two copies at once may vary together, so their bands may read narrow); a deeper tint marks a less certain median.".to_owned(),
         "A dot's shape marks the method the hash used at that size. The section \"Code paths\" at the bottom names each method.".to_owned(),
         "Rate counts bytes or messages per second, time the nanoseconds per byte or message; the switch at right changes every plot.".to_owned(),
         "The strip at the top narrows every plot to part of its inputs: drag an end of its band, or use the arrows at its ends.".to_owned(),
@@ -5184,16 +5147,15 @@ fn write_plot(svg: &mut String, plot: &Plot, roster: &Roster, results: &Results,
     let value_columns = value_label_columns(&plot.x_positions);
 
     /*
-     * Dots are collected here and emitted after every series' band and
-     * line, so no band can sit above another contender's dots and take
-     * the hover. Each dot layer carries its plot and series index; the
+     * Dots are collected here and emitted after every series' line, so no
+     * line can sit above another contender's dots and take the hover. Each dot layer carries its plot and series index; the
      * script and stylesheet treat it as part of that series.
      */
     let mut dot_layers: Vec<String> = Vec::new();
 
     /*
-     * One group per contender holds everything that belongs to it: band,
-     * line, dots, value labels, the clickable label at right, and (in the
+     * One group per contender holds everything that belongs to it: line,
+     * dots, value labels, the clickable label at right, and (in the
      * first plot it takes part in) its provenance lines. Toggling flips one attribute on
      * the group.
      */
@@ -5215,9 +5177,9 @@ fn write_plot(svg: &mut String, plot: &Plot, roster: &Roster, results: &Results,
 
         /*
          * Two speeds: at each point the common speed (the one with more
-         * samples) carries the line and band at full strength. A point
-         * that ran at two speeds adds its rare speed as segments to its
-         * neighbours, line and band dimmed in proportion to the rare
+         * samples) carries the line at full strength. A point that ran at
+         * two speeds adds its rare speed as segments to its neighbours,
+         * dimmed in proportion to the rare
          * speed's share (rare_opacity_hundredths). The script redraws the
          * same elements.
          */
@@ -5229,36 +5191,6 @@ fn write_plot(svg: &mut String, plot: &Plot, roster: &Roster, results: &Results,
         };
         let rare_strength = |k: usize| rare_opacity_hundredths(&speeds_at(k)).unwrap_or(0);
         let point = |k: usize, value: PerUnit| (plot.x_positions[k], plot.map_y(value));
-
-        let mut band = String::new();
-        for k in 0..plot.len() {
-            let (x, y) = point(k, common_at(k).high);
-            write!(band, "{} {x:.2} {y:.2}", if k == 0 { "M" } else { " L" }).unwrap();
-        }
-        for k in (0..plot.len()).rev() {
-            let (x, y) = point(k, common_at(k).low);
-            write!(band, " L {x:.2} {y:.2}").unwrap();
-        }
-        band.push_str(" Z");
-
-        /*
-         * The band's tint reports the run's precision for this contender.
-         * Spread is (max − min) / median at a point; the band takes the
-         * worst spread across the axis. Tight runs stay a faint tint;
-         * wider runs deepen it. No outline: the tint alone carries the
-         * precision, and the plot stays quiet.
-         */
-        let worst_spread = (0..plot.len())
-            .map(|k| cell_at(k).get(plot.scenario).widest_spread_permille())
-            .max()
-            .expect("there is at least one point");
-        let (opacity_hundredths, _) = band_style(worst_spread);
-
-        writeln!(
-            svg,
-            r##"      <path class="band" d="{band}" fill="{color}" fill-opacity="0.{opacity_hundredths:02}" stroke="none"/>"##,
-        )
-            .unwrap();
 
         let mut path = String::new();
         for k in 0..plot.len() {
@@ -5278,15 +5210,7 @@ fn write_plot(svg: &mut String, plot: &Plot, roster: &Roster, results: &Results,
             if strength == 0 {
                 continue;
             }
-            let ((x0, h0), (x1, h1)) = (point(k, rare_at(k).high), point(k + 1, rare_at(k + 1).high));
-            let ((_, l0), (_, l1)) = (point(k, rare_at(k).low), point(k + 1, rare_at(k + 1).low));
-            let ((_, m0), (_, m1)) = (point(k, rare_at(k).median), point(k + 1, rare_at(k + 1).median));
-            writeln!(
-                svg,
-                r##"      <path class="band-rare" data-k="{k}" d="M {x0:.2} {h0:.2} L {x1:.2} {h1:.2} L {x1:.2} {l1:.2} L {x0:.2} {l0:.2} Z" fill="{color}" fill-opacity="{:.4}" stroke="none"/>"##,
-                opacity_hundredths as f64 * strength as f64 / 10_000.0,
-            )
-            .unwrap();
+            let ((x0, m0), (x1, m1)) = (point(k, rare_at(k).median), point(k + 1, rare_at(k + 1).median));
             writeln!(
                 svg,
                 r##"      <path class="median-rare" data-k="{k}" d="M {x0:.2} {m0:.2} L {x1:.2} {m1:.2}" fill="none" stroke="{color}" stroke-opacity="{:.2}" stroke-width="2.5" stroke-linecap="round"/>"##,
@@ -5594,38 +5518,6 @@ fn rare_opacity_hundredths(speeds: &[Speed]) -> Option<u64> {
     })
 }
 
-/*
- * Relative width of one cell's median interval in permille: 1000 × (high −
- * low) / median, rounded. Zero when every resample agrees on the median;
- * 20 means the median is known to within 2%.
- */
-fn spread_permille(speed: Speed) -> u64 {
-    let range = speed.high - speed.low;
-    range.ratio_permille(speed.median)
-}
-
-/*
- * Band fill opacity and whether to outline it, from the worst interval
- * width. The script applies the same thresholds. Under 2% is a well-known
- * median; 2–5% earns a deeper tint; 5% and over adds the dashed outline,
- * which with 80 rounds means the samples disagree with each other well
- * beyond ordinary noise (a two-mode cell, or heavy interference).
- */
-const SPREAD_NOTICEABLE_PERMILLE: u64 = 20;
-const SPREAD_WIDE_PERMILLE: u64 = 50;
-
-/// Fill opacity in hundredths (16 → 0.16) and whether to outline.
-fn band_style(worst_spread_permille: u64) -> (u64, bool) {
-    let opacity_hundredths = if worst_spread_permille < SPREAD_NOTICEABLE_PERMILLE {
-        16
-    } else if worst_spread_permille < SPREAD_WIDE_PERMILLE {
-        16 + 14 * (worst_spread_permille - SPREAD_NOTICEABLE_PERMILLE)
-            / (SPREAD_WIDE_PERMILLE - SPREAD_NOTICEABLE_PERMILLE)
-    } else {
-        30
-    };
-    (opacity_hundredths, worst_spread_permille >= SPREAD_WIDE_PERMILLE)
-}
 
 /*
  * Value labels sit above their dot by default. Within a column, labels
@@ -6080,8 +5972,6 @@ fn write_interaction_script(
                 let suffix = if speed == 0 { "" } else { "2" };
                 for (key, pick) in [
                     ("med", (|v: Speed| v.format_median(1)) as fn(Speed) -> String),
-                    ("low", |v| v.low.format_ns()),
-                    ("high", |v| v.high.format_ns()),
                     ("cnt", |v| v.count.to_string()),
                 ] {
                     write!(data, "],\"{key}{suffix}\":[").unwrap();
@@ -6098,45 +5988,13 @@ fn write_interaction_script(
                 data.push_str(if cell_at(k).get(plot.scenario).two_speeds.is_some() { "1" } else { "0" });
             }
             data.push(']');
-            // Per-call presentation is derived in fixed point from the same
-            // statistics, before their display rounding. Queue samples are
-            // throughput intervals; they measure delivery of many inputs.
-            if !matches!(plot.use_case, UseCase::ContinuousMessages | UseCase::ContinuousBatches) {
-                data.push_str(",\"latency\":{");
-                let fields: [(&str, fn(Statistics) -> Fixed); 8] = [
-                    ("min", |t| t.minimum), ("max", |t| t.maximum),
-                    ("med", |t| t.speeds()[0].median), ("low", |t| t.speeds()[0].low), ("high", |t| t.speeds()[0].high),
-                    ("med2", |t| { let s = t.speeds(); s[s.len() - 1].median }),
-                    ("low2", |t| { let s = t.speeds(); s[s.len() - 1].low }),
-                    ("high2", |t| { let s = t.speeds(); s[s.len() - 1].high }),
-                ];
-                for (j, (key, pick)) in fields.into_iter().enumerate() {
-                    if j > 0 { data.push(','); }
-                    write!(data, "\"{key}\":[").unwrap();
-                    for k in 0..plot.len() {
-                        if k > 0 { data.push(','); }
-                        let point = POINTS[plot.points.start + k];
-                        let units = point.use_case.units(point, 1);
-                        let statistics = cell_at(k).get(plot.scenario);
-                        if key == "med" || key == "med2" {
-                            let speeds = statistics.speeds();
-                            let speed = if key == "med" { speeds[0] } else { *speeds.last().unwrap() };
-                            data.push_str(&speed.format_median(units));
-                        } else {
-                            data.push_str(&(pick(statistics) * units).format_ns());
-                        }
-                    }
-                    data.push(']');
-                }
-                data.push('}');
-            }
             data.push('}');
         }
         data.push_str("]}");
     }
     write!(
         data,
-        "],\"sharedProv\":{shared_count},\"svgWidth\":{SVG_WIDTH:.0},\"plotLeft\":{PLOT_LEFT},\"plotRight\":{PLOT_RIGHT},\"xInset\":{X_INSET},\"labelGap\":{SERIES_LABEL_GAP},\"labelTopRoom\":{LABEL_TOP_ROOM},\"rounds\":{},\"labelAbove\":{VALUE_LABEL_ABOVE},\"labelBelow\":{VALUE_LABEL_BELOW},\"labelHeight\":{VALUE_LABEL_HEIGHT},\"valueSpacing\":{VALUE_COLUMN_SPACING},\"valueRoom\":{VALUE_COLUMN_ROOM},\"spreadNoticeable\":0.{SPREAD_NOTICEABLE_PERMILLE:03},\"spreadWide\":0.{SPREAD_WIDE_PERMILLE:03},\"provTop\":{:.1},\"provLine\":{PROVENANCE_LINE_HEIGHT},\"stripLeft\":{ZOOM_STRIP_LEFT},\"betterX\":{BETTER_ARROW_X},\"stripRight\":{ZOOM_STRIP_RIGHT}}}",
+        "],\"sharedProv\":{shared_count},\"svgWidth\":{SVG_WIDTH:.0},\"plotLeft\":{PLOT_LEFT},\"plotRight\":{PLOT_RIGHT},\"xInset\":{X_INSET},\"labelGap\":{SERIES_LABEL_GAP},\"labelTopRoom\":{LABEL_TOP_ROOM},\"rounds\":{},\"labelAbove\":{VALUE_LABEL_ABOVE},\"labelBelow\":{VALUE_LABEL_BELOW},\"labelHeight\":{VALUE_LABEL_HEIGHT},\"valueSpacing\":{VALUE_COLUMN_SPACING},\"valueRoom\":{VALUE_COLUMN_ROOM},\"provTop\":{:.1},\"provLine\":{PROVENANCE_LINE_HEIGHT},\"stripLeft\":{ZOOM_STRIP_LEFT},\"betterX\":{BETTER_ARROW_X},\"stripRight\":{ZOOM_STRIP_RIGHT}}}",
         roster.rounds,
         plots[0].provenance_top,
     )
@@ -6495,8 +6353,8 @@ function relayoutPlot(p) {
     for (const i of visible) {
       const s = plot.series[i];
       for (let k = wnd.k0; k <= wnd.k1; k++) {
-        lo = Math.min(lo, s.low[k], s.low2[k]);
-        hi = Math.max(hi, s.high[k], s.high2[k]);
+        lo = Math.min(lo, s.med[k], s.med2[k]);
+        hi = Math.max(hi, s.med[k], s.med2[k]);
       }
     }
     return visible.length === 0 ? [0.1, 1] : [lo, hi];
@@ -6554,7 +6412,7 @@ function relayoutPlot(p) {
     old.querySelectorAll("text").forEach(t => { t.setAttribute("y", (mapY(+t.getAttribute("data-ns")) + 3.5).toFixed(2)); });
   }
 
-  /* Each series: band, median line, dots, value labels. */
+  /* Each series: median line, dots, value labels. */
   plot.series.forEach((s, i) => {
     if (!s) return;
     const g = document.getElementById("series-" + p + "-" + i);
@@ -6562,26 +6420,18 @@ function relayoutPlot(p) {
     g.setAttribute("data-on", on[i] ? "true" : "false");
     dots.setAttribute("data-on", on[i] ? "true" : "false");
     if (!on[i]) return;
-    /* The common speed carries line and band; the rare speed's segments keep their static strength. */
-    const speed = (k, which) => which === 0 ? [s.med[k], s.low[k], s.high[k]] : [s.med2[k], s.low2[k], s.high2[k]];
+    /* The common speed carries the line; the rare speed's segments keep their static strength. */
+    const speed = (k, which) => which === 0 ? s.med[k] : s.med2[k];
     const commonIndex = k => s.two[k] && s.cnt2[k] > s.cnt[k] ? 1 : 0;
     const common = k => speed(k, commonIndex(k));
     const rare = k => speed(k, s.two[k] ? 1 - commonIndex(k) : 0);
     const pt = (k, v) => X[k].toFixed(2) + " " + mapY(v).toFixed(2);
-    let band = "", med = "";
-    X.forEach((x, k) => { band += (k ? " L " : "M ") + pt(k, common(k)[2]); });
-    for (let k = X.length - 1; k >= 0; k--) band += " L " + pt(k, common(k)[1]);
-    band += " Z";
-    X.forEach((x, k) => { med += (k ? " L " : "M ") + pt(k, common(k)[0]); });
-    g.querySelector(".band").setAttribute("d", band);
+    let med = "";
+    X.forEach((x, k) => { med += (k ? " L " : "M ") + pt(k, common(k)); });
     g.querySelector(".median").setAttribute("d", med);
     g.querySelectorAll(".median-rare").forEach(el => {
       const k = +el.getAttribute("data-k");
-      el.setAttribute("d", `M ${pt(k, rare(k)[0])} L ${pt(k + 1, rare(k + 1)[0])}`);
-    });
-    g.querySelectorAll(".band-rare").forEach(el => {
-      const k = +el.getAttribute("data-k");
-      el.setAttribute("d", `M ${pt(k, rare(k)[2])} L ${pt(k + 1, rare(k + 1)[2])} L ${pt(k + 1, rare(k + 1)[1])} L ${pt(k, rare(k)[1])} Z`);
+      el.setAttribute("d", `M ${pt(k, rare(k))} L ${pt(k + 1, rare(k + 1))}`);
     });
     dots.querySelectorAll(".dot").forEach(dot => {
       const k = +dot.getAttribute("data-size");
@@ -6871,29 +6721,18 @@ function showHover(p, focus, k) {
   /* In the rate unit the fastest sample (min time) is the top of the range. */
   const asc = (a, b) => unit === "ns" ? [a, b] : [b, a];
   const [rLo, rHi] = asc(f.min[k], f.max[k]);
-  const speedRow = (label, m, lo, hi, share) => {
-    const spread = (hi - lo) / m;
-    const noteText = spread >= DATA.spreadWide ? " · poorly determined" : spread >= DATA.spreadNoticeable ? " · less certain" : "";
-    const [cLo, cHi] = asc(lo, hi);
-    /* One line for a one-speed point; a speed of two takes two, its share first. */
-    const lines = share
-      ? [`${label} ${fmt(m, p)} ${unitLabel(p)} (${fmtOther(m, p)})${share}`, `   95% interval ${fmt(cLo, p)}–${fmt(cHi, p)}${noteText}`]
-      : [`${label} ${fmt(m, p)} ${unitLabel(p)} (${fmtOther(m, p)}) · 95% interval ${fmt(cLo, p)}–${fmt(cHi, p)}${noteText}`];
-    for (const text of lines) {
-      const row = note(textEl(PAD, y, "hover-sub", text));
-      if (spread >= DATA.spreadWide) row.setAttribute("fill", "#b45309");
-      body.appendChild(row);
-      y += 13;
-    }
+  const speedRow = (label, m, share) => {
+    body.appendChild(note(textEl(PAD, y, "hover-sub", `${label} ${fmt(m, p)} ${unitLabel(p)} (${fmtOther(m, p)})${share}`)));
+    y += 13;
   };
   if (f.two[k]) {
     const total = f.cnt[k] + f.cnt2[k];
     body.appendChild(note(textEl(PAD, y, "hover-sub", "Two speeds here: see the note [*] under the last plot.", { "font-weight": "700" })));
     y += 13;
-    speedRow("median", f.med[k], f.low[k], f.high[k], ` · ${Math.round(f.cnt[k] * 100 / total)}% of timings`);
-    speedRow("median", f.med2[k], f.low2[k], f.high2[k], ` · ${Math.round(f.cnt2[k] * 100 / total)}% of timings`);
+    speedRow("median", f.med[k], ` · ${Math.round(f.cnt[k] * 100 / total)}% of timings`);
+    speedRow("median", f.med2[k], ` · ${Math.round(f.cnt2[k] * 100 / total)}% of timings`);
   } else {
-    speedRow("median", f.med[k], f.low[k], f.high[k], "");
+    speedRow("median", f.med[k], "");
   }
   body.appendChild(note(textEl(PAD, y, "hover-sub", `fastest and slowest of ${f.n[k]} timings: ${fmt(rLo, p)}–${fmt(rHi, p)} ${unitLabel(p)}`)));
 
@@ -7261,7 +7100,6 @@ mod correctness_tests {
         assert_eq!(Fixed::ONE.cmp_permille(1000), std::cmp::Ordering::Equal);
         assert!(t(1049, 1000).cmp_permille(1050).is_lt() && t(1051, 1000).cmp_permille(1050).is_gt());
         assert_eq!(t(1, 3).permille(), 333);
-        assert_eq!(t(5, 4).ratio_permille(t(1, 1)), 1250);
         assert_eq!(t(6, 1).tenths_of(1), 2); // 1 / 6 GB/s: 0.1667, two tenths
     }
 

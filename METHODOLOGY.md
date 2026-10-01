@@ -232,8 +232,7 @@ messages of 64 B-4 KiB; two copies at once are no faster than one; a hash
 that runs on its core alone (no shared SME unit, no helper threads) is no
 slower beside a second copy; and more work within the first-level cache
 (up to 32 KiB) is no slower per byte or message than a size that divides
-it. Each is judged on the cells' fast speeds, with their 95% intervals
-apart and over 10% between them. A broken relation names a bug in the
+it. Each is judged on the cells' fast speeds, over 10% apart. A broken relation names a bug in the
 benchmark or in the contender, or a finding to explain; the file lists
 each, or says that all hold.
 
@@ -388,7 +387,7 @@ bytes. The timed loop hands every digest to `black_box`, so no hash can
 be optimized away, and the two shared copies hash separate buffers, as
 two programs would.
 
-## Interleaving and precision
+## Interleaving
 
 The participating contenders in each use case run in a Williams design:
 a set of orders that together place every contender in every position
@@ -428,15 +427,11 @@ in its batch use case have fourteen: 56 rounds completes both designs.
 Shorter samples (0.5 ms) were tried and rejected: every median read 1.6%
 slower, since a sample's fixed cost weighs twice as much.
 
-The band around each median line is the **95% bootstrap confidence
-interval of the median**: the cell's samples are resampled with
-replacement 400 times, each resample's median taken, and the 2.5th and
-97.5th percentiles of those medians drawn. The resampling treats every
-sample as independent; a shared sample's two copies run at once and may
-vary together, so a shared cell's band may read narrower than its median
-is known. A band describes one run: a lead between runs is established
-by repeating them. The hover panel also gives each
-cell's minimum and maximum, which describe the run's environment.
+Each dot is its cell's median. The hover panel also gives the cell's
+fastest and slowest samples, and the samples file holds every timing.
+How far a median moves between runs depends on the cell (a call after a
+gap moves with each process's state); a lead between two runs is
+established by repeating them.
 
 Some cells run at two speeds, and then every report shows both, with
 equal weight, faster first. The clearest case: two copies of an SME2
@@ -451,21 +446,16 @@ follows each point's common speed (the one with more samples); where a
 point ran at two, the rare speed adds its own dot and line segments,
 drawn fainter in proportion to its share (its samples over the common
 speed's, at least 0.15 opacity). The value label gives both (`a | b`),
-the hover panel says "Two speeds observed" with each speed's median,
-interval, and share of samples, and a footnote under the plots names
+the hover panel says "Two speeds here" with each speed's median and
+share of samples, and a footnote under the plots names
 common causes: performance and efficiency cores, two copies sharing one
 unit of the chip, a VM's host moving it between cores.
-
-The band's appearance reports the interval's width relative to the
-median: under 2% a faint tint; 2–5% a deeper tint; 5% and over a
-dashed outline, and the hover panel says the median is poorly
-determined. The text report marks such cells with `~`.
 
 ## The graph
 
 The SVG shows a plot for each use case and scenario the run has (the
 calls after a gap solo, the nonstop ones solo and then shared), each with
-median lines and confidence bands on a log-log grid.
+median lines on a log-log grid.
 
 A switch at the header's left, above the y axes' titles, flips every plot between rate (the
 default; higher is better: GB/s above, million messages per second
@@ -510,7 +500,7 @@ switch) sits at the top of the page.
 The page is written for three readers at once: a newcomer who holds only
 the page, a regular who knows the benchmark, and a maintainer. The header
 says what the page shows and on which computer; "How to read this graph"
-opens a panel on the lines, bands, and dot shapes; "About this run" at
+opens a panel on the lines and dot shapes; "About this run" at
 the bottom opens section by section onto the machine, the run, the
 sources, the method behind each dot shape, and each hash's version. A
 hash of the run that takes no part in a plot (BLAKE3 official mt has no batch
