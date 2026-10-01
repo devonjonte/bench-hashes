@@ -31,6 +31,18 @@ harness defects and remaining measurement concerns. The fixes preserve
    still passed the checker. Validation now requires every sampled cell
    exactly once. A standalone checkout can locate the pinned fork's
    shared rules with `--rules`; it uses the same samples reader.
+7. **Shared load timestamps.** Each shared copy now records its own start
+   before its timed interval. Previously both copied the solo start,
+   which could precede them by a long hash and cross load windows. The TSV
+   format stays v4; regression anchors give solo and both shared copies
+   distinct starts crossing window boundaries.
+8. **Guide API fidelity and test coverage.** Multithreaded incremental
+   calls after a gap use `update`, while nonstop calls use
+   `update_multithreaded`. Pattern toggles now stay with the actual call.
+   Queue pieces show their own measurements without the hash-proxy label.
+   Downward-triangle marks match the Rust payload. A single-point tie is
+   labelled matched. Browser tests drive the available chips on both
+   quick and full runs, including the one-point pieces axis.
 
 Regression tests cover these changes. A differential test also checks the
 official crate's hidden batch wrapper against separate plain `hash`
@@ -82,9 +94,6 @@ or regression-free claim.
   attribution to a contender bug.
 - **Kernel labels:** queue and incremental multithreaded APIs inherit
   one-shot labels that may omit their actual helper-thread behavior.
-- **Load attribution:** shared samples currently inherit their solo
-  interval's start timestamp. Long solo calls can cross a load-window
-  boundary before the shared calls start.
 - **Provenance cache:** incidental untracked-file changes can leave a
   previously embedded dirty fingerprint cached until the build script
   runs again.
@@ -107,6 +116,28 @@ compiler/inlining cause remains open. These observations support
 retaining upstream's generic build, and treating the original native
 SHA-256 measurements as executable-specific evidence rather than typical
 SHA-256 performance.
+
+## Validation scope
+
+The clean `391ab30` quick run completed in 55.6 s on a quiet machine:
+all 720 report cells match the raw samples, and SVG interaction checks
+pass. It exposed the browser test's assumption that every pattern had
+measurements even in quick runs; the corrected test passes with both
+quick and full historical payloads in the revised template (48 decision
+routes and 21 endings each). Rust tests and all nine examples compile.
+
+For optimization A/Bs, use an explicit `--rounds` count that is a multiple
+of the roster's Williams order count. This samples every selected cell
+in every round, avoiding adaptive-thinning order aliasing. Shared
+confidence intervals remain descriptive pending a clustered-bootstrap
+review. Compare speeds and shares through the shared rules; require
+quiet runs and same-build repeats before judging a gain. The guide's
+summary explicitly describes faster-speed medians, rather than a
+statistically significant or repeatable winner.
+
+These checks establish bounded evidence for the stated workloads. The
+open concerns above prevent a claim that the tool is free of bugs or
+accurate for every caller's workload.
 
 Linux cycle counts are unavailable through the pinned clocks crate.
 Wall measurements and their uncertainty remain as measured; cycle trace

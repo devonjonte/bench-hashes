@@ -329,10 +329,10 @@ type Samples = Vec<Vec<Vec<Measured>>>;
 struct RunSamples {
     solo: Samples,
     shared: Samples,
-    /// When each solo sample started (clocks::load::now_ns, the load
-    /// windows' scale), by contender and point; its shared samples follow it
-    /// within milliseconds.
-    started_ns: Vec<Vec<Vec<u64>>>,
+    /// Each sample's start on the load windows' scale, by contender and
+    /// point. Shared starts belong to the individual copies, after solo.
+    solo_started_ns: Vec<Vec<Vec<u64>>>,
+    shared_started_ns: Vec<Vec<Vec<u64>>>,
 }
 
 
@@ -1619,7 +1619,8 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
     let mut samples = RunSamples {
         solo: empty(),
         shared: empty(),
-        started_ns: (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::new()).collect()).collect(),
+        solo_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+        shared_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
     };
     let mut batch_iterations: Vec<Vec<usize>> = vec![vec![1usize; POINT_COUNT]; roster.len()];
     /* Cells under the time budget (see LONG_HASH_NS). */
@@ -1720,8 +1721,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
 
                     /* The solo sample: this thread runs the batch, alone. */
                     clocks::load::tick();
-                    let started_ns = clocks::load::now_ns();
-                    let DuoCopy { elapsed_ns, counts, preparation } = take_sample(algorithm, input, point, iterations);
+                    let DuoCopy { elapsed_ns, counts, preparation, started_ns } = take_sample(algorithm, input, point, iterations);
 
                     /*
                      * The shared sample, under the same conditions, for the
@@ -1735,9 +1735,10 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                     let total_units = point.use_case.units(point, iterations);
                     let per_unit = |ns: u64| Measured::new(ns, total_units);
                     samples.solo[algorithm_index][size_index].push(per_unit(elapsed_ns));
-                    samples.started_ns[algorithm_index][size_index].push(started_ns);
+                    samples.solo_started_ns[algorithm_index][size_index].push(started_ns);
                     for copy in copies.iter().flatten() {
                         samples.shared[algorithm_index][size_index].push(per_unit(copy.elapsed_ns));
+                        samples.shared_started_ns[algorithm_index][size_index].push(copy.started_ns);
                     }
 
                     if let Some(trace) = trace.as_deref_mut() {
@@ -1976,12 +1977,13 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
         }
         return take_prepared_sample(input, iterations, idle, |input| run_batch(algorithm, input, point, 1));
     }
+    let started_ns = clocks::load::now_ns();
     let counts0 = clocks::Counts::read();
     let started = clocks::now();
     run_batch(algorithm, input, point, iterations);
     let elapsed_ns = clocks::since_ns(started);
     let counts = counts0.zip(clocks::Counts::read()).map(|(before, after)| after.since(before));
-    DuoCopy { elapsed_ns, counts, preparation: None }
+    DuoCopy { elapsed_ns, counts, preparation: None, started_ns }
 }
 
 /// Prepare and time an already-selected call, each after the program
@@ -1993,11 +1995,12 @@ fn take_prepared_sample(input: &[u8], iterations: usize, idle: bool, mut call: i
         let (work, produced) = &mut *buffers;
         produced.resize(input.len(), 0);
         let gap = if idle { clocks::Gap::Idle } else { clocks::Gap::Busy(work) };
+        let started_ns = clocks::load::now_ns();
         let measured = clocks::measure_after_gaps_prepared(iterations as u64, gap, GAP_NS,
             produced.as_mut_slice(),
             |produced| produced.copy_from_slice(black_box(input)),
             |produced| call(black_box(produced)));
-        DuoCopy { elapsed_ns: measured.calls.wall_ns, counts: measured.calls.counts, preparation: Some(measured.preparation) }
+        DuoCopy { elapsed_ns: measured.calls.wall_ns, counts: measured.calls.counts, preparation: Some(measured.preparation), started_ns }
     })
 }
 
@@ -2740,6 +2743,8 @@ struct Duo {
 /// timed interval; None where the platform counts none).
 #[derive(Clone, Copy)]
 struct DuoCopy {
+    /// Start of this copy's sample on the load windows' scale, outside timing.
+    started_ns: u64,
     elapsed_ns: u64,
     counts: Option<clocks::Counts>,
     preparation: Option<clocks::Batch>,
@@ -3712,11 +3717,14 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
                     continue;
                 }
                 let values: Vec<String> = cell_samples.iter().map(|m| format!("{}/{}", m.ns, m.units)).collect();
-                /* A shared sample starts with its interval's solo sample. */
-                let per_start = cell_samples.len() / samples.started_ns[algorithm_index][point_index].len();
-                let starts: Vec<String> = samples.started_ns[algorithm_index][point_index].iter()
-                    .flat_map(|&ns| std::iter::repeat_n(ns / 1_000_000, per_start))
-                    .map(|ms| ms.to_string())
+                let timestamps = match scenario {
+                    Scenario::Solo => &samples.solo_started_ns,
+                    Scenario::Shared => &samples.shared_started_ns,
+                };
+                let cell_starts = &timestamps[algorithm_index][point_index];
+                assert_eq!(cell_starts.len(), cell_samples.len(), "each sample has its own load timestamp");
+                let starts: Vec<String> = cell_starts.iter()
+                    .map(|ns| (ns / 1_000_000).to_string())
                     .collect();
                 writeln!(
                     out,
@@ -7273,7 +7281,9 @@ mod correctness_tests {
     /// nonstop use cases alone), summarised as measure_all does.
     fn run(roster: &Roster, rounds: usize, value: impl Fn(usize, usize, usize) -> u64) -> (Results, RunSamples) {
         let empty = || -> Samples { vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
-        let mut samples = RunSamples { solo: empty(), shared: empty(), started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
+        let mut samples = RunSamples { solo: empty(), shared: empty(),
+            solo_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+            shared_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
         let mut results: Results = vec![vec![None; POINT_COUNT]; roster.len()];
         for a in 0..roster.len() {
             for &p in &roster.points {
@@ -7282,8 +7292,11 @@ mod correctness_tests {
                     samples.solo[a][p].push(v);
                     if Scenario::Shared.measures(POINTS[p].use_case) {
                         samples.shared[a][p].extend([v, v]);
+                        // Separate starts cross load-window boundaries, and
+                        // distinguish the two copies from one another.
+                        samples.shared_started_ns[a][p].extend([10_000_000 + r as u64 * 1_000_000, 11_000_000 + r as u64 * 1_000_000]);
                     }
-                    samples.started_ns[a][p].push(r as u64 * 1_000_000);
+                    samples.solo_started_ns[a][p].push(r as u64 * 1_000_000);
                 }
                 results[a][p] = Some(Cell {
                     solo: summarize(&mut per_units(&samples.solo[a][p])),
@@ -7418,7 +7431,7 @@ mod correctness_tests {
         assert!(tsv.contains("\n# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1:1200:0,1-3:100:7\n"), "{tsv}");
         assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\n"));
         assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\n"), "{tsv}");
-        assert!(tsv.contains("\nblake3-servil-st\tshared\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t0,0,1,1,2,2\n"), "{tsv}");
+        assert!(tsv.contains("\nblake3-servil-st\tshared\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\n"), "{tsv}");
         assert!(!tsv.contains("\tshared\tOneMessage\t"), "calls after a gap run alone: {tsv}");
     }
 

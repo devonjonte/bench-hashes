@@ -74,7 +74,7 @@ ul.paths svg { display: inline; width: 14px; height: 14px; vertical-align: -2px;
 </details>
 <details><summary>How this was measured</summary>
 <p id="method"></p>
-<p>Each dot is the median of that cell's samples; a fainter dot is a second, slower speed that some samples ran at, its share in the hover. Hover over a dot for the time of one call, the throughput, and the code path that ran.</p>
+<p>Each dot is the median of that cell's samples; a fainter dot is a second, slower speed that some samples ran at, its share in the hover. The summary compares the faster-speed medians where there are two speeds. It describes this run, rather than establishing a statistically significant or repeatable lead. Hover over a dot for the time of one call, the throughput, and the code path that ran.</p>
 <ul class="paths" id="paths"></ul>
 </details>
 </section>
@@ -116,7 +116,12 @@ function recommendation(a) {
   }
   const mt = many && (s !== "pieces" || nonstop);
   const call = { message: "hash", pieces: "update", batch: "hash_many" }[s] + (mt ? "_multithreaded" : "");
-  return { call, contender: mt ? "blake3-servil-mt" : "blake3-servil-st", uses: PATTERNS[s], useIndex: nonstop ? 2 : 1, shape: s,
+  // A pattern toggle keeps the actual API. Multithreaded pieces use
+  // update after a gap and update_multithreaded nonstop: separate calls.
+  const uses = s === "pieces" && many
+    ? (mt ? [null, null, "LentPieces"] : ["IdleOneMessage", "OneMessage", null])
+    : PATTERNS[s];
+  return { call, contender: mt ? "blake3-servil-mt" : "blake3-servil-st", uses, useIndex: nonstop ? 2 : 1, shape: s,
     summary: s === "batch" ? `One call hashes every message in the buffer${mt ? ", spread over your spare cores" : ""}: how a Merkle tree hashes a layer.`
       : s === "pieces" ? `A Hasher keeps the message's state between pieces${mt ? "; helper threads share each piece" : ""}: how a file or a stream is hashed as it arrives.`
       : `The plain function: it reads the buffer and returns the digest${mt ? ", spreading a large message over your spare cores" : ""}.`,
@@ -138,7 +143,7 @@ const MARK = {
   diamond: r => `<path d="M0 ${-1.25 * r} L${1.25 * r} 0 L0 ${1.25 * r} L${-1.25 * r} 0Z"/>`,
   square: r => `<rect x="${-0.9 * r}" y="${-0.9 * r}" width="${1.8 * r}" height="${1.8 * r}"/>`,
   triangle: r => `<path d="M0 ${-1.3 * r} L${1.2 * r} ${0.9 * r} L${-1.2 * r} ${0.9 * r}Z"/>`,
-  "down-triangle": r => `<path d="M0 ${1.3 * r} L${1.2 * r} ${-0.9 * r} L${-1.2 * r} ${-0.9 * r}Z"/>`,
+  "downward triangle": r => `<path d="M0 ${1.3 * r} L${1.2 * r} ${-0.9 * r} L${-1.2 * r} ${-0.9 * r}Z"/>`,
 };
 const mark = (kind, r, x, y, color, extra = "") => `<g transform="translate(${x} ${y})" fill="${color}" ${extra}>${(MARK[kind] || MARK.circle)(r)}</g>`;
 
@@ -221,7 +226,7 @@ function drawSpeed() {
   const mine = DATA.contenders.find(c => c.key === r.contender), theirs = DATA.contenders.find(c => c.key === other);
   const series = [[mine, plot.series[r.contender]]].concat(theirs ? [[theirs, plot.series[other]]] : []);
   /* hash's plot standing in for update's pieces now and then: its x is each piece's length. */
-  const standIn = r.shape === "pieces" && plot.use !== "LentPieces";
+  const standIn = r.shape === "pieces" && !r.call.startsWith("Queue::") && plot.use !== "LentPieces";
   el("stand-in").hidden = !standIn;
   el("stand-in").textContent = standIn ? "Each piece costs about what hash costs on one buffer of the piece's length: these are hash's measurements, and a message of up to 64 KiB is a single piece." : "";
   const xLabel = plot.batch ? "Messages per batch" : standIn ? "Length of each piece" : "Message length";
@@ -233,7 +238,10 @@ function drawSpeed() {
     const ahead = points.map(k => +plot.series[r.contender].med[k] < +plot.series[other].med[k]);
     let from = ahead.length;
     while (from > 0 && ahead[from - 1]) from--;
-    if (points.length === 1) text = `${ahead[0] ? "Faster" : "Slower"} than ${theirs.name} on a ${plot.labels[points[0]]} message in 64 KiB pieces.`;
+    if (points.length === 1) {
+      const k = points[0], relation = ahead[0] ? "Faster" : +plot.series[r.contender].med[k] === +plot.series[other].med[k] ? "Matched" : "Slower";
+      text = `${relation} ${relation === "Matched" ? "" : "than "}${theirs.name} on a ${plot.labels[k]} message${plot.use === "LentPieces" || r.call === "Queue::pieces" ? " in 64 KiB pieces" : ""}.`;
+    }
     else if (from === 0) text = `Faster than ${theirs.name} at every size measured.`;
     else if (from === ahead.length) {
       if (ahead.some(Boolean)) text = `The two trade places across the sizes measured.`;
