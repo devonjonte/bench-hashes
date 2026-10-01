@@ -4256,8 +4256,8 @@ const FOOTNOTE_LINE_HEIGHT: f64 = 15.0;
  * last plot; a graph with no two-speed point has none.
  */
 const TWO_SPEEDS_FOOTNOTE: [&str; 3] = [
-    "[*] Two speeds: at some sizes the timings fell into two clearly different speeds, so the line splits in two there, the rarer speed drawn fainter",
-    "in proportion to how rarely it occurred. A common cause is a chip with fast performance cores and slower efficiency cores, where the operating",
+    "[*] Two speeds: at some sizes the timings fell into two clearly different speeds, so the line splits in two there, each speed drawn as strong",
+    "as its share of the timings. A common cause is a chip with fast performance cores and slower efficiency cores, where the operating",
     "system may run the work on either kind. Two programs sharing one part of the chip, or a virtual machine its host moves between cores, split speeds too.",
 ];
 const PROVENANCE_LINE_HEIGHT: f64 = 14.0;
@@ -5275,47 +5275,30 @@ fn write_plot(svg: &mut String, plot: &Plot, roster: &Roster, results: &Results,
         writeln!(svg, r##"    <g class="marks" clip-path="url(#plot-clip-{p})">"##).unwrap();
 
         /*
-         * Two speeds: at each point the common speed (the one with more
-         * samples) carries the line at full strength. A point that ran at
-         * two speeds adds its rare speed as segments to its neighbours,
-         * dimmed in proportion to the rare
-         * speed's share (rare_opacity_hundredths). The script redraws the
-         * same elements.
+         * Two speeds: each speed is drawn as strong as its share of the
+         * point's samples (share_hundredths): two paths, the fast and the
+         * slow speed, which coincide at full strength where a point ran at
+         * one, so a line neither jumps between speeds nor favours one. Each
+         * segment is as strong as the average of its ends. The script
+         * redraws the same segments.
          */
         let speeds_at = |k: usize| cell_at(k).get(plot.scenario).speeds();
-        let common_at = |k: usize| speeds_at(k)[common_speed(&speeds_at(k))];
-        let rare_at = |k: usize| {
-            let speeds = speeds_at(k);
-            speeds[(1 - common_speed(&speeds)).min(speeds.len() - 1)]
-        };
-        let rare_strength = |k: usize| rare_opacity_hundredths(&speeds_at(k)).unwrap_or(0);
         let point = |k: usize, value: PerUnit| (plot.x_positions[k], plot.map_y(value));
-
-        let mut path = String::new();
-        for k in 0..plot.len() {
-            let (x, y) = point(k, common_at(k).median);
-            write!(path, "{} {x:.2} {y:.2}", if k == 0 { "M" } else { " L" }).unwrap();
-        }
-
-        writeln!(
-            svg,
-            r##"      <path class="median" d="{path}" fill="none" stroke="{color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>"##
-        )
-            .unwrap();
-
-        /* Rare-speed segments, each as strong as the rarer of its ends allows. */
-        for k in 0..plot.len().saturating_sub(1) {
-            let strength = rare_strength(k).max(rare_strength(k + 1));
-            if strength == 0 {
-                continue;
+        for speed in 0..2 {
+            for k in 0..plot.len().saturating_sub(1) {
+                let (here, next) = (speeds_at(k), speeds_at(k + 1));
+                if speed == 1 && here.len() == 1 && next.len() == 1 {
+                    continue;
+                }
+                let ((x0, m0), (x1, m1)) = (point(k, here[speed.min(here.len() - 1)].median), point(k + 1, next[speed.min(next.len() - 1)].median));
+                let strength = (share_hundredths(&here, speed) + share_hundredths(&next, speed)) / 2;
+                writeln!(
+                    svg,
+                    r##"      <path class="median" data-k="{k}" data-speed="{speed}" d="M {x0:.2} {m0:.2} L {x1:.2} {m1:.2}" fill="none" stroke="{color}" stroke-opacity="{:.2}" stroke-width="2.5" stroke-linecap="round"/>"##,
+                    strength as f64 / 100.0,
+                )
+                .unwrap();
             }
-            let ((x0, m0), (x1, m1)) = (point(k, rare_at(k).median), point(k + 1, rare_at(k + 1).median));
-            writeln!(
-                svg,
-                r##"      <path class="median-rare" data-k="{k}" d="M {x0:.2} {m0:.2} L {x1:.2} {m1:.2}" fill="none" stroke="{color}" stroke-opacity="{:.2}" stroke-width="2.5" stroke-linecap="round"/>"##,
-                strength as f64 / 100.0,
-            )
-            .unwrap();
         }
 
         let mut dots = format!("  <g class=\"dots\" id=\"dots-{p}-{algorithm_index}\" data-on=\"{shown}\" clip-path=\"url(#plot-clip-{p})\">\n");
@@ -5331,13 +5314,9 @@ fn write_plot(svg: &mut String, plot: &Plot, roster: &Roster, results: &Results,
              * size with no ring. Hovering shows the path's explanation.
              */
             let kernel = &kernels.kernels[kernels.kernel_index_for(POINTS[plot.points.start + k].bytes)];
-            let common = common_speed(&speeds);
             for (speed_index, speed) in speeds.iter().enumerate() {
                 let median_y = plot.map_y(speed.median);
-                let dim = match rare_opacity_hundredths(&speeds) {
-                    Some(hundredths) if speed_index != common => format!(r#" opacity="{:.2}""#, hundredths as f64 / 100.0),
-                    _ => String::new(),
-                };
+                let dim = if speeds.len() == 2 { format!(r#" opacity="{:.2}""#, share_hundredths(&speeds, speed_index) as f64 / 100.0) } else { String::new() };
                 writeln!(
                     dots,
                     r##"    <g class="dot" data-size="{k}" data-speed="{speed_index}"{dim} transform="translate({x:.2} {median_y:.2})" onpointerenter="hoverDot(event,{p},{algorithm_index},{k})" onpointerleave="leaveDot(event)" onclick="tapDot(event,{p},{algorithm_index},{k})">"##,
@@ -5599,22 +5578,17 @@ fn value_label_columns(x: &[f64]) -> Vec<bool> {
     labeled
 }
 
-/// Which of a point's speeds has more samples (the faster on a tie).
-fn common_speed(speeds: &[Speed]) -> usize {
-    usize::from(speeds.len() == 2 && speeds[1].count > speeds[0].count)
-}
+/// How strongly a point's speed `speed` is drawn, in hundredths: its share
+/// of the point's samples, at least SPEED_MIN_HUNDREDTHS so it stays
+/// findable; 100 at a point of one speed, where both speeds are it.
+const SPEED_MIN_HUNDREDTHS: u64 = 15;
 
-/// How strongly a two-speed point's rare speed is drawn, in hundredths:
-/// its samples over the common speed's (an even split draws both alike),
-/// at least RARE_MIN_HUNDREDTHS so it stays findable. None for one speed.
-const RARE_MIN_HUNDREDTHS: u64 = 15;
-
-fn rare_opacity_hundredths(speeds: &[Speed]) -> Option<u64> {
-    (speeds.len() == 2).then(|| {
-        let common = common_speed(speeds);
-        let (rare, most) = (speeds[1 - common].count as u64, speeds[common].count as u64);
-        ((100 * rare + most / 2) / most).max(RARE_MIN_HUNDREDTHS)
-    })
+fn share_hundredths(speeds: &[Speed], speed: usize) -> u64 {
+    if speeds.len() == 1 {
+        return 100;
+    }
+    let total = speeds.iter().map(|s| s.count as u64).sum::<u64>();
+    ((100 * speeds[speed].count as u64 + total / 2) / total).max(SPEED_MIN_HUNDREDTHS)
 }
 
 
@@ -6519,18 +6493,11 @@ function relayoutPlot(p) {
     g.setAttribute("data-on", on[i] ? "true" : "false");
     dots.setAttribute("data-on", on[i] ? "true" : "false");
     if (!on[i]) return;
-    /* The common speed carries the line; the rare speed's segments keep their static strength. */
-    const speed = (k, which) => which === 0 ? s.med[k] : s.med2[k];
-    const commonIndex = k => s.two[k] && s.cnt2[k] > s.cnt[k] ? 1 : 0;
-    const common = k => speed(k, commonIndex(k));
-    const rare = k => speed(k, s.two[k] ? 1 - commonIndex(k) : 0);
+    /* Each speed's segments keep their static strength (med2 repeats med at a point of one speed). */
     const pt = (k, v) => X[k].toFixed(2) + " " + mapY(v).toFixed(2);
-    let med = "";
-    X.forEach((x, k) => { med += (k ? " L " : "M ") + pt(k, common(k)); });
-    g.querySelector(".median").setAttribute("d", med);
-    g.querySelectorAll(".median-rare").forEach(el => {
-      const k = +el.getAttribute("data-k");
-      el.setAttribute("d", `M ${pt(k, rare(k))} L ${pt(k + 1, rare(k + 1))}`);
+    g.querySelectorAll(".median").forEach(el => {
+      const k = +el.getAttribute("data-k"), m = el.getAttribute("data-speed") === "1" ? s.med2 : s.med;
+      el.setAttribute("d", `M ${pt(k, m[k])} L ${pt(k + 1, m[k + 1])}`);
     });
     dots.querySelectorAll(".dot").forEach(dot => {
       const k = +dot.getAttribute("data-size");

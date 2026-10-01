@@ -441,11 +441,11 @@ the share of rounds in each state varies from run to run, so a single
 median would land on either speed by chance. A cell has two speeds when
 its sorted samples split at a gap of 4% or more, with a tenth or more of
 the samples on each side and the two sides' medians 1.25× or more apart.
-The text tables print such a cell as `a|b`. In the graph the contender's line
-follows each point's common speed (the one with more samples); where a
-point ran at two, the rare speed adds its own dot and line segments,
-drawn fainter in proportion to its share (its samples over the common
-speed's, at least 0.15 opacity). The value label gives both (`a | b`),
+The text tables print such a cell as `a|b`. In the graph each speed is
+drawn as strong as its share of the point's samples (0.15 opacity at the
+least): the contender's line splits into a fast and a slow path where a
+point ran at two speeds, and the paths coincide at full strength where
+it ran at one. The value label gives both (`a | b`),
 the hover panel says "Two speeds here" with each speed's median and
 share of samples, and a footnote under the plots names
 common causes: performance and efficiency cores, two copies sharing one
