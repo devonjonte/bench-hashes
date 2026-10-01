@@ -107,23 +107,47 @@ fn guide_medians_match_the_exact_report_rounding() {
 }
 
 #[test]
-fn thinning_long_cells_aliases_the_williams_orders() {
-    // Diagnostic anchor for the current scheduler: one short and one long
-    // cell at a point, with the default four-contender Williams design.
-    let orders = williams_orders(4);
-    let mut visits = 0;
-    let mut seen = [0usize; 4];
-    for round in 0..FULL_ROUNDS {
-        let short = cell_wants_sample(round, FULL_ROUNDS, false);
-        let long = cell_wants_sample(round, FULL_ROUNDS, true);
-        if !short && !long { continue; }
-        let order = &orders[visits % orders.len()];
-        if long { seen[order.iter().position(|&a| a == 1).unwrap()] += 1; }
-        visits += 1;
+fn sampled_visits_complete_the_participating_williams_design() {
+    // Enumerate roster sizes, use cases, quick/full counts, and every
+    // point offset. Include contenders absent from some use cases.
+    for n in 2..=Algorithm::ALL.len() {
+        for use_case in UseCase::ALL {
+            let orders = participating_orders(&Algorithm::ALL[..n], use_case);
+            if orders.is_empty() { continue; }
+            let participants = &orders[0];
+            for rounds in [QUICK_ROUNDS, FULL_ROUNDS] {
+                for offset in 0..POINT_COUNT {
+                    let mut realized = Vec::new();
+                    for round in 0..rounds {
+                        if cell_wants_sample(round + offset, rounds, orders.len()) {
+                            realized.push(orders[realized.len() % orders.len()].clone());
+                        }
+                    }
+                    assert_eq!(realized.len(), STEADY_SAMPLES.next_multiple_of(orders.len()));
+                    let normalized: Vec<Vec<usize>> = realized.iter().map(|row| row.iter()
+                        .map(|a| participants.iter().position(|p| p == a).unwrap()).collect()).collect();
+                    if participants.len() > 1 {
+                        assert_orders_balanced(&normalized, participants.len());
+                    }
+                    for row in realized {
+                        assert!(row.iter().all(|&a| Algorithm::ALL[a].takes_part(use_case)));
+                    }
+                }
+            }
+        }
     }
-    assert_eq!(seen.iter().sum::<usize>(), LONG_SAMPLES);
-    assert_eq!(seen.iter().filter(|&&count| count > 0).count(), 2,
-        "the long contender visits only two of four positions; the realized sample schedule is unbalanced");
+}
+
+#[test]
+fn sample_schedule_handles_short_explicit_round_counts() {
+    for rounds in 1..=96 {
+        for orders in 1..=18 {
+            for offset in [0, 1, 7, 95] {
+                let count = (0..rounds).filter(|r| cell_wants_sample(r + offset, rounds, orders)).count();
+                assert_eq!(count, STEADY_SAMPLES.next_multiple_of(orders).min(rounds));
+            }
+        }
+    }
 }
 
 #[test]

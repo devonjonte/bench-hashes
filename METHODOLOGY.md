@@ -4,7 +4,7 @@ This file explains what a run measures, how it keeps the numbers honest,
 and what each contender runs. [README.md](README.md) says how to run it.
 
 Every run measures each contender in nine use cases and two scenarios.
-The first three are the synchronous calls, each made after a gap, as a
+Four measure synchronous calls, each made after a gap, as a
 program that hashes now and then calls them, in two ways, each measured:
 **after other work**, after the program has run a fixed other program and
 read 128 MiB of data, as on a machine busy with other programs; and
@@ -143,8 +143,8 @@ over the fork's worker threads. The crates.io BLAKE3 crate has a hidden
 one, `blake3::platform::Platform::hash_many::<N>`, which programs that
 want its batch speed call directly (WHIR's Merkle trees do): the bencher
 calls it as they do, sixteen messages per call, with the flags that make
-each digest the message's hash. A batch of one message is one call of
-the plain entry point for every contender.
+each digest the message's hash. A batch of one message uses the batch entry point where one is available,
+and the plain entry point otherwise.
 
 The axis counts messages per batch: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32,
 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536,
@@ -186,8 +186,7 @@ interval takes two samples of the same batch:
 The synchronous use cases' samples are calls after the gap: one call, or
 as many as fill 2 µs where a call is shorter (the clock ticks every 41.7
 ns, so a single short call cannot be timed), each after its own 1 ms
-of other work, timed alone, and summed. Each thread walks its own kept
-After other work, each thread runs a fixed other program (1024 generated
+of other work, timed alone, and summed. After other work, each thread runs a fixed other program (1024 generated
 functions, about 1.1 MiB of distinct machine code, run once), walks its
 own kept 128 MiB working buffer at 64-byte intervals, then spends any
 remaining millisecond on integer arithmetic. The whole program runs even
@@ -393,11 +392,12 @@ two programs would.
 
 ## Interleaving and precision
 
-The contenders run in a Williams design: a set of orders that together
-place every contender in every position equally often and realise every
-"Y right after X" adjacency equally often — the balance all permutations
-would give (n orders for an even count of contenders, 2n for odd). Point
-order rotates independently. The run measures in three phases, each
+The participating contenders in each use case run in a Williams design:
+a set of orders that together place every contender in every position
+equally often and realise every "Y right after X" adjacency equally
+often (n orders for an even count of contenders, 2n for odd). A contender
+that sits out the use case is excluded before the design is built.
+One participating contender has one order. Point order rotates independently. The run measures in three phases, each
 with its own calibration and rounds: the nonstop use cases, then the
 calls after other work, then the calls after idling. The operating
 system sets a core's clock from the program's recent use of it, so each
@@ -413,29 +413,32 @@ each (and hold at least twice the buffers its program keeps in flight), a
 synchronous cell's sum about 2 µs of calls after the gap.
 
 A full run has 96 rounds, a `--quick` one 24 (and stops below 1 MiB and
-10,000 messages). Each combination samples in a share of them, spread
-over the run at an offset of its own: 12 solo samples and 24 shared
-ones. The
-rounds cycle through the orders and rotate the point that starts a
-round; a round count that is no multiple of the order or point count
-leaves some orders or starting points once more than others, a fraction
-of a sample per cell, far below the difference between two runs. The
-runtime budget favours sample count over sample length: the median's
-interval narrows with the square root of the count, and a 1 ms sample
-is long enough that the clock's resolution is far below noise.
+10,000 messages). Each point samples at least 12 visits, rounded up to a
+whole number of Williams cycles and spread over the rounds at an offset
+of its own. Every participating contender samples every selected visit,
+including long hashes. A shared visit contributes two observations, one
+per copy. This balances positions and predecessors in the realized
+contender orders. Starting-point rotation is approximate when the round
+count is not a multiple of the point count.
 
-Cells whose single hash takes 4 ms or more (the
-plateau sizes, where a sample is one hash of tens of milliseconds) get a
-time budget: such a cell takes 6 solo samples and 12 shared ones. Shorter samples
-(0.5 ms) were tried and rejected: every median read 1.6% slower, since
-a sample's fixed cost weighs twice as much.
+With `--contenders ... --rounds N`, every cell samples every round.
+Choose N as a multiple of each measured use case's order count for
+complete balance; other counts give a partial design. For example, a
+roster of eight has eight orders for messages, while seven participants
+in its batch use case have fourteen: 56 rounds completes both designs.
+
+Shorter samples (0.5 ms) were tried and rejected: every median read 1.6%
+slower, since a sample's fixed cost weighs twice as much.
 
 The band around each median line is the **95% bootstrap confidence
 interval of the median**: the cell's samples are resampled with
 replacement 400 times, each resample's median taken, and the 2.5th and
-97.5th percentiles of those medians drawn. That interval says how well
-the median is known. The hover panel also gives each cell's minimum and
-maximum, which describe the run's environment.
+97.5th percentiles of those medians drawn. This calculation assumes
+independent observations. The shared copies can be correlated; their
+bands may therefore overstate precision. They are descriptive pending a
+clustered-bootstrap review, and establish neither repeat-run reliability
+nor a statistically significant lead. The hover panel also gives each
+cell's minimum and maximum, which describe the run's environment.
 
 Some cells run at two speeds, and then every report shows both, with
 equal weight, faster first. The clearest case: two copies of an SME2
@@ -462,7 +465,7 @@ determined. The text report marks such cells with `~`.
 
 ## The graph
 
-The SVG shows eight plots, each use case solo and then shared, each with
+The SVG shows the measured use cases, solo and where applicable shared, with
 median lines and confidence bands on a log-log grid.
 
 A switch at the header's left, above the y axes' titles, flips every plot between rate (the
@@ -607,11 +610,10 @@ question ends with an "I'm not sure" answer: one thread, one buffer, a
 thread that keeps up, a borrowed buffer, time.
 
 The chart shows throughput on log scales, so every size gets the same
-room. The table shows what a caller waits for: the time of one call, or
-one batch, in nanoseconds, microseconds, or milliseconds to three
-significant digits, and how many times faster or slower the recommended
-call was. For the queue, the table's times are the stream's average per
-input with many in flight, a throughput figure by nature. Where a cell
+room. Hovering a dot shows the time per call or batch, in nanoseconds,
+microseconds, or milliseconds to three significant digits. For the queue,
+these times are the stream's average per input with many in flight,
+a throughput figure by nature. Where a cell
 ran at two speeds, the faster leads and the slower follows with its
 share of the samples. Each figure is the exact midpoint of the measured
 ratios, scaled to the call and rounded once for the page.
@@ -619,4 +621,8 @@ ratios, scaled to the call and rounded once for the page.
 longer ones. For a message arriving in pieces now and then, the guide
 shows `hash`'s cells, labelled by piece length: each piece costs about
 what `hash` costs on a buffer that long. A run that lacks the
-recommended cells says so.
+recommended cells says so. Pattern switches preserve the actual call:
+`update_multithreaded` has nonstop measurements, while the several-thread
+choice after a gap recommends `update` and shows the labelled `hash`
+proxy. The summary compares faster-speed medians where cells have two
+speeds; it describes this run rather than establishing a repeatable lead.
