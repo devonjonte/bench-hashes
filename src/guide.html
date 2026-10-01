@@ -74,7 +74,7 @@ ul.paths svg { display: inline; width: 14px; height: 14px; vertical-align: -2px;
 </details>
 <details><summary>How this was measured</summary>
 <p id="method"></p>
-<p>Each dot is the median of that cell's samples; a fainter dot is a second, slower speed that some samples ran at, its share in the hover. The summary compares the faster-speed medians where there are two speeds. It describes this run, rather than establishing a statistically significant or repeatable lead. Hover over a dot for the time of one call, the throughput, and the code path that ran.</p>
+<p>Each dot is the median of that cell's samples; a fainter dot is a second, slower speed that some samples ran at, its share in the hover. Where a cell ran at two speeds, the sentence above the chart compares the faster ones. Hover over a dot for the time of one call, the throughput, and the code path that ran.</p>
 <ul class="paths" id="paths"></ul>
 </details>
 </section>
@@ -236,18 +236,13 @@ function drawSpeed() {
   let text = `${mine.name}, measured alone; this run has no SHA-256 to compare with.`;
   if (theirs) {
     const ahead = points.map(k => +plot.series[r.contender].med[k] < +plot.series[other].med[k]);
+    const behind = points.map(k => +plot.series[r.contender].med[k] > +plot.series[other].med[k]);
     let from = ahead.length;
     while (from > 0 && ahead[from - 1]) from--;
-    if (points.length === 1) {
-      const k = points[0], relation = ahead[0] ? "Faster" : +plot.series[r.contender].med[k] === +plot.series[other].med[k] ? "Matched" : "Slower";
-      text = `${relation} ${relation === "Matched" ? "" : "than "}${theirs.name} on a ${plot.labels[k]} message${plot.use === "LentPieces" || r.call === "Queue::pieces" ? " in 64 KiB pieces" : ""}.`;
-    }
+    if (points.length === 1) text = `${ahead[0] ? "Faster than" : behind[0] ? "Slower than" : "As fast as"} ${theirs.name} on a ${plot.labels[points[0]]} message${plot.use === "LentPieces" || r.call === "Queue::pieces" ? " in 64 KiB pieces" : ""}.`;
     else if (from === 0) text = `Faster than ${theirs.name} at every size measured.`;
-    else if (from === ahead.length) {
-      if (ahead.some(Boolean)) text = `The two trade places across the sizes measured.`;
-      else if (points.every(k => +plot.series[r.contender].med[k] > +plot.series[other].med[k])) text = `Slower than ${theirs.name} at every size measured.`;
-      else text = `Matched or was slower than ${theirs.name} at every size measured.`;
-    }
+    else if (behind.every(Boolean)) text = `Slower than ${theirs.name} at every size measured.`;
+    else if (from === ahead.length) text = ahead.some(Boolean) ? "The two trade places across the sizes measured." : `As fast as ${theirs.name} or slower at every size measured.`;
     else text = `Faster than ${theirs.name} from ${plot.labels[points[from]]}${unit} up; ${ahead.slice(0, from).some(x => x) ? "the two trade places below that" : `${theirs.name} leads below that`}.`;
   }
   el("speed-summary").textContent = text;

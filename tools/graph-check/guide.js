@@ -54,7 +54,7 @@ const path = require('path');
       /* Every hover names the size, a time per call in a readable unit, a rate, and the code path. */
       for (const t of state.titles) assert(/: \d+(\.\d+)? (ns|µs|ms|s) per (call|batch) · \d+(\.\d+)? (GB\/s|million messages\/s)/.test(t), t);
       assert(state.paths >= 1, `${state.call}: code paths listed`);
-      assert(/Faster|Slower|Matched|trade places|measured alone/.test(state.summary), state.summary);
+      assert(/Faster|Slower|As fast as|trade places|measured alone/.test(state.summary), state.summary);
       if (state.call.startsWith('Queue::')) assert(!state.standIn, 'queue measurements are actual queue calls');
       if (shape === 1 && threads === 0 && !state.call.startsWith('Queue::')) {
         assert.deepEqual(state.uses, state.call === 'update_multithreaded' ? [null, null, 'LentPieces'] : ['IdleOneMessage', 'OneMessage', null],

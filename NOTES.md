@@ -922,3 +922,75 @@ batch counts (engineers come for the number at their size and for where
 contenders cross); both pause kinds; shared; servil mt below its split
 (where it starts using threads depends on the machine, and the full
 sweep is what would show a change there).
+
+### Devon Jonte's audit (October 1, 2026)
+
+Devon Jonte (github.com/devonjonte, optimising BLAKE3 for x86-64)
+reviewed 80cd052 on an i7-12700K under Linux and sent his findings as a
+branch of his fork and as PR #2 (`candidate/devon-harness-fixes`, with an
+AUDIT.md). His three commits are in our history as he wrote them
+(e793c78, e80a4e3, ddce746); the follow-up commit adjusts them and folds
+AUDIT.md into this section. What he found, and what became of it:
+
+Defects, fixed:
+- **Allocation inside continuous samples.** The fork's queue of batches
+  paired its kept buffers and digest spaces anew in every sample (a
+  zip, a collect, an unzip: three vectors inside the timed interval).
+  The pairs are now kept together (`BATCH_PAIRS`); a counting allocator
+  in the tests (`harness_tests.rs`) sees none after warm-up.
+- **Zeroing inside samples.** A smaller batch truncated the kept digest
+  space and the next larger one zeroed its tail inside its sample; the
+  space now keeps its length and each call takes a prefix.
+- **Stale graph and guide.** A sparse run replaced the samples and
+  report and left an older run's SVG and HTML beside them; it now
+  removes both.
+- **The guide's sentence.** Faster at middle sizes and slower at the
+  last read "Slower at every size"; ties read as losses. The sentence now
+  says "Slower at every size" only when it is, "The two trade places"
+  for a mix, and "As fast as ... or slower" when it never leads.
+- **The guide's medians** rounded the Q64.64 approximation where the
+  report rounds the exact midpoint (2135/400: 5.337 against 5.338); both
+  use the exact one now.
+- **The report check** passed a report with its whole shared section
+  removed; it now requires every sampled cell once (`check-report.py`,
+  with tests in `test-check-report.py`), and takes `--rules` for a
+  standalone checkout.
+- **Contender order.** Long cells (one hash of 4 ms or more) sampled at
+  every second visit and met two of the four orders; and a whole-roster
+  design filtered to a use case's contenders lost its balance. Each
+  point's design is now built over the contenders that take part, every
+  one samples at every visit, and a point takes whole cycles of orders
+  (12 samples or more). The long-cell budget (`LONG_HASH_NS`,
+  `LONG_SAMPLES`) is gone. Cost: a full default VM run 39 -> 48 s.
+  Tests check the realized orders for every roster prefix, use case,
+  round count, and offset.
+- **Shared samples' load windows**: each copy records its own start.
+- **The guide's chips** could show `update_multithreaded` cells under an
+  `update` recommendation and the converse; the downward-triangle mark
+  had another name in Rust than in the guide's script.
+- **Trace counts** where the platform gives none (Linux) were written as
+  zeros; they are empty now, and the trace reader says so.
+- And a test of the official crate's batch wrapper against separate
+  `blake3::hash` calls (flags, slicing, order).
+
+In the fork: **the queue hung on one CPU** without SME2 (`taskset -c
+0`): fixed (fork NOTES, "The queue on one CPU").
+
+Open, as he left them, with our reading:
+- **Shared copies in the bootstrap.** A shared sample's two copies run
+  at once and may be correlated, while the bootstrap resamples them as
+  independent: shared cells' intervals (the report's `~`, the graph's
+  bands) may read narrower than they are. The remedy is the shared rule's
+  (clocks::speeds and tools/speeds.py, with their vectors): resample
+  rounds, both copies together.
+- **The provenance fingerprint** includes untracked files, which the
+  build script does not watch outside `src/`: a stale dirty fingerprint
+  is possible, with the build itself unchanged. Small.
+- **Kernel labels** of the queue and the multithreaded incremental API
+  name the one-shot paths; they may omit the helper threads. To check.
+- **Consistency checks**: per-byte speed need not be monotonic across
+  block, SIMD, tree, or wake boundaries, so a finding needs explaining
+  before it is called a contender's bug (METHODOLOGY already says so).
+- **SHA-256 under target-cpu=native** on his x86 ran 100x slower (VEX
+  instructions interleaved with SHA-NI, an AVX/SSE transition): the
+  generic build we use is right; never publish native-build SHA-256.

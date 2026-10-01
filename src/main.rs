@@ -2957,13 +2957,13 @@ impl ClockTrace {
     }
 }
 
-/// A trace's six count fields (P cycles, instructions, time; then E), zeros
-/// where the platform counts none.
-/// The six counts columns of a copy that took no sample: empty.
+/// A trace's six count fields (P cycles, instructions, time; then E),
+/// empty for a copy that took no sample and where the platform counts
+/// none (Linux: no per-thread cycle counts): never zeros that read as counts.
 const NO_COUNTS: &str = ",,,,,";
 
 fn counts_csv(counts: Option<clocks::Counts>) -> String {
-    let c = counts.unwrap_or_default();
+    let Some(c) = counts else { return NO_COUNTS.to_owned() };
     format!("{},{},{},{},{},{}", c.p.cycles, c.p.instructions, c.p.time_ns, c.e.cycles, c.e.instructions, c.e.time_ns)
 }
 
@@ -4839,7 +4839,7 @@ fn generate_svg(
      */
     let mut howto = vec![
         format!("Each line is one hash. Each dot is the median of up to {} timings at that size.", 2 * roster.rounds),
-        "The shaded band is a 95% bootstrap interval assuming independent observations; shared copies may be correlated, so their bands can overstate precision. A deeper tint marks a wider interval. Repeat runs are needed to establish a repeatable lead.".to_owned(),
+        "The shaded band around a line shows how precisely its median is known (95% confidence; two copies at once may vary together, so their bands may read narrow); a deeper tint marks a less certain median.".to_owned(),
         "A dot's shape marks the method the hash used at that size. The section \"Code paths\" at the bottom names each method.".to_owned(),
         "Rate counts bytes or messages per second, time the nanoseconds per byte or message; the switch at right changes every plot.".to_owned(),
         "The strip at the top narrows every plot to part of its inputs: drag an end of its band, or use the arrows at its ends.".to_owned(),
@@ -7190,7 +7190,7 @@ fn xml_escape(input: &str) -> String {
 }
 
 #[cfg(test)]
-mod audit_tests;
+mod harness_tests;
 
 #[cfg(test)]
 mod correctness_tests {

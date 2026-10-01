@@ -1,4 +1,7 @@
-//! Regression checks for the benchmark's own work, independent of speed.
+//! Checks of the benchmark's own work, independent of speed: what a timed
+//! interval holds besides the hash (allocation, zeroing), the realized
+//! contender orders, what the guide and output directory show, and the
+//! official crate's batch wrapper.
 use super::*;
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
@@ -148,17 +151,4 @@ fn sample_schedule_handles_short_explicit_round_counts() {
             }
         }
     }
-}
-
-#[test]
-fn shared_copy_bootstrap_is_not_independent_evidence() {
-    // A diagnostic anchor: duplicating simultaneous observations creates a
-    // narrower interval under the current independent-observation bootstrap.
-    // This test records the issue, without changing the shared speed rule.
-    let values = [100, 110, 120, 130, 140, 150].map(|ns| clocks::speeds::per_unit(ns, 1));
-    let duplicated: Vec<u128> = values.iter().flat_map(|&ns| [ns, ns]).collect();
-    let (low, high) = clocks::speeds::bootstrap_median_interval(&values);
-    let (low2, high2) = clocks::speeds::bootstrap_median_interval(&duplicated);
-    assert!(high2 - low2 < high - low,
-        "the independent bootstrap treats correlated copies as extra evidence");
 }

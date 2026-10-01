@@ -2,8 +2,8 @@
 """The clock each sample ran at, in a bench-hashes --trace-clocks CSV.
 
 Each sample carries its wall time and the thread's cycles, instructions,
-and time on P-cores and E-cores (Apple; zeros where the platform counts
-none). The script reports where the samples ran (P-cores, E-cores, split),
+and time on P-cores and E-cores (Apple; empty fields where the platform
+counts none). The script reports where the samples ran (P-cores, E-cores, split),
 the distribution of their frequency (cycles over time), each cell's
 fastest and slowest sample beside the frequency it ran at, and windows of
 consecutive samples more than 5% off the median frequency: a boost or a
@@ -93,6 +93,7 @@ def main():
     path = sys.argv[1]
     rows = []
     after_idle = 0
+    uncounted = 0
     with open(path) as handle:
         for row in csv.DictReader(handle):
             # Preparation has its own rows and clocks; keep it apart from
@@ -102,6 +103,10 @@ def main():
             # After-idle bursts (traces from September 27, 2026) are not rounds.
             if row.get("scenario") == "after idle":
                 after_idle += 1
+                continue
+            # Empty counts: the platform gives none (Linux).
+            if row["p_cycles"] == "":
+                uncounted += 1
                 continue
             rows.append({
                 "round": int(row["round"]),
@@ -116,11 +121,12 @@ def main():
                 "p_instr": int(row["p_instructions"]),
                 "e_instr": int(row["e_instructions"]),
             })
+    if uncounted:
+        assert not rows, "a trace has counts for every sample or for none"
+        print(f"{uncounted} samples from {path}, with no cycle counts: this platform gives none.")
+        return
     rows.sort(key=lambda r: (r["round"], r["position"]))
     print(f"{len(rows)} samples from {path}" + (f" (and {after_idle} after-idle bursts, left out)" if after_idle else ""))
-    if not any(r["p_cycles"] or r["e_cycles"] for r in rows):
-        print("No cycle counts: this platform gives none.")
-        return
     cell_wall = defaultdict(list)
     for r in rows:
         cell_wall[(r["contender"], r["size"])].append(r["wall"])
