@@ -496,9 +496,13 @@ travel, so a slow hand can settle on one of several close ticks, and an
 end leaves its tick only once the pointer aims 3 px nearer another; the
 ticks under the ends light up while dragging. "All", shown whenever the
 range is narrowed, restores every input. The chips at the header's right
-show and hide plots, by scenario (solo, shared) and by use case (one
-buffer, a batch, messages, pieces, and batches nonstop, owned or lent); the plots shown close ranks, and a row keeps at
-least one chip pressed. The header (title, strip, chips, and rate/time
+show and hide plots, in groups that follow the measurements: what is
+hashed (messages, batches, pieces); how the program calls (after idling,
+after other work, nonstop); and, joined under Nonstop, the two choices
+only nonstop plots have (owned or lent buffers; solo or shared). A plot
+shows when every chip that applies to it is pressed; the plots shown
+close ranks. A chip whose press would change nothing, as the others
+stand, is dimmed, and a press that would leave no plot is refused. The header (title, strip, chips, and rate/time
 switch) sits at the top of the page.
 
 The page is written for three readers at once: a newcomer who holds only

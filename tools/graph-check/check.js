@@ -174,20 +174,45 @@ function checkLayout(tag) {
   await sleep(300); checkLayout("dragged"); checkControls("dragged");
   const grip = +((w.document.getElementById("zoom-grip-from").getAttribute("transform") || "").match(/translate\(([-\d.]+)/) || [0, 0])[1];
   check(Math.abs(grip - stripX(T.ALLB[T.zFrom])) < 0.1, "the start grip sits at the band's start");
-  // The chips: hide the solo plots, and the shared ones move up; a row keeps one chip.
+  // The chips: a plot shows when every chip that applies to it is pressed;
+  // the plots shown close ranks; no press empties the page; a chip whose
+  // press changes nothing is dimmed.
   w.zoomAll(); await sleep(700);
-  const solo = D.plots.map((pl, p) => pl.scenario === "solo" ? p : -1).filter(p => p >= 0);
-  const shared = D.plots.map((pl, p) => pl.scenario === "shared" ? p : -1).filter(p => p >= 0);
-  if (solo.length && shared.length) {
-    const pitch = D.plots[1].top - D.plots[0].top;
-    w.toggleChip("scenario", "solo");
-    check(solo.every(p => w.document.getElementById("plot-" + p).classList.contains("plot-off")), "the solo plots hide");
-    check(shared.every((p, i) => T.plotShift[p] === (i - p) * pitch), "the shared plots move up into the solo plots' places");
-    check(T.belowShift === -solo.length * pitch, "what lies below follows them up");
-    w.toggleChip("scenario", "shared");
-    check(shared.every(p => !w.document.getElementById("plot-" + p).classList.contains("plot-off")), "the last chip of a row stays pressed");
-    w.toggleChip("scenario", "solo");
-    check(D.plots.every((_, p) => T.plotShift[p] === 0) && T.belowShift === 0, "pressing solo again restores every plot's place");
+  {
+    const pitch = D.plots.length > 1 ? D.plots[1].top - D.plots[0].top : 0;
+    const off = p => w.document.getElementById("plot-" + p).classList.contains("plot-off");
+    const chip = (k, v) => w.document.querySelector(`.chip[data-kind="${k}"][data-value="${v}"]`);
+    const live = (k, v) => chip(k, v).getAttribute("data-live") === "true";
+    const ranks = tag => {
+      let shown = 0;
+      D.plots.forEach((_, p) => { if (!off(p)) { check(T.plotShift[p] === (shown - p) * pitch, `${tag}: plot ${p} closes ranks`); shown++; } });
+      check(T.belowShift === (shown - D.plots.length) * pitch, `${tag}: what lies below follows`);
+      check(shown > 0, `${tag}: some plot shows`);
+    };
+    if (chip("scenario", "solo") && chip("scenario", "shared")) {
+      w.toggleChip("scenario", "solo");
+      D.plots.forEach((pl, p) => check(off(p) === (pl.pattern === "nonstop" && pl.scenario === "solo"), `solo off: plot ${p} (${pl.use}, ${pl.scenario}) hides only if nonstop solo`));
+      ranks("solo off");
+      w.toggleChip("scenario", "solo");
+    }
+    if (chip("pattern", "nonstop")) {
+      w.toggleChip("pattern", "nonstop");
+      for (const [k, v] of [["buffers", "owned"], ["buffers", "lent"], ["scenario", "solo"], ["scenario", "shared"], ["what", "pieces"]])
+        if (chip(k, v)) check(!live(k, v), `nonstop off: ${k} ${v} is dimmed`);
+      ranks("nonstop off");
+      w.toggleChip("pattern", "nonstop");
+      for (const [k, v] of [["buffers", "owned"], ["buffers", "lent"]]) if (chip(k, v)) check(live(k, v), `nonstop on: ${k} ${v} is live`);
+    }
+    // Pressing every chip off, in order, leaves a plot showing; each refused press keeps its chip pressed.
+    const all = [...w.document.querySelectorAll(".chip")].map(c => [c.getAttribute("data-kind"), c.getAttribute("data-value")]);
+    for (const [k, v] of all) {
+      w.toggleChip(k, v);
+      ranks(`${k} ${v} off`);
+    }
+    check(D.plots.some((_, p) => !off(p)), "no sequence of presses empties the page");
+    for (const [k, v] of all) if (chip(k, v).getAttribute("data-on") === "false") w.toggleChip(k, v);
+    check(D.plots.every((_, p) => !off(p) && T.plotShift[p] === 0) && T.belowShift === 0, "pressing every chip again restores every plot's place");
+    check([...w.document.querySelectorAll(".chip")].every(c => c.getAttribute("data-live") === "true"), "with every chip pressed, every chip is live");
     noNaN("chips");
   }
   // Hover every point of every plot  // Hover every point of every plot: the panel holds its widest line.

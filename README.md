@@ -63,10 +63,11 @@ In every plot, higher is faster. Hover over a dot, or tap it, to compare every c
 Click a name at the right to show or hide that contender. The band on
 the strip at the top marks the part of the inputs every plot shows: drag
 either end of it, or the band itself, and "all" shows everything again.
-The chips at the top right show or hide plots: solo or shared; after
-idling, after other work, or nonstop; one buffer, a batch, or nonstop
-tasks with owned or lent buffers. Show one, and it sits right
-under them.
+The chips at the top right show or hide plots: messages, batches, or
+pieces; after idling, after other work, or nonstop; and, under Nonstop,
+owned or lent buffers and one program or two. A plot shows when every
+chip that applies to it is pressed, and a chip that would change nothing
+dims. The plots shown sit right under the chips.
 
 Under the title, the graph names the computer and the day, and says so
 when other programs were busy or the computer ran on battery power

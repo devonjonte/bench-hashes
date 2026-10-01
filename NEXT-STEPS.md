@@ -21,7 +21,14 @@ Mac job 836 (fork 1794a57, bench 2400dfe; quiet, mains): the same
 checks pass; measuring 65 -> 41 s; servil mt 64 MiB pieces 0.098 ns/B
 (829-830: 0.099-0.102). Next job 837. **Zooko restarts the runner**
 before any perf_regress job (its installed copy asks for the removed
-"streamed" points). Item 1 of "Next session" below is done.
+"streamed" points). Items 1 and 2 of "Next session" below are done.
+
+Done (item 2, the chips): grouped as the measurements are (Messages /
+Batches / Pieces; After idling / After other work; Nonstop, with Owned /
+Lent and Solo / Shared joined under it, applying to nonstop plots
+alone). A plot shows when every chip that applies to it is pressed; a
+chip whose press changes nothing, as the others stand, is dimmed; a
+press that would leave no plot is refused. check.js holds all three.
 
 **Zooko, October 1, to test (fork):** servil mt went single-threaded
 below 768 KiB (now 512 KiB) for a minimax reason since abandoned; earlier

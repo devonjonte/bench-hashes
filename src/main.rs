@@ -389,6 +389,27 @@ impl UseCase {
         if self.idle() { "idle" } else if self.after_gap() { "busy" } else { "nonstop" }
     }
 
+    /// What a call hashes, as the graph's chips name it.
+    fn what_key(self) -> &'static str {
+        match self.call() {
+            Self::OneMessage | Self::ContinuousMessages | Self::LentMessages => "messages",
+            Self::ManyMessages | Self::ContinuousBatches | Self::LentBatches => "batches",
+            Self::LentPieces => "pieces",
+            Self::IdleOneMessage | Self::IdleManyMessages => unreachable!("call() names the call after other work"),
+        }
+    }
+
+    /// Whose buffers a nonstop use case hashes, as the graph's chips name
+    /// it: the producer's own, handed over (owned), or lent until each call
+    /// returns; None for the calls after a gap.
+    fn buffers_key(self) -> Option<&'static str> {
+        match self {
+            Self::ContinuousMessages | Self::ContinuousBatches => Some("owned"),
+            Self::LentMessages | Self::LentPieces | Self::LentBatches => Some("lent"),
+            Self::OneMessage | Self::ManyMessages | Self::IdleOneMessage | Self::IdleManyMessages => None,
+        }
+    }
+
     /// Whether the program idles before each call.
     fn idle(self) -> bool {
         matches!(self, Self::IdleOneMessage | Self::IdleManyMessages)
@@ -4550,6 +4571,8 @@ fn generate_svg(
     .chip[data-on="true"] rect { fill: #ede9fe; stroke: #a78bfa; }
     .chip[data-on="true"] text { fill: #3b0764; font-weight: 600; }
     .chip-label { font-size: 10px; fill: #9a9a9a; }
+    .chip[data-live="false"] { opacity: 0.38; }
+    .chip-tie { fill: none; stroke: #cfcfca; stroke-width: 1; }
     .plot-off { visibility: hidden; pointer-events: none; }
     .plot-off .series-prov { visibility: visible; }
     .zoom-grip-hit { fill: transparent; }
@@ -4728,81 +4751,79 @@ fn generate_svg(
     writeln!(svg, "  </g>").unwrap();
 
     /*
-     * Chips that show and hide plots: one row for who is hashing (solo,
-     * shared), one for how the program calls (after idling, after other
-     * work, nonstop), one for what it hashes (one buffer, a batch,
-     * pieces; messages and batches continuously), from the plots this
-     * run has. Pressed chips show their plots; the plots shown close
-     * ranks. A row keeps at least one chip pressed.
+     * Chips that show and hide plots, from the plots this run has, in
+     * groups that follow the measurements: what is hashed (messages,
+     * batches, pieces); how the program calls (after idling, after other
+     * work, nonstop); and under Nonstop, joined to it by a line, the two
+     * choices only nonstop plots have (owned or lent buffers; one program
+     * or two at once). A plot shows when every chip that applies to it is
+     * pressed. A chip whose press would change nothing, as the others
+     * stand, is dimmed; a press that would leave no plot is refused (the
+     * script's toggleChip).
      */
-    let chip_rows: [(&str, Vec<(String, &str, String)>); 3] = [
-        ("scenario", {
-            let mut v = Vec::new();
-            for scenario in Scenario::ALL {
-                if plots.iter().any(|plot| plot.scenario == scenario) {
-                    let tip = match scenario {
-                        Scenario::Solo => "Show or hide the plots of one program hashing alone",
-                        Scenario::Shared => "Show or hide the plots of two programs hashing at once",
-                    };
-                    v.push((scenario.key().to_owned(), scenario.heading(), tip.to_owned()));
-                }
-            }
-            v
-        }),
-        ("pattern", {
-            let mut v = Vec::new();
-            for (key, label, tip) in [
-                ("idle", "After idling", "Show or hide the plots of calls each made after the program slept 1 ms, as a server waiting for its next request"),
-                ("busy", "After work", "Show or hide the plots of calls each made after the program ran other code and read 128 MiB, as on a busy machine"),
-                ("nonstop", "Nonstop", "Show or hide the plots of inputs hashed one after another"),
-            ] {
-                if plots.iter().any(|plot| plot.use_case.pattern_key() == key) {
-                    v.push((key.to_owned(), label, tip.to_owned()));
-                }
-            }
-            v
-        }),
-        ("use", {
-            let mut v = Vec::new();
-            for use_case in UseCase::ALL.into_iter().filter(|use_case| use_case.call() == *use_case) {
-                if plots.iter().any(|plot| plot.use_case.call() == use_case) {
-                    let (label, tip) = match use_case {
-                        UseCase::OneMessage => ("One buffer", "Show or hide the plots of a message in one buffer, hashed now and then"),
-                        UseCase::ManyMessages => ("A batch", "Show or hide the plots of a batch of 64-byte messages, hashed now and then"),
-                        UseCase::IdleOneMessage | UseCase::IdleManyMessages => unreachable!("the chips name each call once"),
-                        UseCase::ContinuousMessages => ("Messages, owned", "Show or hide nonstop messages in buffers the producer owns"),
-                        UseCase::ContinuousBatches => ("Batches, owned", "Show or hide nonstop batches in buffers the producer owns"),
-                        UseCase::LentMessages => ("Messages, lent", "Show or hide nonstop synchronous calls on lent message buffers"),
-                        UseCase::LentPieces => ("Pieces, lent", "Show or hide nonstop synchronous calls on lent 64 KiB pieces"),
-                        UseCase::LentBatches => ("Batches, lent", "Show or hide nonstop synchronous calls on lent batch buffers"),
-                    };
-                    v.push((format!("{use_case:?}"), label, tip.to_owned()));
-                }
-            }
-            v
-        }),
-    ];
-    /* One line per kind of chip, continued on the next line where it would pass the right edge. */
+    type Chip = (&'static str, &'static str, &'static str);
+    let has = |test: &dyn Fn(&Plot) -> bool| plots.iter().any(test);
+    let mut chip_lines: Vec<(&str, bool, Vec<Chip>)> = Vec::new();
+    let mut line_of = |kind: &'static str, nested: bool, chips: Vec<(Chip, bool)>| {
+        let chips: Vec<Chip> = chips.into_iter().filter(|(_, present)| *present).map(|(chip, _)| chip).collect();
+        if !chips.is_empty() {
+            chip_lines.push((kind, nested, chips));
+        }
+    };
+    line_of("what", false, vec![
+        (("messages", "Messages", "Show or hide the plots of messages: one in one buffer now and then, or one after another"), has(&|p| p.use_case.what_key() == "messages")),
+        (("batches", "Batches", "Show or hide the plots of batches of 64-byte messages"), has(&|p| p.use_case.what_key() == "batches")),
+        (("pieces", "Pieces", "Show or hide the plots of long messages arriving in 64 KiB pieces"), has(&|p| p.use_case.what_key() == "pieces")),
+    ]);
+    line_of("pattern", false, vec![
+        (("idle", "After idling", "Show or hide the plots of calls each made after the program slept 1 ms, as a server waiting for its next request"), has(&|p| p.use_case.pattern_key() == "idle")),
+        (("busy", "After other work", "Show or hide the plots of calls each made after the program ran other code and read 128 MiB, as a program that hashes between its other tasks"), has(&|p| p.use_case.pattern_key() == "busy")),
+    ]);
+    line_of("pattern", false, vec![
+        (("nonstop", "Nonstop", "Show or hide the plots of inputs hashed one after another, as fast as the program can"), has(&|p| p.use_case.pattern_key() == "nonstop")),
+    ]);
+    if has(&|p| p.use_case.pattern_key() == "nonstop") {
+        line_of("buffers", true, vec![
+            (("owned", "Owned", "Show or hide nonstop plots where the program hands each buffer over for good and fills the next while it is hashed"), has(&|p| p.use_case.buffers_key() == Some("owned"))),
+            (("lent", "Lent", "Show or hide nonstop plots where the program waits for each call to return before refilling its buffer"), has(&|p| p.use_case.buffers_key() == Some("lent"))),
+        ]);
+        line_of("scenario", true, vec![
+            (("solo", "Solo", "Show or hide the nonstop plots of one program hashing alone"), has(&|p| !p.use_case.after_gap() && p.scenario == Scenario::Solo)),
+            (("shared", "Shared", "Show or hide the nonstop plots of two programs hashing at once"), has(&|p| p.scenario == Scenario::Shared)),
+        ]);
+    }
+    /* One line per group, continued on the next where it would pass the right edge; nested lines hang from Nonstop. */
+    const NEST: f64 = 18.0;
     let mut line = 0;
-    for (kind, chips) in chip_rows.iter() {
-        let mut x = PLOT_RIGHT + 14.0;
+    let mut nonstop_line = None;
+    for (kind, nested, chips) in &chip_lines {
+        let left = PLOT_RIGHT + 14.0 + if *nested { NEST } else { 0.0 };
+        let mut x = left;
+        if *nested {
+            let top = CHIP_ROW_TOP + nonstop_line.expect("nested chips follow Nonstop") as f64 * 24.0 + 18.0;
+            let mid = CHIP_ROW_TOP + line as f64 * 24.0 + 9.0;
+            writeln!(svg, r##"  <path class="chip-tie" d="M{:.1} {top:.1} L{:.1} {mid:.1} L{:.1} {mid:.1}"/>"##, PLOT_RIGHT + 24.0, PLOT_RIGHT + 24.0, left - 3.0).unwrap();
+        }
         for (index, (value, label, tip)) in chips.iter().enumerate() {
             let width = label.chars().count() as f64 * 6.6 + 16.0;
             if index > 0 && x + width > SVG_WIDTH - 4.0 {
                 line += 1;
-                x = PLOT_RIGHT + 14.0;
+                x = left;
             }
             let y = CHIP_ROW_TOP + line as f64 * 24.0;
             assert!(y + 18.0 <= HEADER_BOTTOM, "the chips fit in the header");
             writeln!(
                 svg,
-                r##"  <g class="chip" data-kind="{kind}" data-value="{value}" data-on="true" transform="translate({x:.1} {y:.1})" onclick="event.stopPropagation(); toggleChip('{kind}', '{value}')"><title>{}</title><rect x="0" y="0" width="{width:.1}" height="18" rx="9"/><text x="{:.1}" y="13" text-anchor="middle">{}</text></g>"##,
+                r##"  <g class="chip" data-kind="{kind}" data-value="{value}" data-on="true" data-live="true" transform="translate({x:.1} {y:.1})" onclick="event.stopPropagation(); toggleChip('{kind}', '{value}')"><title>{}</title><rect x="0" y="0" width="{width:.1}" height="18" rx="9"/><text x="{:.1}" y="13" text-anchor="middle">{}</text></g>"##,
                 xml_escape(tip),
                 width / 2.0,
                 xml_escape(label),
             )
             .unwrap();
             x += width + 6.0;
+            if *value == "nonstop" {
+                nonstop_line = Some(line);
+            }
         }
         line += 1;
     }
@@ -5977,11 +5998,13 @@ fn write_interaction_script(
         if plot_index > 0 { data.push(','); }
         write!(
             data,
-            "{{\"scenario\":\"{}\",\"use\":\"{:?}\",\"call\":\"{:?}\",\"pattern\":\"{}\",\"top\":{:.1},\"bottom\":{:.1},\"scale\":{},\"timeUnit\":{},\"rateUnit\":{},\"rateLong\":{},\"timeLong\":{},\"x\":[",
+            "{{\"scenario\":\"{}\",\"use\":\"{:?}\",\"call\":\"{:?}\",\"pattern\":\"{}\",\"what\":\"{}\",\"buffers\":{},\"top\":{:.1},\"bottom\":{:.1},\"scale\":{},\"timeUnit\":{},\"rateUnit\":{},\"rateLong\":{},\"timeLong\":{},\"x\":[",
             plot.scenario.key(),
             plot.use_case,
             plot.use_case.call(),
             plot.use_case.pattern_key(),
+            plot.use_case.what_key(),
+            plot.use_case.buffers_key().map_or("null".to_owned(), |key| format!("\"{key}\"")),
             plot.top,
             plot.bottom,
             plot.use_case.rate_scale(),
@@ -6208,26 +6231,40 @@ function betterArrow(p, title, up) {
     `M${f(x)} ${f(tail)} L${f(x)} ${f(head)} M${f(x - 3.5)} ${f(head + 5 * dir)} L${f(x)} ${f(head)} L${f(x + 3.5)} ${f(head + 5 * dir)}`);
 }
 /*
- * The chips show and hide plots. The plots shown close ranks from the
- * first plot's place, and what lies below them follows; a row of chips
- * keeps at least one pressed.
+ * The chips show and hide plots. A plot shows when every chip that
+ * applies to it is pressed: what it hashes and how the program calls,
+ * and for a nonstop plot whose buffers and how many programs. The plots
+ * shown close ranks from the first plot's place, and what lies below them
+ * follows. A press that would leave no plot is refused; a chip whose
+ * press would change nothing, as the others stand, is dimmed.
  */
-const chipOn = { scenario: {}, pattern: {}, use: {} };
+const chipOn = { what: {}, pattern: {}, buffers: {}, scenario: {} };
 document.querySelectorAll(".chip").forEach(c => { chipOn[c.getAttribute("data-kind")][c.getAttribute("data-value")] = true; });
+const plotShown = (plot, on) => !!(on.what[plot.what] && on.pattern[plot.pattern]
+  && (plot.pattern !== "nonstop" || (on.buffers[plot.buffers] && on.scenario[plot.scenario])));
+const shownWith = on => DATA.plots.map(plot => plotShown(plot, on));
+const flipped = (kind, value) => ({ ...chipOn, [kind]: { ...chipOn[kind], [value]: !chipOn[kind][value] } });
 const plotShift = DATA.plots.map(() => 0);
 let belowShift = 0;
 function toggleChip(kind, value) {
-  const row = chipOn[kind], next = !row[value];
-  if (!next && Object.values(row).filter(v => v).length === 1) return;
-  row[value] = next;
-  document.querySelector(`.chip[data-kind="${kind}"][data-value="${value}"]`).setAttribute("data-on", next ? "true" : "false");
+  const next = flipped(kind, value);
+  if (!shownWith(next).some(v => v)) return;
+  chipOn[kind] = next[kind];
+  document.querySelector(`.chip[data-kind="${kind}"][data-value="${value}"]`).setAttribute("data-on", chipOn[kind][value] ? "true" : "false");
   layoutPlots();
+}
+function dimChips() {
+  const now = shownWith(chipOn).join();
+  document.querySelectorAll(".chip").forEach(c => {
+    const kind = c.getAttribute("data-kind"), value = c.getAttribute("data-value");
+    c.setAttribute("data-live", shownWith(flipped(kind, value)).join() !== now ? "true" : "false");
+  });
 }
 function layoutPlots() {
   const pitch = DATA.plots.length > 1 ? DATA.plots[1].top - DATA.plots[0].top : 0;
   let shown = 0;
   DATA.plots.forEach((plot, p) => {
-    const visible = chipOn.scenario[plot.scenario] && chipOn.pattern[plot.pattern] && chipOn.use[plot.call];
+    const visible = plotShown(plot, chipOn);
     const group = document.getElementById("plot-" + p);
     group.classList.toggle("plot-off", !visible);
     plotShift[p] = visible ? (shown - p) * pitch : 0;
@@ -6236,7 +6273,8 @@ function layoutPlots() {
   });
   belowShift = (shown - DATA.plots.length) * pitch;
   document.querySelectorAll(".below").forEach(g => g.setAttribute("transform", `translate(0 ${belowShift})`));
-  if (hovered && !chipOn.scenario[DATA.plots[hovered[0]].scenario]) hideHover();
+  if (hovered && !plotShown(DATA.plots[hovered[0]], chipOn)) hideHover();
+  dimChips();
   layoutProv();
 }
 /* The door under the title opens and closes the panel on how to read the graph. */
