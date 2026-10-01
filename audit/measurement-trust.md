@@ -26,6 +26,10 @@ record subsequent evidence. Pending review stays pending.
 | T7 load/provenance | Stale untracked fingerprint acknowledged | Missing-window verdict reproduced; focused guard proposed; BLAKE3 issue#4 has no response |
 | T8 direct caller | No requested confirmation yet | Observed extra-work control near2x; first stage lacks load and remains failed coverage |
 
+The focused load guard is [BLAKE3 PR#5](https://github.com/johnservil/BLAKE3/pull/5),
+building on reader PR#3. It supplies exit2 on missing initial/confirmation
+windows; obtaining adequate narrowed-process coverage remains open.
+
 - [Effect-resolution assessment and baseline metric](reliability-assessment.md)
 - [Actual adaptive gate null pilot](results/live-gate/README.md)
 - [Deterministic gate contracts, including narrowing](results/gate-contract/README.md)
