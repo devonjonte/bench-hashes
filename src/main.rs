@@ -1371,8 +1371,8 @@ fn parse_arguments() -> Options {
                     .expect("the plain prefix matches every label");
                 let wanted = |point: &Point| point.use_case.label_prefix() == prefix;
                 POINTS.iter().position(|point| point.label == label && wanted(point)).unwrap_or_else(|| {
-                    let labels: Vec<&str> = POINTS.iter().map(|point| point.label).collect();
-                    panic!("--points: no point labelled {label:?}; the labels are {}", labels.join(", "))
+                    let labels: Vec<String> = POINTS.iter().filter(|point| wanted(point)).map(|point| format!("{prefix}{}", point.label)).collect();
+                    panic!("--points: no point {:?}; the points named so are {}", format!("{prefix}{label}"), labels.join(", "))
                 })
             })
             .collect();

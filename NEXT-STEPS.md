@@ -50,9 +50,8 @@ closed) answered.
    bootstrap in clocks::speeds, unused; it leaves at the next promotion.
    The Mac runner's installed perf_regress.py (used to build) still finds
    its old speeds.py beside it; the next setup-mac.sh installs the new one.
-4. clocks::load says "not measured on this platform" for a run under
-   half a second on Linux and macOS (no window closed); `--points` lists
-   labels without their use-case prefixes.
+4. Done: clocks::load's message for a run under half a second; `--points`
+   names the points that share the requested prefix.
 5. The earlier list below (graph's two-speed lines, fresh reads, the
    consistency findings: servil batch of 4 after other work 1.2-1.8x a
    batch of 2 per message, on both records).
