@@ -30,6 +30,30 @@ node tools/graph-check/check.js benchmark-results/FOLDER/bench-hashes.graph.svg
 python3 tools/check-report.py benchmark-results/FOLDER
 ```
 
+## Adding a contender
+
+Copy what SHA3-256 does: `grep -n Sha3_256 src/main.rs build.rs` lists
+every place, and the compiler names any match you miss.
+
+1. Add your crate to `Cargo.toml`, and its provenance to `build.rs`
+   (`emit_required_package`, read back as a `*_SOURCE_INFO` constant).
+2. Add a variant to `Algorithm` and to `Algorithm::ALL`, with its key
+   (for `--contenders`), name, one-line description, colour, provenance,
+   and mode (single-threaded or multithreaded). A hash with both modes
+   is two contenders, as BLAKE3 servil st and mt are.
+3. Give it three calls, each the plain entry point your users call: one
+   message (`one_message_call`), a batch of 64-byte messages
+   (`hash_batch`; a loop over its one-message call when it has no batch
+   entry point), and its incremental API for a message in pieces
+   (`hash_stream`).
+4. Describe its code paths for the graph's marks (`detect_kernels`); one
+   path at every size is a fine start.
+
+Then `cargo test --release` and
+`cargo run --release -- --contenders yours,sha256-ring,blake3-servil-mt`.
+The harness does the rest: interleaving, the use cases and scenarios,
+statistics, the report, the graph, and the guide.
+
 ## Working on the fork alongside
 
 The BLAKE3 servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
@@ -60,7 +84,7 @@ benchmark.
 
 - **Contenders are black boxes.** The benchmark lists a contender, calls
   its plain entry point (single-threaded, multithreaded, a batch call, or
-  its incremental API for a stream; for the fork's multithreaded
+  its incremental API for a message in pieces; for the fork's multithreaded
   contender, its queue for inputs one after another) with no pool, cap,
   or wrapper of its own, and asks the fork for its
   `kernel_report()`. A contender without a batch entry point hashes a
@@ -87,18 +111,9 @@ benchmark.
 ## Results from other machines
 
 Pull requests that add a machine's results are welcome: one folder under
-`benchmark-results/`, the three files a run writes, from a clean commit
+`benchmark-results/`, the files a run writes there, from a clean commit
 of this repository. A second machine of a kind we already have gets a
 folder name of its own.
-
-## Adding a contender
-
-A contender is a variant of `Algorithm` in `src/main.rs`, with an entry
-in `Algorithm::ALL`, a key, a name, a colour, a provenance string, a mode
-description, a kernel description (`detect_kernels`), an arm in
-`hash_batch`, and one in `hash_stream`, its incremental API for a
-message in pieces. The harness handles selection, interleaving, checking, and
-reporting for any count from two to eight.
 
 ## Text in the graph and the report
 

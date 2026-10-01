@@ -4845,12 +4845,9 @@ fn generate_svg(
     if plots.iter().any(|plot| plot.use_case.idle()) {
         howto.push("After idling: the program calls the hash, sleeps 1 ms, writes the input, and calls again; the second call is timed. So a server works that waits for its next request.".to_owned());
     }
-    if plots.iter().any(|plot| matches!(plot.use_case.call(), UseCase::LentPieces)) {
-        howto.push("In the plot of messages in pieces, each 64 KiB piece is first read into memory (timed; a memory copy, the cheapest read).".to_owned());
-    }
     if plots.iter().any(|plot| !plot.use_case.after_gap()) {
-        howto.push("Owned buffers can pass to a queue while the producer fills the next. Lent buffers return when each synchronous call finishes; producing and hashing take turns.".to_owned());
-        howto.push("In the continuous plots, each message or batch is first read into memory (timed, as above); a hash that takes the program's buffers hashes one while the next is read.".to_owned());
+        howto.push("Nonstop, each input (each 64 KiB piece of a message in pieces) is first read into memory, a memory copy, the cheapest read, inside the time.".to_owned());
+        howto.push("Owned buffers: the program hands each buffer over and fills the next while it is hashed. Lent buffers: the program waits for each call to return before refilling its buffer.".to_owned());
     }
     if two_speeds {
         howto.push("Where a line splits in two, the timings ran at two different speeds; the note under the last plot says why.".to_owned());
@@ -5041,9 +5038,8 @@ fn write_plot(svg: &mut String, plot: &Plot, roster: &Roster, results: &Results,
     let heading_note = match plot.use_case {
         UseCase::OneMessage | UseCase::IdleOneMessage => lead.to_owned(),
         UseCase::ManyMessages | UseCase::IdleManyMessages => format!("{lead} · each hash takes the whole batch where it can, else one message at a time"),
-        UseCase::ContinuousMessages => format!("{} · as a program reading many files receives them", plot.scenario.subtitle()),
-        UseCase::ContinuousBatches => format!("{} · producing and hashing can overlap", plot.scenario.subtitle()),
-        UseCase::LentMessages | UseCase::LentPieces | UseCase::LentBatches => format!("{} · producing and hashing take turns", plot.scenario.subtitle()),
+        UseCase::ContinuousMessages | UseCase::ContinuousBatches => format!("{} · owned: the program hands each buffer over and fills the next while it is hashed", plot.scenario.subtitle()),
+        UseCase::LentMessages | UseCase::LentPieces | UseCase::LentBatches => format!("{} · lent: the program waits for each call to return before refilling its buffer", plot.scenario.subtitle()),
     };
     writeln!(
         svg,

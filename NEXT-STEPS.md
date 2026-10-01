@@ -30,11 +30,20 @@ alone). A plot shows when every chip that applies to it is pressed; a
 chip whose press changes nothing, as the others stand, is dimmed; a
 press that would leave no plot is refused. check.js holds all three.
 
-**Zooko, October 1, to test (fork):** servil mt went single-threaded
-below 768 KiB (now 512 KiB) for a minimax reason since abandoned; earlier
-it led its competitors from 32 KiB. Test whether `hash_multithreaded`
-should use threads at smaller sizes again, natively, after a gap and
-nonstop. He also warns that every measurement cut can hide a later
+Done (item 3, owned and lent in plain words): nonstop subtitles say
+"owned: the program hands each buffer over and fills the next while it
+is hashed" or "lent: the program waits for each call to return before
+refilling its buffer"; the how-to-read panel says the same, and its two
+lines on reads are one. CONTRIBUTING: "Adding a contender" moved up and
+rewritten as a checklist that matches the code (it claimed "checking"
+and a limit of eight contenders, neither true).
+
+**Zooko, October 1, tested (fork NOTES "The split below 512 KiB,
+measured again", jobs 841-851):** no constant beats 512 KiB everywhere:
+below it, after a gap, the length at the split runs up to 2.3x slower
+than on one thread; nonstop, a 256 KiB split is 19% faster at 256 KiB.
+Decision for Zooko: split lower only while workers poll (one branch)?
+He also warns that every measurement cut can hide a later
 regression: cut only what no plausible change could make informative.
 
 **Open, moved to the fork's probes:** servil mt's lent pieces faster
