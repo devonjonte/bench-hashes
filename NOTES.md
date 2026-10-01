@@ -936,8 +936,14 @@ Defects, fixed:
 - **Allocation inside continuous samples.** The fork's queue of batches
   paired its kept buffers and digest spaces anew in every sample (a
   zip, a collect, an unzip: three vectors inside the timed interval).
-  The pairs are now kept together (`BATCH_PAIRS`); a counting allocator
-  in the tests (`harness_tests.rs`) sees none after warm-up.
+  The pairs are now kept together (`BATCH_PAIRS`). His test of it (a
+  counting allocator around a warmed producer) failed about one run in
+  ten on correct code: the fork's queue adds a block of slots whenever
+  more submissions wait undelivered than ever before, which the delivery
+  thread's timing decides, so a sample can meet the queue's growth (at
+  most a block per 16 of the program's buffers over the queue's life,
+  microseconds in a millisecond sample). No warm-up controls it, so the
+  test is gone (AGENTS.md, "Every piece earns its place").
 - **Zeroing inside samples.** A smaller batch truncated the kept digest
   space and the next larger one zeroed its tail inside its sample; the
   space now keeps its length and each call takes a prefix.

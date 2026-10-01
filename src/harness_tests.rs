@@ -1,48 +1,8 @@
 //! Checks of the benchmark's own work, independent of speed: what a timed
-//! interval holds besides the hash (allocation, zeroing), the realized
+//! interval holds besides the hash (zeroing), the realized
 //! contender orders, what the guide and output directory show, and the
 //! official crate's batch wrapper.
 use super::*;
-use std::alloc::{GlobalAlloc, Layout, System};
-use std::cell::Cell;
-
-struct CountingAllocator;
-thread_local! {
-    static TRACK: Cell<bool> = const { Cell::new(false) };
-    static ALLOCATIONS: Cell<usize> = const { Cell::new(0) };
-}
-fn allocated() {
-    if TRACK.try_with(Cell::get).unwrap_or(false) {
-        let _ = ALLOCATIONS.try_with(|n| n.set(n.get() + 1));
-    }
-}
-unsafe impl GlobalAlloc for CountingAllocator {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        allocated();
-        unsafe { System.alloc(layout) }
-    }
-    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        allocated();
-        unsafe { System.alloc_zeroed(layout) }
-    }
-    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, size: usize) -> *mut u8 {
-        allocated();
-        unsafe { System.realloc(ptr, layout, size) }
-    }
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        unsafe { System.dealloc(ptr, layout) }
-    }
-}
-#[global_allocator]
-static ALLOCATOR: CountingAllocator = CountingAllocator;
-fn allocations(f: impl FnOnce()) -> usize {
-    ALLOCATIONS.with(|n| n.set(0));
-    TRACK.with(|enabled| enabled.set(true));
-    f();
-    TRACK.with(|enabled| enabled.set(false));
-    ALLOCATIONS.with(Cell::get)
-}
-
 #[test]
 fn batch_digest_storage_survives_a_smaller_cell_without_zeroing() {
     let mut large = take_batch_digests(8192);
@@ -56,17 +16,6 @@ fn batch_digest_storage_survives_a_smaller_cell_without_zeroing() {
     assert!(large.iter().all(|digest| *digest == [0xa5; 32]),
         "switching sizes must preserve the output space, rather than zeroing the larger cell's outputs inside its interval");
     keep_batch_digests(large);
-}
-
-#[test]
-fn warmed_queue_batch_producer_has_no_descriptor_allocations() {
-    let input = make_input(16 * MESSAGE_LEN);
-    // Exercise enough inputs to fill and drain the complete in-flight set.
-    for _ in 0..5 {
-        queue_batches(&input, 16, 4096, |digest| { black_box(digest); });
-    }
-    let count = allocations(|| queue_batches(&input, 16, 4096, |digest| { black_box(digest); }));
-    assert_eq!(count, 0, "the producer's descriptor vectors must stay outside subsequent sample intervals");
 }
 
 #[test]
