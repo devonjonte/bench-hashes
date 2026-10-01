@@ -1,25 +1,3 @@
-# bench-hashes consistency checks (for maintainers): relations that hold for every contender when the benchmark measures what it means to, judged on fast speeds, intervals apart and over 10% between them.
+# bench-hashes consistency checks (for maintainers): relations that hold for every contender when the benchmark measures what it means to, judged on fast speeds, over 10% apart.
 # 1. Nonstop no slower than after other work, 64 B-4 KiB. 2. Shared no faster than solo. 3. A hash on the cores alone no slower shared. 4. No slower per unit than a size that divides the work, up to 32 KiB, outside the idle use cases.
-more work, slower per unit: BLAKE3 servil st, batches, lent buffers (solo), 256 against 16: 13.182 against 11.385 ns/msg: x1.158
-more work, slower per unit: BLAKE3 servil st, batches, lent buffers (solo), 256 against 64: 13.182 against 11.436 ns/msg: x1.153
-shared faster than solo: SHA-256 ring, messages, owned buffers, 64 B: solo 1.351 against shared 0.855 ns/B: x1.580
-shared faster than solo: SHA-256 ring, messages, owned buffers, 256 B: solo 0.570 against shared 0.386 ns/B: x1.477
-shared faster than solo: SHA-256 ring, batches, owned buffers, 16: solo 86.850 against shared 43.255 ns/msg: x2.008
-shared faster than solo: SHA-256 ring, batches, owned buffers, 64: solo 85.655 against shared 42.396 ns/msg: x2.020
-shared faster than solo: SHA-256 ring, batches, owned buffers, 256: solo 86.604 against shared 42.206 ns/msg: x2.052
-shared faster than solo: SHA-256 ring, batches, owned buffers, 1024: solo 86.271 against shared 41.960 ns/msg: x2.056
-shared faster than solo: SHA-256 ring, batches, owned buffers, 4096: solo 87.547 against shared 42.313 ns/msg: x2.069
-shared faster than solo: SHA-256 ring, batches, owned buffers, 16384: solo 87.282 against shared 42.190 ns/msg: x2.069
-shared faster than solo: SHA-256 ring, batches, owned buffers, 65536: solo 86.705 against shared 42.181 ns/msg: x2.056
-shared faster than solo: SHA-256 ring, messages, lent buffers, 64 B: solo 1.386 against shared 0.848 ns/B: x1.633
-shared faster than solo: SHA-256 ring, messages, lent buffers, 256 B: solo 0.575 against shared 0.382 ns/B: x1.504
-shared faster than solo: SHA-256 ring, batches, lent buffers, 16: solo 87.209 against shared 43.387 ns/msg: x2.010
-shared faster than solo: SHA-256 ring, batches, lent buffers, 64: solo 86.016 against shared 42.559 ns/msg: x2.021
-shared faster than solo: SHA-256 ring, batches, lent buffers, 256: solo 86.187 against shared 41.993 ns/msg: x2.052
-shared faster than solo: SHA-256 ring, batches, lent buffers, 1024: solo 86.282 against shared 41.774 ns/msg: x2.065
-shared faster than solo: SHA-256 ring, batches, lent buffers, 4096: solo 87.016 against shared 42.509 ns/msg: x2.047
-shared faster than solo: SHA-256 ring, batches, lent buffers, 16384: solo 86.470 against shared 42.612 ns/msg: x2.029
-shared faster than solo: SHA-256 ring, batches, lent buffers, 65536: solo 87.347 against shared 42.397 ns/msg: x2.060
-more work, slower per unit: BLAKE3 servil mt, a batch, after other work (solo), 4 against 2: 630.250 against 552.250 ns/msg: x1.141
-more work, slower per unit: BLAKE3 servil mt, batches, lent buffers (solo), 256 against 16: 13.169 against 11.319 ns/msg: x1.163
-more work, slower per unit: BLAKE3 servil mt, batches, lent buffers (solo), 256 against 64: 13.169 against 11.478 ns/msg: x1.147
+more work, slower per unit: BLAKE3 servil st, a batch, after other work (solo), 4 against 2: 619.875 against 551.875 ns/msg: x1.123
