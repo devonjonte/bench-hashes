@@ -7191,6 +7191,8 @@ fn xml_escape(input: &str) -> String {
 
 #[cfg(test)]
 mod harness_tests;
+#[cfg(test)]
+mod trust_tests;
 
 #[cfg(test)]
 mod correctness_tests {
