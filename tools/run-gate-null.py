@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the actual adaptive regression gate with one artifact on both sides.
+"""Run the actual regression gate with one artifact on both sides.
 
 External process-group supervision is required. The gate's original run,
 parse, pairs, judge and compare execute unchanged. Builds return the selected

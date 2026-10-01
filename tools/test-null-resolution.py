@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -23,8 +24,9 @@ class NullResolution(unittest.TestCase):
                     'contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\n'
                     'a\tsolo\tContinuousBatches\t16\tmsg\t' +
                     ','.join([f'{value}/1'] * 24) + '\t' + ','.join(['0'] * 24) + '\n')
-            result = subprocess.run(['python3', str(Path(__file__).with_name('assess-null-resolution.py')),
-                                     str(root), '--rules', os.environ['BENCH_SPEED_RULES']],
+            result = subprocess.run([sys.executable, str(Path(__file__).with_name('assess-null-resolution.py')),
+                                     str(root), '--rules', os.environ['BENCH_SPEED_RULES'], '--gate',
+                                     str(Path(__file__).resolve().parents[1] / 'audit/results/live-gate/gate-sources/original/perf_regress.py')],
                                     check=True, capture_output=True, text=True)
             return json.loads(result.stdout)
 

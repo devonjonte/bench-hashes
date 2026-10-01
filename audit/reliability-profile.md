@@ -110,9 +110,11 @@ scoped evidence assessment, with maintainer review pending.
 From this branch, using the fork's shared rules (reader PR #3 or its descendant):
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 python3 tools/assess-null-resolution.py audit/results/exact-artifact-nulls --rules /path/to/BLAKE3/tools/speeds.py
+PYTHONDONTWRITEBYTECODE=1 pypy3 tools/assess-null-resolution.py audit/results/exact-artifact-nulls --rules /path/to/BLAKE3/tools/speeds.py --gate audit/results/live-gate/gate-sources/original/perf_regress.py
 ```
 
+The explicit historical gate supplies the margins for that record, including
+after-gap cells; the latest upstream gate omits those cells. Its hash is recorded.
 The optional `--artifact PATH` verifies the retained executable against its
 manifest. Exact fractions stay in the JSON; rounding is for presentation only.
 The historical records remain unchanged. The metric introduces no timer,

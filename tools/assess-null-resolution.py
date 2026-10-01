@@ -19,6 +19,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('results', type=Path)
     parser.add_argument('--rules', type=Path, required=True, help='fork tools/speeds.py')
+    parser.add_argument('--gate', type=Path, required=True, help='historical gate with margins for these workloads')
     parser.add_argument('--artifact', type=Path, help='optionally verify the retained executable')
     args = parser.parse_args()
     sys.path.insert(0, str(args.rules.resolve().parent))
@@ -26,7 +27,9 @@ def main():
     speeds = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(speeds)
     import samples
-    import perf_regress as gate
+    spec = importlib.util.spec_from_file_location('historical_gate', args.gate)
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
     manifest = json.loads((args.results / 'manifest.json').read_text())
     assert all(r['sha256'] == manifest['sha256'] and r['exit'] == 0 for r in manifest['runs'])
     if args.artifact:
@@ -73,7 +76,8 @@ def main():
                       'slow_comparisons': entry['slow_comparisons'],
                       'slow_share_range_permille': entry['share_range'],
                       'largest_fast_pair': entry['largest_fast_pair']})
-    print(json.dumps({'artifact_sha256': manifest['sha256'], 'coverage': coverage,
+    print(json.dumps({'artifact_sha256': manifest['sha256'],
+                      'margin_source_sha256': hashlib.sha256(args.gate.read_bytes()).hexdigest(), 'coverage': coverage,
                       'scope': 'observed cross-process envelope; no confidence bound or gate verdict',
                       'cells': cells}, indent=2))
 

@@ -13,14 +13,16 @@ fn hash(algorithm: &str, input: &[u8]) -> [u8; 32] {
 
 fn main() {
     let args: Vec<_> = std::env::args().skip(1).collect();
-    assert_eq!(args.len(), 2, "work_control FACTOR BATCHES (factor 1 or 2; positive batches)");
-    let factor: u64 = args[0].parse().unwrap();
+    assert_eq!(args.len(), 3, "work_control SUBJECT_FACTOR BATCHES CONTROL_FACTOR (factors 1 or 2; positive batches)");
+    let subject_factor: u64 = args[0].parse().unwrap();
     let batch_count: usize = args[1].parse().unwrap();
-    assert!([1, 2].contains(&factor) && batch_count > 0);
+    let control_factor: u64 = args[2].parse().unwrap();
+    assert!([1, 2].contains(&subject_factor) && [1, 2].contains(&control_factor) && batch_count > 0);
     let mut rows = String::new();
     let mut trace = String::from("contender,length,sample,calls,factor,completed_hashes,wall_ns,p_cycles,p_instructions,p_time_ns,e_cycles,e_instructions,e_time_ns\n");
     let mut accounting = String::from("contender,length,factor,calls_per_batch,measured_batches,completed_including_calibration\n");
     for algorithm in ["sha256", "blake3-servil-st"] {
+        let factor = if algorithm == "sha256" { control_factor } else { subject_factor };
         for length in [64, 2048, 102400] {
             let input: Vec<u8> = (0..length).map(|i| (i % 251) as u8).collect();
             let family = if algorithm == "sha256" { "sha256" } else { "blake3" };
@@ -56,7 +58,7 @@ fn main() {
     }
     let windows = clocks::load::windows();
     let listed = windows.iter().map(|w| format!("{}-{}:{}:{}", w.start_ns / 1_000_000, w.end_ns / 1_000_000, w.other_milli_cpus, w.steal_milli_cpus)).collect::<Vec<_>>().join(",");
-    println!("# bench-hashes samples v4\n# power: not measured by this diagnostic caller\n# load: {}\n# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): {listed}\n# rounds: {batch_count}\n# contenders: --contenders sha256,blake3-servil-st\n# factor: {factor}\n# thread cycles: unavailable on Linux; empty trace fields\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\n{rows}", clocks::load::describe(&windows));
+    println!("# bench-hashes samples v4\n# power: not measured by this diagnostic caller\n# load: {}\n# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): {listed}\n# rounds: {batch_count}\n# contenders: --contenders sha256,blake3-servil-st\n# subject factor: {subject_factor}\n# control factor: {control_factor}\n# thread cycles: unavailable on Linux; empty trace fields\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\n{rows}", clocks::load::describe(&windows));
     std::fs::write("clocks.csv", trace).unwrap();
     std::fs::write("accounting.csv", accounting).unwrap();
 }

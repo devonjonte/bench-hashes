@@ -1,0 +1,43 @@
+test_busy_abstains (__main__.FixedContext) ... ok
+test_closed_neighbor_stays_in_initial_pairs (__main__.FixedContext) ... FAIL
+test_null_stops_with_same_context (__main__.FixedContext) ... ok
+test_open_neighbor_stays_in_confirmation (__main__.FixedContext) ... FAIL
+test_unknown_confirmation_abstains (__main__.FixedContext) ... FAIL
+test_unknown_initial_abstains (__main__.FixedContext) ... FAIL
+
+======================================================================
+FAIL: test_closed_neighbor_stays_in_initial_pairs (__main__.FixedContext)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/agent/BLAKE3-fixed-trust/tools/test_perf_context.py", line 67, in test_closed_neighbor_stays_in_initial_pairs
+    self.assertEqual(self.compare(positive=True), 1)
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_open_neighbor_stays_in_confirmation (__main__.FixedContext)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/agent/BLAKE3-fixed-trust/tools/test_perf_context.py", line 72, in test_open_neighbor_stays_in_confirmation
+    self.assertEqual(self.compare(positive=True, neighbor_moves=True), 1)
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_unknown_confirmation_abstains (__main__.FixedContext)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/agent/BLAKE3-fixed-trust/tools/test_perf_context.py", line 80, in test_unknown_confirmation_abstains
+    self.assertEqual(self.compare(positive=True, neighbor_moves=True, unknown_stage='confirmation'), 2)
+AssertionError: 0 != 2
+
+======================================================================
+FAIL: test_unknown_initial_abstains (__main__.FixedContext)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/agent/BLAKE3-fixed-trust/tools/test_perf_context.py", line 77, in test_unknown_initial_abstains
+    self.assertEqual(self.compare(unknown_stage='initial'), 2)
+AssertionError: 0 != 2
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.033s
+
+FAILED (failures=4)

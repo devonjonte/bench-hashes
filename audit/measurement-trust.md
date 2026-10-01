@@ -32,12 +32,29 @@ windows; obtaining adequate narrowed-process coverage remains open.
 
 - [Committed go/no-go decision procedure](reliability-assessment.md)
 - [Supporting effect-resolution profile and baseline metric](reliability-profile.md)
-- [Actual adaptive gate null pilot](results/live-gate/README.md)
+- [Current-source fixed-context and actual-work gate controls](results/fixed-context/README.md)
+- [Historical adaptive gate null pilot](results/live-gate/README.md)
 - [Deterministic gate contracts, including narrowing](results/gate-contract/README.md)
 - [Recorded runtime accounting](runtime-accounting.md)
 - [Paired uncertainty](results/paired-ci/README.md),
   [context sensitivity](results/context-sensitivity/README.md),
   [SMT premises](results/smt-consistency/README.md)
+
+### Subsequent source review and controls
+
+Fetched fork6afda66 / bench663b035. John's52b0418 removes the pooled slow-speed
+verdict and restricts the gate to14 nonstop points. His NOTES independently
+reports identical-artifact slow-rule false decisions; this supports T6's
+premise, while the omitted slow/after-gap claims stay outside gate coverage.
+Direct issue/PR replies were still absent at the17:24UTC check.
+
+The fixed-context candidate retains selected neighbors through pairs and
+confirmation. Two live fixed null checks pass with windows in every process;
+one adaptive check uses eight processes without windows. Actual doubled-work
+caller controls hold three cells near2x, with exact completions/raw accounting.
+These are pilots, not the acceptance campaign. Recorded-start coverage also
+exposes uncovered tails despite quiet windows, so T7 remains open. Details,
+failed-before tests and every process are preserved in the linked record.
 
 Confirmations retain their original scope. No new refutations or acceptance
 responses were received at this check; experimental counterexamples are our

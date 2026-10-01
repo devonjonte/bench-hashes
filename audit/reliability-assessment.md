@@ -81,8 +81,9 @@ I will issue:
 A changed scope/threshold requires a new committed plan and fresh validation;
 it cannot retroactively rescue failed controls. Material timing, scheduling,
 accounting, statistics or decision-policy changes reopen validation. Historical
-failures remain available. This decision leaves the separate optimization and
-promotion pause in place.
+failures remain available. Passing for the relevant predeclared x86 scope
+clears the user's measurement-trust prerequisite for my BLAKE3 optimization;
+promotion and broad expansion remain separate.
 
 ## Today's blockers
 
@@ -92,3 +93,6 @@ broad costs; shared intervals under-cover. Accounting/interpretation items,
 maintainer reviews and the acceptance campaign remain incomplete. Therefore
 **NO-GO for recommending reliance**, while audit publication continues.
 The [supporting profile](reliability-profile.md) retains details and metrics.
+[Fixed-context pilots](results/fixed-context/README.md) improve context and
+empty-window behavior, but also expose uncovered sample starts despite quiet
+windows. They leave the acceptance requirements and NO-GO decision intact.
