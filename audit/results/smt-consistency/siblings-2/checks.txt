@@ -1,0 +1,6 @@
+# bench-hashes consistency checks (for maintainers): relations that hold for every contender when the benchmark measures what it means to, judged on fast speeds, intervals apart and over 10% between them.
+# 1. Nonstop no slower than after other work, 64 B-4 KiB. 2. Shared no faster than solo. 3. A hash on the cores alone no slower shared. 4. No slower per unit than a size that divides the work, up to 32 KiB, outside the idle use cases.
+a hash on the cores alone slowed by a second copy: SHA-256, messages, lent buffers, 1 KiB: shared 0.704 against solo 0.458 ns/B: x1.539
+a hash on the cores alone slowed by a second copy: SHA-256, messages, lent buffers, 64 KiB: shared 0.658 against solo 0.432 ns/B: x1.522
+a hash on the cores alone slowed by a second copy: SHA-256 ring, messages, lent buffers, 1 KiB: shared 0.703 against solo 0.469 ns/B: x1.500
+a hash on the cores alone slowed by a second copy: SHA-256 ring, messages, lent buffers, 64 KiB: shared 0.650 against solo 0.432 ns/B: x1.503
