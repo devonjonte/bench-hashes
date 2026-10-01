@@ -3,30 +3,29 @@
 This file explains what a run measures, how it keeps the numbers honest,
 and what each contender runs. [README.md](README.md) says how to run it.
 
-Every run measures each contender in nine use cases and two scenarios.
-The first three are the synchronous calls, each made after a gap, as a
-program that hashes now and then calls them, in two ways, each measured:
-**after other work**, after the program has run a fixed other program and
-read 128 MiB of data, as on a machine busy with other programs; and
-**after idling**, after the program has slept 1 ms, as a server waiting
-for its next request. **A message in one buffer**: a call hashes one input, at
-twenty-seven sizes from 64 B to 128 MiB, reported per byte. **A batch**:
-a call hashes a batch of 64-byte messages, at twenty-four batch sizes
-from 1 to 262144 messages, reported per message. Two further tasks hash
-one input after another, as fast as the program can: **messages one
-after another**, at eleven sizes from 64 B to 64 MiB, each read into a
-buffer (a memory copy) and hashed, reported per byte; and **batches one
-after another**, of 16 to 65536 64-byte messages, reported per message.
-Three more continuous tasks measure buffers that the producer lends
-until the hashing call returns: whole messages, 64 MiB messages in 64
-KiB pieces, and batches. Messages and batches match the owned-buffer
-continuous axes. Whole messages use one-shot calls at every size; pieces use the
-incremental API, with `update_multithreaded` for servil mt; batches use
-batch calls. Each read is timed, and reading and hashing take turns.
-**Solo**: one copy of the contender, no other program running at the
-same time. **Shared**: two copies at once, for the tasks that hash one
-input after another. The report shows each use case once per scenario,
-solo first; the graph shows both.
+Every run measures each contender in nine use cases. Four are calls made
+now and then, each after a gap of one of two kinds: **after other
+work**, after the program has run a fixed other program and read 128 MiB
+of data, as a program hashes between its other tasks; and **after
+idling**, after the program has slept 1 ms, as a server waits for its
+next request. Each kind measures **a message in one buffer**, at
+twenty-seven sizes from 64 B to 128 MiB, reported per byte, and **a
+batch** of 64-byte messages, at twenty-four counts from 1 to 262144,
+reported per message.
+
+Five hash one input after another, as fast as the program can, each
+input first read into a buffer (a memory copy, timed). With buffers the
+program **owns** and hands over, filling the next while one is hashed:
+**messages**, at eleven sizes from 64 B to 64 MiB, and **batches**, of 16
+to 65536 messages. With buffers it **lends** to a call until the call
+returns, so reading and hashing take turns: messages and batches at the
+same sizes, and **64 MiB messages in 64 KiB pieces**, through each
+contender's incremental API.
+
+Each nonstop use case runs in two scenarios: **solo**, one copy of the
+contender, and **shared**, two copies at once. The calls after a gap run
+solo. The report shows each use case once per scenario, solo first; the
+graph shows both.
 
 ## Contenders
 
@@ -62,9 +61,10 @@ past 1 MiB show the plateau: a contender whose 32, 64, and 128 MiB
 medians agree has levelled out. The multithreaded contenders take
 longest to get there, since a pool hand-off or a subtree merge amortises
 more slowly than one kernel call (the fork's was still climbing at
-8 MiB, and Rayon's still is at 128 MiB in a Linux VM); everything from
-8 MiB up is past the last-level cache on every machine this benchmark
-targets. 3 MiB is to the plateau what 3 KiB is to the SIMD
+8 MiB, and Rayon's still is at 128 MiB in a Linux VM); from 8 MiB up an
+input passes most machines' last-level cache (some hold 32 MiB or
+more, and some server chips far more), and where it does, the rate is
+the memory's. 3 MiB is to the plateau what 3 KiB is to the SIMD
 ramp: a tree that is no power of two (a 2 MiB left subtree beside a
 1 MiB right one), so a splitter that cuts at subtree boundaries hands
 its threads unequal work there.
@@ -186,8 +186,7 @@ interval takes two samples of the same batch:
 The synchronous use cases' samples are calls after the gap: one call, or
 as many as fill 2 µs where a call is shorter (the clock ticks every 41.7
 ns, so a single short call cannot be timed), each after its own 1 ms
-of other work, timed alone, and summed. Each thread walks its own kept
-After other work, each thread runs a fixed other program (1024 generated
+of other work, timed alone, and summed. After other work, each thread runs a fixed other program (1024 generated
 functions, about 1.1 MiB of distinct machine code, run once), walks its
 own kept 128 MiB working buffer at 64-byte intervals, then spends any
 remaining millisecond on integer arithmetic. The whole program runs even
@@ -251,11 +250,6 @@ The blake3 crate is built with its `rayon` feature so that the
 adds the method and leaves `blake3::hash` and every other API
 single-threaded.
 
-BLAKE3 is provided by the blake3 crate through the one-shot
-blake3::hash function, which is single-threaded (see "BLAKE3
-threading"), and for a batch through its hidden batch function (see
-"The many-messages use case").
-
 SHA-256 is provided by RustCrypto's sha2 crate (0.11), whose built-in
 backends use the ARMv8 SHA-256 instructions on AArch64 and SHA-NI on
 x86, selected at runtime; other targets use its portable code.
@@ -311,12 +305,14 @@ max_threads)` to cap one call's threads; the contender measures the
 uncapped call.
 
 The benchmark touches each implementation in three ways only: it lists
-it, it calls its single-threaded (`hash`, `const_hash`), multithreaded
-(`hash_multithreaded`, `Hasher::update_rayon`), or batch
-(`single_block_hash_many_exact`, `hash_many`, `hash_many_multithreaded`)
-entry point with no cap or pool of its own, and it asks the servil fork
-to describe its kernels (`kernel_report()` and its `_many` and
-`_multithreaded` forms). It asks for no machine capacity, sets no
+it; it calls the entry points its users call, with no cap, pool, or
+wrapper of its own: its one-message call (`hash`, `hash_multithreaded`,
+`Hasher::update_rayon`, `digest`), its batch call where it has one
+(`hash_many`, `hash_many_multithreaded`, the crates.io crate's hidden
+`Platform::hash_many`), its incremental API (`update`,
+`update_multithreaded`), and for servil mt its queue; and it asks the
+servil fork to describe its kernels (`kernel_report()` and its `_many`
+and `_multithreaded` forms). It asks for no machine capacity, sets no
 environment, and checks no digests: each crate's own tests do.
 
 SHA-256 CommonCrypto, on Apple platforms only, calls the system's
@@ -357,15 +353,16 @@ kernel (every block including the root compression, with the state in
 registers throughout), two to fifteen chunks on integer + NEON hybrid
 kernels, and groups of sixteen on the SME2 kernel (16 KiB and above).
 BLAKE3 official mt leaves the caller's thread above one SIMD width of chunks;
-BLAKE3 servil mt can split over threads from 64 KiB, its fourth path, drawn
-as a triangle. SHA-256, SHA3-256, and SHA-1DC run one path at every size.
+BLAKE3 servil mt can split over threads from the length its kernel table
+shows (512 KiB on an Apple M4 Max), another path with its own dot shape. SHA-256, SHA3-256, and SHA-1DC run one path at every size.
 
 In the many-messages use cases a contender looping one message per call
 runs the kernel for its message length at every batch size; the
 crates.io crate's batch function changes path at the platform's SIMD
 degree (four on NEON); BLAKE3 servil's at two (the NEON hybrid parent
 kernels) and at sixteen (the SME2 group kernel), and servil mt's again
-where a 64 KiB batch may leave the calling thread (1024 messages).
+where a batch may leave the calling thread (the kernel table says
+where).
 
 The text report lists the kernel at each point for every contender in
 each use case (one line for a contender with a single kernel) and marks
@@ -462,7 +459,8 @@ determined. The text report marks such cells with `~`.
 
 ## The graph
 
-The SVG shows eight plots, each use case solo and then shared, each with
+The SVG shows a plot for each use case and scenario the run has (the
+calls after a gap solo, the nonstop ones solo and then shared), each with
 median lines and confidence bands on a log-log grid.
 
 A switch at the header's left, above the y axes' titles, flips every plot between rate (the
@@ -607,14 +605,15 @@ question ends with an "I'm not sure" answer: one thread, one buffer, a
 thread that keeps up, a borrowed buffer, time.
 
 The chart shows throughput on log scales, so every size gets the same
-room. The table shows what a caller waits for: the time of one call, or
-one batch, in nanoseconds, microseconds, or milliseconds to three
-significant digits, and how many times faster or slower the recommended
-call was. For the queue, the table's times are the stream's average per
-input with many in flight, a throughput figure by nature. Where a cell
-ran at two speeds, the faster leads and the slower follows with its
-share of the samples. Each figure is the exact midpoint of the measured
-ratios, scaled to the call and rounded once for the page.
+room, and chips above it switch between the ways the benchmark called
+that function (after idling, after other work, nonstop; alone or beside
+another program, where measured). A sentence above the chart says from
+which size the call leads SHA-256, computed from the dots. Hovering a dot
+gives what a caller waits for, the time of one call or batch to three
+significant digits, with the rate and the code path; for the queue that
+time is the stream's average per input with many in flight. Where a cell
+ran at two speeds, a fainter dot shows the slower, its share in the
+hover.
 `Queue::messages` covers messages up to 64 KiB and `Queue::pieces` the
 longer ones. For a message arriving in pieces now and then, the guide
 shows `hash`'s cells, labelled by piece length: each piece costs about

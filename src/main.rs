@@ -741,8 +741,8 @@ impl Algorithm {
         match self {
             Self::Blake3 => "the official BLAKE3 Rust crate, on one thread",
             Self::Blake3Rayon => "the official BLAKE3 Rust crate, spreading large inputs over its thread pool",
-            Self::Blake3ServilSt => "a fork of the official BLAKE3 Rust crate with extra code for Apple M4-class chips, on one thread",
-            Self::Blake3ServilMt => "a fork of the official BLAKE3 Rust crate with extra code for Apple M4-class chips, spreading large inputs over every CPU core",
+            Self::Blake3ServilSt => "a fork of the official BLAKE3 Rust crate, faster on 64-bit Arm and above all on Apple M4-class chips, on one thread",
+            Self::Blake3ServilMt => "a fork of the official BLAKE3 Rust crate, faster on 64-bit Arm and above all on Apple M4-class chips, spreading large inputs over every CPU core",
             Self::Sha256 => "SHA-256 from the sha2 Rust crate, with the CPU's SHA-256 instructions where it has them",
             Self::Sha256Ring => "SHA-256 from the ring Rust crate, with the CPU's SHA-256 instructions where it has them",
             Self::Sha256CommonCrypto => "SHA-256 from Apple's CommonCrypto library",

@@ -2,10 +2,13 @@
 
 Written by GPT-5.6 Sol, Claude Fable 5, and Claude Opus 5.5 to my (Zooko's) specifications.
 
-How fast is BLAKE3 on your computer, and how fast is SHA-256? bench-hashes
-measures both, from 64-byte inputs to 128 MiB and in batches of many small
-messages. It then draws the results as an interactive graph you open in a
-web browser.
+## Is BLAKE3 faster than SHA-256?
+
+It depends on your computer, on how long your messages are, and on how
+your program calls the hash. bench-hashes measures them on your
+computer, from 64-byte messages to 128 MiB and in batches of small
+messages, called now and then or nonstop, and draws the answer as an
+interactive graph you open in a web browser.
 
 Results so far:
 
@@ -42,48 +45,28 @@ your CPU and operating system:
 - `bench-hashes.checks.txt`: consistency checks, for people who
   maintain the benchmark or a hash.
 
-The graph shows nine tasks. Two hash now and then: a message in one
-buffer, and a batch of 64-byte messages (a Merkle tree's nodes). Each is
-measured twice. *After other
-work*: before each call the program runs other code and reads a lot of
-memory, as a program does between its other tasks, so
-the hash finds its own code and data out of the caches. *After idling*:
-before each call the program sleeps a millisecond, as a server waits for
-its next request, so the hash may find a slowed or sleeping core. In
-both, the program called the same function before the pause, and helper
-threads have fallen asleep. The other five tasks hash nonstop, one input
-after another: separate messages and batches through a queue that hashes
-one buffer while the program fills the next, and whole messages, 64 MiB
-messages in 64 KiB pieces, and batches through plain calls, where
-filling and hashing take turns.
-The nonstop tasks are also measured with two copies running at once, as
-when two programs hash side by side.
+The graph has a plot for each way a program hashes. A message in one
+buffer, and a batch of 64-byte messages (a Merkle tree's nodes), each
+called now and then: *after other work*, as a program hashes between its
+other tasks, and *after idling*, as a server waits for its next request.
+Messages, batches, and long messages in pieces, hashed *nonstop*, one
+after another, by one program and by two at once. In every plot, higher
+is faster. Hover over a dot, or tap it, to compare the hashes there; the
+chips at the top right choose the plots, and "How to read this graph"
+under the title explains the rest.
 
-In every plot, higher is faster. Hover over a dot, or tap it, to compare every contender at that point.
-Click a name at the right to show or hide that contender. The band on
-the strip at the top marks the part of the inputs every plot shows: drag
-either end of it, or the band itself, and "all" shows everything again.
-The chips at the top right show or hide plots: messages, batches, or
-pieces; after idling, after other work, or nonstop; and, under Nonstop,
-owned or lent buffers and one program or two. A plot shows when every
-chip that applies to it is pressed, and a chip that would change nothing
-dims. The plots shown sit right under the chips.
-
-Under the title, the graph names the computer and the day, and says so
-when other programs were busy or the computer ran on battery power
-during the run; if it does, run again when the computer is quieter and
-plugged in, since busy programs slow the results down and battery power
-changes which cores run them. "How to read this graph" beside it explains the lines, bands, and
-dot shapes, and "About this run" at the bottom opens onto the details:
-the machine, the hashes' versions, and the method behind each dot shape.
+Under the title the graph also says when other programs were busy or the
+computer ran on battery during the run. If it does, run again quieter
+and plugged in: busy programs slow the results, and battery power changes
+which cores run them.
 
 The contenders:
 
 - **BLAKE3 servil mt**: [a fork](https://github.com/johnservil/BLAKE3) of
-  the official BLAKE3 Rust crate, with extra code for Apple M4-class
-  chips, spreading large inputs over all your CPU cores, and hashing
-  inputs that come one after another through its queue. On other CPUs it
-  runs the official crate's code.
+  the official BLAKE3 Rust crate, faster on 64-bit Arm and above all on
+  Apple M4-class chips (on other CPUs its kernels are the official
+  crate's), with its own threads to spread large inputs over your CPU
+  cores and a queue for inputs that come one after another.
 - **BLAKE3 servil st**: the same on one thread.
 - **SHA-256** (the `sha2` crate) and **SHA-256 ring** (the `ring`
   crate): SHA-256 with the CPU's SHA-256 instructions where it has them;
@@ -143,4 +126,6 @@ for example
 
 `cargo run --release -- --help` lists the other options, such as more
 BLAKE3 and SHA implementations. [METHODOLOGY.md](METHODOLOGY.md) explains
-how bench-hashes measures, and what each contender runs.
+how bench-hashes measures, and what each contender runs. To race your own
+hash against these, [CONTRIBUTING.md](CONTRIBUTING.md) says how to add
+it.
