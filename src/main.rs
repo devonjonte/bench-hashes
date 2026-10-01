@@ -793,7 +793,7 @@ impl Algorithm {
             | Self::Sha3_256 => "single-threaded",
             Self::Blake3ServilSt => "single-threaded; blake3_servil::hash for one message, blake3_servil::hash_many for a batch, Hasher::update per piece for a message in pieces",
             Self::Blake3Rayon => "multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread",
-            Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, Hasher::update_multithreaded per piece for a message in pieces; for continuous loads its queue, efficient in time: Queue::messages for messages of up to 64 KiB, Queue::pieces for longer ones, Queue::fixed for batches: the fork chooses when to wake its worker threads; the kernel tables below show the thresholds",
+            Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, Hasher::update_multithreaded per piece for a message in pieces; for continuous loads its queue, efficient in time: Queue::messages for messages of up to 64 KiB, Queue::pieces for longer ones, Queue::fixed for batches: the fork chooses when to wake its worker threads; the kernel tables below show the one-shot calls' thresholds",
         }
     }
 
