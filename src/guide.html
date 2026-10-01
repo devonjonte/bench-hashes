@@ -235,7 +235,11 @@ function drawSpeed() {
     while (from > 0 && ahead[from - 1]) from--;
     if (points.length === 1) text = `${ahead[0] ? "Faster" : "Slower"} than ${theirs.name} on a ${plot.labels[points[0]]} message in 64 KiB pieces.`;
     else if (from === 0) text = `Faster than ${theirs.name} at every size measured.`;
-    else if (from === ahead.length) text = `Slower than ${theirs.name} at every size measured.`;
+    else if (from === ahead.length) {
+      if (ahead.some(Boolean)) text = `The two trade places across the sizes measured.`;
+      else if (points.every(k => +plot.series[r.contender].med[k] > +plot.series[other].med[k])) text = `Slower than ${theirs.name} at every size measured.`;
+      else text = `Matched or was slower than ${theirs.name} at every size measured.`;
+    }
     else text = `Faster than ${theirs.name} from ${plot.labels[points[from]]}${unit} up; ${ahead.slice(0, from).some(x => x) ? "the two trade places below that" : `${theirs.name} leads below that`}.`;
   }
   el("speed-summary").textContent = text;

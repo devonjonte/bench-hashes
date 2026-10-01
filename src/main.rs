@@ -1513,6 +1513,8 @@ fn main() {
             panic!("failed to write {}: {error}", guide_path.display())
         });
         println!("# API guide (HTML) is in \"{}\" .", guide_path.display());
+    } else {
+        remove_visualizations(&directory);
     }
 
     println!(
@@ -1524,6 +1526,17 @@ fn main() {
         None => println!("# No graph: plots need at least two consecutive points from each axis’s start (its one point, on an axis of one) and a measured cell for every selected contender."),
     }
     println!("# Samples (TSV) are in \"{}\" .", samples_path.display());
+}
+
+/// Sparse runs replace the report and samples too, so any older full-run
+/// visualization must leave their directory with them.
+fn remove_visualizations(directory: &std::path::Path) {
+    for name in ["bench-hashes.graph.svg", "bench-hashes.guide.html"] {
+        let path = directory.join(name);
+        if path.exists() {
+            fs::remove_file(&path).unwrap_or_else(|error| panic!("failed to remove stale {}: {error}", path.display()));
+        }
+    }
 }
 
 /*
@@ -1954,8 +1967,8 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
                 let measured = take_prepared_sample(input, iterations, idle, |input| {
                     #[cfg(test)]
                     observe_call("hash_many");
-                    hash_many(black_box(input), MESSAGE_LEN, &mut digests);
-                    black_box(digests.as_flattened());
+                    hash_many(black_box(input), MESSAGE_LEN, &mut digests[..point.messages]);
+                    black_box(digests[..point.messages].as_flattened());
                 });
                 keep_batch_digests(digests);
                 return measured;
@@ -2452,10 +2465,9 @@ fn queue_batches(input: &[u8], messages: usize, iterations: usize, mut consume: 
     let returns = take_returns(&BATCH_QUEUES, key, |sender| {
         blake3_servil::Queue::fixed(MESSAGE_LEN, blake3_servil::Mode::Hash, blake3_servil::Efficiency::Time, BatchesBack(sender))
     });
-    let mut free: Vec<(Vec<u8>, Vec<[u8; 32]>)> = take_buffers(count, input.len())
-        .into_iter()
-        .zip(take_digests(count, messages))
-        .collect();
+    let mut free = BATCH_PAIRS.with(|kept| kept.borrow_mut().remove(&key)).unwrap_or_else(|| {
+        (0..count).map(|_| (vec![0u8; input.len()], vec![[0u8; 32]; messages])).collect()
+    });
     for _ in 0..iterations {
         let (mut buffer, digests) = match free.pop() {
             Some(pair) => pair,
@@ -2475,27 +2487,14 @@ fn queue_batches(input: &[u8], messages: usize, iterations: usize, mut consume: 
         free.push((buffer, digests));
     }
     BATCH_QUEUES.with(|kept| kept.borrow_mut().insert(key, returns));
-    let (buffers, digests): (Vec<Vec<u8>>, Vec<Vec<[u8; 32]>>) = free.into_iter().unzip();
-    keep_buffers(count, input.len(), buffers);
-    keep_digests(count, messages, digests);
+    BATCH_PAIRS.with(|kept| kept.borrow_mut().insert(key, free));
 }
 
+type BatchPairs = Vec<(Vec<u8>, Vec<[u8; 32]>)>;
 thread_local! {
-    /// The continuous batches' digest spaces, kept as INPUT_BUFFERS are,
-    /// a set per count and batch length.
-    static DIGEST_BUFFERS: std::cell::RefCell<std::collections::HashMap<(usize, usize), Vec<Vec<[u8; 32]>>>> = std::cell::RefCell::new(std::collections::HashMap::new());
-}
-
-/// `count` digest spaces of `messages` digests each, this thread's kept set.
-fn take_digests(count: usize, messages: usize) -> Vec<Vec<[u8; 32]>> {
-    let mut kept = DIGEST_BUFFERS.with(|kept| kept.borrow_mut().remove(&(count, messages))).unwrap_or_default();
-    assert!(kept.len() <= count, "a kept set holds the digest spaces taken for it");
-    kept.resize_with(count, || vec![[0u8; 32]; messages]);
-    kept
-}
-
-fn keep_digests(count: usize, messages: usize, digests: Vec<Vec<[u8; 32]>>) {
-    DIGEST_BUFFERS.with(|kept| kept.borrow_mut().insert((count, messages), digests));
+    /// Keep the paired buffers and their descriptor vector together. Pairing
+    /// and unzipping anew would allocate three vectors in every sample.
+    static BATCH_PAIRS: std::cell::RefCell<std::collections::HashMap<(usize, usize), BatchPairs>> = std::cell::RefCell::new(std::collections::HashMap::new());
 }
 
 /// The pieces of one stream, each copied into a PIECE_LEN buffer (the
@@ -2599,8 +2598,8 @@ fn servil_batch(
     assert_eq!(input.len(), messages * message_len);
     let mut digests = take_batch_digests(messages);
     for _ in 0..iterations {
-        hash_many(black_box(input), message_len, &mut digests);
-        consume(digests.as_flattened());
+        hash_many(black_box(input), message_len, &mut digests[..messages]);
+        consume(digests[..messages].as_flattened());
     }
     keep_batch_digests(digests);
 }
@@ -2612,10 +2611,14 @@ thread_local! {
     static BATCH_DIGESTS: std::cell::RefCell<Vec<[u8; 32]>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
-/// This thread's kept digest space, `messages` digests long.
+/// This thread's kept digest space, at least `messages` digests long.
+/// Keep its initialized length when a smaller cell borrows a prefix: growing
+/// a truncated vector would zero the outputs again inside a later sample.
 fn take_batch_digests(messages: usize) -> Vec<[u8; 32]> {
     let mut digests = BATCH_DIGESTS.with(|kept| std::mem::take(&mut *kept.borrow_mut()));
-    digests.resize(messages, [0; 32]);
+    if digests.len() < messages {
+        digests.resize(messages, [0; 32]);
+    }
     digests
 }
 
@@ -2649,14 +2652,14 @@ fn blake3_batch_of<const N: usize>(input: &[u8], iterations: usize, mut consume:
     let platform = blake3::platform::Platform::detect();
     let mut digests = take_batch_digests(messages.len());
     for _ in 0..iterations {
-        for (group, out) in black_box(messages).chunks(16).zip(digests.chunks_mut(16)) {
+        for (group, out) in black_box(messages).chunks(16).zip(digests[..messages.len()].chunks_mut(16)) {
             let mut table = [&group[0]; 16];
             for (slot, message) in table.iter_mut().zip(group) {
                 *slot = message;
             }
             platform.hash_many::<N>(&table[..group.len()], &IV, 0, blake3::IncrementCounter::No, 0, CHUNK_START, CHUNK_END | ROOT, out.as_flattened_mut());
         }
-        consume(digests.as_flattened());
+        consume(digests[..messages.len()].as_flattened());
     }
     keep_batch_digests(digests);
 }
@@ -4415,10 +4418,10 @@ fn generate_guide(roster: &Roster, results: &Results, machine: &MachineMetadata)
                 let per_point = |f: &dyn Fn(Statistics, u64) -> String| -> String {
                     points.iter().map(|&index| f(cell(results, algorithm_index, index).get(scenario), use_case.units(POINTS[index], 1))).collect::<Vec<_>>().join(",")
                 };
-                write!(data, "\"med\":[{}],", per_point(&|t, _| t.speeds()[0].median.format_ns())).unwrap();
+                write!(data, "\"med\":[{}],", per_point(&|t, _| t.speeds()[0].format_median(1))).unwrap();
                 write!(data, "\"low\":[{}],", per_point(&|t, _| t.speeds()[0].low.format_ns())).unwrap();
                 write!(data, "\"high\":[{}],", per_point(&|t, _| t.speeds()[0].high.format_ns())).unwrap();
-                write!(data, "\"med2\":[{}],", per_point(&|t, _| t.two_speeds.map_or("null".to_owned(), |pair| pair[1].median.format_ns()))).unwrap();
+                write!(data, "\"med2\":[{}],", per_point(&|t, _| t.two_speeds.map_or("null".to_owned(), |pair| pair[1].format_median(1)))).unwrap();
                 write!(data, "\"share2\":[{}],", per_point(&|t, _| t.two_speeds.map_or("0".to_owned(), |pair| ((pair[1].count * 1000 + t.count / 2) / t.count).to_string()))).unwrap();
                 write!(data, "\"lat\":[{}],", per_point(&|t, units| t.speeds()[0].format_median(units))).unwrap();
                 write!(data, "\"lat2\":[{}],", per_point(&|t, units| t.two_speeds.map_or("null".to_owned(), |pair| pair[1].format_median(units)))).unwrap();
@@ -7183,6 +7186,9 @@ fn xml_escape(input: &str) -> String {
 
     escaped
 }
+
+#[cfg(test)]
+mod audit_tests;
 
 #[cfg(test)]
 mod correctness_tests {
