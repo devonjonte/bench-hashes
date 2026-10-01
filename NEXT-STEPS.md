@@ -42,12 +42,14 @@ closed) answered.
    (Mac jobs 916-923, VM 8) with no verdict. Watch servil's lent batches
    of 16 (two speeds; one "faster" in a VM check of a real change).
 2. The run-order effect (the second run of a short pair 1.5x slower at
-   64 B after other work, Mac): cause unknown; it touches the benchmark's
-   cells after a gap too.
-3. The shared bands: a shared sample's two copies vary together, so the
-   bootstrap reads their bands narrow; the remedy is the shared rule's
-   (clocks::speeds, tools/speeds.py, vectors), with the two-speed split
-   designed together.
+   64 B after other work, Mac): cause unknown; it mattered for
+   perf_regress's after-gap cells, which are gone, so it waits.
+3. Done: the median intervals went (bands, ~, both bootstraps), and every
+   rule has one implementation, in Rust (`bench-hashes compare`; the
+   Python twins gone). The fork's `servil` (6afda66) still carries the
+   bootstrap in clocks::speeds, unused; it leaves at the next promotion.
+   The Mac runner installs perf_regress.py and samples.py: Zooko reruns
+   setup-mac.sh once (its installed copy imports the removed speeds.py).
 4. clocks::load says "not measured on this platform" for a run under
    half a second on Linux and macOS (no window closed); `--points` lists
    labels without their use-case prefixes.
