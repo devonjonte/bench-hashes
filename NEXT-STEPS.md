@@ -48,8 +48,8 @@ closed) answered.
    rule has one implementation, in Rust (`bench-hashes compare`; the
    Python twins gone). The fork's `servil` (6afda66) still carries the
    bootstrap in clocks::speeds, unused; it leaves at the next promotion.
-   The Mac runner installs perf_regress.py and samples.py: Zooko reruns
-   setup-mac.sh once (its installed copy imports the removed speeds.py).
+   The Mac runner's installed perf_regress.py (used to build) still finds
+   its old speeds.py beside it; the next setup-mac.sh installs the new one.
 4. clocks::load says "not measured on this platform" for a run under
    half a second on Linux and macOS (no window closed); `--points` lists
    labels without their use-case prefixes.
