@@ -1302,6 +1302,10 @@ cell sampled in a share of them.
                                    thread's cycles, instructions, and time per
                                    core kind, for the solo sample and each
                                    shared copy
+
+  bench-hashes compare OLD.tsv... -- NEW.tsv...
+                                   compare runs' samples files, each side's
+                                   pooled, cell by cell, speed with speed
 ";
 
 struct Options {
@@ -1427,6 +1431,10 @@ fn parse_selection(arguments: &[String]) -> (Selection, Vec<Algorithm>) {
 }
 
 fn main() {
+    let arguments: Vec<String> = std::env::args().skip(1).collect();
+    if arguments.first().map(String::as_str) == Some("compare") {
+        return compare_command(&arguments[1..]);
+    }
     let Options { selection, explicit, points, rounds, trace_path, quick } = parse_arguments();
     let mut trace = trace_path.map(ClockTrace::new);
     let mut machine = machine_metadata();
@@ -3630,9 +3638,100 @@ fn append_kernel_report(output: &mut String, algorithm: Algorithm, use_case: Use
  * (the nanoseconds the clock gave over the units they covered), in the
  * order taken (shared: the two copies of each interval in turn).
  */
+/// The samples file's first line and its column row, which the reader
+/// (read_samples) requires: a file in another format is read with the
+/// tools of the commit that wrote it.
+const SAMPLES_VERSION: &str = "# bench-hashes samples v4";
+const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms";
+
+/// A samples file read back: its `# load:` line (the run's own verdict,
+/// "quiet: ..." or "busy: ..."), and each cell's samples as measured,
+/// keyed "contender|scenario|use_case|point", in the file's order.
+struct SamplesFile {
+    load: String,
+    cells: Vec<(String, Vec<Measured>)>,
+}
+
+fn read_samples(path: &str) -> SamplesFile {
+    let text = fs::read_to_string(path).unwrap_or_else(|error| panic!("failed to read {path}: {error}"));
+    let mut lines = text.lines();
+    assert_eq!(lines.next(), Some(SAMPLES_VERSION), "{path}: a samples file of this version begins with {SAMPLES_VERSION:?}");
+    let mut load = None;
+    let mut columns = false;
+    let mut cells = Vec::new();
+    for line in lines {
+        if let Some(rest) = line.strip_prefix("# load: ") {
+            load = Some(rest.to_owned());
+        } else if line.starts_with('#') || line.is_empty() {
+        } else if !columns {
+            assert_eq!(line, SAMPLES_COLUMNS, "{path}: the column row");
+            columns = true;
+        } else {
+            let fields: Vec<&str> = line.split('\t').collect();
+            assert_eq!(fields.len(), 7, "{path}: a row of seven fields: {line}");
+            let samples = fields[5].split(',').map(|sample| {
+                let (ns, units) = sample.split_once('/').expect("ns/units");
+                Measured::new(ns.parse().expect("ns"), units.parse().expect("units"))
+            }).collect();
+            cells.push((fields[..4].join("|"), samples));
+        }
+    }
+    SamplesFile { load: load.unwrap_or_else(|| panic!("{path}: a load line")), cells }
+}
+
+/*
+ * `bench-hashes compare OLD... -- NEW...`: each side's samples files
+ * pooled, every cell both sides measured compared speed with speed and
+ * share with share (clocks::speeds::compare): old -> new medians, new
+ * over old of the fast and of the slow speed, the slow speed's share on
+ * each side. For an A/B (old new new old), compare old with new, and each
+ * side with itself (its first run against its second) to see what
+ * repetition alone moves.
+ */
+fn compare_command(arguments: &[String]) {
+    let split = arguments.iter().position(|argument| argument == "--").expect("usage: bench-hashes compare OLD.tsv... -- NEW.tsv...");
+    let (old, new) = (&arguments[..split], &arguments[split + 1..]);
+    assert!(!old.is_empty() && !new.is_empty(), "usage: bench-hashes compare OLD.tsv... -- NEW.tsv...");
+    let pool = |paths: &[String]| {
+        let mut order: Vec<String> = Vec::new();
+        let mut cells: std::collections::HashMap<String, Vec<PerUnit>> = std::collections::HashMap::new();
+        for path in paths {
+            let file = read_samples(path);
+            if file.load.starts_with("busy") {
+                println!("{path}: other programs kept the machine busy ({}): its samples are no evidence of speed", file.load);
+            }
+            for (key, samples) in file.cells {
+                if !cells.contains_key(&key) {
+                    order.push(key.clone());
+                }
+                cells.entry(key).or_default().extend(per_units(&samples));
+            }
+        }
+        (order, cells)
+    };
+    let ((order, old), (_, new)) = (pool(old), pool(new));
+    let ratio = |permille: u64| format!("x{}.{:03}", permille / 1000, permille % 1000);
+    let describe = |speeds: &[clocks::speeds::Speed]| -> String {
+        let total: usize = speeds.iter().map(|speed| speed.count).sum();
+        match speeds {
+            [one] => Fixed(one.median).format_ns(),
+            _ => speeds.iter().map(|speed| format!("{} ({}%)", Fixed(speed.median).format_ns(), (speed.count * 100 + total / 2) / total)).collect::<Vec<_>>().join(" | "),
+        }
+    };
+    for key in order {
+        let Some(new_values) = new.get(&key) else { continue };
+        let sorted = |values: &[PerUnit]| { let mut v = raw(values); v.sort_unstable(); v };
+        let c = clocks::speeds::compare(&sorted(&old[&key]), &sorted(new_values));
+        let share = |permille: u64| (permille + 5) / 10;
+        println!("{key}: {} -> {}  [fast {}, slow {}, slow share {}% -> {}%]",
+            describe(&c.old), describe(&c.new), ratio(c.fast_permille), ratio(c.slow_permille),
+            share(c.old_slow_share_permille), share(c.new_slow_share_permille));
+    }
+}
+
 fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &MachineMetadata, selection_note: &str) -> String {
     let mut out = String::new();
-    writeln!(out, "# bench-hashes samples v4").unwrap();
+    writeln!(out, "{SAMPLES_VERSION}").unwrap();
     for (key, value) in [
         ("timestamp", machine.timestamp.as_str()),
         ("bench-hashes version", BENCH_VERSION),
@@ -3666,7 +3765,7 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
             writeln!(out, "# kernel platform {} {:?}: {}", algorithm.key(), use_case, detect_kernels(algorithm, *use_case).platform).unwrap();
         }
     }
-    writeln!(out, "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms").unwrap();
+    writeln!(out, "{SAMPLES_COLUMNS}").unwrap();
     for (algorithm_index, &algorithm) in roster.algorithms.iter().enumerate() {
         for scenario in Scenario::ALL {
             let rows = match scenario {
@@ -7265,6 +7364,40 @@ mod correctness_tests {
         assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\n"), "{tsv}");
         assert!(tsv.contains("\nblake3-servil-st\tshared\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\n"), "{tsv}");
         assert!(!tsv.contains("\tshared\tOneMessage\t"), "calls after a gap run alone: {tsv}");
+    }
+
+    /// The samples file reads back into the figures the report prints:
+    /// every cell, one speed and two (read_samples, as `compare` reads it).
+    #[test]
+    fn samples_file_reads_back_into_the_reports_figures() {
+        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], true,
+            Some(vec![point("64 B", UseCase::OneMessage), point("64 B", UseCase::LentMessages), point("16", UseCase::LentBatches)]), Some(20));
+        // Contender 1's lent cells run at two speeds: 3 rounds in 10 twice as slow.
+        let (_, samples) = run(&roster, 20, |a, p, r| if a == 1 && POINTS[p].use_case != UseCase::OneMessage && r % 10 < 3 { 20_000 + r as u64 } else { 10_000 + 7 * r as u64 });
+        let tsv = generate_samples_tsv(&roster, &samples, &machine_metadata(), "test");
+        let path = std::env::temp_dir().join(format!("bench-hashes-readback-{}.tsv", std::process::id()));
+        fs::write(&path, &tsv).unwrap();
+        let read = read_samples(path.to_str().unwrap());
+        fs::remove_file(&path).unwrap();
+        let figures = |cell: &[Measured]| summarize_measured(cell).speeds().iter().map(|speed| speed.format_median(1)).collect::<Vec<_>>();
+        let mut checked = 0;
+        let mut two = 0;
+        for (a, algorithm) in roster.algorithms.iter().enumerate() {
+            for &p in &roster.points {
+                for (scenario, cell) in [("solo", &samples.solo[a][p]), ("shared", &samples.shared[a][p])] {
+                    if cell.is_empty() {
+                        continue;
+                    }
+                    let key = format!("{}|{scenario}|{:?}|{}", algorithm.key(), POINTS[p].use_case, POINTS[p].label);
+                    let (_, back) = read.cells.iter().find(|(k, _)| *k == key).unwrap_or_else(|| panic!("{key} read back"));
+                    assert_eq!(figures(back), figures(cell), "{key}");
+                    two += usize::from(figures(cell).len() == 2);
+                    checked += 1;
+                }
+            }
+        }
+        assert_eq!(checked, read.cells.len(), "every cell read back, none more");
+        assert!(two >= 2, "two-speed cells among them");
     }
 
     #[test]

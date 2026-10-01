@@ -13,15 +13,9 @@ it measures, and keep your results comparable with ours.
   and each contender crate's version and source).
 - `tools/graph-check/`: drives the graph's script in jsdom and checks its
   layout; `guide.js` exercises the HTML guide in Chromium (its README says how).
-- `tools/check-report.py`: recomputes every table cell of a run's report
-  from its samples, as exact fractions, and compares. This maintainer
-  tool uses the enclosing fork's `tools/speeds.py` for the shared split.
-  A standalone checkout supplies `--rules /path/to/BLAKE3/tools/speeds.py`;
-  use the fork commit named in the run's provenance.
-- `tools/compare-runs.py`: compares two historical samples files or four
-  files old/new/new/old, speed with speed and share with share. `--map`
-  explicitly names comparable use cases; `--rules` can locate the fork's
-  `tools/speeds.py` in a separate checkout.
+- `bench-hashes compare OLD.tsv... -- NEW.tsv...`: compares runs'
+  samples files, each side's pooled, cell by cell, speed with speed and
+  share with share.
 
 ## Build and test
 
@@ -29,8 +23,6 @@ it measures, and keep your results comparable with ours.
 cargo test --release
 cargo run --release -- --quick     # seconds; a full run takes minutes
 node tools/graph-check/check.js benchmark-results/FOLDER/bench-hashes.graph.svg
-python3 tools/check-report.py benchmark-results/FOLDER
-python3 tools/test-check-report.py      # the report check's own tests
 node tools/graph-check/guide-summary.js # the guide's sentences (Playwright)
 ```
 
@@ -109,8 +101,8 @@ benchmark.
   `--contenders`, `--points`, `--rounds`, and the columns of
   `bench-hashes.samples.tsv` (`contender`, `scenario`, `use_case`,
   `point`, `unit`, `ns/units`, each sample as measured, `start ms`),
-  read through the fork's `tools/samples.py`; a change to them changes
-  that reader in the same change.
+  read through the fork's `tools/samples.py` and `bench-hashes compare`;
+  a change to them changes both readers in the same change.
 
 ## Results from other machines
 
