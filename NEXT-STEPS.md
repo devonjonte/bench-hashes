@@ -78,7 +78,7 @@ on battery until about 03:55 UTC (Zooko plugged it in); every job from
    benchmark: records, Pages). Prepared on `candidate/pin-servil-aa3d8d8`
    (bench-hashes): the lock at aa3d8d8, the benchmark's tests passing,
    and a quiet Mac record with that pin (job 1134) in place of the
-   current one; the VM's record is still the old pin's.
+   current one, and the VM's likewise.
 3. The benchmark's queue cells measure a first-use cost in each cell's
    first sample: the queue's batch buffers come from `vec![0u8; len]`
    untouched, so their pages fault inside the timed sample, where
