@@ -134,19 +134,22 @@ evidence; CHANGELOG says it for users):
    (c331f58) stays unmerged: it rescued a second mechanism (Rayon's join
    on NEON) for what the pool already does. update_rayon keeps upstream's
    contract.
-2. Pin bench-hashes to the fork's servil (a new release of the frozen
+2. Decided (Zooko, October 2): release with today's API, once promoted.
+   Was: pin bench-hashes to the fork's servil (a new release of the frozen
    benchmark: records, Pages). Prepared on `candidate/pin-servil-aa3d8d8`
    (bench-hashes): the lock at aa3d8d8, the benchmark's tests passing,
    quiet records with that pin from the Mac (job 1134) and the VM, both
    passing the graph check (check.js) and the guide check (guide.js: 48
    routes, 21 endings).
-3. The benchmark's queue cells measure a first-use cost in each cell's
+3. Decided (Zooko, October 2): fixed, 441ad42. Was: the benchmark's
+   queue cells measure a first-use cost in each cell's
    first sample: the queue's batch buffers come from `vec![0u8; len]`
    untouched, so their pages fault inside the timed sample, where
    take_buffers touches its buffers first (probe in the fork's
    tmp/lentprobe: 330 against 217 us a batch; job 989's traces: each
    cell's first round slow, solo and shared). A measurement fix, so yours.
-4. p4 (a batch of 4 after other work costs 1.74 us, 6 messages 0.98, its
+4. Left to John (Zooko, October 2): kept for warm speed. Was: p4 (a
+   batch of 4 after other work costs 1.74 us, 6 messages 0.98, its
    11.3 KB of code cold): your September 27 choice for warm speed.
 5. Done: prefetching after a pause, approved as it is (Zooko, October 2).
 
