@@ -37,6 +37,10 @@ minimum durations, counters, thresholds, hashing and statistics are unchanged.
 - Four focused fixtures cover other-load preservation, steal preservation,
   quiet extension and newly busy tails.
 - **16 clocks tests passed,1 reading-cost test ignored**.
+- **24 current benchmark Rust tests passed**, including samples-to-report
+  readback, current regression-point names, API labels, scheduling and digest
+  observation. These run against the current instrument in the same scratch
+  build, without importing historical Python readers.
 - The bounded standard check through **the actual new Rust `regress` command**
   returns0 after two initial pairs across all14 points. Both sides use current
   clocks, so this is operational regression-check compliance, not instrument-
