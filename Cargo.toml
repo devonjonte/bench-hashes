@@ -1,6 +1,6 @@
 [package]
 name = "bench-hashes"
-version = "0.11.0+096d6a26dbc33a5b60e07aff8859cb1785b35474"
+version = "0.11.0-devon.mean.1"
 edition = "2021"
 rust-version = "1.88"
 build = "build.rs"
@@ -8,7 +8,7 @@ build = "build.rs"
 [dependencies]
 # The one place clocks are read (the fork's clocks/ crate): wall time, and
 # the thread's counts per core kind.
-clocks = { git = "https://github.com/johnservil/BLAKE3", branch = "servil" }
+clocks = { git = "https://github.com/devonjonte/BLAKE3", rev = "139c2faa9796caf2588e0b78185aefc27e410a91" }
 # The `rayon` feature adds Hasher::update_rayon for the BLAKE3 mt contender;
 # blake3::hash and every other API stay single-threaded with it on.
 [dependencies.blake3]
@@ -44,8 +44,8 @@ default-features = false
 #   --config 'patch."https://github.com/johnservil/BLAKE3".blake3-servil.path=".."'
 # to the cargo command (CONTRIBUTING.md).
 [dependencies.blake3-servil]
-git = "https://github.com/johnservil/BLAKE3"
-branch = "servil"
+git = "https://github.com/devonjonte/BLAKE3"
+rev = "139c2faa9796caf2588e0b78185aefc27e410a91"
 default-features = false
 features = ["std"]
 

@@ -1,5 +1,11 @@
 # bench-hashes
 
+**Mean caller-cost proposal for review.** This branch uses one shared mean in
+plots, reports, guide and the fixed-block gate. The [proposal](MEAN-PROPOSAL.md)
+explains its quantity, model assumptions, recorded pilot limitations and
+adoption steps. Shared helper code is pinned to a public companion commit;
+standalone `cargo build --release --locked` works after lock refresh.
+
 Written by GPT-5.6 Sol, Claude Fable 5, and Claude Opus 5.5 to my (Zooko's) specifications.
 
 ## Is BLAKE3 faster than SHA-256?
@@ -67,7 +73,7 @@ which cores run them.
 
 The contenders:
 
-- **BLAKE3 servil mt**: [a fork](https://github.com/johnservil/BLAKE3) of
+- **BLAKE3 servil mt**: [the review fork](https://github.com/devonjonte/BLAKE3/tree/candidate/devon-mean-helper) of
   the official BLAKE3 Rust crate, faster on 64-bit Arm and above all on
   Apple M4-class chips (on other CPUs its kernels are the official
   crate's), with its own threads to spread large inputs over your CPU

@@ -155,7 +155,13 @@ fn git_text_allow_failure(
 const SERVIL_CHECKOUT: &str = "..";
 
 /// The fork's repository, as Cargo.toml names it and Cargo.lock records it.
-const SERVIL_GIT: &str = "https://github.com/johnservil/BLAKE3";
+fn servil_dependency(repository: &Path) -> (String, String) {
+    let manifest = fs::read_to_string(repository.join("Cargo.toml")).expect("Cargo.toml is readable");
+    let block = manifest.split("[dependencies.blake3-servil]").nth(1)
+        .expect("Cargo.toml declares blake3-servil").split("\n[").next().unwrap();
+    (quoted_field(block, "git").expect("blake3-servil declares its git URL"),
+     quoted_field(block, "rev").expect("blake3-servil pins an explicit revision"))
+}
 
 /// What `git` reports about a checkout: its origin URL, HEAD commit,
 /// nearest release tag, current branch, and whether the tree is clean.
@@ -355,9 +361,10 @@ fn only_servil_patched(repository: &Path, status: &[u8]) -> bool {
     if status != b" M Cargo.lock\0" {
         return false;
     }
+    let (source, _) = servil_dependency(repository);
     let without_servil_source = |lock: &str| -> String {
         lock.lines()
-            .filter(|line| !line.starts_with(&format!("source = \"git+{SERVIL_GIT}")))
+            .filter(|line| !line.starts_with(&format!("source = \"git+{source}")))
             .collect::<Vec<_>>()
             .join("\n")
     };
@@ -426,13 +433,11 @@ fn emit_servil_package(manifest_dir: &Path, lock: &str) {
 
     let description = match quoted_field(block, "source") {
         Some(source) => {
-            let pinned = source
-                .strip_prefix(&format!("git+{SERVIL_GIT}?branch="))
-                .unwrap_or_else(|| panic!("blake3-servil must come from {SERVIL_GIT} or a local patch; Cargo.lock says {source}"));
-            let (branch, commit) = pinned
-                .split_once('#')
-                .expect("a git source in Cargo.lock names its commit after '#'");
-            format!("blake3-servil {version}; source {SERVIL_GIT}; branch {branch}; commit {commit}; clean")
+            let (git, revision) = servil_dependency(manifest_dir);
+            let commit = source.strip_prefix(&format!("git+{git}?rev={revision}#"))
+                .expect("Cargo.lock's git URL and revision match the declared dependency");
+            assert!(!commit.is_empty(), "Cargo.lock records the resolved commit");
+            format!("blake3-servil {version}; source {git}; revision {revision}; commit {commit}; clean")
         }
         None => {
             let repository = manifest_dir.join(SERVIL_CHECKOUT);
