@@ -6886,7 +6886,7 @@ DATA.plots.forEach((plot, p) => plot.series.forEach((s, i) => {
   if (!s) return;
   const marks = document.getElementById("series-" + p + "-" + i).querySelector(".marks");
   const have = new Set([...marks.querySelectorAll(".value-label")].map(t => +t.getAttribute("data-size")));
-  const color = marks.querySelector(".median").getAttribute("stroke");
+  const color = DATA.colors[i];
   plot.x.forEach((_, k) => {
     if (have.has(k)) return;
     const t = document.createElementNS(NS, "text");

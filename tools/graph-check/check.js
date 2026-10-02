@@ -126,6 +126,8 @@ function checkLayout(tag) {
   const tailY = d => +d.match(/M[\d.]+ ([\d.]+)/)[1];
   check(arrows().every(d => headY(d) < tailY(d)), "in rate the better arrows point up");
   console.log("ALLB", T.ALLB.length, "values;", range());
+  // The steps below zoom to 2-4 KiB: a graph of a full or quick run has those inputs.
+  if (!(T.ALLB.includes(2048) && T.ALLB.includes(4096))) throw new Error("check.js drives the graph of a full or quick run, whose inputs include 2 KiB and 4 KiB");
   // Step the lower end up five points.
   for (let i = 0; i < 5; i++) w.zoomStep("from", 1);
   await sleep(700);
