@@ -4,8 +4,10 @@ The user authorizes implementation after discussing bimodal summaries. This
 candidate replaces the regression rule with total timed ns / completed units
 and fixed-budget uncertainty. Source-separated branch candidate/devon-mean-
 regression preserves historical instruments. Hashing and measurement workloads
-remain fixed. Existing medians/speed plots remain descriptive visualization;
-the gate and its printed primary comparison use the new caller-cost rule.
+remain fixed. The user's additional requirement makes graphs, reports, guide and compare
+use the same shared raw caller-cost mean as the gate. Single-run graphs show
+observed means and ranges; sixteen-block gate intervals describe cross-run
+uncertainty. Historical graph contracts remain source-matched.
 
 ## Contract, committed before live collection
 
@@ -19,7 +21,7 @@ Collect every declared block; one rule replaces early stopping, all-pair
 conjunctions, selected fast clusters and conditional confirmation.
 
 A two-sided Student-t interval over independent approximately normal block
-ratios uses df15 and conservative critical value6. For at most84tested cells,
+ratios uses df15 and conservative critical value9/2 (4.5). For at most84tested cells,
 Bonferroni bounds family error below5% under that model. This critical value
 comes from statistical coverage; it defines uncertainty, rather than creating
 performance states. Reproduce its tail with independent numerical integration
@@ -29,7 +31,9 @@ while fresh null/known-work controls establish this candidate's empirical scope.
 
 All arithmetic is integer: raw u128 time/work totals; block ratios in parts per
 million; mean and variance with exact sums; interval radius rounded outward
-using integer square root. Broadening for representational rounding is explicit.
+using integer square root. The critical radius uses the exact rational81/4.
+The df15 two-sided tail at4.5 is0.00042329777;84times that is0.035557013,
+within the declared5% family bound. Broadening for representational rounding is explicit.
 Preserve raw records. shared clocks owns the mean/interval rule; the benchmark's
 existing strict Rust v4 reader reads records. Python only orchestrates processes.
 
