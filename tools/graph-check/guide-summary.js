@@ -11,18 +11,18 @@ const { chromium } = require('playwright');
     const template = fs.readFileSync(path.join(__dirname, '../../src/guide.html'), 'utf8');
     const labels = ['64 B', '256 B', '1 KiB', '4 KiB'];
     const units = [64, 256, 1024, 4096];
-    const series = med => ({ med, med2: [null, null, null, null], share2: [0, 0, 0, 0],
-      lat: med.map((v, i) => v * units[i]), lat2: [null, null, null, null], kernels: [] });
-    const data = med => ({ machine: 'synthetic test', date: '2026-10-01', contenders: [
+    const series = mean => ({ mean,
+      lat: mean.map((v, i) => v * units[i]), kernels: [] });
+    const data = mean => ({ format: 'bench-hashes mean viewer v1', machine: 'synthetic test', date: '2026-10-01', contenders: [
       { key: 'blake3-servil-st', name: 'BLAKE3 servil st', color: '#7c3aed' },
       { key: 'sha256-ring', name: 'SHA-256 ring', color: '#c2410c' }], plots: [{
         scenario: 'solo', use: 'LentMessages', batch: false, labels, units, bytes: units,
-        series: { 'blake3-servil-st': series(med), 'sha256-ring': series([1, 1, 1, 1]) }
+        series: { 'blake3-servil-st': series(mean), 'sha256-ring': series([1, 1, 1, 1]) }
       }] });
-    async function summary(med) {
+    async function summary(mean) {
       const page = await browser.newPage();
       try {
-        await page.setContent(template.replace('@DATA@', JSON.stringify(data(med))).replace('@EXAMPLES@', '{"hash":"test example"}'));
+        await page.setContent(template.replace('@DATA@', JSON.stringify(data(mean))).replace('@EXAMPLES@', '{"hash":"test example"}'));
         await page.evaluate(() => {
           answers = { threads: 'one', shape: 'message', keepsUp: 'no' };
           show();

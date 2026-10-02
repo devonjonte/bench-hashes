@@ -1,6 +1,6 @@
 [package]
 name = "bench-hashes"
-version = "0.10.0-devon.linux.1"
+version = "0.10.0-devon.linux.2"
 edition = "2021"
 rust-version = "1.88"
 build = "build.rs"
@@ -8,7 +8,7 @@ build = "build.rs"
 [dependencies]
 # The one place clocks are read (the fork's clocks/ crate): wall time, and
 # the thread's counts per core kind.
-clocks = { git = "https://github.com/johnservil/BLAKE3", branch = "servil" }
+clocks = { git = "https://github.com/devonjonte/BLAKE3", rev = "0cdbb9434dcd2618fce926e21e93542f33858d77" }
 # The `rayon` feature adds Hasher::update_rayon for the BLAKE3 mt contender;
 # blake3::hash and every other API stay single-threaded with it on.
 [dependencies.blake3]
@@ -38,14 +38,14 @@ default-features = false
 version = "0.17"
 default-features = false
 
-# BLAKE3 servil: the fork's servil branch, at the commit Cargo.lock pins.
+# Devon's measured Linux hashing candidate and shared experimental mean rule.
 # To build against a local checkout of the fork instead, with this
 # repository inside it, add
-#   --config 'patch."https://github.com/johnservil/BLAKE3".blake3-servil.path=".."'
+#   --config 'patch."https://github.com/devonjonte/BLAKE3".blake3-servil.path=".."'
 # to the cargo command (CONTRIBUTING.md).
 [dependencies.blake3-servil]
-git = "https://github.com/johnservil/BLAKE3"
-branch = "servil"
+git = "https://github.com/devonjonte/BLAKE3"
+rev = "0cdbb9434dcd2618fce926e21e93542f33858d77"
 default-features = false
 features = ["std"]
 

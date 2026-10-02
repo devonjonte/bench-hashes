@@ -67,7 +67,7 @@ fn sparse_runs_remove_previous_visualizations() {
 }
 
 #[test]
-fn guide_medians_match_the_exact_report_rounding() {
+fn guide_means_match_the_exact_report_rounding() {
     let point = UseCase::LentPieces.points().start;
     let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], false, Some(vec![point]), Some(2));
     let statistics = summarize_measured(&[Measured::new(2135, 400), Measured::new(2135, 400)]);
@@ -76,7 +76,7 @@ fn guide_medians_match_the_exact_report_rounding() {
         cells[point] = Some(super::Cell { solo: statistics, shared: Some(statistics) });
     }
     let guide = generate_guide(&roster, &results, &machine_metadata());
-    assert!(guide.contains("\"med\":[5.338]"), "the report rounds 2135/400 to 5.338; the guide must too");
+    assert!(guide.contains("\"mean\":[5.338]"), "the report rounds 2135/400 to 5.338; the guide must too");
 }
 
 #[test]
@@ -125,10 +125,10 @@ fn sample_schedule_handles_short_explicit_round_counts() {
 
 #[test]
 fn regress_measures_the_nonstop_use_cases_by_their_points_names() {
-    for name in REGRESS_POINTS {
+    for name in mean_regression::POINTS {
         let point = POINTS[point_named(name)];
         assert!(!point.use_case.after_gap(), "{name}: regress measures nonstop cells alone (layout luck after a gap)");
     }
-    assert_eq!(regress_margin_permille("blake3-servil-st|solo|LentMessages|64 B"), 30);
-    assert_eq!(regress_margin_permille("blake3-servil-st|shared|LentMessages|64 B"), 100);
+    assert_eq!(mean_regression::tolerance("blake3-servil-st|solo|LentMessages|64 B"), 30_000);
+    assert_eq!(mean_regression::tolerance("blake3-servil-st|shared|LentMessages|64 B"), 100_000);
 }

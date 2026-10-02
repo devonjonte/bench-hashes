@@ -14,8 +14,11 @@ it measures, and keep your results comparable with ours.
 - `tools/graph-check/`: drives the graph's script in jsdom and checks its
   layout; `guide.js` exercises the HTML guide in Chromium (its README says how).
 - `bench-hashes compare OLD.tsv... -- NEW.tsv...`: compares runs'
-  samples files, each side's pooled, cell by cell, speed with speed and
-  share with share.
+  samples files, pooling raw time/work on each side. Its caller-cost means
+  share the graph and detector's `clocks::comparison::Work` implementation.
+- `src/mean_regression.rs`: the fixed-budget process runner and reporting.
+  Shared clocks owns ratio/uncertainty arithmetic. Sixteen ABBA blocks supply
+  inference; run requests, logs, traces and records remain retained.
 
 ## Build and test
 
@@ -53,14 +56,14 @@ statistics, the report, the graph, and the guide.
 ## Working on the fork alongside
 
 The BLAKE3 servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
-the crate `blake3-servil`, a git dependency on the `servil` branch of
-[github.com/johnservil/BLAKE3](https://github.com/johnservil/BLAKE3), at
-the commit `Cargo.lock` pins. To measure your own checkout of the fork,
+the crate `blake3-servil`, pinned with shared clocks to an explicit commit
+of [Devon's fork](https://github.com/devonjonte/BLAKE3). Cargo.lock records
+that source; the report names the actual commit. To measure your own checkout of the fork,
 put this repository inside it and let the fork's tool build it there:
 
 ```sh
-git clone --branch servil https://github.com/johnservil/BLAKE3
-git clone https://github.com/johnservil/bench-hashes BLAKE3/bench-hashes
+git clone --branch candidate/devon-mean-regression https://github.com/devonjonte/BLAKE3
+git clone --branch candidate/devon-mean-regression https://github.com/devonjonte/bench-hashes BLAKE3/bench-hashes
 cd BLAKE3
 pypy3 tools/perf_regress.py build     # prints the executable's path (python3 where PyPy is absent)
 ```
@@ -73,8 +76,9 @@ names the fork checkout's commit and whether its tree was clean. The fork's `CON
 fork's own tests and its performance-regression check, which runs this
 benchmark.
 
-`cargo update -p blake3-servil` moves the pin to the fork's newest
-`servil` commit.
+Change the explicit hashing/clocks revision together, then refresh Cargo.lock
+and start source-matched comparisons. The build tool derives local patch URLs
+from the selected benchmark manifest.
 
 ## Rules that keep results comparable
 
@@ -97,10 +101,13 @@ benchmark.
   relations every contender keeps when the benchmark measures what it
   means to. A change to the benchmark keeps them holding, or explains
   in its commit message why one breaks.
-- **The fork's regression check runs `bench-hashes regress OLD NEW`**,
-  which runs the two executables with `--contenders`, `--points`, and
-  `--rounds` and reads their samples files: the rule lives here, so a
-  change to the format changes its reader in the same change.
+- **The fork's regression check runs `bench-hashes regress OLD NEW`**.
+  This experimental branch uses fixed-block mean caller-cost comparisons;
+  the shared-clocks helper supplies the arithmetic and statistical model.
+  Keep both repositories' source identities with the measurements. A code,
+  workload or decision-rule change starts fresh validation under the plan.
+  Exit2 means inconclusive, including an interval crossing the tolerance.
+  Source-matched tools read historical records.
 
 ## Results from other machines
 

@@ -121,14 +121,14 @@ pub(super) fn command(arguments: &[String]) {
     fs::create_dir_all(directory).unwrap();
     fs::write(directory.join("bench-hashes.samples.tsv"), write_rows(&rows, &header)).unwrap();
     fs::write(directory.join("clocks.csv"), trace).unwrap();
-    let mut report = format!("Equal-length batches; times in ns per message, speed medians and sample shares.\n{header}");
+    let mut report = format!("Equal-length batches; mean caller time = total timed ns/completed messages.\n{header}");
     if !load_supplies_speed_evidence(&clocks::load::describe(&machine.load)) {
         report.push_str("Descriptive only: load is busy or unobserved; no speed evidence.\n");
     }
     for row in rows {
         let stats = summarize_measured(&row.samples);
-        let total: usize = stats.speeds().iter().map(|s| s.count).sum();
-        let speeds = stats.speeds().iter().map(|s| format!("{} ns/msg ({}%)", s.format_median(1), (s.count * 100 + total / 2) / total)).collect::<Vec<_>>().join(" | ");
+        let total = stats.count;
+        let speeds = format!("{} ns/msg ({} measurements)", stats.format_mean(1), total);
         writeln!(report, "{}|{}|{:?}|{}: {speeds}", row.algorithm.key(), row.scenario.key(), row.point.use_case, row.label).unwrap();
     }
     fs::write(directory.join("bench-hashes.txt"), &report).unwrap();

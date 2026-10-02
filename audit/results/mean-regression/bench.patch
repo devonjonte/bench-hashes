@@ -1,0 +1,615 @@
+diff --git a/audit/mean-regression-plan.md b/audit/mean-regression-plan.md
+index b053ec57..d535758a 100644
+--- a/audit/mean-regression-plan.md
++++ b/audit/mean-regression-plan.md
+@@ -4,8 +4,10 @@ The user authorizes implementation after discussing bimodal summaries. This
+ candidate replaces the regression rule with total timed ns / completed units
+ and fixed-budget uncertainty. Source-separated branch candidate/devon-mean-
+ regression preserves historical instruments. Hashing and measurement workloads
+-remain fixed. Existing medians/speed plots remain descriptive visualization;
+-the gate and its printed primary comparison use the new caller-cost rule.
++remain fixed. The user's additional requirement makes graphs, reports, guide and compare
++use the same shared raw caller-cost mean as the gate. Single-run graphs show
++observed means and ranges; sixteen-block gate intervals describe cross-run
++uncertainty. Historical graph contracts remain source-matched.
+ 
+ ## Contract, committed before live collection
+ 
+@@ -19,7 +21,7 @@ Collect every declared block; one rule replaces early stopping, all-pair
+ conjunctions, selected fast clusters and conditional confirmation.
+ 
+ A two-sided Student-t interval over independent approximately normal block
+-ratios uses df15 and conservative critical value6. For at most84tested cells,
++ratios uses df15 and conservative critical value9/2 (4.5). For at most84tested cells,
+ Bonferroni bounds family error below5% under that model. This critical value
+ comes from statistical coverage; it defines uncertainty, rather than creating
+ performance states. Reproduce its tail with independent numerical integration
+@@ -29,7 +31,9 @@ while fresh null/known-work controls establish this candidate's empirical scope.
+ 
+ All arithmetic is integer: raw u128 time/work totals; block ratios in parts per
+ million; mean and variance with exact sums; interval radius rounded outward
+-using integer square root. Broadening for representational rounding is explicit.
++using integer square root. The critical radius uses the exact rational81/4.
++The df15 two-sided tail at4.5 is0.00042329777;84times that is0.035557013,
++within the declared5% family bound. Broadening for representational rounding is explicit.
+ Preserve raw records. shared clocks owns the mean/interval rule; the benchmark's
+ existing strict Rust v4 reader reads records. Python only orchestrates processes.
+ 
+diff --git a/src/batch_bench.rs b/src/batch_bench.rs
+index 91f63e85..b1d38c5c 100644
+--- a/src/batch_bench.rs
++++ b/src/batch_bench.rs
+@@ -121,14 +121,14 @@ pub(super) fn command(arguments: &[String]) {
+     fs::create_dir_all(directory).unwrap();
+     fs::write(directory.join("bench-hashes.samples.tsv"), write_rows(&rows, &header)).unwrap();
+     fs::write(directory.join("clocks.csv"), trace).unwrap();
+-    let mut report = format!("Equal-length batches; times in ns per message, speed medians and sample shares.\n{header}");
++    let mut report = format!("Equal-length batches; mean caller time = total timed ns/completed messages.\n{header}");
+     if !load_supplies_speed_evidence(&clocks::load::describe(&machine.load)) {
+         report.push_str("Descriptive only: load is busy or unobserved; no speed evidence.\n");
+     }
+     for row in rows {
+         let stats = summarize_measured(&row.samples);
+         let total: usize = stats.speeds().iter().map(|s| s.count).sum();
+-        let speeds = stats.speeds().iter().map(|s| format!("{} ns/msg ({}%)", s.format_median(1), (s.count * 100 + total / 2) / total)).collect::<Vec<_>>().join(" | ");
++        let speeds = format!("{} ns/msg ({} measurements)", stats.speeds()[0].format_median(1), total);
+         writeln!(report, "{}|{}|{:?}|{}: {speeds}", row.algorithm.key(), row.scenario.key(), row.point.use_case, row.label).unwrap();
+     }
+     fs::write(directory.join("bench-hashes.txt"), &report).unwrap();
+diff --git a/src/guide.html b/src/guide.html
+index 169b1541..5bb29016 100644
+--- a/src/guide.html
++++ b/src/guide.html
+@@ -74,7 +74,7 @@ ul.paths svg { display: inline; width: 14px; height: 14px; vertical-align: -2px;
+ </details>
+ <details><summary>How this was measured</summary>
+ <p id="method"></p>
+-<p>Each dot is the median of that cell's samples; a fainter dot is a second, slower speed that some samples ran at, its share in the hover. Where a cell ran at two speeds, the sentence above the chart compares the faster ones. Hover over a dot for the time of one call, the throughput, and the code path that ran.</p>
++<p>Each dot shows mean caller cost: total timed nanoseconds divided by completed work, using the same calculation as the regression detector. Hover over a dot for the time of one call, throughput, and code path. A single run describes its observed workload; regression intervals use sixteen repeated run blocks.</p>
+ <ul class="paths" id="paths"></ul>
+ </details>
+ </section>
+diff --git a/src/harness_tests.rs b/src/harness_tests.rs
+index c528a088..c79da62e 100644
+--- a/src/harness_tests.rs
++++ b/src/harness_tests.rs
+@@ -125,10 +125,10 @@ fn sample_schedule_handles_short_explicit_round_counts() {
+ 
+ #[test]
+ fn regress_measures_the_nonstop_use_cases_by_their_points_names() {
+-    for name in REGRESS_POINTS {
++    for name in mean_regression::POINTS {
+         let point = POINTS[point_named(name)];
+         assert!(!point.use_case.after_gap(), "{name}: regress measures nonstop cells alone (layout luck after a gap)");
+     }
+-    assert_eq!(regress_margin_permille("blake3-servil-st|solo|LentMessages|64 B"), 30);
+-    assert_eq!(regress_margin_permille("blake3-servil-st|shared|LentMessages|64 B"), 100);
++    assert_eq!(mean_regression::tolerance("blake3-servil-st|solo|LentMessages|64 B"), 30_000);
++    assert_eq!(mean_regression::tolerance("blake3-servil-st|shared|LentMessages|64 B"), 100_000);
+ }
+diff --git a/src/main.rs b/src/main.rs
+index 27c5bb29..491c714f 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -847,35 +847,6 @@ impl Measured {
+     }
+ }
+ 
+-/// The exact midpoint of two measured times per unit (repeat a sample
+-/// for an odd median). Keep it for display: Q64.64 is ample for statistics,
+-/// yet a half-way decimal can move one display tick if approximated first.
+-#[derive(Clone, Copy)]
+-struct ExactMedian(Measured, Measured);
+-
+-impl ExactMedian {
+-    fn of_sorted(samples: &[Measured]) -> Self {
+-        assert!(!samples.is_empty(), "a median needs samples");
+-        Self(samples[(samples.len() - 1) / 2], samples[samples.len() / 2])
+-    }
+-
+-    /// Scale the measured ratio before its one rounding for the reader.
+-    /// Requires cross-products and display scaling to fit in u128.
+-    fn format_ns(self, factor: u64) -> String {
+-        let (a, b) = (self.0, self.1);
+-        let numerator = (u128::from(a.ns) * u128::from(b.units) + u128::from(b.ns) * u128::from(a.units))
+-            .checked_mul(u128::from(factor)).expect("a scaled median fits in u128");
+-        let denominator = (2 * u128::from(a.units)).checked_mul(u128::from(b.units)).expect("a median denominator fits in u128");
+-        let mut decimals = 3u32;
+-        while decimals < 6 && numerator * 10u128.pow(decimals - 2) < denominator {
+-            decimals += 1;
+-        }
+-        let scale = 10u128.pow(decimals);
+-        let rounded = numerator.checked_mul(scale).and_then(|n| n.checked_add(denominator / 2))
+-            .expect("a rounded median fits in u128") / denominator;
+-        format!("{}.{:0width$}", rounded / scale, rounded % scale, width = decimals as usize)
+-    }
+-}
+ 
+ /// A non-negative number in fixed point, 64 integer and 64 fractional bits
+ /// (Q64.64). Times are Fixed nanoseconds per unit (PerUnit), ratios of
+@@ -961,42 +932,29 @@ impl Fixed {
+ }
+ 
+ 
+-/*
+- * Summary of one cell's samples: its median, and `minimum` and `maximum`,
+- * the extremes seen.
+- *
+- * `two_speeds` is set when the samples split into two clusters at least
+- * 4% apart, their medians at least 1.25× apart, with a tenth or more of
+- * the samples on each side: the code ran
+- * at two speeds in this context (two SME2 copies sharing a unit or not,
+- * the interleaving's neighbours), which a single median cannot express and
+- * would report as whichever cluster happens to hold the middle sample.
+- * Each speed then carries its own median, and every report
+- * shows both, the faster first.
+- */
++/* Shared caller-cost summary: raw total time/work and observed extremes.
++ * The renderer's legacy median/med slots carry the mean in this candidate;
++ * the graph explicitly declares its statistic and raw files remain intact. */
+ #[derive(Clone, Copy)]
+ struct Statistics {
+-    /// Samples behind these figures.
+     count: usize,
+     minimum: PerUnit,
+     median: PerUnit,
+     maximum: PerUnit,
+     two_speeds: Option<[Speed; 2]>,
+-    exact_median: Option<ExactMedian>,
++    exact_median: Option<clocks::comparison::Work>,
+ }
+ 
+-/// One speed a cell ran at: the median of its samples, and how many
+-/// samples it holds.
+ #[derive(Clone, Copy)]
+ struct Speed {
+     median: PerUnit,
+-    exact_median: Option<ExactMedian>,
++    exact_median: Option<clocks::comparison::Work>,
+     count: usize,
+ }
+ 
+ impl Speed {
+     fn format_median(self, factor: u64) -> String {
+-        self.exact_median.map_or_else(|| (self.median * factor).format_ns(), |m| m.format_ns(factor))
++        self.exact_median.expect("a caller-cost summary keeps raw totals").format_mean(factor)
+     }
+ }
+ 
+@@ -3217,47 +3175,22 @@ fn median_of_sorted(sorted: &[PerUnit]) -> PerUnit {
+     Fixed(clocks::speeds::median_of_sorted(&raw(sorted)))
+ }
+ 
+-/// Statistics use the shared Q64.64 rule; displayed medians keep their
+-/// original measured ratios. The same split selects both representations.
++/// Every presentation and the gate use shared clocks' raw time/work mean.
+ fn summarize_measured(samples: &[Measured]) -> Statistics {
+-    let mut measured = samples.to_vec();
+-    measured.sort_unstable_by(|a, b| (u128::from(a.ns) * u128::from(b.units)).cmp(&(u128::from(b.ns) * u128::from(a.units))));
+-    let mut values = per_units(&measured);
+-    let mut statistics = summarize(&mut values);
+-    statistics.exact_median = Some(ExactMedian::of_sorted(&measured));
+-    if let Some(pair) = statistics.two_speeds.as_mut() {
+-        let at = clocks::speeds::split(&raw(&values)).expect("the shared rule selected two speeds");
+-        pair[0].exact_median = Some(ExactMedian::of_sorted(&measured[..at]));
+-        pair[1].exact_median = Some(ExactMedian::of_sorted(&measured[at..]));
+-    }
+-    statistics
+-}
+-
+-/// Requires a non-empty slice; sorts it. Zeros summarise to zeros.
+-fn summarize(samples: &mut [PerUnit]) -> Statistics {
+-    assert!(!samples.is_empty(), "a cell has at least one sample");
+-    samples.sort_unstable();
+-
+-    let median = median_of_sorted(samples);
+-
++    assert!(!samples.is_empty(), "a cell has measured samples");
++    let mut total = clocks::comparison::Work::default();
++    for sample in samples { total.add(sample.ns, sample.units); }
++    let values = per_units(samples);
+     Statistics {
+         count: samples.len(),
+-        minimum: samples[0],
+-        median,
+-        maximum: samples[samples.len() - 1],
+-        two_speeds: two_speeds(samples),
+-        exact_median: None,
++        minimum: *values.iter().min().unwrap(),
++        median: Fixed(total.mean_fixed()),
++        maximum: *values.iter().max().unwrap(),
++        two_speeds: None,
++        exact_median: Some(total),
+     }
+ }
+ 
+-/// The cell's two speeds, faster first, when the rule splits its sorted
+-/// samples (clocks::speeds::speeds).
+-fn two_speeds(sorted: &[PerUnit]) -> Option<[Speed; 2]> {
+-    let found = clocks::speeds::speeds(&raw(sorted));
+-    let speed = |s: &clocks::speeds::Speed| Speed { median: Fixed(s.median), exact_median: None, count: s.count };
+-    (found.len() == 2).then(|| [speed(&found[0]), speed(&found[1])])
+-}
+-
+ /*
+  * One code path a contender uses for a range of input sizes. `first` is the
+  * smallest input in bytes that takes this path; a contender's kernels are
+@@ -3750,256 +3683,35 @@ fn load_supplies_speed_evidence(load: &str) -> bool {
+ fn compare_command(arguments: &[String]) {
+     let split = arguments.iter().position(|argument| argument == "--").expect("usage: bench-hashes compare OLD.tsv... -- NEW.tsv...");
+     let (old, new) = (&arguments[..split], &arguments[split + 1..]);
+-    assert!(!old.is_empty() && !new.is_empty(), "usage: bench-hashes compare OLD.tsv... -- NEW.tsv...");
++    assert!(!old.is_empty() && !new.is_empty(), "both sides supply sample files");
+     let pool = |paths: &[String]| {
+-        let mut order: Vec<String> = Vec::new();
+-        let mut cells: std::collections::HashMap<String, Vec<PerUnit>> = std::collections::HashMap::new();
++        let mut cells = std::collections::BTreeMap::<String, clocks::comparison::Work>::new();
+         for path in paths {
+             let file = read_samples(path);
+             if !load_supplies_speed_evidence(&file.load) {
+-                println!("{path}: load is busy or unobserved ({}): comparisons are descriptive only; its samples are no evidence of speed", file.load);
++                println!("{path}: descriptive comparison; load observation: {}", file.load);
+             }
++            println!("{path}: power observation: {}", file.power);
+             for (key, samples) in file.cells {
+-                if !cells.contains_key(&key) {
+-                    order.push(key.clone());
+-                }
+-                cells.entry(key).or_default().extend(per_units(&samples));
++                let total = cells.entry(key).or_default();
++                for sample in samples { total.add(sample.ns, sample.units); }
+             }
+         }
+-        (order, cells)
++        cells
+     };
+-    let ((order, old), (_, new)) = (pool(old), pool(new));
+-    for key in order {
+-        if let Some(new_values) = new.get(&key) {
+-            println!("{key}: {}", speeds_line(&old[&key], new_values));
++    let (old, new) = (pool(old), pool(new));
++    println!("Mean caller time/unit, total measured time/work; descriptive pooled comparison. Fixed-block inference uses regress.");
++    for (key, a) in old {
++        if let Some(&b) = new.get(&key) {
++            let ratio = clocks::comparison::ratio(a,b);
++            println!("{key}: {} -> {} [mean ratio {}.{:06}; old {}/{}, new {}/{} ns/units]", a.format_mean(1), b.format_mean(1), ratio / 1_000_000, ratio % 1_000_000, a.ns, a.units, b.ns, b.units);
+         }
+     }
+ }
+ 
+-/// One cell's samples on two sides compared speed with speed
+-/// (clocks::speeds::compare): "old speeds -> new speeds  [fast xF, slow
+-/// xS, slow share a% -> b%]".
+-fn speeds_line(old: &[PerUnit], new: &[PerUnit]) -> String {
+-    let ratio = |permille: u64| format!("x{}.{:03}", permille / 1000, permille % 1000);
+-    let describe = |speeds: &[clocks::speeds::Speed]| -> String {
+-        let total: usize = speeds.iter().map(|speed| speed.count).sum();
+-        match speeds {
+-            [one] => Fixed(one.median).format_ns(),
+-            _ => speeds.iter().map(|speed| format!("{} ({}%)", Fixed(speed.median).format_ns(), (speed.count * 100 + total / 2) / total)).collect::<Vec<_>>().join(" | "),
+-        }
+-    };
+-    let c = clocks::speeds::compare(&sorted_raw(old), &sorted_raw(new));
+-    let share = |permille: u64| (permille + 5) / 10;
+-    format!("{} -> {}  [fast {}, slow {}, slow share {}% -> {}%]",
+-        describe(&c.old), describe(&c.new), ratio(c.fast_permille), ratio(c.slow_permille),
+-        share(c.old_slow_share_permille), share(c.new_slow_share_permille))
+-}
+-
+-fn sorted_raw(values: &[PerUnit]) -> Vec<u128> {
+-    let mut v = raw(values);
+-    v.sort_unstable();
+-    v
+-}
+-
+-/*
+- * `bench-hashes regress OLD NEW [--points NAME,...]`: whether the
+- * executable NEW is slower than OLD, measured side by side on this
+- * machine (the fork's tools/perf_regress.py builds the two; NOTES-servil
+- * "perf_regress" holds the rule's calibration).
+- *
+- * Runs go A B B A A B B A, each over every point, so a cell's neighbours
+- * stay the same in every run, with SHA-256 the control (the same code on
+- * both sides), BLAKE3 servil st and mt the subjects. A pair's verdict on a
+- * cell is the ratio of the fast speeds, new over old, of the two runs'
+- * samples (clocks::speeds::compare, as `compare` reports it). A cell is
+- * slower (faster) when every one of the four pairs exceeds 1 + its margin
+- * (falls below 1 - it): 3% solo, 10% shared (Zooko, September 25, 2026).
+- * The pairs stop once no cell can still be called either. A slower cell
+- * starts four more pairs, which must agree. Exit 0: no regression in a
+- * cell that holds a change (solo; shared cells slower are listed); 1: a
+- * confirmed regression in one; 2: no verdict, when a run's load was busy
+- * or unobserved (clocks::load), or the control moved.
+- */
+-const REGRESS_CONTROL: Algorithm = Algorithm::Sha256;
+-const REGRESS_SUBJECTS: [Algorithm; 2] = [Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt];
+-/// The code paths and boundaries of the nonstop use cases: the queue's
+-/// short messages (members), a first subtree task, one piece, many pieces;
+-/// hash on one message, bulk, over the pool; a long message in pieces;
+-/// batches as members and as tasks of their own.
+-const REGRESS_POINTS: [&str; 14] = [
+-    "continuous 64 B", "continuous 1 KiB", "continuous 16 KiB", "continuous 64 KiB", "continuous 1 MiB",
+-    "continuous batch 16", "continuous batch 256", "continuous batch 4096",
+-    "lent 64 B", "lent 64 KiB", "lent 1 MiB", "lent pieces 64 MiB", "lent batch 16", "lent batch 4096",
+-];
+-const REGRESS_ROUNDS: usize = 24;
+-const REGRESS_PAIRS: usize = 4;
+-
+-fn regress_margin_permille(key: &str) -> u64 {
+-    if key.split('|').nth(1) == Some("solo") { 30 } else { 100 }
+-}
+-
+-/// One run of `exe` over `points`: its samples, sorted per cell, its load
+-/// and power lines.
+-fn regress_run(exe: &str, points: &str) -> SamplesFile {
+-    let directory = std::env::temp_dir().join(format!("bench-hashes-regress-{}-{}", std::process::id(), clocks::load::now_ns()));
+-    fs::create_dir_all(&directory).unwrap();
+-    let contenders: Vec<&str> = std::iter::once(REGRESS_CONTROL).chain(REGRESS_SUBJECTS).map(Algorithm::key).collect();
+-    let status = std::process::Command::new(exe)
+-        .args(["--contenders", &contenders.join(","), "--points", points, "--rounds", &REGRESS_ROUNDS.to_string()])
+-        .current_dir(&directory)
+-        .stdout(std::process::Stdio::null())
+-        .stderr(std::process::Stdio::null())
+-        .status()
+-        .unwrap_or_else(|error| panic!("failed to run {exe}: {error}"));
+-    assert!(status.success(), "{exe} failed: {status}");
+-    let found: Vec<_> = fs::read_dir(directory.join("benchmark-results")).unwrap()
+-        .map(|entry| entry.unwrap().path().join("bench-hashes.samples.tsv")).collect();
+-    assert_eq!(found.len(), 1, "one samples file");
+-    let file = read_samples(found[0].to_str().unwrap());
+-    fs::remove_dir_all(&directory).unwrap();
+-    file
+-}
+-
+-/// Each cell's samples per unit, for every run of one side.
+-type Side = Vec<std::collections::HashMap<String, Vec<PerUnit>>>;
+-
+-/// The cells whose every pair so far exceeds the margin one way, with
+-/// their pair ratios in permille.
+-fn regress_open(old: &Side, new: &Side) -> Vec<(String, Vec<u64>)> {
+-    let mut keys: Vec<&String> = old[0].keys().collect();
+-    keys.sort();
+-    keys.into_iter().filter_map(|key| {
+-        let ratios: Vec<u64> = old.iter().zip(new).map(|(a, b)| clocks::speeds::compare(&sorted_raw(&a[key]), &sorted_raw(&b[key])).fast_permille).collect();
+-        let m = regress_margin_permille(key);
+-        (ratios.iter().all(|&r| r > 1000 + m) || ratios.iter().all(|&r| r < 1000 - m)).then(|| (key.clone(), ratios))
+-    }).collect()
+-}
+-
+-/// Up to REGRESS_PAIRS pairs (old first in even pairs of `start`), stopping
+-/// once no cell is open; the loads and powers they met into `seen`.
+-fn regress_pairs(old_exe: &str, new_exe: &str, start: usize, points: &str, seen: &mut (Vec<String>, Vec<String>)) -> (Side, Side) {
+-    let (mut old, mut new) = (Vec::new(), Vec::new());
+-    let side = |exe: &str, runs: &mut Side, seen: &mut (Vec<String>, Vec<String>)| {
+-        let file = regress_run(exe, points);
+-        if !load_supplies_speed_evidence(&file.load) {
+-            seen.0.push(file.load.clone());
+-        }
+-        if !seen.1.contains(&file.power) {
+-            seen.1.push(file.power.clone());
+-        }
+-        runs.push(file.cells.into_iter().map(|(key, samples)| (key, per_units(&samples))).collect());
+-    };
+-    for pair in 0..REGRESS_PAIRS {
+-        let began = clocks::now();
+-        if (start + pair) % 2 == 0 {
+-            side(old_exe, &mut old, seen);
+-            side(new_exe, &mut new, seen);
+-        } else {
+-            side(new_exe, &mut new, seen);
+-            side(old_exe, &mut old, seen);
+-        }
+-        let open = regress_open(&old, &new).len();
+-        let tenths = (clocks::since_ns(began) + 50_000_000) / 100_000_000;
+-        eprintln!("regress: pair {} done in {}.{} s ({open} cells still open)", start + pair + 1, tenths / 10, tenths % 10);
+-        if open == 0 {
+-            break;
+-        }
+-    }
+-    (old, new)
+-}
+-
++mod mean_regression;
+ fn regress_command(arguments: &[String]) -> i32 {
+-    let usage = "usage: bench-hashes regress OLD_EXE NEW_EXE [--points NAME,...]";
+-    let (exes, points) = match arguments {
+-        [old, new] => ([old.as_str(), new.as_str()], REGRESS_POINTS.join(",")),
+-        [old, new, flag, list] if flag == "--points" => ([old.as_str(), new.as_str()], list.clone()),
+-        _ => panic!("{usage}"),
+-    };
+-    for name in points.split(',') {
+-        point_named(name);
+-    }
+-    let [old_exe, new_exe] = exes;
+-    let mut seen = (Vec::new(), Vec::new());
+-    let power = |seen: &(Vec<String>, Vec<String>)| format!("regress: power during the check: {}", seen.1.join("; "));
+-    let pooled = |side: &Side, key: &str| -> Vec<PerUnit> { side.iter().flat_map(|run| run[key].clone()).collect() };
+-    let percent = |ratios: &[u64]| {
+-        let mut sorted = ratios.to_vec();
+-        sorted.sort_unstable();
+-        let median = sorted[sorted.len() / 2] as i64 - 1000;
+-        format!("{}{}.{}%", if median < 0 { "-" } else { "+" }, median.abs() / 10, median.abs() % 10)
+-    };
+-    let unreliable = |old: &Side, new: &Side, seen: &(Vec<String>, Vec<String>)| -> bool {
+-        if !seen.0.is_empty() {
+-            println!("regress: other programs kept the machine busy, or clocks saw no load window, during {} runs. No verdict (exit 2); run again when nothing else runs on the machine.", seen.0.len());
+-            for load in &seen.0 {
+-                println!("  {load}");
+-            }
+-            return true;
+-        }
+-        let control: Vec<_> = regress_open(old, new).into_iter().filter(|(key, ratios)| key.starts_with(REGRESS_CONTROL.key()) && ratios.len() == old.len() && old.len() == REGRESS_PAIRS).collect();
+-        if !control.is_empty() {
+-            println!("regress: the control ({}, the same code on both sides) moved in {} cells: the machine's state changed within pairs. No verdict (exit 2); run again when nothing else runs on the machine.", REGRESS_CONTROL.key(), control.len());
+-            for (key, ratios) in control {
+-                println!("  control {key}: {}", percent(&ratios));
+-            }
+-            return true;
+-        }
+-        false
+-    };
+-    let verdicts = |old: &Side, new: &Side| -> (Vec<(String, Vec<u64>)>, Vec<(String, Vec<u64>)>) {
+-        let called: Vec<_> = regress_open(old, new).into_iter()
+-            .filter(|(key, _)| old.len() == REGRESS_PAIRS && REGRESS_SUBJECTS.iter().any(|a| key.starts_with(&format!("{}|", a.key()))))
+-            .collect();
+-        called.into_iter().partition(|(_, ratios)| ratios[0] > 1000)
+-    };
+-    eprintln!("regress: {new_exe} against {old_exe}, {REGRESS_PAIRS} alternating pairs over {} points", points.split(',').count());
+-    let (old, new) = regress_pairs(old_exe, new_exe, 0, &points, &mut seen);
+-    if unreliable(&old, &new, &seen) {
+-        println!("{}", power(&seen));
+-        return 2;
+-    }
+-    let (slower, faster) = verdicts(&old, &new);
+-    let mut code = 0;
+-    if !slower.is_empty() {
+-        eprintln!("regress: {} cells slower in {REGRESS_PAIRS} pairs; {REGRESS_PAIRS} more pairs must agree", slower.len());
+-        let (old2, new2) = regress_pairs(old_exe, new_exe, REGRESS_PAIRS, &points, &mut seen);
+-        if unreliable(&old2, &new2, &seen) {
+-            println!("{}", power(&seen));
+-            return 2;
+-        }
+-        let (slower2, _) = verdicts(&old2, &new2);
+-        let confirmed: Vec<_> = slower.iter().filter_map(|(key, first)| slower2.iter().find(|(k, _)| k == key).map(|(_, then)| (key, first, then))).collect();
+-        let (held, reported): (Vec<_>, Vec<_>) = confirmed.into_iter().partition(|(key, _, _)| key.split('|').nth(1) == Some("solo"));
+-        let show = |cells: &[(&String, &Vec<u64>, &Vec<u64>)]| {
+-            for (key, first, then) in cells {
+-                let (all_old, all_new): (Vec<PerUnit>, Vec<PerUnit>) = (
+-                    [pooled(&old, key), pooled(&old2, key)].concat(), [pooled(&new, key), pooled(&new2, key)].concat());
+-                println!("  {key}: {}, then {}", percent(first), percent(then));
+-                println!("      speeds: {}", speeds_line(&all_old, &all_new));
+-            }
+-        };
+-        if !held.is_empty() {
+-            println!("regress: REGRESSION: {} cells that hold a change are slower (solo; fast speeds, median of pair ratios):", held.len());
+-            show(&held);
+-            code = 1;
+-        }
+-        if !reported.is_empty() {
+-            println!("regress: {} shared cells are slower; they do not hold the change: name them, their numbers, and the change's reason in its commit message:", reported.len());
+-            show(&reported);
+-        }
+-        if held.is_empty() && reported.is_empty() {
+-            println!("regress: the second {REGRESS_PAIRS} pairs did not confirm");
+-        }
+-    }
+-    for (key, ratios) in &faster {
+-        println!("  faster  {key}: {}", percent(ratios));
+-        println!("      speeds: {}", speeds_line(&pooled(&old, key), &pooled(&new, key)));
+-    }
+-    if code == 0 {
+-        println!("regress: no regression in a cell that holds a change");
+-    }
+-    println!("{}", power(&seen));
+-    code
++    mean_regression::command(arguments)
+ }
+ 
+ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &MachineMetadata, selection_note: &str) -> String {
+@@ -4091,7 +3803,7 @@ fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata,
+     writeln!(output, "Hash speed on {} ({}, {} CPUs), {}", machine.cpu_type, machine.os_type, machine.cpu_count, machine.timestamp).unwrap();
+     writeln!(
+         output,
+-        "{} run: {} rounds{}. Each cell is the median time per unit, lower is better; a|b: the cell ran at two speeds, both medians given, faster first.",
++        "{} run: {} rounds{}. Each cell is mean caller time per unit (total timed ns/completed units), lower is better.",
+         if roster.points.iter().all(|&index| POINTS[index].quick()) { "Quick" } else { "Full" },
+         roster.rounds,
+         if roster.points.iter().all(|&index| POINTS[index].quick()) { "; a full run confirms and adds the largest inputs and batches" } else { "" },
+@@ -5091,7 +4803,7 @@ fn generate_svg(
+      * A panel under the header, over the plots, shown by the door's click.
+      */
+     let mut howto = vec![
+-        format!("Each line is one hash. Each dot is the median of up to {} timings at that size.", 2 * roster.rounds),
++        format!("Each line is one hash. Each dot is total timed ns divided by completed units, across up to {} measurements at that size.", 2 * roster.rounds),
+         "A dot's shape marks the method the hash used at that size. The section \"Code paths\" at the bottom names each method.".to_owned(),
+         "Rate counts bytes or messages per second, time the nanoseconds per byte or message; the switch at right changes every plot.".to_owned(),
+         "The strip at the top narrows every plot to part of its inputs: drag an end of its band, or use the arrows at its ends.".to_owned(),
+@@ -6147,7 +5859,7 @@ fn write_interaction_script(
+         if index > 0 { data.push(','); }
+         write!(data, "\"{}\"", algorithm.color()).unwrap();
+     }
+-    data.push_str("],\"plots\":[");
++    data.push_str("],\"statistic\":\"total timed ns/completed units\",\"plots\":[");
+     for (plot_index, plot) in plots.iter().enumerate() {
+         if plot_index > 0 { data.push(','); }
+         write!(
+@@ -6937,10 +6649,10 @@ function showHover(p, focus, k) {
+     const total = f.cnt[k] + f.cnt2[k];
+     body.appendChild(note(textEl(PAD, y, "hover-sub", "Two speeds here: see the note [*] under the last plot.", { "font-weight": "700" })));
+     y += 13;
+-    speedRow("median", f.med[k], ` · ${Math.round(f.cnt[k] * 100 / total)}% of timings`);
+-    speedRow("median", f.med2[k], ` · ${Math.round(f.cnt2[k] * 100 / total)}% of timings`);
++    speedRow("mean", f.med[k], ` · ${Math.round(f.cnt[k] * 100 / total)}% of timings`);
++    speedRow("mean", f.med2[k], ` · ${Math.round(f.cnt2[k] * 100 / total)}% of timings`);
+   } else {
+-    speedRow("median", f.med[k], "");
++    speedRow("mean", f.med[k], "");
+   }
+   body.appendChild(note(textEl(PAD, y, "hover-sub", `fastest and slowest of ${f.n[k]} timings: ${fmt(rLo, p)}–${fmt(rHi, p)} ${unitLabel(p)}`)));
+ 
+@@ -7011,7 +6723,7 @@ function showHover(p, focus, k) {
+       relCells.push(rel);
+     }
+     y += 12;
+-    body.appendChild(note(textEl(PAD, y, "hover-note", `each row's speed compared with ${name(focus)}; medians, ranked fastest first`)));
++    body.appendChild(note(textEl(PAD, y, "hover-note", `each row's mean caller time compared with ${name(focus)}; ranked fastest first`)));
+     y += 4;
+     /* The comparison column ends at the panel's right edge, known once every line is measured. */
+     relCells.forEach(el => el.setAttribute("x", wide - PAD));
+@@ -7356,8 +7068,8 @@ mod correctness_tests {
+                     samples.solo_started_ns[a][p].push(r as u64 * 1_000_000);
+                 }
+                 results[a][p] = Some(Cell {
+-                    solo: summarize(&mut per_units(&samples.solo[a][p])),
+-                    shared: Scenario::Shared.measures(POINTS[p].use_case).then(|| summarize(&mut per_units(&samples.shared[a][p]))),
++                    solo: summarize_measured(&samples.solo[a][p]),
++                    shared: Scenario::Shared.measures(POINTS[p].use_case).then(|| summarize_measured(&samples.shared[a][p])), 
+                 });
+             }
+         }
+@@ -7390,7 +7102,7 @@ mod correctness_tests {
+             for sample in samples.shared[a][p16].iter_mut() {
+                 *sample = Measured::new(sample.ns * factor.0 / factor.1, sample.units);
+             }
+-            results[a][p16].as_mut().unwrap().shared = Some(summarize(&mut per_units(&samples.shared[a][p16])));
++            results[a][p16].as_mut().unwrap().shared = Some(summarize_measured(&samples.shared[a][p16]));
+         }
+         let report = consistency(&roster, &results);
+         for (check, who) in [("nonstop slower than after other work", "SHA-256"),
+@@ -7441,7 +7153,7 @@ mod correctness_tests {
+     }
+ 
+     #[test]
+-    fn medians_at_decimal_halfways_round_the_original_measurement_once() {
++    fn means_at_decimal_halfways_round_the_original_measurement_once() {
+         // Independently established rational values: 2135/400 = 5.3375,
+         // 20555/400 = 51.3875; half-up decimal rounding gives these anchors.
+         for (ns, expected) in [(2135, "5.338"), (20555, "51.388")] {
+@@ -7452,6 +7164,18 @@ mod correctness_tests {
+         }
+     }
+ 
++    #[test]
++    fn plot_and_detector_means_share_raw_work_accounting() {
++        let samples = [Measured::new(100,10), Measured::new(400,20)];
++        let stats=summarize_measured(&samples);
++        let mut total=clocks::comparison::Work::default();
++        for sample in samples {total.add(sample.ns,sample.units);}
++        assert_eq!(stats.median.0,total.mean_fixed());
++        assert_eq!(stats.speeds()[0].format_median(1),"16.667");
++        assert_eq!(total.format_mean(1),"16.667");
++        assert!(stats.two_speeds.is_none());
++    }
++
+     #[test]
+     fn prepared_samples_select_the_promised_api_and_keep_digest_space() {
+         CALLS.with(|calls| calls.borrow_mut().clear());
+@@ -7523,7 +7247,7 @@ mod correctness_tests {
+             }
+         }
+         assert_eq!(checked, read.cells.len(), "every cell read back, none more");
+-        assert!(two >= 2, "two-speed cells among them");
++        assert_eq!(two, 0, "all samples contribute to the caller-cost mean");
+     }
+ 
+     #[test]

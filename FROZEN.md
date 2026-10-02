@@ -1,5 +1,14 @@
 # What the benchmark asks of the servil fork (frozen)
 
+## Devon's mean-comparison experiment — October 2, 2026
+
+The user authorizes `0.10.0-devon.linux.2` to use one shared caller-cost mean
+in plots and automatic comparisons, with fixed-block uncertainty and complete
+retained controls. This changes summaries and the decision procedure; the
+workloads and calls below keep their contract. The experimental publication
+records inconclusive controls and an open general-reliance assessment. Each
+hashing comparison freezes its actual executable and both source identities.
+
 ## Devon's Linux extension — October 2, 2026
 
 The user explicitly authorizes Devon to add batch message lengths beyond

@@ -1,5 +1,32 @@
 # bench-hashes
 
+**Experimental mean-based comparison.** This branch uses total timed
+nanoseconds divided by completed work in its graph, text report, API guide,
+batch report and `compare` command. The shared `clocks::comparison::Work`
+implementation also supplies the regression detector's block comparisons.
+Implementation tests pass. The [completed pilot](audit/results/mean-regression/README.md)
+finds useful detection at selected sizes and wide intervals elsewhere; broad
+3% regression clearance remains open.
+
+`regress OLD NEW` collects sixteen complete old/new/new/old blocks over the
+same fourteen nonstop points. It reports each cell's mean block ratio and a
+model-based simultaneous uncertainty interval. Exit1 flags a solo regression;
+exit0 establishes the measured solo tolerance; exit2 reports inconclusive
+measurements or controls. Solo tolerance is3%, shared reporting tolerance10%.
+Every process request, log and sample stays in `regression-results/`.
+
+A graph from one run shows its observed caller-cost mean and timing range.
+Regression uncertainty describes variation across sixteen repeated blocks.
+Both use the same raw-work accounting. The statistical model assumes
+independent, approximately normal block ratios; the [experiment plan](audit/mean-regression-plan.md)
+states its coverage, controls and validation scope.
+
+Historical releases and results remain accessible on their original branches.
+This independently versioned `0.10.0-devon.linux.2` pins the published Devon
+hashing/clocks commit, so `cargo build --release --locked` works standalone.
+Clone `candidate/devon-mean-regression` from both Devon repositories for an
+enclosing development build. Older instruments retain their source identities.
+
 Original benchmark written by GPT-5.6 Sol, Claude Fable 5, and Claude Opus 5.5 to Zooko's specifications.
 
 **Devon's Linux research version.** This branch adds measurements for batches
@@ -24,8 +51,8 @@ To measure Devon's Linux hashing changes, clone the two research branches
 with the benchmark inside the BLAKE3 fork, then build through its tool:
 
 ```sh
-git clone --branch candidate/devon-linux-excellence https://github.com/devonjonte/BLAKE3
-git clone --branch candidate/devon-linux-excellence https://github.com/devonjonte/bench-hashes BLAKE3/bench-hashes
+git clone --branch candidate/devon-mean-regression https://github.com/devonjonte/BLAKE3
+git clone --branch candidate/devon-mean-regression https://github.com/devonjonte/bench-hashes BLAKE3/bench-hashes
 cd BLAKE3
 pypy3 tools/perf_regress.py build
 ```
@@ -34,16 +61,17 @@ The tool prints the executable path. Run that executable from a scratch
 directory, followed by `batches`; it names the actual hashing and benchmark
 sources. Use `python3` where PyPy is unavailable.
 
-Results go to `benchmark-results/batches/`: `bench-hashes.txt` gives each
-speed's median and sample share in nanoseconds per message;
+Results go to `benchmark-results/batches/`: `bench-hashes.txt` gives mean
+caller time in nanoseconds per message;
 `bench-hashes.samples.tsv` preserves raw time and message counts; `clocks.csv`
 records wall time and available per-thread cycle counts. Busy or unobserved
 load makes comparisons descriptive only. The original 64-byte measurements
 and graphs remain available through the normal command.
 
 Compare corresponding runs with `bench-hashes compare OLD.tsv -- NEW.tsv`;
-compare each version's repeats as well. A changed mix of speeds is a finding
-alongside the medians. These results include the input producer and digest
+compare each version's repeats as well. Each comparison uses total measured
+time divided by completed work. The fixed-block detector reports uncertainty
+across repeated processes. These results include the input producer and digest
 handling. The official BLAKE3 contender uses its native batch kernel through
 1024-byte messages and a loop of plain hash calls for longer ones.
 
@@ -67,7 +95,7 @@ tools on macOS (`xcode-select --install`), gcc or clang on Linux, or the
 Visual Studio C++ build tools on Windows. Then:
 
 ```sh
-git clone --branch candidate/devon-linux-excellence https://github.com/devonjonte/bench-hashes
+git clone --branch candidate/devon-mean-regression https://github.com/devonjonte/bench-hashes
 cd bench-hashes
 cargo run --release
 ```
