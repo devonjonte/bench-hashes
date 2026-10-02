@@ -379,12 +379,12 @@ impl UseCase {
         matches!(self.call(), Self::OneMessage | Self::ManyMessages)
     }
 
-    /// How the program calls, as the graph's chips name it.
+    /// How the program calls, as the plot picker names it.
     fn pattern_key(self) -> &'static str {
         if self.idle() { "idle" } else if self.after_gap() { "busy" } else { "nonstop" }
     }
 
-    /// What a call hashes, as the graph's chips name it.
+    /// What a call hashes, as the plot picker names it.
     fn what_key(self) -> &'static str {
         match self.call() {
             Self::OneMessage | Self::ContinuousMessages | Self::LentMessages => "messages",
@@ -394,7 +394,7 @@ impl UseCase {
         }
     }
 
-    /// Whose buffers a nonstop use case hashes, as the graph's chips name
+    /// Whose buffers a nonstop use case hashes, as the plot picker names
     /// it: the producer's own, handed over (owned), or lent until each call
     /// returns; None for the calls after a gap.
     fn buffers_key(self) -> Option<&'static str> {
@@ -4906,14 +4906,6 @@ fn generate_svg(
     .zoom-grip { cursor: ew-resize; touch-action: none; }
     .zoom-band { cursor: grab; touch-action: none; }
     .zoom-tick[data-at="true"] { stroke: #5b21b6; stroke-width: 2; }
-    .chip { cursor: pointer; }
-    .chip rect { fill: #ffffff; stroke: #cfcfca; stroke-width: 1; }
-    .chip text { font-size: 11px; fill: #8a8a8a; }
-    .chip[data-on="true"] rect { fill: #ede9fe; stroke: #a78bfa; }
-    .chip[data-on="true"] text { fill: #3b0764; font-weight: 600; }
-    .chip-label { font-size: 10px; fill: #9a9a9a; }
-    .chip[data-live="false"] { opacity: 0.38; }
-    .chip-tie { fill: none; stroke: #cfcfca; stroke-width: 1; }
     .plot-off { visibility: hidden; pointer-events: none; }
     .plot-off .series-prov { visibility: visible; }
     .zoom-grip-hit { fill: transparent; }
@@ -4974,9 +4966,9 @@ fn generate_svg(
     );
 
     /*
-     * The header (title, method lines, unit switch, zoom row, chips) is one
+     * The header (title, method lines, unit switch, zoom row, plot picker) is one
      * group at the top of the page. It stays there as the page scrolls, so
-     * a plot and the screen's top never overlap; the chips bring the plot a
+     * a plot and the screen's top never overlap; the picker brings the plot a
      * reader wants up to it (Zooko, September 26, 2026: on a phone a header
      * that followed the page covered the top of every plot).
      */
@@ -5091,83 +5083,8 @@ fn generate_svg(
     button(&mut svg, "zoom-all", PLOT_RIGHT + 14.0, 30.0, "all", "zoomAll()", "Show every input");
     writeln!(svg, "  </g>").unwrap();
 
-    /*
-     * Chips that show and hide plots, from the plots this run has, in
-     * groups that follow the measurements: what is hashed (messages,
-     * batches, pieces); how the program calls (after idling, after other
-     * work, nonstop); and under Nonstop, joined to it by a line, the two
-     * choices only nonstop plots have (owned or lent buffers; one program
-     * or two at once). A plot shows when every chip that applies to it is
-     * pressed. A chip whose press would change nothing, as the others
-     * stand, is dimmed; a press that would leave no plot is refused (the
-     * script's toggleChip).
-     */
-    type Chip = (&'static str, &'static str, &'static str);
-    let has = |test: &dyn Fn(&Plot) -> bool| plots.iter().any(test);
-    let mut chip_lines: Vec<(&str, bool, Vec<Chip>)> = Vec::new();
-    let mut line_of = |kind: &'static str, nested: bool, chips: Vec<(Chip, bool)>| {
-        let chips: Vec<Chip> = chips.into_iter().filter(|(_, present)| *present).map(|(chip, _)| chip).collect();
-        if !chips.is_empty() {
-            chip_lines.push((kind, nested, chips));
-        }
-    };
-    line_of("what", false, vec![
-        (("messages", "Messages", "Show or hide the plots of messages: one in one buffer now and then, or one after another"), has(&|p| p.use_case.what_key() == "messages")),
-        (("batches", "Batches", "Show or hide the plots of batches of 64-byte messages"), has(&|p| p.use_case.what_key() == "batches")),
-        (("pieces", "Pieces", "Show or hide the plots of long messages arriving in 64 KiB pieces"), has(&|p| p.use_case.what_key() == "pieces")),
-    ]);
-    line_of("pattern", false, vec![
-        (("idle", "After idling", "Show or hide the plots of calls each made after the program slept 1 ms, as a server waiting for its next request"), has(&|p| p.use_case.pattern_key() == "idle")),
-        (("busy", "After other work", "Show or hide the plots of calls each made after the program ran other code and read 128 MiB, as a program that hashes between its other tasks"), has(&|p| p.use_case.pattern_key() == "busy")),
-    ]);
-    line_of("pattern", false, vec![
-        (("nonstop", "Nonstop", "Show or hide the plots of inputs hashed one after another, as fast as the program can"), has(&|p| p.use_case.pattern_key() == "nonstop")),
-    ]);
-    if has(&|p| p.use_case.pattern_key() == "nonstop") {
-        line_of("buffers", true, vec![
-            (("owned", "Owned", "Show or hide nonstop plots where the program hands each buffer over for good and fills the next while it is hashed"), has(&|p| p.use_case.buffers_key() == Some("owned"))),
-            (("lent", "Lent", "Show or hide nonstop plots where the program waits for each call to return before refilling its buffer"), has(&|p| p.use_case.buffers_key() == Some("lent"))),
-        ]);
-        line_of("scenario", true, vec![
-            (("solo", "Solo", "Show or hide the nonstop plots of one program hashing alone"), has(&|p| !p.use_case.after_gap() && p.scenario == Scenario::Solo)),
-            (("shared", "Shared", "Show or hide the nonstop plots of two programs hashing at once"), has(&|p| p.scenario == Scenario::Shared)),
-        ]);
-    }
-    /* One line per group, continued on the next where it would pass the right edge; nested lines hang from Nonstop. */
-    const NEST: f64 = 18.0;
-    let mut line = 0;
-    let mut nonstop_line = None;
-    for (kind, nested, chips) in &chip_lines {
-        let left = PLOT_RIGHT + 14.0 + if *nested { NEST } else { 0.0 };
-        let mut x = left;
-        if *nested {
-            let top = CHIP_ROW_TOP + nonstop_line.expect("nested chips follow Nonstop") as f64 * 24.0 + 18.0;
-            let mid = CHIP_ROW_TOP + line as f64 * 24.0 + 9.0;
-            writeln!(svg, r##"  <path class="chip-tie" d="M{:.1} {top:.1} L{:.1} {mid:.1} L{:.1} {mid:.1}"/>"##, PLOT_RIGHT + 24.0, PLOT_RIGHT + 24.0, left - 3.0).unwrap();
-        }
-        for (index, (value, label, tip)) in chips.iter().enumerate() {
-            let width = label.chars().count() as f64 * 6.6 + 16.0;
-            if index > 0 && x + width > SVG_WIDTH - 4.0 {
-                line += 1;
-                x = left;
-            }
-            let y = CHIP_ROW_TOP + line as f64 * 24.0;
-            assert!(y + 18.0 <= HEADER_BOTTOM, "the chips fit in the header");
-            writeln!(
-                svg,
-                r##"  <g class="chip" data-kind="{kind}" data-value="{value}" data-on="true" data-live="true" transform="translate({x:.1} {y:.1})" onclick="event.stopPropagation(); toggleChip('{kind}', '{value}')"><title>{}</title><rect x="0" y="0" width="{width:.1}" height="18" rx="9"/><text x="{:.1}" y="13" text-anchor="middle">{}</text></g>"##,
-                xml_escape(tip),
-                width / 2.0,
-                xml_escape(label),
-            )
-            .unwrap();
-            x += width + 6.0;
-            if *value == "nonstop" {
-                nonstop_line = Some(line);
-            }
-        }
-        line += 1;
-    }
+    /* The plot picker is built from DATA by plot_selector.js: one checkbox
+     * per measured plot, with no independent filters or hidden selections. */
     writeln!(svg, r##"  <line class="header-edge" x1="0" y1="{HEADER_BOTTOM:.0}" x2="{SVG_WIDTH:.0}" y2="{HEADER_BOTTOM:.0}"/>"##).unwrap();
     /*
      * Behind the door: how the plots are drawn, for a reader who wants it.
@@ -5211,7 +5128,7 @@ fn generate_svg(
     let mut provenance_slot = shared_count
         + provenance_cats.iter().map(|cat| cat.lines.len()).sum::<usize>();
 
-    /* Each plot is one group, which the script moves or hides as the header's chips choose. */
+    /* Each plot is one group, selected directly by its checkbox. */
     for plot in &plots {
         writeln!(svg, r##"  <g id="plot-{}" class="plot-group">"##, plot.index).unwrap();
         write_plot(&mut svg, plot, roster, results, &first_plot, &mut provenance_slot);
@@ -5925,8 +5842,6 @@ const ZOOM_STRIP_RIGHT: f64 = PLOT_RIGHT - X_INSET;
 const ZOOM_GUIDE_BOTTOM: f64 = 26.0;
 /// The header's bottom: the header group's background reaches here.
 const HEADER_BOTTOM: f64 = ZOOM_ROW_TOP + ZOOM_GUIDE_BOTTOM + 2.0;
-/// The chips' first row's top, in the header above "all".
-const CHIP_ROW_TOP: f64 = 44.0;
 
 /// The unit switch, in the header straight above the y titles it changes:
 /// its track centred on their column.
@@ -6348,6 +6263,7 @@ fn write_interaction_script(
 
     svg.push_str("  <script><![CDATA[\n");
     writeln!(svg, "const DATA = {data};").unwrap();
+    svg.push_str(include_str!("plot_selector.js"));
     svg.push_str(INTERACTION_SCRIPT);
     svg.push_str("  ]]></script>\n");
 }
@@ -6434,53 +6350,6 @@ function betterArrow(p, title, up) {
   const f = v => v.toFixed(1);
   document.getElementById("y-better-" + p).setAttribute("d",
     `M${f(x)} ${f(tail)} L${f(x)} ${f(head)} M${f(x - 3.5)} ${f(head + 5 * dir)} L${f(x)} ${f(head)} L${f(x + 3.5)} ${f(head + 5 * dir)}`);
-}
-/*
- * The chips show and hide plots. A plot shows when every chip that
- * applies to it is pressed: what it hashes and how the program calls,
- * and for a nonstop plot whose buffers and how many programs. The plots
- * shown close ranks from the first plot's place, and what lies below them
- * follows. A press that would leave no plot is refused; a chip whose
- * press would change nothing, as the others stand, is dimmed.
- */
-const chipOn = { what: {}, pattern: {}, buffers: {}, scenario: {} };
-document.querySelectorAll(".chip").forEach(c => { chipOn[c.getAttribute("data-kind")][c.getAttribute("data-value")] = true; });
-const plotShown = (plot, on) => !!(on.what[plot.what] && on.pattern[plot.pattern]
-  && (plot.pattern !== "nonstop" || (on.buffers[plot.buffers] && on.scenario[plot.scenario])));
-const shownWith = on => DATA.plots.map(plot => plotShown(plot, on));
-const flipped = (kind, value) => ({ ...chipOn, [kind]: { ...chipOn[kind], [value]: !chipOn[kind][value] } });
-const plotShift = DATA.plots.map(() => 0);
-let belowShift = 0;
-function toggleChip(kind, value) {
-  const next = flipped(kind, value);
-  if (!shownWith(next).some(v => v)) return;
-  chipOn[kind] = next[kind];
-  document.querySelector(`.chip[data-kind="${kind}"][data-value="${value}"]`).setAttribute("data-on", chipOn[kind][value] ? "true" : "false");
-  layoutPlots();
-}
-function dimChips() {
-  const now = shownWith(chipOn).join();
-  document.querySelectorAll(".chip").forEach(c => {
-    const kind = c.getAttribute("data-kind"), value = c.getAttribute("data-value");
-    c.setAttribute("data-live", shownWith(flipped(kind, value)).join() !== now ? "true" : "false");
-  });
-}
-function layoutPlots() {
-  const pitch = DATA.plots.length > 1 ? DATA.plots[1].top - DATA.plots[0].top : 0;
-  let shown = 0;
-  DATA.plots.forEach((plot, p) => {
-    const visible = plotShown(plot, chipOn);
-    const group = document.getElementById("plot-" + p);
-    group.classList.toggle("plot-off", !visible);
-    plotShift[p] = visible ? (shown - p) * pitch : 0;
-    group.setAttribute("transform", `translate(0 ${plotShift[p]})`);
-    if (visible) shown++;
-  });
-  belowShift = (shown - DATA.plots.length) * pitch;
-  document.querySelectorAll(".below").forEach(g => g.setAttribute("transform", `translate(0 ${belowShift})`));
-  if (hovered && !plotShown(DATA.plots[hovered[0]], chipOn)) hideHover();
-  dimChips();
-  layoutProv();
 }
 /* The door under the title opens and closes the panel on how to read the graph. */
 function toggleHowto() {
@@ -6913,7 +6782,7 @@ DATA.plots.forEach((plot, p) => plot.series.forEach((s, i) => {
   if (!s) return;
   const marks = document.getElementById("series-" + p + "-" + i).querySelector(".marks");
   const have = new Set([...marks.querySelectorAll(".value-label")].map(t => +t.getAttribute("data-size")));
-  const color = marks.querySelector(".median").getAttribute("stroke");
+  const color = DATA.colors[i];
   plot.x.forEach((_, k) => {
     if (have.has(k)) return;
     const t = document.createElementNS(NS, "text");
@@ -7189,7 +7058,10 @@ function tapDot(event, p, i, k) {
   pinned = [p, i, k];
   showHover(p, i, k);
 }
-function tapAway() { pinned = null; hideHover(); }
+function tapAway() {
+  pinned = null; hideHover();
+  if (document.getElementById("plot-picker-panel").getAttribute("display") !== "none") togglePlotPicker(false);
+}
 /* The name under the mouse, so a click that shows or hides it redraws the dimming. */
 let labelUnderMouse = null;
 function hoverLabel(event, i, active) {
@@ -7209,10 +7081,14 @@ window.setUnit = setUnit;
 window.flipUnit = flipUnit;
 window.zoomAll = zoomAll;
 window.toggleHowto = toggleHowto;
-window.toggleChip = toggleChip;
+window.togglePlot = togglePlot;
+window.setAllPlots = setAllPlots;
+window.togglePlotPicker = togglePlotPicker;
 window.gripDown = gripDown;
 window.gripMove = gripMove;
 window.gripUp = gripUp;
+initPlotSelector();
+layoutPlots();
 updateZoomControls();
 relayout();
 /* The better arrows, measured against the titles as drawn, once now and again when the fonts arrive. */
@@ -7648,6 +7524,27 @@ mod correctness_tests {
         }
         assert_eq!(checked, read.cells.len(), "every cell read back, none more");
         assert!(two >= 2, "two-speed cells among them");
+    }
+
+    #[test]
+    fn plot_picker_is_generated_from_the_measured_plots() {
+        for quick in [false, true] {
+            let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt, Algorithm::Sha256Ring], quick, None, Some(24));
+            let (results, _) = run(&roster, 24, |_, _, r| 10_000 + r as u64);
+            let mut machine = machine_metadata();
+            machine.cpu_type = "Synthetic UI fixture — not a performance record".to_owned();
+            let svg = generate_svg(&roster, &results, &machine, "synthetic UI test");
+            assert!(svg.contains("initPlotSelector();"));
+            assert!(svg.contains("Each checkbox selects one measured plot"));
+            assert!(!svg.contains("toggleChip") && !svg.contains("chipOn") && !svg.contains("data-live"));
+            let expected = if quick { 12 } else { 14 };
+            assert_eq!(svg.matches("class=\"plot-group\"").count(), expected);
+            if let Ok(folder) = std::env::var("UI_FIXTURES") {
+                fs::create_dir_all(&folder).unwrap();
+                let name = if quick { "quick.svg" } else { "full.svg" };
+                fs::write(std::path::Path::new(&folder).join(name), svg).unwrap();
+            }
+        }
     }
 
     #[test]

@@ -9,7 +9,7 @@ const script = svg.match(/<script><!\[CDATA\[([\s\S]*)\]\]><\/script>/)[1];
 const markup = svg.replace(/<script><!\[CDATA\[[\s\S]*\]\]><\/script>/, "");
 const dom = new JSDOM(`<!DOCTYPE html><html><body>${markup}</body></html>`, { runScripts: "outside-only", pretendToBeVisual: true });
 const w = dom.window;
-w.eval(script + "\n;window.__on = on; window.__t = {DATA, ALLB, setZoom, plotShift, get belowShift() { return belowShift; }, win: () => win, currentX, get zFrom() { return zFrom; }, get zTo() { return zTo; }};");
+w.eval(script + "\n;window.__on = on; window.__t = {DATA, ALLB, setZoom, plotOn, plotShift, get belowShift() { return belowShift; }, win: () => win, currentX, get zFrom() { return zFrom; }, get zTo() { return zTo; }};");
 const T = w.__t, D = T.DATA;
 // Step an end of the range, as the band's grips do one tick at a time.
 w.zoomStep = (end, delta) => end === "from" ? T.setZoom(T.zFrom + delta, T.zTo) : T.setZoom(T.zFrom, T.zTo + delta);
@@ -106,10 +106,11 @@ function checkLayout(tag) {
   {
     const svgEl = w.document.querySelector("svg");
     const loaded = +svgEl.getAttribute("height");
-    w.toggleChip("scenario", "shared");
+    const shared = D.plots.map((p, i) => p.scenario === "shared" ? i : -1).filter(i => i >= 0);
+    shared.forEach(p => w.togglePlot(p));
     check(+svgEl.getAttribute("height") >= loaded, "hiding the shared plots keeps the page's height");
     check(+w.document.getElementById("page").getAttribute("height") === +svgEl.getAttribute("height"), "the page background spans the page");
-    w.toggleChip("scenario", "shared");
+    shared.forEach(p => w.togglePlot(p));
     check(+svgEl.getAttribute("height") === loaded, "showing them again restores the height");
   }
   {
@@ -174,46 +175,49 @@ function checkLayout(tag) {
   await sleep(300); checkLayout("dragged"); checkControls("dragged");
   const grip = +((w.document.getElementById("zoom-grip-from").getAttribute("transform") || "").match(/translate\(([-\d.]+)/) || [0, 0])[1];
   check(Math.abs(grip - stripX(T.ALLB[T.zFrom])) < 0.1, "the start grip sits at the band's start");
-  // The chips: a plot shows when every chip that applies to it is pressed;
-  // the plots shown close ranks; no press empties the page; a chip whose
-  // press changes nothing is dimmed.
+  // One checkbox per measured plot: each acts independently, even from
+  // an empty selection. Every plotted scenario can be explored alone.
   w.zoomAll(); await sleep(700);
   {
     const pitch = D.plots.length > 1 ? D.plots[1].top - D.plots[0].top : 0;
     const off = p => w.document.getElementById("plot-" + p).classList.contains("plot-off");
-    const chip = (k, v) => w.document.querySelector(`.chip[data-kind="${k}"][data-value="${v}"]`);
-    const live = (k, v) => chip(k, v).getAttribute("data-live") === "true";
+    const choice = p => w.document.getElementById("plot-choice-" + p);
     const ranks = tag => {
       let shown = 0;
-      D.plots.forEach((_, p) => { if (!off(p)) { check(T.plotShift[p] === (shown - p) * pitch, `${tag}: plot ${p} closes ranks`); shown++; } });
-      check(T.belowShift === (shown - D.plots.length) * pitch, `${tag}: what lies below follows`);
-      check(shown > 0, `${tag}: some plot shows`);
+      D.plots.forEach((_, p) => {
+        check(choice(p).getAttribute("aria-checked") === String(!off(p)), `${tag}: checkbox ${p} matches its plot`);
+        if (!off(p)) { check(T.plotShift[p] === (shown - p) * pitch, `${tag}: plot ${p} closes ranks`); shown++; }
+      });
+      check(T.belowShift === (Math.max(1, shown) - D.plots.length) * pitch, `${tag}: what lies below follows`);
+      check(w.document.getElementById("empty-plots").getAttribute("display") === (shown ? "none" : "inline"), `${tag}: empty selection has an invitation`);
+      check(w.document.getElementById("plot-picker-count").textContent === `${shown} of ${D.plots.length} shown`, `${tag}: count comes from the actual selection`);
     };
-    if (chip("scenario", "solo") && chip("scenario", "shared")) {
-      w.toggleChip("scenario", "solo");
-      D.plots.forEach((pl, p) => check(off(p) === (pl.pattern === "nonstop" && pl.scenario === "solo"), `solo off: plot ${p} (${pl.use}, ${pl.scenario}) hides only if nonstop solo`));
-      ranks("solo off");
-      w.toggleChip("scenario", "solo");
-    }
-    if (chip("pattern", "nonstop")) {
-      w.toggleChip("pattern", "nonstop");
-      for (const [k, v] of [["buffers", "owned"], ["buffers", "lent"], ["scenario", "solo"], ["scenario", "shared"], ["what", "pieces"]])
-        if (chip(k, v)) check(!live(k, v), `nonstop off: ${k} ${v} is dimmed`);
-      ranks("nonstop off");
-      w.toggleChip("pattern", "nonstop");
-      for (const [k, v] of [["buffers", "owned"], ["buffers", "lent"]]) if (chip(k, v)) check(live(k, v), `nonstop on: ${k} ${v} is live`);
-    }
-    // Pressing every chip off, in order, leaves a plot showing; each refused press keeps its chip pressed.
-    const all = [...w.document.querySelectorAll(".chip")].map(c => [c.getAttribute("data-kind"), c.getAttribute("data-value")]);
-    for (const [k, v] of all) {
-      w.toggleChip(k, v);
-      ranks(`${k} ${v} off`);
-    }
-    check(D.plots.some((_, p) => !off(p)), "no sequence of presses empties the page");
-    for (const [k, v] of all) if (chip(k, v).getAttribute("data-on") === "false") w.toggleChip(k, v);
-    check(D.plots.every((_, p) => !off(p) && T.plotShift[p] === 0) && T.belowShift === 0, "pressing every chip again restores every plot's place");
-    check([...w.document.querySelectorAll(".chip")].every(c => c.getAttribute("data-live") === "true"), "with every chip pressed, every chip is live");
-    noNaN("chips");
+    check(w.document.querySelectorAll(".plot-choice").length === D.plots.length, "exactly one checkbox per measured plot");
+    check(w.document.querySelectorAll(".chip, [aria-disabled], [data-live]").length === 0, "no dependent or disabled filters remain");
+    w.togglePlotPicker(true);
+    w.document.getElementById("plot-picker-clear").dispatchEvent(new w.MouseEvent("click", {bubbles:true}));
+    ranks("clear");
+    D.plots.forEach((_, p) => {
+      choice(p).dispatchEvent(new w.MouseEvent("click", {bubbles:true}));
+      check(D.plots.every((_, i) => off(i) === (i !== p)), `checkbox ${p} alone shows exactly its plot`);
+      ranks(`only ${p}`);
+      choice(p).dispatchEvent(new w.KeyboardEvent("keydown", {key:" ",bubbles:true,cancelable:true}));
+      ranks(`keyboard off ${p}`);
+    });
+    // The formerly impossible diagonal: owned+solo beside lent+shared,
+    // without also selecting either of the other cross combinations.
+    const selected = D.plots.map((p, i) => p.what === "messages" && p.pattern === "nonstop" && ((p.buffers === "owned" && p.scenario === "solo") || (p.buffers === "lent" && p.scenario === "shared")) ? i : -1).filter(i => i >= 0);
+    selected.forEach(p => w.togglePlot(p));
+    check(D.plots.every((_, i) => off(i) === !selected.includes(i)), "nonstop messages show exactly the chosen combinations, with both gap types off");
+    ranks("independent combinations");
+    w.document.getElementById("plot-picker-all").dispatchEvent(new w.KeyboardEvent("keydown", {key:"Enter",bubbles:true,cancelable:true}));
+    check(D.plots.every((_, p) => !off(p) && T.plotShift[p] === 0) && T.belowShift === 0, "Show all restores every plot");
+    w.document.getElementById("plot-picker-done").dispatchEvent(new w.MouseEvent("click", {bubbles:true}));
+    check(w.document.getElementById("plot-picker-panel").getAttribute("display") === "none", "Done closes the picker");
+    w.togglePlotPicker(true);
+    w.document.getElementById("plot-picker-panel").dispatchEvent(new w.KeyboardEvent("keydown", {key:"Escape",bubbles:true}));
+    check(w.document.getElementById("plot-picker-button").getAttribute("aria-expanded") === "false", "Escape closes the picker");
+    noNaN("plot picker");
   }
   // Hover every point of every plot  // Hover every point of every plot: the panel holds its widest line.
   w.zoomAll(); await sleep(700);

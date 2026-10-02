@@ -2,7 +2,8 @@
 
 `check.js` runs the script of a generated `bench-hashes.graph.svg` in jsdom
 and drives it: zoom steps, zoom in and out, "all", a unit switch during a
-zoom, series toggles, hover. It checks that each plot's window ends on the
+zoom, series toggles, hover, and the direct plot picker (each plot alone, arbitrary
+combinations, empty selection, recovery, and keyboard activation). It checks that each plot's window ends on the
 plot's inner edges, that labels, value labels, and right-hand details
 follow the window, that points outside it are out of view, and that no
 attribute holds NaN. `snapshot.js` zooms to a byte range and writes the
@@ -18,6 +19,21 @@ resulting SVG, for `rsvg-convert` to render and a person to look at.
 and the Code paths section open.
 
 In the VM: `apt-get install -y nodejs npm` first (lost on restart).
+
+## Checking the plot picker in a browser
+
+`plot-picker.js` checks the same one-checkbox/one-plot contract in a real
+browser, including mouse, touch, keyboard, Show all, Clear, Done and Escape.
+It verifies that selecting plots leaves the embedded data unchanged. Its
+optional final argument captures the open picker for visual review.
+
+    NODE_PATH=/path/to/node_modules node tools/graph-check/plot-picker.js GRAPH.svg /path/to/chromium /tmp/picker.png
+
+Rust's `plot_picker_is_generated_from_the_measured_plots` test writes full
+and quick synthetic fixtures when `UI_FIXTURES` names a directory. They are
+clearly labelled UI test data, never performance records. The separate
+`tools/refresh-graph-ui.py` command refreshes an existing SVG's controls while
+preserving its own renderer, raw display-data literal and metadata block.
 
 ## Checking the API guide
 
