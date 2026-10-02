@@ -83,8 +83,10 @@ on battery until about 03:55 UTC (Zooko plugged it in); every job from
 leans 3-6% slower on servil ff8f203 than b132f8c at 8192-32768 messages
 (four runs a side, jobs 1089-1096), within each side's own spread of up
 to 6.5%, on a path no change of the night touches: likely layout or wake
-timing, unshown; next a bisect over the night's code commits, four runs
-a side (fork NOTES, "servil ff8f203 against b132f8c, whole"). The cross
+timing, unshown. Bisected (jobs 1097-1120): no commit shifts it; the
+same commit's speeds and shares move by session as much (fork NOTES,
+"servil ff8f203 against b132f8c, whole"): open as a finding to explain,
+no regression shown. The cross
 CI targets (qemu) fail api_plan's abort test: qemu reports the child's
 SIGABRT as exit status 2.
 
