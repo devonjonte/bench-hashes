@@ -20,14 +20,22 @@ d31a46c introduce material changes; earlier source-specific evidence stays intac
 | T2 uncertainty | Confirmed correlation; removed intervals/bands/~ and bootstraps | Removal addresses advertised interval claims; presentation/source review due |
 | T3 consistency | Findings need explanations; fast differences >10% | Conditional premises and fast-only scope need review |
 | T4 labels | Our PR3 cherry-picked0c615e9; provenance narrowed321722a | Incorporated, PR closed; current rendered output review due |
-| T5 accounting | Rust reader/readback test replaces Python twins | Adapt controls to shared Rust; independently observed work still relevant |
-| T6 gate | Prior slow/gap false flags acknowledged;16 clean self-compares reported | NEW fast-median Rust detector calibration pending |
+| T5 accounting | Rust reader/readback test replaces Python twins | Current Rust reader verifies190752 raw ns/work pairs; six trace/count contracts pass |
+| T6 gate | Prior slow/gap false flags acknowledged;16 clean self-compares reported | Fresh current pilot: four caller nulls/two production self-checks clean; near6% bulk2/8 vs small8/8 |
 | T7 load | Fixed context/no-window/single-tail implemented3a29cb8; our PRs superseded | Busy-tail dilution independently reproduced; focused safeguard f82d46c |
-| T8 caller | Welcomes clocks/shared-tool probes | Historical q5 caller sensitivity retains old-source scope |
+| T8 caller | Welcomes clocks/shared-tool probes | Current Rust calibration/pilot retained separately; near3% uneven calibration/0 confirmations; no GO |
 
 `bench-hashes regress` now owns decisions and uses fast-speed medians;
 `perf_regress.py` builds/delegates. Python readers/twins are removed. The new
-rule needs fresh calibration; John explicitly records calibration to follow.
+rule received a fresh predeclared [current Rust calibration/pilot](results/current-fast-median/README.md)
+(plan7ea5a13, bench67f5300/clocksf82d46c). All266 processes are retained.
+Near6% median calibration qualifies per plan, with substantial bulk instability;
+held-out confirmations64/2048 B8/8,102400 B2/8. All eight whole exits1 conceal
+six bulk misses. Four caller nulls and two production14-point self-checks pass;
+short/busy controls abstain. Two of three near3% calibrations fail; all near3%
+confirmations0/8. Readiness stays NO-GO, independent acceptance remains unstarted.
+The short files also reproduce an unqualified Rust `compare` display on unknown
+load; `regress` correctly abstains. John's additional assessment remains pending.
 [Busy-tail evidence](results/current-rust-gate/README.md) preserves two failed
 counter fixtures and a minimal correction. Upstream incorporation and removal
 of unsupported claims improve readiness; they do not supply a GO verdict.
