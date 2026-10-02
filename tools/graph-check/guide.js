@@ -19,8 +19,8 @@ const path = require('path');
     batch: ['hash_many', 'hash_many_multithreaded', 'Queue::fixed', 'LentBatches', 'ContinuousBatches'],
   };
   let routes = 0;
-  for (const threads of ['one', 'many']) for (const shape of ['message', 'pieces', 'batch']) for (const keepsUp of ['yes', 'no']) for (const buffer of ['owned', 'lent']) for (const efficiency of ['time', 'energy']) {
-    const a = { threads, shape, keepsUp, buffer, efficiency };
+  for (const threads of ['one', 'many']) for (const shape of ['message', 'pieces', 'batch']) for (const keepsUp of ['yes', 'no']) for (const buffer of ['owned', 'lent']) {
+    const a = { threads, shape, keepsUp, buffer };
     const r = await page.evaluate(a => recommendation(a), a);
     const call = keepsUp === 'yes' ? after[shape][threads === 'many' ? 1 : 0] : continuous[shape][threads === 'one' ? 0 : buffer === 'owned' ? 2 : 1];
     const use = keepsUp === 'yes' ? after[shape][2] : continuous[shape][threads === 'many' && buffer === 'owned' ? 4 : 3];
@@ -34,7 +34,6 @@ const path = require('path');
     if (await page.locator('#restart').isVisible()) await page.locator('#restart').click();
     for (const i of [threads, shape, keepsUp]) await page.locator('#choices button').nth(i).click();
     if (buffer !== null) await page.locator('#choices button').nth(buffer).click();
-    if (threads === 0) await page.locator('#choices button').nth(0).click();
     const state = await page.evaluate(() => ({
       call: current.call, example: document.getElementById('example').textContent, unmeasured: !document.getElementById('unmeasured').hidden,
       dots: document.querySelectorAll('#chart g.dot').length, titles: [...document.querySelectorAll('#chart g.dot title')].map(t => t.textContent),
@@ -95,7 +94,7 @@ const path = require('path');
   await page.locator('#restart').click();
   assert((await page.locator('#q-title').innerText()).includes('several threads'));
   const defaults = await page.evaluate(() => Object.fromEntries(Object.entries(QUESTIONS).map(([k, q]) => [k, q.choices.at(-1)[0]])));
-  assert.deepEqual(defaults, { threads: 'one', shape: 'message', keepsUp: 'yes', buffer: 'lent', efficiency: 'time' });
+  assert.deepEqual(defaults, { threads: 'one', shape: 'message', keepsUp: 'yes', buffer: 'lent' });
   assert(await page.evaluate(() => mark('downward triangle', 4, 0, 0, 'red').includes('<path')),
     'the Rust downward-triangle name produces the matching shape');
   assert.deepEqual(errors, []);

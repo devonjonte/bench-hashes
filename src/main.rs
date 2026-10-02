@@ -2373,8 +2373,7 @@ fn take_returns<Q, T>(
 }
 
 /*
- * `iterations` messages of `input` through the fork's queue, built for
- * efficiency in time: the program keeps in_flight buffers of up to
+ * `iterations` messages of `input` through the fork's queue: the program keeps in_flight buffers of up to
  * PIECE_LEN, reads each message into free ones (a message of up to
  * PIECE_LEN into one, through Queue::messages; a longer one piece by
  * piece, through Queue::pieces, which starts the next message after each
@@ -2413,7 +2412,7 @@ fn queue_messages(input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8]
     };
     if input.len() <= PIECE_LEN {
         let returns = take_returns(&MESSAGE_QUEUES, key, |sender| {
-            blake3_servil::Queue::messages(blake3_servil::Mode::Hash, blake3_servil::Efficiency::Time, MessagesBack(sender))
+            blake3_servil::Queue::messages(blake3_servil::Mode::Hash, MessagesBack(sender))
         });
         for _ in 0..iterations {
             returns.queue.submit(fill(&returns.returned, &mut free, &mut digests, black_box(input)));
@@ -2425,7 +2424,7 @@ fn queue_messages(input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8]
         MESSAGE_QUEUES.with(|kept| kept.borrow_mut().insert(key, returns));
     } else {
         let returns = take_returns(&PIECE_QUEUES, key, |sender| {
-            blake3_servil::Queue::pieces(blake3_servil::Mode::Hash, blake3_servil::Efficiency::Time, MessagesBack(sender))
+            blake3_servil::Queue::pieces(blake3_servil::Mode::Hash, MessagesBack(sender))
         });
         for _ in 0..iterations {
             for piece in black_box(input).chunks(PIECE_LEN) {
@@ -2443,8 +2442,7 @@ fn queue_messages(input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8]
 
 /*
  * `iterations` batches of `input`'s `messages` 64-byte messages through
- * the fork's queue of fixed-length messages, built for efficiency in
- * time: the program keeps in_flight buffers, each with its digests' space,
+ * the fork's queue of fixed-length messages: the program keeps in_flight buffers, each with its digests' space,
  * reads each batch into a free one, submits it, and gets both back
  * through the handler and its returns (see Returns); it waits on the
  * returns when it has no free buffer, and at the end for every buffer
@@ -2455,7 +2453,7 @@ fn queue_batches(input: &[u8], messages: usize, iterations: usize, mut consume: 
     let count = in_flight(input.len());
     let key = (count, input.len());
     let returns = take_returns(&BATCH_QUEUES, key, |sender| {
-        blake3_servil::Queue::fixed(MESSAGE_LEN, blake3_servil::Mode::Hash, blake3_servil::Efficiency::Time, BatchesBack(sender))
+        blake3_servil::Queue::fixed(MESSAGE_LEN, blake3_servil::Mode::Hash, BatchesBack(sender))
     });
     let mut free = BATCH_PAIRS.with(|kept| kept.borrow_mut().remove(&key)).unwrap_or_else(|| {
         (0..count).map(|_| (vec![0u8; input.len()], vec![[0u8; 32]; messages])).collect()
@@ -2540,8 +2538,8 @@ const SERVIL_CALLS: [(Algorithm, UseCase, &str); 16] = [
     (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "hash_many(batch, 64, out), the padded batch contract, each call after other work"),
     (Algorithm::Blake3ServilMt, UseCase::OneMessage, "hash_multithreaded(input), each call after other work"),
     (Algorithm::Blake3ServilMt, UseCase::ManyMessages, "hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after other work"),
-    (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "Queue::messages(Mode::Hash, Efficiency::Time) for messages of up to 64 KiB, Queue::pieces(Mode::Hash, Efficiency::Time) in 64 KiB pieces for longer ones, one message after another, each read into free buffers of the program's, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept"),
-    (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "Queue::fixed(64, Mode::Hash, Efficiency::Time), one batch after another, each read into a free buffer of the program's, submitted with its digests' space, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "Queue::messages(Mode::Hash) for messages of up to 64 KiB, Queue::pieces(Mode::Hash) in 64 KiB pieces for longer ones, one message after another, each read into free buffers of the program's, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "Queue::fixed(64, Mode::Hash), one batch after another, each read into a free buffer of the program's, submitted with its digests' space, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept"),
     (Algorithm::Blake3ServilSt, UseCase::LentMessages, "hash(input), one message after another, each read into a kept buffer and lent until the call returns"),
     (Algorithm::Blake3ServilSt, UseCase::LentPieces, "Hasher::update per 64 KiB piece, then finalize, messages one after another, each piece read into a kept buffer and lent until the update returns"),
     (Algorithm::Blake3ServilSt, UseCase::LentBatches, "hash_many(batch, 64, out), the padded batch contract, batches one after another, each read into a kept buffer and lent with kept digests until the call returns"),

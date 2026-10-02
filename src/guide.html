@@ -70,7 +70,6 @@ ul.paths svg { display: inline; width: 14px; height: 14px; vertical-align: -2px;
 <dt>Keep in mind</dt><dd id="mind"></dd>
 </dl>
 <p class="muted">Add <code>blake3-servil</code> to your <code>Cargo.toml</code>. This program is one of the benchmark's compiled examples.</p>
-<p id="energy" hidden class="muted">Energy measurements are on the way; until then, time is the guide.</p>
 </details>
 <details><summary>How this was measured</summary>
 <p id="method"></p>
@@ -92,16 +91,14 @@ const QUESTIONS = {
   shape: { title: "What shape is your data?", help: "A batch is many separate messages of one length, each with its own digest.", choices: [["message", "One message, all in one buffer"], ["pieces", "One message arriving in pieces"], ["batch", "A batch of equal-length messages"], ["message", "I'm not sure: one buffer"]] },
   keepsUp: { title: "When the next input arrives, is your thread done with the last one?", help: "A network upload leaves time to spare. A file already in memory has the next piece ready at once.", choices: [["yes", "Yes, it waits for more data"], ["no", "No, there is always more ready"], ["yes", "I'm not sure: yes"]] },
   buffer: { title: "Whose buffer does the data land in?", help: "A queue takes a buffer and hands it back later with its digest. A plain function only borrows one until it returns.", choices: [["owned", "Mine: my code chooses it"], ["owned", "Someone else's, but mine until I'm done"], ["lent", "Someone else's, lent only until I return"], ["lent", "I'm not sure: lent"]] },
-  efficiency: { title: "Save time, or save energy?", help: "Every function here saves time; energy-saving forms are being built.", choices: [["time", "Time"], ["energy", "Energy"], ["time", "I'm not sure: time"]] },
 };
 function steps(a) {
   const list = ["threads", "shape", "keepsUp"];
   if (a.threads === "many" && a.keepsUp === "no") list.push("buffer");
-  if (a.threads === "many") list.push("efficiency");
   return list;
 }
 
-/* The decision table (the crate's docs, "Five questions lead a user to one call"). */
+/* The decision table (the crate's docs, "Which call to use"). */
 /* A message in pieces now and then: each piece costs about what hash costs on a buffer that long, so its plots are hash's. */
 const PATTERNS = { message: ["IdleOneMessage", "OneMessage", "LentMessages"], pieces: ["IdleOneMessage", "OneMessage", "LentPieces"], batch: ["IdleManyMessages", "ManyMessages", "LentBatches"] };
 function recommendation(a) {
@@ -127,7 +124,7 @@ function recommendation(a) {
       : `The plain function: it reads the buffer and returns the digest${mt ? ", spreading a large message over your spare cores" : ""}.`,
     pass: s === "batch" ? "One buffer holding all the messages, each starting at a multiple of the message length rounded up to 64 bytes (zero the padding), and a slice of 32-byte arrays for the digests." : s === "pieces" ? "Each piece as a byte slice, in order; any sizes." : "The whole message as a byte slice.",
     get: s === "batch" ? "The digests, in message order." : s === "pieces" ? "From finalize(): the digest of the whole message, the same whatever the piece sizes were." : "A Hash: 32 bytes, with to_hex() and constant-time equality.",
-    mind: mt ? "Call initialize_multithreaded() once at startup, so the first call finds its threads ready. The digest equals the single-threaded function's." : "Runs on your thread alone: the least energy per byte, and right for a machine whose other cores are busy." };
+    mind: mt ? "Call initialize_multithreaded() once at startup, so the first call finds its threads ready. The digest equals the single-threaded function's." : "Runs on your thread alone: right for a machine whose other cores are busy." };
 }
 
 /* Times and rates for people: three significant digits. */
@@ -179,7 +176,6 @@ function show() {
   el("pass").textContent = current.pass;
   el("get").textContent = current.get;
   el("mind").textContent = current.mind;
-  el("energy").hidden = answers.efficiency !== "energy";
   el("program").open = false;
   drawSpeed();
   el("fn").closest("h2").scrollIntoView({ block: "start" });

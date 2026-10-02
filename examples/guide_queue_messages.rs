@@ -1,7 +1,7 @@
 // Messages one after another, each in a buffer your code owns. The queue
 // hashes earlier buffers while you fill the next; each buffer comes back
 // with its digest.
-use blake3_servil::{Efficiency, Hash, MessageHandler, Mode, Queue};
+use blake3_servil::{Hash, MessageHandler, Mode, Queue};
 use std::sync::mpsc;
 
 // Your handler receives each result. Keep it short; it runs on the
@@ -18,7 +18,7 @@ impl MessageHandler for Results {
 fn main() {
     let in_flight = 8; // buffers you keep cycling
     let (sender, results) = mpsc::sync_channel(in_flight);
-    let queue = Queue::messages(Mode::Hash, Efficiency::Time, Results(sender));
+    let queue = Queue::messages(Mode::Hash, Results(sender));
     let mut free: Vec<Vec<u8>> = (0..in_flight).map(|_| Vec::with_capacity(4096)).collect();
     for message_number in 0..1000u32 {
         // Take a free buffer, or wait for one to come back with its digest.

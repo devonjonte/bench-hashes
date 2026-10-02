@@ -25,15 +25,25 @@ release, so results of different benchmarks are never read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
+**Changes since 0.10.0** (Zooko, October 2, 2026), for the next release:
+- The fork's queue takes a mode and a handler (`Queue::messages(mode,
+  handler)`): the fork removed its time-or-energy choice, whose
+  complexity outweighed its likely use, and the benchmark called
+  `Efficiency::Time`, the queue's only way of hashing now. The calls and
+  their patterns are otherwise the same.
+- The queue's batch buffers are written before the first sample (a bug
+  fix): made untouched, their pages faulted inside each cell's first
+  sample, a first-use cost no kept buffer of a real program pays (330
+  against 217 us a batch in the fork's tmp/lentprobe).
+
 Why each piece is here (Zooko, September 28, 2026, replacing the contract
 of September 27, whose queue cells measured a round trip rather than
 throughput and whose synchronous cells measured calls back to back, which
 their users seldom make):
 
-- **Five questions lead a user to one call** (Zooko, September 28,
+- **Four questions lead a user to one call** (Zooko, September 28,
   evening, `docs/api-design.md`): several threads; data shape; whether
-  the receiving thread keeps up; who controls the buffer; time or energy
-  (the energy choice waits for a validated counter). The benchmark now
+  the receiving thread keeps up; who controls the buffer. The benchmark
   measures the owned-buffer and lent-buffer columns separately.
 - **Calls after a gap**: `hash`, `hash_multithreaded`, `hash_many`, and
   `hash_many_multithreaded`, each message or batch after a gap of one of two kinds, each measured
@@ -97,9 +107,7 @@ their users seldom make):
   code its twin had just run in a cache the gap left warm, and read
   faster than one program alone (NOTES, "Shared after a gap"). The graph
   plots solo and shared.
-- **Planned, to add under this contract**: the energy endings
-  (`Efficiency::Energy` on the queue and the multithreaded synchronous
-  calls) once an energy counter is validated; keyed and derive-key spot
+- **Planned, to add under this contract**: keyed and derive-key spot
   checks in perf_regress.
 
 ```frozen
@@ -118,8 +126,8 @@ blake3-servil-st OneMessage: hash(input), each call after other work
 blake3-servil-st ManyMessages: hash_many(batch, 64, out), the padded batch contract, each call after other work
 blake3-servil-mt OneMessage: hash_multithreaded(input), each call after other work
 blake3-servil-mt ManyMessages: hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after other work
-blake3-servil-mt ContinuousMessages: Queue::messages(Mode::Hash, Efficiency::Time) for messages of up to 64 KiB, Queue::pieces(Mode::Hash, Efficiency::Time) in 64 KiB pieces for longer ones, one message after another, each read into free buffers of the program's, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept
-blake3-servil-mt ContinuousBatches: Queue::fixed(64, Mode::Hash, Efficiency::Time), one batch after another, each read into a free buffer of the program's, submitted with its digests' space, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept
+blake3-servil-mt ContinuousMessages: Queue::messages(Mode::Hash) for messages of up to 64 KiB, Queue::pieces(Mode::Hash) in 64 KiB pieces for longer ones, one message after another, each read into free buffers of the program's, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept
+blake3-servil-mt ContinuousBatches: Queue::fixed(64, Mode::Hash), one batch after another, each read into a free buffer of the program's, submitted with its digests' space, about 1 MiB or 1024 buffers in flight, whichever is fewer, cycled through the handler and a bounded channel with room for all of them (std::sync::mpsc::sync_channel, allocated when made), the queue and the channel made once and kept
 blake3-servil-st LentMessages: hash(input), one message after another, each read into a kept buffer and lent until the call returns
 blake3-servil-st LentPieces: Hasher::update per 64 KiB piece, then finalize, messages one after another, each piece read into a kept buffer and lent until the update returns
 blake3-servil-st LentBatches: hash_many(batch, 64, out), the padded batch contract, batches one after another, each read into a kept buffer and lent with kept digests until the call returns
