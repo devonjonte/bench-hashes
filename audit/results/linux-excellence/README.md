@@ -15,11 +15,24 @@ support targeted batch improvements and preserve open queue/context costs.
 | Two-chunk SIMD batching | Same 2048-byte batches, CPU16 direct caller | About 44% less time, roughly 1.8x throughput |
 | Two-chunk SIMD batching | 16 messages, expanded lent producer/digest handling, st/mt and solo/shared | About 51% less time |
 
-Tail gains on CPU16 are about9–12%; they support no blanket10% claim.
+Tail gains on CPU16 are about 9–12%; they support no blanket 10% claim.
 The two-chunk queue's fast speeds improve in selected cells, but slow states
 and state shares change. The queued4096-byte cells also show costs described
 below. Read each corresponding speed and its share, rather than a lone pooled
 median or stock detector exit.
+
+The shared two/four-chunk mechanism adds a further **30–36% direct-caller
+wall-time reduction for 4096-byte messages**, with about 28–29% improvement
+in the expanded lent callers at 16 messages. The 2048-byte direct medians
+stay within about 0.1% in that comparison. Selected queue fast speeds improve,
+while a new shared slow state is about 23% slower; shares remain part of the
+finding. The earlier queue/context costs stay open.
+
+Caller-thread counters corroborate the direct gains at essentially unchanged
+approximate clock rates. At 16 messages, 2048-byte instructions fall from
+about 7613 to 4941 per message; 4096-byte instructions fall from about 16313
+to 10030. CPU0 cycles fall about 53% and 30%, respectively. These are counts,
+not measured energy; wall times remain unscaled.
 
 ## Frozen instruments and exact source
 
@@ -47,9 +60,14 @@ publication918722b adds truthful kernel reporting and documentation, then passes
 a separate stock diagnostic. Its ABBA precedes that metadata addition; no claim
 that those artifacts measured the later binary's layout.
 
+The four-chunk measured source is `fea805e`, published as `d0574e7`.
+Exact measured synthetic commits are also published as explicitly labelled
+`devon-linux-measured-*` tags; the failed first tail has its own failed tag.
+The benchmark runtime is tagged `devon-linux-bench-v0.10.0-1`.
+
 ## Experiments and failures retained
 
-Every stage has12 fresh runs: CPU0 supplementary ABBA, CPU16 supplementary
+Every stage has 12 fresh runs: CPU0 supplementary ABBA, CPU16 supplementary
 ABBA, and default-placement production/expanded ABBA. The `.txt` comparisons
 come directly from the frozen Rust reader and shared speed rule, including
 each side against itself and both corresponding old/new pairs.
@@ -64,6 +82,9 @@ each side against itself and both corresponding old/new pairs.
 - **two-chunk/**: batches first chunks at counter0, second chunks at counter1,
   then each message's own parent root. No new unsafe code. Preserves smaller,
   empty, other-length, other-architecture and all-mode contracts.
+- **four-chunk/**: shares one chunk-index/tree-level implementation across
+  two and four whole chunks. Fixed published 4096-byte anchors exercise the
+  additional parent level. The 2048-byte gain remains intact.
 - **fresh-null/**: one original-instrument identical-artifact whole diagnostic
   returns0 after an initial flag fails confirmation. This is operational
   evidence, not calibrated reliability or an acceptance null campaign.
@@ -95,9 +116,15 @@ there is no broad no-regression claim.
   the batched tree and pass Miri on the portable implementation.
 - Postcollection test-only Rust audit reuses **unchanged production
   `read_samples`** and checks every raw ns/units pair against separate traces:
-  **24 files /170112 measured batches pass** across corrected/two-chunk stages.
+  **36 files /258240 measured batches pass** across corrected/two/four-chunk stages.
   Its source is `linux_trace_audit.rs`; measured instrument sources stay
   unchanged. Timing/statistics/sample parsing have no Python twin.
+
+The four-chunk candidate passes default/pure/no_sme2: 80 library +15 API
++one isolated one-CPU +one allocation test; published vectors 2 and docs 22.
+Its published portable 4096-byte anchors pass Miri, and the full library/API
+AddressSanitizer suites pass (`detect_leaks=0` for this host's ptrace restriction).
+`counter-comparisons.txt` in each stage is computed only by shared Rust rules.
 
 Logs contain the deliberate handler-panic test's stderr; its subprocess abort
 is expected and the API suite passes. LinuxPMU counts cover calling threads,

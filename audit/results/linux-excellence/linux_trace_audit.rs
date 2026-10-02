@@ -2,11 +2,43 @@
 use super::*;
 
 #[test]
+fn direct_counter_evidence_uses_shared_ratios_and_speed_rule() {
+    let root = std::path::PathBuf::from(std::env::var("LINUX_AUDIT_ROOT").unwrap());
+    for stage in ["corrected", "two-chunk", "four-chunk"] {
+        let mut report = String::from("Counts are caller-thread user-only; rates are approximate MHz, wall time stays unscaled.\n");
+        for cpu in [0, 16] {
+            let mut data = std::collections::BTreeMap::<String, [Vec<PerUnit>; 2]>::new();
+            for (position, side) in [(1, "old"), (2, "new"), (3, "new"), (4, "old")] {
+                let path = root.join(stage).join("abba").join(format!("probe-cpu{cpu}-{position}-{side}/clocks.csv"));
+                let csv = fs::read_to_string(path).unwrap();
+                for line in csv.lines().skip(1) {
+                    let f: Vec<_> = line.split(',').collect();
+                    let n = |i: usize| f[i].parse::<u64>().expect("counter evidence is present");
+                    let messages: u64 = f[0].split_whitespace().next().unwrap().parse().unwrap();
+                    let units = n(2) * messages;
+                    let counts = clocks::Counts { p: clocks::Level { cycles: n(4), instructions: n(5), time_ns: n(6) }, e: clocks::Level { cycles: n(7), instructions: n(8), time_ns: n(9) } };
+                    assert_eq!(if cpu == 0 { counts.e } else { counts.p }, clocks::Level::default());
+                    for (metric, value, denominator) in [("cycles/message", counts.p.cycles + counts.e.cycles, units), ("instructions/message", counts.p.instructions + counts.e.instructions, units), ("approx MHz", counts.mhz(), 1)] {
+                        assert!(value > 0);
+                        // Exact normalization and comparison are the production rule;
+                        // these counts supply the numerator instead of wall ns.
+                        let normalized = Measured::new(value, denominator).per_unit();
+                        data.entry(format!("cpu{cpu}|{}|{metric}", f[0])).or_insert_with(|| [Vec::new(),Vec::new()])[usize::from(side == "new")].push(normalized);
+                    }
+                }
+            }
+            for (key, [old,new]) in data { writeln!(report, "{key}: {}", speeds_line(&old,&new)).unwrap(); }
+        }
+        fs::write(root.join(stage).join("counter-comparisons.txt"), report).unwrap();
+    }
+}
+
+#[test]
 fn every_batch_matches_independent_raw_time_and_work_trace() {
     let root = std::path::PathBuf::from(std::env::var("LINUX_AUDIT_ROOT").unwrap());
     let mut files = 0;
     let mut batches = 0;
-    for stage in ["corrected", "two-chunk"] {
+    for stage in ["corrected", "two-chunk", "four-chunk"] {
         for entry in fs::read_dir(root.join(stage).join("abba")).unwrap() {
             let folder = entry.unwrap().path();
             if !folder.is_dir() { continue; }
@@ -42,6 +74,6 @@ fn every_batch_matches_independent_raw_time_and_work_trace() {
             files += 1;
         }
     }
-    assert_eq!(files, 24);
+    assert_eq!(files, 36);
     println!("Verified {files} files and {batches} raw batches with production read_samples");
 }

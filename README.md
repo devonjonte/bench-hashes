@@ -19,6 +19,21 @@ calls and owned queues, alone and with two copies hashing concurrently.
 cargo run --release -- batches --lengths 256,2048 --counts 3,6,16,129 --rounds 24
 ```
 
+The standalone build measures the upstream hashing commit in `Cargo.lock`.
+To measure Devon's Linux hashing changes, clone the two research branches
+with the benchmark inside the BLAKE3 fork, then build through its tool:
+
+```sh
+git clone --branch candidate/devon-linux-excellence https://github.com/devonjonte/BLAKE3
+git clone --branch candidate/devon-linux-excellence https://github.com/devonjonte/bench-hashes BLAKE3/bench-hashes
+cd BLAKE3
+pypy3 tools/perf_regress.py build
+```
+
+The tool prints the executable path. Run that executable from a scratch
+directory, followed by `batches`; it names the actual hashing and benchmark
+sources. Use `python3` where PyPy is unavailable.
+
 Results go to `benchmark-results/batches/`: `bench-hashes.txt` gives each
 speed's median and sample share in nanoseconds per message;
 `bench-hashes.samples.tsv` preserves raw time and message counts; `clocks.csv`
@@ -52,15 +67,15 @@ tools on macOS (`xcode-select --install`), gcc or clang on Linux, or the
 Visual Studio C++ build tools on Windows. Then:
 
 ```sh
-git clone https://github.com/johnservil/bench-hashes
+git clone --branch candidate/devon-linux-excellence https://github.com/devonjonte/bench-hashes
 cd bench-hashes
 cargo run --release
 ```
 
 To measure a released version, so that others can compare their results
 with yours, check out its tag first: `git checkout` followed by a tag
-that [Releases](https://github.com/johnservil/bench-hashes/releases)
-lists.
+from [Devon's repository](https://github.com/devonjonte/bench-hashes/tags).
+Historical upstream releases have separate source identities.
 
 The first build takes a minute or two; the run then measures for about
 a minute and needs about 1 GB of free memory. The numbers come out most
