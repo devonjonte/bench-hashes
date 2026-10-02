@@ -15,6 +15,17 @@ the independently tested busy-tail safeguard in BLAKE3 PR #8. John had posted
 no newer reply/review at the authenticated 00:59:53 UTC check; upstream
 candidates remained bench67f5300/forkd31a46c. PR #8 remains pending.
 
+At the final 01:23 UTC refresh, John had advanced bench to **b9dfa12** (lock pin
+only) and fork candidate/servil to **b132f8c** (documentation only since d31a46c).
+The detector/hashing/clocks implementation therefore remains source-identical
+to the measured upstream code, plus our declared local busy-tail safeguard.
+His new notes report VM8/8 and Mac7/7 identical-code checks without holds;
+planted~9.5% short-cell changes held5/5 VM and3/3 Mac; planted~3.8–4.6% held3/4
+Mac while VM0/5 abstained on a moving control. These are maintainer-reported,
+selected-cell controls; they complement this pilot without supplying independent
+bulk or full-production sensitivity. `upstream-postpilot.diff` preserves them.
+Promotion supplies no GO decision for our scope.
+
 The exact v2 known-work caller is rebuilt with current clocks, sha2 0.11.0 and
 current hashing. Each 100 logical requests performs 100+k observed hashes
 through the same loop, at 64/2048/102400 bytes. Fixed independent digest anchors

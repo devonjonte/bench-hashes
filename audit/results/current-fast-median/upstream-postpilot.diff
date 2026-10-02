@@ -1,0 +1,57 @@
+diff --git a/NOTES-servil.md b/NOTES-servil.md
+index 9e16106..c77012b 100644
+--- a/NOTES-servil.md
++++ b/NOTES-servil.md
+@@ -940,7 +940,38 @@ gap a 64 B call costs about 500 ns for every hash alike, against about
+ 40 ns back to back; unexplained (the vCPU's wake, cold caches, the
+ clock?), to be measured on the Mac.
+ 
+-**perf_regress** (`check` = working tree against HEAD, `compare OLD NEW`,
++**perf_regress as it is (October 1, 2026, late).** It builds the two sides
++and runs `bench-hashes regress`: alternating pairs, every run over all 14
++nonstop points, each pair's verdict on a cell the fast speeds' ratio
++(clocks::speeds::compare), margins 3% solo and 10% shared, the control,
++no verdict on busy or unobserved load, four confirming pairs (Zooko: one
++statistic for every comparison). Calibration, a slowdown planted in
++`hash()` (probe/plant-32, probe/plant-25; lent 64 B servil st):
++
++| | VM | Mac (jobs 935-952, mains) |
++|---|---|---|
++| identical code | 8 of 8 no hold; 2 listed a cell (a shared +20%, two faster) | 7 of 7 no hold, nothing listed (1 busy) |
++| +9.5% (Mac +9.4-10.2%) | 5 of 5 held, the right cell | 3 of 3 held (2 busy) |
++| +3.8% (Mac +4.0-4.6%) | 0 of 5: the control (sha256 lent 64 B) moved +8.3-8.9% every time | 3 of 4 held (1 busy) |
++
++On the VM the planted code moved SHA-256's code, and with it a small
++nonstop cell, by about 8%: the control turns that into no verdict, never
++a false hold. Decided (Zooko, October 1, 2026): such a VM no-verdict is
++answered by the Mac's verdict; the VM's listed lines on identical code
++(each side built from its own path, laid out apart) are left as they are.
++
++**Busy windows on the Mac with nothing running** (October 1, 2026): 4 of
++18 calibration checks (jobs 935-952) met a window where other programs kept
++1.1-3.0 CPUs busy, with every app closed but Terminal; the check gave no
++verdict each time, as it should. A `top` record over four more checks (jobs
++955-958, none busy) saw macOS's own work: XprotectService about a quarter
++of a CPU just after each build (it scans a newly built program), pi's node
++process about 13% on average, Spotlight, WindowServer, short bursts of
++others, the VM 0.5%. Expect about one Mac check in five to give no verdict
++this way, and run it again (Zooko, October 1, 2026: not ours to chase; it
++slows no user's hashing, and the tools catch it).
++
++**perf_regress before it** (`check` = working tree against HEAD, `compare OLD NEW`,
+ `build` = the working tree's bench-hashes for runs by hand): runs A B B
+ A A B B A of sha256 (the control), servil, and servil mt at 14 points
+ over the benchmark's five nonstop use cases, 24 rounds each; a cell is
+diff --git a/PROCEDURES.md b/PROCEDURES.md
+index 9cbf402..93862fc 100644
+--- a/PROCEDURES.md
++++ b/PROCEDURES.md
+@@ -17,7 +17,7 @@ Speed is this fork's purpose, so no commit that makes it slower may enter git un
+ 
+ - *Exit 0, no regression:* commit.
+ - *Exit 1, a confirmed regression:* the hook aborts the commit. Do not commit around it. Find the cause and fix it, or, when the slowdown is the deliberate price of something worth more (correctness, simplicity with a measured cost), stop and ask the user; if they accept it, commit with `git commit --no-verify` and state the regressed cells, their numbers, and the user's decision in the commit message.
+-- *Exit 2, no verdict:* `clocks` found other programs keeping the machine busy during a run, or the control (SHA-256, the same code on both sides) moved, so the machine's state changed during the check. Stop whatever else is running and check again.
++- *Exit 2, no verdict:* `clocks` found other programs keeping the machine busy during a run (or saw no load window), or the control (SHA-256, the same code on both sides) moved. Stop whatever else is running and check again. On the VM a control that moves the same way in check after check is the change moving SHA-256's code (where the linker places it, about 8% at 64 B): the Mac's verdict decides then (Zooko, October 1, 2026).
+ 
+ **Releases:** `python3 tools/gen-ver.py X.Y.Z` from a clean tree (Zooko's technique, copied from bench-hashes: a commit setting X.Y.Z, a second setting X.Y.Z+<first commit>, a lightweight tag vX.Y.Z+<first commit>; push `servil`, then the tag by name). Before a release, run `check --against <previous release tag>`. Each commit is checked only against its parent, so slowdowns too small to flag one at a time could add up; the release check sees their sum.
+ 

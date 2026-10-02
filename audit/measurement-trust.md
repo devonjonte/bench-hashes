@@ -36,6 +36,11 @@ short/busy controls abstain. Two of three near3% calibrations fail; all near3%
 confirmations0/8. Readiness stays NO-GO, independent acceptance remains unstarted.
 The short files also reproduce an unqualified Rust `compare` display on unknown
 load; `regress` correctly abstains. John's additional assessment remains pending.
+Final refresh finds forkb132f8c promoted and benchb9dfa12 pinned: documentation/
+lock-only changes, with measured implementation unchanged. John's new notes
+report selected short-cell planted effects~9.5% and~4% on VM/Mac; the latter
+abstains5/5 on VM's moving control and holds3/4 Mac. Those maintainer-reported
+controls complement our per-size failures; promotion leaves our NO-GO intact.
 [Busy-tail evidence](results/current-rust-gate/README.md) preserves two failed
 counter fixtures and a minimal correction. Upstream incorporation and removal
 of unsupported claims improve readiness; they do not supply a GO verdict.
