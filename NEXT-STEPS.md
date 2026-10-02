@@ -16,10 +16,10 @@ Zooko slept; John Servil worked through the night on the fork (Zooko,
 October 2: "focus on the macOS/arm64 platform"). Read this block, then
 the fork's NOTES sections it names. Run `sh /workspace/vm/setup.sh` first.
 
-**State.** Fork `servil` = 2c66bec (promoted ten times tonight through
+**State.** Fork `servil` = aa3d8d8 (promoted eleven times tonight through
 the gate; `git notes --ref=perf show servil` has each verdict),
 `candidate/api-plan-simple` the same. bench-hashes unchanged: `main`
-(0.10.0) still pins the fork's b132f8c. Next runner job 1132. CI: GitHub
+(0.10.0) still pins the fork's b132f8c. Next runner job 1134. CI: GitHub
 ran three jobs at a time tonight; servil's run of ff8f203 is the one to
 read (earlier runs were cancelled by later pushes; ff8f203's had 40 of
 74 jobs passed, the cross test-vector script and Miri failing, both
