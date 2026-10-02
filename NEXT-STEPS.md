@@ -10,42 +10,73 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
-## Resume here (October 1, 2026, day)
+## Resume here (October 1, 2026, late evening): the benchmark is frozen
 
-**State.** Fork `servil` b0f19b1 (promoted twice today: suites and
-perf_regress on both machines, jobs 913, 924-925; perf notes on the
-commits), equal to `candidate/api-plan-simple`. bench-hashes `main` and
-`candidate/benchmark-plan` released as **0.9.0** (tag
-v0.9.0+43479fd..., GitHub Release; 0.8.1 before it); Cargo.toml follows
-the fork's `servil`, the lock pins b0f19b1; records from it (Mac job 926,
-VM --all, both quiet), Pages serve them. CI green on four platforms. Next
-runner job 927. Issues enabled on both repositories. PRs #1 and #2
-answered and closed.
+Read this block, then both AGENTS.md files (new today: "Every piece earns
+its place"), both PROCEDURES.md, FROZEN.md. Run `sh /workspace/vm/setup.sh`
+first; node, npm, and chromium are apt packages a VM restart loses (`apt-get
+install -y nodejs npm chromium`; jsdom and playwright are in
+/workspace/tmp/node_modules, NODE_PATH=/workspace/tmp/node_modules).
 
-**Done today** (NOTES of each repository hold the evidence):
-- Devon's audit: harness defects fixed; the fork's queue hung on one CPU
-  without SME2 (fixed, tests/one_cpu.rs).
-- perf_regress was wrong about one check in five on the Mac: layout luck
-  per side in the calls after a gap (one executable on both sides holds
-  nothing), and a slow-speed rule that fired on identical code. Both
-  removed (Zooko); it measures the nonstop use cases alone (fork NOTES,
-  "perf_regress on the Mac: layout luck per side").
-- AGENTS.md: "Every piece earns its place" (both repositories).
-- Measured and left out: 64-byte function alignment; the split from 256
-  KiB while workers are ready (never triggers in a stream of such calls).
-- Job 852's held 64 B cell was layout luck: no regression.
+**State.**
+- bench-hashes: `main` = `candidate/benchmark-plan` = b2c028e, released as
+  **0.10.0** (tag v0.10.0+e57316f, GitHub Release with notes) and
+  **frozen** (FROZEN.md: measurement, contenders, rules, `regress`, and
+  presentation; a change is Zooko's decision and a new release). The lock
+  pins the fork's `servil` b132f8c; records from it: Mac job 968, VM
+  `--all`, both quiet; Pages serve them. CI green on four platforms.
+- Fork: `servil` = b132f8c (promoted three times today, each through the
+  gate; perf notes on the commits); `candidate/api-plan-simple` = 933396b
+  (notes and procedures since). Next runner job 969.
+- GitHub: issues enabled on both repositories. Open: bench-hashes #4
+  (Devon Jonte's review thread, answered item by item), BLAKE3#1 (his x86
+  two-chunk batching, a draft until he trims its 59,000 lines of results;
+  judge it by the frozen benchmark). Every other PR and issue answered and
+  closed.
 
-**The benchmark is frozen** (Zooko, October 1, 2026; FROZEN.md) at 0.10.0,
-measuring the fork's `servil` b132f8c: measurement, rules, regress, and
-presentation alike; a change is Zooko's decision and a new release.
-Next: use it to make BLAKE3 faster. Devon's x86 work (BLAKE3#1, a draft)
-is judged by it; so are our own optimisations, each through perf_regress
-on both machines (a VM no-verdict from a moving control is answered by the
-Mac). Keep Activity Monitor closed while the Mac measures.
-Open, waiting: the run-order effect; the consistency findings (servil's
-batch of 4 after other work; shared lent batches of 64-256 x1.6-1.7, the
-SME unit shared); servil mt's shared queue 64 B / 64 KiB cells read apart
-on identical code in the VM (layout per side).
+**What changed today, in one paragraph each** (the NOTES of each
+repository hold the evidence, and the commit messages the numbers):
+- **Simpler, by "Every piece earns its place":** the median intervals
+  (bands, `~`, two bootstraps), the Python twins (speeds.py, samples.py,
+  ab.py, compare-runs.py, check-report.py, losses.py), perf_regress's own
+  rule, point tables, shims, slow-speed rule, after-gap cells, and
+  narrowing, the long-cell budget, a flaky allocation test, a dead
+  `latency` block, the stale host_lab example, all gone. Two speeds are
+  drawn each as strong as its share.
+- **One implementation of every rule, in Rust:** `bench-hashes compare
+  OLD... -- NEW...` and `bench-hashes regress OLD_EXE NEW_EXE`; the fork's
+  perf_regress.py (230 lines) only builds the two sides. `regress` judges
+  each pair by the fast speeds' ratio, every run over all 14 nonstop
+  points, margins 3% solo and 10% shared, no verdict on busy or unobserved
+  load. Calibrated (fork NOTES, "perf_regress as it is"): identical code
+  never held (VM 8, Mac 7); +9.5% held every time; +3.8% held 3 of 4 on
+  the Mac, while in the VM the plant moved SHA-256's code and the control
+  refused, which the Mac answers (Zooko's decision).
+- **Fixed:** the queue hung on one CPU without SME2 (Devon); harness
+  allocation and zeroing inside samples, scheduling balance, guide
+  sentences and labels (Devon's commits, cherry-picked); clocks::load's
+  short-run message and last-window tail; graphs of full runs threw on
+  load (a one-point plot); check.js looped on a graph without 2-4 KiB.
+- **The Mac measures quietly only with Activity Monitor closed** (its
+  polling keeps half a CPU busy: job 967); expect about one Mac check in
+  five to meet a background burst and give no verdict; run it again.
+
+**Next: use the frozen benchmark to make BLAKE3 faster.**
+1. Our own optimisations, each through perf_regress on both machines
+   (`pypy3 tools/perf_regress.py check`; the Mac via a perf_regress job);
+   Devon's BLAKE3#1 when he trims it. Candidates from the records: servil's
+   cold-call code size (4 KiB after other work costs 11-15% more per byte
+   than 1-2 KiB; NOTES "Cold calls pay for servil's code size"), the batch
+   of 4 after other work (more per message than a batch of 2), shared lent
+   batches of 64-256 (1.6-1.7x a batch of 16: the SME unit shared).
+2. Open, waiting: the run-order effect (back-to-back short runs only);
+   servil mt's shared queue 64 B / 64 KiB cells read apart on identical
+   code in the VM (each side laid out apart), report-only.
+
+**Pitfalls met today:** `pkill -f` on a pattern your own command contains
+kills the shell; chain release steps with `&&` (a `;` pushed a tag past a
+failing test once); give long checks a `timeout`; a quick run has no 64
+MiB pieces, so check a full run's graph before a release.
 
 ## Resume here (October 1, 2026, night): Zooko asleep, work autonomously
 
