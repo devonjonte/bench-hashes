@@ -9,6 +9,8 @@ benchmark. Prefer changes that are simpler and faster together. The
 principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
+Every open item, from every block below, is in one list: the fork's
+NOTES "Future work"; the blocks below are history.
 
 ## Resume here (October 2, 2026, morning): a night on the fork, Mac first
 
@@ -62,14 +64,14 @@ evidence; CHANGELOG says it for users):
   initialize_multithreaded returns once every pool thread has started.
 
 **For Zooko (decisions):**
-1. `candidate/rayon-neon` (c331f58): `update_rayon` past 1 MiB on NEON
-   on every Rayon thread. b3sum's path; Mac 2.4-3.4x faster from 2 MiB
-   (job 1135, the VM idle: 2 MiB 0.245 -> 0.071|0.096 ns/B, 16 MiB 0.080
-   -> 0.031, 64 MiB 0.058 -> 0.024); the VM slower up to 16 MiB (Rayon's
-   spinning idle threads), faster at 64 MiB. A native-vs-VM trade. The
-   alternative, b3sum on the fork's own pool (0.021 Mac, 0.023 VM), needs
-   an mmap form of update_multithreaded and a thread budget for b3sum's
-   --num-threads: an API question.
+1. Decided (Zooko, October 2): b3sum hashes on the fork's own pool
+   (0.021 ns/B Mac, 0.023 VM, against update_rayon's 0.054 on the Mac:
+   job 1002), smallest form first: b3sum maps the file and calls
+   update_multithreaded, and `--num-threads 1` calls update. A public
+   thread budget waits until a need shows (fork NOTES, "Future work"). `candidate/rayon-neon`
+   (c331f58) stays unmerged: it rescued a second mechanism (Rayon's join
+   on NEON) for what the pool already does. update_rayon keeps upstream's
+   contract.
 2. Pin bench-hashes to the fork's servil (a new release of the frozen
    benchmark: records, Pages). Prepared on `candidate/pin-servil-aa3d8d8`
    (bench-hashes): the lock at aa3d8d8, the benchmark's tests passing,
@@ -84,6 +86,7 @@ evidence; CHANGELOG says it for users):
    cell's first round slow, solo and shared). A measurement fix, so yours.
 4. p4 (a batch of 4 after other work costs 1.74 us, 6 messages 0.98, its
    11.3 KB of code cold): your September 27 choice for warm speed.
+5. Done: prefetching after a pause, approved as it is (Zooko, October 2).
 
 **Measured and left as they are** (NOTES): hash_many_multithreaded after
 other work reads up to 6% apart between servils, explained as its own
