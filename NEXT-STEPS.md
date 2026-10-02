@@ -16,10 +16,12 @@ Zooko slept; John Servil worked through the night on the fork (Zooko,
 October 2: "focus on the macOS/arm64 platform"). Read this block, then
 the fork's NOTES sections it names. Run `sh /workspace/vm/setup.sh` first.
 
-**State.** Fork `servil` = 9dda4be (promoted four times tonight through
+**State.** Fork `servil` = 099a292 (promoted six times tonight through
 the gate; `git notes --ref=perf show servil` has each verdict),
 `candidate/api-plan-simple` the same. bench-hashes unchanged: `main`
-(0.10.0) still pins the fork's b132f8c. Next runner job 1042. The Mac ran
+(0.10.0) still pins the fork's b132f8c. Next runner job 1067. Full Mac
+records: 1004 (servil 3a8327f), 1044 (5739af6); A/Bs against b132f8c
+for the short calls: jobs 1057-1064 (level or better). The Mac ran
 on battery until about 03:55 UTC (Zooko plugged it in); every job from
 970 on ran on mains.
 
@@ -37,6 +39,10 @@ on battery until about 03:55 UTC (Zooko plugged it in); every job from
   walk prefetches the next subtree"): Mac, hash() of 64-128 MiB x0.89-
   0.91, lent 64 MiB x0.90; servil st now flat at 0.155 ns/B from 1 to
   128 MiB.
+- Two bugs of the night's own, found and fixed before morning: the first
+  update_reader buffer lost a failing reader's last bytes (20 minutes on
+  servil; QUALITY.md bug 6), and the pause check, inlined, cost calls of
+  1 KiB or less a cold line (NOTES "The short path's layout").
 - Correctness and reliability: the fork's CI builds again (Rust 1.99
   deprecations, a debug-only overflow in a test, no_std test builds) and
   runs on servil, candidates, and PRs; wasm32 and old-assembler builds
