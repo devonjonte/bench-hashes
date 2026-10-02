@@ -61,7 +61,7 @@ def wrapper(config_path, side, arguments):
         samples.parent.mkdir(parents=True)
         shutil.copyfile(folder / 'process.stdout.txt', samples)
         shutil.copyfile(samples, folder / 'samples.tsv')
-        for name in ['clocks.csv', 'accounting.csv']:
+        for name in ['clocks.csv', 'accounting.csv', 'inputs.csv']:
             if Path(name).exists():
                 shutil.copyfile(name, folder / name)
         if status == 0:
