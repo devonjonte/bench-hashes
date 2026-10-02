@@ -20,11 +20,15 @@ in supported message/pieces workloads.
 
 The first normal run completes. The first batch invocation passes official mt
 and reaches the CLI's `each contender supports batches` assertion before any
-measurement. Preserve that rejected invocation; continue with the supported
-batch roster and the retained successful first normal run. This corrects the
-process request to the declared participation scope. Every measured outcome
-remains in the survey. Run original full axes/scenarios, then the separate batches command
-at64/128/256/512/1024/2048/4096 B and counts1/3/6/8/16/64/129,48 rounds each.
+measurement. The corrected five-contender request then reaches the balanced-
+rounds assertion: lent design10, owned design4. Both rejected requests remain
+retained. Use60 rounds for the eight survey processes: complete cycles for
+6/5/4/3/2-participant designs. Preserve the first48-round normal run as the
+initial diagnostic; the two60-round repetitions establish the declared balanced
+survey. This fixes request contracts before comparing contender rankings.
+
+Run original full axes/scenarios, then the separate batches command
+at64/128/256/512/1024/2048/4096 B and counts1/3/6/8/16/64/129,60 rounds each.
 Contexts:default and P-only0–15; two fresh processes per context and command,
 interleaved normal/batches. Eight processes, each whole-group bounded600s;
 outer bounded campaign5400s. Preserve every result and busy/unknown-load run;
