@@ -16,10 +16,10 @@ Zooko slept; John Servil worked through the night on the fork (Zooko,
 October 2: "focus on the macOS/arm64 platform"). Read this block, then
 the fork's NOTES sections it names. Run `sh /workspace/vm/setup.sh` first.
 
-**State.** Fork `servil` = 099a292 (promoted six times tonight through
+**State.** Fork `servil` = 18d1b3e (promoted seven times tonight through
 the gate; `git notes --ref=perf show servil` has each verdict),
 `candidate/api-plan-simple` the same. bench-hashes unchanged: `main`
-(0.10.0) still pins the fork's b132f8c. Next runner job 1067. Full Mac
+(0.10.0) still pins the fork's b132f8c. Next runner job 1073. Full Mac
 records: 1004 (servil 3a8327f), 1044 (5739af6); A/Bs against b132f8c
 for the short calls: jobs 1057-1064 (level or better). The Mac ran
 on battery until about 03:55 UTC (Zooko plugged it in); every job from
@@ -32,6 +32,10 @@ on battery until about 03:55 UTC (Zooko plugged it in); every job from
   KiB now ahead of SHA-256 ring); nonstop level (the pause check costs
   next to nothing once the counter's frequency is read once); a fresh
   Hasher's first update likewise (4 KiB x0.73, 8 KiB x0.65).
+- Extended output on SME2 (a new kernel, blake3_sme2_xof16_512):
+  OutputReader::fill of 1 KiB and more 4.6x as fast on the Mac (0.70 ->
+  0.155 ns/B; jobs 1068-1071); the self-test runs it (40 cases, all 32
+  assembly entries).
 - update_reader reads in 1 MiB pieces once a reader has more than 64
   KiB (NOTES "update_reader through a 1 MiB buffer"): files of 8-64 MiB
   in the page cache 23-33% less time on the Mac (b3sum --no-mmap too).
