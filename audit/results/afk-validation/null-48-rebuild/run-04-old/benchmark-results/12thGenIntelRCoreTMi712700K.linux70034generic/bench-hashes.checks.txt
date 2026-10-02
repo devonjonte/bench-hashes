@@ -1,0 +1,9 @@
+# bench-hashes consistency checks (for maintainers): relations that hold for every contender when the benchmark measures what it means to, judged on fast speeds, over 10% apart.
+# 1. Nonstop no slower than after other work, 64 B-4 KiB. 2. Shared no faster than solo. 3. A hash on the cores alone no slower shared. 4. No slower per unit than a size that divides the work, up to 32 KiB, outside the idle use cases.
+a hash on the cores alone slowed by a second copy: SHA-256, messages, owned buffers, 64 B: shared 1.148 against solo 0.982 ns/B: x1.169
+a hash on the cores alone slowed by a second copy: SHA-256, batches, owned buffers, 16: shared 68.895 against solo 62.560 ns/msg: x1.101
+a hash on the cores alone slowed by a second copy: SHA-256, batches, owned buffers, 256: shared 68.488 against solo 62.179 ns/msg: x1.101
+a hash on the cores alone slowed by a second copy: SHA-256, batches, owned buffers, 4096: shared 71.274 against solo 63.496 ns/msg: x1.122
+a hash on the cores alone slowed by a second copy: SHA-256, messages, lent buffers, 64 B: shared 1.115 against solo 0.996 ns/B: x1.119
+a hash on the cores alone slowed by a second copy: SHA-256, batches, lent buffers, 16: shared 69.630 against solo 62.519 ns/msg: x1.114
+shared faster than solo: BLAKE3 servil mt, messages, lent buffers, 1 MiB: solo 0.0984 against shared 0.0888 ns/B: x1.108
