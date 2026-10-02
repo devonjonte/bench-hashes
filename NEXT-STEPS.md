@@ -16,55 +16,43 @@ Zooko slept; John Servil worked through the night on the fork (Zooko,
 October 2: "focus on the macOS/arm64 platform"). Read this block, then
 the fork's NOTES sections it names. Run `sh /workspace/vm/setup.sh` first.
 
-**State.** Fork `servil` = aa3d8d8 (promoted eleven times tonight through
-the gate; `git notes --ref=perf show servil` has each verdict),
-`candidate/api-plan-simple` the same. bench-hashes unchanged: `main`
-(0.10.0) still pins the fork's b132f8c. Next runner job 1134. CI: GitHub
-ran three jobs at a time tonight; servil's run of ff8f203 is the one to
-read (earlier runs were cancelled by later pushes; ff8f203's had 40 of
-74 jobs passed, the cross test-vector script and Miri failing, both
-fixed in 11494db). Full Mac
-records: 1004 (servil 3a8327f), 1044 (5739af6); A/Bs against b132f8c
-for the short calls: jobs 1057-1064 (level or better). The Mac ran
-on battery until about 03:55 UTC (Zooko plugged it in); every job from
-970 on ran on mains.
+**State.** Fork `servil` = aa3d8d8, promoted eleven times tonight through
+the gate (`git notes --ref=perf show servil` has each verdict);
+`candidate/api-plan-simple` the same. bench-hashes `main` (0.10.0) still
+pins the fork's b132f8c; the new pin waits on its own branch (decision 2
+below). Next runner job 1135. Every Mac job from 970 on ran on mains
+(the Mac was on battery until about 03:55 UTC). CI: GitHub ran three jobs
+at a time tonight and later pushes cancelled earlier runs; servil
+aa3d8d8's run is the one to read.
 
-**Landed on servil tonight** (fork NOTES has each with its evidence):
-- One-shot calls of 1-64 KiB prefetch their kernels' code after a pause
-  (NOTES "One-shot calls prefetch their code after a pause"): Mac, after
-  other work, 4 KiB x0.59-0.61, 8 KiB x0.49-0.68, 16 KiB x0.61-0.66 (16
-  KiB now ahead of SHA-256 ring); nonstop level (the pause check costs
-  next to nothing once the counter's frequency is read once); a fresh
-  Hasher's first update likewise (4 KiB x0.73, 8 KiB x0.65).
-- Extended output on SME2 (a new kernel, blake3_sme2_xof16_512) and on
-  NEON (src/neon_xof.rs, eight blocks a step): OutputReader::fill of 1
-  KiB and more 4.6x as fast on the Mac (0.70 -> 0.155 ns/B), 2.3x on the
-  NEON-only path M1-M3 take (0.70 -> 0.30; jobs 1068-1080); the
-  self-test runs the SME2 kernel (40 cases, all 32 assembly entries).
-- update_reader reads in 1 MiB pieces once a reader has more than 64
-  KiB (NOTES "update_reader through a 1 MiB buffer"): files of 8-64 MiB
-  in the page cache 23-33% less time on the Mac (b3sum --no-mmap too).
+**Landed on servil tonight** (the fork's NOTES have each with its
+evidence; CHANGELOG says it for users):
+- One-shot calls of 1-64 KiB, and a fresh Hasher's first update,
+  prefetch their kernels' code after a pause (NOTES "One-shot calls
+  prefetch their code after a pause"). Mac, after other work: 4 KiB
+  x0.59-0.61, 8 KiB x0.49-0.68, 16 KiB x0.61-0.66 (16 KiB now ahead of
+  SHA-256 ring); the NEON-only path of M1-M3 alike (8-16 KiB x0.65);
+  calls of 1 KiB and less and nonstop calls level (four runs a side,
+  jobs 1057-1064).
 - The flat walk prefetches the next subtree's input (NOTES "The flat
-  walk prefetches the next subtree"): Mac, hash() of 64-128 MiB x0.89-
-  0.91, lent 64 MiB x0.90; servil st now flat at 0.155 ns/B from 1 to
-  128 MiB.
-- Miri found undefined behaviour in the queue's chain (QUALITY.md bug 7):
-  the submitter's link made a reference to a whole slot the delivery
-  thread was writing. Fixed (0c928f9); a small queue test runs under
-  Miri in CI and fails on the old code under every seed tried.
-- Two bugs of the night's own, found and fixed before morning: the first
-  update_reader buffer lost a failing reader's last bytes (20 minutes on
-  servil; QUALITY.md bug 6), and the pause check, inlined, cost calls of
-  1 KiB or less a cold line (NOTES "The short path's layout").
-- Correctness and reliability: the fork's CI builds again (Rust 1.99
-  deprecations, a debug-only overflow in a test, no_std test builds) and
-  runs on servil, candidates, and PRs; wasm32 and old-assembler builds
-  work; a warm Queue allocates nothing on macOS (std's lazily boxed
-  locks, made at the pool's start) and initialize_multithreaded returns
-  once every pool thread has started; queue_no_alloc runs without
-  libtest's harness (its 60-second notice allocated). On the Mac: the
-  debug suites, ASan, and TSan all clean (jobs 996-998). QUALITY.md and
-  CHANGELOG say so.
+  walk prefetches the next subtree"): hash() of 64-128 MiB x0.89-0.91,
+  lent 64 MiB x0.90; servil st flat at 0.155 ns/B from 1 to 128 MiB.
+- Extended output on SME2 (blake3_sme2_xof16_512) and NEON
+  (src/neon_xof.rs): OutputReader::fill of 1 KiB and more 4.6x as fast
+  (0.70 -> 0.155 ns/B), 2.3x on the NEON-only path (0.70 -> 0.30); the
+  self-test runs the new kernel (40 cases, all 32 assembly entries).
+- update_reader in 1 MiB pieces once a reader passes 64 KiB: files of
+  8-64 MiB in the page cache 23-33% less time (b3sum --no-mmap too).
+- Safety: Miri found undefined behaviour in the queue's chain (QUALITY.md
+  bug 7, fixed in 0c928f9); CI's Miri step now runs the queue and
+  update_multithreaded past its lingering threshold. Two bugs of the
+  night's own were found and fixed before morning (QUALITY.md bug 6;
+  NOTES "The short path's layout"). On the Mac, the debug suites, ASan,
+  and TSan are clean on the final code (jobs 996-998, 1031, 1083).
+- Reliability: the fork's CI builds and runs again (Rust 1.99, debug
+  builds, no_std, wasm32, old assemblers, the cross targets' scripts and
+  abort test); a warm Queue allocates nothing on macOS, and
+  initialize_multithreaded returns once every pool thread has started.
 
 **For Zooko (decisions):**
 1. `candidate/rayon-neon` (c331f58): `update_rayon` past 1 MiB on NEON
@@ -77,34 +65,25 @@ on battery until about 03:55 UTC (Zooko plugged it in); every job from
 2. Pin bench-hashes to the fork's servil (a new release of the frozen
    benchmark: records, Pages). Prepared on `candidate/pin-servil-aa3d8d8`
    (bench-hashes): the lock at aa3d8d8, the benchmark's tests passing,
-   and a quiet Mac record with that pin (job 1134) in place of the
-   current one, and the VM's likewise.
+   quiet records with that pin from the Mac (job 1134) and the VM. The
+   graph and guide checks (node, chromium) are still to run on them.
 3. The benchmark's queue cells measure a first-use cost in each cell's
    first sample: the queue's batch buffers come from `vec![0u8; len]`
    untouched, so their pages fault inside the timed sample, where
-   take_buffers touches its buffers first (probe in the fork's tmp/
-   lentprobe: 330 against 217 us a batch; job 989's traces: each cell's
-   first round slow, solo and shared). A measurement fix, so yours.
+   take_buffers touches its buffers first (probe in the fork's
+   tmp/lentprobe: 330 against 217 us a batch; job 989's traces: each
+   cell's first round slow, solo and shared). A measurement fix, so yours.
 4. p4 (a batch of 4 after other work costs 1.74 us, 6 messages 0.98, its
    11.3 KB of code cold): your September 27 choice for warm speed.
 
-**Open (owned slowdowns):** hash_many_multithreaded after other work
-leans 3-6% slower on servil ff8f203 than b132f8c at 8192-32768 messages
-(four runs a side, jobs 1089-1096), within each side's own spread of up
-to 6.5%, on a path no change of the night touches: likely layout or wake
-timing, unshown. Bisected (jobs 1097-1120): no commit shifts it; the
-same commit's speeds and shares move by session as much. Explained
-(job 1121): its 12 samples spread continuously 4.8-9.0 ns/msg at a
-steady clock (the workers' wakes), so a cell's median moves about 10%
-by session (fork NOTES, "servil ff8f203 against b132f8c, whole"). No
-regression. The cross
-CI targets (qemu) fail api_plan's abort test: qemu reports the child's
-SIGABRT as exit status 2.
-
-**Measured and left as they are** (NOTES): the batch-tail padding
-thresholds (job 1001: right at real gaps); the c1 prefetch (too little);
+**Measured and left as they are** (NOTES): hash_many_multithreaded after
+other work reads up to 6% apart between servils, explained as its own
+spread (12 samples of a continuous 4.8-9.0 ns/msg; bisected, jobs
+1089-1121); the batch-tail padding thresholds (right at real gaps, job
+1001); the c1 prefetch (too little); a woken worker's prefetch (level);
 the task list's ring reset (shared 2x slower, Rejected); cleaning lines
-before SME2 reads them (no help); NEON-only large inputs (8% from DRAM).
+before SME2 reads them (no help); TABLE sizes (level); NEON-only large
+inputs (8% from DRAM).
 
 ## Resume here (October 1, 2026, late evening): the benchmark is frozen
 
