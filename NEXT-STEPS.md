@@ -10,6 +10,63 @@ principles are in both repositories' `AGENTS.md`; the fork's hardware
 facts, design, and rejected ideas are in its `NOTES-servil.md` (read it
 before touching kernels or the pool); this repository's are in `NOTES.md`.
 
+## Resume here (October 2, 2026, morning): a night on the fork, Mac first
+
+Zooko slept; John Servil worked through the night on the fork (Zooko,
+October 2: "focus on the macOS/arm64 platform"). Read this block, then
+the fork's NOTES sections it names. Run `sh /workspace/vm/setup.sh` first.
+
+**State.** Fork `servil` = 3a678cf (promoted twice tonight through the
+gate; `git notes --ref=perf show servil` has each verdict),
+`candidate/api-plan-simple` the same. bench-hashes unchanged: `main`
+(0.10.0) still pins the fork's b132f8c. Next runner job 1025. The Mac ran
+on battery until about 03:55 UTC (Zooko plugged it in); every job from
+970 on ran on mains.
+
+**Landed on servil tonight** (fork NOTES has each with its evidence):
+- One-shot calls of 1-64 KiB prefetch their kernels' code after a pause
+  (NOTES "One-shot calls prefetch their code after a pause"): Mac, after
+  other work, 4 KiB x0.59-0.61, 8 KiB x0.49-0.68, 16 KiB x0.61-0.66 (16
+  KiB now ahead of SHA-256 ring); nonstop level (the pause check costs
+  next to nothing once the counter's frequency is read once).
+- The flat walk prefetches the next subtree's input (NOTES "The flat
+  walk prefetches the next subtree"): Mac, hash() of 64-128 MiB x0.89-
+  0.91, lent 64 MiB x0.90; servil st now flat at 0.155 ns/B from 1 to
+  128 MiB.
+- Correctness and reliability: the fork's CI builds again (Rust 1.99
+  deprecations, a debug-only overflow in a test, no_std test builds) and
+  runs on servil, candidates, and PRs; wasm32 and old-assembler builds
+  work; a warm Queue allocates nothing on macOS (std's lazily boxed
+  locks, made at the pool's start) and initialize_multithreaded returns
+  once every pool thread has started; queue_no_alloc runs without
+  libtest's harness (its 60-second notice allocated). On the Mac: the
+  debug suites, ASan, and TSan all clean (jobs 996-998). QUALITY.md and
+  CHANGELOG say so.
+
+**For Zooko (decisions):**
+1. `candidate/rayon-neon` (c331f58): `update_rayon` past 1 MiB on NEON
+   on every Rayon thread. b3sum's path; Mac 2-3.5x faster from 2 MiB
+   (64 MiB 0.058 -> 0.024 ns/B); the VM slower up to 16 MiB (Rayon's
+   spinning idle threads), faster at 64 MiB. A native-vs-VM trade. The
+   alternative, b3sum on the fork's own pool (0.021 Mac, 0.023 VM), needs
+   an mmap form of update_multithreaded and a thread budget for b3sum's
+   --num-threads: an API question.
+2. Pin bench-hashes to servil 3a678cf (a new release of the frozen
+   benchmark: records, Pages). Full Mac record of 3a8327f: job 1004.
+3. The benchmark's queue cells measure a first-use cost in each cell's
+   first sample: the queue's batch buffers come from `vec![0u8; len]`
+   untouched, so their pages fault inside the timed sample, where
+   take_buffers touches its buffers first (probe in the fork's tmp/
+   lentprobe: 330 against 217 us a batch; job 989's traces: each cell's
+   first round slow, solo and shared). A measurement fix, so yours.
+4. p4 (a batch of 4 after other work costs 1.74 us, 6 messages 0.98, its
+   11.3 KB of code cold): your September 27 choice for warm speed.
+
+**Measured and left as they are** (NOTES): the batch-tail padding
+thresholds (job 1001: right at real gaps); the c1 prefetch (too little);
+the task list's ring reset (shared 2x slower, Rejected); cleaning lines
+before SME2 reads them (no help); NEON-only large inputs (8% from DRAM).
+
 ## Resume here (October 1, 2026, late evening): the benchmark is frozen
 
 Read this block, then both AGENTS.md files (new today: "Every piece earns
