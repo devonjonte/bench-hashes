@@ -1,0 +1,72 @@
+diff --git a/clocks/src/load.rs b/clocks/src/load.rs
+index 5b016f3..1adea5c 100644
+--- a/clocks/src/load.rs
++++ b/clocks/src/load.rs
+@@ -148,6 +148,13 @@ fn push(state: &mut State, window: Window) {
+     state.windows.push(window);
+ }
+ 
++/// Join the final tail using the last window's original counter baseline.
++fn join_tail(state: &mut State, start: Reading, reading: Reading) {
++    state.windows.pop();
++    push(state, between(start, reading));
++    state.last = Some(reading);
++}
++
+ /// Read the machine once a window has passed since the last reading;
+ /// otherwise nothing. Call it outside timed intervals: every measurement
+ /// in this crate does. Another thread's tick in progress makes this one
+@@ -175,9 +182,7 @@ pub fn windows() -> Vec<Window> {
+         close(&mut state, WINDOW_NS / 2);
+         if state.windows.len() == closed {
+             if let (Some(start), Some(reading)) = (state.last_start.take(), Reading::take()) {
+-                state.windows.pop();
+-                push(&mut state, between(start, reading));
+-                state.last = Some(reading);
++                join_tail(&mut state, start, reading);
+             }
+         }
+     }
+@@ -244,8 +249,8 @@ mod imp {
+     /// idle, not waiting on I/O) and stolen by a hypervisor.
+     #[derive(Clone, Copy)]
+     pub struct CpuTimes {
+-        busy: u64,
+-        steal: u64,
++        pub(super) busy: u64,
++        pub(super) steal: u64,
+     }
+ 
+     fn ticks_per_second() -> u64 {
+@@ -350,6 +355,31 @@ mod tests {
+             the hypervisor withheld 0.15 CPUs on average, 0.30 at most; busy in 1 of 2 windows (0.0-1.0 s)");
+     }
+ 
++    #[cfg(target_os = "linux")]
++    fn tail_fixture(busy: u64, steal: u64) -> State {
++        let start = Reading { at_ns: 0, machine: imp::CpuTimes { busy: 0, steal: 0 }, own_ns: 0 };
++        let last = Reading { at_ns: WINDOW_NS, machine: imp::CpuTimes { busy, steal }, own_ns: 0 };
++        let mut state = State { last: Some(last), last_start: None, windows: vec![between(start, last)] };
++        let tail = Reading { at_ns: WINDOW_NS + 400_000_000, machine: last.machine, own_ns: 0 };
++        join_tail(&mut state, start, tail);
++        state
++    }
++
++    #[cfg(target_os = "linux")]
++    #[test]
++    fn quiet_tail_preserves_observed_other_load() {
++        let state = tail_fixture(110, 0); // 1.10 CPUs, then no other work.
++        assert!(state.windows.iter().any(Window::busy), "a quiet tail preserves the prior busy finding");
++        assert!(describe(&state.windows).starts_with("busy:"));
++    }
++
++    #[cfg(target_os = "linux")]
++    #[test]
++    fn quiet_tail_preserves_observed_steal() {
++        let state = tail_fixture(0, 110);
++        assert!(state.windows.iter().any(Window::busy), "a quiet tail preserves the prior steal finding");
++    }
++
+     #[cfg(target_vendor = "apple")]
+     #[test]
+     fn apple_counters_wrap_one_by_one() {

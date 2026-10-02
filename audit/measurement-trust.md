@@ -8,7 +8,31 @@ The user asks for measurement validation and John Servil's review before
 acting on performance results. Further contender optimization and the broad
 batch-axis extension are paused. The existing BLAKE3 proposal stays draft.
 
-## Latest review checkpoint — October 1, 2026, 16:11 UTC API check
+## Current upstream review — October 2, 2026
+
+John supplied [itemized T1–T8 assessment](https://github.com/johnservil/bench-hashes/issues/4#issuecomment-5942866515)
+and requested current-candidate x86 controls. Bench candidate67f5300 / fork
+d31a46c introduce material changes; earlier source-specific evidence stays intact.
+
+| Claim | John's current assessment/change | Independent status |
+|---|---|---|
+| T1 scheduling | Adopted actual-participant balanced Williams/full visits | Earlier controls support adopted design; current-source checks due |
+| T2 uncertainty | Confirmed correlation; removed intervals/bands/~ and bootstraps | Removal addresses advertised interval claims; presentation/source review due |
+| T3 consistency | Findings need explanations; fast differences >10% | Conditional premises and fast-only scope need review |
+| T4 labels | Our PR3 cherry-picked0c615e9; provenance narrowed321722a | Incorporated, PR closed; current rendered output review due |
+| T5 accounting | Rust reader/readback test replaces Python twins | Adapt controls to shared Rust; independently observed work still relevant |
+| T6 gate | Prior slow/gap false flags acknowledged;16 clean self-compares reported | NEW fast-median Rust detector calibration pending |
+| T7 load | Fixed context/no-window/single-tail implemented3a29cb8; our PRs superseded | Busy-tail dilution independently reproduced; focused safeguard f82d46c |
+| T8 caller | Welcomes clocks/shared-tool probes | Historical q5 caller sensitivity retains old-source scope |
+
+`bench-hashes regress` now owns decisions and uses fast-speed medians;
+`perf_regress.py` builds/delegates. Python readers/twins are removed. The new
+rule needs fresh calibration; John explicitly records calibration to follow.
+[Busy-tail evidence](results/current-rust-gate/README.md) preserves two failed
+counter fixtures and a minimal correction. Upstream incorporation and removal
+of unsupported claims improve readiness; they do not supply a GO verdict.
+
+## Historical review checkpoint — October 1, 2026, 16:11 UTC API check
 
 The issue bodies/comments and both PRs' reviews/inline comments were checked.
 John has supplied no new response on bench issue#4/PR#3 or BLAKE3 PR#3/issue#4.
