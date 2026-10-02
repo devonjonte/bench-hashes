@@ -106,10 +106,16 @@ def main():
     p.add_argument('--probe', type=Path, required=True)
     p.add_argument('--supervisor', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--plan', default='audit/current-fast-median-plan.md')
+    p.add_argument('--schedule', type=Path, help='predeclared pilot list: [extra,batches,workers,production]')
+    p.add_argument('--production-deadline', type=int, default=180)
     a = p.parse_args()
     a.output = a.output.resolve(); a.output.mkdir(parents=True, exist_ok=False)
-    manifest = {'stage': a.stage, 'plan': 'audit/current-fast-median-plan.md',
+    manifest = {'stage': a.stage, 'plan': a.plan,
                 'bench_sha256': digest(a.bench), 'probe_sha256': digest(a.probe), 'attempts': []}
+    if a.schedule:
+        assert a.stage == 'pilot'
+        manifest['schedule_sha256'] = digest(a.schedule)
     def save():
         (a.output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     def bounded(folder, command, seconds=120):
@@ -135,6 +141,9 @@ def main():
                 compare('block-%02d-%s-repeat' % (block, side), sides[side][:1], sides[side][1:])
     else:
         settings = [(0,128,0,False)]*4 + [(100,128,0,False)] + [(k,128,0,False) for _ in range(8) for k in [3,6]] + [(0,8,0,False),(0,128,2,False)] + [(0,0,0,True)]*2
+        if a.schedule:
+            settings = json.loads(a.schedule.read_text())
+            assert all(len(s) == 4 for s in settings)
         for index, (extra,batches,workers,production) in enumerate(settings, 1):
             folder = a.output / ('check-%02d' % index); folder.mkdir()
             c = {'output': str(folder), 'bench': str(a.bench.resolve()), 'probe': str(a.probe.resolve()),
@@ -144,7 +153,7 @@ def main():
                 script = '#!%s\nimport subprocess,sys\nsys.exit(subprocess.call(%r+sys.argv[1:]))\n' % (sys.executable, [sys.executable,str(Path(__file__).resolve()),'wrapper',str(config),side])
                 (folder / side).write_text(script); (folder / side).chmod(0o755)
             row = dict(c); manifest['attempts'].append(row); save()
-            row['exit'] = bounded(folder,[sys.executable,str(Path(__file__).resolve()),'check',str(config)],180 if production else 120)
+            row['exit'] = bounded(folder,[sys.executable,str(Path(__file__).resolve()),'check',str(config)],a.production_deadline if production else 120)
             save()
             runs = sorted(folder.glob('run-*'))
             for pair in range(len(runs)//2):
