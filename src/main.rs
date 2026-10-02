@@ -3785,10 +3785,10 @@ fn sorted_raw(values: &[PerUnit]) -> Vec<u128> {
  * both sides), BLAKE3 servil st and mt the subjects. A pair's verdict on a
  * cell is the ratio of the fast speeds, new over old, of the two runs'
  * samples (clocks::speeds::compare, as `compare` reports it). A cell is
- * slower (faster) when every one of the four pairs exceeds 1 + its margin
+ * slower (faster) when the mean of eight pair ratios exceeds 1 + its margin
  * (falls below 1 - it): 3% solo, 10% shared (Zooko, September 25, 2026).
- * The pairs stop once no cell can still be called either. A slower cell
- * starts four more pairs, which must agree. Exit 0: no regression in a
+ * All eight pairs contribute to one score; every run keeps every point.
+ * This candidate policy needs fresh reliability validation. Exit 0: no regression in a
  * cell that holds a change (solo; shared cells slower are listed); 1: a
  * confirmed regression in one; 2: no verdict, when a run's load was busy
  * or unobserved (clocks::load), or the control moved.
@@ -3805,7 +3805,7 @@ const REGRESS_POINTS: [&str; 14] = [
     "lent 64 B", "lent 64 KiB", "lent 1 MiB", "lent pieces 64 MiB", "lent batch 16", "lent batch 4096",
 ];
 const REGRESS_ROUNDS: usize = 24;
-const REGRESS_PAIRS: usize = 4;
+const REGRESS_PAIRS: usize = 8;
 
 fn regress_margin_permille(key: &str) -> u64 {
     if key.split('|').nth(1) == Some("solo") { 30 } else { 100 }
@@ -3836,7 +3836,24 @@ fn regress_run(exe: &str, points: &str) -> SamplesFile {
 /// Each cell's samples per unit, for every run of one side.
 type Side = Vec<std::collections::HashMap<String, Vec<PerUnit>>>;
 
-/// The cells whose every pair so far exceeds the margin one way, with
+/// The aggregate mean pair ratio, rounded once for presentation. The decision
+/// compares the unrounded integer sum against count times the margin.
+fn regress_mean_permille(ratios: &[u64]) -> u64 {
+    assert!(!ratios.is_empty(), "an aggregate needs a pair");
+    let sum: u128 = ratios.iter().map(|&r| u128::from(r)).sum();
+    u64::try_from((sum + ratios.len() as u128 / 2) / ratios.len() as u128).unwrap()
+}
+
+fn regress_direction(ratios: &[u64], margin: u64) -> i8 {
+    assert!(!ratios.is_empty() && margin < 1000);
+    let sum: u128 = ratios.iter().map(|&r| u128::from(r)).sum();
+    let n = ratios.len() as u128;
+    if sum > n * u128::from(1000 + margin) { 1 }
+    else if sum < n * u128::from(1000 - margin) { -1 }
+    else { 0 }
+}
+
+/// Cells whose aggregate pair ratio exceeds the margin one way, with
 /// their pair ratios in permille.
 fn regress_open(old: &Side, new: &Side) -> Vec<(String, Vec<u64>)> {
     let mut keys: Vec<&String> = old[0].keys().collect();
@@ -3844,12 +3861,12 @@ fn regress_open(old: &Side, new: &Side) -> Vec<(String, Vec<u64>)> {
     keys.into_iter().filter_map(|key| {
         let ratios: Vec<u64> = old.iter().zip(new).map(|(a, b)| clocks::speeds::compare(&sorted_raw(&a[key]), &sorted_raw(&b[key])).fast_permille).collect();
         let m = regress_margin_permille(key);
-        (ratios.iter().all(|&r| r > 1000 + m) || ratios.iter().all(|&r| r < 1000 - m)).then(|| (key.clone(), ratios))
+        (regress_direction(&ratios, m) != 0).then(|| (key.clone(), ratios))
     }).collect()
 }
 
-/// Up to REGRESS_PAIRS pairs (old first in even pairs of `start`), stopping
-/// once no cell is open; the loads and powers they met into `seen`.
+/// REGRESS_PAIRS fixed pairs (old first in even pairs of `start`);
+/// the loads and powers they met into `seen`.
 fn regress_pairs(old_exe: &str, new_exe: &str, start: usize, points: &str, seen: &mut (Vec<String>, Vec<String>)) -> (Side, Side) {
     let (mut old, mut new) = (Vec::new(), Vec::new());
     let side = |exe: &str, runs: &mut Side, seen: &mut (Vec<String>, Vec<String>)| {
@@ -3874,9 +3891,6 @@ fn regress_pairs(old_exe: &str, new_exe: &str, start: usize, points: &str, seen:
         let open = regress_open(&old, &new).len();
         let tenths = (clocks::since_ns(began) + 50_000_000) / 100_000_000;
         eprintln!("regress: pair {} done in {}.{} s ({open} cells still open)", start + pair + 1, tenths / 10, tenths % 10);
-        if open == 0 {
-            break;
-        }
     }
     (old, new)
 }
@@ -3896,10 +3910,8 @@ fn regress_command(arguments: &[String]) -> i32 {
     let power = |seen: &(Vec<String>, Vec<String>)| format!("regress: power during the check: {}", seen.1.join("; "));
     let pooled = |side: &Side, key: &str| -> Vec<PerUnit> { side.iter().flat_map(|run| run[key].clone()).collect() };
     let percent = |ratios: &[u64]| {
-        let mut sorted = ratios.to_vec();
-        sorted.sort_unstable();
-        let median = sorted[sorted.len() / 2] as i64 - 1000;
-        format!("{}{}.{}%", if median < 0 { "-" } else { "+" }, median.abs() / 10, median.abs() % 10)
+        let mean = regress_mean_permille(ratios) as i128 - 1000;
+        format!("{}{}.{}%", if mean < 0 { "-" } else { "+" }, mean.abs() / 10, mean.abs() % 10)
     };
     let unreliable = |old: &Side, new: &Side, seen: &(Vec<String>, Vec<String>)| -> bool {
         if !seen.0.is_empty() {
@@ -3923,7 +3935,7 @@ fn regress_command(arguments: &[String]) -> i32 {
         let called: Vec<_> = regress_open(old, new).into_iter()
             .filter(|(key, _)| old.len() == REGRESS_PAIRS && REGRESS_SUBJECTS.iter().any(|a| key.starts_with(&format!("{}|", a.key()))))
             .collect();
-        called.into_iter().partition(|(_, ratios)| ratios[0] > 1000)
+        called.into_iter().partition(|(key, ratios)| regress_direction(ratios, regress_margin_permille(key)) > 0)
     };
     eprintln!("regress: {new_exe} against {old_exe}, {REGRESS_PAIRS} alternating pairs over {} points", points.split(',').count());
     let (old, new) = regress_pairs(old_exe, new_exe, 0, &points, &mut seen);
@@ -3934,25 +3946,15 @@ fn regress_command(arguments: &[String]) -> i32 {
     let (slower, faster) = verdicts(&old, &new);
     let mut code = 0;
     if !slower.is_empty() {
-        eprintln!("regress: {} cells slower in {REGRESS_PAIRS} pairs; {REGRESS_PAIRS} more pairs must agree", slower.len());
-        let (old2, new2) = regress_pairs(old_exe, new_exe, REGRESS_PAIRS, &points, &mut seen);
-        if unreliable(&old2, &new2, &seen) {
-            println!("{}", power(&seen));
-            return 2;
-        }
-        let (slower2, _) = verdicts(&old2, &new2);
-        let confirmed: Vec<_> = slower.iter().filter_map(|(key, first)| slower2.iter().find(|(k, _)| k == key).map(|(_, then)| (key, first, then))).collect();
-        let (held, reported): (Vec<_>, Vec<_>) = confirmed.into_iter().partition(|(key, _, _)| key.split('|').nth(1) == Some("solo"));
-        let show = |cells: &[(&String, &Vec<u64>, &Vec<u64>)]| {
-            for (key, first, then) in cells {
-                let (all_old, all_new): (Vec<PerUnit>, Vec<PerUnit>) = (
-                    [pooled(&old, key), pooled(&old2, key)].concat(), [pooled(&new, key), pooled(&new2, key)].concat());
-                println!("  {key}: {}, then {}", percent(first), percent(then));
-                println!("      speeds: {}", speeds_line(&all_old, &all_new));
+        let (held, reported): (Vec<_>, Vec<_>) = slower.iter().partition(|(key, _)| key.split('|').nth(1) == Some("solo"));
+        let show = |cells: &[&(String, Vec<u64>)]| {
+            for (key, ratios) in cells {
+                println!("  {key}: {} (mean of {REGRESS_PAIRS} pair ratios)", percent(ratios));
+                println!("      pooled descriptive speeds: {}", speeds_line(&pooled(&old, key), &pooled(&new, key)));
             }
         };
         if !held.is_empty() {
-            println!("regress: REGRESSION: {} cells that hold a change are slower (solo; fast speeds, median of pair ratios):", held.len());
+            println!("regress: REGRESSION: {} cells that hold a change are slower (solo; mean of {REGRESS_PAIRS} pair fast-speed ratios):", held.len());
             show(&held);
             code = 1;
         }
@@ -3960,13 +3962,10 @@ fn regress_command(arguments: &[String]) -> i32 {
             println!("regress: {} shared cells are slower; they do not hold the change: name them, their numbers, and the change's reason in its commit message:", reported.len());
             show(&reported);
         }
-        if held.is_empty() && reported.is_empty() {
-            println!("regress: the second {REGRESS_PAIRS} pairs did not confirm");
-        }
     }
     for (key, ratios) in &faster {
-        println!("  faster  {key}: {}", percent(ratios));
-        println!("      speeds: {}", speeds_line(&pooled(&old, key), &pooled(&new, key)));
+        println!("  faster  {key}: {} (mean of {REGRESS_PAIRS} pair ratios)", percent(ratios));
+        println!("      pooled descriptive speeds: {}", speeds_line(&pooled(&old, key), &pooled(&new, key)));
     }
     if code == 0 {
         println!("regress: no regression in a cell that holds a change");

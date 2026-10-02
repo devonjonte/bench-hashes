@@ -5,6 +5,28 @@
 use super::*;
 
 #[test]
+fn aggregate_pair_policy_has_strict_margins_and_one_display_score() {
+    let noisy_six = [1060, 1060, 1060, 985, 1060, 1060, 1060, 1060];
+    assert_eq!(regress_direction(&noisy_six, 30), 1);
+    assert_eq!(regress_mean_permille(&noisy_six), 1051);
+    assert_eq!(regress_direction(&[1030; 8], 30), 0);
+    assert_eq!(regress_direction(&[1031; 8], 30), 1);
+    assert_eq!(regress_direction(&[970; 8], 30), 0);
+    assert_eq!(regress_direction(&[969; 8], 30), -1);
+    assert_eq!(regress_direction(&[1060; 8], 100), 0);
+    assert_eq!(regress_direction(&[1101; 8], 100), 1);
+    assert_eq!(regress_direction(&[900; 8], 100), 0);
+    assert_eq!(regress_direction(&[899; 8], 100), -1);
+    assert_eq!(regress_direction(&[940, 1060, 940, 1060, 940, 1060, 940, 1060], 30), 0);
+    // One permille above the exact sum boundary remains positive even when
+    // the presentation rounds its mean back to the boundary.
+    let boundary = [1031, 1030, 1030, 1030, 1030, 1030, 1030, 1030];
+    assert_eq!(regress_direction(&boundary, 30), 1);
+    assert_eq!(regress_mean_permille(&boundary), 1030);
+    assert_eq!(REGRESS_PAIRS, 8);
+}
+
+#[test]
 fn asynchronous_labels_describe_the_measured_api() {
     for (use_case, api) in [
         (UseCase::ContinuousBatches, "Queue::fixed"),
