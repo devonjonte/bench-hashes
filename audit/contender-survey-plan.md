@@ -13,9 +13,17 @@ Record SHA-256 and commands before starting. The UI release does not enter these
 measurements. Both same-code repetitions use this identical artifact. Any later
 old/new hashing experiment uses one unchanged instrument and frozen executables.
 
-Roster: blake3-official,blake3-official-mt,blake3-servil-st,blake3-servil-mt,
-sha256,sha256-ring. Official mt participates only in supported message/pieces
-workloads. Run original full axes/scenarios, then the separate batches command
+Normal roster: blake3-official,blake3-official-mt,blake3-servil-st,
+blake3-servil-mt,sha256,sha256-ring. Batches roster: blake3-official,
+blake3-servil-st,blake3-servil-mt,sha256,sha256-ring. Official mt participates
+in supported message/pieces workloads.
+
+The first normal run completes. The first batch invocation passes official mt
+and reaches the CLI's `each contender supports batches` assertion before any
+measurement. Preserve that rejected invocation; continue with the supported
+batch roster and the retained successful first normal run. This corrects the
+process request to the declared participation scope. Every measured outcome
+remains in the survey. Run original full axes/scenarios, then the separate batches command
 at64/128/256/512/1024/2048/4096 B and counts1/3/6/8/16/64/129,48 rounds each.
 Contexts:default and P-only0–15; two fresh processes per context and command,
 interleaved normal/batches. Eight processes, each whole-group bounded600s;
