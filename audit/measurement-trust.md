@@ -45,6 +45,27 @@ controls complement our per-size failures; promotion leaves our NO-GO intact.
 counter fixtures and a minimal correction. Upstream incorporation and removal
 of unsupported claims improve readiness; they do not supply a GO verdict.
 
+## Subsequent repair and freeze checkpoint — October 2, 2026
+
+[Repair studies](results/six-percent-repair/README.md) reject both affinity alone
+and the mean-eight-pairs detector: both production self-checks falsely hold on
+the experimental policy. [Matched fixed work](results/fixed-work-calibration/README.md)
+removes differing calibration work but still fails separate effect/repeat criteria;
+the conditional gate campaign remains unstarted.
+
+[Shared Linux counters](results/linux-counter-diagnostic/README.md) now supply
+experimental native Intel P/E thread evidence, with unscaled wall times. Fresh
+CPU0 diagnostics show near6% effects at all three plain-hash sizes; historical
+causes, held-out detection, matched streaming families and finite acceptance
+remain open. Hardware support needs portability/fork-cache review before adoption.
+
+John's [new update](https://github.com/johnservil/bench-hashes/issues/4#issuecomment-5945181121)
+freezes the entire upstream benchmark at0.10.0. Zooko's recorded decision and a
+new release govern measurement/rule/presentation changes, including bug fixes.
+His freeze does not clear our written reliability requirements: **NO-GO remains**,
+with hashing optimization paused. PR8 still awaits review/incorporation. Experimental
+source/evidence stay separate from the frozen release.
+
 ## Historical review checkpoint — October 1, 2026, 16:11 UTC API check
 
 The issue bodies/comments and both PRs' reviews/inline comments were checked.
