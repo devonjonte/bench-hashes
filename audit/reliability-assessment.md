@@ -1,7 +1,16 @@
 # Go/no-go: recommending reliance on bench-hashes
 
-**Current decision: NO-GO.** Sharing code and provisional evidence for
-investigation remains appropriate; recommending performance decisions waits.
+**Original reliance decision: NO-GO.** Sharing code and provisional evidence
+for investigation remains appropriate; the acceptance requirements below
+remain unpassed.
+
+**October 2 user-authorized fallback:** Devon may now optimize the Linux forks
+under a separately committed, frozen-instrument, change-specific standard when
+this full procedure cannot finish within eight hours. The plan is
+`audit/linux-optimization-plan.md` on `candidate/devon-linux-excellence` in
+Devon's benchmark fork. Independent reproduction and external approval cease
+to block that provisional optimization work. This changes the optimization
+prerequisite, not the historical test outcomes or general reliance decision.
 
 I will apply this procedure. These are my acceptance requirements, rather
 than upstream policy. Every requirement must pass for the advertised scope.
