@@ -65,8 +65,9 @@ evidence; CHANGELOG says it for users):
 2. Pin bench-hashes to the fork's servil (a new release of the frozen
    benchmark: records, Pages). Prepared on `candidate/pin-servil-aa3d8d8`
    (bench-hashes): the lock at aa3d8d8, the benchmark's tests passing,
-   quiet records with that pin from the Mac (job 1134) and the VM. The
-   graph and guide checks (node, chromium) are still to run on them.
+   quiet records with that pin from the Mac (job 1134) and the VM, both
+   passing the graph check (check.js) and the guide check (guide.js: 48
+   routes, 21 endings).
 3. The benchmark's queue cells measure a first-use cost in each cell's
    first sample: the queue's batch buffers come from `vec![0u8; len]`
    untouched, so their pages fault inside the timed sample, where
