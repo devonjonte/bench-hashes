@@ -373,6 +373,9 @@ def refresh_lock_file_and_verify(
     manifest_path,
     expected_version,
 ):
+    # Rewrite the lock's own package entry with the new version (metadata
+    # with --no-deps reads the manifest alone and leaves the lock as it was).
+    run(["cargo", "update", "--workspace", "--offline"], capture_output=True)
     metadata_text = run(
         [
             "cargo",
