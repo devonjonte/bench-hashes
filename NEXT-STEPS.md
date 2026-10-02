@@ -16,12 +16,14 @@ Zooko slept; John Servil worked through the night on the fork (Zooko,
 October 2: "focus on the macOS/arm64 platform"). Read this block, then
 the fork's NOTES sections it names. Run `sh /workspace/vm/setup.sh` first.
 
-**State.** Fork `servil` = ff8f203 (promoted eight times tonight through
+**State.** Fork `servil` = 11494db (promoted nine times tonight through
 the gate; `git notes --ref=perf show servil` has each verdict),
 `candidate/api-plan-simple` the same. bench-hashes unchanged: `main`
-(0.10.0) still pins the fork's b132f8c. Next runner job 1083. CI: GitHub
+(0.10.0) still pins the fork's b132f8c. Next runner job 1130. CI: GitHub
 ran three jobs at a time tonight; servil's run of ff8f203 is the one to
-read (earlier runs were cancelled by later pushes). Full Mac
+read (earlier runs were cancelled by later pushes; ff8f203's had 40 of
+74 jobs passed, the cross test-vector script and Miri failing, both
+fixed in 11494db). Full Mac
 records: 1004 (servil 3a8327f), 1044 (5739af6); A/Bs against b132f8c
 for the short calls: jobs 1057-1064 (level or better). The Mac ran
 on battery until about 03:55 UTC (Zooko plugged it in); every job from
@@ -46,6 +48,10 @@ on battery until about 03:55 UTC (Zooko plugged it in); every job from
   walk prefetches the next subtree"): Mac, hash() of 64-128 MiB x0.89-
   0.91, lent 64 MiB x0.90; servil st now flat at 0.155 ns/B from 1 to
   128 MiB.
+- Miri found undefined behaviour in the queue's chain (QUALITY.md bug 7):
+  the submitter's link made a reference to a whole slot the delivery
+  thread was writing. Fixed (0c928f9); a small queue test runs under
+  Miri in CI and fails on the old code under every seed tried.
 - Two bugs of the night's own, found and fixed before morning: the first
   update_reader buffer lost a failing reader's last bytes (20 minutes on
   servil; QUALITY.md bug 6), and the pause check, inlined, cost calls of
