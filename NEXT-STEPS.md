@@ -35,23 +35,17 @@ answered and closed.
   KiB while workers are ready (never triggers in a stream of such calls).
 - Job 852's held 64 B cell was layout luck: no regression.
 
-**Next, in order: freeze the benchmark** (Zooko: reliable and simple
-enough to freeze, then use it to benchmark BLAKE3).
-1. Validate the fixed-context perf_regress (fork 3a29cb8: every pair over
-   every point, no verdict without a load window, the last window takes
-   the tail): Mac self-compares, jobs 927-934; VM 77 s per check of
-   unchanged code. Watch servil mt's shared queue 64 B (one false
-   "faster", -22.6%, report-only) and servil's lent batches of 16.
-2. Promote the fork's candidate through the gate; pin it here; release
-   with records (graphs drawn proportionally; queue labels honest).
-3. Zooko freezes it in FROZEN.md. Then Devon's x86 work (BLAKE3#1) and
-   our own optimisations are judged by it.
-Open, waiting: the run-order effect (only back-to-back short runs met
-it); the consistency findings (servil's batch of 4 after other work;
-shared lent batches of 64-256 x1.6-1.7, the SME unit shared).
-Devon Jonte: bench-hashes #4 is the review thread (answered item by
-item); his perf_regress PRs closed as superseded by 3a29cb8; BLAKE3#1
-open as a draft until the freeze.
+**The benchmark is frozen** (Zooko, October 1, 2026; FROZEN.md) at 0.10.0,
+measuring the fork's `servil` b132f8c: measurement, rules, regress, and
+presentation alike; a change is Zooko's decision and a new release.
+Next: use it to make BLAKE3 faster. Devon's x86 work (BLAKE3#1, a draft)
+is judged by it; so are our own optimisations, each through perf_regress
+on both machines (a VM no-verdict from a moving control is answered by the
+Mac). Keep Activity Monitor closed while the Mac measures.
+Open, waiting: the run-order effect; the consistency findings (servil's
+batch of 4 after other work; shared lent batches of 64-256 x1.6-1.7, the
+SME unit shared); servil mt's shared queue 64 B / 64 KiB cells read apart
+on identical code in the VM (layout per side).
 
 ## Resume here (October 1, 2026, night): Zooko asleep, work autonomously
 

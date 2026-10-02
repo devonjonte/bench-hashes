@@ -7,8 +7,23 @@ measurements. The fork's work is to be as fast as possible under them.
 Changing what the benchmark asks is a decision of Zooko's: edit this file
 with the change, the date, and the reason, and the code with it; the test
 `frozen_contract_matches_frozen_md` compares the block below with the
-code's own tables and fails when they differ. Everything else about the
-benchmark (the other contenders, the report, the graph) may change freely.
+code's own tables and fails when they differ.
+
+**The whole benchmark is frozen** (Zooko, October 1, 2026, at bench-hashes
+0.10.0, tag v0.10.0+e57316f, measuring the fork's `servil` at b132f8c), so
+that a number, a verdict, and a picture from later mean what they mean
+now, and people can compare results by eye: how samples are taken (the
+rounds, the sample lengths, the gaps, the contender orders), the
+contenders and their versions, the two-speed rule and medians
+(`clocks::speeds`), the load rule (`clocks::load`), the regression check
+(`bench-hashes regress`: its points, its fast-speed statistic, its margins
+of 3% solo and 10% shared, its control, and its confirmation), and the
+presentation (the graph, the guide, and the report, their layout and
+their words). A change to any of these, a bug fix included, is Zooko's
+decision, recorded here with its date and reason, and it starts a new
+release, so results of different benchmarks are never read as alike. The
+documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
+the notes) may still change, to say it better.
 
 Why each piece is here (Zooko, September 28, 2026, replacing the contract
 of September 27, whose queue cells measured a round trip rather than
