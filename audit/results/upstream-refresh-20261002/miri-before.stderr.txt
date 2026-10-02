@@ -1,0 +1,151 @@
+    Updating crates.io index
+     Locking 64 packages to highest Rust 1.101.0-nightly compatible versions
+      Adding constant_time_eq v0.4.2 (available: v0.6.1)
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling typenum v1.20.1
+   Compiling libc v0.2.189
+   Compiling cfg-if v1.0.5
+   Compiling zerocopy v0.8.59
+   Compiling serde_core v1.0.229
+   Compiling getrandom v0.4.3
+   Compiling rand_core v0.10.1
+   Compiling cmov v0.5.4
+   Compiling serde v1.0.229
+   Compiling zmij v1.0.23
+   Compiling rustix v1.1.5
+   Compiling find-msvc-tools v0.1.14
+   Compiling shlex v2.0.1
+   Compiling serde_json v1.0.151
+   Compiling cpufeatures v0.3.1
+   Compiling bitflags v2.13.2
+   Compiling linux-raw-sys v0.12.1
+   Compiling ciborium-io v0.2.2
+   Compiling memchr v2.8.3
+   Compiling fastrand v2.5.0
+   Compiling itoa v1.0.18
+   Compiling cc v1.5.1
+   Compiling once_cell v1.21.4
+   Compiling hex v0.4.3
+   Compiling ctutils v0.4.2
+   Compiling clocks v0.1.0 (/home/agent/bench-hashes-validation/upstream-refresh-20261002/before/clocks)
+   Compiling arrayvec v0.7.8
+   Compiling reference_impl v0.0.0 (/home/agent/bench-hashes-validation/upstream-refresh-20261002/before/reference_impl)
+   Compiling constant_time_eq v0.4.2
+   Compiling syn v2.0.119
+   Compiling syn v3.0.6
+   Compiling errno v0.3.14
+   Compiling page_size v0.6.0
+   Compiling hybrid-array v0.4.15
+   Compiling blake3-servil v0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5 (/home/agent/bench-hashes-validation/upstream-refresh-20261002/before)
+   Compiling crypto-common v0.2.2
+   Compiling block-buffer v0.12.1
+   Compiling inout v0.2.2
+   Compiling cipher v0.5.2
+   Compiling digest v0.11.3
+   Compiling hmac v0.13.0
+   Compiling chacha20 v0.10.2
+   Compiling serde_derive v1.0.229
+   Compiling rand v0.10.3
+   Compiling tempfile v3.27.0
+   Compiling zerocopy-derive v0.8.59
+   Compiling half v2.7.1
+   Compiling ciborium-ll v0.2.2
+   Compiling ciborium v0.2.2
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.46s
+     Running unittests src/lib.rs (target/miri/x86_64-unknown-linux-gnu/debug/build/blake3-servil/51185ab975eec30c/out/blake3_servil-51185ab975eec30c)
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> src/lanes.rs:959:39
+    |
+959 |                 let _ = self.notified.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| Some(n.saturating_sub(1)));
+    |                                       ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+959 -                 let _ = self.notified.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| Some(n.saturating_sub(1)));
+959 +                 let _ = self.notified.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| Some(n.saturating_sub(1)));
+    |
+
+warning: variable does not need to be mutable
+   --> src/self_test.rs:248:9
+    |
+248 |     let mut out = std::vec![0u8; chunks.len() * crate::OUT_LEN];
+    |         ----^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `run` is never used
+   --> src/self_test.rs:291:4
+    |
+291 | fn run() {
+    |    ^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+error: Undefined Behavior: trying to retag from <182338> for SharedReadWrite permission at alloc56202[0x78], but that tag does not exist in the borrow stack for this location
+    --> src/queue.rs:524:43
+     |
+ 524 |         if !waiting.is_null() && unsafe { &*waiting }.load(Ordering::Acquire) > 0 {
+     |                                           ^^^^^^^^^ this error occurs as part of retag at alloc56202[0x78..0x80]
+     |
+     = help: this indicates a potential bug in the program: it performed an invalid operation, but the Stacked Borrows rules it violated are still experimental
+     = help: see https://github.com/rust-lang/unsafe-code-guidelines/blob/master/wip/stacked-borrows.md for further information
+help: <182338> was created by a SharedReadWrite retag at offsets [0x78..0x80]
+    --> src/queue.rs:552:30
+     |
+ 552 |                 unfinished = left as *const AtomicUsize as *mut AtomicUsize;
+     |                              ^^^^
+help: <182338> was later invalidated at offsets [0x78..0x80] by a write access
+    --> src/lanes.rs:1099:13
+     |
+1099 |             unsafe { &*m.left }.fetch_sub(1, Ordering::Release);
+     |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = note: this is on thread `blake3-servil-q`
+     = note: stack backtrace:
+             0: queue::Inner::<queue::test::test_miri_queue_round_trips::Back, std::vec::Vec<u8>, queue::shape::Messages>::deliver_with::<{closure@src/queue.rs:607:27: 607:69}>
+                 at src/queue.rs:524:43: 524:52
+             1: <queue::Inner<queue::test::test_miri_queue_round_trips::Back, <queue::test::test_miri_queue_round_trips::Back as queue::MessageHandler>::Buffer, queue::shape::Messages> as queue::Deliver>::deliver
+                 at src/queue.rs:607:9: 619:11
+             2: queue::Delivery::run::{closure#0}::{closure#0}
+                 at src/queue.rs:812:97: 812:112
+             3: <{closure@src/queue.rs:812:94: 812:96} as std::ops::FnOnce<()>>::call_once - shim
+                 at /home/agent/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/function.rs:250:5: 250:71
+             4: <std::panic::AssertUnwindSafe<{closure@src/queue.rs:812:94: 812:96}> as std::ops::FnOnce<()>>::call_once
+                 at /home/agent/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/panic/unwind_safe.rs:275:9: 275:19
+             5: std::panicking::catch_unwind::do_call::<std::panic::AssertUnwindSafe<{closure@src/queue.rs:812:94: 812:96}>, (bool, bool)>
+                 at /home/agent/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/panicking.rs:573:43: 573:46
+             6: std::panicking::catch_unwind::<(bool, bool), std::panic::AssertUnwindSafe<{closure@src/queue.rs:812:94: 812:96}>>
+                 at /home/agent/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/panicking.rs:541:19: 541:77
+             7: std::panic::catch_unwind::<std::panic::AssertUnwindSafe<{closure@src/queue.rs:812:94: 812:96}>, (bool, bool)>
+                 at /home/agent/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/panic.rs:359:14: 359:40
+             8: queue::Delivery::run::{closure#0}
+                 at src/queue.rs:812:40: 812:114
+             9: std::vec::Vec::<std::sync::Arc<dyn queue::Deliver>>::retain::<{closure@src/queue.rs:811:27: 811:34}>::{closure#0}
+                 at /home/agent/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/vec/mod.rs:2483:32: 2483:39
+             10: std::vec::Vec::<std::sync::Arc<dyn queue::Deliver>>::retain_mut::<{closure@std::vec::Vec<std::sync::Arc<dyn queue::Deliver>>::retain<{closure@src/queue.rs:811:27: 811:34}>::{closure#0}}>
+                 at /home/agent/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/vec/mod.rs:2572:32: 2572:38
+             11: std::vec::Vec::<std::sync::Arc<dyn queue::Deliver>>::retain::<{closure@src/queue.rs:811:27: 811:34}>
+                 at /home/agent/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/vec/mod.rs:2483:9: 2483:40
+             12: queue::Delivery::run
+                 at src/queue.rs:811:13: 816:15
+             13: queue::Delivery::hold::{closure#0}::{closure#0}
+                 at src/queue.rs:771:85: 771:99
+note: the last function in that backtrace got called indirectly due to this code
+    --> src/queue.rs:771:13
+     |
+ 771 | ...   std::thread::Builder::new().name("blake3-servil-queue".into()).spawn(|| DELIVERY.run()).expect("the queue's delivery thread ...
+     |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 1 previous error; 3 warnings emitted
+
+error: test failed, to rerun pass `--lib`
+
+Caused by:
+  process didn't exit successfully: `/home/agent/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin/cargo-miri runner /home/agent/bench-hashes-validation/upstream-refresh-20261002/before/target/miri/x86_64-unknown-linux-gnu/debug/build/blake3-servil/51185ab975eec30c/out/blake3_servil-51185ab975eec30c test_miri_queue_round_trips --exact 'queue::test::test_miri_queue_round_trips'` (exit status: 1)
+note: test exited abnormally; to see the full output pass --no-capture to the harness.
