@@ -1,0 +1,83 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.01s
+     Running unittests src/lib.rs (target/miri/x86_64-unknown-linux-gnu/debug/build/blake3-servil/51185ab975eec30c/out/blake3_servil-51185ab975eec30c)
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> src/lanes.rs:959:39
+    |
+959 |                 let _ = self.notified.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| Some(n.saturating_sub(1)));
+    |                                       ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+959 -                 let _ = self.notified.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| Some(n.saturating_sub(1)));
+959 +                 let _ = self.notified.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| Some(n.saturating_sub(1)));
+    |
+
+warning: variable does not need to be mutable
+   --> src/self_test.rs:248:9
+    |
+248 |     let mut out = std::vec![0u8; chunks.len() * crate::OUT_LEN];
+    |         ----^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/self_test.rs:248:9
+    |
+248 |     let mut out = std::vec![0u8; chunks.len() * crate::OUT_LEN];
+    |         ----^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+warning: function `run` is never used
+   --> src/self_test.rs:291:4
+    |
+291 | fn run() {
+    |    ^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+error: Undefined Behavior: attempting a write access using <437165> at alloc124049[0x20], but that tag does not exist in the borrow stack for this location
+    --> src/lanes.rs:1121:22
+     |
+1121 |             unsafe { core::ptr::copy_nonoverlapping(digest.as_ptr(), m.out, crate::OUT_LEN) };
+     |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this error occurs as part of an access at alloc124049[0x20..0x40]
+     |
+     = help: this indicates a potential bug in the program: it performed an invalid operation, but the Stacked Borrows rules it violated are still experimental
+     = help: see https://github.com/rust-lang/unsafe-code-guidelines/blob/master/wip/stacked-borrows.md for further information
+help: <437165> was created by a SharedReadWrite retag at offsets [0x20..0x40]
+    --> src/lanes.rs:1344:136
+     |
+1344 | ...et..].as_ptr(), len: inputs[m].len() - offset, out: out[m + 1].as_mut_ptr(), left: &done[m] };
+     |                                                        ^^^^^^^^^^^^^^^^^^^^^^^
+help: <437165> was later invalidated at offsets [0x0..0x80] by a Unique retag
+    --> src/lanes.rs:1344:139
+     |
+1344 | ...   task.member[m] = Member { input: inputs[m][offset..].as_ptr(), len: inputs[m].len() - offset, out: out[m + 1].as_mut_ptr(), ...
+     |                                                                                                             ^^^^^^^
+     = note: this is on thread `lanes::test::ga`
+     = note: stack backtrace:
+             0: lanes::Task::run_fixed_members::<64>
+                 at src/lanes.rs:1121:22: 1121:92
+             1: lanes::Task::run_members
+                 at src/lanes.rs:1083:44: 1083:100
+             2: lanes::Task::run
+                 at src/lanes.rs:1038:20: 1038:46
+             3: lanes::test::gathered_queue_members_match_independent_reference
+                 at src/lanes.rs:1346:33: 1346:51
+             4: lanes::test::gathered_queue_members_match_independent_reference::{closure#0}
+                 at src/lanes.rs:1311:60: 1311:60
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 1 previous error; 4 warnings emitted
+
+error: test failed, to rerun pass `--lib`
+
+Caused by:
+  process didn't exit successfully: `/home/agent/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin/cargo-miri runner /home/agent/BLAKE3-linux-excellence/target/miri/x86_64-unknown-linux-gnu/debug/build/blake3-servil/51185ab975eec30c/out/blake3_servil-51185ab975eec30c gathered_queue_members_match_independent_reference` (exit status: 1)
+note: test exited abnormally; to see the full output pass --no-capture to the harness.

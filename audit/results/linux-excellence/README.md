@@ -116,7 +116,8 @@ there is no broad no-regression claim.
   the batched tree and pass Miri on the portable implementation.
 - Postcollection test-only Rust audit reuses **unchanged production
   `read_samples`** and checks every raw ns/units pair against separate traces:
-  **36 files /258240 measured batches pass** across corrected/two/four-chunk stages.
+  **92 files /825600 measured batches pass** across corrected/two/four-chunk,
+  placement and streaming-message stages.
   Its source is `linux_trace_audit.rs`; measured instrument sources stay
   unchanged. Timing/statistics/sample parsing have no Python twin.
 
@@ -129,6 +130,46 @@ AddressSanitizer suites pass (`detect_leaks=0` for this host's ptrace restrictio
 Logs contain the deliberate handler-panic test's stderr; its subprocess abort
 is expected and the API suite passes. LinuxPMU counts cover calling threads,
 not aggregate worker energy or power. ARM/macOS are untested by this work.
+
+## Streaming queue messages and placement controls
+
+`queue-members/` preserves eight fresh production runs, default/P-only ABBA,
+using the normal benchmark's owned message and lent control points. The new
+queue task reuses the existing typed SIMD operation for equal-length
+128/256/512/1024-byte messages on x86. Mixed lengths retain their serial paths.
+At 1 KiB, both default old/new pairs improve fast wall time by about 21–25%
+solo and 27–31% shared; P-only pairs improve about 20–21% solo and 38–40%
+shared. New slow states and their shares remain displayed. This is a fast-state
+gain, not a claim that every queued state becomes faster.
+
+Preserved additional costs include default lent-mt 1 MiB pooled +10.3%, one
+pair +23.3% alongside a same-new repeat +24.2%; shared queued 64 KiB gains a
+slow state +56.9%. P-only shared queued 64 B has fast +18.8%, slow +23.1%.
+These remain open. The stock diagnostic passes and does not erase these costs.
+Published hashing source is a02bc35; measured source c2a5f57 has its own tag.
+The later differences are test-only Miri fixture corrections. Default/pure/
+no_sme2 pass 81 library +15 API +one one-CPU +one allocation, vectors 2 and
+docs 22. Full ASan passes. Miri first catches an invalid repeated IndexMut
+borrow in the new test's output-vector setup; one raw base fixes that fixture,
+and reduced deterministic Miri cases pass. Both logs remain available.
+
+`placement/` preserves 48 processes, twelve ABBA blocks in three fresh
+cohorts, comparing a1ecc5d to d0574e7 at default, P-only, separate-P and SMT-
+sibling affinity. Selected queue costs improve under restricted affinity,
+but none of those masks gives a general repeatability guarantee. Same-code
+queue fast descriptions move by up to about 38% default, 51% P-only, 83%
+separate-P and 34% SMT-siblings in these records. Some crossings coincide
+with a split appearing/disappearing near its sample-share cutoff. The shared
+speed rule describes statistical subsets, not independently established
+physical states. Ratios across unlike splits require qualification; there is
+no general state-matching clearance or sole scheduling cause claim.
+
+The autonomous validation plan now declares fresh 33 identical-artifact and
+33 separate-build null checks, plus independently anchored message/fixed-queue
+stress through the user's eight-hour window. Results publish on a separate
+`candidate/devon-linux-afk-validation` branch. These additional controls do
+not automatically pass the original acceptance procedure. The corrected
+outer supervisor forwards TERM/INT; fixtures verify child-group cleanup.
 
 ## Reproduce
 

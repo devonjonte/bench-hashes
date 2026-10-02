@@ -1,0 +1,66 @@
+   Compiling typenum v1.20.1
+   Compiling cfg-if v1.0.5
+   Compiling rand_core v0.10.1
+   Compiling libc v0.2.189
+   Compiling cpufeatures v0.3.1
+   Compiling cmov v0.5.4
+   Compiling serde_core v1.0.229
+   Compiling ciborium-io v0.2.2
+   Compiling linux-raw-sys v0.12.1
+   Compiling bitflags v2.13.2
+   Compiling constant_time_eq v0.4.2
+   Compiling once_cell v1.21.4
+   Compiling arrayvec v0.7.8
+   Compiling zmij v1.0.23
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling fastrand v2.5.0
+   Compiling hex v0.4.3
+   Compiling zerocopy v0.8.59
+   Compiling clocks v0.1.0 (/home/agent/BLAKE3-linux-excellence/clocks)
+   Compiling reference_impl v0.0.0 (/home/agent/BLAKE3-linux-excellence/reference_impl)
+   Compiling blake3-servil v0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5 (/home/agent/BLAKE3-linux-excellence)
+   Compiling ctutils v0.4.2
+   Compiling rustix v1.1.5
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+   --> src/lanes.rs:959:39
+    |
+959 |                 let _ = self.notified.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| Some(n.saturating_sub(1)));
+    |                                       ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+    |
+959 -                 let _ = self.notified.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| Some(n.saturating_sub(1)));
+959 +                 let _ = self.notified.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| Some(n.saturating_sub(1)));
+    |
+
+warning: variable does not need to be mutable
+   --> src/self_test.rs:248:9
+    |
+248 |     let mut out = std::vec![0u8; chunks.len() * crate::OUT_LEN];
+    |         ----^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling getrandom v0.4.3
+   Compiling page_size v0.6.0
+   Compiling hybrid-array v0.4.15
+   Compiling crypto-common v0.2.2
+   Compiling block-buffer v0.12.1
+   Compiling inout v0.2.2
+   Compiling tempfile v3.27.0
+warning: `blake3-servil` (lib) generated 2 warnings (run `cargo fix --lib -p blake3-servil` to apply 2 suggestions)
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.151
+   Compiling cipher v0.5.2
+   Compiling digest v0.11.3
+   Compiling hmac v0.13.0
+   Compiling chacha20 v0.10.2
+   Compiling rand v0.10.3
+   Compiling half v2.7.1
+   Compiling ciborium-ll v0.2.2
+   Compiling ciborium v0.2.2
+    Finished `release` profile [optimized] target(s) in 3.22s
