@@ -12,6 +12,68 @@ before touching kernels or the pool); this repository's are in `NOTES.md`.
 Every open item, from every block below, is in one list: the fork's
 NOTES "Future work"; the blocks below are history.
 
+## Resume here (October 2, 2026, early afternoon UTC): simpler API, b3sum measured
+
+Zooko set the direction this morning, then slept; John Servil worked on.
+Run `sh /workspace/vm/setup.sh` first.
+
+**Zooko's decisions (October 2, morning)**, each in its document:
+- b3sum hashes on the fork's own pool (the simplicity principle: the pool
+  is the first mechanism; candidate/rayon-neon stays unmerged).
+- Prefetching after a pause: approved as it is.
+- No thread budgets, no time-or-energy choice: threading is in a call's
+  name, a call's one option its mode (fork a9ff56b; api-design.md "One
+  concept per choice"). b3sum --num-threads warns and is ignored.
+- Pin bench-hashes and release once today's API is promoted (decision
+  2); the queue's first-use page faults fixed (441ad42, FROZEN.md
+  "Changes since 0.10.0"); p4 left to John: kept for warm speed (nonstop
+  batches are the streaming case).
+- AGENTS: the Mac-VM trade rule is gone; PROCEDURES (both): "Before a
+  question goes to Zooko" (a second mechanism?). One list of open items:
+  the fork's NOTES "Future work".
+
+**State.** Fork `candidate/api-plan-simple` 3a84f00 (servil aa3d8d8 +
+the API simplification, b3sum-bench, clocks::child, docs, the qemu test
+fix, CI's perf-regress now checking out bench-hashes'
+candidate/benchmark-plan). `candidate/b3sum-pool` (0d99f9a, on 4153dfb):
+b3sum on the pool. `probe/b3sum-bench-mac`: the Mac launcher. bench-hashes
+`candidate/benchmark-plan` 441ad42 (+ this note): the queue without
+Efficiency, the guide's four questions, kept buffers written. Its lock
+still pins b132f8c, so it builds only through the patch until the pin.
+Next runner job 1143.
+
+**Gate evidence for promoting candidate/api-plan-simple** (not promoted:
+waiting on CI's run of 3a84f00, which runs Miri on the pool's changed
+counting): VM suites pass (lib 92/87/74, doc, api_plan, one_cpu,
+queue_no_alloc, b3sum, clocks); Mac test job 1138 passed (on 0d99f9a,
+a superset); VM regression check by hand across the API change (old fork
+with the old benchmark, new with the new): no regression; Mac A/B jobs
+1139-1142 (old new new old, same split): 16 servil cells faster and 14
+slower beyond both controls (after-gap batch cells, both ways), ring 9
+of 76 cells moved over 10%: no evidence of a change. perf_regress cannot
+compare across the API change; a direct A/B is the procedure's answer.
+
+**The current to-do list** (Zooko's, October 2; the rest is in Future work):
+1. Promote candidate/api-plan-simple once CI reads green; then pin
+   bench-hashes to it and release (records on both machines, Pages).
+2. **Make good benchmarks of b3sum.** Built: tools/b3sum-bench (fork; its
+   README). Mac jobs 1136-1137 (two runs agree within 1-3%), VM runs;
+   NOTES "b3sum, measured". Next: a runner job type for it (a restart of
+   the runner), stdin and pipes as inputs, io_uring as a contender, and
+   the read-into-buffers design as one.
+3. **Document guarantees about memory usage** (Zooko): what each call
+   allocates, ideally nothing or a small fixed bound ("at most X bytes,
+   ever"). If it is hard to state simply, simplify the code until it is
+   easy. The queue allocates nothing once warm (tests/queue_no_alloc.rs);
+   the pool's workers' stacks, the task list's growth, the batch digest
+   buffers, and the multithreaded calls' Vecs of pieces are to measure
+   and state.
+4. candidate/b3sum-pool: warm files 1.5x (Mac) to 2.3x (VM) faster; cold
+   files read slower through the pool's mapping (VM 16 MiB 2.0x Rayon's
+   time, Mac 1 GiB 1.10x): open, and the reason to try reads into the
+   program's buffers (cold reads beat every mapping, 4.8 against 2.9 GB/s
+   on the Mac).
+
 ## Resume here (October 2, 2026, morning): a night on the fork, Mac first
 
 Zooko slept; John Servil worked through the night on the fork (Zooko,
