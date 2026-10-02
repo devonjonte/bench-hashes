@@ -56,8 +56,9 @@ evidence; CHANGELOG says it for users):
 
 **For Zooko (decisions):**
 1. `candidate/rayon-neon` (c331f58): `update_rayon` past 1 MiB on NEON
-   on every Rayon thread. b3sum's path; Mac 2-3.5x faster from 2 MiB
-   (64 MiB 0.058 -> 0.024 ns/B); the VM slower up to 16 MiB (Rayon's
+   on every Rayon thread. b3sum's path; Mac 2.4-3.4x faster from 2 MiB
+   (job 1135, the VM idle: 2 MiB 0.245 -> 0.071|0.096 ns/B, 16 MiB 0.080
+   -> 0.031, 64 MiB 0.058 -> 0.024); the VM slower up to 16 MiB (Rayon's
    spinning idle threads), faster at 64 MiB. A native-vs-VM trade. The
    alternative, b3sum on the fork's own pool (0.021 Mac, 0.023 VM), needs
    an mmap form of update_multithreaded and a thread budget for b3sum's
