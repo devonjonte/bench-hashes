@@ -16,10 +16,10 @@ Zooko slept; John Servil worked through the night on the fork (Zooko,
 October 2: "focus on the macOS/arm64 platform"). Read this block, then
 the fork's NOTES sections it names. Run `sh /workspace/vm/setup.sh` first.
 
-**State.** Fork `servil` = 3a678cf (promoted twice tonight through the
-gate; `git notes --ref=perf show servil` has each verdict),
+**State.** Fork `servil` = 9dda4be (promoted four times tonight through
+the gate; `git notes --ref=perf show servil` has each verdict),
 `candidate/api-plan-simple` the same. bench-hashes unchanged: `main`
-(0.10.0) still pins the fork's b132f8c. Next runner job 1025. The Mac ran
+(0.10.0) still pins the fork's b132f8c. Next runner job 1042. The Mac ran
 on battery until about 03:55 UTC (Zooko plugged it in); every job from
 970 on ran on mains.
 
@@ -28,7 +28,11 @@ on battery until about 03:55 UTC (Zooko plugged it in); every job from
   (NOTES "One-shot calls prefetch their code after a pause"): Mac, after
   other work, 4 KiB x0.59-0.61, 8 KiB x0.49-0.68, 16 KiB x0.61-0.66 (16
   KiB now ahead of SHA-256 ring); nonstop level (the pause check costs
-  next to nothing once the counter's frequency is read once).
+  next to nothing once the counter's frequency is read once); a fresh
+  Hasher's first update likewise (4 KiB x0.73, 8 KiB x0.65).
+- update_reader reads in 1 MiB pieces once a reader has more than 64
+  KiB (NOTES "update_reader through a 1 MiB buffer"): files of 8-64 MiB
+  in the page cache 23-33% less time on the Mac (b3sum --no-mmap too).
 - The flat walk prefetches the next subtree's input (NOTES "The flat
   walk prefetches the next subtree"): Mac, hash() of 64-128 MiB x0.89-
   0.91, lent 64 MiB x0.90; servil st now flat at 0.155 ns/B from 1 to
