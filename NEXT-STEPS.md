@@ -20,7 +20,7 @@ the fork's NOTES sections it names. Run `sh /workspace/vm/setup.sh` first.
 the gate (`git notes --ref=perf show servil` has each verdict);
 `candidate/api-plan-simple` the same. bench-hashes `main` (0.10.0) still
 pins the fork's b132f8c; the new pin waits on its own branch (decision 2
-below). Next runner job 1135. Every Mac job from 970 on ran on mains
+below). Next runner job 1136. Every Mac job from 970 on ran on mains
 (the Mac was on battery until about 03:55 UTC). CI: GitHub ran three jobs
 at a time tonight and later pushes cancelled earlier runs; servil
 aa3d8d8's run is the one to read.
