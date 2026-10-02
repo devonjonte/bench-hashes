@@ -18,14 +18,21 @@ def main():
     p.add_argument('--probe', type=Path, required=True)
     p.add_argument('--supervisor', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--plan', default='audit/six-percent-repair-plan.md')
+    p.add_argument('--schedule', type=Path, help='predeclared block list: [cpu or null, extra]')
     a = p.parse_args()
     a.output = a.output.resolve(); a.output.mkdir(exist_ok=False)
-    m = {'plan': 'audit/six-percent-repair-plan.md', 'bench_sha256': controls.digest(a.bench),
+    m = {'plan': a.plan, 'bench_sha256': controls.digest(a.bench),
          'probe_sha256': controls.digest(a.probe), 'attempts': []}
     def save():
         (a.output / 'manifest.json').write_text(json.dumps(m,indent=2)+'\n')
+    settings = [(None,0),(0,0)]+[(cpu,6) for _ in range(4) for cpu in [None,0]]
+    if a.schedule:
+        settings = json.loads(a.schedule.read_text())
+        assert all(len(s)==2 for s in settings)
+        m['schedule_sha256'] = controls.digest(a.schedule)
     save()
-    for block, (cpu, extra) in enumerate([(None,0),(0,0)]+[(cpu,6) for _ in range(4) for cpu in [None,0]],1):
+    for block, (cpu, extra) in enumerate(settings,1):
         sides = {'old':[], 'new':[]}
         for pos, side in enumerate(['old','new','new','old'],1):
             folder = a.output / ('block-%02d-run-%d'%(block,pos)); folder.mkdir()
@@ -42,7 +49,7 @@ def main():
             with (a.output/('block-%02d-%s.txt'%(block,label))).open('w') as out:
                 subprocess.run(command,stdout=out,stderr=subprocess.STDOUT,check=True)
     assert controls.digest(a.bench)==m['bench_sha256'] and controls.digest(a.probe)==m['probe_sha256']
-    print('Retained40 fresh affinity-calibration processes')
+    print('Retained%d fresh affinity-calibration processes' % len(m['attempts']))
 
 
 if __name__=='__main__':

@@ -48,7 +48,7 @@ def wrapper(config_path, side, arguments):
     if c['production']:
         command = [c['bench']] + arguments
     else:
-        command = [c['probe'], str(c['extra'] if side == 'new' else 0), str(c['batches']), '0']
+        command = (["taskset", "-c", str(c['cpu'])] if c['cpu'] is not None else []) + [c['probe'], str(c['extra'] if side == 'new' else 0), str(c['batches']), '0']
     with (folder / 'process.stdout.txt').open('wb') as out, (folder / 'process.stderr.txt').open('wb') as err:
         status = subprocess.run(command, stdout=out, stderr=err).returncode
     request['exit'] = status
@@ -109,6 +109,7 @@ def main():
     p.add_argument('--plan', default='audit/current-fast-median-plan.md')
     p.add_argument('--schedule', type=Path, help='predeclared pilot list: [extra,batches,workers,production]')
     p.add_argument('--production-deadline', type=int, default=180)
+    p.add_argument('--affinity-cpu', type=int, help='explicit CPU for diagnostic caller children only')
     a = p.parse_args()
     a.output = a.output.resolve(); a.output.mkdir(parents=True, exist_ok=False)
     manifest = {'stage': a.stage, 'plan': a.plan,
@@ -147,7 +148,7 @@ def main():
         for index, (extra,batches,workers,production) in enumerate(settings, 1):
             folder = a.output / ('check-%02d' % index); folder.mkdir()
             c = {'output': str(folder), 'bench': str(a.bench.resolve()), 'probe': str(a.probe.resolve()),
-                 'extra': extra, 'batches': batches, 'workers': workers, 'production': production}
+                 'extra': extra, 'batches': batches, 'workers': workers, 'production': production, 'cpu': a.affinity_cpu}
             config = folder / 'config.json'; config.write_text(json.dumps(c,indent=2)+'\n')
             for side in ['old','new']:
                 script = '#!%s\nimport subprocess,sys\nsys.exit(subprocess.call(%r+sys.argv[1:]))\n' % (sys.executable, [sys.executable,str(Path(__file__).resolve()),'wrapper',str(config),side])

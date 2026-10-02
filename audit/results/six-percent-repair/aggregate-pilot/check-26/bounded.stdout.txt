@@ -1,0 +1,11 @@
+regress: REGRESSION: 2 cells that hold a change are slower (solo; mean of 8 pair fast-speed ratios):
+  blake3-servil-mt|solo|ContinuousMessages|64 B: +4.1% (mean of 8 pair ratios)
+      pooled descriptive speeds: 1.149 (88%) | 2.453 (12%) -> 1.140 (80%) | 2.345 (20%)  [fast x0.992, slow x0.956, slow share 12% -> 20%]
+  blake3-servil-mt|solo|LentMessages|1 MiB: +7.0% (mean of 8 pair ratios)
+      pooled descriptive speeds: 0.0951 -> 0.100  [fast x1.053, slow x1.053, slow share 0% -> 0%]
+regress: 1 shared cells are slower; they do not hold the change: name them, their numbers, and the change's reason in its commit message:
+  blake3-servil-mt|shared|ContinuousMessages|64 B: +12.3% (mean of 8 pair ratios)
+      pooled descriptive speeds: 1.881 -> 1.869  [fast x0.993, slow x0.993, slow share 0% -> 0%]
+  faster  blake3-servil-mt|solo|ContinuousBatches|4096: -3.2% (mean of 8 pair ratios)
+      pooled descriptive speeds: 5.170 (86%) | 8.084 (14%) -> 4.991 (82%) | 7.152 (18%)  [fast x0.965, slow x0.885, slow share 14% -> 18%]
+regress: power during the check: not reported by this OS
