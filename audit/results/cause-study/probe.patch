@@ -1,0 +1,22 @@
+diff --git a/src/main.rs b/src/main.rs
+index 6c970cf5..576a24b5 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -1380,6 +1380,9 @@ fn main() {
+     if arguments.first().map(String::as_str) == Some("regress") {
+         std::process::exit(regress_command(&arguments[1..]));
+     }
++    if arguments.first().map(String::as_str) == Some("cause-probe") {
++        return cause_probe::command(&arguments[1..]);
++    }
+     if arguments.first().map(String::as_str) == Some("batches") {
+         return batch_bench::command(&arguments[1..]);
+     }
+@@ -3662,6 +3665,7 @@ fn compare_command(arguments: &[String]) {
+ }
+ 
+ mod mean_regression;
++mod cause_probe;
+ fn regress_command(arguments: &[String]) -> i32 {
+     mean_regression::command(arguments)
+ }

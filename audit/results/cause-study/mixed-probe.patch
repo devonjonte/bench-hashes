@@ -1,0 +1,18 @@
+diff --git a/src/main.rs b/src/main.rs
+index 6c970cf5..ee7efa53 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -3062,6 +3062,13 @@ fn calibrate_batch(
+     point: Point,
+ ) -> (usize, u128) {
+     let fewest = continuous_min_inputs(input, point);
++    // Diagnostic-only control: one artifact isolates priming from layout.
++    // Every measured child records its explicit 0/1 mode in the request.
++    match std::env::var("CAUSE_PRIME_CALIBRATION").as_deref() {
++        Ok("1") => run_batch(algorithm, input, point, fewest),
++        Ok("0") => {},
++        _ => panic!("cause experiment requires CAUSE_PRIME_CALIBRATION=0|1"),
++    }
+     let mut iterations = fewest;
+ 
+     loop {
