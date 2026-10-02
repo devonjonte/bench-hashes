@@ -31,10 +31,12 @@ the notes) may still change, to say it better.
   complexity outweighed its likely use, and the benchmark called
   `Efficiency::Time`, the queue's only way of hashing now. The calls and
   their patterns are otherwise the same.
-- The queue's batch buffers are written before the first sample (a bug
-  fix): made untouched, their pages faulted inside each cell's first
-  sample, a first-use cost no kept buffer of a real program pays (330
-  against 217 us a batch in the fork's tmp/lentprobe).
+- The programs' kept buffers are written when made (a bug fix): the
+  queue's batch buffers and digest space, its message buffers, and the
+  lent pieces' read buffer came from `vec![0; len]`, zeroed pages the
+  system maps only at their first write, so they faulted inside each
+  cell's first sample, a first-use cost no kept buffer of a real program
+  pays (330 against 217 us a queue batch in the fork's tmp/lentprobe).
 
 Why each piece is here (Zooko, September 28, 2026, replacing the contract
 of September 27, whose queue cells measured a round trip rather than

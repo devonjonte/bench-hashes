@@ -2259,8 +2259,7 @@ fn take_buffers(count: usize, len: usize) -> Vec<Vec<u8>> {
     let mut kept = INPUT_BUFFERS.with(|kept| kept.borrow_mut().remove(&(count, len))).unwrap_or_default();
     assert!(kept.len() <= count, "a kept set holds the buffers taken for it");
     kept.resize_with(count, || {
-        /* Touched once here, so later samples find it mapped. */
-        let mut buffer = vec![0u8; len];
+        let mut buffer = written(len, 1u8);
         buffer.clear();
         buffer
     });
@@ -2268,6 +2267,17 @@ fn take_buffers(count: usize, len: usize) -> Vec<Vec<u8>> {
         buffer.clear();
     }
     kept
+}
+
+/*
+ * A buffer of `len` bytes, every byte written, so its pages are mapped
+ * before any sample: a kept buffer of a real program has met its first
+ * use long before. vec![0; len] is no substitute: it takes zeroed pages
+ * the system maps only at their first write, inside the first sample
+ * (fork tmp/lentprobe: 330 against 217 us a queue batch).
+ */
+fn written<T: Clone>(len: usize, value: T) -> Vec<T> {
+    vec![value; len]
 }
 
 fn keep_buffers(count: usize, len: usize, buffers: Vec<Vec<u8>>) {
@@ -2456,7 +2466,7 @@ fn queue_batches(input: &[u8], messages: usize, iterations: usize, mut consume: 
         blake3_servil::Queue::fixed(MESSAGE_LEN, blake3_servil::Mode::Hash, BatchesBack(sender))
     });
     let mut free = BATCH_PAIRS.with(|kept| kept.borrow_mut().remove(&key)).unwrap_or_else(|| {
-        (0..count).map(|_| (vec![0u8; input.len()], vec![[0u8; 32]; messages])).collect()
+        (0..count).map(|_| (written(input.len(), 1u8), written(messages, [1u8; 32]))).collect()
     });
     for _ in 0..iterations {
         let (mut buffer, digests) = match free.pop() {
@@ -2505,7 +2515,7 @@ fn each_stream<D: AsRef<[u8]>>(
      * gap, inside every short stream's time). */
     let mut buffer = STREAM_BUFFER.with(|kept| std::mem::take(&mut *kept.borrow_mut()));
     if buffer.len() < PIECE_LEN {
-        buffer = vec![0u8; PIECE_LEN];
+        buffer = written(PIECE_LEN, 1u8);
     }
     for _ in 0..iterations {
         let mut pieces = |each: &mut dyn FnMut(&[u8])| {
