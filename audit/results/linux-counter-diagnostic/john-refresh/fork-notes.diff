@@ -1,0 +1,32 @@
+diff --git a/NOTES-servil.md b/NOTES-servil.md
+index c77012b..3115dde 100644
+--- a/NOTES-servil.md
++++ b/NOTES-servil.md
+@@ -969,7 +969,13 @@ of a CPU just after each build (it scans a newly built program), pi's node
+ process about 13% on average, Spotlight, WindowServer, short bursts of
+ others, the VM 0.5%. Expect about one Mac check in five to give no verdict
+ this way, and run it again (Zooko, October 1, 2026: not ours to chase; it
+-slows no user's hashing, and the tools catch it).
++slows no user's hashing, and the tools catch it). Later the same night
++five records in six were busy; a `top` over record job 967 found the
++watching itself: with Activity Monitor open, sysmond takes about 46% of a
++CPU every 2 s, and with pi's node (11-28%) and Wi-Fi's airportd bursts a
++second crossed one CPU. With Activity Monitor closed, job 968 was quiet
++(0.25 CPUs, 0.66 at most). Keep Activity Monitor closed while the Mac
++measures.
+ 
+ **perf_regress before it** (`check` = working tree against HEAD, `compare OLD NEW`,
+ `build` = the working tree's bench-hashes for runs by hand): runs A B B
+diff --git a/PROCEDURES.md b/PROCEDURES.md
+index 93862fc..745ec04 100644
+--- a/PROCEDURES.md
++++ b/PROCEDURES.md
+@@ -44,7 +44,7 @@ A promotion fast-forwards `servil` to the candidate, records the gate's evidence
+ 
+ # The Mac
+ 
+-`tools/runner/README.md` describes the runner. Zooko starts it with `sh ~/piplayground/blake3-servil/tools/runner/setup-mac.sh` (again after a change to `runner.py` or `perf_regress.py`, which it installs). Write `runner/jobs/NNN-name.json` naming pushed commits; wait with `pypy3 tools/runner/wait_for.py NNN-name`; results land in `runner/results/`. A job runs once per file name, so a changed job takes a new number. Keep the VM idle while a Mac job runs, and the Mac on mains power: on battery it runs more calls that follow a pause on the efficiency cores (233 of 400 against 32; jobs 351, 357), and every job's `verdict.json` records the power state at its start and end (`power at start`, `power at end`); read them before trusting a job. A direct A/B is four `benchmark` jobs, old new new old, back to back, read with `bench-hashes compare` (the old jobs' samples files, `--`, the new jobs'; and each side against itself, for what repetition alone moves); a calibration is one `benchmark` job with `"repeat": N`. Mac-only measurements (cycles by core kind, QoS) go in a `probe/<topic>` branch that adds its own `examples/host_lab.rs` (NOTES-servil.md, "Probes on the Mac"); the `probe/*` branches on origin are those probes, each cited in the NOTES where its finding is.
++`tools/runner/README.md` describes the runner. Zooko starts it with `sh ~/piplayground/blake3-servil/tools/runner/setup-mac.sh` (again after a change to `runner.py` or `perf_regress.py`, which it installs). Write `runner/jobs/NNN-name.json` naming pushed commits; wait with `pypy3 tools/runner/wait_for.py NNN-name`; results land in `runner/results/`. A job runs once per file name, so a changed job takes a new number. Keep the VM idle while a Mac job runs, Activity Monitor closed (its polling keeps half a CPU busy), and the Mac on mains power: on battery it runs more calls that follow a pause on the efficiency cores (233 of 400 against 32; jobs 351, 357), and every job's `verdict.json` records the power state at its start and end (`power at start`, `power at end`); read them before trusting a job. A direct A/B is four `benchmark` jobs, old new new old, back to back, read with `bench-hashes compare` (the old jobs' samples files, `--`, the new jobs'; and each side against itself, for what repetition alone moves); a calibration is one `benchmark` job with `"repeat": N`. Mac-only measurements (cycles by core kind, QoS) go in a `probe/<topic>` branch that adds its own `examples/host_lab.rs` (NOTES-servil.md, "Probes on the Mac"); the `probe/*` branches on origin are those probes, each cited in the NOTES where its finding is.
+ 
+ # Probes
+ 

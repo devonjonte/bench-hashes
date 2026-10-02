@@ -1,0 +1,56 @@
+diff --git a/FROZEN.md b/FROZEN.md
+index 05b27e1..59e3602 100644
+--- a/FROZEN.md
++++ b/FROZEN.md
+@@ -7,8 +7,23 @@ measurements. The fork's work is to be as fast as possible under them.
+ Changing what the benchmark asks is a decision of Zooko's: edit this file
+ with the change, the date, and the reason, and the code with it; the test
+ `frozen_contract_matches_frozen_md` compares the block below with the
+-code's own tables and fails when they differ. Everything else about the
+-benchmark (the other contenders, the report, the graph) may change freely.
++code's own tables and fails when they differ.
++
++**The whole benchmark is frozen** (Zooko, October 1, 2026, at bench-hashes
++0.10.0, tag v0.10.0+e57316f, measuring the fork's `servil` at b132f8c), so
++that a number, a verdict, and a picture from later mean what they mean
++now, and people can compare results by eye: how samples are taken (the
++rounds, the sample lengths, the gaps, the contender orders), the
++contenders and their versions, the two-speed rule and medians
++(`clocks::speeds`), the load rule (`clocks::load`), the regression check
++(`bench-hashes regress`: its points, its fast-speed statistic, its margins
++of 3% solo and 10% shared, its control, and its confirmation), and the
++presentation (the graph, the guide, and the report, their layout and
++their words). A change to any of these, a bug fix included, is Zooko's
++decision, recorded here with its date and reason, and it starts a new
++release, so results of different benchmarks are never read as alike. The
++documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
++the notes) may still change, to say it better.
+ 
+ Why each piece is here (Zooko, September 28, 2026, replacing the contract
+ of September 27, whose queue cells measured a round trip rather than
+diff --git a/src/main.rs b/src/main.rs
+index ccae37a..3271d3d 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -6886,7 +6886,7 @@ DATA.plots.forEach((plot, p) => plot.series.forEach((s, i) => {
+   if (!s) return;
+   const marks = document.getElementById("series-" + p + "-" + i).querySelector(".marks");
+   const have = new Set([...marks.querySelectorAll(".value-label")].map(t => +t.getAttribute("data-size")));
+-  const color = marks.querySelector(".median").getAttribute("stroke");
++  const color = DATA.colors[i];
+   plot.x.forEach((_, k) => {
+     if (have.has(k)) return;
+     const t = document.createElementNS(NS, "text");
+diff --git a/tools/graph-check/check.js b/tools/graph-check/check.js
+index 1ae0d5f..c525581 100644
+--- a/tools/graph-check/check.js
++++ b/tools/graph-check/check.js
+@@ -126,6 +126,8 @@ function checkLayout(tag) {
+   const tailY = d => +d.match(/M[\d.]+ ([\d.]+)/)[1];
+   check(arrows().every(d => headY(d) < tailY(d)), "in rate the better arrows point up");
+   console.log("ALLB", T.ALLB.length, "values;", range());
++  // The steps below zoom to 2-4 KiB: a graph of a full or quick run has those inputs.
++  if (!(T.ALLB.includes(2048) && T.ALLB.includes(4096))) throw new Error("check.js drives the graph of a full or quick run, whose inputs include 2 KiB and 4 KiB");
+   // Step the lower end up five points.
+   for (let i = 0; i < 5; i++) w.zoomStep("from", 1);
+   await sleep(700);
