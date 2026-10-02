@@ -23,7 +23,14 @@ pins the fork's b132f8c; the new pin waits on its own branch (decision 2
 below). Next runner job 1136. Every Mac job from 970 on ran on mains
 (the Mac was on battery until about 03:55 UTC). CI: GitHub ran three jobs
 at a time tonight and later pushes cancelled earlier runs; servil
-aa3d8d8's run is the one to read.
+aa3d8d8's run is the one to read. At 09:50 UTC it had 59 jobs passed, 11
+running (Linux/macOS/Windows library tests), 4 failed: the cross targets
+(powerpc64, s390x, aarch64, armv7 under qemu) in tests/one_cpu.rs, whose
+one-byte affinity mask qemu refuses (it wants whole unsigned longs) and
+big-endian reads as CPU 56. Fixed on `candidate/api-plan-simple`
+07a0ef6 (test only, not yet promoted): promote it through the gate
+(VM suites, Mac test job, perf_regress on both) once that run ends, and
+read the next run. Next runner job 1136.
 
 **Landed on servil tonight** (the fork's NOTES have each with its
 evidence; CHANGELOG says it for users):
