@@ -74,8 +74,11 @@ on battery until about 03:55 UTC (Zooko plugged it in); every job from
    alternative, b3sum on the fork's own pool (0.021 Mac, 0.023 VM), needs
    an mmap form of update_multithreaded and a thread budget for b3sum's
    --num-threads: an API question.
-2. Pin bench-hashes to servil 3a678cf (a new release of the frozen
-   benchmark: records, Pages). Full Mac record of 3a8327f: job 1004.
+2. Pin bench-hashes to the fork's servil (a new release of the frozen
+   benchmark: records, Pages). Prepared on `candidate/pin-servil-aa3d8d8`
+   (bench-hashes): the lock at aa3d8d8, the benchmark's tests passing,
+   and a quiet Mac record with that pin (job 1134) in place of the
+   current one; the VM's record is still the old pin's.
 3. The benchmark's queue cells measure a first-use cost in each cell's
    first sample: the queue's batch buffers come from `vec![0u8; len]`
    untouched, so their pages fault inside the timed sample, where
