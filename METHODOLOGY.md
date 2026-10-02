@@ -532,7 +532,7 @@ report), `bench-hashes.graph.svg` (the graph), `bench-hashes.guide.html`
 checks, above), and `bench-hashes.samples.tsv` (every sample of every cell, every scenario,
 in the order taken, each as `ns/units`, and in a last column the
 millisecond each sample started, with the provenance, the CPU's identity,
-and the load windows as `# key: value` lines). `bench-hashes compare` reads it, as does the fork's `tools/samples.py`. `--trace-clocks PATH` also writes each
+and the load windows as `# key: value` lines). `bench-hashes compare` and `bench-hashes regress` read it. `--trace-clocks PATH` also writes each
 sample's thread counts per core kind (cycles, instructions, time), the
 clock each call ran at.
 

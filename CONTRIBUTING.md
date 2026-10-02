@@ -97,12 +97,10 @@ benchmark.
   relations every contender keeps when the benchmark measures what it
   means to. A change to the benchmark keeps them holding, or explains
   in its commit message why one breaks.
-- **The fork's regression check depends on this interface**:
-  `--contenders`, `--points`, `--rounds`, and the columns of
-  `bench-hashes.samples.tsv` (`contender`, `scenario`, `use_case`,
-  `point`, `unit`, `ns/units`, each sample as measured, `start ms`),
-  read through the fork's `tools/samples.py` and `bench-hashes compare`;
-  a change to them changes both readers in the same change.
+- **The fork's regression check runs `bench-hashes regress OLD NEW`**,
+  which runs the two executables with `--contenders`, `--points`, and
+  `--rounds` and reads their samples files: the rule lives here, so a
+  change to the format changes its reader in the same change.
 
 ## Results from other machines
 

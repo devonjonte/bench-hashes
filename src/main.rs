@@ -1306,6 +1306,10 @@ cell sampled in a share of them.
   bench-hashes compare OLD.tsv... -- NEW.tsv...
                                    compare runs' samples files, each side's
                                    pooled, cell by cell, speed with speed
+  bench-hashes regress OLD_EXE NEW_EXE [--points NAME,...]
+                                   whether NEW is slower than OLD: the two
+                                   in alternating runs, a verdict as exit
+                                   0, 1 (slower), or 2 (no verdict)
 ";
 
 struct Options {
@@ -1355,26 +1359,7 @@ fn parse_arguments() -> Options {
     let points = take_value("--points").map(|list| {
         let mut indices: Vec<usize> = list
             .split(',')
-            .map(|label| {
-                /*
-                 * A label's prefix names its use cases ("lent pieces 64 MiB",
-                 * "idle 16", "continuous batch 1024"): the longest prefix
-                 * that matches, the plain label the calls after other work.
-                 */
-                let label = label.trim();
-                let (prefix, label) = UseCase::ALL
-                    .into_iter()
-                    .map(UseCase::label_prefix)
-                    .filter(|prefix| label.starts_with(prefix))
-                    .max_by_key(|prefix| prefix.len())
-                    .map(|prefix| (prefix, &label[prefix.len()..]))
-                    .expect("the plain prefix matches every label");
-                let wanted = |point: &Point| point.use_case.label_prefix() == prefix;
-                POINTS.iter().position(|point| point.label == label && wanted(point)).unwrap_or_else(|| {
-                    let labels: Vec<String> = POINTS.iter().filter(|point| wanted(point)).map(|point| format!("{prefix}{}", point.label)).collect();
-                    panic!("--points: no point {:?}; the points named so are {}", format!("{prefix}{label}"), labels.join(", "))
-                })
-            })
+            .map(point_named)
             .collect();
         indices.sort_unstable();
         indices.dedup();
@@ -1388,6 +1373,27 @@ fn parse_arguments() -> Options {
         "--points and --rounds narrow a --contenders run\n\n{USAGE}"
     );
     Options { selection, explicit, points, rounds, trace_path, quick }
+}
+
+/*
+ * The point a `--points` name names: a label's prefix names its use cases
+ * ("lent pieces 64 MiB", "idle 16", "continuous batch 1024"), the longest
+ * prefix that matches, the plain label the calls after other work.
+ */
+fn point_named(name: &str) -> usize {
+    let name = name.trim();
+    let (prefix, label) = UseCase::ALL
+        .into_iter()
+        .map(UseCase::label_prefix)
+        .filter(|prefix| name.starts_with(prefix))
+        .max_by_key(|prefix| prefix.len())
+        .map(|prefix| (prefix, &name[prefix.len()..]))
+        .expect("the plain prefix matches every label");
+    let wanted = |point: &Point| point.use_case.label_prefix() == prefix;
+    POINTS.iter().position(|point| point.label == label && wanted(point)).unwrap_or_else(|| {
+        let labels: Vec<String> = POINTS.iter().filter(|point| wanted(point)).map(|point| format!("{prefix}{}", point.label)).collect();
+        panic!("--points: no point {name:?}; the points named so are {}", labels.join(", "))
+    })
 }
 
 fn parse_selection(arguments: &[String]) -> (Selection, Vec<Algorithm>) {
@@ -1434,6 +1440,9 @@ fn main() {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     if arguments.first().map(String::as_str) == Some("compare") {
         return compare_command(&arguments[1..]);
+    }
+    if arguments.first().map(String::as_str) == Some("regress") {
+        std::process::exit(regress_command(&arguments[1..]));
     }
     let Options { selection, explicit, points, rounds, trace_path, quick } = parse_arguments();
     let mut trace = trace_path.map(ClockTrace::new);
@@ -3665,6 +3674,8 @@ const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/un
 /// keyed "contender|scenario|use_case|point", in the file's order.
 struct SamplesFile {
     load: String,
+    /// Its `# power:` line.
+    power: String,
     cells: Vec<(String, Vec<Measured>)>,
 }
 
@@ -3673,11 +3684,14 @@ fn read_samples(path: &str) -> SamplesFile {
     let mut lines = text.lines();
     assert_eq!(lines.next(), Some(SAMPLES_VERSION), "{path}: a samples file of this version begins with {SAMPLES_VERSION:?}");
     let mut load = None;
+    let mut power = None;
     let mut columns = false;
     let mut cells = Vec::new();
     for line in lines {
         if let Some(rest) = line.strip_prefix("# load: ") {
             load = Some(rest.to_owned());
+        } else if let Some(rest) = line.strip_prefix("# power: ") {
+            power = Some(rest.to_owned());
         } else if line.starts_with('#') || line.is_empty() {
         } else if !columns {
             assert_eq!(line, SAMPLES_COLUMNS, "{path}: the column row");
@@ -3694,7 +3708,7 @@ fn read_samples(path: &str) -> SamplesFile {
             cells.push((key, samples));
         }
     }
-    SamplesFile { load: load.unwrap_or_else(|| panic!("{path}: a load line")), cells }
+    SamplesFile { load: load.unwrap_or_else(|| panic!("{path}: a load line")), power: power.unwrap_or_else(|| panic!("{path}: a power line")), cells }
 }
 
 /*
@@ -3728,6 +3742,17 @@ fn compare_command(arguments: &[String]) {
         (order, cells)
     };
     let ((order, old), (_, new)) = (pool(old), pool(new));
+    for key in order {
+        if let Some(new_values) = new.get(&key) {
+            println!("{key}: {}", speeds_line(&old[&key], new_values));
+        }
+    }
+}
+
+/// One cell's samples on two sides compared speed with speed
+/// (clocks::speeds::compare): "old speeds -> new speeds  [fast xF, slow
+/// xS, slow share a% -> b%]".
+fn speeds_line(old: &[PerUnit], new: &[PerUnit]) -> String {
     let ratio = |permille: u64| format!("x{}.{:03}", permille / 1000, permille % 1000);
     let describe = |speeds: &[clocks::speeds::Speed]| -> String {
         let total: usize = speeds.iter().map(|speed| speed.count).sum();
@@ -3736,15 +3761,218 @@ fn compare_command(arguments: &[String]) {
             _ => speeds.iter().map(|speed| format!("{} ({}%)", Fixed(speed.median).format_ns(), (speed.count * 100 + total / 2) / total)).collect::<Vec<_>>().join(" | "),
         }
     };
-    for key in order {
-        let Some(new_values) = new.get(&key) else { continue };
-        let sorted = |values: &[PerUnit]| { let mut v = raw(values); v.sort_unstable(); v };
-        let c = clocks::speeds::compare(&sorted(&old[&key]), &sorted(new_values));
-        let share = |permille: u64| (permille + 5) / 10;
-        println!("{key}: {} -> {}  [fast {}, slow {}, slow share {}% -> {}%]",
-            describe(&c.old), describe(&c.new), ratio(c.fast_permille), ratio(c.slow_permille),
-            share(c.old_slow_share_permille), share(c.new_slow_share_permille));
+    let c = clocks::speeds::compare(&sorted_raw(old), &sorted_raw(new));
+    let share = |permille: u64| (permille + 5) / 10;
+    format!("{} -> {}  [fast {}, slow {}, slow share {}% -> {}%]",
+        describe(&c.old), describe(&c.new), ratio(c.fast_permille), ratio(c.slow_permille),
+        share(c.old_slow_share_permille), share(c.new_slow_share_permille))
+}
+
+fn sorted_raw(values: &[PerUnit]) -> Vec<u128> {
+    let mut v = raw(values);
+    v.sort_unstable();
+    v
+}
+
+/*
+ * `bench-hashes regress OLD NEW [--points NAME,...]`: whether the
+ * executable NEW is slower than OLD, measured side by side on this
+ * machine (the fork's tools/perf_regress.py builds the two; NOTES-servil
+ * "perf_regress" holds the rule's calibration).
+ *
+ * Runs go A B B A A B B A, each over every point, so a cell's neighbours
+ * stay the same in every run, with SHA-256 the control (the same code on
+ * both sides), BLAKE3 servil st and mt the subjects. A pair's verdict on a
+ * cell is the ratio of the fast speeds, new over old, of the two runs'
+ * samples (clocks::speeds::compare, as `compare` reports it). A cell is
+ * slower (faster) when every one of the four pairs exceeds 1 + its margin
+ * (falls below 1 - it): 3% solo, 10% shared (Zooko, September 25, 2026).
+ * The pairs stop once no cell can still be called either. A slower cell
+ * starts four more pairs, which must agree. Exit 0: no regression in a
+ * cell that holds a change (solo; shared cells slower are listed); 1: a
+ * confirmed regression in one; 2: no verdict, when a run's load was busy
+ * or unobserved (clocks::load), or the control moved.
+ */
+const REGRESS_CONTROL: Algorithm = Algorithm::Sha256;
+const REGRESS_SUBJECTS: [Algorithm; 2] = [Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt];
+/// The code paths and boundaries of the nonstop use cases: the queue's
+/// short messages (members), a first subtree task, one piece, many pieces;
+/// hash on one message, bulk, over the pool; a long message in pieces;
+/// batches as members and as tasks of their own.
+const REGRESS_POINTS: [&str; 14] = [
+    "continuous 64 B", "continuous 1 KiB", "continuous 16 KiB", "continuous 64 KiB", "continuous 1 MiB",
+    "continuous batch 16", "continuous batch 256", "continuous batch 4096",
+    "lent 64 B", "lent 64 KiB", "lent 1 MiB", "lent pieces 64 MiB", "lent batch 16", "lent batch 4096",
+];
+const REGRESS_ROUNDS: usize = 24;
+const REGRESS_PAIRS: usize = 4;
+
+fn regress_margin_permille(key: &str) -> u64 {
+    if key.split('|').nth(1) == Some("solo") { 30 } else { 100 }
+}
+
+/// One run of `exe` over `points`: its samples, sorted per cell, its load
+/// and power lines.
+fn regress_run(exe: &str, points: &str) -> SamplesFile {
+    let directory = std::env::temp_dir().join(format!("bench-hashes-regress-{}-{}", std::process::id(), clocks::load::now_ns()));
+    fs::create_dir_all(&directory).unwrap();
+    let contenders: Vec<&str> = std::iter::once(REGRESS_CONTROL).chain(REGRESS_SUBJECTS).map(Algorithm::key).collect();
+    let status = std::process::Command::new(exe)
+        .args(["--contenders", &contenders.join(","), "--points", points, "--rounds", &REGRESS_ROUNDS.to_string()])
+        .current_dir(&directory)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .unwrap_or_else(|error| panic!("failed to run {exe}: {error}"));
+    assert!(status.success(), "{exe} failed: {status}");
+    let found: Vec<_> = fs::read_dir(directory.join("benchmark-results")).unwrap()
+        .map(|entry| entry.unwrap().path().join("bench-hashes.samples.tsv")).collect();
+    assert_eq!(found.len(), 1, "one samples file");
+    let file = read_samples(found[0].to_str().unwrap());
+    fs::remove_dir_all(&directory).unwrap();
+    file
+}
+
+/// Each cell's samples per unit, for every run of one side.
+type Side = Vec<std::collections::HashMap<String, Vec<PerUnit>>>;
+
+/// The cells whose every pair so far exceeds the margin one way, with
+/// their pair ratios in permille.
+fn regress_open(old: &Side, new: &Side) -> Vec<(String, Vec<u64>)> {
+    let mut keys: Vec<&String> = old[0].keys().collect();
+    keys.sort();
+    keys.into_iter().filter_map(|key| {
+        let ratios: Vec<u64> = old.iter().zip(new).map(|(a, b)| clocks::speeds::compare(&sorted_raw(&a[key]), &sorted_raw(&b[key])).fast_permille).collect();
+        let m = regress_margin_permille(key);
+        (ratios.iter().all(|&r| r > 1000 + m) || ratios.iter().all(|&r| r < 1000 - m)).then(|| (key.clone(), ratios))
+    }).collect()
+}
+
+/// Up to REGRESS_PAIRS pairs (old first in even pairs of `start`), stopping
+/// once no cell is open; the loads and powers they met into `seen`.
+fn regress_pairs(old_exe: &str, new_exe: &str, start: usize, points: &str, seen: &mut (Vec<String>, Vec<String>)) -> (Side, Side) {
+    let (mut old, mut new) = (Vec::new(), Vec::new());
+    let side = |exe: &str, runs: &mut Side, seen: &mut (Vec<String>, Vec<String>)| {
+        let file = regress_run(exe, points);
+        if file.load.starts_with("busy") || file.load.starts_with("not measured") {
+            seen.0.push(file.load.clone());
+        }
+        if !seen.1.contains(&file.power) {
+            seen.1.push(file.power.clone());
+        }
+        runs.push(file.cells.into_iter().map(|(key, samples)| (key, per_units(&samples))).collect());
+    };
+    for pair in 0..REGRESS_PAIRS {
+        let began = clocks::now();
+        if (start + pair) % 2 == 0 {
+            side(old_exe, &mut old, seen);
+            side(new_exe, &mut new, seen);
+        } else {
+            side(new_exe, &mut new, seen);
+            side(old_exe, &mut old, seen);
+        }
+        let open = regress_open(&old, &new).len();
+        let tenths = (clocks::since_ns(began) + 50_000_000) / 100_000_000;
+        eprintln!("regress: pair {} done in {}.{} s ({open} cells still open)", start + pair + 1, tenths / 10, tenths % 10);
+        if open == 0 {
+            break;
+        }
     }
+    (old, new)
+}
+
+fn regress_command(arguments: &[String]) -> i32 {
+    let usage = "usage: bench-hashes regress OLD_EXE NEW_EXE [--points NAME,...]";
+    let (exes, points) = match arguments {
+        [old, new] => ([old.as_str(), new.as_str()], REGRESS_POINTS.join(",")),
+        [old, new, flag, list] if flag == "--points" => ([old.as_str(), new.as_str()], list.clone()),
+        _ => panic!("{usage}"),
+    };
+    for name in points.split(',') {
+        point_named(name);
+    }
+    let [old_exe, new_exe] = exes;
+    let mut seen = (Vec::new(), Vec::new());
+    let power = |seen: &(Vec<String>, Vec<String>)| format!("regress: power during the check: {}", seen.1.join("; "));
+    let pooled = |side: &Side, key: &str| -> Vec<PerUnit> { side.iter().flat_map(|run| run[key].clone()).collect() };
+    let percent = |ratios: &[u64]| {
+        let mut sorted = ratios.to_vec();
+        sorted.sort_unstable();
+        let median = sorted[sorted.len() / 2] as i64 - 1000;
+        format!("{}{}.{}%", if median < 0 { "-" } else { "+" }, median.abs() / 10, median.abs() % 10)
+    };
+    let unreliable = |old: &Side, new: &Side, seen: &(Vec<String>, Vec<String>)| -> bool {
+        if !seen.0.is_empty() {
+            println!("regress: other programs kept the machine busy, or clocks saw no load window, during {} runs. No verdict (exit 2); run again when nothing else runs on the machine.", seen.0.len());
+            for load in &seen.0 {
+                println!("  {load}");
+            }
+            return true;
+        }
+        let control: Vec<_> = regress_open(old, new).into_iter().filter(|(key, ratios)| key.starts_with(REGRESS_CONTROL.key()) && ratios.len() == old.len() && old.len() == REGRESS_PAIRS).collect();
+        if !control.is_empty() {
+            println!("regress: the control ({}, the same code on both sides) moved in {} cells: the machine's state changed within pairs. No verdict (exit 2); run again when nothing else runs on the machine.", REGRESS_CONTROL.key(), control.len());
+            for (key, ratios) in control {
+                println!("  control {key}: {}", percent(&ratios));
+            }
+            return true;
+        }
+        false
+    };
+    let verdicts = |old: &Side, new: &Side| -> (Vec<(String, Vec<u64>)>, Vec<(String, Vec<u64>)>) {
+        let called: Vec<_> = regress_open(old, new).into_iter()
+            .filter(|(key, _)| old.len() == REGRESS_PAIRS && REGRESS_SUBJECTS.iter().any(|a| key.starts_with(&format!("{}|", a.key()))))
+            .collect();
+        called.into_iter().partition(|(_, ratios)| ratios[0] > 1000)
+    };
+    eprintln!("regress: {new_exe} against {old_exe}, {REGRESS_PAIRS} alternating pairs over {} points", points.split(',').count());
+    let (old, new) = regress_pairs(old_exe, new_exe, 0, &points, &mut seen);
+    if unreliable(&old, &new, &seen) {
+        println!("{}", power(&seen));
+        return 2;
+    }
+    let (slower, faster) = verdicts(&old, &new);
+    let mut code = 0;
+    if !slower.is_empty() {
+        eprintln!("regress: {} cells slower in {REGRESS_PAIRS} pairs; {REGRESS_PAIRS} more pairs must agree", slower.len());
+        let (old2, new2) = regress_pairs(old_exe, new_exe, REGRESS_PAIRS, &points, &mut seen);
+        if unreliable(&old2, &new2, &seen) {
+            println!("{}", power(&seen));
+            return 2;
+        }
+        let (slower2, _) = verdicts(&old2, &new2);
+        let confirmed: Vec<_> = slower.iter().filter_map(|(key, first)| slower2.iter().find(|(k, _)| k == key).map(|(_, then)| (key, first, then))).collect();
+        let (held, reported): (Vec<_>, Vec<_>) = confirmed.into_iter().partition(|(key, _, _)| key.split('|').nth(1) == Some("solo"));
+        let show = |cells: &[(&String, &Vec<u64>, &Vec<u64>)]| {
+            for (key, first, then) in cells {
+                let (all_old, all_new): (Vec<PerUnit>, Vec<PerUnit>) = (
+                    [pooled(&old, key), pooled(&old2, key)].concat(), [pooled(&new, key), pooled(&new2, key)].concat());
+                println!("  {key}: {}, then {}", percent(first), percent(then));
+                println!("      speeds: {}", speeds_line(&all_old, &all_new));
+            }
+        };
+        if !held.is_empty() {
+            println!("regress: REGRESSION: {} cells that hold a change are slower (solo; fast speeds, median of pair ratios):", held.len());
+            show(&held);
+            code = 1;
+        }
+        if !reported.is_empty() {
+            println!("regress: {} shared cells are slower; they do not hold the change: name them, their numbers, and the change's reason in its commit message:", reported.len());
+            show(&reported);
+        }
+        if held.is_empty() && reported.is_empty() {
+            println!("regress: the second {REGRESS_PAIRS} pairs did not confirm");
+        }
+    }
+    for (key, ratios) in &faster {
+        println!("  faster  {key}: {}", percent(ratios));
+        println!("      speeds: {}", speeds_line(&pooled(&old, key), &pooled(&new, key)));
+    }
+    if code == 0 {
+        println!("regress: no regression in a cell that holds a change");
+    }
+    println!("{}", power(&seen));
+    code
 }
 
 fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &MachineMetadata, selection_note: &str) -> String {

@@ -122,3 +122,13 @@ fn sample_schedule_handles_short_explicit_round_counts() {
         }
     }
 }
+
+#[test]
+fn regress_measures_the_nonstop_use_cases_by_their_points_names() {
+    for name in REGRESS_POINTS {
+        let point = POINTS[point_named(name)];
+        assert!(!point.use_case.after_gap(), "{name}: regress measures nonstop cells alone (layout luck after a gap)");
+    }
+    assert_eq!(regress_margin_permille("blake3-servil-st|solo|LentMessages|64 B"), 30);
+    assert_eq!(regress_margin_permille("blake3-servil-st|shared|LentMessages|64 B"), 100);
+}
