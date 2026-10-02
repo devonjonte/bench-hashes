@@ -3720,6 +3720,12 @@ fn read_samples(path: &str) -> SamplesFile {
  * side with itself (its first run against its second) to see what
  * repetition alone moves.
  */
+/// Only runs whose own load observation is quiet supply speed evidence.
+/// Missing and unfamiliar descriptions remain descriptive, like busy runs.
+fn load_supplies_speed_evidence(load: &str) -> bool {
+    load.starts_with("quiet:")
+}
+
 fn compare_command(arguments: &[String]) {
     let split = arguments.iter().position(|argument| argument == "--").expect("usage: bench-hashes compare OLD.tsv... -- NEW.tsv...");
     let (old, new) = (&arguments[..split], &arguments[split + 1..]);
@@ -3729,8 +3735,8 @@ fn compare_command(arguments: &[String]) {
         let mut cells: std::collections::HashMap<String, Vec<PerUnit>> = std::collections::HashMap::new();
         for path in paths {
             let file = read_samples(path);
-            if file.load.starts_with("busy") {
-                println!("{path}: other programs kept the machine busy ({}): its samples are no evidence of speed", file.load);
+            if !load_supplies_speed_evidence(&file.load) {
+                println!("{path}: load is busy or unobserved ({}): comparisons are descriptive only; its samples are no evidence of speed", file.load);
             }
             for (key, samples) in file.cells {
                 if !cells.contains_key(&key) {
@@ -3854,7 +3860,7 @@ fn regress_pairs(old_exe: &str, new_exe: &str, start: usize, points: &str, seen:
     let (mut old, mut new) = (Vec::new(), Vec::new());
     let side = |exe: &str, runs: &mut Side, seen: &mut (Vec<String>, Vec<String>)| {
         let file = regress_run(exe, points);
-        if file.load.starts_with("busy") || file.load.starts_with("not measured") {
+        if !load_supplies_speed_evidence(&file.load) {
             seen.0.push(file.load.clone());
         }
         if !seen.1.contains(&file.power) {
@@ -7346,6 +7352,14 @@ mod harness_tests;
 #[cfg(test)]
 mod correctness_tests {
     use super::*;
+
+    #[test]
+    fn speed_evidence_requires_observed_quiet_load() {
+        assert!(load_supplies_speed_evidence("quiet: other programs used 0.1 CPUs"));
+        for load in ["busy: 2 CPUs", "not measured on this platform", "not measured: no window", "", "unknown"] {
+            assert!(!load_supplies_speed_evidence(load), "{load:?}");
+        }
+    }
 
     /// pmset's outputs on an M4 Max (fork runner jobs 350 and 351, September 27, 2026).
     #[test]
