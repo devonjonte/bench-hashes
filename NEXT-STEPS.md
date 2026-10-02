@@ -79,6 +79,15 @@ on battery until about 03:55 UTC (Zooko plugged it in); every job from
 4. p4 (a batch of 4 after other work costs 1.74 us, 6 messages 0.98, its
    11.3 KB of code cold): your September 27 choice for warm speed.
 
+**Open (owned slowdowns):** hash_many_multithreaded after other work
+leans 3-6% slower on servil ff8f203 than b132f8c at 8192-32768 messages
+(four runs a side, jobs 1089-1096), within each side's own spread of up
+to 6.5%, on a path no change of the night touches: likely layout or wake
+timing, unshown; next a bisect over the night's code commits, four runs
+a side (fork NOTES, "servil ff8f203 against b132f8c, whole"). The cross
+CI targets (qemu) fail api_plan's abort test: qemu reports the child's
+SIGABRT as exit status 2.
+
 **Measured and left as they are** (NOTES): the batch-tail padding
 thresholds (job 1001: right at real gaps); the c1 prefetch (too little);
 the task list's ring reset (shared 2x slower, Rejected); cleaning lines
