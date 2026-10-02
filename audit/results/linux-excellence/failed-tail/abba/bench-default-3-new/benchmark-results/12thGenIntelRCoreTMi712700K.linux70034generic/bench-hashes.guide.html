@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which BLAKE3 function fits your program?</title>
+<style>
+:root { font: 17px/1.5 system-ui, sans-serif; color: #242b30; background: #fdfdfc; }
+body { margin: 0; }
+main { max-width: 46rem; margin: 2rem auto 4rem; padding: 0 1rem; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .5rem; }
+h2 { font-size: 1.5rem; margin: 2rem 0 .4rem; }
+h2 code { font-size: 1.3rem; }
+p { margin: .5rem 0; }
+.muted { color: #5b6a72; }
+#trail { font-size: .95rem; color: #5b6a72; min-height: 1.5rem; }
+#choices { display: grid; gap: .6rem; margin: 1rem 0; }
+button { font: inherit; border: 1px solid #b6c4cb; border-radius: .5rem; padding: .7rem 1rem; color: inherit; background: white; cursor: pointer; text-align: left; }
+button:hover, button:focus-visible { background: #edf5f8; border-color: #226a90; outline: none; }
+button.unsure { color: #5b6a72; }
+nav { display: flex; gap: .6rem; margin: 1.6rem 0 0; }
+nav button { padding: .4rem .8rem; }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; }
+code { background: #edf2f4; padding: .1rem .3rem; border-radius: .2rem; }
+pre { background: #f3f5f6; border: 1px solid #e1e6e9; border-radius: .5rem; padding: .9rem 1rem; overflow-x: auto; line-height: 1.45; margin: .6rem 0; }
+pre code { background: none; padding: 0; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: .8rem 0; }
+dt { color: #5b6a72; }
+dd { margin: 0; }
+/* The chips read as a sentence: "called [after idling] [after other work] [nonstop], [alone] [beside another program]". */
+.how { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .8rem 0 .4rem; color: #5b6a72; }
+.how button { border-radius: 999px; padding: .15rem .8rem; font-size: .9rem; color: #242b30; }
+.how button[aria-pressed="true"] { background: #e6dcff; border-color: #7a5cc4; }
+.how .sep { margin: 0 .2rem; }
+svg { width: 100%; height: auto; display: block; }
+details { margin: 1.2rem 0; }
+summary { cursor: pointer; color: #226a90; }
+details > *:not(summary) { margin-left: 0; }
+ul.paths { list-style: none; padding: 0; margin: .4rem 0; font-size: .95rem; }
+ul.paths li { margin: .2rem 0; }
+ul.paths svg { display: inline; width: 14px; height: 14px; vertical-align: -2px; margin-right: .4rem; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+<h1>Which BLAKE3 function fits your program?</h1>
+<p class="muted">A few questions about how your program receives data. Then: the function to call, from the <a href="https://github.com/johnservil/BLAKE3">BLAKE3 servil</a> crate, and how fast it ran on this computer beside SHA-256.</p>
+<p id="trail" aria-live="polite"></p>
+
+<section id="question">
+<h2 id="q-title" tabindex="-1"></h2>
+<p id="q-help" class="muted"></p>
+<div id="choices"></div>
+</section>
+
+<section id="result" hidden>
+<h2>Use <code id="fn"></code></h2>
+<p id="summary"></p>
+<p id="speed-summary"></p>
+<p id="stand-in" hidden class="muted"></p>
+<div class="how" id="how"></div>
+<div id="chart"></div>
+<p id="unmeasured" hidden class="muted">This run holds no measurement of this function called this way. A full run of the benchmark measures every function in this guide.</p>
+<details id="program"><summary>A complete program</summary>
+<pre><code id="example"></code></pre>
+<dl>
+<dt>You pass</dt><dd id="pass"></dd>
+<dt>You get</dt><dd id="get"></dd>
+<dt>Keep in mind</dt><dd id="mind"></dd>
+</dl>
+<p class="muted">Add <code>blake3-servil</code> to your <code>Cargo.toml</code>. This program is one of the benchmark's compiled examples.</p>
+<p id="energy" hidden class="muted">Energy measurements are on the way; until then, time is the guide.</p>
+</details>
+<details><summary>How this was measured</summary>
+<p id="method"></p>
+<p>Each dot is the median of that cell's samples; a fainter dot is a second, slower speed that some samples ran at, its share in the hover. Where a cell ran at two speeds, the sentence above the chart compares the faster ones. Hover over a dot for the time of one call, the throughput, and the code path that ran.</p>
+<ul class="paths" id="paths"></ul>
+</details>
+</section>
+
+<nav aria-label="Change your answers"><button id="back" hidden>Back</button><button id="restart" hidden>Start again</button></nav>
+</main>
+<script>
+"use strict";
+const DATA = {"contenders":[{"key":"sha256","name":"SHA-256","color":"#e07a45"},{"key":"blake3-servil-st","name":"BLAKE3 servil st","color":"#7c3aed"},{"key":"blake3-servil-mt","name":"BLAKE3 servil mt","color":"#4c1d95"}],"machine":"12th Gen Intel(R) Core(TM) i7-12700K","date":"2026-10-02","plots":[{"scenario":"solo","use":"OneMessage","batch":false,"labels":["64 B","128 B","256 B","512 B","1 KiB","2 KiB","2304 B","3 KiB","3839 B","4 KiB","4470 B","7935 B","8 KiB","16 KiB","32 KiB","64 KiB","128 KiB","256 KiB","512 KiB","1 MiB","2 MiB","3 MiB","4 MiB","8 MiB","32 MiB","64 MiB","128 MiB"],"units":[64,128,256,512,1024,2048,2304,3072,3839,4096,4470,7935,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,3145728,4194304,8388608,33554432,67108864,134217728],"bytes":[64,128,256,512,1024,2048,2304,3072,3839,4096,4470,7935,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,3145728,4194304,8388608,33554432,67108864,134217728],"series":{"sha256":{"med":[3.792,3.613,2.021,1.239,0.857,0.695,0.650,0.616,0.598,0.590,0.578,0.551,0.546,0.525,0.512,0.507,0.503,0.501,0.464,0.428,0.420,0.415,0.412,0.419,0.414,0.417,0.416],"med2":[6.586,null,2.661,1.696,1.105,null,0.843,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"share2":[833,0,167,208,125,0,125,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"lat":[242.700,462.400,517.500,634.500,877.333,1422.500,1497.500,1893.000,2295.000,2417.000,2584.000,4373.500,4469.000,8606.500,16763.500,33223.000,65911.000,131258.000,243272.000,448267.000,880777.000,1305930.500,1726520.500,3513081.500,13885780.500,27959553.500,55804997.500],"lat2":[421.500,null,681.200,868.250,1132.000,null,1942.000,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them","mark":"circle"}]},"blake3-servil-st":{"med":[4.991,3.132,2.043,1.348,1.139,0.695,0.745,0.782,0.787,0.432,0.484,0.560,0.302,0.265,0.208,0.242,0.239,0.244,0.233,0.204,0.195,0.189,0.188,0.192,0.200,0.204,0.204],"med2":[6.535,4.490,2.988,1.896,1.677,0.912,null,null,1.026,null,null,null,null,null,0.265,null,null,null,null,null,null,null,null,null,null,null,null],"share2":[250,167,125,208,125,250,0,0,167,0,0,0,0,0,708,0,0,0,0,0,0,0,0,0,0,0,0],"lat":[319.417,400.917,523.000,690.333,1166.500,1422.750,1717.250,2403.500,3023.000,1770.750,2164.000,4444.500,2471.500,4343.000,6829.000,15880.000,31331.500,63990.500,122044.500,213920.000,409449.000,595001.500,789328.500,1606646.000,6708671.000,13692384.000,27352797.000],"lat2":[418.250,574.667,764.800,970.667,1717.000,1867.500,null,null,3939.000,null,null,null,null,null,8697.000,null,null,null,null,null,null,null,null,null,null,null,null],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":1025,"name":"AVX2 hash_many (8-way)","mark":"diamond"}]},"blake3-servil-mt":{"med":[4.083,3.013,1.947,1.504,1.147,0.690,0.725,0.773,0.804,0.418,0.493,0.559,0.306,0.272,0.257,0.241,0.239,0.248,0.183,0.128,0.0746,0.0571,0.0481,0.0323,0.0259,0.0241,0.0233],"med2":[5.768,5.712,2.438,null,null,null,0.983,null,null,0.547,null,null,null,0.378,null,null,0.393,null,null,null,null,null,null,null,0.0374,null,0.0293],"share2":[875,125,250,0,0,0,167,0,0,167,0,0,0,167,0,0,125,0,0,0,0,0,0,0,125,0,125],"lat":[261.286,385.667,498.500,770.000,1175.000,1412.250,1671.500,2375.500,3086.500,1711.500,2202.000,4437.000,2503.000,4459.000,8413.500,15786.000,31332.000,64952.500,96012.000,134043.000,156485.000,179474.000,201605.000,271173.500,867953.000,1614087.500,3129027.000],"lat2":[369.143,731.167,624.125,null,null,null,2265.000,null,null,2242.500,null,null,null,6195.000,null,null,51536.000,null,null,null,null,null,null,null,1254836.000,null,3929361.000],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":1025,"name":"AVX2 hash_many (8-way)","mark":"diamond"},{"from":524288,"name":"split over threads, SME2 on one for large inputs","mark":"square"}]}}},{"scenario":"solo","use":"ManyMessages","batch":true,"labels":["1","2","3","4","6","8","12","16","24","32","48","64","128","256","512","1024","2048","4096","8192","16384","32768","65536","131072","262144"],"units":[1,2,3,4,6,8,12,16,24,32,48,64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072,262144],"bytes":[64,128,192,256,384,512,768,1024,1536,2048,3072,4096,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,4194304,8388608,16777216],"series":{"sha256":{"med":[340.000,237.375,173.667,148.083,127.250,121.583,98.167,95.000,88.792,86.016,82.729,80.641,76.574,75.164,74.748,75.003,73.823,67.215,64.369,62.142,61.116,60.647,61.694,60.762],"med2":[431.143,null,245.667,250.750,null,null,126.375,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"share2":[625,0,292,125,0,0,208,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"lat":[340.000,474.750,521.000,592.333,763.500,972.667,1178.000,1520.000,2131.000,2752.500,3971.000,5161.000,9801.500,19242.000,38271.000,76803.500,151190.000,275312.500,527310.000,1018139.000,2002641.500,3974586.500,8086418.500,15928341.000],"lat2":[431.143,null,737.000,1003.000,null,null,1516.500,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them, one message per call","mark":"circle"}]},"blake3-servil-st":{"med":[436.500,211.500,146.500,113.438,93.500,70.667,57.222,41.016,33.521,28.427,24.109,21.320,19.738,16.711,15.899,15.600,15.317,15.658,15.625,13.557,12.286,11.851,11.766,11.759],"med2":[561.000,316.000,208.100,155.250,123.306,104.875,90.153,57.703,55.229,38.229,32.714,28.887,25.297,null,null,null,null,null,null,null,null,null,null,null],"share2":[125,750,583,458,333,208,250,250,125,167,250,167,167,0,0,0,0,0,0,0,0,0,0,0],"lat":[436.500,423.000,439.500,453.750,561.000,565.333,686.667,656.250,804.500,909.667,1157.250,1364.500,2526.500,4278.000,8140.500,15974.000,31368.500,64133.500,128004.000,222118.000,402599.500,776693.500,1542131.000,3082488.500],"lat2":[561.000,632.000,624.300,621.000,739.833,839.000,1081.833,923.250,1325.500,1223.333,1570.250,1848.750,3238.000,null,null,null,null,null,null,null,null,null,null,null],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":128,"name":"AVX2 hash_many (8-way)","mark":"diamond"}]},"blake3-servil-mt":{"med":[475.600,238.042,178.333,124.175,90.867,76.672,52.917,47.344,30.792,30.161,23.698,21.891,18.977,16.768,16.188,15.287,15.138,15.856,9.947,6.664,4.704,2.904,2.037,2.442],"med2":[null,320.542,245.667,159.650,145.867,null,92.875,63.969,43.194,38.573,null,28.613,null,null,null,null,null,null,12.613,8.389,null,null,2.925,3.066],"share2":[0,167,125,583,208,0,167,250,292,250,0,167,0,0,0,0,0,0,458,833,0,0,167,292],"lat":[475.600,476.083,535.000,496.700,545.200,613.375,635.000,757.500,739.000,965.167,1137.500,1401.000,2429.000,4292.500,8288.000,15654.000,31003.500,64946.000,81487.000,109178.500,154133.000,190334.500,266991.500,640049.000],"lat2":[null,641.083,737.000,638.600,875.200,null,1114.500,1023.500,1036.667,1234.333,null,1831.250,null,null,null,null,null,null,103322.000,137448.500,null,null,383433.500,803664.000],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":128,"name":"AVX2 hash_many (8-way)","mark":"diamond"},{"from":524288,"name":"split over threads","mark":"square"}]}}},{"scenario":"solo","use":"IdleOneMessage","batch":false,"labels":["64 B","128 B","256 B","512 B","1 KiB","2 KiB","2304 B","3 KiB","3839 B","4 KiB","4470 B","7935 B","8 KiB","16 KiB","32 KiB","64 KiB","128 KiB","256 KiB","512 KiB","1 MiB","2 MiB","3 MiB","4 MiB","8 MiB","32 MiB","64 MiB","128 MiB"],"units":[64,128,256,512,1024,2048,2304,3072,3839,4096,4470,7935,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,3145728,4194304,8388608,33554432,67108864,134217728],"bytes":[64,128,256,512,1024,2048,2304,3072,3839,4096,4470,7935,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,3145728,4194304,8388608,33554432,67108864,134217728],"series":{"sha256":{"med":[4.478,2.553,1.364,0.740,0.682,0.532,0.491,0.494,0.490,0.440,0.467,0.443,0.452,0.431,0.419,0.419,0.417,0.413,0.418,0.411,0.414,0.411,0.412,0.415,0.417,0.416,0.417],"med2":[5.995,4.397,2.161,1.313,1.091,0.747,0.676,0.797,null,0.630,0.671,null,null,null,0.572,null,null,null,null,null,null,0.529,null,null,null,null,null],"share2":[750,292,375,333,125,208,167,167,0,208,125,0,0,0,125,0,0,0,0,0,0,125,0,0,0,0,0],"lat":[286.615,326.800,349.167,378.700,698.333,1089.500,1131.250,1518.750,1880.750,1802.000,2086.000,3517.000,3703.500,7056.500,13716.000,27464.000,54678.000,108368.000,219034.500,430571.000,868285.500,1293868.000,1727596.500,3481866.500,13991153.500,27904274.500,56021320.000],"lat2":[383.654,562.800,553.167,672.200,1117.333,1530.000,1557.500,2449.500,null,2579.000,3001.000,null,null,null,18754.000,null,null,null,null,null,null,1663425.000,null,null,null,null,null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them","mark":"circle"}]},"blake3-servil-st":{"med":[3.958,1.563,1.535,1.064,0.910,0.537,0.565,0.521,0.561,0.331,0.322,0.457,0.247,0.214,0.197,0.192,0.183,0.183,0.181,0.182,0.180,0.182,0.186,0.183,0.202,0.200,0.203],"med2":[6.780,4.723,2.434,1.803,1.307,0.855,1.027,0.982,0.962,0.635,0.442,0.594,0.387,0.269,null,null,null,null,null,null,null,null,null,0.239,null,null,null],"share2":[250,208,417,208,250,333,250,208,333,208,792,208,167,292,0,0,0,0,0,0,0,0,0,125,0,0,0],"lat":[253.286,200.000,393.000,544.667,932.000,1100.750,1302.000,1600.000,2153.500,1356.000,1438.500,3623.000,2020.000,3513.000,6454.000,12555.000,23937.500,48032.500,95008.000,190538.500,378172.500,573334.500,778413.500,1535850.000,6775417.500,13404429.500,27191031.500],"lat2":[433.929,604.500,623.000,923.000,1338.000,1751.250,2366.000,3017.000,3693.500,2599.500,1976.500,4710.000,3167.500,4407.000,null,null,null,null,null,null,null,null,null,2003801.000,null,null,null],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":1025,"name":"AVX2 hash_many (8-way)","mark":"diamond"}]},"blake3-servil-mt":{"med":[2.569,2.526,1.469,1.151,0.816,0.504,0.559,0.503,0.668,0.371,0.327,0.454,0.249,0.218,0.196,0.191,0.182,0.183,0.146,0.116,0.0713,0.0531,0.0449,0.0334,0.0260,0.0241,0.0232],"med2":[5.463,4.191,3.187,2.045,1.135,0.823,0.872,0.663,0.965,0.614,0.443,0.577,0.442,0.288,null,null,null,null,0.196,null,null,null,null,null,null,0.0378,0.0325],"share2":[417,417,167,167,583,250,292,875,125,125,708,250,125,250,0,0,0,0,208,0,0,0,0,0,0,125,125],"lat":[164.400,323.333,376.167,589.333,835.167,1032.500,1287.000,1546.500,2564.000,1520.000,1463.000,3602.500,2036.000,3566.500,6437.000,12526.500,23902.500,48077.000,76425.000,121305.500,149566.000,167095.500,188344.500,280116.000,871675.500,1619079.000,3118744.000],"lat2":[349.600,536.417,815.833,1047.167,1162.000,1686.500,2008.000,2037.500,3703.000,2515.500,1980.000,4578.000,3624.000,4717.000,null,null,null,null,102952.000,null,null,null,null,null,null,2534692.000,4362306.000],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":1025,"name":"AVX2 hash_many (8-way)","mark":"diamond"},{"from":524288,"name":"split over threads, SME2 on one for large inputs","mark":"square"}]}}},{"scenario":"solo","use":"IdleManyMessages","batch":true,"labels":["1","2","3","4","6","8","12","16","24","32","48","64","128","256","512","1024","2048","4096","8192","16384","32768","65536","131072","262144"],"units":[1,2,3,4,6,8,12,16,24,32,48,64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072,262144],"bytes":[64,128,192,256,384,512,768,1024,1536,2048,3072,4096,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,4194304,8388608,16777216],"series":{"sha256":{"med":[306.778,201.000,152.889,143.750,81.896,89.219,89.250,82.844,75.750,72.625,69.094,66.570,63.320,62.898,61.425,61.743,61.723,61.784,61.551,60.851,60.819,61.082,61.327,61.576],"med2":[450.222,444.500,346.889,252.250,135.958,188.594,130.167,111.688,null,96.813,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"share2":[542,208,208,167,750,167,208,167,0,167,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"lat":[306.778,402.000,458.667,575.000,491.375,713.750,1071.000,1325.500,1818.000,2324.000,3316.500,4260.500,8105.000,16102.000,31449.500,63224.500,126409.500,253065.500,504225.500,996982.500,1992919.000,4003080.000,8038235.000,16141824.000],"lat2":[450.222,889.000,1040.667,1009.000,815.750,1508.750,1562.000,1787.000,null,3098.000,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them, one message per call","mark":"circle"}]},"blake3-servil-st":{"med":[305.167,145.625,88.417,61.571,39.722,27.458,25.667,26.352,21.097,18.844,15.177,14.813,13.480,12.670,12.239,11.965,11.761,11.695,11.630,11.638,11.615,11.615,11.709,11.962],"med2":[691.667,381.000,256.167,109.250,169.889,81.250,68.146,52.430,40.382,94.375,23.703,22.375,null,null,null,null,null,null,null,null,null,null,null,null],"share2":[167,125,375,708,125,375,375,167,167,125,125,167,0,0,0,0,0,0,0,0,0,0,0,0],"lat":[305.167,291.250,265.250,246.286,238.333,219.667,308.000,421.625,506.333,603.000,728.500,948.000,1725.500,3243.500,6266.500,12252.000,24087.000,47902.500,95271.500,190681.000,380587.500,761222.000,1534787.000,3135858.000],"lat2":[691.667,762.000,768.500,437.000,1019.333,650.000,817.750,838.875,969.167,3020.000,1137.750,1432.000,null,null,null,null,null,null,null,null,null,null,null,null],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":128,"name":"AVX2 hash_many (8-way)","mark":"diamond"}]},"blake3-servil-mt":{"med":[317.000,136.500,89.556,58.708,45.917,45.000,31.146,27.766,19.694,15.250,16.604,15.422,13.559,12.506,12.106,11.962,11.775,11.679,9.048,6.342,3.555,2.930,2.026,2.216],"med2":[465.625,421.667,304.889,105.042,95.083,106.854,64.813,43.281,41.389,22.583,28.736,23.240,20.547,null,null,null,null,null,11.594,7.995,4.486,null,null,2.832],"share2":[125,375,167,625,292,125,208,375,208,542,208,292,208,0,0,0,0,0,250,500,750,0,0,167],"lat":[317.000,273.000,268.667,234.833,275.500,360.000,373.750,444.250,472.667,488.000,797.000,987.000,1735.500,3201.500,6198.500,12249.000,24114.500,47839.000,74119.500,103910.500,116499.500,192014.500,265498.500,580903.000],"lat2":[465.625,843.333,914.667,420.167,570.500,854.833,777.750,692.500,993.333,722.667,1379.333,1487.333,2630.000,null,null,null,null,null,94977.500,130997.000,147000.500,null,null,742357.500],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":128,"name":"AVX2 hash_many (8-way)","mark":"diamond"},{"from":524288,"name":"split over threads","mark":"square"}]}}},{"scenario":"solo","use":"ContinuousMessages","batch":false,"labels":["64 B","256 B","1 KiB","4 KiB","16 KiB","64 KiB","256 KiB","1 MiB","4 MiB","16 MiB","64 MiB"],"units":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"bytes":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"series":{"sha256":{"med":[1.000,0.576,0.459,0.435,0.428,0.436,0.439,0.449,0.458,0.458,0.459],"med2":[null,null,null,null,null,null,null,null,null,null,null],"share2":[0,0,0,0,0,0,0,0,0,0,0],"lat":[63.998,147.420,470.263,1781.838,7014.884,28593.500,115069.000,470756.000,1921912.500,7676307.500,30820441.000],"lat2":[null,null,null,null,null,null,null,null,null,null,null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them","mark":"circle"}]},"blake3-servil-mt":{"med":[1.082,0.278,0.146,0.137,0.0781,0.0607,0.0465,0.0509,0.0581,0.0634,0.0709],"med2":[1.731,null,null,0.237,0.111,null,null,0.0726,null,null,null],"share2":[167,0,0,708,167,0,0,125,0,0,0],"lat":[69.240,71.221,149.282,560.803,1279.955,3977.721,12195.747,53382.059,243746.750,1064407.750,4759555.750],"lat2":[110.802,null,null,971.551,1816.408,null,null,76111.765,null,null,null],"kernels":[{"from":0,"name":"Queue::messages","mark":"circle"},{"from":65537,"name":"Queue::pieces","mark":"circle"}]}}},{"scenario":"solo","use":"ContinuousBatches","batch":true,"labels":["16","64","256","1024","4096","16384","65536"],"units":[16,64,256,1024,4096,16384,65536],"bytes":[1024,4096,16384,65536,262144,1048576,4194304],"series":{"sha256":{"med":[62.736,62.122,62.186,62.850,64.300,65.590,66.589],"med2":[null,null,null,null,null,null,null],"share2":[0,0,0,0,0,0,0],"lat":[1003.777,3975.812,15919.582,64357.984,263371.688,1074629.500,4363950.500],"lat2":[null,null,null,null,null,null,null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them, one message per call","mark":"circle"}]},"blake3-servil-mt":{"med":[8.942,6.275,4.382,4.731,5.419,7.526,7.155],"med2":[null,null,5.792,7.009,8.968,9.983,null],"share2":[0,0,125,375,250,125,0],"lat":[143.064,401.596,1121.836,4844.283,22196.591,123299.500,468918.375],"lat2":[null,null,1482.641,7177.413,36734.318,163554.000,null],"kernels":[{"from":0,"name":"Queue::fixed","mark":"circle"}]}}},{"scenario":"solo","use":"LentMessages","batch":false,"labels":["64 B","256 B","1 KiB","4 KiB","16 KiB","64 KiB","256 KiB","1 MiB","4 MiB","16 MiB","64 MiB"],"units":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"bytes":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"series":{"sha256":{"med":[0.982,0.571,0.459,0.434,0.427,0.433,0.437,0.475,0.489,0.481,0.474],"med2":[null,null,null,null,null,null,null,null,null,null,null],"share2":[0,0,0,0,0,0,0,0,0,0,0],"lat":[62.857,146.164,470.017,1777.530,6996.047,28402.412,114624.813,498138.500,2050746.000,8067962.500,31804636.500],"lat2":[null,null,null,null,null,null,null,null,null,null,null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them","mark":"circle"}]},"blake3-servil-st":{"med":[0.708,0.717,0.721,0.262,0.190,0.196,0.197,0.222,0.249,0.260,0.259],"med2":[null,null,null,null,null,null,null,null,0.502,null,null],"share2":[0,0,0,0,0,0,0,0,208,0,0],"lat":[45.289,183.435,738.163,1073.446,3109.400,12874.765,51593.868,232711.625,1042888.000,4364321.000,17393074.500],"lat2":[null,null,null,null,null,null,null,null,2105355.000,null,null],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":1025,"name":"AVX2 hash_many (8-way)","mark":"diamond"}]},"blake3-servil-mt":{"med":[0.707,0.717,0.719,0.263,0.190,0.197,0.196,0.0980,0.0855,0.0807,0.0777],"med2":[null,null,null,null,null,null,null,null,null,0.135,0.101],"share2":[0,0,0,0,0,0,0,0,0,167,167],"lat":[45.230,183.465,736.663,1076.261,3106.700,12902.240,51500.842,102759.125,358703.125,1353606.000,5217049.000],"lat2":[null,null,null,null,null,null,null,null,null,2256895.500,6799711.500],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":1025,"name":"AVX2 hash_many (8-way)","mark":"diamond"},{"from":524288,"name":"split over threads, SME2 on one for large inputs","mark":"square"}]}}},{"scenario":"solo","use":"LentPieces","batch":false,"labels":["64 MiB"],"units":[67108864],"bytes":[67108864],"series":{"sha256":{"med":[0.464],"med2":[null],"share2":[0],"lat":[31108293.000],"lat2":[null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them","mark":"circle"}]},"blake3-servil-st":{"med":[0.228],"med2":[null],"share2":[0],"lat":[15277906.000],"lat2":[null],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":1025,"name":"AVX2 hash_many (8-way)","mark":"diamond"}]},"blake3-servil-mt":{"med":[0.152],"med2":[null],"share2":[0],"lat":[10224654.000],"lat2":[null],"kernels":[{"from":0,"name":"Hasher::update_multithreaded","mark":"circle"}]}}},{"scenario":"solo","use":"LentBatches","batch":true,"labels":["16","64","256","1024","4096","16384","65536"],"units":[16,64,256,1024,4096,16384,65536],"bytes":[1024,4096,16384,65536,262144,1048576,4194304],"series":{"sha256":{"med":[62.344,61.991,61.967,62.575,62.926,65.759,68.018],"med2":[null,null,null,null,null,null,null],"share2":[0,0,0,0,0,0,0],"lat":[997.501,3967.408,15863.571,64076.875,257745.000,1077393.500,4457647.000],"lat2":[null,null,null,null,null,null,null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them, one message per call","mark":"circle"}]},"blake3-servil-st":{"med":[12.680,12.012,11.926,12.605,12.721,14.458,16.975],"med2":[null,null,null,null,null,19.837,23.434],"share2":[0,0,0,0,0,125,125],"lat":[202.875,768.785,3053.026,12907.917,52103.765,236876.200,1112486.000],"lat2":[null,null,null,null,null,325015.600,1535784.000],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":128,"name":"AVX2 hash_many (8-way)","mark":"diamond"}]},"blake3-servil-mt":{"med":[12.650,12.093,11.937,12.614,12.686,5.374,5.611],"med2":[null,null,null,null,null,null,7.840],"share2":[0,0,0,0,0,0,125],"lat":[202.401,773.922,3055.801,12916.514,51962.650,88054.607,367691.000],"lat2":[null,null,null,null,null,null,513792.667],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":128,"name":"AVX2 hash_many (8-way)","mark":"diamond"},{"from":524288,"name":"split over threads","mark":"square"}]}}},{"scenario":"shared","use":"ContinuousMessages","batch":false,"labels":["64 B","256 B","1 KiB","4 KiB","16 KiB","64 KiB","256 KiB","1 MiB","4 MiB","16 MiB","64 MiB"],"units":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"bytes":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"series":{"sha256":{"med":[1.001,0.575,0.459,0.436,0.427,0.436,0.436,0.444,0.445,0.465,0.465],"med2":[null,null,null,null,null,null,null,null,null,null,null],"share2":[0,0,0,0,0,0,0,0,0,0,0],"lat":[64.057,147.178,470.116,1786.722,6988.775,28579.271,114398.444,465622.000,1866394.750,7796940.500,31224557.500],"lat2":[null,null,null,null,null,null,null,null,null,null,null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them","mark":"circle"}]},"blake3-servil-mt":{"med":[1.312,0.354,0.169,0.169,0.131,0.0636,0.0493,0.0537,0.0564,0.0689,0.0752],"med2":[1.977,0.577,null,0.240,null,0.0909,0.0658,0.0707,0.0760,0.0874,null],"share2":[646,104,0,625,0,125,229,292,208,188,0],"lat":[83.991,90.611,173.241,691.869,2152.998,4168.110,12918.014,56311.382,236678.125,1155372.500,5046694.250],"lat2":[126.549,147.687,null,982.763,null,5958.000,17250.164,74088.559,318777.875,1466354.500,null],"kernels":[{"from":0,"name":"Queue::messages","mark":"circle"},{"from":65537,"name":"Queue::pieces","mark":"circle"}]}}},{"scenario":"shared","use":"ContinuousBatches","batch":true,"labels":["16","64","256","1024","4096","16384","65536"],"units":[16,64,256,1024,4096,16384,65536],"bytes":[1024,4096,16384,65536,262144,1048576,4194304],"series":{"sha256":{"med":[62.224,62.105,61.962,62.817,63.767,65.420,66.909],"med2":[null,null,null,null,93.079,null,null],"share2":[0,0,0,0,125,0,0],"lat":[995.586,3974.736,15862.344,64325.109,261190.313,1071839.750,4384980.375],"lat2":[null,null,null,null,381252.188,null,null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them, one message per call","mark":"circle"}]},"blake3-servil-mt":{"med":[9.546,6.627,4.466,5.055,6.146,7.898,11.479],"med2":[null,null,5.586,null,null,11.864,16.742],"share2":[0,0,208,0,0,146,104],"lat":[152.739,424.130,1143.342,5176.511,25173.091,129408.750,752311.000],"lat2":[null,null,1430.012,null,null,194385.500,1097192.750],"kernels":[{"from":0,"name":"Queue::fixed","mark":"circle"}]}}},{"scenario":"shared","use":"LentMessages","batch":false,"labels":["64 B","256 B","1 KiB","4 KiB","16 KiB","64 KiB","256 KiB","1 MiB","4 MiB","16 MiB","64 MiB"],"units":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"bytes":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"series":{"sha256":{"med":[0.984,0.572,0.459,0.436,0.426,0.434,0.440,0.472,0.512,0.517,0.524],"med2":[null,null,null,null,null,null,null,null,null,null,null],"share2":[0,0,0,0,0,0,0,0,0,0,0],"lat":[62.975,146.334,470.108,1786.897,6981.435,28431.691,115228.875,494544.000,2145651.500,8679109.000,35158954.500],"lat2":[null,null,null,null,null,null,null,null,null,null,null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them","mark":"circle"}]},"blake3-servil-st":{"med":[0.711,0.719,0.722,0.266,0.189,0.197,0.199,0.225,0.262,0.303,0.304],"med2":[null,null,null,null,null,null,null,null,0.456,null,null],"share2":[0,0,0,0,0,0,0,0,167,0,0],"lat":[45.533,184.014,738.869,1089.723,3096.410,12905.417,52145.605,235824.875,1097117.500,5083403.000,20378721.500],"lat2":[null,null,null,null,null,null,null,null,1913255.000,null,null],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":1025,"name":"AVX2 hash_many (8-way)","mark":"diamond"}]},"blake3-servil-mt":{"med":[0.710,0.717,0.721,0.265,0.189,0.197,0.199,0.0880,0.0986,0.143,0.146],"med2":[null,null,null,null,null,null,null,null,null,0.182,null],"share2":[0,0,0,0,0,0,0,0,0,188,0],"lat":[45.442,183.553,737.902,1084.598,3089.969,12882.453,52144.000,92242.500,413409.500,2396684.000,9823616.500],"lat2":[null,null,null,null,null,null,null,null,null,3060423.000,null],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":1025,"name":"AVX2 hash_many (8-way)","mark":"diamond"},{"from":524288,"name":"split over threads, SME2 on one for large inputs","mark":"square"}]}}},{"scenario":"shared","use":"LentPieces","batch":false,"labels":["64 MiB"],"units":[67108864],"bytes":[67108864],"series":{"sha256":{"med":[0.467],"med2":[null],"share2":[0],"lat":[31321559.500],"lat2":[null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them","mark":"circle"}]},"blake3-servil-st":{"med":[0.226],"med2":[null],"share2":[0],"lat":[15145720.000],"lat2":[null],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":1025,"name":"AVX2 hash_many (8-way)","mark":"diamond"}]},"blake3-servil-mt":{"med":[0.150],"med2":[null],"share2":[0],"lat":[10035316.500],"lat2":[null],"kernels":[{"from":0,"name":"Hasher::update_multithreaded","mark":"circle"}]}}},{"scenario":"shared","use":"LentBatches","batch":true,"labels":["16","64","256","1024","4096","16384","65536"],"units":[16,64,256,1024,4096,16384,65536],"bytes":[1024,4096,16384,65536,262144,1048576,4194304],"series":{"sha256":{"med":[62.366,62.185,61.954,62.880,63.379,66.729,69.391],"med2":[null,null,null,null,null,null,null],"share2":[0,0,0,0,0,0,0],"lat":[997.851,3979.843,15860.198,64388.781,259602.375,1093286.000,4547597.500],"lat2":[null,null,null,null,null,null,null],"kernels":[{"from":0,"name":"the CPU's SHA-256 instructions, where it has them, one message per call","mark":"circle"}]},"blake3-servil-st":{"med":[12.615,12.152,11.845,12.638,12.864,14.529,17.249],"med2":[null,null,null,null,null,27.840,33.289],"share2":[0,0,0,0,0,125,208],"lat":[201.842,777.723,3032.214,12941.451,52690.206,238042.400,1130410.000],"lat2":[null,null,null,null,null,456129.000,2181614.000],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":128,"name":"AVX2 hash_many (8-way)","mark":"diamond"}]},"blake3-servil-mt":{"med":[12.600,12.136,11.842,12.621,12.829,5.426,7.037],"med2":[null,null,null,null,null,9.102,12.496],"share2":[0,0,0,0,0,167,104],"lat":[201.595,776.699,3031.495,12923.782,52548.225,88893.393,461192.000],"lat2":[null,null,null,null,null,149127.357,818944.000],"kernels":[{"from":0,"name":"SSE4.1 compression","mark":"circle"},{"from":128,"name":"AVX2 hash_many (8-way)","mark":"diamond"},{"from":524288,"name":"split over threads","mark":"square"}]}}}]};
+const EXAMPLES = {"hash":"// One message, all in memory, hashed on the calling thread.\nfn main() {\n    let message = b\"hello, world\";\n    // `hash` reads the whole slice and returns a 32-byte digest.\n    let digest = blake3_servil::hash(message);\n    println!(\"{}\", digest.to_hex());\n}\n","hash_multithreaded":"// One message, all in memory, spread over the program's spare cores.\nfn main() {\n    // Starting the helper threads once, early, keeps that cost off the\n    // first hash. Later calls find them ready.\n    blake3_servil::initialize_multithreaded();\n    let message = vec![7u8; 8 * 1024 * 1024]; // 8 MiB\n    // Same digest as `hash`; large inputs finish sooner.\n    let digest = blake3_servil::hash_multithreaded(&message);\n    println!(\"{}\", digest.to_hex());\n}\n","hash_many":"// Many messages of one length, hashed in one call on the calling thread.\nfn main() {\n    // Messages sit back to back in one buffer: message i starts at i * 64.\n    // A length that is no multiple of 64 gets zero padding up to the next\n    // multiple; the padding belongs to the caller.\n    let nodes: Vec\u003cu8> = (0..1000 * 64).map(|i| i as u8).collect();\n    let mut digests = vec![[0u8; 32]; 1000];\n    blake3_servil::hash_many(&nodes, 64, &mut digests);\n    // digests[i] is the hash of message i.\n    assert_eq!(digests[3], *blake3_servil::hash(&nodes[3 * 64..4 * 64]).as_bytes());\n}\n","hash_many_multithreaded":"// Many messages of one length, one call, spread over the program's cores.\nfn main() {\n    blake3_servil::initialize_multithreaded();\n    // Message i starts at byte i * 64 (see hash_many for other lengths).\n    let leaves: Vec\u003cu8> = (0..100_000 * 64).map(|i| (i / 64) as u8).collect();\n    let mut digests = vec![[0u8; 32]; 100_000];\n    blake3_servil::hash_many_multithreaded(&leaves, 64, &mut digests);\n    println!(\"{} digests\", digests.len());\n}\n","update":"// One message arriving in pieces (a file read, a network stream).\nuse std::io::Read;\n\nfn main() -> std::io::Result\u003c()> {\n    let mut file = std::fs::File::open(\"Cargo.toml\")?;\n    let mut buffer = vec![0u8; 64 * 1024];\n    let mut hasher = blake3_servil::Hasher::new();\n    loop {\n        let n = file.read(&mut buffer)?;\n        if n == 0 { break; }\n        // Each piece extends the same message; the order matters.\n        hasher.update(&buffer[..n]);\n    }\n    // The digest of the whole message, whatever the piece sizes were.\n    println!(\"{}\", hasher.finalize().to_hex());\n    Ok(())\n}\n","update_multithreaded":"// Pieces that arrive faster than one thread can hash them; each piece is\n// borrowed only until the call returns.\nuse std::io::Read;\n\nfn main() -> std::io::Result\u003c()> {\n    blake3_servil::initialize_multithreaded();\n    let mut file = std::fs::File::open(\"Cargo.toml\")?;\n    let mut buffer = vec![0u8; 64 * 1024];\n    let mut hasher = blake3_servil::Hasher::new();\n    loop {\n        let n = file.read(&mut buffer)?;\n        if n == 0 { break; }\n        // Helper threads share each piece; between pieces they stay ready\n        // for a short while, so a quick succession of pieces flows.\n        hasher.update_multithreaded(&buffer[..n]);\n    }\n    println!(\"{}\", hasher.finalize().to_hex());\n    Ok(())\n}\n","Queue::messages":"// Messages one after another, each in a buffer your code owns. The queue\n// hashes earlier buffers while you fill the next; each buffer comes back\n// with its digest.\nuse blake3_servil::{Efficiency, Hash, MessageHandler, Mode, Queue};\nuse std::sync::mpsc;\n\n// Your handler receives each result. Keep it short; it runs on the\n// queue's delivery thread, in submission order.\nstruct Results(mpsc::SyncSender\u003c(Vec\u003cu8>, Hash)>);\nimpl MessageHandler for Results {\n    type Buffer = Vec\u003cu8>;\n    fn hashed(&mut self, buffer: Vec\u003cu8>, hash: Hash) {\n        // The channel has room for every buffer in flight, so this never waits.\n        self.0.try_send((buffer, hash)).unwrap();\n    }\n}\n\nfn main() {\n    let in_flight = 8; // buffers you keep cycling\n    let (sender, results) = mpsc::sync_channel(in_flight);\n    let queue = Queue::messages(Mode::Hash, Efficiency::Time, Results(sender));\n    let mut free: Vec\u003cVec\u003cu8>> = (0..in_flight).map(|_| Vec::with_capacity(4096)).collect();\n    for message_number in 0..1000u32 {\n        // Take a free buffer, or wait for one to come back with its digest.\n        let mut buffer = free.pop().unwrap_or_else(|| {\n            let (buffer, hash) = results.recv().unwrap();\n            println!(\"{}\", hash.to_hex());\n            buffer\n        });\n        buffer.clear();\n        buffer.extend_from_slice(&message_number.to_le_bytes()); // your read goes here\n        queue.submit(buffer); // returns at once\n    }\n    // Drain: every buffer comes back once.\n    for _ in 0..in_flight - free.len() {\n        let (_buffer, hash) = results.recv().unwrap();\n        println!(\"{}\", hash.to_hex());\n    }\n}\n","Queue::pieces":"// One long message arriving in pieces you own, faster than one thread\n// hashes; the queue hashes earlier pieces while you fill the next.\nuse blake3_servil::{Efficiency, Hash, Mode, PieceHandler, Queue};\nuse std::sync::mpsc;\n\nenum Back { Piece(Vec\u003cu8>), Done(Hash) }\n\nstruct Results(mpsc::SyncSender\u003cBack>);\nimpl PieceHandler for Results {\n    type Buffer = Vec\u003cu8>;\n    fn piece_done(&mut self, buffer: Vec\u003cu8>) { self.0.try_send(Back::Piece(buffer)).unwrap(); }\n    fn finished(&mut self, hash: Hash) { self.0.try_send(Back::Done(hash)).unwrap(); }\n}\n\nfn main() {\n    let in_flight = 4;\n    let (sender, results) = mpsc::sync_channel(in_flight + 1);\n    let queue = Queue::pieces(Mode::Hash, Efficiency::Time, Results(sender));\n    let mut free: Vec\u003cVec\u003cu8>> = (0..in_flight).map(|_| vec![0u8; 64 * 1024]).collect();\n    for piece_number in 0..100u8 {\n        let mut piece = free.pop().unwrap_or_else(|| match results.recv().unwrap() {\n            Back::Piece(buffer) => buffer,\n            Back::Done(_) => unreachable!(\"the message is still open\"),\n        });\n        piece.fill(piece_number); // your read goes here\n        queue.submit(piece); // pieces in order; returns at once\n    }\n    queue.finish(); // the message ends here\n    loop {\n        match results.recv().unwrap() {\n            Back::Piece(_) => {}\n            Back::Done(hash) => { println!(\"{}\", hash.to_hex()); break; }\n        }\n    }\n}\n","Queue::fixed":"// Batches of equal-length messages, one buffer after another, each buffer\n// yours; the queue hashes earlier batches while you fill the next.\nuse blake3_servil::{Efficiency, FixedHandler, Mode, Queue};\nuse std::sync::mpsc;\n\nstruct Results(mpsc::SyncSender\u003c(Vec\u003cu8>, Vec\u003c[u8; 32]>)>);\nimpl FixedHandler for Results {\n    type Buffer = Vec\u003cu8>;\n    type Digests = Vec\u003c[u8; 32]>;\n    fn hashed(&mut self, buffer: Vec\u003cu8>, digests: Vec\u003c[u8; 32]>) {\n        self.0.try_send((buffer, digests)).unwrap();\n    }\n}\n\nfn main() {\n    let (messages, message_len, in_flight) = (1024, 64, 8);\n    let (sender, results) = mpsc::sync_channel(in_flight);\n    // Message i of a batch starts at byte i * 64 (see hash_many for other lengths).\n    let queue = Queue::fixed(message_len, Mode::Hash, Efficiency::Time, Results(sender));\n    let mut free: Vec\u003c(Vec\u003cu8>, Vec\u003c[u8; 32]>)> =\n        (0..in_flight).map(|_| (vec![0u8; messages * message_len], vec![[0u8; 32]; messages])).collect();\n    for batch_number in 0..50u8 {\n        let (mut buffer, digests) = free.pop().unwrap_or_else(|| {\n            let (buffer, digests) = results.recv().unwrap();\n            println!(\"{:02x?}\", &digests[0][..4]);\n            (buffer, digests)\n        });\n        buffer.fill(batch_number); // your read goes here\n        queue.submit(buffer, digests); // returns at once\n    }\n    for _ in 0..in_flight - free.len() {\n        let (_buffer, digests) = results.recv().unwrap();\n        println!(\"{:02x?}\", &digests[0][..4]);\n    }\n}\n"};
+
+/* The questions; the last choice of each is for a reader who cannot tell. */
+const QUESTIONS = {
+  threads: { title: "Can your program use several threads for hashing?", help: "", choices: [["many", "Yes"], ["one", "No, one thread"], ["one", "I'm not sure: one thread"]] },
+  shape: { title: "What shape is your data?", help: "A batch is many separate messages of one length, each with its own digest.", choices: [["message", "One message, all in one buffer"], ["pieces", "One message arriving in pieces"], ["batch", "A batch of equal-length messages"], ["message", "I'm not sure: one buffer"]] },
+  keepsUp: { title: "When the next input arrives, is your thread done with the last one?", help: "A network upload leaves time to spare. A file already in memory has the next piece ready at once.", choices: [["yes", "Yes, it waits for more data"], ["no", "No, there is always more ready"], ["yes", "I'm not sure: yes"]] },
+  buffer: { title: "Whose buffer does the data land in?", help: "A queue takes a buffer and hands it back later with its digest. A plain function only borrows one until it returns.", choices: [["owned", "Mine: my code chooses it"], ["owned", "Someone else's, but mine until I'm done"], ["lent", "Someone else's, lent only until I return"], ["lent", "I'm not sure: lent"]] },
+  efficiency: { title: "Save time, or save energy?", help: "Every function here saves time; energy-saving forms are being built.", choices: [["time", "Time"], ["energy", "Energy"], ["time", "I'm not sure: time"]] },
+};
+function steps(a) {
+  const list = ["threads", "shape", "keepsUp"];
+  if (a.threads === "many" && a.keepsUp === "no") list.push("buffer");
+  if (a.threads === "many") list.push("efficiency");
+  return list;
+}
+
+/* The decision table (the crate's docs, "Five questions lead a user to one call"). */
+/* A message in pieces now and then: each piece costs about what hash costs on a buffer that long, so its plots are hash's. */
+const PATTERNS = { message: ["IdleOneMessage", "OneMessage", "LentMessages"], pieces: ["IdleOneMessage", "OneMessage", "LentPieces"], batch: ["IdleManyMessages", "ManyMessages", "LentBatches"] };
+function recommendation(a) {
+  const many = a.threads === "many", nonstop = a.keepsUp === "no", s = a.shape;
+  if (many && nonstop && a.buffer === "owned") {
+    const call = { message: "Queue::messages", pieces: "Queue::pieces", batch: "Queue::fixed" }[s];
+    return { call, contender: "blake3-servil-mt", uses: [s === "batch" ? "ContinuousBatches" : "ContinuousMessages"], useIndex: 0, shape: s,
+      summary: "A queue: you hand over buffers you own and keep producing; its threads hash them and hand each back with its digest to a handler you write.",
+      pass: s === "batch" ? "A buffer of equal-length messages laid out back to back, plus space for their digests; both come back to your handler." : s === "pieces" ? "Each piece of the message in order, then finish(); each piece comes back once hashed, the digest last." : "One buffer per message; each comes back to your handler with its digest.",
+      get: "Calls to your handler, in the order you submitted, one at a time. submit() returns at once.",
+      mind: "Keep the handler short; it runs on the queue's thread. Cycle a fixed set of buffers, and wait for one to come back when none is free. Make the queue once and keep it." };
+  }
+  const mt = many && (s !== "pieces" || nonstop);
+  const call = { message: "hash", pieces: "update", batch: "hash_many" }[s] + (mt ? "_multithreaded" : "");
+  // A pattern toggle keeps the actual API. Multithreaded pieces use
+  // update after a gap and update_multithreaded nonstop: separate calls.
+  const uses = s === "pieces" && many
+    ? (mt ? [null, null, "LentPieces"] : ["IdleOneMessage", "OneMessage", null])
+    : PATTERNS[s];
+  return { call, contender: mt ? "blake3-servil-mt" : "blake3-servil-st", uses, useIndex: nonstop ? 2 : 1, shape: s,
+    summary: s === "batch" ? `One call hashes every message in the buffer${mt ? ", spread over your spare cores" : ""}: how a Merkle tree hashes a layer.`
+      : s === "pieces" ? `A Hasher keeps the message's state between pieces${mt ? "; helper threads share each piece" : ""}: how a file or a stream is hashed as it arrives.`
+      : `The plain function: it reads the buffer and returns the digest${mt ? ", spreading a large message over your spare cores" : ""}.`,
+    pass: s === "batch" ? "One buffer holding all the messages, each starting at a multiple of the message length rounded up to 64 bytes (zero the padding), and a slice of 32-byte arrays for the digests." : s === "pieces" ? "Each piece as a byte slice, in order; any sizes." : "The whole message as a byte slice.",
+    get: s === "batch" ? "The digests, in message order." : s === "pieces" ? "From finalize(): the digest of the whole message, the same whatever the piece sizes were." : "A Hash: 32 bytes, with to_hex() and constant-time equality.",
+    mind: mt ? "Call initialize_multithreaded() once at startup, so the first call finds its threads ready. The digest equals the single-threaded function's." : "Runs on your thread alone: the least energy per byte, and right for a machine whose other cores are busy." };
+}
+
+/* Times and rates for people: three significant digits. */
+const sig = v => v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
+function humanTime(ns) {
+  for (const [scale, unit] of [[1e9, "s"], [1e6, "ms"], [1e3, "µs"]]) if (ns >= scale) return `${sig(ns / scale)} ${unit}`;
+  return `${sig(ns)} ns`;
+}
+const humanRate = (nsPerUnit, batch) => batch ? `${sig(1000 / nsPerUnit)} million messages/s` : `${sig(1 / nsPerUnit)} GB/s`;
+
+const MARK = {
+  circle: r => `<circle r="${r}"/>`,
+  diamond: r => `<path d="M0 ${-1.25 * r} L${1.25 * r} 0 L0 ${1.25 * r} L${-1.25 * r} 0Z"/>`,
+  square: r => `<rect x="${-0.9 * r}" y="${-0.9 * r}" width="${1.8 * r}" height="${1.8 * r}"/>`,
+  triangle: r => `<path d="M0 ${-1.3 * r} L${1.2 * r} ${0.9 * r} L${-1.2 * r} ${0.9 * r}Z"/>`,
+  "downward triangle": r => `<path d="M0 ${1.3 * r} L${1.2 * r} ${-0.9 * r} L${-1.2 * r} ${-0.9 * r}Z"/>`,
+};
+const mark = (kind, r, x, y, color, extra = "") => `<g transform="translate(${x} ${y})" fill="${color}" ${extra}>${(MARK[kind] || MARK.circle)(r)}</g>`;
+
+const el = id => document.getElementById(id);
+let answers = {}, history = [], current = null, scenario = "solo", useIndex = 0;
+
+function choose(key, value, label) { answers[key] = value; history.push({ key, label }); show(); }
+function show() {
+  el("trail").textContent = history.map(h => h.label).join(" · ");
+  el("back").hidden = el("restart").hidden = history.length === 0;
+  const next = steps(answers).find(key => !(key in answers));
+  el("question").hidden = !next;
+  el("result").hidden = !!next;
+  if (next) {
+    const q = QUESTIONS[next];
+    el("q-title").textContent = q.title;
+    el("q-help").textContent = q.help;
+    el("choices").replaceChildren(...q.choices.map(([value, label], i) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      if (i === q.choices.length - 1) b.className = "unsure";
+      b.onclick = () => choose(next, value, label);
+      return b;
+    }));
+    el("q-title").focus();
+    return;
+  }
+  current = recommendation(answers);
+  useIndex = current.useIndex;
+  el("fn").textContent = current.call;
+  el("summary").textContent = current.summary;
+  el("example").textContent = EXAMPLES[current.call];
+  el("pass").textContent = current.pass;
+  el("get").textContent = current.get;
+  el("mind").textContent = current.mind;
+  el("energy").hidden = answers.efficiency !== "energy";
+  el("program").open = false;
+  drawSpeed();
+  el("fn").closest("h2").scrollIntoView({ block: "start" });
+}
+
+const plotFor = (use, sc) => DATA.plots.find(p => p.scenario === sc && p.use === use && p.series[current.contender]);
+const rival = plot => ["sha256-ring", "sha256", "sha256-cc"].find(key => plot.series[key]);
+/* Which points this function covers: Queue::messages up to 64 KiB, Queue::pieces beyond, else all. */
+function pointsFor(plot) {
+  const all = [...plot.labels.keys()];
+  if (plot.use !== "ContinuousMessages") return all;
+  return all.filter(k => current.shape === "pieces" ? plot.units[k] > 65536 : plot.units[k] <= 65536);
+}
+
+/* The chips: the pattern the benchmark called the function in, and alone or beside another program. */
+function drawChips(plot) {
+  const how = el("how");
+  how.replaceChildren();
+  const add = (label, pressed, onclick) => { const b = document.createElement("button"); b.textContent = label; b.setAttribute("aria-pressed", pressed); b.onclick = onclick; how.appendChild(b); };
+  const text = t => { const s = document.createElement("span"); s.textContent = t; how.appendChild(s); };
+  text("Called");
+  if (current.uses.length === 3) {
+    const measured = current.uses.map(use => !!plotFor(use, scenario));
+    ["after idling", "after other work", "nonstop"].forEach((label, i) => { if (measured[i]) add(label, useIndex === i, () => { useIndex = i; drawSpeed(); }); });
+  } else text("nonstop");
+  /* Two programs at once are measured nonstop alone (a gap's twin warmed the other's code). */
+  if (plotFor(current.uses[useIndex], "shared")) {
+    text(",");
+    add("alone", scenario === "solo", () => { scenario = "solo"; drawSpeed(); });
+    add("beside another program", scenario === "shared", () => { scenario = "shared"; drawSpeed(); });
+  } else text(", alone");
+}
+
+function drawSpeed() {
+  if (!plotFor(current.uses[useIndex], scenario)) scenario = "solo";
+  const r = current, plot = plotFor(r.uses[useIndex], scenario);
+  drawChips(plot);
+  const points = plot ? pointsFor(plot) : [];
+  const measured = plot && points.length > 0;
+  el("unmeasured").hidden = measured;
+  el("chart").hidden = el("speed-summary").hidden = !measured;
+  if (!measured) { el("paths").replaceChildren(); el("method").textContent = ""; el("stand-in").hidden = true; return; }
+  const other = rival(plot);
+  const mine = DATA.contenders.find(c => c.key === r.contender), theirs = DATA.contenders.find(c => c.key === other);
+  const series = [[mine, plot.series[r.contender]]].concat(theirs ? [[theirs, plot.series[other]]] : []);
+  /* hash's plot standing in for update's pieces now and then: its x is each piece's length. */
+  const standIn = r.shape === "pieces" && !r.call.startsWith("Queue::") && plot.use !== "LentPieces";
+  el("stand-in").hidden = !standIn;
+  el("stand-in").textContent = standIn ? "Each piece costs about what hash costs on one buffer of the piece's length: these are hash's measurements, and a message of up to 64 KiB is a single piece." : "";
+  const xLabel = plot.batch ? "Messages per batch" : standIn ? "Length of each piece" : "Message length";
+  const unit = plot.batch ? " messages" : "";
+
+  /* The sentence, from the same numbers as the dots: the size from which the lead holds to the largest. */
+  let text = `${mine.name}, measured alone; this run has no SHA-256 to compare with.`;
+  if (theirs) {
+    const ahead = points.map(k => +plot.series[r.contender].med[k] < +plot.series[other].med[k]);
+    const behind = points.map(k => +plot.series[r.contender].med[k] > +plot.series[other].med[k]);
+    let from = ahead.length;
+    while (from > 0 && ahead[from - 1]) from--;
+    if (points.length === 1) text = `${ahead[0] ? "Faster than" : behind[0] ? "Slower than" : "As fast as"} ${theirs.name} on a ${plot.labels[points[0]]} message${plot.use === "LentPieces" || r.call === "Queue::pieces" ? " in 64 KiB pieces" : ""}.`;
+    else if (from === 0) text = `Faster than ${theirs.name} at every size measured.`;
+    else if (behind.every(Boolean)) text = `Slower than ${theirs.name} at every size measured.`;
+    else if (from === ahead.length) text = ahead.some(Boolean) ? "The two trade places across the sizes measured." : `As fast as ${theirs.name} or slower at every size measured.`;
+    else text = `Faster than ${theirs.name} from ${plot.labels[points[from]]}${unit} up; ${ahead.slice(0, from).some(x => x) ? "the two trade places below that" : `${theirs.name} leads below that`}.`;
+  }
+  el("speed-summary").textContent = text;
+
+  /* The chart: throughput on log scales, so every size gets the same room. */
+  const W = 640, H = 300, L = 56, R = 150, T = 16, B = 44;
+  const logs = points.map(k => Math.log2(plot.units[k]));
+  const [x0, x1] = [Math.min(...logs), Math.max(...logs)];
+  const xs = logs.map(v => L + (x1 === x0 ? 0.5 : (v - x0) / (x1 - x0)) * (W - L - R));
+  const placed = [];
+  for (const i of points.map((_, i) => i).sort((a, b) => (Number.isInteger(logs[b]) - Number.isInteger(logs[a])) || a - b)) if (placed.every(j => Math.abs(xs[i] - xs[j]) >= 58)) placed.push(i);
+  const rate = ns => (plot.batch ? 1000 : 1) / ns;
+  const vals = series.flatMap(([, s]) => points.flatMap(k => [+s.med[k], s.med2[k] === null ? +s.med[k] : +s.med2[k]]));
+  /* The range reaches out to a gridline (1, 2, or 5 times a power of ten) at each end, so every chart has numbers on its axis. */
+  const nice = (v, up) => { const e = 10 ** Math.floor(Math.log10(v)); const ms = up ? [1, 2, 5, 10] : [10, 5, 2, 1]; return e * ms.find(m => up ? e * m >= v : e * m <= v); };
+  const lo = nice(Math.min(...vals.map(rate)) / 1.15, false), hi = nice(Math.max(...vals.map(rate)) * 1.15, true);
+  const y = v => T + (Math.log(hi) - Math.log(v)) / (Math.log(hi) - Math.log(lo)) * (H - T - B);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${xLabel} against throughput, higher is better">`;
+  for (let e = Math.floor(Math.log10(lo)); e <= Math.ceil(Math.log10(hi)); e++) for (const m of [1, 2, 5]) {
+    const v = m * 10 ** e;
+    if (v >= lo && v <= hi) svg += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#e6eaec"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#5b6a72">${v >= 1 ? v : v.toPrecision(1)}</text>`;
+  }
+  svg += `<text transform="translate(14 ${(T + H - B) / 2}) rotate(-90)" text-anchor="middle" font-size="11" fill="#5b6a72">${plot.batch ? "Million messages per second" : "Gigabytes per second"} · higher is better</text>`;
+  points.forEach((k, i) => {
+    svg += `<line x1="${xs[i]}" x2="${xs[i]}" y1="${H - B}" y2="${H - B + (placed.includes(i) ? 6 : 3)}" stroke="#b6c4cb"/>`;
+    if (placed.includes(i)) svg += `<text x="${xs[i]}" y="${H - B + 19}" text-anchor="middle" font-size="11" fill="#5b6a72">${plot.labels[k]}</text>`;
+  });
+  svg += `<text x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle" font-size="11" fill="#5b6a72">${xLabel}</text>`;
+  const labelYs = [];
+  const kernelAt = (s, k) => { let name = ""; let kind = "circle"; for (const kernel of s.kernels) if (plot.bytes[k] >= kernel.from) { name = kernel.name; kind = kernel.mark; } return { name, kind }; };
+  const usedMarks = new Map();
+  for (const [c, s] of series) {
+    svg += `<polyline points="${points.map((k, i) => `${xs[i]},${y(rate(+s.med[k]))}`).join(" ")}" fill="none" stroke="${c.color}" stroke-width="2.2"/>`;
+    points.forEach((k, i) => {
+      const { name, kind } = kernelAt(s, k);
+      usedMarks.set(`${c.key}|${name}`, [c, kind, name]);
+      svg += mark(kind, 4, xs[i], y(rate(+s.med[k])), c.color, `stroke="#fdfdfc" stroke-width="1.2"`).replace("<g ", `<g class="dot" `).replace("</g>", `<title>${escapeXml(`${c.name}, ${plot.labels[k]}${unit}: ${humanTime(+s.lat[k])} per ${plot.batch ? "batch" : "call"} · ${humanRate(+s.med[k], plot.batch)}${name ? ` · ${name}` : ""}`)}</title></g>`);
+      if (s.med2[k] !== null) svg += mark(kind, 3.5, xs[i], y(rate(+s.med2[k])), c.color, `opacity="${Math.max(0.2, s.share2[k] / 1000)}"`).replace("</g>", `<title>${escapeXml(`${c.name}, ${plot.labels[k]}${unit}, the slower speed (${Math.round(s.share2[k] / 10)}% of samples): ${humanTime(+s.lat2[k])} per ${plot.batch ? "batch" : "call"} · ${humanRate(+s.med2[k], plot.batch)}`)}</title></g>`);
+    });
+    let ly = y(rate(+s.med[points.at(-1)]));
+    for (const o of labelYs) if (Math.abs(ly - o) < 16) ly = o + 16;
+    labelYs.push(ly);
+    svg += `<text x="${W - R + 8}" y="${ly + 4}" font-size="12" font-weight="600" fill="${c.color}">${c.name}</text>`;
+  }
+  el("chart").innerHTML = svg + "</svg>";
+
+  /* Behind the door: the code paths, one line per mark. */
+  el("paths").replaceChildren(...[...usedMarks.values()].filter(([, , name]) => name).map(([c, kind, name]) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<svg viewBox="-7 -7 14 14">${mark(kind, 4, 0, 0, c.color)}</svg>${escapeXml(c.name)}: ${escapeXml(name)}`;
+    return li;
+  }));
+  el("method").textContent = methodText(plot);
+}
+function escapeXml(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+function methodText(plot) {
+  const where = `on ${DATA.machine}, ${DATA.date}`, sc = scenario === "solo" ? "one program hashing" : "two programs hashing at once; the time of either";
+  const use = plot.use;
+  if (use === "ContinuousMessages" || use === "ContinuousBatches")
+    return `Measured ${where}, ${sc}. The program read each input into one of its own buffers (a memory copy, the cheapest read) and handed it to the queue, keeping about 1 MiB or 1024 buffers in flight; the time runs from the first read to the last digest, so reading and hashing overlap. SHA-256 ran the same producer with a plain call per input.`;
+  if (use.startsWith("Lent"))
+    return `Measured ${where}, ${sc}. The program read each input${use === "LentPieces" ? ", 64 KiB at a time," : ""} into a buffer (a memory copy) and called the function, one input after another with nothing between; the read is inside the time. Every contender ran the same loop.`;
+  if (use.startsWith("Idle"))
+    return `Measured ${where}, ${sc}. The program called the function, slept a millisecond, as a server waits for its next request, wrote the next input, and called again; the function found helper threads asleep and a core that may have slowed or powered down. The second call alone is timed.`;
+  return `Measured ${where}, ${sc}. The program called the function, then ran a fixed other program (about 1 MiB of code) and read 128 MiB of data, at least a millisecond in all, wrote the next input, and called again: the function found its code and data out of the caches and its helper threads asleep, as in a program that hashes between its other tasks. The second call alone is timed.`;
+}
+
+el("back").onclick = () => { const last = history.pop(); delete answers[last.key]; show(); };
+el("restart").onclick = () => { answers = {}; history = []; show(); window.scrollTo(0, 0); };
+show();
+</script>
+</body>
+</html>
