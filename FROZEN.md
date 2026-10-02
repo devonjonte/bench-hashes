@@ -1,5 +1,22 @@
 # What the benchmark asks of the servil fork (frozen)
 
+## Devon's Linux extension — October 2, 2026
+
+The user explicitly authorizes Devon to add batch message lengths beyond
+64 bytes for Linux optimization. Devon's `0.10.0-devon.linux.1` adds the
+separate `batches` command: whole-block messages of 64, 128, 256, 512, 1024,
+2048 and 4096 bytes; default counts 3, 6, 8, 16, 64 and 129; lent synchronous
+calls and owned queues; solo and two-copy shared scenarios. Calls and
+producer/delivery implementations are the existing adapters, with length
+supplied by the point. Native official BLAKE3 batching supports up to one
+chunk; longer messages use its plain hash loop.
+
+The original 64-byte contract block below remains unchanged. Supplemental
+points name both count and length, preventing pooling of unlike work. This
+is an independently versioned Devon instrument, not an upstream release or
+an amendment attributed to Zooko. Freeze this runtime for old/new comparison
+before changing BLAKE3; a future instrument revision starts fresh comparisons.
+
 The servil team's contract with itself (Zooko and John Servil): bench-hashes
 measures the fork through exactly the calls and usage patterns below, which
 are the API plan (the fork's `docs/api-design.md`) turned into

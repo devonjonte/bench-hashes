@@ -1,6 +1,36 @@
 # bench-hashes
 
-Written by GPT-5.6 Sol, Claude Fable 5, and Claude Opus 5.5 to my (Zooko's) specifications.
+Original benchmark written by GPT-5.6 Sol, Claude Fable 5, and Claude Opus 5.5 to Zooko's specifications.
+
+**Devon's Linux research version.** This branch adds measurements for batches
+of messages longer than 64 bytes. Results guide provisional optimization on
+the tested Linux host; the [full reliability acceptance procedure](https://github.com/devonjonte/bench-hashes/blob/c05a253/audit/reliability-assessment.md)
+remains incomplete. Historical upstream Mac results below describe their own
+versions, not validation of this extension.
+
+## Batches of longer messages
+
+Run `cargo run --release -- batches` for equal-length messages of 64, 128,
+256, 512, 1024, 2048 and 4096 bytes. The benchmark measures lent synchronous
+calls and owned queues, alone and with two copies hashing concurrently.
+`batches --help` lists the options. For example:
+
+```sh
+cargo run --release -- batches --lengths 256,2048 --counts 3,6,16,129 --rounds 24
+```
+
+Results go to `benchmark-results/batches/`: `bench-hashes.txt` gives each
+speed's median and sample share in nanoseconds per message;
+`bench-hashes.samples.tsv` preserves raw time and message counts; `clocks.csv`
+records wall time and available per-thread cycle counts. Busy or unobserved
+load makes comparisons descriptive only. The original 64-byte measurements
+and graphs remain available through the normal command.
+
+Compare corresponding runs with `bench-hashes compare OLD.tsv -- NEW.tsv`;
+compare each version's repeats as well. A changed mix of speeds is a finding
+alongside the medians. These results include the input producer and digest
+handling. The official BLAKE3 contender uses its native batch kernel through
+1024-byte messages and a loop of plain hash calls for longer ones.
 
 ## Is BLAKE3 faster than SHA-256?
 

@@ -599,6 +599,13 @@ impl Point {
         Self { label, bytes: messages * MESSAGE_LEN, messages, use_case: UseCase::LentBatches }
     }
 
+    /// Actual whole-block message length, including supplementary batch points.
+    fn message_len(self) -> usize {
+        assert!(self.use_case.batch() && self.messages > 0);
+        assert_eq!(self.bytes % self.messages, 0);
+        self.bytes / self.messages
+    }
+
     /// Whether a quick run measures this point: inputs below QUICK_BYTES,
     /// batches below QUICK_MESSAGES.
     fn quick(&self) -> bool {
@@ -1303,6 +1310,9 @@ cell sampled in a share of them.
                                    core kind, for the solo sample and each
                                    shared copy
 
+  bench-hashes batches [--lengths 64,128,256,512,1024,2048,4096]
+                                   supplementary equal-length batches;
+                                   --help lists counts and scenarios
   bench-hashes compare OLD.tsv... -- NEW.tsv...
                                    compare runs' samples files, each side's
                                    pooled, cell by cell, speed with speed
@@ -1443,6 +1453,9 @@ fn main() {
     }
     if arguments.first().map(String::as_str) == Some("regress") {
         std::process::exit(regress_command(&arguments[1..]));
+    }
+    if arguments.first().map(String::as_str) == Some("batches") {
+        return batch_bench::command(&arguments[1..]);
     }
     let Options { selection, explicit, points, rounds, trace_path, quick } = parse_arguments();
     let mut trace = trace_path.map(ClockTrace::new);
@@ -1957,7 +1970,7 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
                 let measured = take_prepared_sample(input, iterations, idle, |input| {
                     #[cfg(test)]
                     observe_call("hash_many");
-                    hash_many(black_box(input), MESSAGE_LEN, &mut digests[..point.messages]);
+                    hash_many(black_box(input), point.message_len(), &mut digests[..point.messages]);
                     black_box(digests[..point.messages].as_flattened());
                 });
                 keep_batch_digests(digests);
@@ -2052,7 +2065,7 @@ fn hash_batch(
 ) {
     assert!(iterations > 0, "batch size must be positive");
     let messages = point.messages;
-    let message_len = if point.use_case.batch() { point.use_case.message_len() } else { input.len() };
+    let message_len = if point.use_case.batch() { point.message_len() } else { input.len() };
     assert!(messages == 1 || input.len() == messages * message_len, "a batch is {messages} messages of {message_len} bytes");
     assert!(algorithm.takes_part(point.use_case), "{} takes no part in {:?}", algorithm.key(), point.use_case);
 
@@ -2069,7 +2082,7 @@ fn hash_batch(
 /// a batch of them.
 fn hash_in_memory(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, consume: impl FnMut(&[u8])) {
     let messages = point.messages;
-    let message_len = if point.use_case.batch() { point.use_case.message_len() } else { input.len() };
+    let message_len = if point.use_case.batch() { point.message_len() } else { input.len() };
     match algorithm {
         Algorithm::Blake3 => {
             if !point.use_case.batch() {
@@ -2212,7 +2225,7 @@ fn hash_continuous_messages(algorithm: Algorithm, input: &[u8], iterations: usiz
  */
 fn hash_continuous_batches(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
     if algorithm == Algorithm::Blake3ServilMt {
-        return queue_batches(input, point.messages, iterations, consume);
+        return queue_batches(input, point.messages, point.message_len(), iterations, consume);
     }
     let batch = Point { use_case: UseCase::ManyMessages, ..point };
     let mut buffers = take_buffers(1, input.len());
@@ -2356,18 +2369,19 @@ thread_local! {
     /// in flight and buffer length (see Returns).
     static MESSAGE_QUEUES: std::cell::RefCell<std::collections::HashMap<(usize, usize), MessageQueue>> = std::cell::RefCell::new(std::collections::HashMap::new());
     static PIECE_QUEUES: std::cell::RefCell<std::collections::HashMap<(usize, usize), PieceQueue>> = std::cell::RefCell::new(std::collections::HashMap::new());
-    static BATCH_QUEUES: std::cell::RefCell<std::collections::HashMap<(usize, usize), BatchQueue>> = std::cell::RefCell::new(std::collections::HashMap::new());
+    static BATCH_QUEUES: std::cell::RefCell<std::collections::HashMap<(usize, usize, usize), BatchQueue>> = std::cell::RefCell::new(std::collections::HashMap::new());
 }
 
 /// This thread's queue and returns for the cell, made on first use (with
 /// `make`, given the returns' sending end); put it back with `keep`.
-fn take_returns<Q, T>(
-    kept: &'static std::thread::LocalKey<std::cell::RefCell<std::collections::HashMap<(usize, usize), Returns<Q, T>>>>,
-    key: (usize, usize),
+fn take_returns<Q, T, K: Eq + std::hash::Hash + 'static>(
+    kept: &'static std::thread::LocalKey<std::cell::RefCell<std::collections::HashMap<K, Returns<Q, T>>>>,
+    key: K,
+    count: usize,
     make: impl FnOnce(std::sync::mpsc::SyncSender<T>) -> Q,
 ) -> Returns<Q, T> {
     kept.with(|kept| kept.borrow_mut().remove(&key)).unwrap_or_else(|| {
-        let (sender, returned) = std::sync::mpsc::sync_channel(returns_room(key.0));
+        let (sender, returned) = std::sync::mpsc::sync_channel(returns_room(count));
         Returns { queue: make(sender), returned }
     })
 }
@@ -2412,7 +2426,7 @@ fn queue_messages(input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8]
         buffer
     };
     if input.len() <= PIECE_LEN {
-        let returns = take_returns(&MESSAGE_QUEUES, key, |sender| {
+        let returns = take_returns(&MESSAGE_QUEUES, key, count, |sender| {
             blake3_servil::Queue::messages(blake3_servil::Mode::Hash, blake3_servil::Efficiency::Time, MessagesBack(sender))
         });
         for _ in 0..iterations {
@@ -2424,7 +2438,7 @@ fn queue_messages(input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8]
         }
         MESSAGE_QUEUES.with(|kept| kept.borrow_mut().insert(key, returns));
     } else {
-        let returns = take_returns(&PIECE_QUEUES, key, |sender| {
+        let returns = take_returns(&PIECE_QUEUES, key, count, |sender| {
             blake3_servil::Queue::pieces(blake3_servil::Mode::Hash, blake3_servil::Efficiency::Time, MessagesBack(sender))
         });
         for _ in 0..iterations {
@@ -2450,12 +2464,14 @@ fn queue_messages(input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8]
  * returns when it has no free buffer, and at the end for every buffer
  * still in flight.
  */
-fn queue_batches(input: &[u8], messages: usize, iterations: usize, mut consume: impl FnMut(&[u8])) {
-    assert_eq!(input.len(), messages * MESSAGE_LEN, "a batch is whole 64-byte messages");
+fn queue_batches(input: &[u8], messages: usize, message_len: usize, iterations: usize, mut consume: impl FnMut(&[u8])) {
+    assert_eq!(input.len(), messages * message_len, "a batch is whole equal-length messages");
     let count = in_flight(input.len());
-    let key = (count, input.len());
-    let returns = take_returns(&BATCH_QUEUES, key, |sender| {
-        blake3_servil::Queue::fixed(MESSAGE_LEN, blake3_servil::Mode::Hash, blake3_servil::Efficiency::Time, BatchesBack(sender))
+    // Same total bytes may hold different message lengths/counts. A queue
+    // and its digest buffers belong to that complete shape.
+    let key = (count, input.len(), message_len);
+    let returns = take_returns(&BATCH_QUEUES, key, count, |sender| {
+        blake3_servil::Queue::fixed(message_len, blake3_servil::Mode::Hash, blake3_servil::Efficiency::Time, BatchesBack(sender))
     });
     let mut free = BATCH_PAIRS.with(|kept| kept.borrow_mut().remove(&key)).unwrap_or_else(|| {
         (0..count).map(|_| (vec![0u8; input.len()], vec![[0u8; 32]; messages])).collect()
@@ -2486,7 +2502,7 @@ type BatchPairs = Vec<(Vec<u8>, Vec<[u8; 32]>)>;
 thread_local! {
     /// Keep the paired buffers and their descriptor vector together. Pairing
     /// and unzipping anew would allocate three vectors in every sample.
-    static BATCH_PAIRS: std::cell::RefCell<std::collections::HashMap<(usize, usize), BatchPairs>> = std::cell::RefCell::new(std::collections::HashMap::new());
+    static BATCH_PAIRS: std::cell::RefCell<std::collections::HashMap<(usize, usize, usize), BatchPairs>> = std::cell::RefCell::new(std::collections::HashMap::new());
 }
 
 /// The pieces of one stream, each copied into a PIECE_LEN buffer (the
@@ -2628,6 +2644,11 @@ fn keep_batch_digests(digests: Vec<[u8; 32]>) {
 fn blake3_batch(input: &[u8], message_len: usize, iterations: usize, consume: impl FnMut(&[u8])) {
     match message_len {
         MESSAGE_LEN => blake3_batch_of::<MESSAGE_LEN>(input, iterations, consume),
+        128 => blake3_batch_of::<128>(input, iterations, consume),
+        256 => blake3_batch_of::<256>(input, iterations, consume),
+        512 => blake3_batch_of::<512>(input, iterations, consume),
+        1024 => blake3_batch_of::<1024>(input, iterations, consume),
+        2048 | 4096 => each_message(input, message_len, iterations, |m| *blake3::hash(m).as_bytes(), consume),
         other => panic!("no blake3 batch of {other}-byte messages"),
     }
 }
@@ -7345,6 +7366,8 @@ fn xml_escape(input: &str) -> String {
 
     escaped
 }
+
+mod batch_bench;
 
 #[cfg(test)]
 mod harness_tests;
