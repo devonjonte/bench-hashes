@@ -66,16 +66,27 @@ work". This file says where the work stands; its history is in git.
    against Isla; then measure DIT's cost (Zooko
    expects it too costly to be on by default, and an option's complexity
    too high for its benefit).
-4. A description of what is proved about correctness, for two audiences:
-   people deciding whether to use the crate, and experts (maintainers,
-   developers changing the code or adapting the techniques, security
-   reviewers). Both must be able to (1) read the English statement of
-   what is proved (the output is the correct BLAKE3 hash of the input);
-   (2) find the minimal, self-contained, self-documenting Lean statement
-   it rests on, and map it to that sentence from the Lean source alone
-   (for example, whether it proves agreement with the C2SP standard or
-   with the BLAKE3 C code); (3) run the Lean checker themselves and read
-   its verdict. Keep it current with every change to the proofs.
+4. Complete the proofs, simplifying as we go (Zooko, October 10: remove
+   what must be trusted; prefer removing a whole tool or step, unless that
+   risks or slows completion). In order:
+   - done: the binary tree walk's proofs removed (not library code);
+   - the joining code in Lean through Aeneas (the rest of the Hasher,
+     `hash`'s choice of path), pulled into safe-Rust cores as
+     `tree_core.rs` and `stack_core.rs` were: one Lean theorem that `hash`
+     is `Blake3.hash`, given kernels that compute the compression;
+   - a time-boxed probe, beside that: the machine-code proofs in Lean on
+     Arm's own specification (Sail's Lean output of sail-arm), one small
+     kernel against `Blake3.lean`. If it works, it replaces Z3, the
+     Python executor and its models, Isla, the CPU cross-checks, and the
+     compress.json bridge. If it fails, stop and talk with Zooko before
+     any fallback (a fallback may be avoidable complexity);
+   - Kani's claims into Lean (the pool's piece arithmetic as a pure
+     function, the batch table as safe indexing), and Kani removed.
+   The description of what is proved is QUALITY.md's "Proofs"; keep it
+   current. Its standard (Zooko): users and experts alike can read the
+   English statement, map it to the Lean statement from the Lean source
+   alone (C2SP's standard or the C code?), and run the checker and read
+   its verdict.
 5. The SME2 flat walk (`ffi_sme2::flat_walk`) as a kernel with a proved
    contract, the four streaming forms Isla needs over 50 GB for, and the
    ZA loads and stores against Arm's specification.
