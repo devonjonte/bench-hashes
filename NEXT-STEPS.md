@@ -80,6 +80,15 @@ work". This file says where the work stands; its history is in git.
      Python executor and its models, Isla, the CPU cross-checks, and the
      compress.json bridge. If it fails, stop and talk with Zooko before
      any fallback (a fallback may be avoidable complexity);
+     Status (October 11, probe/sail-lean, `tools/verify/sail/README.md`):
+     sliced to the instructions used, Arm's model proves BLAKE3's G as 14
+     Arm instructions in Lean, any registers and any state, in under a
+     second; two translation bugs found and fixed upstream (sail#1772,
+     sail-arm#33). Open, for Zooko: where the theorem states that
+     virtual memory behaves as memory (a load's slice is 1,461 functions,
+     address translation among them); decoding (Arm's decoder is a
+     2,542-line chain that Lean takes over an hour to build); UNKNOWN
+     values (the ArchSem interface makes them explicit choices);
    - Kani's claims into Lean (the pool's piece arithmetic as a pure
      function, the batch table as safe indexing), and Kani removed.
    The description of what is proved is QUALITY.md's "Proofs"; keep it
