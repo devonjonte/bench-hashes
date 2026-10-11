@@ -90,13 +90,23 @@ work". This file says where the work stands; its history is in git.
      reads a chunk state through a relation, ChunkState's Chunk impl is in
      chunk_core.rs and meets the chunk contracts, and one Aeneas crate
      (hashercore) holds the stack, loop, and chunk state;
+   - done: the Hasher on the library's kernels (7c0075a,
+     OutputProofs.lean `hasher_hash`): Output, parent_output, and the
+     Hasher's chunk, node, and parent kernels are core code (Kernels), and
+     a new chunk state, any updates, and the root's 32 bytes are
+     `Blake3.blake3`, given BlocksContracts (compress_in_place,
+     compress_blocks) and HookContracts (ones, subtree_len, and the pool's
+     and SME2's routes, subtree_cv and children); the contracts read
+     through relations throughout (no `pf`); VM, Mac tests (1514) pass,
+     Mac perf_regress busy twice (1512, 1513), to run again;
    - then (Zooko, October 11: completion first, simplification after):
-     the contracts' other side. Each kernel contract (HashProofs,
-     HasherCoreProofs) mapped to what establishes it: the machine-code
-     proofs, and proofs of the Rust wrappers between them and the
-     contracts (ChunkState, Output, the parent and chunk wrappers, the SME2
-     flat walk); then the glue left (update_pooled's three lines, the
-     Hasher's staging, platform detection), and one statement;
+     the contracts' other side. BlocksContracts against the machine-code
+     proofs (`Platform::compress_*` over the kernels); HookContracts:
+     ones and subtree_len (small Rust), the pool's subtree_cv and the
+     SME2 routes; the same for HashProofs' kernels (tree.rs: chunk_root,
+     parent_root, chunks, parents); then the glue left (update_pooled's
+     three lines, the Hasher's staging, platform detection), and one
+     statement;
    - after completion: reduce what is trusted. A time-boxed probe was: the machine-code proofs in Lean on
      Arm's own specification (Sail's Lean output of sail-arm), one small
      kernel against `Blake3.lean`. If it works, it replaces Z3, the
