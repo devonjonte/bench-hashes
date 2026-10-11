@@ -97,8 +97,8 @@ work". This file says where the work stands; its history is in git.
      `Blake3.blake3`, given BlocksContracts (compress_in_place,
      compress_blocks) and HookContracts (ones, subtree_len, and the pool's
      and SME2's routes, subtree_cv and children); the contracts read
-     through relations throughout (no `pf`); VM, Mac tests (1514) pass,
-     Mac perf_regress busy twice (1512, 1513), to run again;
+     through relations throughout (no `pf`); VM, Mac tests (1514), and Mac
+     perf_regress from 671ac11 (1515, mains) pass;
    - then (Zooko, October 11: completion first, simplification after):
      the contracts' other side. BlocksContracts against the machine-code
      proofs (`Platform::compress_*` over the kernels); HookContracts:
