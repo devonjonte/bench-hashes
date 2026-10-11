@@ -51,8 +51,10 @@ work". This file says where the work stands; its history is in git.
    and the earlier slow cells read level (64 B x1.000, 2 messages
    x1.000). Merged (40663e0, Zooko's go-ahead). The VM's check held once
    at LentBatches|16 (+8.3%), a path that never reaches the stack, then
-   passed four times; the Mac's check (job 1499) gave no verdict, the Mac
-   busy. Rerun it with the Mac idle before promotion.
+   passed four times. Mac, idle on mains (October 11): `perf_regress`
+   passes (job 1500), and an A/B of three pairs (jobs 1502-1507) reads
+   nonstop cells within 3% and the lent cells within 1.3%, both ways; the
+   earlier busy runs' slower small cells do not reproduce.
    Then consider removing every use of `arrayvec` (the SIMD pointer
    tables, hazmat, the lanes, `to_hex`'s `ArrayString`, which is public
    API) for simplicity: one dependency fewer, and less unsafe code under
@@ -70,6 +72,8 @@ work". This file says where the work stands; its history is in git.
    what must be trusted; prefer removing a whole tool or step, unless that
    risks or slows completion). In order:
    - done: the binary tree walk's proofs removed (not library code);
+   - done: the condensing loop (`children` in `tree_core.rs`) proved to
+     return the root's two children (dc53411; Mac job 1501 passes);
    - the joining code in Lean through Aeneas (the rest of the Hasher,
      `hash`'s choice of path), pulled into safe-Rust cores as
      `tree_core.rs` and `stack_core.rs` were: one Lean theorem that `hash`
