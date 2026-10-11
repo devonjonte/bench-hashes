@@ -74,11 +74,16 @@ work". This file says where the work stands; its history is in git.
    - done: the binary tree walk's proofs removed (not library code);
    - done: the condensing loop (`children` in `tree_core.rs`) proved to
      return the root's two children (dc53411; Mac job 1501 passes);
-   - the joining code in Lean through Aeneas (the rest of the Hasher,
-     `hash`'s choice of path), pulled into safe-Rust cores as
-     `tree_core.rs` and `stack_core.rs` were: one Lean theorem that `hash`
-     is `Blake3.hash`, given kernels that compute the compression;
-   - a time-boxed probe, beside that: the machine-code proofs in Lean on
+   - done: the one-shot hash (`tree_core.rs`'s `hash`, which `hash`,
+     `keyed_hash`, `derive_key` call) proved to return `Blake3.blake3 key
+     mode input 32` given its kernels' contracts (bfb6150, HashProofs.lean;
+     VM and Mac job 1508 pass);
+   - next (Zooko, October 11: completion first, simplification after):
+     the Hasher in Lean (its chunk state and buffering around the proved
+     stack); then the end-to-end statement, each kernel contract mapped to
+     the machine-code proof that establishes it, and the Rust wrappers
+     between them;
+   - after completion: reduce what is trusted. A time-boxed probe was: the machine-code proofs in Lean on
      Arm's own specification (Sail's Lean output of sail-arm), one small
      kernel against `Blake3.lean`. If it works, it replaces Z3, the
      Python executor and its models, Isla, the CPU cross-checks, and the
