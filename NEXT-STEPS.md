@@ -82,7 +82,15 @@ work". This file says where the work stands; its history is in git.
      proved stack) proved: after any updates its root is the
      specification's over all their bytes, given its kernels' contracts
      (8fd2212, d7f78bc, HasherCoreProofs.lean; VM and Mac job 1510 pass);
-   - next (Zooko, October 11: completion first, simplification after):
+   - done: a chunk's state (`chunk_core.rs`, the library's ChunkState)
+     proved: after any bytes its fields are the specification's chunk node
+     of them, given compress_in_place's and compress_blocks's contracts
+     (671ac11, ChunkProofs.lean; VM and Mac job 1511 pass);
+   - next: join it to the Hasher's proof. HasherCoreProofs reads a chunk
+     state through a function (cs: number and bytes), and a state does not
+     hold its bytes; reading it through a relation (the state and the bytes
+     it stands for) joins the two;
+   - then (Zooko, October 11: completion first, simplification after):
      the contracts' other side. Each kernel contract (HashProofs,
      HasherCoreProofs) mapped to what establishes it: the machine-code
      proofs, and proofs of the Rust wrappers between them and the
