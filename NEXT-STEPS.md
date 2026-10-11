@@ -86,10 +86,10 @@ work". This file says where the work stands; its history is in git.
      proved: after any bytes its fields are the specification's chunk node
      of them, given compress_in_place's and compress_blocks's contracts
      (671ac11, ChunkProofs.lean; VM and Mac job 1511 pass);
-   - next: join it to the Hasher's proof. HasherCoreProofs reads a chunk
-     state through a function (cs: number and bytes), and a state does not
-     hold its bytes; reading it through a relation (the state and the bytes
-     it stands for) joins the two;
+   - done: joined to the Hasher's proof (7381cc5): the Hasher's proof
+     reads a chunk state through a relation, ChunkState's Chunk impl is in
+     chunk_core.rs and meets the chunk contracts, and one Aeneas crate
+     (hashercore) holds the stack, loop, and chunk state;
    - then (Zooko, October 11: completion first, simplification after):
      the contracts' other side. Each kernel contract (HashProofs,
      HasherCoreProofs) mapped to what establishes it: the machine-code
