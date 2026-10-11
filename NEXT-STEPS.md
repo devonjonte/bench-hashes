@@ -78,11 +78,17 @@ work". This file says where the work stands; its history is in git.
      `keyed_hash`, `derive_key` call) proved to return `Blake3.blake3 key
      mode input 32` given its kernels' contracts (bfb6150, HashProofs.lean;
      VM and Mac job 1508 pass);
+   - done: the Hasher (`hasher_core.rs`'s fill, feed, final_node over the
+     proved stack) proved: after any updates its root is the
+     specification's over all their bytes, given its kernels' contracts
+     (8fd2212, d7f78bc, HasherCoreProofs.lean; VM and Mac job 1510 pass);
    - next (Zooko, October 11: completion first, simplification after):
-     the Hasher in Lean (its chunk state and buffering around the proved
-     stack); then the end-to-end statement, each kernel contract mapped to
-     the machine-code proof that establishes it, and the Rust wrappers
-     between them;
+     the contracts' other side. Each kernel contract (HashProofs,
+     HasherCoreProofs) mapped to what establishes it: the machine-code
+     proofs, and proofs of the Rust wrappers between them and the
+     contracts (ChunkState, Output, the parent and chunk wrappers, the SME2
+     flat walk); then the glue left (update_pooled's three lines, the
+     Hasher's staging, platform detection), and one statement;
    - after completion: reduce what is trusted. A time-boxed probe was: the machine-code proofs in Lean on
      Arm's own specification (Sail's Lean output of sail-arm), one small
      kernel against `Blake3.lean`. If it works, it replaces Z3, the
