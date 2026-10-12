@@ -125,6 +125,24 @@ work". This file says where the work stands; its history is in git.
      lines, the Hasher's staging, platform detection), and one statement.
      Also: end each verify script with os._exit after its verdict (the
      teardown of its Z3 terms takes many minutes);
+     Progress (tools/verify-dev, a scratch copy): SME2's hash_many proved
+     at 16, 33, 128 chunks and 37, 128 parents with its kernels run by
+     their proved statements (16 chunks 3.9 s; the comparison is
+     immediate once both sides build their terms alike: lean_spec.join,
+     simplified arguments). Parents only contiguous (as every caller lays
+     them out: whether two separate buffers adjoin is a fact of the
+     address space, not of the code). 127 chunks takes 240 s, its 15
+     left over run on NEON instruction by instruction; NEON's own proof
+     could stand for it the same way.
+     Open, for Zooko: the contract proofs run one compiled copy. Generic
+     and inlined code is compiled again at each use: the verify crate's
+     calls get their own instances (symbols ending verify_entries), and
+     the library's callers run others. So these proofs establish the
+     source's meaning as one compiled copy computes it, not every copy
+     users run; only the whole-call proofs (prove_timing on `hash`) run the
+     library's own code. Closing it: prove whole calls' results as well as
+     their paths (the timing proof's runs, compared with Blake3.blake3 at
+     each length), or prove the library's own instances by symbol;
    - after completion: reduce what is trusted. A time-boxed probe was: the machine-code proofs in Lean on
      Arm's own specification (Sail's Lean output of sail-arm), one small
      kernel against `Blake3.lean`. If it works, it replaces Z3, the
