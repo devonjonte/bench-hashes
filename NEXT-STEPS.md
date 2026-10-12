@@ -142,7 +142,16 @@ work". This file says where the work stands; its history is in git.
      users run; only the whole-call proofs (prove_timing on `hash`) run the
      library's own code. Closing it: prove whole calls' results as well as
      their paths (the timing proof's runs, compared with Blake3.blake3 at
-     each length), or prove the library's own instances by symbol;
+     each length), or prove the library's own instances by symbol.
+     Prototype of the first (tools/verify-dev/whole.py, 40 lines: the
+     hash from lean_spec.compress, matching all 32 official vectors to 9
+     KiB): `hash`'s symbolic output at 1, 64, 65, 100 bytes equals it
+     under concrete substitution, but `same` proves it only at 0 bytes:
+     canon's normal forms assume fully symbolic kernel inputs, and the
+     library's zero padding folds into the rounds differently on each
+     side. Next for it: normalise constant bytes in canon, or compare per
+     compression (each output word against compress of the inputs the
+     call passed, read at the kernel's entry);
    - after completion: reduce what is trusted. A time-boxed probe was: the machine-code proofs in Lean on
      Arm's own specification (Sail's Lean output of sail-arm), one small
      kernel against `Blake3.lean`. If it works, it replaces Z3, the
