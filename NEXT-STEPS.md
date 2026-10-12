@@ -99,14 +99,32 @@ work". This file says where the work stands; its history is in git.
      and SME2's routes, subtree_cv and children); the contracts read
      through relations throughout (no `pf`); VM, Mac tests (1514), and Mac
      perf_regress from 671ac11 (1515, mains) pass;
+   - in the working tree (October 12, not yet committed; VM checks
+     running): ones and subtree_len are core code, proved (ones_spec,
+     subtree_len_spec), so HookContracts is the pool's and SME2's routes
+     alone; BlocksContracts is the machine-code proofs of
+     `Platform::compress_in_place` and `compress_blocks` (1-16 blocks) on
+     every platform; `hash_many` of chunks and parents is proved as
+     machine code at every count on portable and NEON. The verify crate
+     now builds the library with its default features (it had built it
+     without std, whose paths differ: SHA-3 detection, the prefetch after
+     a pause, the SME2 walk's thread-local scratch), so the executor
+     models the timer, TLS, allocation and thread keys by their POSIX
+     contracts, pointers in vector lanes, and more forms; the timing proof
+     runs a thread's first and second call, after a pause and back to
+     back, 612 of 612, SME2 now to 64 KiB. Executor fix: an addition's
+     flags (adds, cmn) were a subtraction's of the negation (wrong carry
+     for 0). To commit after cross_check, mutants, Isla and perf_regress;
    - then (Zooko, October 11: completion first, simplification after):
-     the contracts' other side. BlocksContracts against the machine-code
-     proofs (`Platform::compress_*` over the kernels); HookContracts:
-     ones and subtree_len (small Rust), the pool's subtree_cv and the
-     SME2 routes; the same for HashProofs' kernels (tree.rs: chunk_root,
-     parent_root, chunks, parents); then the glue left (update_pooled's
-     three lines, the Hasher's staging, platform detection), and one
-     statement;
+     the contracts' other side, left: SME2's `hash_many` (to 128 inputs:
+     the Rust wrapper as machine code, its kernel calls by the kernels'
+     own proved statements, one function per statement shared by the
+     kernel's proof and the contract); the pool's and SME2's routes;
+     HashProofs' kernels (tree.rs: chunks and parents over hash_many,
+     chunk_root, parent_root); then the glue left (update_pooled's three
+     lines, the Hasher's staging, platform detection), and one statement.
+     Also: end each verify script with os._exit after its verdict (the
+     teardown of its Z3 terms takes many minutes);
    - after completion: reduce what is trusted. A time-boxed probe was: the machine-code proofs in Lean on
      Arm's own specification (Sail's Lean output of sail-arm), one small
      kernel against `Blake3.lean`. If it works, it replaces Z3, the
