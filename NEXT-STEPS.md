@@ -125,33 +125,24 @@ work". This file says where the work stands; its history is in git.
      lines, the Hasher's staging, platform detection), and one statement.
      Also: end each verify script with os._exit after its verdict (the
      teardown of its Z3 terms takes many minutes);
-     Progress (tools/verify-dev, a scratch copy): SME2's hash_many proved
-     at 16, 33, 128 chunks and 37, 128 parents with its kernels run by
-     their proved statements (16 chunks 3.9 s; the comparison is
-     immediate once both sides build their terms alike: lean_spec.join,
-     simplified arguments). Parents only contiguous (as every caller lays
-     them out: whether two separate buffers adjoin is a fact of the
-     address space, not of the code). 127 chunks takes 240 s, its 15
-     left over run on NEON instruction by instruction; NEON's own proof
-     could stand for it the same way.
-     Open, for Zooko: the contract proofs run one compiled copy. Generic
-     and inlined code is compiled again at each use: the verify crate's
-     calls get their own instances (symbols ending verify_entries), and
-     the library's callers run others. So these proofs establish the
-     source's meaning as one compiled copy computes it, not every copy
-     users run; only the whole-call proofs (prove_timing on `hash`) run the
-     library's own code. Closing it: prove whole calls' results as well as
-     their paths (the timing proof's runs, compared with Blake3.blake3 at
-     each length), or prove the library's own instances by symbol.
-     Prototype of the first (tools/verify-dev/whole.py, 40 lines: the
-     hash from lean_spec.compress, matching all 32 official vectors to 9
-     KiB): `hash`'s symbolic output at 1, 64, 65, 100 bytes equals it
-     under concrete substitution, but `same` proves it only at 0 bytes:
-     canon's normal forms assume fully symbolic kernel inputs, and the
-     library's zero padding folds into the rounds differently on each
-     side. Next for it: normalise constant bytes in canon, or compare per
-     compression (each output word against compress of the inputs the
-     call passed, read at the kernel's entry);
+     Night of October 12-13 (in the working tree, final checks running;
+     to commit in two parts): whole calls of `hash` proved to return the
+     standard's hash, not only to run one path, at 306 lengths to 64 KiB
+     on NEON and SME2 (prove_timing, against whole.py, 40 lines checked
+     on the official vectors), which closes the compiled-copies question
+     for `hash` at those lengths; it took canon folding constants
+     wherever a sum or xor gathers them (the zero padding). SME2's
+     hash_many proved at every count to 128; the assembly kernels inside
+     Rust paths and whole calls run by their own proofs' statements (one
+     function each for proof and contract), only where the library's
+     kernel bytes equal the proved object's; prove_rust and prove_timing
+     run their cases in parallel workers. Isla's check was slow from
+     handing Z3 every declaration on each parse (14 s a form now, against
+     298); with that, pypy3 is as fast as CPython there, so one
+     interpreter stays. Official vectors through the executor on `hash`:
+     70 of 70 (to 100 KiB, NEON and SME2). Mutants: 32, three of them in
+     whole calls (rotation, root flag, IV bit). cross_check: 312 forms;
+     br/blr/mrs and flag forms join cmp's skip list (random states jump).
    - after completion: reduce what is trusted. A time-boxed probe was: the machine-code proofs in Lean on
      Arm's own specification (Sail's Lean output of sail-arm), one small
      kernel against `Blake3.lean`. If it works, it replaces Z3, the
