@@ -1,5 +1,7 @@
 // Many messages of one length, hashed in one call on the calling thread.
 fn main() {
+    // Once per process, before any other call.
+    blake3_servil::initialize();
     // Messages sit back to back in one buffer: message i starts at i * 64.
     // A length that is no multiple of 64 gets zero padding up to the next
     // multiple; the padding belongs to the caller.

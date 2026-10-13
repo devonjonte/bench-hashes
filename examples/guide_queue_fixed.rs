@@ -13,6 +13,8 @@ impl FixedHandler for Results {
 }
 
 fn main() {
+    // Once per process, before any other call.
+    blake3_servil::initialize();
     let (messages, message_len, in_flight) = (1024, 64, 8);
     let (sender, results) = mpsc::sync_channel(in_flight);
     // Message i of a batch starts at byte i * 64 (see hash_many for other lengths).

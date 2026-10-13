@@ -13,6 +13,8 @@ impl PieceHandler for Results {
 }
 
 fn main() {
+    // Once per process, before any other call.
+    blake3_servil::initialize();
     let in_flight = 4;
     let (sender, results) = mpsc::sync_channel(in_flight + 1);
     let queue = Queue::pieces(Mode::Hash, Results(sender));

@@ -2,6 +2,8 @@
 use std::io::Read;
 
 fn main() -> std::io::Result<()> {
+    // Once per process, before any other call.
+    blake3_servil::initialize();
     let mut file = std::fs::File::open("Cargo.toml")?;
     let mut buffer = vec![0u8; 64 * 1024];
     let mut hasher = blake3_servil::Hasher::new();

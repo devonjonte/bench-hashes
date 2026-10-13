@@ -16,6 +16,8 @@ impl MessageHandler for Results {
 }
 
 fn main() {
+    // Once per process, before any other call.
+    blake3_servil::initialize();
     let in_flight = 8; // buffers you keep cycling
     let (sender, results) = mpsc::sync_channel(in_flight);
     let queue = Queue::messages(Mode::Hash, Results(sender));

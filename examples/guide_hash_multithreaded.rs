@@ -1,5 +1,7 @@
 // One message, all in memory, spread over the program's spare cores.
 fn main() {
+    // Once per process, before any other call.
+    blake3_servil::initialize();
     // Starting the helper threads once, early, keeps that cost off the
     // first hash. Later calls find them ready.
     blake3_servil::initialize_multithreaded();

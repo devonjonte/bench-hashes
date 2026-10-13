@@ -611,6 +611,7 @@ mod tests {
     /// input (the official test vectors).
     #[test]
     fn the_contents_are_blake3_output_of_the_name() {
+        blake3_servil::initialize();
         let mut first = [0u8; 32];
         contents("").fill(&mut first);
         assert_eq!(blake3_servil::Hash::from(first).to_hex().as_str(), "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262");
