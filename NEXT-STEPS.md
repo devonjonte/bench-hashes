@@ -143,6 +143,10 @@ work". This file says where the work stands; its history is in git.
      70 of 70 (to 100 KiB, NEON and SME2). Mutants: 32, three of them in
      whole calls (rotation, root flag, IV bit). cross_check: 312 forms;
      br/blr/mrs and flag forms join cmp's skip list (random states jump).
+     Then: keyed_hash (symbolic key), derive_key, and a Hasher in two
+     updates proved as whole calls to 4 KiB (2316 cases). Saved for
+     resuming: the fork's tmp/night/STATE.md (what passed on which code,
+     what is left to run, the commit-2 message). GitHub Actions is back.
    - after completion: reduce what is trusted. A time-boxed probe was: the machine-code proofs in Lean on
      Arm's own specification (Sail's Lean output of sail-arm), one small
      kernel against `Blake3.lean`. If it works, it replaces Z3, the
