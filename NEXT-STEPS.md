@@ -199,7 +199,7 @@ work". This file says where the work stands; its history is in git.
 
 ## Commands
 
-From `/workspace` in the VM, after `sh /workspace/vm/setup.sh` once per boot:
+From `/workspace/blake3-servil` in the VM, after `sh /workspace/blake3-servil/vm/setup.sh` once per boot:
 
     cargo test --release --lib [--features no_sme2 | --features pure]
     cargo test --release --doc
@@ -212,5 +212,5 @@ From `/workspace` in the VM, after `sh /workspace/vm/setup.sh` once per boot:
 Judge each by its exit status. Release: `python3 tools/gen-ver.py X.Y.Z`
 from a clean tree (two version commits and a lightweight tag; push the
 branch, `servil` in the fork or `main` here, then the tag by name).
-Never print the credential token (`/workspace/ghtokenclassic.txt`). Only
+Never print the credential token (`/workspace/blake3-servil/ghtokenclassic.txt`). Only
 `/workspace` survives VM restarts. Commands for the user go on one line.
