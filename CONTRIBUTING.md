@@ -15,8 +15,8 @@ it measures, and keep your results comparable with ours.
 - `tools/graph-check/`: `map.js` drives the map in Chromium, and `guide.js`
   the guide (its README says how).
 - `bench-hashes compare OLD.tsv... -- NEW.tsv...`: compares runs'
-  samples files, each side's pooled, cell by cell, speed with speed and
-  share with share.
+  samples files in pairs (the i-th old with the i-th new), each cell
+  judged by its pairs' ratios as `regress` judges.
 
 ## Build and test
 

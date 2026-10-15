@@ -444,9 +444,12 @@ established by repeating them.
 
 ## Comparing runs
 
-`bench-hashes compare OLD.tsv... -- NEW.tsv...` gives each cell's mean on
-each side (over several runs, the median of their means) and the ratio,
-and says so beside any run whose load was busy or unmeasured.
+`bench-hashes compare OLD.tsv... -- NEW.tsv...` takes the runs in pairs,
+the i-th old with the i-th new (run them back to back in alternating
+order), and judges every cell as `regress` does: each pair's ratio, new
+mean over old, and the verdict from their median and an exact sign test
+at a 3% margin, beside each side's median mean and how many pairs ran
+faster. It says so beside any run whose load was busy or unmeasured.
 `bench-hashes regress OLD_EXE NEW_EXE` judges two builds: eight pairs of
 runs, one of each, back to back in alternating order, over the lent cells
 (a program hands its buffer to a call and waits), one copy alone. Each
