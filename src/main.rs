@@ -1451,8 +1451,8 @@ fn parse_selection(arguments: &[String]) -> (Selection, Vec<Algorithm>) {
 }
 
 fn main() {
-    // Once per process, before any other call: blake3-servil's contract.
-    blake3_servil::initialize();
+    // Once per process, before any other call: blake3-servil's contract (the multithreaded calls and queues need its threads).
+    blake3_servil::initialize_multithreaded();
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     if arguments.first().map(String::as_str) == Some("compare") {
         return compare_command(&arguments[1..]);
@@ -4948,7 +4948,7 @@ mod correctness_tests {
 
     #[test]
     fn prepared_samples_select_the_promised_api_and_keep_digest_space() {
-        blake3_servil::initialize();
+        blake3_servil::initialize_multithreaded();
         CALLS.with(|calls| calls.borrow_mut().clear());
         let input = make_input(MESSAGE_LEN);
         take_sample(Algorithm::Blake3ServilSt, &input, Point::one("", MESSAGE_LEN), 2);
@@ -4969,7 +4969,7 @@ mod correctness_tests {
 
     #[test]
     fn samples_file_places_each_sample_in_the_load_windows() {
-        blake3_servil::initialize();
+        blake3_servil::initialize_multithreaded();
         let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], true,
             Some(vec![point("64 B", UseCase::OneMessage), point("128 B", UseCase::OneMessage), point("64 B", UseCase::LentMessages), point("256 B", UseCase::LentMessages)]), Some(3));
         let (_, samples) = run(&roster, 3, |_, _, r| 10_000 + r as u64);
@@ -4992,7 +4992,7 @@ mod correctness_tests {
     /// every cell (read_samples, as `compare` reads it).
     #[test]
     fn samples_file_reads_back_into_the_reports_figures() {
-        blake3_servil::initialize();
+        blake3_servil::initialize_multithreaded();
         let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], true,
             Some(vec![point("64 B", UseCase::OneMessage), point("64 B", UseCase::LentMessages), point("16", UseCase::LentBatches)]), Some(20));
         // Contender 1's lent cells: 3 rounds in 10 twice as slow.
@@ -5107,7 +5107,7 @@ mod correctness_tests {
     /// "Correctness tests").
     #[test]
     fn continuous_use_cases_observe_every_digest() {
-        blake3_servil::initialize();
+        blake3_servil::initialize_multithreaded();
         let long = make_input(PIECE_LEN * 3 + 1000);
         let batch = make_input(16 * MESSAGE_LEN);
         let cases = [
@@ -5141,7 +5141,7 @@ mod correctness_tests {
     /// under that in the sample.
     #[test]
     fn samples_after_the_gap_leave_the_gaps_out() {
-        blake3_servil::initialize();
+        blake3_servil::initialize_multithreaded();
         let point = Point::one("", 64);
         let input = make_input(64);
         let started = clocks::now();
