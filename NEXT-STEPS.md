@@ -68,6 +68,12 @@ work". This file says where the work stands; its history is in git.
    code; until we can say when and by how much, a hold there is
    unexplained: understand it (its pairs' spread, the process's layout or
    thread placement), then fix the cell or the rule.
+   Since the afternoon of October 14 the Mac has a periodic load that
+   blocks verdicts: benchmark jobs 15 s apart alternate quiet and busy
+   (1.5-2.3 CPUs of other programs), so about 15 s of every 30, and every
+   `perf_regress` job since (1538, 1540, 1541, 1543, 1544) met it and gave
+   no verdict, with the VM idle. Its source is on the Mac (Activity
+   Monitor during a job would name it).
 5. Complete the proofs, simplifying as we go (Zooko, October 10: remove
    what must be trusted; prefer removing a whole tool or step, unless that
    risks or slows completion). In order:
