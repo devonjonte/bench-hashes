@@ -11,33 +11,24 @@ repository's are in `NOTES.md`, its settled questions under "What is
 settled". Every open item is in one list: the fork's NOTES, "Future
 work". This file says where the work stands; its history is in git.
 
-## Where things stand (October 9, 2026)
+## Where things stand (October 14, 2026)
 
-- **The fork**: `servil` = 9d9f3d6; `candidate/no-linger` adds the proofs
-  (the library's code unchanged but the SME2 message kernel's branch-free
-  last-block length, 285ecf0; Mac jobs 1441-1442, no regression).
-  `tools/verify` proves every AArch64 assembly kernel (hybrid, 327 cases;
-  SME2, 34, and the chunk, parent, extended-output and message kernels at
-  every group count by induction) and the library's Rust compression code
-  (24) equal to the compression function of the Lean specification in
-  `c2sp/BLAKE3`. The instruction models are proved equal to Arm's Sail
-  specification: 136 of 137 NEON and integer forms, 19 of 23 streaming
-  (`isla_check.py`). `tools/verify/tree` proves the tree walk and the
-  Hasher's stack algorithm against the specification's tree, in Lean
-  (Aeneas). Its README and the fork's NOTES (October 8) have the details.
-- **The probe** `probe/wide-walk` (a1341ee, 4214925): the library's
-  single-thread walk is `src/tree_core.rs`, the file `tools/verify/tree`
-  proves, at every buffer size the library builds with. Mac A/B (jobs
-  1443-1446, 1456-1479, mains): single-threaded within 1% everywhere;
-  multithreaded 512 KiB x1.043, median of 14 pairs, 10 slower and 4
-  faster (sign test p 0.18), cause unexplained (open); `perf_regress` on
-  the Mac (1447) and the VM: no regression.
-- **C2SP**: `c2sp/BLAKE3/` is a Lean specification of C2SP's BLAKE3;
-  `c2sp/pr/` is the pull request, saved for Zooko's review. Filed:
-  C2SP/C2SP#384 (a trace's chunk label), rems-project/isla#107 (the
-  snapshot's `dup` index: Sail's fixed unsigned_subrange, not yet in the
-  snapshot).
-- **bench-hashes**: 0.16.1 on `main` with its records.
+- **The fork**: `servil` holds candidate/verify-std (b208c09, on the
+  other agent's landing 9c9d171): whole calls proved to return the
+  standard's result (Lean's schedule, `run_eq`), the SME2 inductions
+  always run, the proofs' compiler pinned (Rust 1.98.1), and the long
+  proofs posted as each commit's GitHub status "long proofs" by
+  `tools/verify/long-proofs.sh` before a promotion.
+- **What is proved** (the fork's `QUALITY.md`, "Proofs"; issue #24 is the
+  piece-by-piece meter): every AArch64 assembly kernel but the SME2 hybrid
+  (`c/blake3_sme2_hybrid_aarch64.S`), the Rust compression code, the tree
+  walk and the Hasher (Lean, given their kernels), the pool's cuts, and
+  whole calls at fixed lengths (2316 cases). Instruction models: 325
+  forms against the CPU, 322 against Arm's specification (Isla).
+- **The SME2 hybrid kernel**: a busy, battery A/B (Mac jobs 1522-1529,
+  `probe/no-sme2-hybrid`) reads it earning 5-8% single-threaded from
+  1 MiB; a clean rerun decides with Zooko whether to delete or prove it.
+- **bench-hashes**: 0.16.1 on `main`. The next runner job is 1530.
 
 ## Next
 
@@ -60,15 +51,24 @@ work". This file says where the work stands; its history is in git.
    API) for simplicity: one dependency fewer, and less unsafe code under
    the proofs; only where the result is simpler, not merely different.
 3. Timing (the fork's QUALITY.md, "Timing and secrets", says where each
-   condition stands; change it with every step here): whole `hash` calls
-   are proved to run one path per length (the fork's
-   `tools/verify/prove_timing.py`, 294 lengths, to 64 KiB on NEON and 4
-   KiB on SME2). Next: `keyed_hash`, `derive_key`, the Hasher; SME2 past 4
-   KiB (its pointer table in vector lanes); the new instruction forms
-   against Isla; then measure DIT's cost (Zooko
+   condition stands; change it with every step here): whole calls are
+   proved to return the standard's result on one path per length (the
+   fork's `tools/verify/prove_timing.py`: `hash` at 153 lengths to 64 KiB
+   on NEON and SME2; `keyed_hash`, `derive_key`, and the Hasher in two
+   updates to 4 KiB; 2316 cases), their instruction forms checked against
+   Isla (322 of 325). Next: measure DIT's cost (Zooko
    expects it too costly to be on by default, and an option's complexity
    too high for its benefit).
-4. Complete the proofs, simplifying as we go (Zooko, October 10: remove
+4. Open: `perf_regress` holds `LentBatches|16` on unchanged library code.
+   Mac job 1519 (October 14, idle, mains): +17.3% (-mt) and +14.1% (-st),
+   pairs -12% to +43%, between builds of the same library source (servil
+   9c9d171 against candidate/verify-std, which changes only tools and
+   docs); job 1521, the same builds, passed. The VM held it once before
+   (+8.3%, item 2). The cell's cost moves between processes of identical
+   code; until we can say when and by how much, a hold there is
+   unexplained: understand it (its pairs' spread, the process's layout or
+   thread placement), then fix the cell or the rule.
+5. Complete the proofs, simplifying as we go (Zooko, October 10: remove
    what must be trusted; prefer removing a whole tool or step, unless that
    risks or slows completion). In order:
    - done: the binary tree walk's proofs removed (not library code);
@@ -169,22 +169,9 @@ work". This file says where the work stands; its history is in git.
    English statement, map it to the Lean statement from the Lean source
    alone (C2SP's standard or the C code?), and run the checker and read
    its verdict.
-5. The SME2 flat walk (`ffi_sme2::flat_walk`) as a kernel with a proved
+6. The SME2 flat walk (`ffi_sme2::flat_walk`) as a kernel with a proved
    contract, the four streaming forms Isla needs over 50 GB for, and the
    ZA loads and stores against Arm's specification.
-6. Promote `candidate/no-linger` once its CI passes. GitHub Actions is
-   disabled for the fork (a dispatch answers "Actions has been disabled
-   for this repository"; no run since dc56276, whose last job was
-   cancelled at 02:00 UTC, October 9); Zooko to look at the fork's
-   Actions settings or GitHub's mail; the settings show nothing, and the
-   account's other repository runs, so only GitHub Support can lift it.
-   Proposed first: the long SME2 proofs out of every push into a workflow
-   started by hand before promotion (done: `sme2-every.yml`). The
-   candidate changes the message kernel, so promotion needs those proofs:
-   GitHub cannot run them, so run its six groups on the VM (stopped
-   October 10 to save the Mac's battery; restart them on the tip).
-   dc56276's two failures are fixed in
-   63a6e26. The next runner job number is 1500.
 7. SHA-256 as competitive as it can be on the benchmark (Zooko, October
    10): give the SHA-256 contenders (sha2, ring) their fastest builds and
    calls on each platform (the ARMv8 SHA-256 instructions, features and
