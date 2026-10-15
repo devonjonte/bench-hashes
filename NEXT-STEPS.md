@@ -11,24 +11,34 @@ repository's are in `NOTES.md`, its settled questions under "What is
 settled". Every open item is in one list: the fork's NOTES, "Future
 work". This file says where the work stands; its history is in git.
 
-## Where things stand (October 14, 2026)
+## Where things stand (October 15, 2026)
 
-- **The fork**: `servil` holds candidate/verify-std (b208c09, on the
-  other agent's landing 9c9d171): whole calls proved to return the
-  standard's result (Lean's schedule, `run_eq`), the SME2 inductions
-  always run, the proofs' compiler pinned (Rust 1.98.1), and the long
-  proofs posted as each commit's GitHub status "long proofs" by
-  `tools/verify/long-proofs.sh` before a promotion.
+- **The fork**: `servil` = ed263f8: candidate/verify-std, Devon's #34,
+  #33, #32, #26 (`initialize_multithreaded()` the multithreaded calls'
+  precondition) and #11 (b3sum maps files from 512 KiB on Linux). The
+  promotion gate (the fork's PROCEDURES.md): the suites, VM and Mac
+  `perf_regress` for changes to AArch64 machine code,
+  `tools/check-builds.sh` (no_std, warnings, x86-64/i686/wasm32 compile
+  checks, the MSRV), the long proofs on the VM (`long-proofs.sh`, posted
+  as the commit's status), and GitHub's CI by hand for candidates that
+  change other targets' code (it alone runs their tests; it caught #28's
+  MSRV break).
+- **Candidates**: `candidate/devon-x86` (Devon's #25, #28, #29, #31, #36
+  and his follow-ups, which fixed the LentBatches|16 slowdown: VM 4 of 4
+  clean, Mac 1553 and 1554 pass; waiting on CI's x86 run).
+  `candidate/flat-walk-proofs`: `prove_flat.py` proves the SME2 flat walk
+  as compiled, the standard's tree over its kernels, and FlatProofs.lean
+  that its shape is the Hasher's contract; from 256 chunks it waits on the
+  hybrid kernel's induction (`x2_every`, running on the VM).
 - **What is proved** (the fork's `QUALITY.md`, "Proofs"; issue #24 is the
-  piece-by-piece meter): every AArch64 assembly kernel but the SME2 hybrid
-  (`c/blake3_sme2_hybrid_aarch64.S`), the Rust compression code, the tree
-  walk and the Hasher (Lean, given their kernels), the pool's cuts, and
-  whole calls at fixed lengths (2316 cases). Instruction models: 325
-  forms against the CPU, 322 against Arm's specification (Isla).
-- **The SME2 hybrid kernel**: a busy, battery A/B (Mac jobs 1522-1529,
-  `probe/no-sme2-hybrid`) reads it earning 5-8% single-threaded from
-  1 MiB; a clean rerun decides with Zooko whether to delete or prove it.
-- **bench-hashes**: 0.16.1 on `main`. The next runner job is 1530.
+  piece-by-piece meter): every AArch64 assembly kernel (the SME2 hybrid at
+  1 and 2 groups so far), the Rust compression code, the tree walk and the
+  Hasher (Lean, given their kernels), the pool's cuts, and whole calls at
+  fixed lengths (2316 cases). Instruction models: 325 forms against the
+  CPU, 322 against Arm's specification (Isla).
+- **The SME2 hybrid kernel**: earns 5.5-6.5% single-threaded from 1 MiB
+  (Mac jobs 1530-1537); Zooko: prove it.
+- **bench-hashes**: 0.16.1 on `main`. The next runner job is 1555.
 
 ## Next
 
