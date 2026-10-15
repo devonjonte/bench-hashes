@@ -1318,8 +1318,9 @@ cell sampled in a share of them.
                                    shared copy
 
   bench-hashes compare OLD.tsv... -- NEW.tsv...
-                                   compare runs' samples files, each side's
-                                   pooled, cell by cell, speed with speed
+                                   compare runs' samples files in pairs (the
+                                   i-th old with the i-th new), each cell's
+                                   verdict as regress gives it
   bench-hashes regress OLD_EXE NEW_EXE [--points NAME,...]
                                    whether NEW is slower than OLD: the two
                                    in alternating runs, a verdict as exit
@@ -4033,44 +4034,53 @@ fn read_samples(path: &str) -> SamplesFile {
 }
 
 /*
- * `bench-hashes compare OLD... -- NEW...`: each side's samples files
- * pooled, every cell both sides measured compared speed with speed and
- * share with share (clocks::speeds::compare): old -> new medians, new
- * over old of the fast and of the slow speed, the slow speed's share on
- * each side. For an A/B (old new new old), compare old with new, and each
- * side with itself (its first run against its second) to see what
- * repetition alone moves.
+ * `bench-hashes compare OLD... -- NEW...`: the runs in pairs, the i-th old
+ * with the i-th new (as they ran, back to back in alternating order), and
+ * every cell both measured judged by its pairs' ratios, new mean over old,
+ * as `regress` judges (clocks::summary::verdict at REGRESS_MARGIN_PERMILLE):
+ * each side's median mean, the median ratio, the verdict, and how many
+ * pairs ran faster. To see what repetition alone moves, compare a side's
+ * runs with each other the same way.
  */
 fn compare_command(arguments: &[String]) {
-    let usage = "usage: bench-hashes compare OLD.tsv... -- NEW.tsv...";
+    let usage = "usage: bench-hashes compare OLD.tsv... -- NEW.tsv... (one new run for each old run, in the order they ran)";
     let split = arguments.iter().position(|argument| argument == "--").expect(usage);
     let (old, new) = (&arguments[..split], &arguments[split + 1..]);
-    assert!(!old.is_empty() && !new.is_empty(), "{usage}");
-    // Each side: every cell's mean in every run (one samples file a run).
-    let side = |paths: &[String]| {
-        let mut order: Vec<String> = Vec::new();
-        let mut cells: std::collections::HashMap<String, Vec<u128>> = std::collections::HashMap::new();
-        for path in paths {
-            let file = read_samples(path);
-            if !file.load.starts_with("quiet") {
-                println!("{path}: {}: its samples are no evidence of speed", file.load);
-            }
-            for (key, samples) in file.cells {
-                if !cells.contains_key(&key) {
-                    order.push(key.clone());
-                }
-                cells.entry(key).or_default().push(ExactMean::of(&samples).fixed().0);
-            }
+    assert!(!old.is_empty() && old.len() == new.len(), "{usage}");
+    let means = |path: &String| {
+        let file = read_samples(path);
+        if !file.load.starts_with("quiet") {
+            println!("{path}: {}: its samples are no evidence of speed", file.load);
         }
-        (order, cells)
+        file.cells.into_iter().map(|(key, samples)| (key, ExactMean::of(&samples).fixed().0)).collect::<Vec<(String, u128)>>()
     };
-    let ((order, old), (_, new)) = (side(old), side(new));
-    for key in order {
-        if let Some(new_means) = new.get(&key) {
-            let (a, b) = (median_u128(&old[&key]), median_u128(new_means));
-            let r = clocks::summary::ratio_permille(b, a);
-            println!("{key}: {} -> {} ns/unit  x{}.{:03}  ({} -> {} runs)", Fixed(a).format_ns(), Fixed(b).format_ns(), r / 1000, r % 1000, old[&key].len(), new_means.len());
+    // Every cell's means and its pairs' ratios, in the first old run's order.
+    let mut order: Vec<String> = Vec::new();
+    let mut cells: std::collections::HashMap<String, (Vec<u128>, Vec<u128>, Vec<u64>)> = std::collections::HashMap::new();
+    for (old_path, new_path) in old.iter().zip(new) {
+        let new_means: std::collections::HashMap<String, u128> = means(new_path).into_iter().collect();
+        for (key, old_mean) in means(old_path) {
+            let Some(&new_mean) = new_means.get(&key) else { continue };
+            if !cells.contains_key(&key) {
+                order.push(key.clone());
+            }
+            let (olds, news, ratios) = cells.entry(key).or_default();
+            olds.push(old_mean);
+            news.push(new_mean);
+            ratios.push(clocks::summary::ratio_permille(new_mean, old_mean));
         }
+    }
+    for key in order {
+        let (olds, news, ratios) = &cells[&key];
+        let (a, b) = (median_u128(olds), median_u128(news));
+        let r = clocks::summary::median_permille(ratios);
+        let verdict = match clocks::summary::verdict(ratios, REGRESS_MARGIN_PERMILLE) {
+            clocks::summary::Verdict::Slower => "slower",
+            clocks::summary::Verdict::Faster => "faster",
+            clocks::summary::Verdict::Level => "level",
+        };
+        let faster = ratios.iter().filter(|&&r| r < 1000).count();
+        println!("{key}: {} -> {} ns/unit  x{}.{:03} {verdict} ({faster} of {} pairs faster)", Fixed(a).format_ns(), Fixed(b).format_ns(), r / 1000, r % 1000, ratios.len());
     }
 }
 
