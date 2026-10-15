@@ -297,7 +297,8 @@ fn contender(spec: &str) -> Contender {
         program,
         args: words.collect(),
         digest: blake3_servil::hash(&bytes).to_hex().to_string(),
-        version: String::from_utf8_lossy(&output.stdout).trim().to_owned(),
+        // The first line: GNU tools follow theirs with copyright lines.
+        version: String::from_utf8_lossy(&output.stdout).lines().next().unwrap_or("").trim().to_owned(),
     }
 }
 
