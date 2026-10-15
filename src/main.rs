@@ -4145,13 +4145,29 @@ const REGRESS_REPEATS: usize = 3;
 /// The margin a solo cell's verdict uses.
 const REGRESS_MARGIN_PERMILLE: u64 = 30;
 
-/// One run of `exe` over the regress points (with `full`, a default run,
-/// every cell): its samples file.
-fn regress_run(exe: &str, full: bool) -> SamplesFile {
+/// The shortest run the regression check makes: clocks observes other
+/// programs' load in windows of about a second and finds a run under half
+/// a second no evidence ("the run lasted under half a second"), which on a
+/// fast machine every run of REGRESS_ROUNDS was (i7-12700K: 0.3-0.5 s).
+const REGRESS_RUN_NS: u64 = 700_000_000;
+
+/// The rounds each run makes: REGRESS_ROUNDS, or as many more as a run of
+/// `exe` needs to last REGRESS_RUN_NS, from one untimed run (the same for
+/// both sides, so their cells compare).
+fn regress_rounds(exe: &str) -> usize {
+    let began = clocks::now();
+    regress_run(exe, REGRESS_ROUNDS, false);
+    let ns = clocks::since_ns(began).max(1);
+    REGRESS_ROUNDS * usize::try_from(REGRESS_RUN_NS.div_ceil(ns)).unwrap_or(1).max(1)
+}
+
+/// One run of `exe` over the regress points, `rounds` rounds (with `full`,
+/// a default run, every cell): its samples file.
+fn regress_run(exe: &str, rounds: usize, full: bool) -> SamplesFile {
     let directory = std::env::temp_dir().join(format!("bench-hashes-regress-{}-{}", std::process::id(), clocks::load::now_ns()));
     fs::create_dir_all(&directory).unwrap();
     let contenders: Vec<&str> = REGRESS_SUBJECTS.iter().map(|a| a.key()).collect();
-    let (contenders, points, rounds) = (contenders.join(","), REGRESS_POINTS.join(","), REGRESS_ROUNDS.to_string());
+    let (contenders, points, rounds) = (contenders.join(","), REGRESS_POINTS.join(","), rounds.to_string());
     let selection: Vec<&str> = if full { Vec::new() } else { vec!["--contenders", &contenders, "--points", &points, "--rounds", &rounds] };
     let status = std::process::Command::new(exe)
         .args(selection)
@@ -4177,6 +4193,8 @@ fn regress_command(arguments: &[String]) -> i32 {
     let (old_exes, new_exes) = (&arguments[..split], &arguments[split + 1..]);
     assert!(!old_exes.is_empty() && !new_exes.is_empty(), "{usage}");
     let scope = if full { "every cell of a default run".to_string() } else { format!("{} points", REGRESS_POINTS.len()) };
+    // A default run lasts long enough; the points' runs, REGRESS_RUN_NS.
+    let rounds = if full { 0 } else { regress_rounds(&old_exes[0]) };
     eprintln!("regress: {} new builds against {} old, {REGRESS_PAIRS} pairs over {scope}", new_exes.len(), old_exes.len());
     let mut unreliable = Vec::new();
     let mut powers: Vec<String> = Vec::new();
@@ -4185,7 +4203,7 @@ fn regress_command(arguments: &[String]) -> i32 {
     // A run's means, and its load line when clocks found it no evidence
     // (other programs busy, or no load window).
     let mut means = |exe: &str| -> (std::collections::HashMap<String, u128>, Option<String>) {
-        let file = regress_run(exe, full);
+        let file = regress_run(exe, rounds, full);
         if !powers.contains(&file.power) {
             powers.push(file.power.clone());
         }
