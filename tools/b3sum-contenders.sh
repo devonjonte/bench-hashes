@@ -5,6 +5,8 @@
 # DIR/b3sum-official-1.8.2  official BLAKE3's b3sum from crates.io
 # DIR/b3sum-COMMIT          the fork's b3sum at each COMMIT (default: FORK's HEAD),
 #                           built from a clean worktree of that commit
+# and, where it is installed, the system's sha256sum (GNU coreutils), for
+# the hash programs already use.
 # Prints a line of NAME=PATH arguments for bench-hashes b3sum, official first.
 set -eu
 fork=$(cd "$1" && git rev-parse --show-toplevel)
@@ -29,4 +31,7 @@ for rev in "$@"; do
     fi
     args="$args fork-$commit=$dir/b3sum-$commit"
 done
+if sha256sum=$(command -v sha256sum); then
+    args="$args sha256sum=$sha256sum"
+fi
 echo "$args"

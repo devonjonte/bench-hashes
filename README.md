@@ -118,9 +118,12 @@ evicted from it before each run (read from storage):
     sh tools/b3sum-contenders.sh /path/to/BLAKE3-fork /tmp/b3c
     cargo run --release -- b3sum --files ~/b3sum-files official=/tmp/b3c/b3sum-official-1.8.2 fork=/tmp/b3c/b3sum-abc1234
 
-A contender is `NAME=COMMAND`, a `b3sum` and its flags (the files are
-appended); `tools/b3sum-contenders.sh` builds official BLAKE3's `b3sum`
-1.8.2 and the fork's at given commits. The first contender is the one
+A contender is `NAME=COMMAND`, a `b3sum` and its flags, or any program
+that hashes the files it is given (the files are appended);
+`tools/b3sum-contenders.sh` builds official BLAKE3's `b3sum` 1.8.2 and
+the fork's at given commits, and adds the system's `sha256sum` (GNU
+coreutils, one thread) where it is installed, the SHA-256 tool programs
+already use. The first contender is the one
 the others are compared with. `--files` chooses where the files live:
 put them on the storage you care about (they are made once, 1.4 GiB, and
 kept). `--quick` runs a smaller set in seconds. The report and samples go
