@@ -4085,7 +4085,8 @@ fn compare_command(arguments: &[String]) {
             clocks::summary::Verdict::Level => "level",
         };
         let faster = ratios.iter().filter(|&&r| r < 1000).count();
-        println!("{key}: {} -> {} ns/unit  x{}.{:03} {verdict} ({faster} of {} pairs faster)", Fixed(a).format_ns(), Fixed(b).format_ns(), r / 1000, r % 1000, ratios.len());
+        let interval = clocks::summary::interval_permille(ratios).map_or_else(|| "too few pairs for an interval".to_string(), |(low, high)| format!("x{}.{:03}-{}.{:03}", low / 1000, low % 1000, high / 1000, high % 1000));
+        println!("{key}: {} -> {} ns/unit  x{}.{:03} ({interval}) {verdict}, {faster} of {} pairs faster", Fixed(a).format_ns(), Fixed(b).format_ns(), r / 1000, r % 1000, ratios.len());
     }
 }
 
@@ -4209,7 +4210,8 @@ fn regress_command(arguments: &[String]) -> i32 {
         }
         let word = if verdict == clocks::summary::Verdict::Slower { slower += 1; "SLOWER" } else { "faster" };
         let pairs: Vec<String> = values.iter().map(|&r| percent(r)).collect();
-        println!("  {word} {key}: {} (median of {} pairs: {})", percent(clocks::summary::median_permille(values)), values.len(), pairs.join(" "));
+        let (low, high) = clocks::summary::interval_permille(values).expect("a verdict other than level has an interval");
+        println!("  {word} {key}: {} ({} to {}; median of {} pairs: {})", percent(clocks::summary::median_permille(values)), percent(low), percent(high), values.len(), pairs.join(" "));
     }
     if slower > 0 {
         println!("regress: REGRESSION: {slower} cells slower");
