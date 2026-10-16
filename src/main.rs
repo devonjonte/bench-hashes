@@ -2553,6 +2553,34 @@ fn each_interleaved<S: 'static>(
     SCHEDULES.with(|all| all.borrow_mut().push((key, Box::new(schedule))));
 }
 
+/// The places a ContinuousMessages stream keeps for its digests: the
+/// stream's own limit of messages in flight, so that places never bound
+/// it (32 bytes each).
+const STREAM_PLACES_PER_MESSAGE: usize = 1024;
+
+thread_local! {
+    /// The stream cells' places, made once and kept (by size).
+    static STREAM_PLACES: std::cell::RefCell<std::collections::HashMap<usize, Vec<blake3_servil::Hash>>> = std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+fn take_places(n: usize) -> Vec<blake3_servil::Hash> {
+    STREAM_PLACES.with(|kept| kept.borrow_mut().remove(&n)).unwrap_or_else(|| vec![blake3_servil::Hash::from_bytes([0; 32]); n])
+}
+
+fn keep_places(places: Vec<blake3_servil::Hash>) {
+    STREAM_PLACES.with(|kept| kept.borrow_mut().insert(places.len(), places));
+}
+
+/// A free place from `free`, handing places back (collect) until one is.
+fn free_place<'a, D: FnMut(&'a mut [blake3_servil::Hash])>(free: &std::cell::RefCell<Vec<&'a mut [blake3_servil::Hash]>>, s: &mut blake3_servil::Stream<'a, D>) -> &'a mut [blake3_servil::Hash] {
+    loop {
+        if let Some(place) = free.borrow_mut().pop() {
+            return place;
+        }
+        s.collect();
+    }
+}
+
 /*
  * The continuous messages use case: `iterations` messages, each a copy of
  * `input` read into a buffer of the program's (a memory copy, the
@@ -2566,15 +2594,27 @@ fn each_interleaved<S: 'static>(
 fn hash_continuous_messages(algorithm: Algorithm, input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8])) {
     if algorithm == Algorithm::Blake3ServilMt {
         // Each message read straight into the stream's ring (submit_with),
-        // its digest read as it comes back.
-        let mut take = |hashes: &[blake3_servil::Hash]| hashes.iter().for_each(|h| consume(h.as_bytes()));
-        return blake3_servil::stream(blake3_servil::Mode::Hash, |s| {
-            for _ in 0..iterations {
-                let message = black_box(input);
-                s.submit_with(message.len(), |at, room| room.copy_from_slice(&message[at..][..room.len()]), &mut take);
-            }
-            s.finish(&mut take);
-        });
+        // its digest into a kept place, used as the place comes back and
+        // the place used again.
+        let mut places = take_places(STREAM_PLACES_PER_MESSAGE);
+        let free = std::cell::RefCell::new(places.chunks_mut(1).collect::<Vec<_>>());
+        blake3_servil::stream(
+            blake3_servil::Mode::Hash,
+            |place: &mut [blake3_servil::Hash]| {
+                consume(place[0].as_bytes());
+                free.borrow_mut().push(place);
+            },
+            |s| {
+                for _ in 0..iterations {
+                    let message = black_box(input);
+                    let place = free_place(&free, s);
+                    s.submit_with(message.len(), |at, room| room.copy_from_slice(&message[at..][..room.len()]), &mut place[0]);
+                }
+                s.finish();
+            },
+        );
+        drop(free);
+        return keep_places(places);
     }
     if input.len() > PIECE_LEN {
         return hash_stream(algorithm, input, iterations, consume);
@@ -2600,17 +2640,31 @@ fn hash_continuous_messages(algorithm: Algorithm, input: &[u8], iterations: usiz
  */
 fn hash_continuous_batches(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
     if algorithm == Algorithm::Blake3ServilMt {
-        // Each batch read straight into the stream's ring (submit_batch_with);
-        // each run of digests handed to `consume` whole, as the queue's
-        // batch is. Sound: a Hash is its 32 bytes (repr(transparent)).
-        let mut take = |hashes: &[blake3_servil::Hash]| consume(unsafe { core::slice::from_raw_parts(hashes.as_ptr().cast::<u8>(), hashes.len() * 32) });
-        return blake3_servil::stream(blake3_servil::Mode::Hash, |s| {
-            for _ in 0..iterations {
-                let batch = black_box(input);
-                s.submit_batch_with(point.messages, MESSAGE_LEN, |at, room| room.copy_from_slice(&batch[at..][..room.len()]), &mut take);
-            }
-            s.finish(&mut take);
-        });
+        // Each batch read straight into the stream's ring (submit_batch_with),
+        // its digests into a kept place of the batch's size, handed to
+        // `consume` whole as the place comes back, as the queue's batch is,
+        // and the place used again. Sound: a Hash is its 32 bytes
+        // (repr(transparent)).
+        let batches = ((8 << 20) / input.len().max(1)).clamp(2, 1024);
+        let mut places = take_places(batches * point.messages);
+        let free = std::cell::RefCell::new(places.chunks_mut(point.messages.max(1)).collect::<Vec<_>>());
+        blake3_servil::stream(
+            blake3_servil::Mode::Hash,
+            |place: &mut [blake3_servil::Hash]| {
+                consume(unsafe { core::slice::from_raw_parts(place.as_ptr().cast::<u8>(), place.len() * 32) });
+                free.borrow_mut().push(place);
+            },
+            |s| {
+                for _ in 0..iterations {
+                    let batch = black_box(input);
+                    let place = free_place(&free, s);
+                    s.submit_batch_with(MESSAGE_LEN, |at, room| room.copy_from_slice(&batch[at..][..room.len()]), &mut place[..point.messages]);
+                }
+                s.finish();
+            },
+        );
+        drop(free);
+        return keep_places(places);
     }
     let batch = Point { use_case: UseCase::ManyMessages, ..point };
     let mut buffers = take_buffers(1, input.len());
