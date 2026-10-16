@@ -46,10 +46,12 @@ verdicts over all 700 cells.
 
 ## A fix, tested on the same data
 
-- **A fresh layout for every pair, on both sides** (`tools/fresh-layouts.sh`): each run's binary
+- **A fresh layout for every pair, on both sides**: each run's binary
   relinked with its own `--shuffle-sections` seed (18 s a relink), ASLR
   left on. Layout becomes noise the test measures, not a bias between two
-  builds.
+  builds. The fork's `tools/perf_regress.py` now does this for `regress`
+  (`compare OLD NEW --full` for every cell), with a random function order
+  in a linker order file, which Mach-O's ld takes as well as lld.
 - **One test per cell over the pairs, and the false discovery rate
   controlled over all cells**: a paired t-test on log(new/old) of the run
   means, Benjamini-Hochberg at q = 0.05; a minimum effect (the regression
