@@ -47,8 +47,16 @@ none landed without it. Zooko's decisions of October 16 are in each PR's
 thread.
 
 0. Devon's `stream()` (fork #50) first, since it may replace the `Queue`
-   (Zooko: "the way forward"). Review it, and measure it against every
-   FROZEN.md cell the queue serves, on the Mac and the VM. Then write
+   (Zooko: "the way forward"). John's first review is on #50 (one
+   digest handler; `size_hint` goes; the two schedulers). Measure it
+   against every FROZEN.md cell the queue serves, on the Mac and the VM:
+   Devon's bench branch `devon-stream-cells` (9418988, fetched here as
+   `review/stream-cells`; it carries his false-discovery `compare` and
+   `regress`, the fresh layouts, and the leaves) against its parent
+   897668a, the same BLAKE3 (`review/pr50`, a057ef5) on both sides,
+   `regress --full` over 8 fresh-layout pairs. Devon's i7-12700K reads
+   every streaming cell faster or level but two programs streaming 4-16
+   MiB messages at once (x1.10-1.15). Then write
    the proposed change to what the benchmark asks, for Zooko's
    decision; first explain the stream's batch gap (4096-16384 messages
    x1.06-1.11 alone). Goal (Zooko): one scheduler, the one-shot calls on
@@ -78,24 +86,6 @@ thread.
    principle.
 
 
-1. Done: the library's walk is the proved one (0156c58, Zooko's go-ahead),
-   after `update_rayon`'s removal (0e156c8). `perf_regress` passes on the
-   VM and the Mac (jobs 1497, 1498; battery, busy pairs rerun).
-2. The Hasher's stack as code: `src/stack_core.rs` on probe/stack-array
-   (an array made at the first push, in place of ArrayVec; no cost on the
-   VM); its push and merge proved against `HasherProofs.lean` (e8a75e3).
-   Mac jobs 1490-1496 (battery, every run busy): `perf_regress` passes,
-   and the earlier slow cells read level (64 B x1.000, 2 messages
-   x1.000). Merged (40663e0, Zooko's go-ahead). The VM's check held once
-   at LentBatches|16 (+8.3%), a path that never reaches the stack, then
-   passed four times. Mac, idle on mains (October 11): `perf_regress`
-   passes (job 1500), and an A/B of three pairs (jobs 1502-1507) reads
-   nonstop cells within 3% and the lent cells within 1.3%, both ways; the
-   earlier busy runs' slower small cells do not reproduce.
-   Then consider removing every use of `arrayvec` (the SIMD pointer
-   tables, hazmat, the lanes, `to_hex`'s `ArrayString`, which is public
-   API) for simplicity: one dependency fewer, and less unsafe code under
-   the proofs; only where the result is simpler, not merely different.
 3. Timing (the fork's QUALITY.md, "Timing and secrets", says where each
    condition stands; change it with every step here): whole calls are
    proved to return the standard's result on one path per length (the
