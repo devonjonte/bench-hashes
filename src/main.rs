@@ -1981,11 +1981,15 @@ thread_local! {
     static DIGESTS: std::cell::RefCell<(Vec<[u8; 32]>, usize)> = std::cell::RefCell::new((vec![[0; 32]; DIGEST_SLOTS], 0));
 }
 
-fn use_digest(digest: &[u8]) {
+/// `digests`, one digest or a batch's run of them (32 bytes each; a shorter
+/// one, as SHA-1's 20, is one digest): each in its slot, in turn.
+fn use_digest(digests: &[u8]) {
     DIGESTS.with_borrow_mut(|(slots, next)| {
-        let slot = &mut slots[*next % DIGEST_SLOTS];
-        slot[..digest.len().min(32)].copy_from_slice(&digest[..digest.len().min(32)]);
-        *next += 1;
+        for digest in digests.chunks(32) {
+            let slot = &mut slots[*next % DIGEST_SLOTS];
+            slot[..digest.len()].copy_from_slice(digest);
+            *next += 1;
+        }
     });
 }
 
