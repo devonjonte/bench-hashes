@@ -57,7 +57,15 @@ thread.
    897668a, the same BLAKE3 (`review/pr50`, a057ef5) on both sides,
    `regress --full` over 8 fresh-layout pairs. Devon's i7-12700K reads
    every streaming cell faster or level but two programs streaming 4-16
-   MiB messages at once (x1.10-1.15). Then write
+   MiB messages at once (x1.10-1.15).
+   One scheduler, a sketch from reading the code (October 16): workers
+   already take from both sources in one loop (`Pool::next_piece`: the
+   task list first, then the jobs' slots), with one sleep. A job becomes
+   one entry in the task list that carries a cursor: workers take its
+   shrinking pieces as from today's slots, and it leaves the list when
+   its last piece is taken. The jobs' 64 slots, their readers' counts,
+   the scan (`take_piece`), and `register` go; one-shot calls keep their
+   pieces' sizes. Then write
    the proposed change to what the benchmark asks, for Zooko's
    decision; first explain the stream's batch gap (4096-16384 messages
    x1.06-1.11 alone). Goal (Zooko): one scheduler, the one-shot calls on
