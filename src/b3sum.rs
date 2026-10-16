@@ -189,15 +189,54 @@ mod imp {
 
     unsafe extern "C" {
         fn posix_fadvise(fd: i32, offset: i64, len: i64, advice: i32) -> i32;
+        fn mmap(addr: *mut u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64) -> *mut u8;
+        fn mincore(addr: *mut u8, len: usize, vec: *mut u8) -> i32;
+        fn munmap(addr: *mut u8, len: usize) -> i32;
     }
     const POSIX_FADV_DONTNEED: i32 = 4;
+    const PROT_READ: i32 = 1;
+    const MAP_SHARED: i32 = 1;
 
     pub const EVICTS: bool = true;
 
+    /// Evict `file`'s pages, and check that none stays: a program that
+    /// leaves its mappings for exit to reclaim (b3sum since johnservil/BLAKE3
+    /// #56) leaves pages DONTNEED cannot drop for 20-50 ms after it exits
+    /// (i7-12700K: every first try failed, a try 20-50 ms later took them),
+    /// so the advice is given again, 5 ms apart, until the page cache holds
+    /// none of the file, for up to 2 s.
     pub fn evict(file: &std::fs::File) {
-        // Sound: a plain call on an open descriptor.
-        let rc = unsafe { posix_fadvise(file.as_raw_fd(), 0, 0, POSIX_FADV_DONTNEED) };
-        assert_eq!(rc, 0, "posix_fadvise(DONTNEED)");
+        let started = std::time::Instant::now();
+        loop {
+            // Sound: a plain call on an open descriptor.
+            let rc = unsafe { posix_fadvise(file.as_raw_fd(), 0, 0, POSIX_FADV_DONTNEED) };
+            assert_eq!(rc, 0, "posix_fadvise(DONTNEED)");
+            let cached = cached_pages(file);
+            if cached == 0 {
+                return;
+            }
+            assert!(started.elapsed() < std::time::Duration::from_secs(2), "{cached} pages of a file stay in the page cache 2 s after posix_fadvise(DONTNEED)");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
+
+    /// How many of `file`'s pages the page cache holds (mincore).
+    fn cached_pages(file: &std::fs::File) -> usize {
+        let len = file.metadata().unwrap().len() as usize;
+        if len == 0 {
+            return 0;
+        }
+        let pages = len.div_ceil(4096);
+        let mut resident = vec![0u8; pages];
+        // Sound: a fresh read-only shared mapping of an open file, unmapped
+        // below; `resident` holds a byte a page.
+        unsafe {
+            let map = mmap(core::ptr::null_mut(), len, PROT_READ, MAP_SHARED, file.as_raw_fd(), 0);
+            assert!(!map.is_null() && map as isize != -1, "mmap for mincore");
+            assert_eq!(mincore(map, len, resident.as_mut_ptr()), 0, "mincore");
+            munmap(map, len);
+        }
+        resident.iter().filter(|&&b| b & 1 == 1).count()
     }
 
     /// The filesystem holding `dir`: the longest mount point above it in
