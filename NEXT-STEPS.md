@@ -227,8 +227,11 @@ work". This file says where the work stands; its history is in git.
     Windows GNU, and every Rust but the latest stable (the MSRV job and
     check-builds' MSRV copy go; nightly features we choose stay
     allowed). The README's servil preface points users of those to
-    official BLAKE3. Open with Zooko: `traits-preview` and `digest` (one
-    trait set under two names), `prefer_intrinsics`, `neon`.
+    official BLAKE3. The features `neon` (NEON on 32-bit ARM) and
+    `prefer_intrinsics` (x86 C intrinsics in place of assembly) go with
+    them; `traits-preview` (the RustCrypto `digest` traits, through which
+    generic Rust crypto code takes a hash) stays, John's recommendation,
+    unless Zooko says otherwise.
 16. The C library, first-class (Zooko, October 16: a de facto standard
     needs C), after item 15: C programs get servil's speed, tests, proofs,
     docs, and benchmark place as Rust programs do. Proposed design, for
