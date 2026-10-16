@@ -25,6 +25,12 @@ release, so results of different benchmarks are never read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
+**Changes for the next release** (Zooko, October 16, 2026):
+- **`bench-hashes b3sum` adds many large files** (Devon Jonte, #17): 16
+  files of 64 MiB, as many bytes as the 1 GiB file, in one run as
+  `b3sum *.iso` hashes them (`--quick`: 4 of 16 MiB). Many large files
+  at once are common, and no other input covered them.
+
 **Changes in 0.16.0** (Zooko, October 6, 2026):
 - **A new contender, BLAKE3 commonware** (`blake3-commonware`):
   commonware-cryptography's BLAKE3 batch kernels from its pull request
