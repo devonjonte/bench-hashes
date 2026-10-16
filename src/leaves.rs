@@ -51,11 +51,13 @@ fn produce(first: usize, out: &mut [u8]) {
 struct Program {
     buffer: Vec<u8>,
     digests: Vec<[u8; 32]>,
+    /// The stream variants' places for the digests (kept, as `digests`).
+    places: Vec<blake3_servil::Hash>,
 }
 
 impl Program {
     fn new(count: usize) -> Program {
-        Program { buffer: vec![0u8; count * MESSAGE_LEN], digests: vec![[0u8; 32]; count] }
+        Program { buffer: vec![0u8; count * MESSAGE_LEN], digests: vec![[0u8; 32]; count], places: vec![blake3_servil::Hash::from_bytes([0; 32]); count] }
     }
 
     /// One job of `variant` over `count` messages: the digests' checksum.
@@ -77,26 +79,36 @@ impl Program {
                 // Sound: a Hash is its 32 bytes.
                 fold(unsafe { core::slice::from_raw_parts(digests.as_ptr() as *const blake3_servil::Hash, count) });
             }
+            // The stream's variants write the digests into the same kept
+            // space as lend-oneshot, then fold them as it does.
             "lend-stream" => {
                 produce(0, buffer);
                 let buffer = &*buffer;
-                blake3_servil::stream(blake3_servil::Mode::Hash, |s| {
-                    s.submit_batch(buffer, MESSAGE_LEN, &mut fold);
-                    s.finish(&mut fold);
+                let places = &mut self.places[..count];
+                blake3_servil::stream(blake3_servil::Mode::Hash, |_| {}, |s| {
+                    s.submit_batch(buffer, MESSAGE_LEN, places);
+                    s.finish();
                 });
+                fold(&self.places[..count]);
             }
             "copy-ring" => {
                 produce(0, buffer);
                 let buffer = &*buffer;
-                blake3_servil::stream(blake3_servil::Mode::Hash, |s| {
-                    s.submit_batch_with(count, MESSAGE_LEN, |at, room| room.copy_from_slice(&buffer[at..][..room.len()]), &mut fold);
-                    s.finish(&mut fold);
+                let places = &mut self.places[..count];
+                blake3_servil::stream(blake3_servil::Mode::Hash, |_| {}, |s| {
+                    s.submit_batch_with(MESSAGE_LEN, |at, room| room.copy_from_slice(&buffer[at..][..room.len()]), places);
+                    s.finish();
                 });
+                fold(&self.places[..count]);
             }
-            "write-ring" => blake3_servil::stream(blake3_servil::Mode::Hash, |s| {
-                s.submit_batch_with(count, MESSAGE_LEN, |at, room| produce(at / MESSAGE_LEN, room), &mut fold);
-                s.finish(&mut fold);
-            }),
+            "write-ring" => {
+                let places = &mut self.places[..count];
+                blake3_servil::stream(blake3_servil::Mode::Hash, |_| {}, |s| {
+                    s.submit_batch_with(MESSAGE_LEN, |at, room| produce(at / MESSAGE_LEN, room), places);
+                    s.finish();
+                });
+                fold(&self.places[..count]);
+            }
             _ => unreachable!("a variant of VARIANTS"),
         }
         sum
