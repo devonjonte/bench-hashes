@@ -43,8 +43,15 @@ work". This file says where the work stands; its history is in git.
 ## Tonight (Zooko asleep; John works through the long waits)
 
 In this order, each candidate through its whole gate (PROCEDURES.md),
-none landed without it:
+none landed without it. Zooko's decisions of October 16 are in each PR's
+thread.
 
+0. Devon's `stream()` (fork #50) first, since it may replace the `Queue`
+   (Zooko: "the way forward"). Review it, and measure it against every
+   FROZEN.md cell the queue serves, on the Mac and the VM. Then write
+   the proposed change to what the benchmark asks, for Zooko's
+   decision. Until then, no test, mutation, or proof work on `queue.rs`
+   (its mutants stay unclassified in the list).
 1. `candidate/flat-walk-proofs` (af38bf4): when its long proofs pass
    (about 22:00-23:00), promote it; update #24 and QUALITY's meter;
    close #40 (its proof is on this branch).
@@ -53,9 +60,19 @@ none landed without it:
    `perf_regress` on the VM, then the Mac; promote; pin bench-hashes.
 3. The cuts (item 15), as one candidate on the new `servil`, through the
    same gate.
-4. Devon's PRs, after Zooko's decisions of October 16 (in the PRs'
-   threads): land what he approved, each rebased and gated; answer the
-   rest with what was decided and why.
+4. Devon's approved PRs, each rebased and gated, once `servil` stops
+   moving: #46 (benches/bench.rs goes), #22 (`#[inline]` on
+   `root_bytes`), #55 (the x86 self-test, rebased onto mutants-all's
+   self-test and `EXPECTED` regenerated), #49 (Mac gate; report the
+   cells it slows), then #42 (rustfmt, width 160) before anyone branches
+   again.
+5. The measurement change (adopted): false-discovery control over every
+   cell, and a random link layout per pair (fork #44, #45; bench-hashes
+   #10-#13), as one candidate. Calibrate it on the Mac first (its
+   `-order_file` path is unrun). AGENTS' "a run's mean, compared over
+   pairs of runs" changes with it, worded for Zooko's approval. Then
+   CPU time and energy (bench-hashes #16, fork #48, #43), yes in
+   principle.
 
 
 1. Done: the library's walk is the proved one (0156c58, Zooko's go-ahead),
@@ -218,7 +235,10 @@ none landed without it:
 9. Zooko's optimized BLAKE3 for wasm and the web (a repository of his;
    Zooko, October 16): learn from it, and integrate what serves the fork's
    wasm32 path.
-10. Show each cell's kernel in the results again (Zooko, October 16): an
+10. Show each cell's kernel in the results again (Zooko, October 16;
+    the reports gain an "after a pause" entry for the pair kernel that a
+    batch of 1 to 8 one-block messages runs then, and the legend's claim
+    that a call after idling runs as after other work goes): an
     earlier display marked, at each cell, the kernel `kernel_report`
     names; a rewrite dropped it. Its lengths then need a check against the
     dispatch (the fork's mutation list holds them as open).
