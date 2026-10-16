@@ -2565,7 +2565,16 @@ fn each_interleaved<S: 'static>(
  */
 fn hash_continuous_messages(algorithm: Algorithm, input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8])) {
     if algorithm == Algorithm::Blake3ServilMt {
-        return queue_messages(input, iterations, consume);
+        // Each message read straight into the stream's ring (submit_with),
+        // its digest read as it comes back.
+        let mut take = |hashes: &[blake3_servil::Hash]| hashes.iter().for_each(|h| consume(h.as_bytes()));
+        return blake3_servil::stream(blake3_servil::Mode::Hash, |s| {
+            for _ in 0..iterations {
+                let message = black_box(input);
+                s.submit_with(message.len(), |at, room| room.copy_from_slice(&message[at..][..room.len()]), &mut take);
+            }
+            s.finish(&mut take);
+        });
     }
     if input.len() > PIECE_LEN {
         return hash_stream(algorithm, input, iterations, consume);
@@ -2591,7 +2600,15 @@ fn hash_continuous_messages(algorithm: Algorithm, input: &[u8], iterations: usiz
  */
 fn hash_continuous_batches(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
     if algorithm == Algorithm::Blake3ServilMt {
-        return queue_batches(input, point.messages, iterations, consume);
+        // Each batch read straight into the stream's ring (submit_batch_with).
+        let mut take = |hashes: &[blake3_servil::Hash]| hashes.iter().for_each(|h| consume(h.as_bytes()));
+        return blake3_servil::stream(blake3_servil::Mode::Hash, |s| {
+            for _ in 0..iterations {
+                let batch = black_box(input);
+                s.submit_batch_with(point.messages, MESSAGE_LEN, |at, room| room.copy_from_slice(&batch[at..][..room.len()]), &mut take);
+            }
+            s.finish(&mut take);
+        });
     }
     let batch = Point { use_case: UseCase::ManyMessages, ..point };
     let mut buffers = take_buffers(1, input.len());
