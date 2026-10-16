@@ -4049,9 +4049,10 @@ fn read_samples(path: &str) -> SamplesFile {
  * COMPARE_Q_PERMILLE over all cells, the regression check's margin): each
  * side's median mean, the median ratio with the range the sign test
  * leaves plausible, the verdict, and how many pairs ran faster. At least
- * three pairs. For two builds, relink each run's binary with its own
- * layout (tools/fresh-layouts.sh): link layout moves cold calls' cells by
- * itself (audit/variance-on-unchanged-code.md).
+ * three pairs. For two builds, `regress` (through the fork's
+ * tools/perf_regress.py, which relinks each side with a fresh layout per
+ * pair) runs and judges the pairs itself: link layout moves cold calls'
+ * cells by itself (audit/variance-on-unchanged-code.md).
  */
 /// The false discovery rate `compare` holds its verdicts to, over all the
 /// cells it judges.
