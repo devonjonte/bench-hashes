@@ -446,23 +446,32 @@ established by repeating them.
 
 `bench-hashes compare OLD.tsv... -- NEW.tsv...` takes the runs in pairs,
 the i-th old with the i-th new (run them back to back in alternating
-order), and judges every cell as `regress` does: each pair's ratio, new
-mean over old, and the verdict from their median and an exact sign test
-at a 3% margin, beside each side's median mean, the range of ratios the
-sign test leaves plausible (about 90%), and how many pairs ran faster. It says so beside any run whose load was busy or unmeasured.
-`bench-hashes regress OLD_EXE NEW_EXE` judges two builds: eight pairs of
-runs, one of each, back to back in alternating order, over the lent cells
-(a program hands its buffer to a call and waits), one copy alone. Each
-pair gives each cell one ratio, new mean over old; a cell is slower when
-the median of its ratios exceeds 3% and an exact sign test says it was
-slower in more pairs than chance would give (seven of eight). The queue's
-cells and the shared scenario stay out of it: on identical code the
+order, at least three pairs), and judges all their cells at once: per
+cell a paired t-test on the logarithm of each pair's ratio, new mean over
+old, and over all the cells the Benjamini-Hochberg procedure at a 5%
+false discovery rate; a cell that passes is slower or faster beyond a 3%
+margin, the rest level. Beside each cell: each side's median mean, the
+median ratio with the range a sign test leaves plausible (about 90%),
+and how many pairs ran faster. It says so beside any run whose load was
+busy or unmeasured.
+
+`bench-hashes regress [--full] OLD_EXE... -- NEW_EXE...` judges two
+builds the same way: eight pairs of runs, pair i running the i-th
+executable of each side, back to back in alternating order, over the
+lent cells (a program hands its buffer to a call and waits), one copy
+alone; with `--full`, a default run's every cell. Give each side a fresh
+link layout per pair (the fork's `tools/perf_regress.py` relinks each
+side with a random function order): a binary's layout alone moves the
+cells of calls made now and then by several percent, and the same
+binary's runs differ with the address layout each process gets
+([audit/variance-on-unchanged-code.md](audit/variance-on-unchanged-code.md)).
+On an i7-12700K, unchanged code read level in all 700 cells this way,
+where a sign test per cell had flagged 15-27. The queue's cells and the
+shared scenario stay out of the default check: on identical code the
 queue's means move 6-60% between processes, and two copies' 64 B cells
-switch between states 20-30% apart, more than the check can judge. A
-change that only moves the code's layout is held about one time in eight,
-at the 64 B cell by about the margin, a cost of where code lands. The check, calibrated on an Apple M4 Max with planted slowdowns
-and builds of identical code, is in the fork's NOTES ("The regression
-check, calibrated").
+switch between states 20-30% apart. The check's first calibration, on an
+Apple M4 Max with planted slowdowns and builds of identical code, is in
+the fork's NOTES ("The regression check, calibrated").
 
 ## The map
 
