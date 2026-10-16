@@ -65,7 +65,11 @@ thread.
    shrinking pieces as from today's slots, and it leaves the list when
    its last piece is taken. The jobs' 64 slots, their readers' counts,
    the scan (`take_piece`), and `register` go; one-shot calls keep their
-   pieces' sizes. Then write
+   pieces' sizes. Devon prototypes it (Zooko, October 16), after he
+   explains the stream's batch gap (its likely cause, contention on the
+   task list, is what the one scheduler would inherit); John reviews it
+   and measures it on the Mac. Devon's single digest handler comes on
+   `candidate/devon-stream-one-handler`; tonight's numbers are a057ef5's. Then write
    the proposed change to what the benchmark asks, for Zooko's
    decision; first explain the stream's batch gap (4096-16384 messages
    x1.06-1.11 alone). Goal (Zooko): one scheduler, the one-shot calls on
@@ -86,8 +90,9 @@ thread.
    moving: #46 (benches/bench.rs goes), #22 (`#[inline]` on
    `root_bytes`), #55 (the x86 self-test, rebased onto mutants-all's
    self-test and `EXPECTED` regenerated), #49 (Mac gate; report the
-   cells it slows), then #42 (rustfmt, width 160) before anyone branches
-   again.
+   cells it slows), #58 (x86 detection in one CPUID read, SIGILL kept;
+   rebased onto the cuts), then #42 (rustfmt, width 160) before anyone
+   branches again.
 5. The measurement change (adopted): false-discovery control over every
    cell, and a random link layout per pair (fork #44, #45; bench-hashes
    #10-#13), as one candidate. Calibrate it on the Mac first (its
