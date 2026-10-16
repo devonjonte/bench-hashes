@@ -50,8 +50,11 @@ thread.
    (Zooko: "the way forward"). Review it, and measure it against every
    FROZEN.md cell the queue serves, on the Mac and the VM. Then write
    the proposed change to what the benchmark asks, for Zooko's
-   decision. Until then, no test, mutation, or proof work on `queue.rs`
-   (its mutants stay unclassified in the list).
+   decision; first explain the stream's batch gap (4096-16384 messages
+   x1.06-1.11 alone). Goal (Zooko): one scheduler, the one-shot calls on
+   the stream's tasks, level on their cells. Until then, no test,
+   mutation, or proof work on `queue.rs` or the pool's job scheduler
+   (their mutants stay unclassified in the list).
 1. `candidate/flat-walk-proofs` (af38bf4): when its long proofs pass
    (about 22:00-23:00), promote it; update #24 and QUALITY's meter;
    close #40 (its proof is on this branch).
