@@ -36,6 +36,13 @@ work stands and what comes next; its history is in git.
 
 Each candidate through its whole gate, none landed without it:
 
+0. When the long proofs end (the VM idle): measure fork #59 (the stream,
+   one scheduler, the queue retired; Devon: "the design has settled").
+   The Mac first: four benchmark jobs, old new new old, `servil` with
+   bench-hashes `main` against #59 with Devon's `devon-one-scheduler`
+   bench branch (#20, with #21's CPU time if it carries it), read with
+   `bench-hashes compare`; then the VM. The numbers go to Zooko with #20's
+   FROZEN.md entry retiring the queue.
 1. Promote `candidate/flat-walk-proofs` when its long proofs pass; update
    #24 and QUALITY's meter; close #40 (its proof is on this branch).
 2. `candidate/mutants-all`: a mutant run on its tip (the list must then
