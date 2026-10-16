@@ -2600,8 +2600,10 @@ fn hash_continuous_messages(algorithm: Algorithm, input: &[u8], iterations: usiz
  */
 fn hash_continuous_batches(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
     if algorithm == Algorithm::Blake3ServilMt {
-        // Each batch read straight into the stream's ring (submit_batch_with).
-        let mut take = |hashes: &[blake3_servil::Hash]| hashes.iter().for_each(|h| consume(h.as_bytes()));
+        // Each batch read straight into the stream's ring (submit_batch_with);
+        // each run of digests handed to `consume` whole, as the queue's
+        // batch is. Sound: a Hash is its 32 bytes (repr(transparent)).
+        let mut take = |hashes: &[blake3_servil::Hash]| consume(unsafe { core::slice::from_raw_parts(hashes.as_ptr().cast::<u8>(), hashes.len() * 32) });
         return blake3_servil::stream(blake3_servil::Mode::Hash, |s| {
             for _ in 0..iterations {
                 let batch = black_box(input);
