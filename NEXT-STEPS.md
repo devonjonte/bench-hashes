@@ -66,7 +66,23 @@ Each candidate through its whole gate, none landed without it:
    one scheduler (a job as one task-list entry with a cursor; Devon
    prototypes, John reviews and measures). Until then no test, mutation,
    or proof work on `queue.rs` or the job scheduler.
-2. **Complete the proofs** (the fork's `QUALITY.md`, "Proofs"; issue #24):
+2. **Long proofs in an hour or two** (Zooko, October 16: "changing
+   things so that proofs don't take this long from now on"). The run of
+   October 16 took 11-12 hours (13:23 to about 01:00 UTC), and a day of
+   machine time with its two failed attempts: a costly gate for every code
+   change. Where the time goes: `prove_sme2`'s inductions over the group
+   loop, single-threaded Z3 runs of 1.7 to 3.75 hours each (`every`
+   13,500 s; `messages_every` per block count 6,300-11,700 s; `x2_every`
+   the longest, unmeasured before), four at a time because each holds
+   10-18 GB. Levers, cheapest first: split each induction into smaller
+   obligations that run in parallel (one per loop step's piece, as the
+   chunk kernels' fixed-count cases already are); shrink each one's memory
+   so more run at once; order the queue longest first, so no long case
+   starts last; and in the end, Lean over Arm's own specification (item
+   2's last step) in place of Z3's executor. Keep to "no stored claims": a
+   proof's result counts only for code an always-run proof covers, so
+   caching results by content needs Zooko's view first.
+3. **Complete the proofs** (the fork's `QUALITY.md`, "Proofs"; issue #24):
    the glue between the proved parts (the Hasher's staging,
    `update_pooled`, platform detection), the pool's and SME2's routes,
    the batch APIs, the XOF reader, and one Lean statement joining the
@@ -78,7 +94,7 @@ Each candidate through its whole gate, none landed without it:
    users and experts alike can read each English statement, map it to
    the Lean statement from the Lean source alone, and run the checker and
    read its verdict.
-3. **Mutation testing beside the proofs** (Zooko, October 16): skip what
+4. **Mutation testing beside the proofs** (Zooko, October 16): skip what
    a current proof covers, and one figure: how much of the library a
    proof or mutation testing covers. Done on mutants-all: the Kani
    harnesses are left to `cargo kani`, and `check.py` prints the figure
@@ -87,36 +103,36 @@ Each candidate through its whole gate, none landed without it:
    functions proved for every input held 115 of 2448 mutants and 34 of
    781 survivors); then derive the set from the proofs, never a list. Loom for the pool's interleavings
    (the "OPEN" survivors; `tests/api_plan.rs`'s repetition loops go).
-4. **Show each cell's kernel in the results again** (Zooko): the reports
+5. **Show each cell's kernel in the results again** (Zooko): the reports
    gain an "after a pause" entry (a batch of 1 to 8 one-block messages
    runs the pair kernel then), and the legend's claim that a call after
    idling runs as after other work goes.
-5. **CPU time and energy beside wall time** (bench-hashes #16, fork #48,
+6. **CPU time and energy beside wall time** (bench-hashes #16, fork #48,
    #43; yes in principle), after the measurement change.
-6. **The C library, first-class** (Zooko: a de facto standard needs C):
+7. **The C library, first-class** (Zooko: a de facto standard needs C):
    `candidate/c-api` (on the cuts) has `capi/b3.h`, a fresh design (Zooko:
    no compatibility with upstream's C API), over the crate, tested from
    Rust and from C. Next: the stream in C once it settles; Windows's C
    test; packaging (pkg-config, an install); its place in bench-hashes.
-7. **Timing**: whole calls are proved to take one path per length
+8. **Timing**: whole calls are proved to take one path per length
    (QUALITY.md, "Timing and secrets"); next, measure DIT's cost.
-8. **SHA-256 at its best** in every comparison (Zooko, October 10): each
+9. **SHA-256 at its best** in every comparison (Zooko, October 10): each
    SHA-256 contender's fastest build and calls on each platform.
-9. **SME2 at every vector length**, the proofs covering each length the
+10. **SME2 at every vector length**, the proofs covering each length the
    code supports; the SME2 flat walk as a kernel with a proved contract;
    the ZA forms Isla cannot run yet.
-10. **Zooko's wasm and web BLAKE3**: learn from it (ask him for the
+11. **Zooko's wasm and web BLAKE3**: learn from it (ask him for the
     repository when we start).
-11. **Lessons for Ode**: after reading samshackleton's Ode whole, among
+12. **Lessons for Ode**: after reading samshackleton's Ode whole, among
     them that benchmarking is first-class (timing, like halting, is part
     of correctness).
-12. **One `Mode`** (Zooko, October 16): the crate's `Mode` and hazmat's
+13. **One `Mode`** (Zooko, October 16): the crate's `Mode` and hazmat's
     `Mode` name the same modes differently; one type serves both, with
     `DeriveKeyMaterial` (a precomputed context key) beside `DeriveKey`.
     With it, hazmat's docs say its assertions panic (they are the
     contract; upstream's "best-effort, not guaranteed" goes). After the
     stream settles, since the queue takes a `Mode`.
-13. **Watch**: `perf_regress` sometimes holds `LentBatches|16` on
+14. **Watch**: `perf_regress` sometimes holds `LentBatches|16` on
     unchanged code (Mac job 1519, +14-17%); the measurement change should
     settle it, else find the cause.
 
