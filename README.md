@@ -80,7 +80,7 @@ The contenders:
   the official BLAKE3 Rust crate, faster on 64-bit Arm and above all on
   Apple M4-class chips (on other CPUs its kernels are the official
   crate's), with its own threads to spread large inputs over your CPU
-  cores and a queue for inputs that come one after another.
+  cores and a stream for inputs that come one after another.
 - **BLAKE3 servil st**: the same on one thread.
 - **SHA-256** (the `sha2` crate) and **SHA-256 ring** (the `ring`
   crate): SHA-256 with the CPU's SHA-256 instructions where it has them;
