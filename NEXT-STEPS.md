@@ -80,7 +80,12 @@ Each candidate through its whole gate, none landed without it:
    read its verdict.
 3. **Mutation testing beside the proofs** (Zooko, October 16): skip what
    a current proof covers, and one figure: how much of the library a
-   proof or mutation testing covers. Loom for the pool's interleavings
+   proof or mutation testing covers. Done on mutants-all: the Kani
+   harnesses are left to `cargo kani`, and `check.py` prints the figure
+   by function. Waiting: excluding proved Rust functions, worth a
+   mechanism once the proofs reach the glue (on October 16 the
+   functions proved for every input held 115 of 2448 mutants and 34 of
+   781 survivors); then derive the set from the proofs, never a list. Loom for the pool's interleavings
    (the "OPEN" survivors; `tests/api_plan.rs`'s repetition loops go).
 4. **Show each cell's kernel in the results again** (Zooko): the reports
    gain an "after a pause" entry (a batch of 1 to 8 one-block messages
