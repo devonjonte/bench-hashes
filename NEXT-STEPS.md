@@ -199,6 +199,27 @@ work". This file says where the work stands; its history is in git.
    (Apple M4), and fall back to NEON elsewhere. Make them scalable, so
    future SME2 hardware with another length (128 to 2048 bits) runs
    SME2 too, with the proofs covering each length the code supports.
+9. Zooko's optimized BLAKE3 for wasm and the web (a repository of his;
+   Zooko, October 16): learn from it, and integrate what serves the fork's
+   wasm32 path.
+10. Show each cell's kernel in the results again (Zooko, October 16): an
+    earlier display marked, at each cell, the kernel `kernel_report`
+    names; a rewrite dropped it. Its lengths then need a check against the
+    dispatch (the fork's mutation list holds them as open).
+11. Concurrency tested by construction (Zooko, October 16): three loops in
+    `tests/api_plan.rs` repeat 200-400 times to provoke scheduling races.
+    Try Loom, which runs every interleaving of a small model of the
+    threads' atomics and locks, in their place.
+12. The AArch64 paths without SHA-3 and without SME2, tested (Zooko,
+    October 16): no suite runs the std build on such a CPU (a Raspberry
+    Pi 4, Graviton 2). Add a CI job on such a machine.
+13. Mutation testing skips proved code (Zooko, October 16), and one
+    figure says how much of the library is covered by a current proof or
+    by mutation testing with every survivor explained.
+14. Lessons from mutation testing and proofs, for Ode (Zooko, October 16):
+    after reading samshackleton's Ode repository whole, write them into
+    it, among them that benchmarking is first-class (timing, like halting,
+    is part of correctness).
 
 ## Commands
 
