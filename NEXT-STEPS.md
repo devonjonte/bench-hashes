@@ -88,9 +88,11 @@ Each candidate through its whole gate, none landed without it:
    idling runs as after other work goes.
 5. **CPU time and energy beside wall time** (bench-hashes #16, fork #48,
    #43; yes in principle), after the measurement change.
-6. **The C library, first-class** (Zooko: a de facto standard needs C): a
-   thin C-ABI layer over the Rust crate (static and shared libraries, one
-   header), one implementation carrying every proof.
+6. **The C library, first-class** (Zooko: a de facto standard needs C):
+   `candidate/c-api` (on the cuts) has `capi/b3.h`, a fresh design (Zooko:
+   no compatibility with upstream's C API), over the crate, tested from
+   Rust and from C. Next: the stream in C once it settles; Windows's C
+   test; packaging (pkg-config, an install); its place in bench-hashes.
 7. **Timing**: whole calls are proved to take one path per length
    (QUALITY.md, "Timing and secrets"); next, measure DIT's cost.
 8. **SHA-256 at its best** in every comparison (Zooko, October 10): each
