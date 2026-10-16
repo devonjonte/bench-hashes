@@ -220,6 +220,23 @@ work". This file says where the work stands; its history is in git.
     after reading samshackleton's Ode repository whole, write them into
     it, among them that benchmarking is first-class (timing, like halting,
     is part of correctness).
+15. Cut what we do not stand behind (Zooko, October 16; AGENTS, "Support
+    only what we stand behind"), after the in-flight candidates land, as
+    one candidate: 32-bit x86 (i586, i686), x86 without SSE4.1 (the SSE2
+    kernel, `no_sse2`, `no_sse41`), ARMv7, big-endian (PowerPC64, s390x),
+    Windows GNU, and every Rust but the latest stable (the MSRV job and
+    check-builds' MSRV copy go; nightly features we choose stay
+    allowed). The README's servil preface points users of those to
+    official BLAKE3. Open with Zooko: `traits-preview` and `digest` (one
+    trait set under two names), `prefer_intrinsics`, `neon`.
+16. The C library, first-class (Zooko, October 16: a de facto standard
+    needs C), after item 15: C programs get servil's speed, tests, proofs,
+    docs, and benchmark place as Rust programs do. Proposed design, for
+    Zooko: the C API as a thin C-ABI layer over the Rust crate (a static
+    and a shared library, one header), so one implementation carries
+    every proof, in place of upstream's separate C implementation; its
+    trade-off is that building from source needs a Rust compiler, which
+    prebuilt libraries and distribution packages take away from users.
 
 ## Commands
 
