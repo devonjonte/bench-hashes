@@ -46,36 +46,19 @@ In this order, each candidate through its whole gate (PROCEDURES.md),
 none landed without it. Zooko's decisions of October 16 are in each PR's
 thread.
 
-0. Devon's `stream()` (fork #50) first, since it may replace the `Queue`
-   (Zooko: "the way forward"). John's first review is on #50 (one
-   digest handler; the two schedulers; `size_hint` stays, Zooko: a public
-   API's callers are ours to spare a breaking change). Measure it
-   against every FROZEN.md cell the queue serves, on the Mac and the VM:
-   Devon's bench branch `devon-stream-cells` (9418988, fetched here as
-   `review/stream-cells`; it carries his false-discovery `compare` and
-   `regress`, the fresh layouts, and the leaves) against its parent
-   897668a, the same BLAKE3 (`review/pr50`, a057ef5) on both sides,
-   `regress --full` over 8 fresh-layout pairs. Devon's i7-12700K reads
-   every streaming cell faster or level but two programs streaming 4-16
-   MiB messages at once (x1.10-1.15).
-   One scheduler, a sketch from reading the code (October 16): workers
-   already take from both sources in one loop (`Pool::next_piece`: the
-   task list first, then the jobs' slots), with one sleep. A job becomes
-   one entry in the task list that carries a cursor: workers take its
-   shrinking pieces as from today's slots, and it leaves the list when
-   its last piece is taken. The jobs' 64 slots, their readers' counts,
-   the scan (`take_piece`), and `register` go; one-shot calls keep their
-   pieces' sizes. Devon prototypes it (Zooko, October 16), after he
-   explains the stream's batch gap (its likely cause, contention on the
-   task list, is what the one scheduler would inherit); John reviews it
-   and measures it on the Mac. Devon's single digest handler comes on
-   `candidate/devon-stream-one-handler`; tonight's numbers are a057ef5's. Then write
-   the proposed change to what the benchmark asks, for Zooko's
-   decision; first explain the stream's batch gap (4096-16384 messages
-   x1.06-1.11 alone). Goal (Zooko): one scheduler, the one-shot calls on
-   the stream's tasks, level on their cells. Until then, no test,
-   mutation, or proof work on `queue.rs` or the pool's job scheduler
-   (their mutants stay unclassified in the list).
+0. Devon's `stream()` (fork #50): direction approved (Zooko, October 16):
+   digests written into the caller's memory (each submission names its
+   place; one handler takes the places back in order;
+   `candidate/devon-stream-caller-outputs`, 113f827), a batch's tasks
+   pushed in one call with a wake check sized to the list, and a cheaper
+   `wake_for` for the whole pool. The batch gap is explained (the
+   caller's copying and submit cost set that cell's speed). Not measured
+   on the Mac until Devon says the design has settled (Zooko); then
+   every FROZEN.md cell the queue serves, with his port of bench-hashes'
+   streaming cells, and the contract change to Zooko with the numbers.
+   One scheduler after: Devon prototypes it; John reviews and measures.
+   Until then, no test, mutation, or proof work on `queue.rs` or the
+   job scheduler (their mutants stay "OPEN, deferred" in the list).
 1. `candidate/flat-walk-proofs` (af38bf4): when its long proofs pass
    (about 22:00-23:00), promote it; update #24 and QUALITY's meter;
    close #40 (its proof is on this branch).
