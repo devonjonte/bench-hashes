@@ -78,8 +78,10 @@ thread.
 2. `candidate/mutants-all` (86f1a14): a fresh mutant run (about 1 h) and
    its classification; check-builds; CI (the new AArch64 job included);
    `perf_regress` on the VM, then the Mac; promote; pin bench-hashes.
-3. The cuts (item 15), as one candidate on the new `servil`, through the
-   same gate.
+3. The cuts (item 15): `candidate/cuts` (bb81f30, on mutants-all) has
+   them, the C library's removal included; CI was running at 17:00.
+   Rebase onto the new `servil`, then the whole gate (x86 code and the
+   Platform enum change, so `perf_regress` on both machines).
 4. Devon's approved PRs, each rebased and gated, once `servil` stops
    moving: #46 (benches/bench.rs goes), #22 (`#[inline]` on
    `root_bytes`), #55 (the x86 self-test, rebased onto mutants-all's
@@ -271,7 +273,9 @@ thread.
     generic Rust crypto code takes a hash) stays, John's recommendation,
     unless Zooko says otherwise.
 16. The C library, first-class (Zooko, October 16: a de facto standard
-    needs C), after item 15: C programs get servil's speed, tests, proofs,
+    needs C), after item 15. Until then the fork has none: upstream's,
+    byte for byte the same as official BLAKE3, went with the cuts, and C
+    programs use official BLAKE3's. C programs get servil's speed, tests, proofs,
     docs, and benchmark place as Rust programs do. Proposed design, for
     Zooko: the C API as a thin C-ABI layer over the Rust crate (a static
     and a shared library, one header), so one implementation carries
