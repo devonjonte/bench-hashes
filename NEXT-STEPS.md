@@ -79,7 +79,7 @@ Each candidate through its whole gate, none landed without it:
    chunk kernels' fixed-count cases already are); shrink each one's memory
    so more run at once; order the queue longest first, so no long case
    starts last; and in the end, Lean over Arm's own specification (item
-   2's last step) in place of Z3's executor. Keep to "no stored claims": a
+   3's last step) in place of Z3's executor. Keep to "no stored claims": a
    proof's result counts only for code an always-run proof covers, so
    caching results by content needs Zooko's view first.
 3. **Complete the proofs** (the fork's `QUALITY.md`, "Proofs"; issue #24):
