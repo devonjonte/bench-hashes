@@ -692,3 +692,21 @@ recommended cells says so. The chips keep the recommended call: on
 several threads, nonstop pieces show `update_multithreaded`, with
 `hash_multithreaded`'s cells standing in, and pieces now and then show
 `update`, with `hash`'s cells standing in.
+
+## Produced leaves (`bench-hashes leaves`)
+
+A Merkle tree's leaves that a program computes, as a zero-knowledge
+prover's encoder computes code words and hashes each: N 64-byte messages
+(16384 and 1048576) from a counter (the buffer's 64-bit words count up),
+the same producer in every variant, which differ in how the program hands
+them over: produced into its own buffer and lent to
+`hash_many_multithreaded` (lend-oneshot) or to a stream's `submit_batch`
+(lend-stream); produced into its own buffer and copied into the stream's
+ring (copy-ring); or produced straight into the ring by
+`submit_batch_with` (write-ring). A sample times whole jobs, from
+producing the first message to having read every digest, nothing
+subtracted. Beside wall time per message, each cell reports CPU time of
+all the process's threads per message and the CPU package's energy per
+message (RAPL, `clocks::energy`; package-wide, so a quiet machine's only),
+over the cell's whole interval. `solo` is one program, `two` two at once.
+It writes `leaves.samples.tsv`, which `bench-hashes compare` reads.

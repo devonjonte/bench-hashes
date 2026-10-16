@@ -155,7 +155,7 @@ fn git_text_allow_failure(
 const SERVIL_CHECKOUT: &str = "..";
 
 /// The fork's repository, as Cargo.toml names it and Cargo.lock records it.
-const SERVIL_GIT: &str = "https://github.com/johnservil/BLAKE3";
+const SERVIL_GIT: &str = "https://github.com/devonjonte/BLAKE3";
 
 /// What `git` reports about a checkout: its origin URL, HEAD commit,
 /// nearest release tag, current branch, and whether the tree is clean.
