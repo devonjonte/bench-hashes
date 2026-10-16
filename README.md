@@ -77,20 +77,24 @@ slow the results, and battery power changes which cores run them.
 The contenders:
 
 - **BLAKE3 servil mt**: [a fork](https://github.com/johnservil/BLAKE3) of
-  the official BLAKE3 Rust crate, faster on 64-bit Arm and above all on
-  Apple M4-class chips (on other CPUs its kernels are the official
-  crate's), with its own threads to spread large inputs over your CPU
-  cores and a queue for inputs that come one after another.
+  the official BLAKE3 Rust crate, faster on 64-bit Arm, above all on
+  Apple M4-class chips, and on x86-64, with its own threads to spread
+  large inputs over your CPU cores and a queue for inputs that come one
+  after another.
 - **BLAKE3 servil st**: the same on one thread.
 - **SHA-256** (the `sha2` crate) and **SHA-256 ring** (the `ring`
   crate): SHA-256 with the CPU's SHA-256 instructions where it has them;
   two implementations, since each is fastest at some sizes on some
   computers.
 
-`--all` adds the official BLAKE3 crate, SHA3-256, SHA-1DC, Apple's
-CommonCrypto SHA-256, and **BLAKE3 commonware**: the batch kernels of
+`cargo run --release -- --all` adds the official BLAKE3 crate, SHA3-256,
+SHA-1DC, Apple's CommonCrypto SHA-256, and **BLAKE3 commonware**: the
+batch kernels of
 [commonware](https://github.com/commonwarexyz/monorepo/pull/4982)'s
-cryptography crate, measured on batches of 64-byte messages.
+cryptography crate, measured on batches of 64-byte messages; it takes
+longer. `--contenders` picks any set by name, among them the official
+crate on its thread pool (`blake3-official-mt`), which runs only when
+named (`--list` shows the names).
 
 ## Which function to use
 
@@ -102,12 +106,6 @@ answers with one call from the servil crate, a complete Rust example, how
 that call's measured speed on your computer compares with SHA-256's, and
 a link to its chart on the map. Every
 question has an "I'm not sure" answer that leads to a safe choice.
-
-`cargo run --release -- --all` adds every other hash the benchmark knows
-(above) and takes longer; `--contenders` picks any set
-by name, including the official crate on its thread pool
-(`blake3-official-mt`), which runs only when named (`--list` shows the
-names).
 
 ## How fast is b3sum?
 
@@ -170,7 +168,7 @@ where FOLDER is the folder the run created.
 We would be glad to add your results to ours: once they are pushed to
 your fork, open a pull request to `johnservil/bench-hashes` on GitHub.
 Say in it what computer you ran on. Results from a machine we already
-have go beside ours rather than over them: rename your folder first,
+have go beside ours, so rename your folder first,
 for example
 `git mv benchmark-results/AppleM4Max.darwin25 benchmark-results/AppleM4Max.darwin25.yourname`.
 

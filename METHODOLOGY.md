@@ -3,8 +3,8 @@
 This file explains what a run measures, how it keeps the numbers honest,
 and what each contender runs. [README.md](README.md) says how to run it.
 
-Every run measures each contender in nine use cases. Four are calls made
-now and then, each after a gap of one of two kinds: **after other
+Every run measures each contender in twelve use cases. Four are calls
+made now and then, each after a gap of one of two kinds: **after other
 work**, after the program has run a fixed other program and read 128 MiB
 of data, as a program hashes between its other tasks; and **after
 idling**, after the program has slept 1 ms, as a server waits for its
@@ -13,14 +13,29 @@ twenty-seven sizes from 64 B to 128 MiB, reported per byte, and **a
 batch** of 64-byte messages, at twenty-four counts from 1 to 262144,
 reported per message.
 
-Five hash one input after another, as fast as the program can, each
-input first read into a buffer (a memory copy, timed). With buffers the
-program **owns** and hands over, filling the next while one is hashed:
-**messages**, at eleven sizes from 64 B to 64 MiB, and **batches**, of 16
-to 65536 messages. With buffers it **lends** to a call until the call
-returns, so reading and hashing take turns: messages and batches at the
-same sizes, and **64 MiB messages in 64 KiB pieces**, through each
-contender's incremental API.
+Eight hash one input after another, as fast as the program can, each
+input first read or written into a buffer (timed with the hashing):
+
+- With buffers the program **owns** and hands over, filling the next
+  while one is hashed: **messages**, at eleven sizes from 64 B to
+  64 MiB, and **batches**, of 16 to 65536 messages.
+- With buffers it **lends** to a call until the call returns, so reading
+  and hashing take turns: messages and batches at the same sizes, and
+  **64 MiB messages in 64 KiB pieces**, through each contender's
+  incremental API.
+- **Many messages at once, arriving in pieces** (a server's uploads):
+  256 messages open at once, their pieces arriving in turns of 64, each
+  in its own buffer.
+- **A collection** of 2048 items of every size, each hashed once, all in
+  memory, as git, Nix, and content-addressed stores name their objects:
+  two collections in the shares of real ones (git's objects, and the
+  files of Nix store paths).
+- **A message with its outboard**, for verified streaming: messages of
+  1 MiB and 64 MiB hashed with the tree's parent nodes above 16 KiB
+  groups, as iroh-blobs stores them.
+- **A message received in that form**, verified as it arrives.
+
+FROZEN.md lists each contender's calls in each use case.
 
 Each nonstop use case runs in two scenarios: **solo**, one copy of the
 contender, and **shared**, two copies at once. The calls after a gap run
@@ -50,8 +65,8 @@ The one-message axis tests every power-of-two input size from 64 B to
 between 2 and 8 KiB: 2304 B (an 802.11 frame body at its maximum),
 3839 and 7935 B (the 802.11n A-MSDU maxima), and 4470 B (the Packet over
 SONET/SDH MTU). None of those four is a multiple of BLAKE3's 1 KiB
-chunk, as real inputs seldom are. 16 MiB was dropped: its neighbours
-predict it to within run-to-run noise.
+chunk, as real inputs seldom are. 16 MiB is left out: its neighbours
+predict it closely.
 
 Below 1 KiB a BLAKE3 input is one chunk; from 2 KiB to 16 KiB
 its SIMD paths fill (4-way NEON at 4 KiB, a sixteen-lane SME2 group at
@@ -276,8 +291,10 @@ otherwise; only CPUs with SME2 run it. At run time the
 fork reads the CPU: one that reports SME2 with a 512-bit streaming
 vector length gets the SME2 group kernel for sixteen chunks and up;
 every AArch64 core runs the scalar and integer + NEON hybrid kernels.
-On other CPUs it runs the kernels of the crates.io crate it forks
-(SSE4.1, AVX2, AVX-512 on x86). The report's kernel table names the
+On x86-64 it runs the crates.io crate's assembly kernels (SSE4.1, AVX2,
+AVX-512) and kernels of its own: passes that hash whole chunks and a
+partial one together, and batches of messages of two to fifteen chunks
+hashed across the messages. The report's kernel table names the
 platform the run measured. Its provenance line gives the repository,
 branch, and commit instead of a registry checksum. For a batch the fork's `hash_many`
 hashes messages of one to sixteen blocks many lanes at a time (sixteen
