@@ -3538,6 +3538,11 @@ fn continuous_min_inputs(input: &[u8], point: Point) -> usize {
     }
 }
 
+/// Untimed batches before a cell's calibration, and probes it takes the
+/// fastest of (calibrate_batch).
+const CALIBRATION_WARMUPS: usize = 3;
+const CALIBRATION_PROBES: usize = 3;
+
 fn calibrate_batch(
     algorithm: Algorithm,
     input: &[u8],
@@ -3548,16 +3553,27 @@ fn calibrate_batch(
     /*
      * A cell's first calls carry one-time costs (a pool or a queue's
      * delivery thread starting, a self-test, first-touched buffers), which
-     * would size its samples short: one untimed batch first (Devon Jonte,
+     * would size its samples short: untimed batches first (Devon Jonte,
      * bench-hashes#4: the queue's 64 B samples 154-199 us against the 1 ms
-     * target; the Mac's 176 us).
+     * target; the Mac's 176 us), and each probe the fastest of three. One
+     * untimed batch and one probe left Interleaved 256 open still warming
+     * in some builds (i7-12700K: probes 0.57-0.79 ms against 0.28 ms an
+     * iteration steady), which halved its samples and read it 4-10% slower
+     * with no slower hashing (johnservil/bench-hashes#11).
      */
-    run_batch(algorithm, input, point, fewest);
+    for _ in 0..CALIBRATION_WARMUPS {
+        run_batch(algorithm, input, point, fewest);
+    }
 
     loop {
-        let started = clocks::now();
-        run_batch(algorithm, input, point, iterations);
-        let elapsed_ns = u128::from(clocks::since_ns(started));
+        let elapsed_ns = (0..CALIBRATION_PROBES)
+            .map(|_| {
+                let started = clocks::now();
+                run_batch(algorithm, input, point, iterations);
+                u128::from(clocks::since_ns(started))
+            })
+            .min()
+            .expect("a probe at least");
 
         /*
          * A sufficiently short interval can be below a platform timer's
