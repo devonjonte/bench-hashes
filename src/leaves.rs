@@ -150,21 +150,33 @@ fn measure_cell(programs: &mut [Program], variant: &str, count: usize, want: [u8
 }
 
 pub fn command(arguments: &[String]) {
+    let usage = "bench-hashes leaves [--rounds N] [--variants V,...] [--counts N,...] [--scenarios solo,two]";
     let mut rounds = 12usize;
+    let (mut variants, mut counts, mut scenarios) = (VARIANTS.to_vec(), COUNTS.to_vec(), SCENARIOS.to_vec());
     let mut it = arguments.iter();
+    let list = |v: Option<&String>| -> Vec<String> { v.expect(usage).split(',').map(str::to_owned).collect() };
     while let Some(a) = it.next() {
         match a.as_str() {
-            "--rounds" => rounds = it.next().expect("--rounds N").parse().expect("--rounds takes a whole number"),
-            other => panic!("bench-hashes leaves [--rounds N]: unknown argument {other}"),
+            "--rounds" => rounds = it.next().expect(usage).parse().expect("--rounds takes a whole number"),
+            "--variants" => variants = list(it.next()).iter().map(|v| *VARIANTS.iter().find(|&&k| k == v).unwrap_or_else(|| panic!("no variant {v}: {VARIANTS:?}"))).collect(),
+            "--counts" => counts = list(it.next()).iter().map(|c| c.parse().expect("a count")).collect(),
+            "--scenarios" => scenarios = list(it.next()).iter().map(|v| *SCENARIOS.iter().find(|&&k| k == v).unwrap_or_else(|| panic!("no scenario {v}"))).collect(),
+            other => panic!("{usage}: unknown argument {other}"),
         }
     }
     assert!(rounds >= 2, "two rounds at least");
     blake3_servil::initialize_multithreaded();
     let mut machine = machine_metadata();
-    let cells: Vec<(&str, usize, &str)> =
-        SCENARIOS.iter().flat_map(|&sc| COUNTS.iter().flat_map(move |&n| VARIANTS.iter().map(move |&v| (sc, n, v)))).collect();
-    let wants: Vec<[u8; 32]> = COUNTS.iter().map(|&n| expected(n)).collect();
-    let mut programs: Vec<Program> = (0..2).map(|_| Program::new(*COUNTS.iter().max().unwrap())).collect();
+    let mut cells: Vec<(&str, usize, &str)> = Vec::new();
+    for &sc in &scenarios {
+        for &n in &counts {
+            for &v in &variants {
+                cells.push((sc, n, v));
+            }
+        }
+    }
+    let wants: Vec<[u8; 32]> = counts.iter().map(|&n| expected(n)).collect();
+    let mut programs: Vec<Program> = (0..2).map(|_| Program::new(*counts.iter().max().unwrap())).collect();
     // Each cell's rounds; first one untimed round of every cell (one-time
     // costs: the pool, the stream's storage, the buffers' pages).
     let mut results: Vec<Vec<Round>> = cells.iter().map(|_| Vec::new()).collect();
@@ -173,7 +185,7 @@ pub fn command(arguments: &[String]) {
             let c = (k + round) % cells.len();
             let (scenario, count, variant) = cells[c];
             let n = if scenario == "solo" { 1 } else { 2 };
-            let want = wants[COUNTS.iter().position(|&x| x == count).unwrap()];
+            let want = wants[counts.iter().position(|&x| x == count).unwrap()];
             let r = measure_cell(&mut programs[..n], variant, count, want);
             if round > 0 {
                 results[c].push(r);
