@@ -7,10 +7,9 @@ build = "build.rs"
 
 [dependencies]
 # The one place clocks are read (the fork's clocks/ crate): wall time, and
-# the thread's counts per core kind. Until the fork's servil has
-# clocks::summary::discoveries (johnservil/BLAKE3#44), that pull request's
-# branch; then servil again.
-clocks = { git = "https://github.com/devonjonte/BLAKE3", branch = "candidate/devon-discoveries" }
+# the thread's counts per core kind. This fork takes devonjonte/BLAKE3's
+# devon/bench-clocks (Linux hybrid counts, summary::discoveries).
+clocks = { git = "https://github.com/devonjonte/BLAKE3", branch = "devon/bench-clocks" }
 # The `rayon` feature adds Hasher::update_rayon for the BLAKE3 mt contender;
 # blake3::hash and every other API stay single-threaded with it on.
 [dependencies.blake3]
@@ -52,8 +51,10 @@ default-features = false
 #   --config 'patch."https://github.com/johnservil/BLAKE3".blake3-servil.path=".."'
 # to the cargo command (CONTRIBUTING.md).
 [dependencies.blake3-servil]
-git = "https://github.com/johnservil/BLAKE3"
-branch = "servil"
+# This fork measures devonjonte/BLAKE3's candidate/devon-ring (servil with
+# our stack and the stream API, which `bench-hashes leaves` calls).
+git = "https://github.com/devonjonte/BLAKE3"
+branch = "candidate/devon-ring"
 default-features = false
 features = ["std"]
 
