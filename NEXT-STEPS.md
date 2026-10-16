@@ -103,7 +103,13 @@ Each candidate through its whole gate, none landed without it:
 11. **Lessons for Ode**: after reading samshackleton's Ode whole, among
     them that benchmarking is first-class (timing, like halting, is part
     of correctness).
-12. **Watch**: `perf_regress` sometimes holds `LentBatches|16` on
+12. **One `Mode`** (Zooko, October 16): the crate's `Mode` and hazmat's
+    `Mode` name the same modes differently; one type serves both, with
+    `DeriveKeyMaterial` (a precomputed context key) beside `DeriveKey`.
+    With it, hazmat's docs say its assertions panic (they are the
+    contract; upstream's "best-effort, not guaranteed" goes). After the
+    stream settles, since the queue takes a `Mode`.
+13. **Watch**: `perf_regress` sometimes holds `LentBatches|16` on
     unchanged code (Mac job 1519, +14-17%); the measurement change should
     settle it, else find the cause.
 
