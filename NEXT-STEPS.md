@@ -40,7 +40,23 @@ work". This file says where the work stands; its history is in git.
   (Mac jobs 1530-1537); Zooko: prove it.
 - **bench-hashes**: 0.16.1 on `main`. The next runner job is 1555.
 
-## Next
+## Tonight (Zooko asleep; John works through the long waits)
+
+In this order, each candidate through its whole gate (PROCEDURES.md),
+none landed without it:
+
+1. `candidate/flat-walk-proofs` (af38bf4): when its long proofs pass
+   (about 22:00-23:00), promote it; update #24 and QUALITY's meter;
+   close #40 (its proof is on this branch).
+2. `candidate/mutants-all` (86f1a14): a fresh mutant run (about 1 h) and
+   its classification; check-builds; CI (the new AArch64 job included);
+   `perf_regress` on the VM, then the Mac; promote; pin bench-hashes.
+3. The cuts (item 15), as one candidate on the new `servil`, through the
+   same gate.
+4. Devon's PRs, after Zooko's decisions of October 16 (in the PRs'
+   threads): land what he approved, each rebased and gated; answer the
+   rest with what was decided and why.
+
 
 1. Done: the library's walk is the proved one (0156c58, Zooko's go-ahead),
    after `update_rayon`'s removal (0e156c8). `perf_regress` passes on the
