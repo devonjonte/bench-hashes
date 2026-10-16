@@ -4041,17 +4041,24 @@ fn read_samples(path: &str) -> SamplesFile {
 /*
  * `bench-hashes compare OLD... -- NEW...`: the runs in pairs, the i-th old
  * with the i-th new (as they ran, back to back in alternating order), and
- * every cell both measured judged by its pairs' ratios, new mean over old,
- * as `regress` judges (clocks::summary::verdict at REGRESS_MARGIN_PERMILLE):
- * each side's median mean, the median ratio, the verdict, and how many
- * pairs ran faster. To see what repetition alone moves, compare a side's
- * runs with each other the same way.
+ * every cell both measured judged at once (clocks::summary::discoveries:
+ * a paired t-test per cell, the false discovery rate held to
+ * COMPARE_Q_PERMILLE over all cells, the regression check's margin): each
+ * side's median mean, the median ratio with the range the sign test
+ * leaves plausible, the verdict, and how many pairs ran faster. At least
+ * three pairs. For two builds, relink each run's binary with its own
+ * layout (tools/fresh-layouts.sh): link layout moves cold calls' cells by
+ * itself (audit/variance-on-unchanged-code.md).
  */
+/// The false discovery rate `compare` holds its verdicts to, over all the
+/// cells it judges.
+const COMPARE_Q_PERMILLE: u64 = 50;
+
 fn compare_command(arguments: &[String]) {
     let usage = "usage: bench-hashes compare OLD.tsv... -- NEW.tsv... (one new run for each old run, in the order they ran)";
     let split = arguments.iter().position(|argument| argument == "--").expect(usage);
     let (old, new) = (&arguments[..split], &arguments[split + 1..]);
-    assert!(!old.is_empty() && old.len() == new.len(), "{usage}");
+    assert!(old.len() >= 3 && old.len() == new.len(), "{usage}; at least three pairs");
     let means = |path: &String| {
         let file = read_samples(path);
         if !file.load.starts_with("quiet") {
@@ -4075,11 +4082,15 @@ fn compare_command(arguments: &[String]) {
             ratios.push(clocks::summary::ratio_permille(new_mean, old_mean));
         }
     }
-    for key in order {
+    // Only cells every pair measured.
+    order.retain(|key| cells[key].0.len() == old.len());
+    let tested: Vec<Vec<(u128, u128)>> = order.iter().map(|key| cells[key].0.iter().copied().zip(cells[key].1.iter().copied()).collect()).collect();
+    let verdicts = clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
+    for (key, verdict) in order.into_iter().zip(verdicts) {
         let (olds, news, ratios) = &cells[&key];
         let (a, b) = (median_u128(olds), median_u128(news));
         let r = clocks::summary::median_permille(ratios);
-        let verdict = match clocks::summary::verdict(ratios, REGRESS_MARGIN_PERMILLE) {
+        let verdict = match verdict {
             clocks::summary::Verdict::Slower => "slower",
             clocks::summary::Verdict::Faster => "faster",
             clocks::summary::Verdict::Level => "level",
