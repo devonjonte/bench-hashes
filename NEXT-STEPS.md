@@ -48,7 +48,8 @@ thread.
 
 0. Devon's `stream()` (fork #50) first, since it may replace the `Queue`
    (Zooko: "the way forward"). John's first review is on #50 (one
-   digest handler; `size_hint` goes; the two schedulers). Measure it
+   digest handler; the two schedulers; `size_hint` stays, Zooko: a public
+   API's callers are ours to spare a breaking change). Measure it
    against every FROZEN.md cell the queue serves, on the Mac and the VM:
    Devon's bench branch `devon-stream-cells` (9418988, fetched here as
    `review/stream-cells`; it carries his false-discovery `compare` and
