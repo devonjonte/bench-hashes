@@ -192,8 +192,11 @@ mod imp {
         fn mmap(addr: *mut u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64) -> *mut u8;
         fn mincore(addr: *mut u8, len: usize, vec: *mut u8) -> i32;
         fn munmap(addr: *mut u8, len: usize) -> i32;
+        fn sysconf(name: i32) -> i64;
     }
     const POSIX_FADV_DONTNEED: i32 = 4;
+    /// Linux's `_SC_PAGESIZE`: 4 KiB on x86-64, 4, 16, or 64 KiB on AArch64.
+    const SC_PAGESIZE: i32 = 30;
     const PROT_READ: i32 = 1;
     const MAP_SHARED: i32 = 1;
 
@@ -226,7 +229,9 @@ mod imp {
         if len == 0 {
             return 0;
         }
-        let pages = len.div_ceil(4096);
+        // Sound: a plain query.
+        let page = usize::try_from(unsafe { sysconf(SC_PAGESIZE) }).expect("a page size");
+        let pages = len.div_ceil(page);
         let mut resident = vec![0u8; pages];
         // Sound: a fresh read-only shared mapping of an open file, unmapped
         // below; `resident` holds a byte a page.

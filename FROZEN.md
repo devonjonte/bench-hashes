@@ -30,6 +30,17 @@ the notes) may still change, to say it better.
   files of 64 MiB, as many bytes as the 1 GiB file, in one run as
   `b3sum *.iso` hashes them (`--quick`: 4 of 16 MiB). Many large files
   at once are common, and no other input covered them.
+- **Every digest of a batch is stored in its slot** (Devon Jonte, #15; a
+  bug fix): the harness stored only a batch's first digest, so the batch
+  cells did less than this contract asks; they read a little slower now.
+- **b3sum's suite adds the system's `sha256sum`** (GNU coreutils, where
+  installed; Devon Jonte, #9): the SHA-256 tool people type, beside the
+  b3sums, answering the README's question for the command line.
+- **b3sum's "from storage" cells start from storage** (Devon Jonte, #18;
+  a bug fix): each eviction is confirmed with `mincore`, retried until no
+  page of the file stays cached (a b3sum that leaves its mappings to exit
+  can leave pages that cannot be dropped for 20-50 ms), so those cells no
+  longer run partly from the page cache.
 
 **Changes in 0.16.0** (Zooko, October 6, 2026):
 - **A new contender, BLAKE3 commonware** (`blake3-commonware`):
