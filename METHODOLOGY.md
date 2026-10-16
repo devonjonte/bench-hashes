@@ -522,7 +522,9 @@ runs them (its time the processes' sum); and a mixed tree of 1000 files, 74 MiB 
 as a source checkout holds them (300 of 1 KiB, 300 of 4 KiB, 200 of
 16 KiB, 120 of 64 KiB, 60 of 256 KiB, 15 of 1 MiB, 4 of 4 MiB, one of
 16 MiB, their sizes interleaved), hashed in one run as `find . -type f
--print0 | xargs -0 b3sum` hashes them. Each file holds BLAKE3's extended
+-print0 | xargs -0 b3sum` hashes them; and 16 files of 64 MiB, as many
+bytes as the 1 GiB file, in one run as `b3sum *.iso` hashes them (with
+`--quick`, 4 of 16 MiB). Each file holds BLAKE3's extended
 output of its name (its path under the files directory): the same files
 on every machine, and incompressible, so a filesystem or drive that
 compresses reads them in full.

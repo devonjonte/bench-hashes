@@ -36,7 +36,8 @@ struct Input {
 /// 16 KiB and more; the fork's pool takes 1 MiB and more); a tree of small
 /// files of one size, as `b3sum $(find src -type f)` hashes one; and a
 /// tree of mixed sizes, a source checkout's range, one file after another
-/// in a single run as `find . -type f -print0 | xargs -0 b3sum` runs it.
+/// in a single run as `find . -type f -print0 | xargs -0 b3sum` runs it;
+/// and many large files, as many bytes as the largest single file.
 fn inputs(dir: &Path, quick: bool) -> Vec<Input> {
     let sizes: &[u64] = if quick { &[4 * KIB, MIB, 16 * MIB] } else { &[4 * KIB, 64 * KIB, MIB, 16 * MIB, 256 * MIB, GIB] };
     fs::create_dir_all(dir).unwrap_or_else(|e| panic!("cannot make {}: {e}", dir.display()));
@@ -57,6 +58,10 @@ fn inputs(dir: &Path, quick: bool) -> Vec<Input> {
     let count: u64 = mixed.iter().map(|&(n, _)| n).sum();
     let bytes: u64 = mixed.iter().map(|&(n, len)| n * len).sum();
     inputs.push(tree(dir, &format!("mixed-{count}"), mixed, format!("mixed tree, {count} files, {}", size_label_approx(bytes))));
+    // Many large files: as many bytes as the largest single file, in
+    // files each large enough for the pool, as `b3sum *.iso` hashes them.
+    let large: &[(u64, u64)] = if quick { &[(4, 16 * MIB)] } else { &[(16, 64 * MIB)] };
+    inputs.push(tree(dir, &format!("large-{}x{}", large[0].0, large[0].1), large, format!("{} x {}", large[0].0, size_label(large[0].1))));
     inputs
 }
 
