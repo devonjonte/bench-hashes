@@ -67,3 +67,17 @@ MiB ContinuousMessages x1.007, which the 3% minimum removes.
 Open: the t-test and its p-values use floating point (the statistics
 need it). `compare` takes the rule here; `regress` keeps its sign test
 until Zooko and John decide (its points, pairs and margin are frozen).
+
+## A cell's sample length, decided by one probe
+
+Interleaved 256 open read 4-10% slower from servil 1a99adf to 8e3c0d8
+(10 fresh-layout pairs, all four cells), with no slower hashing: per
+sample, the newer build ran 10% fewer user instructions per byte in the
+same user cycles, at the same clock (4.91 GHz). It ran shorter samples:
+calibration sized them from one untimed batch and one probe, and the
+newer build's probe was still warming (0.57-0.79 ms against 0.28 ms an
+iteration steady), so its samples held 1-2 iterations (0.55 ms) where the
+older's held 4 (1.15 ms); a sample's fixed costs weigh twice in half the
+time. With three untimed batches and the fastest of three probes on both
+sides, the step reads level (st x1.00, mt x1.02-1.04, 10 pairs). The
+calibration now does that (johnservil/bench-hashes#12).
