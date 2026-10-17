@@ -110,6 +110,18 @@ work stands and what comes next; its history is in git.
    runs the pair kernel then), and the legend's claim that a call after
    idling runs as after other work goes.
 6. **Energy beside wall and CPU time** (fork #48, #43; yes in principle).
+   Zooko (October 17): no energy-saving mode that trades wall time away;
+   track and improve energy where it gains a lot for little or no wall
+   time, or with wall time gained too. On the Mac the chip's power comes
+   from `powermetrics` (the runner's `"powermetrics": true`); the
+   per-process estimate errs by -16% to +30% with the instruction mix.
+   Measured (jobs 1579-1585): one thread on SME2 costs about a third of
+   NEON's energy a byte (about 690 against 1990 pJ) and runs 1.6 times as
+   fast; a multithreaded call is NEON on every worker in both builds
+   (1.3-1.4 nJ a byte). **The experiment:** the M4 Max has three SME
+   units (two P-clusters' and the E-cluster's); give a multithreaded call's
+   work to them, and look for faster, or nearly as fast and much cheaper
+   in energy. Newer Apple chips have more SME units.
 7. **The C library, first-class** (Zooko: a de facto standard needs C):
    `candidate/c-api` (on the cuts) has `capi/b3.h`, a fresh design (Zooko:
    no compatibility with upstream's C API), over the crate, tested from
