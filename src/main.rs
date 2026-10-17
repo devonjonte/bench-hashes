@@ -1560,7 +1560,7 @@ fn main() {
     // A program that calls the fork's multithreaded entry points or its
     // queue starts their threads once, first: the fork's contract.
     if algorithms.contains(&Algorithm::Blake3ServilMt) {
-        blake3_servil::initialize_multithreaded();
+        blake3_servil::initialize_multithreaded(None);
     }
     let roster = Roster::new(algorithms, quick, points, rounds);
     let (results, samples, load) = measure_all(&roster, trace.as_mut(), &sizes);
@@ -5386,7 +5386,7 @@ mod correctness_tests {
     /// "Correctness tests").
     #[test]
     fn continuous_use_cases_observe_every_digest() {
-        blake3_servil::initialize_multithreaded();
+        blake3_servil::initialize_multithreaded(None);
         let long = make_input(PIECE_LEN * 3 + 1000);
         let batch = make_input(16 * MESSAGE_LEN);
         let cases = [

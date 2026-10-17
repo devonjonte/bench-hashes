@@ -120,7 +120,7 @@ function recommendation(a) {
       : `The plain function: it reads the buffer and returns the digest${mt ? ", spreading a large message over your spare cores" : ""}.`,
     pass: s === "batch" ? "One buffer holding all the messages, each starting at a multiple of the message length rounded up to 64 bytes (zero the padding), and a slice of 32-byte arrays for the digests." : s === "pieces" ? "Each piece as a byte slice, in order; any sizes." : "The whole message as a byte slice.",
     get: s === "batch" ? "The digests, in message order." : s === "pieces" ? "From finalize(): the digest of the whole message, the same whatever the piece sizes were." : "A Hash: 32 bytes, with to_hex() and constant-time equality.",
-    mind: mt ? "Call initialize_multithreaded() once at startup, so the first call finds its threads ready. The digest equals the single-threaded function's." : "Runs on your thread alone: right for a machine whose other cores are busy." };
+    mind: mt ? "Call initialize_multithreaded(None) once at startup, so the first call finds its threads ready. The digest equals the single-threaded function's." : "Runs on your thread alone: right for a machine whose other cores are busy." };
 }
 
 

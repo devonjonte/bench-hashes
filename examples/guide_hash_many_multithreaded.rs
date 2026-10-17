@@ -2,7 +2,7 @@
 fn main() {
     // Once per process, before any other call.
     blake3_servil::initialize();
-    blake3_servil::initialize_multithreaded();
+    blake3_servil::initialize_multithreaded(None);
     // Message i starts at byte i * 64 (see hash_many for other lengths).
     let leaves: Vec<u8> = (0..100_000 * 64).map(|i| (i / 64) as u8).collect();
     let mut digests = vec![[0u8; 32]; 100_000];

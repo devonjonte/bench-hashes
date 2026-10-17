@@ -6,7 +6,7 @@ use std::cell::RefCell;
 
 fn main() {
     // Once per process, before any other call.
-    blake3_servil::initialize_multithreaded();
+    blake3_servil::initialize_multithreaded(None);
     // A fixed set of places, cycled: each comes back with its digest in it.
     let mut places = vec![Hash::from_bytes([0; 32]); 64];
     let free = RefCell::new(places.iter_mut().collect::<Vec<_>>());
