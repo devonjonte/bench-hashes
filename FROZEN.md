@@ -36,6 +36,14 @@ the notes) may still change, to say it better.
   cells faster or slower; this rule reads all 700 level, and finds the
   cells a real change moves. `regress --full` judges every cell of a
   default run. COMPARISONS.md keeps the rule's choices and their evidence.
+- **A cell's samples are sized after three untimed batches, from the
+  fastest of three probes** (Devon Jonte, #12): one untimed batch and one
+  probe left a cell still warming in some builds, which halved its samples
+  and read it 4-10% slower with no slower hashing.
+- **Each `regress` run lasts at least 0.7 s** (Devon Jonte, #10), so the
+  load check sees a window and gives a verdict on fast machines; and
+  **`regress --contenders A,B [--points P,Q]`** (#19) judges the cells a
+  run with them measures, every one, for a check of one design's cells.
 - **`bench-hashes b3sum` adds many large files** (Devon Jonte, #17): 16
   files of 64 MiB, as many bytes as the 1 GiB file, in one run as
   `b3sum *.iso` hashes them (`--quick`: 4 of 16 MiB). Many large files
