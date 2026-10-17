@@ -40,8 +40,14 @@ the notes) may still change, to say it better.
   fastest of three probes** (Devon Jonte, #12): one untimed batch and one
   probe left a cell still warming in some builds, which halved its samples
   and read it 4-10% slower with no slower hashing.
-- **Each `regress` run lasts at least 0.7 s** (Devon Jonte, #10), so the
-  load check sees a window and gives a verdict on fast machines; and
+- **`regress` checks the load around its runs** (Zooko's proposal, October
+  17, replacing #10's least run length of 0.7 s): each run is its child,
+  whose CPU time counts as `regress`'s own, so its load windows stay a
+  second long however short or long a run is; a run is no evidence when a
+  window it overlaps is busy. Runs need no least length, so a check waits
+  less and fits more pairs. **`regress --pairs N --rounds K --keep DIR`**
+  set a check's pairs and samples per cell and keep every run's samples
+  file (defaults unchanged); and
   **`regress --contenders A,B [--points P,Q]`** (#19) judges the cells a
   run with them measures, every one, for a check of one design's cells.
 - **`bench-hashes b3sum` adds many large files** (Devon Jonte, #17): 16

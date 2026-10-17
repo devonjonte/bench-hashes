@@ -472,11 +472,15 @@ median ratio with the range a sign test leaves plausible (about 90%),
 and how many pairs ran faster. It says so beside any run whose load was
 busy or unmeasured.
 
-`bench-hashes regress [--full] OLD_EXE... -- NEW_EXE...` judges two
-builds the same way: eight pairs of runs, pair i running the i-th
+`bench-hashes regress [--full] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE...` judges two
+builds the same way: eight pairs of runs (`--pairs`), pair i running the i-th
 executable of each side, back to back in alternating order, over the
 lent cells (a program hands its buffer to a call and waits), one copy
-alone; with `--full`, a default run's every cell. Give each side a fresh
+alone; with `--full`, a default run's every cell; `--rounds K` makes each
+run sample every cell K times, and `--keep DIR` keeps every run's samples
+file. Each run is `regress`'s child, and `regress` checks the load around
+it (below, "Load from other programs"), so a run may be as short as its
+measurement needs. Give each side a fresh
 link layout per pair (the fork's `tools/perf_regress.py` relinks each
 side with a random function order): a binary's layout alone moves the
 cells of calls made now and then by several percent, and the same
@@ -611,6 +615,13 @@ VM: 0.00 CPUs on average, 0.02 in the busiest window; two busy loops
 beside the run read 1.98-2.01 in each of their windows. An
 Apple M4 Max desktop running a Linux VM keeps 0.40-0.56 CPUs busy, and
 its results then match a quieter run's to about 1%.
+
+A program that runs others to measure them, `regress` and `bench-hashes
+b3sum`, counts each child's CPU time as its own: reaped children through
+the OS's count, a running child by reading its CPU time at each window's
+boundary. So its windows stay about a second long while a child runs, and
+a busy second inside a long run shows. `regress` judges each run by these
+windows, not by the run's own, so a run needs no least length.
 
 Hypervisors that report no steal time (Apple's Virtualization framework,
 for one) keep a VM's guest from seeing load on the host, so a VM can

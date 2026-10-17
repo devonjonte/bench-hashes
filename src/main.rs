@@ -4170,11 +4170,6 @@ const REGRESS_REPEATS: usize = 3;
 /// The margin a solo cell's verdict uses.
 const REGRESS_MARGIN_PERMILLE: u64 = 30;
 
-/// The shortest run the regression check makes: clocks observes other
-/// programs' load in windows of about a second and finds a run under half
-/// a second no evidence ("the run lasted under half a second"), which on a
-/// fast machine every run of REGRESS_ROUNDS was (i7-12700K: 0.3-0.5 s).
-const REGRESS_RUN_NS: u64 = 700_000_000;
 
 /// What each of the check's runs measures, and which of its cells are
 /// judged: the regress points' solo cells; a default run's every cell
@@ -4221,29 +4216,24 @@ impl RegressScope {
     }
 }
 
-/// The rounds each run makes: REGRESS_ROUNDS, or as many more as a run of
-/// `exe` needs to last REGRESS_RUN_NS, from one untimed run (the same for
-/// both sides, so their cells compare).
-fn regress_rounds(exe: &str, scope: &RegressScope) -> usize {
-    let began = clocks::now();
-    regress_run(exe, REGRESS_ROUNDS, scope, None);
-    let ns = clocks::since_ns(began).max(1);
-    REGRESS_ROUNDS * usize::try_from(REGRESS_RUN_NS.div_ceil(ns)).unwrap_or(1).max(1)
-}
-
-/// One run of `exe` over `scope`, `rounds` rounds: its samples file, also
-/// copied to `keep`.
-fn regress_run(exe: &str, rounds: usize, scope: &RegressScope, keep: Option<&std::path::Path>) -> SamplesFile {
+/// One run of `exe` over `scope`, `rounds` rounds (0: a default run's
+/// own): its samples file, also copied to `keep`, and the load this
+/// process saw while it ran ([`regress_load`]). The run is this process's
+/// child (clocks::child::run), so its CPU time is this process's own and
+/// the windows around it stay a second long: a run needs no least length,
+/// and its own load line (of windows inside it) goes unread.
+fn regress_run(exe: &str, rounds: usize, scope: &RegressScope, keep: Option<&std::path::Path>) -> (SamplesFile, String) {
     let directory = std::env::temp_dir().join(format!("bench-hashes-regress-{}-{}", std::process::id(), clocks::load::now_ns()));
     fs::create_dir_all(&directory).unwrap();
-    let run = std::process::Command::new(exe)
+    let stderr_path = directory.join("stderr.txt");
+    let stderr = fs::File::create(&stderr_path).unwrap();
+    let run = clocks::child::run(std::process::Command::new(exe)
         .args(scope.arguments(rounds))
         .current_dir(&directory)
+        .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped())
-        .output()
-        .unwrap_or_else(|error| panic!("failed to run {exe}: {error}"));
-    assert!(run.status.success(), "{exe} failed: {}\n{}", run.status, String::from_utf8_lossy(&run.stderr).trim_end());
+        .stderr(stderr));
+    assert!(run.success, "{exe} failed\n{}", fs::read_to_string(&stderr_path).unwrap_or_default().trim_end());
     let found: Vec<_> = fs::read_dir(directory.join("benchmark-results")).unwrap()
         .map(|entry| entry.unwrap().path().join("bench-hashes.samples.tsv")).collect();
     assert_eq!(found.len(), 1, "one samples file");
@@ -4252,7 +4242,22 @@ fn regress_run(exe: &str, rounds: usize, scope: &RegressScope, keep: Option<&std
         fs::copy(&found[0], keep).unwrap_or_else(|error| panic!("cannot keep {}: {error}", keep.display()));
     }
     fs::remove_dir_all(&directory).unwrap();
-    file
+    (file, regress_load(run.started_ns, run.started_ns + run.wall_ns))
+}
+
+/// The load in the windows of this process overlapping `start_ns` to
+/// `end_ns` (clocks::load's line for them), once a window covers the end:
+/// the running one closes at half a window, so this waits that long at
+/// most.
+fn regress_load(start_ns: u64, end_ns: u64) -> String {
+    loop {
+        let windows = clocks::load::windows();
+        if windows.is_empty() || windows.last().unwrap().end_ns >= end_ns {
+            let overlapping: Vec<clocks::load::Window> = windows.into_iter().filter(|w| w.end_ns > start_ns && w.start_ns < end_ns).collect();
+            return clocks::load::describe(&overlapping);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
 }
 
 fn regress_command(arguments: &[String]) -> i32 {
@@ -4292,9 +4297,8 @@ fn regress_command(arguments: &[String]) -> i32 {
     let split = arguments.iter().position(|a| a == "--").expect(usage);
     let (old_exes, new_exes) = (&arguments[..split], &arguments[split + 1..]);
     assert!(!old_exes.is_empty() && !new_exes.is_empty(), "{usage}");
-    // The caller's rounds; else a default run's own, and the chosen cells'
-    // runs as many as last REGRESS_RUN_NS.
-    let rounds = chosen_rounds.unwrap_or_else(|| if full { 0 } else { regress_rounds(&old_exes[0], &scope) });
+    // The caller's rounds; else a default run's own, or REGRESS_ROUNDS.
+    let rounds = chosen_rounds.unwrap_or(if full { 0 } else { REGRESS_ROUNDS });
     eprintln!("regress: {} new builds against {} old, {pairs} pairs over {}{}", new_exes.len(), old_exes.len(), scope.describe(),
               chosen_rounds.map_or(String::new(), |k| format!(", {k} rounds a run")));
     let mut run_index = 0;
@@ -4307,11 +4311,11 @@ fn regress_command(arguments: &[String]) -> i32 {
     let mut means = |exe: &str, side: &str| -> (std::collections::HashMap<String, u128>, Option<String>) {
         run_index += 1;
         let kept = keep.as_ref().map(|dir| dir.join(format!("run-{run_index:03}-{side}.tsv")));
-        let file = regress_run(exe, rounds, &scope, kept.as_deref());
+        let (file, load) = regress_run(exe, rounds, &scope, kept.as_deref());
         if !powers.contains(&file.power) {
             powers.push(file.power.clone());
         }
-        let busy = (!file.load.starts_with("quiet")).then(|| file.load.clone());
+        let busy = (!load.starts_with("quiet")).then_some(load);
         (file.cells.into_iter().map(|(key, samples)| (key, ExactMean::of(&samples).fixed().0)).collect(), busy)
     };
     for pair in 0..pairs {

@@ -94,15 +94,37 @@ Five patterns, each seen in the history:
 - **Holm's correction over sign tests** (October 17): the adopted t-test with
   Benjamini-Hochberg reaches stricter levels with few pairs.
 
-## Open: samples per run against pairs
+## Samples per run against pairs, measured (October 17)
 
-Proposed on October 17: shorter runs and more pairs in the same time. A
-default run on an i7-12700K takes about 13 s plus 5.7 s per sample of every
+A full run on an i7-12700K takes about 13 s plus 5.7 s per sample of every
 cell (`--rounds`: 2 samples 24 s, 4 samples 35 s, 12 samples 81 s, the
-default). Eight default pairs take 21 minutes; the same time holds 18 pairs
-of 4 samples or 26 pairs of 2. Where between-run variance dominates, as the
-evidence above says it does, the shorter runs judge more precisely per
-minute. To decide, run an equal-budget calibration under the rule: A/A
-false discoveries and +3% planted detection, for 12 × 8, 4 × 18 and 2 × 26.
-The default rounds and the gate's pairs are frozen: the change is Zooko's
-decision.
+default's 12). Three designs of about 21 minutes of runs each, `regress
+--full` through `perf_regress compare --layouts N --rounds K --keep DIR`,
+a fresh layout per run on each side; the two sides #59's head 845529b with
+`hash()` planted 0% and 3% (probe/devon-plant-0 and -3: servil st's
+one-message cells planted, the other 624 cells unchanged):
+
+| design | false discoveries, 624 unchanged cells | median interval width, unchanged cells | streams and lent, solo | one call, solo | after a gap, solo |
+|---|---|---|---|---|---|
+| 8 pairs × 12 samples (the default) | 0 | 4.6% | 2.0% | 8.6% | 12.7% |
+| **18 pairs × 4 samples** | **0** | **2.8%** | **1.4%** | **5.6%** | 13.6% |
+| 26 pairs × 2 samples | 0 | 3.7% | 1.6% | 7.0% | 10.6% |
+
+(The interval is the sign test's range, about 90% for every pair count, so
+its width compares precision across designs.) **18 × 4 judges about 40%
+more narrowly than the default in the same time, about 2.7 times the
+information per minute;** 26 × 2 lies between, ahead only after a gap.
+The rule kept its false discovery rate in all three: no verdict on any of
+the 624 unchanged cells.
+
+The plant did not rank the designs. "3 of every 100 calls hash twice"
+follows one deterministic call sequence, so a cell making few calls a run
+(1 MiB and up) gets 0% or more, not 3%, and 3% sits on the margin: the
+lent cells to 64 KiB read x1.03-1.05 in every pair and passed the margin
+about half the time, as the October 2 calibration found. A plant for
+sensitivity needs every call's cost raised by its share, at about twice
+the margin.
+
+Not decided: the default rounds and the gate's pairs are frozen, so a new
+default is Zooko's decision. Evidence: Devon's machine,
+`bench-hashes-validation/measurement-procedure/budget/`.
