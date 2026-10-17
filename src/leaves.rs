@@ -129,17 +129,17 @@ fn expected(count: usize) -> [u8; 32] {
 }
 
 /// One cell's samples this round: wall samples (ns, messages, start ms)
-/// from every program, and the interval's CPU ns and package uJ.
+/// from every program, and the interval's CPU ns and package nJ.
 struct Round {
     wall: Vec<(u64, u64, u64)>,
     cpu_ns: Option<u64>,
-    energy_uj: Option<u64>,
+    energy_nj: Option<u64>,
     messages: u64,
 }
 
 fn measure_cell(programs: &mut [Program], variant: &str, count: usize, want: [u8; 32]) -> Round {
     let threads_before = clocks::threads::snapshot();
-    let energy_before = clocks::energy::read();
+    let energy_before = clocks::energy::package_nj();
     let per_program: Vec<Vec<clocks::Batch>> = std::thread::scope(|scope| {
         let handles: Vec<_> = programs
             .iter_mut()
@@ -151,14 +151,14 @@ fn measure_cell(programs: &mut [Program], variant: &str, count: usize, want: [u8
             .collect();
         handles.into_iter().map(|h| h.join().expect("a program's thread")).collect()
     });
-    let energy_uj = energy_before.zip(clocks::energy::read()).map(|(b, a)| a.since(b).package_uj);
+    let energy_nj = energy_before.zip(clocks::energy::package_nj()).map(|(b, a)| a - b);
     let cpu_ns = threads_before.zip(clocks::threads::snapshot()).map(|(b, a)| clocks::threads::since(&b, &a).iter().map(|t| t.cpu_ns).sum());
     let wall: Vec<(u64, u64, u64)> =
         per_program.iter().flatten().map(|b| (b.wall_ns, b.calls * count as u64, b.started_ns / 1_000_000)).collect();
     // Every job of the cell, the untimed sizing runs' included, counts for
     // CPU time and energy: they ran inside the interval too.
     let messages = per_program.iter().flatten().map(|b| b.calls).sum::<u64>() * count as u64;
-    Round { wall, cpu_ns, energy_uj, messages }
+    Round { wall, cpu_ns, energy_nj, messages }
 }
 
 pub fn command(arguments: &[String]) {
@@ -237,8 +237,8 @@ pub fn command(arguments: &[String]) {
         if rs.iter().all(|r| r.cpu_ns.is_some()) {
             tsv += &row("LeavesCpu", "msg", rs.iter().zip(&firsts).map(|(r, &s)| (r.cpu_ns.unwrap(), r.messages, s)).collect());
         }
-        if rs.iter().all(|r| r.energy_uj.is_some()) {
-            tsv += &row("LeavesEnergy", "msg", rs.iter().zip(&firsts).map(|(r, &s)| (r.energy_uj.unwrap() * 1000, r.messages, s)).collect());
+        if rs.iter().all(|r| r.energy_nj.is_some()) {
+            tsv += &row("LeavesEnergy", "msg", rs.iter().zip(&firsts).map(|(r, &s)| (r.energy_nj.unwrap(), r.messages, s)).collect());
         }
         // The report: means over the cell (ns, CPU ns, nJ per message, as
         // exact totals over totals, shown to two decimals).
@@ -246,7 +246,7 @@ pub fn command(arguments: &[String]) {
         let (w, n) = wall.iter().fold((0, 0), |(a, b), (v, m, _)| (a + v, b + m));
         let m: u64 = rs.iter().map(|r| r.messages).sum();
         let cpu = rs.iter().map(|r| r.cpu_ns).sum::<Option<u64>>().map_or("-".into(), |c| per(c, m));
-        let nj = rs.iter().map(|r| r.energy_uj).sum::<Option<u64>>().map_or("-".into(), |e| per(e * 1000, m));
+        let nj = rs.iter().map(|r| r.energy_nj).sum::<Option<u64>>().map_or("-".into(), |e| per(e, m));
         report += &format!("{scenario:5} {count:>8} {variant:13} {:>8} ns {:>8} CPU ns {:>8} nJ  per message\n", per(w, n), cpu, nj);
     }
     let directory = output_directory(&machine);
