@@ -37,7 +37,15 @@ work stands and what comes next; its history is in git.
   a log of the VM's own CPU). They cost full comparisons their verdicts.
   Source unknown; Zooko's `top` during a job would tell.
 
-## For Zooko
+## Tonight, while Zooko sleeps (he asked, October 17)
+
+1. Resume the paused long proofs of `candidate/narrow-proofs` (SIGCONT,
+   `tmp/night/paused-pids.txt`) and promote it when they pass; then the
+   stack on it (`candidate/after-narrow`, #59).
+2. **Build the block-loop proof** (item 2's design below: one pass of the
+   message kernel's block loop proved once, the group loop's proof using
+   it), then run it on the chunk and message kernels, and `x2_every`.
+
 
 1. The spin: on Linux one spinner saves 5-21% CPU time for up to 12%
    wall time; on the Mac it saves 1-2% for 8-10%. Keep the 5 us spin?
