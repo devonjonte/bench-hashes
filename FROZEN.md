@@ -48,6 +48,11 @@ the notes) may still change, to say it better.
   less and fits more pairs. **`regress --pairs N --rounds K --keep DIR`**
   set a check's pairs and samples per cell and keep every run's samples
   file (defaults unchanged); and
+  **one calibration a check** (Devon Jonte): `regress` calibrates once
+  before its pairs (`--calibrate-only PATH`) and every run takes those
+  sample sizes (`--sizes PATH`, one untimed sample warming each cell in
+  calibration's place); on an i7-12700K, 18 pairs of 4-round full runs in
+  17 minutes against 26, every group of cells judged more narrowly; and
   **`regress --contenders A,B [--points P,Q]`** (#19) judges the cells a
   run with them measures, every one, for a check of one design's cells.
 - **CPU time beside wall time** (Devon Jonte; issue #16): each solo
