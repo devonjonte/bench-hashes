@@ -571,6 +571,14 @@ output of its name (its path under the files directory): the same files
 on every machine, and incompressible, so a filesystem or drive that
 compresses reads them in full.
 
+**Builds.** `tools/b3sum-contenders.sh` builds each `b3sum` as its own
+project recommends: official BLAKE3's as `cargo install b3sum` builds it
+(dynamically linked), the fork's statically linked on Linux, as its
+README recommends. A static build skips the dynamic loader, which on an
+i7-12700K makes each run about 240 µs shorter (a 64-byte file in 0.49 ms
+against 0.74), so in the cells that start a process per file, part of the
+fork's lead is its linking rather than its code.
+
 **Page cache.** *Warm*: the files were read moments before. *Cold*: each
 file is evicted before each run, without root: Linux with
 `posix_fadvise(DONTNEED)`, macOS with `msync(MS_INVALIDATE)`. The report
