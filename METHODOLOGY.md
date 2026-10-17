@@ -478,7 +478,10 @@ executable of each side, back to back in alternating order, over the
 lent cells (a program hands its buffer to a call and waits), one copy
 alone; with `--full`, a default run's every cell; `--rounds K` makes each
 run sample every cell K times, and `--keep DIR` keeps every run's samples
-file. Each run is `regress`'s child, and `regress` checks the load around
+file. Before its pairs, `regress` calibrates once (`--calibrate-only`,
+by the first old build), and every run of either side takes those sample
+sizes (`--sizes`) instead of calibrating its own: both sides do the same
+work a sample, and no run pays a calibration. Each run is `regress`'s child, and `regress` checks the load around
 it (below, "Load from other programs"), so a run may be as short as its
 measurement needs. Give each side a fresh
 link layout per pair (the fork's `tools/perf_regress.py` relinks each
