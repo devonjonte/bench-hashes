@@ -44,7 +44,15 @@ Each candidate through its whole gate, none landed without it:
    #59 with `candidate/devon-stream-cells-59-cpu` (#20 + #21), read with
    `bench-hashes compare`, wall and CPU time; then the VM. The numbers go to Zooko with #20's
    FROZEN.md entry retiring the queue.
-1. Promote `candidate/flat-walk-proofs` when its long proofs pass; update
+1. The long proofs on af38bf4 (Zooko, October 16): at about 02:30 UTC,
+   when its last `messages_every` case ends, if `x2_every` (the SME2
+   hybrid kernel at every group count; inside Z3 for 8 hours at 00:50
+   UTC, never completed before) still runs, stop it, take `x2_every` out
+   of the long proofs' steps and QUALITY's claims (the hybrid kernel stays
+   proved at one and two groups), run the long proofs again, and make
+   `x2_every` the first target of "Long proofs in an hour or two" (split
+   its induction; time-limit its queries; find where its time goes).
+   Promote `candidate/flat-walk-proofs` when its long proofs pass; update
    #24 and QUALITY's meter; close #40 (its proof is on this branch).
 2. `candidate/mutants-all`: a mutant run on its tip (the list must then
    need no change), check-builds, CI, `perf_regress` VM and Mac; promote;
