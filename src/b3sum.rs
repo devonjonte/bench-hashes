@@ -553,28 +553,43 @@ fn report(specs: &[Contender], inputs: &[Input], caches: &[Cache], cells: &[Vec<
         out += &format!("  {:<14} {} {}   ({}, blake3 {})\n", c.name, c.program.display(), c.args.join(" "), c.version, &c.digest[..16]);
     }
     let base = &specs[0].name;
+    // Every comparison at once, as compare's: each contender's runs against
+    // the first's, a round a pair (clocks::summary::discoveries).
+    let mut compared: Vec<(usize, usize, usize)> = Vec::new();
+    for ci in 0..caches.len() {
+        for i in 0..inputs.len() {
+            for c in 1..specs.len() {
+                compared.push((ci, i, c));
+            }
+        }
+    }
+    let pairs: Vec<Vec<(u128, u128)>> = compared.iter().map(|&(ci, i, c)| {
+        cells[ci][i][0].iter().zip(&cells[ci][i][c]).map(|(b, r)| (per_run(b, inputs[i].bytes), per_run(r, inputs[i].bytes))).collect()
+    }).collect();
+    let verdicts: std::collections::HashMap<(usize, usize, usize), clocks::summary::Verdict> =
+        compared.into_iter().zip(clocks::summary::discoveries(&pairs, super::COMPARE_Q_PERMILLE, MARGIN_PERMILLE)).collect();
     for (ci, &cache) in caches.iter().enumerate() {
-        out += &format!("\n{}\nmean time per run, lower is better; xN: against {base}, the median of the rounds' ratios, marked slower or faster where the rounds agree (3%)\n", cache.heading());
+        out += &format!("\n{}\nmean time per run, lower is better; xN: against {base}, the ratio of the means, marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 3%)\n", cache.heading());
         let mut rows: Vec<Vec<String>> = vec![std::iter::once("input".to_owned()).chain(specs.iter().map(|c| c.name.clone())).collect()];
         for (i, input) in inputs.iter().enumerate() {
             let mut row = vec![input.label.clone()];
             for (c, _) in specs.iter().enumerate() {
                 let runs = &cells[ci][i][c];
-                let mean = ExactMean::of(&runs.iter().map(|r| Measured::new(r.wall_ns, input.bytes)).collect::<Vec<_>>()).fixed();
+                let mean_of = |runs: &[clocks::child::Run]| ExactMean::of(&runs.iter().map(|r| Measured::new(r.wall_ns, input.bytes)).collect::<Vec<_>>()).fixed();
+                let mean = mean_of(runs);
                 let ns = (mean.0 * u128::from(input.bytes) + (1 << 63)) >> 64;
                 let mut text = time(ns);
                 if input.bytes >= MIB {
                     text += &format!(" {} GB/s", rate(input.bytes, ns));
                 }
                 if c > 0 {
-                    let ratios: Vec<u64> = runs.iter().zip(&cells[ci][i][0]).map(|(r, b)| clocks::summary::ratio_permille(per_run(r, input.bytes), per_run(b, input.bytes))).collect();
-                    let median = clocks::summary::median_permille(&ratios);
-                    let mark = match clocks::summary::verdict(&ratios, MARGIN_PERMILLE) {
+                    let ratio = clocks::summary::ratio_permille(mean.0, mean_of(&cells[ci][i][0]).0);
+                    let mark = match verdicts[&(ci, i, c)] {
                         clocks::summary::Verdict::Slower => " slower",
                         clocks::summary::Verdict::Faster => " faster",
                         clocks::summary::Verdict::Level => "",
                     };
-                    text += &format!(" x{}.{:03}{mark}", median / 1000, median % 1000);
+                    text += &format!(" x{}.{:03}{mark}", ratio / 1000, ratio % 1000);
                 }
                 row.push(text);
             }
