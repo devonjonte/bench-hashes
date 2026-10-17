@@ -1339,6 +1339,50 @@ struct Options {
     rounds: Option<usize>,
     trace_path: Option<std::path::PathBuf>,
     quick: bool,
+    sizes: Sizes,
+}
+
+/// How a run sizes each cell's samples. A comparison's runs share one set
+/// of sizes (regress calibrates once, before its pairs), so both sides do
+/// the same work a sample and no run pays a calibration of its own (about
+/// 18 s of a default run's 24 at one round, i7-12700K).
+enum Sizes {
+    /// Calibrate, as a run on its own does.
+    Calibrate,
+    /// Calibrate, write each cell's size to this file, and exit.
+    CalibrateOnly(std::path::PathBuf),
+    /// Each cell's size as this file gives it, keyed by contender and
+    /// point (a cell it lacks stops the run): no calibration, one untimed
+    /// sample of each cell in its place, which warms it as calibration did.
+    From(std::collections::HashMap<(String, usize), usize>),
+}
+
+/// A sizes file's first line: a file in another format is read with the
+/// tools of the commit that wrote it.
+const SIZES_VERSION: &str = "# bench-hashes sizes v1";
+
+impl Sizes {
+    fn read(path: &str) -> Sizes {
+        let text = fs::read_to_string(path).unwrap_or_else(|error| panic!("--sizes: cannot read {path}: {error}"));
+        let mut lines = text.lines();
+        assert_eq!(lines.next(), Some(SIZES_VERSION), "--sizes: {path} begins with {SIZES_VERSION:?}");
+        Sizes::From(lines.map(|line| {
+            let fields: Vec<&str> = line.split('\t').collect();
+            assert_eq!(fields.len(), 3, "--sizes: {path}: a row of contender, point, iterations: {line}");
+            ((fields[0].to_owned(), point_named(fields[1])), fields[2].parse().expect("--sizes: iterations are a whole number"))
+        }).collect())
+    }
+
+    /// The sizes file for these cells' sizes.
+    fn write(path: &std::path::Path, roster: &Roster, batch_iterations: &[Vec<usize>]) {
+        let mut out = format!("{SIZES_VERSION}\n");
+        for (a, algorithm) in roster.algorithms.iter().enumerate() {
+            for &p in roster.points.iter().filter(|&&p| algorithm.takes_part(POINTS[p].use_case)) {
+                writeln!(out, "{}\t{}{}\t{}", algorithm.key(), POINTS[p].use_case.label_prefix(), POINTS[p].label, batch_iterations[a][p]).unwrap();
+            }
+        }
+        fs::write(path, out).unwrap_or_else(|error| panic!("--calibrate-only: cannot write {}: {error}", path.display()));
+    }
 }
 
 fn parse_arguments() -> Options {
@@ -1386,13 +1430,20 @@ fn parse_arguments() -> Options {
         indices
     });
     let rounds = take_value("--rounds").map(|n| n.parse::<usize>().expect("--rounds takes a whole number"));
+    /* --calibrate-only PATH or --sizes PATH may accompany any selection. */
+    let sizes = match (take_value("--calibrate-only"), take_value("--sizes")) {
+        (None, None) => Sizes::Calibrate,
+        (Some(path), None) => Sizes::CalibrateOnly(path.into()),
+        (None, Some(path)) => Sizes::read(&path),
+        (Some(_), Some(_)) => panic!("--calibrate-only writes sizes and --sizes reads them; take one\n\n{USAGE}"),
+    };
 
     let (selection, explicit) = parse_selection(&arguments);
     assert!(
         (points.is_none() && rounds.is_none()) || selection == Selection::Explicit,
         "--points and --rounds narrow a --contenders run\n\n{USAGE}"
     );
-    Options { selection, explicit, points, rounds, trace_path, quick }
+    Options { selection, explicit, points, rounds, trace_path, quick, sizes }
 }
 
 /*
@@ -1475,7 +1526,7 @@ fn main() {
     if arguments.first().map(String::as_str) == Some("map") {
         return map::command(&arguments[1..]);
     }
-    let Options { selection, explicit, points, rounds, trace_path, quick } = parse_arguments();
+    let Options { selection, explicit, points, rounds, trace_path, quick, sizes } = parse_arguments();
     let mut trace = trace_path.map(ClockTrace::new);
     let mut machine = machine_metadata();
 
@@ -1501,7 +1552,7 @@ fn main() {
         blake3_servil::initialize_multithreaded();
     }
     let roster = Roster::new(algorithms, quick, points, rounds);
-    let (results, samples, load) = measure_all(&roster, trace.as_mut());
+    let (results, samples, load) = measure_all(&roster, trace.as_mut(), &sizes);
     machine.load = load;
     machine.power[1] = Power::read();
 
@@ -1629,7 +1680,7 @@ fn cell(results: &Results, algorithm_index: usize, point_index: usize) -> &Cell 
         .expect("the contender takes part in this point's use case")
 }
 
-fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results, RunSamples, Vec<clocks::load::Window>) {
+fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Sizes) -> (Results, RunSamples, Vec<clocks::load::Window>) {
     /* Inputs for the points measured; an empty buffer stands in for the rest. */
     /*
      * The bytes are irrelevant to every contender's speed, so each point
@@ -1692,6 +1743,17 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
             for algorithm_index in 0..roster.len() {
                 let algorithm = roster.algorithms[algorithm_index];
                 if algorithm.takes_part(point.use_case) && roster.measures(point_index) && point.use_case.pattern_key() == pattern {
+                    if let Sizes::From(given) = sizes {
+                        let iterations = *given.get(&(algorithm.key().to_owned(), point_index)).unwrap_or_else(|| {
+                            panic!("--sizes: no size for {} at {}{}", algorithm.key(), point.use_case.label_prefix(), point.label)
+                        });
+                        // One untimed sample warms the cell, as calibration did;
+                        // for a cell after gaps, one call (its calls meet a cold
+                        // machine by design, and each takes a gap).
+                        take_sample(algorithm, inputs[point_index], *point, if point.use_case.after_gap() { 1 } else { iterations });
+                        batch_iterations[algorithm_index][point_index] = iterations;
+                        continue;
+                    }
                     let (iterations, per_iteration_ns) = calibrate_batch(algorithm, inputs[point_index], *point);
                     /*
                      * A synchronous cell's sample: calls after the gap summing
@@ -1710,6 +1772,14 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>) -> (Results,
                     };
                 }
             }
+        }
+
+        if let Sizes::CalibrateOnly(path) = sizes {
+            if pattern == "idle" {
+                Sizes::write(path, roster, &batch_iterations);
+                std::process::exit(0);
+            }
+            continue;
         }
 
         /*
@@ -4217,18 +4287,21 @@ impl RegressScope {
 }
 
 /// One run of `exe` over `scope`, `rounds` rounds (0: a default run's
-/// own): its samples file, also copied to `keep`, and the load this
-/// process saw while it ran ([`regress_load`]). The run is this process's
+/// own), its samples sized by the file at `sizes`: its samples file, also
+/// copied to `keep`, and the load this process saw while it ran
+/// ([`regress_load`]). The run is this process's
 /// child (clocks::child::run), so its CPU time is this process's own and
 /// the windows around it stay a second long: a run needs no least length,
 /// and its own load line (of windows inside it) goes unread.
-fn regress_run(exe: &str, rounds: usize, scope: &RegressScope, keep: Option<&std::path::Path>) -> (SamplesFile, String) {
+fn regress_run(exe: &str, rounds: usize, scope: &RegressScope, sizes: &std::path::Path, keep: Option<&std::path::Path>) -> (SamplesFile, String) {
     let directory = std::env::temp_dir().join(format!("bench-hashes-regress-{}-{}", std::process::id(), clocks::load::now_ns()));
     fs::create_dir_all(&directory).unwrap();
     let stderr_path = directory.join("stderr.txt");
     let stderr = fs::File::create(&stderr_path).unwrap();
     let run = clocks::child::run(std::process::Command::new(exe)
         .args(scope.arguments(rounds))
+        .arg("--sizes")
+        .arg(sizes)
         .current_dir(&directory)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
@@ -4314,6 +4387,20 @@ fn regress_command(arguments: &[String]) -> i32 {
     eprintln!("regress: {} new builds against {} old, {pairs} pairs over {}{}", new_exes.len(), old_exes.len(), scope.describe(),
               chosen_rounds.map_or(String::new(), |k| format!(", {k} rounds a run")));
     let mut run_index = 0;
+    // One calibration for the whole check, by the first old build: every
+    // run, of either side, takes its sizes (Sizes).
+    let sizes = std::env::temp_dir().join(format!("bench-hashes-regress-sizes-{}.tsv", std::process::id()));
+    let calibration = std::process::Command::new(&old_exes[0])
+        .args(scope.arguments(rounds))
+        .arg("--calibrate-only")
+        .arg(&sizes)
+        .stdout(std::process::Stdio::null())
+        .output()
+        .unwrap_or_else(|error| panic!("failed to run {}: {error}", old_exes[0]));
+    assert!(calibration.status.success(), "{} --calibrate-only failed\n{}", old_exes[0], String::from_utf8_lossy(&calibration.stderr).trim_end());
+    if let Some(keep) = &keep {
+        fs::copy(&sizes, keep.join("sizes.tsv")).unwrap_or_else(|error| panic!("cannot keep the sizes: {error}"));
+    }
     let mut unreliable = Vec::new();
     let mut powers: Vec<String> = Vec::new();
     let mut ratios: std::collections::BTreeMap<String, Vec<u64>> = std::collections::BTreeMap::new();
@@ -4323,7 +4410,7 @@ fn regress_command(arguments: &[String]) -> i32 {
     let mut means = |exe: &str, side: &str| -> (std::collections::HashMap<String, u128>, Option<String>) {
         run_index += 1;
         let kept = keep.as_ref().map(|dir| dir.join(format!("run-{run_index:03}-{side}.tsv")));
-        let (file, load) = regress_run(exe, rounds, &scope, kept.as_deref());
+        let (file, load) = regress_run(exe, rounds, &scope, &sizes, kept.as_deref());
         if !powers.contains(&file.power) {
             powers.push(file.power.clone());
         }
