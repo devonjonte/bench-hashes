@@ -26,6 +26,20 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **b3sum's `xN` is the ratio of the means**, judged as `compare` judges
+  (each round a pair, every cell at once, a 3% margin), in place of the
+  median of the rounds' ratios (Devon Jonte, #28; Zooko, October 17):
+  three identical b3sum builds read x0.62, x0.69 and x0.98 by the median,
+  a cell that runs at two speeds landing on one or the other, and alike by
+  the mean.
+- **Two consistency checks apply where their premises hold** (Devon
+  Jonte, #25; Zooko, October 17): "shared no faster than solo" to hashes
+  on their caller's thread (a multithreaded hash's two callers keep its
+  threads busier, legitimately), and "no slower beside a second copy" to
+  work up to 1 MiB (beyond, the copies share the last-level cache and
+  memory). On correct code they had fired in up to 45 of 48 runs.
+- **`regress` with too few pairs for an interval says so** in place of
+  stopping (Devon Jonte, #31; Zooko, October 17).
 - **The comparison rule judges every cell at once** (Devon Jonte, #11,
   #13; fork #44, #45): `compare` and `regress` judge a comparison's cells
   together, their false discovery rate controlled at 5% with the 3%
