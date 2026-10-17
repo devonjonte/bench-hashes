@@ -425,6 +425,7 @@ pub fn command(args: &[String]) {
             wall_ns: runs.iter().map(|r| r.wall_ns).sum(),
             success: true,
             cpu_ns: sum(|r| r.cpu_ns),
+            energy_nj: sum(|r| r.energy_nj),
             max_rss_bytes: runs.iter().map(|r| r.max_rss_bytes).max().flatten(),
             storage_read_bytes: sum(|r| r.storage_read_bytes),
             major_faults: sum(|r| r.major_faults),
@@ -492,7 +493,8 @@ pub fn command(args: &[String]) {
                 let samples: Vec<String> = runs.iter().map(|r| format!("{}/{}", r.wall_ns, input.bytes)).collect();
                 let starts: Vec<String> = runs.iter().map(|r| (r.started_ns / 1_000_000).to_string()).collect();
                 let cpu: Vec<Option<u64>> = runs.iter().map(|r| r.cpu_ns).collect();
-                tsv += &format!("{}\t{}\tb3sum\t{}\tB\t{}\t{}\t{}\n", spec.name, cache.name(), input.label, samples.join(","), starts.join(","), super::cpu_field(&cpu));
+                let energy: Vec<Option<u64>> = runs.iter().map(|r| r.energy_nj).collect();
+                tsv += &format!("{}\t{}\tb3sum\t{}\tB\t{}\t{}\t{}\t{}\n", spec.name, cache.name(), input.label, samples.join(","), starts.join(","), super::cost_field(&cpu), super::cost_field(&energy));
             }
         }
     }
