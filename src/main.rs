@@ -4549,8 +4549,10 @@ fn regress_command(arguments: &[String]) -> i32 {
         }
         let word = if verdict == clocks::summary::Verdict::Slower { slower += 1; "SLOWER" } else { "faster" };
         let pairs: Vec<String> = values.iter().map(|&r| percent(r)).collect();
-        let (low, high) = clocks::summary::interval_permille(values).expect("a verdict other than level has an interval");
-        println!("  {word} {key}: {} ({} to {}; median of {} pairs: {})", percent(clocks::summary::median_permille(values)), percent(low), percent(high), values.len(), pairs.join(" "));
+        // The sign test's range needs enough pairs; the verdict (the t-test
+        // over all cells) does not, so a few pairs print none, as compare does.
+        let range = clocks::summary::interval_permille(values).map_or_else(|| "too few pairs for an interval".to_string(), |(low, high)| format!("{} to {}", percent(low), percent(high)));
+        println!("  {word} {key}: {} ({range}; median of {} pairs: {})", percent(clocks::summary::median_permille(values)), values.len(), pairs.join(" "));
     }
     if slower > 0 {
         println!("regress: REGRESSION: {slower} cells slower");
