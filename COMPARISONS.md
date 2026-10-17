@@ -67,6 +67,31 @@ Five patterns, each seen in the history:
    calibration probe that caught a cell still warming. That is progress; it
    reads as circling only when nobody records what each step removed.
 
+## What the SHA-256 controls can tell
+
+SHA-256's code is identical on both sides of a servil comparison, so its
+cells show the instrument's noise, and a SHA-256 verdict usually means the
+comparison misread something. **One real effect moves them too: the
+package's clock.** A change to how BLAKE3's pool wakes or parks its
+workers changes how many cores are active, which sets the clock every
+P-core shares (an i7-12700K: 4.9 GHz with one or two active, 4.7 with all).
+SHA-256's samples run beside BLAKE3's at the same point, so they inherit
+it. Measured per sample with BLAKE3 #43's counts (October 17):
+
+- #59 with one spinning worker: ten times the park/wake churn, SHA-256's
+  samples at 4687-4689 MHz against 4798-4818 (5 us spin): its continuous
+  cells +1.5-3%.
+- #49, which wakes the pool for batches of 64 KiB to 512 KiB: SHA-256's
+  samples at 4689 MHz against 4875-4881: its lent batches of 4096 +3.3-3.6%.
+
+So a SHA-256 shift beside a change to the pool's waking is a finding about
+that change (programs pay it too), not the instrument's fault. Look at the
+samples' clock (`--trace-clocks`) before reading it as noise. The same
+runs showed a second interaction, placement: after the pool's stream
+cells, Linux sometimes leaves the caller on an E core, which costs BLAKE3
+st (AVX2 at half width there) and not SHA-256 (as fast on either kind):
+bench-hashes #25.
+
 ## Before you change it
 
 1. State the question the rule answers (a quick gate on a few cells, or a
