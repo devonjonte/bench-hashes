@@ -326,11 +326,43 @@ fn cold_possible(filesystem: &str) -> bool {
 
 struct Contender {
     name: String,
-    program: PathBuf,
+    /// Its builds, one or more: the same program linked with different
+    /// layouts (`tools/b3sum-contenders.sh` with LAYOUTS), round r running
+    /// build r % builds.len(), so that no one layout's luck stands for the
+    /// program (a binary's layout alone moves its times by several percent).
+    builds: Vec<Build>,
     args: Vec<String>,
+    version: String,
+}
+
+struct Build {
+    program: PathBuf,
     /// The executable's BLAKE3 digest, which names the build exactly.
     digest: String,
-    version: String,
+}
+
+impl Contender {
+    fn build(&self, round: u64) -> &Build {
+        &self.builds[(round % self.builds.len() as u64) as usize]
+    }
+}
+
+/// The contenders the arguments name, in the order first named: a name
+/// given more than once gathers its builds, which must run with the same
+/// arguments and report the same version.
+fn contenders(specs: Vec<Contender>) -> Vec<Contender> {
+    let mut out: Vec<Contender> = Vec::new();
+    for c in specs {
+        match out.iter_mut().find(|o| o.name == c.name) {
+            Some(o) => {
+                assert_eq!(o.args, c.args, "contender {}: every build runs with the same arguments", c.name);
+                assert_eq!(o.version, c.version, "contender {}: every build is the same version", c.name);
+                o.builds.extend(c.builds);
+            }
+            None => out.push(c),
+        }
+    }
+    out
 }
 
 fn contender(spec: &str) -> Contender {
@@ -343,9 +375,8 @@ fn contender(spec: &str) -> Contender {
     let output = Command::new(&program).arg("--version").output().unwrap_or_else(|e| panic!("cannot run {}: {e}", program.display()));
     Contender {
         name: name.to_owned(),
-        program,
+        builds: vec![Build { program, digest: blake3_servil::hash(&bytes).to_hex().to_string() }],
         args: words.collect(),
-        digest: blake3_servil::hash(&bytes).to_hex().to_string(),
         // The first line: GNU tools follow theirs with copyright lines.
         version: String::from_utf8_lossy(&output.stdout).lines().next().unwrap_or("").trim().to_owned(),
     }
@@ -386,11 +417,8 @@ pub fn command(args: &[String]) {
             spec => specs.push(contender(spec)),
         }
     }
+    let specs = contenders(specs);
     assert!(specs.len() >= 2, "name two contenders or more, NAME=COMMAND; the first is the one the others are compared with");
-    let mut names: Vec<&str> = specs.iter().map(|c| c.name.as_str()).collect();
-    names.sort_unstable();
-    names.dedup();
-    assert_eq!(names.len(), specs.len(), "each contender has a name of its own");
     let rounds = rounds.unwrap_or(if quick { 5 } else { 15 });
     assert!(rounds >= 2, "two rounds at least");
 
@@ -402,23 +430,23 @@ pub fn command(args: &[String]) {
     let mut machine = machine_metadata();
 
     let mut buffer = vec![0u8; MIB as usize];
-    let run_files = |c: &Contender, input: &Input, files: &[PathBuf]| -> clocks::child::Run {
-        let mut command = Command::new(&c.program);
+    let run_files = |c: &Contender, round: u64, input: &Input, files: &[PathBuf]| -> clocks::child::Run {
+        let mut command = Command::new(&c.build(round).program);
         command.args(&c.args).args(files).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
         let run = clocks::child::run(&mut command);
         if !run.success {
             // Show what it said, then stop: a failing contender measures nothing.
-            let _ = Command::new(&c.program).args(&c.args).args(files).stdout(Stdio::null()).status();
+            let _ = Command::new(&c.build(round).program).args(&c.args).args(files).stdout(Stdio::null()).status();
             panic!("contender {} failed on {}", c.name, input.label);
         }
         run
     };
-    let run_once = |c: &Contender, input: &Input| -> clocks::child::Run {
+    let run_once = |c: &Contender, round: u64, input: &Input| -> clocks::child::Run {
         if !input.each {
-            return run_files(c, input, &input.files);
+            return run_files(c, round, input, &input.files);
         }
         // A process per file: the runs' sums (their peak memory, the largest).
-        let runs: Vec<_> = input.files.iter().map(|f| run_files(c, input, std::slice::from_ref(f))).collect();
+        let runs: Vec<_> = input.files.iter().map(|f| run_files(c, round, input, std::slice::from_ref(f))).collect();
         let sum = |f: fn(&clocks::child::Run) -> Option<u64>| runs.iter().map(f).sum::<Option<u64>>();
         clocks::child::Run {
             started_ns: runs[0].started_ns,
@@ -431,12 +459,14 @@ pub fn command(args: &[String]) {
             counts: runs.iter().map(|r| r.counts).reduce(|a, b| a.zip(b).map(|(a, b)| a.plus(b))).flatten(),
         }
     };
-    // Every contender once on every input, untimed, so the executables and
-    // the files start in the page cache.
+    // Every build once on every input, untimed, so the executables and the
+    // files start in the page cache.
     for input in &inputs {
         warm(&input.files, &mut buffer);
         for c in &specs {
-            run_once(c, input);
+            for b in 0..c.builds.len() as u64 {
+                run_once(c, b, input);
+            }
         }
     }
     // cells[cache][input][contender]: each round's run.
@@ -455,7 +485,7 @@ pub fn command(args: &[String]) {
                     if cache == Cache::Cold {
                         evict(&input.files);
                     }
-                    cells[ci][i][c].push(run_once(&specs[c], input));
+                    cells[ci][i][c].push(run_once(&specs[c], round, input));
                 }
             }
         }
@@ -469,7 +499,9 @@ pub fn command(args: &[String]) {
     let mut tsv = format!("{SAMPLES_VERSION}\n# timestamp: {}\n# bench-hashes version: {}\n# git commit: {}\n# cpu type: {}\n# cpu count: {}\n# os type: {}\n# files: {} on {filesystem}\n# rounds: {rounds}\n",
         machine.timestamp, super::BENCH_VERSION, super::GIT_COMMIT, machine.cpu_type, machine.cpu_count, machine.os_type, files_dir.display());
     for c in &specs {
-        tsv += &format!("# contender {}: {} {} (blake3 {}; {})\n", c.name, c.program.display(), c.args.join(" "), c.digest, c.version);
+        for b in &c.builds {
+            tsv += &format!("# contender {}: {} {} (blake3 {}; {})\n", c.name, b.program.display(), c.args.join(" "), b.digest, c.version);
+        }
     }
     tsv += &format!("# power: {}\n# load: {}\n", machine.describe_power(), clocks::load::describe(&machine.load));
     tsv += "# counts\tcontender\tcache\tinput\tround\twall_ns\tcpu_ns\tmax_rss_bytes\tstorage_read_bytes\tmajor_faults\tp_cycles\te_cycles\tp_time_ns\te_time_ns\n";
@@ -550,7 +582,9 @@ fn report(specs: &[Contender], inputs: &[Input], caches: &[Cache], cells: &[Vec<
     }
     out += "\ncontenders:\n";
     for c in specs {
-        out += &format!("  {:<14} {} {}   ({}, blake3 {})\n", c.name, c.program.display(), c.args.join(" "), c.version, &c.digest[..16]);
+        for b in &c.builds {
+            out += &format!("  {:<14} {} {}   ({}, blake3 {})\n", c.name, b.program.display(), c.args.join(" "), c.version, &b.digest[..16]);
+        }
     }
     let base = &specs[0].name;
     // Every comparison at once, as compare's: each contender's runs against

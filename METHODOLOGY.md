@@ -578,7 +578,12 @@ project recommends: official BLAKE3's as `cargo install b3sum` builds it
 README recommends. A static build skips the dynamic loader, which on an
 i7-12700K makes each run about 240 µs shorter (a 64-byte file in 0.49 ms
 against 0.74), so in the cells that start a process per file, part of the
-fork's lead is its linking rather than its code.
+fork's lead is its linking rather than its code. With `LAYOUTS=N` the
+script relinks every `b3sum` N times, its functions in a random order each
+time, and `bench-hashes b3sum` runs a contender named more than once (each
+build as `NAME=PATH`) one build a round: a binary's layout alone moves its
+times by several percent, as the library's comparisons found, so no one
+layout's luck stands for a program.
 
 **Page cache.** *Warm*: the files were read moments before. *Cold*: each
 file is evicted before each run, without root: Linux with
