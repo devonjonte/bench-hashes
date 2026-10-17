@@ -5,7 +5,7 @@ use blake3_servil::{Hash, Mode};
 
 fn main() {
     // Once per process, before any other call.
-    blake3_servil::initialize_multithreaded();
+    blake3_servil::initialize_multithreaded(None);
     let message = vec![7u8; 10 << 20]; // your reader goes here: a File, a TcpStream
     let mut digest = Hash::from_bytes([0; 32]);
     blake3_servil::stream(Mode::Hash, |_: &mut [Hash]| {}, |s| {

@@ -8,7 +8,7 @@ const MESSAGES: usize = 1024; // each batch: 1024 messages of 64 bytes
 
 fn main() {
     // Once per process, before any other call.
-    blake3_servil::initialize_multithreaded();
+    blake3_servil::initialize_multithreaded(None);
     // A fixed set of batch places, cycled.
     let mut places = vec![Hash::from_bytes([0; 32]); 8 * MESSAGES];
     let free = RefCell::new(places.chunks_mut(MESSAGES).collect::<Vec<_>>());
