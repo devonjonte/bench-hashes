@@ -9,50 +9,33 @@ both repositories' `AGENTS.md`; the fork's design and measurements in its
 repository's measurement design in `NOTES.md`. This file says where the
 work stands and what comes next; its history is in git.
 
-## Where things stand (October 17, 2026, morning)
+## Where things stand (October 17, 2026, afternoon)
 
-- **`servil`** = 4d4eecc: the measurement change (every cell judged at
-  once, fresh layouts per pair, `regress` checking the load around its
-  runs, `compare --bench`), mutation testing over the whole library, the
-  cuts, and the C API. bench-hashes `main` pins it, with CPU time beside
-  wall time (#21).
-- **The proofs keep to the assembly kernels** (Zooko, October 16): the
-  Rust is tested (mutation testing, coverage, Miri). `candidate/narrow-
-  proofs` removes the Rust proofs (Aeneas, Kani, the whole-call and Rust
-  machine-code proofs) and their tools, makes the old proved cores
-  ordinary modules (`src/hasher.rs`, `src/tree.rs`), classifies their
-  survivors, runs the mutation check in 44 minutes (was 62), and starts
-  the long proofs' longest cases first, five at once. Its gate is done but
-  the long proofs, running since 09:13 UTC
-  (`tmp/wt-np/tmp/long-proofs/`, about six hours).
-- **The Mac calibration passed**: identical code with fresh layouts read
-  level on the gate's cells and on every cell (runner jobs 1560, 1561).
-- **#59 on the Mac** (jobs 1562, 1563; fork #59 comment): against
-  `servil`, 44 cells faster (continuous messages 15-70%), 3 slower (a
-  lent 1 MiB message, a 16 Ki lent batch, a 64 Ki continuous batch, 8-10%;
-  Devon traces them); one spinner costs 8-10% wall time on continuous
-  messages there and saves 1-2% CPU time, from 4 quiet pairs (no verdict).
-- **The Mac's busy windows**: 1-1.6 CPUs for a second or a few, every
-  few minutes, with the VM idle and the assistant silent (job 1564 beside
-  a log of the VM's own CPU). They cost full comparisons their verdicts.
-  Source unknown; Zooko's `top` during a job would tell.
+- **`servil`** = 4484730: the proofs keep to the assembly kernels; the
+  stream replaced the queue (#59, with bench-hashes #20); the C library
+  `libb3_servil`; Miri's CI step 3 minutes (the pool splits from 16 KiB
+  under Miri); mutation testing on a change by its diff
+  (`check.py --since servil`, seconds), the whole run by itself when a
+  change removes or alters test code, and a listed missing test fails
+  the check. bench-hashes `main` pins it.
+- **The gate, by day** (Zooko, October 17): tests, `check-builds`, CI,
+  `perf_regress` on the VM and the Mac, the change's mutants. **By night,
+  on `servil`**: the long proofs (381 cases), the whole mutation run, and
+  any other job of hours; a failure is fixed forward first thing.
+- **Open from the stream:** mt solo lent 1 MiB about 10% slower than the
+  queue (VM +11.7%, Mac +9.7%; the spin about 2% of it on the Mac, job
+  1587). Devon traces it; `job_trace` on the Mac shows the first worker
+  joining at about 16 us, against 5 us on Linux.
+- **Energy is a lab instrument**, out of the benchmark (item 6 below).
 
-## Tonight, while Zooko sleeps (he asked, October 17)
+## Tonight, while Zooko sleeps
 
-1. Resume the paused long proofs of `candidate/narrow-proofs` (SIGCONT,
-   `tmp/night/paused-pids.txt`) and promote it when they pass; then the
-   stack on it (`candidate/after-narrow`, #59).
+1. `sh tools/verify/long-proofs.sh servil` (the narrowing's tools have
+   not had a whole run; prove_hybrid now on every CPU, chunks_x2 back in
+   the steps). Then the whole mutation run on `servil`.
 2. **Build the block-loop proof** (item 2's design below: one pass of the
    message kernel's block loop proved once, the group loop's proof using
    it), then run it on the chunk and message kernels, and `x2_every`.
-
-
-1. The spin: on Linux one spinner saves 5-21% CPU time for up to 12%
-   wall time; on the Mac it saves 1-2% for 8-10%. Keep the 5 us spin?
-2. The queue's retirement (bench-hashes #20), on 1563's numbers.
-3. The busy windows: `top -l 120 -s 1 -o cpu -n 8 -stats pid,command,cpu`
-   on the Mac during a runner job, to name their source.
-4. The library's name: `libb3` or `libb3_servil`.
 
 ## Next, in order
 
