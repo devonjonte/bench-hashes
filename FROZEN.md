@@ -48,7 +48,7 @@ the notes) may still change, to say it better.
   less and fits more pairs. **`regress --pairs N --rounds K --keep DIR`**
   set a check's pairs and samples per cell and keep every run's samples
   file (defaults unchanged); and
-  **one calibration a side a check** (Devon Jonte): `regress` calibrates
+  **one calibration a side a check** (Devon Jonte; Zooko, October 17): `regress` calibrates
   each side once before its pairs (`--calibrate-only PATH`; a cell both
   sides measure takes the old side's size) and every run takes those
   sample sizes (`--sizes PATH`, one untimed sample warming each cell in
