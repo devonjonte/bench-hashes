@@ -471,7 +471,7 @@ shared scenario stay out of the default check: on identical code the
 queue's means move 6-60% between processes, and two copies' 64 B cells
 switch between states 20-30% apart. The check's first calibration, on an
 Apple M4 Max with planted slowdowns and builds of identical code, is in
-the fork's NOTES ("The regression check, calibrated").
+the fork's NOTES ("The regression check, calibrated"); the reasons for each part of the rule are in [COMPARISONS.md](COMPARISONS.md).
 
 ## The map
 
