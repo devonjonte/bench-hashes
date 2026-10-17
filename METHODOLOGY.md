@@ -579,10 +579,12 @@ serve a guest's cold reads.
 
 **Rounds.** Every contender runs once on every input, untimed, then 15
 rounds (5 with `--quick`), the contenders' order rotating. Each cell's
-figure is its mean time per run; a contender's `xN` is the median, over
-the rounds, of its time against the first contender's in the same round,
-marked slower or faster by the rule `regress` uses (3%, an exact sign
-test over the rounds).
+figure is its mean time per run; a contender's `xN` is its mean against
+the first contender's, marked slower or faster by the rule `compare` uses,
+each round a pair: every cell judged at once, beyond 3%. (A median of the
+rounds' ratios, the rule before, flips with the share of rounds in each
+mode where a cell runs at two speeds: a 1 GiB file read ×0.62 or ×0.98 by
+that alone, October 17.)
 
 The run writes `b3sum.result.txt` (the report) and `b3sum.samples.tsv`
 (each run's time, and its counts as `# counts` lines), and draws the
