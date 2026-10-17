@@ -580,7 +580,15 @@ kept in memory (tmpfs). In a virtual machine the host's own cache may
 serve a guest's cold reads.
 
 **Rounds.** Every contender runs once on every input, untimed, then 15
-rounds (5 with `--quick`), the contenders' order rotating. Each cell's
+rounds (5 with `--quick`), the contenders in the main run's Williams
+design (Interleaving), a row a round and input: every contender runs in
+every position and right after every other equally often. A run's
+after-effects fall on the run that follows it; with the contenders only
+rotating, each kept one predecessor, and that alone moved cells: run
+right after sha256sum, a b3sum took about 10% longer on 1 MiB and 16 MiB
+files in the page cache, and run right after another b3sum, 7-9% longer
+on a 1 MiB file from storage, whichever build it was (i7-12700K, two runs
+with the order swapped, October 18). Each cell's
 figure is its mean time per run; a contender's `xN` is its mean against
 the first contender's, marked slower or faster by the rule `compare` uses,
 each round a pair: every cell judged at once, beyond 3%. (A median of the
