@@ -4344,6 +4344,14 @@ impl RegressScope {
     }
 }
 
+/// Two sizes files as one: every cell of `old`, with its size, and the cells
+/// only `new` has, with theirs.
+fn merge_sizes(old: &str, new: &str) -> String {
+    let cell = |line: &str| line.rsplit_once('\t').map(|(cell, _)| cell.to_owned()).unwrap_or_default();
+    let old_cells: std::collections::HashSet<String> = old.lines().skip(1).map(cell).collect();
+    old.lines().chain(new.lines().skip(1).filter(|line| !old_cells.contains(&cell(line)))).map(|line| format!("{line}\n")).collect()
+}
+
 /// One run of `exe` over `scope`, `rounds` rounds (0: a default run's
 /// own), its samples sized by the file at `sizes`: its samples file, also
 /// copied to `keep`, and the load this process saw while it ran
@@ -4445,17 +4453,27 @@ fn regress_command(arguments: &[String]) -> i32 {
     eprintln!("regress: {} new builds against {} old, {pairs} pairs over {}{}", new_exes.len(), old_exes.len(), scope.describe(),
               chosen_rounds.map_or(String::new(), |k| format!(", {k} rounds a run")));
     let mut run_index = 0;
-    // One calibration for the whole check, by the first old build: every
-    // run, of either side, takes its sizes (Sizes).
+    // One calibration a side, by its first build, for the whole check: every
+    // run takes the sizes (Sizes). A cell both sides measure takes the old
+    // side's size, so both do the same work a sample; a cell only one side
+    // measures (a --bench comparison whose cells changed), its own side's.
     let sizes = std::env::temp_dir().join(format!("bench-hashes-regress-sizes-{}.tsv", std::process::id()));
-    let calibration = std::process::Command::new(&old_exes[0])
-        .args(scope.arguments(rounds))
-        .arg("--calibrate-only")
-        .arg(&sizes)
-        .stdout(std::process::Stdio::null())
-        .output()
-        .unwrap_or_else(|error| panic!("failed to run {}: {error}", old_exes[0]));
-    assert!(calibration.status.success(), "{} --calibrate-only failed\n{}", old_exes[0], String::from_utf8_lossy(&calibration.stderr).trim_end());
+    let calibrate = |exe: &str, side: &str| -> String {
+        let path = std::env::temp_dir().join(format!("bench-hashes-regress-sizes-{}-{side}.tsv", std::process::id()));
+        let calibration = std::process::Command::new(exe)
+            .args(scope.arguments(rounds))
+            .arg("--calibrate-only")
+            .arg(&path)
+            .stdout(std::process::Stdio::null())
+            .output()
+            .unwrap_or_else(|error| panic!("failed to run {exe}: {error}"));
+        assert!(calibration.status.success(), "{exe} --calibrate-only failed\n{}", String::from_utf8_lossy(&calibration.stderr).trim_end());
+        let text = fs::read_to_string(&path).unwrap();
+        fs::remove_file(&path).unwrap();
+        text
+    };
+    let merged = merge_sizes(&calibrate(&old_exes[0], "old"), &calibrate(&new_exes[0], "new"));
+    fs::write(&sizes, merged).unwrap_or_else(|error| panic!("cannot write {}: {error}", sizes.display()));
     if let Some(keep) = &keep {
         fs::copy(&sizes, keep.join("sizes.tsv")).unwrap_or_else(|error| panic!("cannot keep the sizes: {error}"));
     }
@@ -5218,6 +5236,13 @@ mod correctness_tests {
 
     /// Each consistency check fires on the relation it holds, and a run
     /// that keeps every relation reads "all hold".
+    #[test]
+    fn regress_merges_the_sides_sizes() {
+        let old = format!("{SIZES_VERSION}\nsha256\t64 B\t40\nblake3-servil-mt\tcontinuous 64 B\t9\n");
+        let new = format!("{SIZES_VERSION}\nsha256\t64 B\t44\nblake3-servil-mt\tcontinuous 64 B\t7\nblake3-servil-mt\tcontinuous batch 16\t3\n");
+        assert_eq!(merge_sizes(&old, &new), format!("{SIZES_VERSION}\nsha256\t64 B\t40\nblake3-servil-mt\tcontinuous 64 B\t9\nblake3-servil-mt\tcontinuous batch 16\t3\n"));
+    }
+
     #[test]
     fn consistency_checks_name_each_broken_relation() {
         let points = vec![point("8 MiB", UseCase::OneMessage), point("8 MiB", UseCase::IdleOneMessage), point("64 B", UseCase::OneMessage),
