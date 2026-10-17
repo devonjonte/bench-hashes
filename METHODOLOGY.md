@@ -248,9 +248,12 @@ shared; an SME2 kernel shows what sharing its unit costs.
 Every run also writes `bench-hashes.checks.txt`, for people who maintain
 the benchmark or a contender: relations that hold for every contender
 alike when the benchmark measures what it means to. Nonstop calls are no slower than calls after other work for
-messages of 64 B-4 KiB; two copies at once are no faster than one; a hash
-that runs on its core alone (no shared SME unit, no helper threads) is no
-slower beside a second copy; and more work within the first-level cache
+messages of 64 B-4 KiB; two copies of a hash that runs on its caller's
+thread are no faster than one (a multithreaded one's two callers can keep
+its threads busier than one does); a hash that runs on its core alone (no
+shared SME unit, no helper threads) is no slower beside a second copy, for
+work up to 1 MiB, within a core's own caches (beyond, the copies share the
+last-level cache and memory); and more work within the first-level cache
 (up to 32 KiB) is no slower per byte or message than a size that divides
 it. Each is judged on the cells' means, over 10% apart. A broken relation names a bug in the
 benchmark or in the contender, or a finding to explain; the file lists
