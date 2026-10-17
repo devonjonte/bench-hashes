@@ -1321,10 +1321,13 @@ cell sampled in a share of them.
                                    compare runs' samples files in pairs (the
                                    i-th old with the i-th new), each cell's
                                    verdict as regress gives it
-  bench-hashes regress OLD_EXE NEW_EXE [--points NAME,...]
-                                   whether NEW is slower than OLD: the two
-                                   in alternating runs, a verdict as exit
-                                   0, 1 (slower), or 2 (no verdict)
+  bench-hashes regress [--full] OLD_EXE... -- NEW_EXE...
+                                   whether the new build is slower: pair i
+                                   runs the i-th of each side (fresh
+                                   layouts: the fork's tools/perf_regress.py),
+                                   in alternating order; all cells judged at
+                                   once; exit 0, 1 (slower), or 2 (no
+                                   verdict); --full: every default cell
 ";
 
 struct Options {
@@ -4045,17 +4048,25 @@ fn read_samples(path: &str) -> SamplesFile {
 /*
  * `bench-hashes compare OLD... -- NEW...`: the runs in pairs, the i-th old
  * with the i-th new (as they ran, back to back in alternating order), and
- * every cell both measured judged by its pairs' ratios, new mean over old,
- * as `regress` judges (clocks::summary::verdict at REGRESS_MARGIN_PERMILLE):
- * each side's median mean, the median ratio, the verdict, and how many
- * pairs ran faster. To see what repetition alone moves, compare a side's
- * runs with each other the same way.
+ * every cell both measured judged at once (clocks::summary::discoveries:
+ * a paired t-test per cell, the false discovery rate held to
+ * COMPARE_Q_PERMILLE over all cells, the regression check's margin): each
+ * side's median mean, the median ratio with the range the sign test
+ * leaves plausible, the verdict, and how many pairs ran faster. At least
+ * three pairs. For two builds, `regress` (through the fork's
+ * tools/perf_regress.py, which relinks each side with a fresh layout per
+ * pair) runs and judges the pairs itself: link layout moves cold calls'
+ * cells by itself (audit/variance-on-unchanged-code.md).
  */
+/// The false discovery rate `compare` holds its verdicts to, over all the
+/// cells it judges.
+const COMPARE_Q_PERMILLE: u64 = 50;
+
 fn compare_command(arguments: &[String]) {
     let usage = "usage: bench-hashes compare OLD.tsv... -- NEW.tsv... (one new run for each old run, in the order they ran)";
     let split = arguments.iter().position(|argument| argument == "--").expect(usage);
     let (old, new) = (&arguments[..split], &arguments[split + 1..]);
-    assert!(!old.is_empty() && old.len() == new.len(), "{usage}");
+    assert!(old.len() >= 3 && old.len() == new.len(), "{usage}; at least three pairs");
     let means = |path: &String| {
         let file = read_samples(path);
         if !file.load.starts_with("quiet") {
@@ -4079,11 +4090,15 @@ fn compare_command(arguments: &[String]) {
             ratios.push(clocks::summary::ratio_permille(new_mean, old_mean));
         }
     }
-    for key in order {
+    // Only cells every pair measured.
+    order.retain(|key| cells[key].0.len() == old.len());
+    let tested: Vec<Vec<(u128, u128)>> = order.iter().map(|key| cells[key].0.iter().copied().zip(cells[key].1.iter().copied()).collect()).collect();
+    let verdicts = clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
+    for (key, verdict) in order.into_iter().zip(verdicts) {
         let (olds, news, ratios) = &cells[&key];
         let (a, b) = (median_u128(olds), median_u128(news));
         let r = clocks::summary::median_permille(ratios);
-        let verdict = match clocks::summary::verdict(ratios, REGRESS_MARGIN_PERMILLE) {
+        let verdict = match verdict {
             clocks::summary::Verdict::Slower => "slower",
             clocks::summary::Verdict::Faster => "faster",
             clocks::summary::Verdict::Level => "level",
@@ -4104,16 +4119,21 @@ fn median_u128(values: &[u128]) -> u128 {
 }
 
 /*
- * `bench-hashes regress OLD NEW`: whether the executable NEW is slower than
- * OLD, measured on this machine (the fork's tools/perf_regress.py builds
- * the two). REGRESS_PAIRS pairs of runs, one of each side, back to back in
- * alternating order (A B, B A, ...), each over REGRESS_POINTS, the lent
+ * `bench-hashes regress [--full] OLD... -- NEW...`: whether the new build is
+ * slower than the old, measured on this machine (the fork's
+ * tools/perf_regress.py builds them: each side relinked with a fresh
+ * function order for every pair, since a binary's layout alone moves
+ * cells, audit/variance-on-unchanged-code.md). REGRESS_PAIRS pairs of
+ * runs, pair i running the i-th executable of each side (round robin),
+ * back to back in alternating order (A B, B A, ...), each over
+ * REGRESS_POINTS (with --full, a default run's every cell), the lent
  * cells, where a program hands its buffer to a call and waits (the queue's
  * cells move 6-60% between processes of identical code, beyond what a 3%
  * check can judge), solo alone (the shared copies' 64 B cells switch
  * between states 20-30% apart per process). Each pair gives each cell one
- * ratio, new mean over old; a cell is slower or faster by
- * clocks::summary::verdict at a 3% margin. Calibrated on the Mac (fork
+ * ratio, new mean over old; the cells are judged all at once by
+ * clocks::summary::discoveries (a false discovery rate of 5% over them,
+ * a 3% margin). Calibrated on the Mac (fork
  * NOTES, "The regression check, calibrated"). Exit 0: no cell slower; 1: a
  * cell slower; 2: no verdict, when a run's load was busy or unobserved
  * (clocks::load).
@@ -4130,13 +4150,32 @@ const REGRESS_REPEATS: usize = 3;
 /// The margin a solo cell's verdict uses.
 const REGRESS_MARGIN_PERMILLE: u64 = 30;
 
-/// One run of `exe` over the regress points: its samples file.
-fn regress_run(exe: &str) -> SamplesFile {
+/// The shortest run the regression check makes: clocks observes other
+/// programs' load in windows of about a second and finds a run under half
+/// a second no evidence ("the run lasted under half a second"), which on a
+/// fast machine every run of REGRESS_ROUNDS was (i7-12700K: 0.3-0.5 s).
+const REGRESS_RUN_NS: u64 = 700_000_000;
+
+/// The rounds each run makes: REGRESS_ROUNDS, or as many more as a run of
+/// `exe` needs to last REGRESS_RUN_NS, from one untimed run (the same for
+/// both sides, so their cells compare).
+fn regress_rounds(exe: &str) -> usize {
+    let began = clocks::now();
+    regress_run(exe, REGRESS_ROUNDS, false);
+    let ns = clocks::since_ns(began).max(1);
+    REGRESS_ROUNDS * usize::try_from(REGRESS_RUN_NS.div_ceil(ns)).unwrap_or(1).max(1)
+}
+
+/// One run of `exe` over the regress points, `rounds` rounds (with `full`,
+/// a default run, every cell): its samples file.
+fn regress_run(exe: &str, rounds: usize, full: bool) -> SamplesFile {
     let directory = std::env::temp_dir().join(format!("bench-hashes-regress-{}-{}", std::process::id(), clocks::load::now_ns()));
     fs::create_dir_all(&directory).unwrap();
     let contenders: Vec<&str> = REGRESS_SUBJECTS.iter().map(|a| a.key()).collect();
+    let (contenders, points, rounds) = (contenders.join(","), REGRESS_POINTS.join(","), rounds.to_string());
+    let selection: Vec<&str> = if full { Vec::new() } else { vec!["--contenders", &contenders, "--points", &points, "--rounds", &rounds] };
     let status = std::process::Command::new(exe)
-        .args(["--contenders", &contenders.join(","), "--points", &REGRESS_POINTS.join(","), "--rounds", &REGRESS_ROUNDS.to_string()])
+        .args(selection)
         .current_dir(&directory)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -4152,15 +4191,24 @@ fn regress_run(exe: &str) -> SamplesFile {
 }
 
 fn regress_command(arguments: &[String]) -> i32 {
-    let [old_exe, new_exe] = arguments else { panic!("usage: bench-hashes regress OLD_EXE NEW_EXE") };
-    eprintln!("regress: {new_exe} against {old_exe}, {REGRESS_PAIRS} pairs over {} points", REGRESS_POINTS.len());
+    let usage = "usage: bench-hashes regress [--full] OLD_EXE... -- NEW_EXE... (pair i runs the i-th of each, round robin)";
+    let full = arguments.first().is_some_and(|a| a == "--full");
+    let arguments = &arguments[usize::from(full)..];
+    let split = arguments.iter().position(|a| a == "--").expect(usage);
+    let (old_exes, new_exes) = (&arguments[..split], &arguments[split + 1..]);
+    assert!(!old_exes.is_empty() && !new_exes.is_empty(), "{usage}");
+    let scope = if full { "every cell of a default run".to_string() } else { format!("{} points", REGRESS_POINTS.len()) };
+    // A default run lasts long enough; the points' runs, REGRESS_RUN_NS.
+    let rounds = if full { 0 } else { regress_rounds(&old_exes[0]) };
+    eprintln!("regress: {} new builds against {} old, {REGRESS_PAIRS} pairs over {scope}", new_exes.len(), old_exes.len());
     let mut unreliable = Vec::new();
     let mut powers: Vec<String> = Vec::new();
     let mut ratios: std::collections::BTreeMap<String, Vec<u64>> = std::collections::BTreeMap::new();
+    let mut pairs_means: std::collections::BTreeMap<String, Vec<(u128, u128)>> = std::collections::BTreeMap::new();
     // A run's means, and its load line when clocks found it no evidence
     // (other programs busy, or no load window).
     let mut means = |exe: &str| -> (std::collections::HashMap<String, u128>, Option<String>) {
-        let file = regress_run(exe);
+        let file = regress_run(exe, rounds, full);
         if !powers.contains(&file.power) {
             powers.push(file.power.clone());
         }
@@ -4174,6 +4222,7 @@ fn regress_command(arguments: &[String]) -> i32 {
         // now and then costs other programs about 1.7 CPU-seconds inside
         // a run's window: fork runner jobs 1304-1305, October 5, 2026).
         let mut attempt = 0;
+        let (old_exe, new_exe) = (&old_exes[pair % old_exes.len()], &new_exes[pair % new_exes.len()]);
         let (old, new) = loop {
             let ((old, a), (new, b)) = if pair % 2 == 0 { let o = means(old_exe); (o, means(new_exe)) } else { let n = means(new_exe); (means(old_exe), n) };
             let busy: Vec<String> = a.into_iter().chain(b).collect();
@@ -4188,7 +4237,9 @@ fn regress_command(arguments: &[String]) -> i32 {
             eprintln!("regress: pair {} again: {}", pair + 1, busy.join("; "));
         };
         for (key, old_mean) in &old {
-            ratios.entry(key.clone()).or_default().push(clocks::summary::ratio_permille(new[key], *old_mean));
+            let Some(&new_mean) = new.get(key) else { continue };
+            ratios.entry(key.clone()).or_default().push(clocks::summary::ratio_permille(new_mean, *old_mean));
+            pairs_means.entry(key.clone()).or_default().push((*old_mean, new_mean));
         }
         let tenths = (clocks::since_ns(began) + 50_000_000) / 100_000_000;
         eprintln!("regress: pair {} of {REGRESS_PAIRS} in {}.{} s", pair + 1, tenths / 10, tenths % 10);
@@ -4206,9 +4257,14 @@ fn regress_command(arguments: &[String]) -> i32 {
         let d = permille as i64 - 1000;
         format!("{}{}.{}%", if d < 0 { "-" } else { "+" }, d.abs() / 10, d.abs() % 10)
     };
+    // The cells judged (the points' solo cells, or with --full every cell
+    // every pair measured), all at once (clocks::summary::discoveries).
+    let judged: Vec<&String> = pairs_means.iter().filter(|(key, m)| m.len() == REGRESS_PAIRS && (full || key.split('|').nth(1) == Some("solo"))).map(|(k, _)| k).collect();
+    let tested: Vec<Vec<(u128, u128)>> = judged.iter().map(|k| pairs_means[*k].clone()).collect();
+    let verdicts = clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
     let mut slower = 0;
-    for (key, values) in ratios.iter().filter(|(key, _)| key.split('|').nth(1) == Some("solo")) {
-        let verdict = clocks::summary::verdict(values, REGRESS_MARGIN_PERMILLE);
+    for (key, verdict) in judged.into_iter().zip(verdicts) {
+        let values = &ratios[key];
         if verdict == clocks::summary::Verdict::Level {
             continue;
         }
