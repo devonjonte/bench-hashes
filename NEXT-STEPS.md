@@ -93,6 +93,10 @@ work stands and what comes next; its history is in git.
    so messages become arrays indexed by a symbolic offset (Z3's `Select`),
    with `canon` and the checks following. Expected: `every` and the fifteen
    `messages_every` cases, about 18 CPU-hours, in minutes.
+   **And the hybrid kernels' step** (`prove_hybrid.py`): 327 cases, 3.1
+   CPU-hours, on four workers of about 1 GB each, so 90 minutes on
+   October 17; sixteen workers would take about 12 (its README's "2 min"
+   is stale).
 3. **The kernel proofs, complete**: the SME2 hybrid kernel at every
    group count (above), the ZA forms Isla cannot run yet, and then less
    trusted: the machine-code proofs on Arm's own specification in Lean
