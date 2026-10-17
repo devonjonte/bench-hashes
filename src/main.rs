@@ -496,6 +496,14 @@ impl UseCase {
         if self.idle() { "idle" } else if self.after_gap() { "busy" } else { "nonstop" }
     }
 
+    /// The phase this use case's cells calibrate and sample in: its
+    /// pattern's, the continuous use cases' apart from the other nonstop
+    /// ones (their streams leave placement and pool state that moved the
+    /// lent cells beside them: bench-hashes #29).
+    fn phase_key(self) -> &'static str {
+        if matches!(self, Self::ContinuousMessages | Self::ContinuousBatches) { "stream" } else { self.pattern_key() }
+    }
+
     /// Whether the program idles before each call.
     fn idle(self) -> bool {
         matches!(self, Self::IdleOneMessage | Self::IdleManyMessages)
@@ -1748,13 +1756,13 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
      * September 30). A program that hashes one input after another does not
      * sleep between them, and one that idles between calls mostly sleeps.
      */
-    for pattern in ["nonstop", "busy", "idle"] {
+    for pattern in ["stream", "nonstop", "busy", "idle"] {
         progress.phase("calibrating");
 
         for (point_index, point) in POINTS.iter().enumerate() {
             for algorithm_index in 0..roster.len() {
                 let algorithm = roster.algorithms[algorithm_index];
-                if algorithm.takes_part(point.use_case) && roster.measures(point_index) && point.use_case.pattern_key() == pattern {
+                if algorithm.takes_part(point.use_case) && roster.measures(point_index) && point.use_case.phase_key() == pattern {
                     if let Sizes::From(given) = sizes {
                         let iterations = *given.get(&(algorithm.key().to_owned(), point_index)).unwrap_or_else(|| {
                             panic!("--sizes: no size for {} at {}{}", algorithm.key(), point.use_case.label_prefix(), point.label)
@@ -1808,7 +1816,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
          * samples every round. No contender skips a position because its
          * calibrated call is slower.
          */
-        progress.phase(match pattern { "nonstop" => "measuring one after another", "busy" => "measuring after other work", _ => "measuring after idling" });
+        progress.phase(match pattern { "stream" => "measuring streams", "nonstop" => "measuring one after another", "busy" => "measuring after other work", _ => "measuring after idling" });
 
         for round in 0..roster.rounds {
             progress.round(round, &samples.solo);
@@ -1818,7 +1826,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
                 let size_index = roster.points[(point_offset + round) % roster.points.len()];
                 let point = POINTS[size_index];
                 let orders = &point_orders[size_index];
-                if point.use_case.pattern_key() != pattern || orders.is_empty()
+                if point.use_case.phase_key() != pattern || orders.is_empty()
                     || (!roster.every_round && !cell_wants_sample(round + size_index, roster.rounds, orders.len())) {
                     continue;
                 }
