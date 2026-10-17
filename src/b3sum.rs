@@ -461,6 +461,7 @@ pub fn command(args: &[String]) {
     }
     // cells[cache][input][contender]: each round's run.
     let mut cells: Vec<Vec<Vec<Vec<clocks::child::Run>>>> = caches.iter().map(|_| inputs.iter().map(|_| specs.iter().map(|_| Vec::new()).collect()).collect()).collect();
+    let orders = super::williams_orders(specs.len());
     let started = clocks::now();
     for round in 0..rounds {
         for (ci, &cache) in caches.iter().enumerate() {
@@ -468,10 +469,14 @@ pub fn command(args: &[String]) {
                 if cache == Cache::Warm {
                     warm(&input.files, &mut buffer);
                 }
-                // The order rotates with the round and the input, so drift
-                // and each run's after-effects fall on every contender.
-                for k in 0..specs.len() {
-                    let c = (k + round as usize + i) % specs.len();
+                // The main run's Williams design, a row a round and input:
+                // every contender runs in every position and right after
+                // every other equally often, so drift and each run's
+                // after-effects on the next fall on every contender alike.
+                // (A rotation kept each contender's predecessor fixed: the
+                // run after sha256sum, 1 MiB and 16 MiB in the page cache,
+                // was about 10% slower whichever b3sum it was.)
+                for &c in &orders[(round as usize + i) % orders.len()] {
                     if cache == Cache::Cold {
                         evict(&input.files);
                     }
