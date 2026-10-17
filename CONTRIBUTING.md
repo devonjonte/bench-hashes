@@ -99,7 +99,7 @@ benchmark.
   relations every contender keeps when the benchmark measures what it
   means to. A change to the benchmark keeps them holding, or explains
   in its commit message why one breaks.
-- **The fork's regression check runs `bench-hashes regress OLD NEW`**,
+- **The fork's regression check runs `bench-hashes regress OLD... -- NEW...`**,
   which runs the two executables with `--contenders`, `--points`, and
   `--rounds` and reads their samples files: the rule lives here, so a
   change to the format changes its reader in the same change.

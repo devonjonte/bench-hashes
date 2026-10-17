@@ -26,7 +26,7 @@ For the servil team: how things are done in this repository. The principles are 
 
 # The fork's performance-regression check runs this benchmark
 
-The fork's `tools/perf_regress.py` builds this benchmark twice through the `--config` patch, against the fork's `HEAD` and against its working tree, and runs `bench-hashes regress OLD NEW`: the regression rule, its points, and its margins live here, beside `POINTS`. Both sides use this checkout's source, so a change here never skews that comparison. The fork's `PROCEDURES.md` has the procedure every fork commit follows.
+The fork's `tools/perf_regress.py` builds this benchmark twice through the `--config` patch, against the fork's `HEAD` and against its working tree, relinks each side with a fresh function order per pair, and runs `bench-hashes regress OLD... -- NEW...`: the regression rule, its points, and its margins live here, beside `POINTS`. Both sides use this checkout's source, so a change here never skews that comparison. The fork's `PROCEDURES.md` has the procedure every fork commit follows.
 
 # Before a question goes to Zooko
 
