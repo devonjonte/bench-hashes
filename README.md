@@ -121,10 +121,11 @@ evicted from it before each run (read from storage):
 A contender is `NAME=COMMAND`, a `b3sum` and its flags, or any program
 that hashes the files it is given (the files are appended);
 `tools/b3sum-contenders.sh` builds official BLAKE3's `b3sum` 1.8.2 and
-the fork's at given commits, and adds the system's `sha256sum` (GNU
-coreutils, one thread) where it is installed, the SHA-256 tool programs
-already use. The first contender is the one
-the others are compared with. `--files` chooses where the files live:
+the fork's at given commits, and adds GNU coreutils' `sha256sum` where it
+is installed (one thread), the SHA-256 tool programs already use. The
+script finds it by its `--version`, as `sha256sum` or `gnusha256sum`:
+some systems give another implementation the name. The first contender
+is the one the others are compared with. `--files` chooses where the files live:
 put them on the storage you care about (they are made once, 1.4 GiB, and
 kept). `--quick` runs a smaller set in seconds. The report and samples go
 to `benchmark-results/`, as `b3sum.result.txt` and `b3sum.samples.tsv`,

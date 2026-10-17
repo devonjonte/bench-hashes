@@ -6,11 +6,13 @@
 # DIR/b3sum-COMMIT          the fork's b3sum at each COMMIT (default: FORK's HEAD),
 #                           built from a clean worktree of that commit as its
 #                           README recommends: statically linked on Linux
+# sha256sum                 GNU coreutils' sha256sum, where installed, for the
+#                           hash programs already use: found by its --version,
+#                           as sha256sum or gnusha256sum (some systems name
+#                           another implementation sha256sum, uutils on Ubuntu)
 # Each b3sum is built as its own project recommends (official's from
 # crates.io, as `cargo install b3sum` builds it); on Linux, the fork's static
 # link alone makes each of its runs about 240 us shorter (METHODOLOGY, b3sum).
-# and, where it is installed, the system's sha256sum (GNU coreutils), for
-# the hash programs already use.
 # Prints a line of NAME=PATH arguments for bench-hashes b3sum, official first.
 set -eu
 fork=$(cd "$1" && git rev-parse --show-toplevel)
@@ -40,7 +42,10 @@ for rev in "$@"; do
     fi
     args="$args fork-$commit=$dir/b3sum-$commit"
 done
-if sha256sum=$(command -v sha256sum); then
-    args="$args sha256sum=$sha256sum"
-fi
+for name in sha256sum gnusha256sum; do
+    if path=$(command -v "$name") && "$path" --version 2>/dev/null | head -n 1 | grep -q 'GNU coreutils'; then
+        args="$args sha256sum=$path"
+        break
+    fi
+done
 echo "$args"
