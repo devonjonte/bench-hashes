@@ -68,6 +68,31 @@ work stands and what comes next; its history is in git.
    induction (`x2_every`, on `candidate/flat-walk-proofs`) never finished
    in 9 hours and goes the same way. Each obligation gets a time budget,
    reported when exceeded (Ode's lessons 12-14).
+
+   **The design** (read October 17): the message kernel
+   (`blake3_sme2_hash16_messages_512`, which the chunk kernel's entry
+   jumps into) has a block loop inside its group loop, 0x21c to 0xcbc:
+   `x7` counts blocks from 0, `x9` is the next block's offset (64 at the
+   first arrival), `x6` the iterations (`cbz x6` skips the loop), the hash
+   state in `z0`-`z7` (each iteration ends with the feed-forward `eor`s),
+   and each iteration compresses the block already in ZA while it loads
+   the next; the first block is loaded before the loop and the last
+   compressed after it (0xcc0). The proofs know the block count, so they
+   unroll this loop: n chained compressions per lane, built and compared.
+   Instead, (a) prove the block loop's step once, for every message
+   length: at the head, the hash state fresh symbols (what `Generalized`
+   already makes of the positions that differ) and ZA block K's bytes;
+   one iteration must leave the standard's compression of that state with
+   block K under the flags of block K (start at K = 0); (b) in the group
+   induction, check the loop starts at the key and block 0 and leaves after
+   n blocks, and take its result as the step folded n times, which is how
+   the standard defines a chunk's chaining value. No group-level
+   compression terms are built. The missing piece: block K's bytes at a
+   symbolic offset 64K. The message model (`chunk_byte` in
+   `prove_messages_every`) reads only at concrete offsets within a group,
+   so messages become arrays indexed by a symbolic offset (Z3's `Select`),
+   with `canon` and the checks following. Expected: `every` and the fifteen
+   `messages_every` cases, about 18 CPU-hours, in minutes.
 3. **The kernel proofs, complete**: the SME2 hybrid kernel at every
    group count (above), the ZA forms Isla cannot run yet, and then less
    trusted: the machine-code proofs on Arm's own specification in Lean
