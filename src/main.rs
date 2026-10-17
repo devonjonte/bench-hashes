@@ -4238,11 +4238,20 @@ fn regress_run(exe: &str, rounds: usize, scope: &RegressScope, keep: Option<&std
         .map(|entry| entry.unwrap().path().join("bench-hashes.samples.tsv")).collect();
     assert_eq!(found.len(), 1, "one samples file");
     let file = read_samples(found[0].to_str().unwrap());
+    let load = regress_load(run.started_ns, run.started_ns + run.wall_ns);
     if let Some(keep) = keep {
-        fs::copy(&found[0], keep).unwrap_or_else(|error| panic!("cannot keep {}: {error}", keep.display()));
+        // The kept file says what regress judged the run by: its load line
+        // the windows around the run, which compare reads in turn (the
+        // windows listed stay the run's own, on its samples' clock).
+        let text = fs::read_to_string(&found[0]).unwrap();
+        let kept: String = text.lines().map(|line| match line.strip_prefix("# load: ") {
+            Some(_) => format!("# load: {load}\n# load measured by: bench-hashes regress, around the run (the windows below are the run's own)\n"),
+            None => format!("{line}\n"),
+        }).collect();
+        fs::write(keep, kept).unwrap_or_else(|error| panic!("cannot keep {}: {error}", keep.display()));
     }
     fs::remove_dir_all(&directory).unwrap();
-    (file, regress_load(run.started_ns, run.started_ns + run.wall_ns))
+    (file, load)
 }
 
 /// The load in the windows of this process overlapping `start_ns` to
@@ -4252,7 +4261,10 @@ fn regress_run(exe: &str, rounds: usize, scope: &RegressScope, keep: Option<&std
 fn regress_load(start_ns: u64, end_ns: u64) -> String {
     loop {
         let windows = clocks::load::windows();
-        if windows.is_empty() || windows.last().unwrap().end_ns >= end_ns {
+        // Where the OS counts CPU time, a window covers the end within half
+        // a window; elsewhere none ever closes (describe says so).
+        let counted = cfg!(any(target_os = "linux", target_vendor = "apple"));
+        if windows.last().map_or(!counted, |last| last.end_ns >= end_ns) {
             let overlapping: Vec<clocks::load::Window> = windows.into_iter().filter(|w| w.end_ns > start_ns && w.start_ns < end_ns).collect();
             return clocks::load::describe(&overlapping);
         }
