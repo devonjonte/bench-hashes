@@ -26,6 +26,16 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **The comparison rule judges every cell at once** (Devon Jonte, #11,
+  #13; fork #44, #45): `compare` and `regress` judge a comparison's cells
+  together, their false discovery rate controlled at 5% with the 3%
+  margin, by `clocks::summary::discoveries`, in place of a sign test per
+  cell; and each pair of runs links each side afresh, its functions in a
+  random order, since a binary's layout alone moved cells by several
+  percent. On unchanged code the per-cell sign test called 15 to 27 of 700
+  cells faster or slower; this rule reads all 700 level, and finds the
+  cells a real change moves. `regress --full` judges every cell of a
+  default run. COMPARISONS.md keeps the rule's choices and their evidence.
 - **`bench-hashes b3sum` adds many large files** (Devon Jonte, #17): 16
   files of 64 MiB, as many bytes as the 1 GiB file, in one run as
   `b3sum *.iso` hashes them (`--quick`: 4 of 16 MiB). Many large files
