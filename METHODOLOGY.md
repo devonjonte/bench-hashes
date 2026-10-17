@@ -588,7 +588,11 @@ rotating, each kept one predecessor, and that alone moved cells: run
 right after sha256sum, a b3sum took about 10% longer on 1 MiB and 16 MiB
 files in the page cache, and run right after another b3sum, 7-9% longer
 on a 1 MiB file from storage, whichever build it was (i7-12700K, two runs
-with the order swapped, October 18). Each cell's
+with the order swapped, October 18). The balance is exact in whole cycles
+of the design, a multiple of n rounds for n contenders when n is even and
+of 2n when odd (18 rounds for three contenders); other round counts leave
+a few rounds' remainder, a fraction of a percent at that effect's size.
+Each cell's
 figure is its mean time per run; a contender's `xN` is its mean against
 the first contender's, marked slower or faster by the rule `compare` uses,
 each round a pair: every cell judged at once, beyond 3%. (A median of the
