@@ -70,6 +70,13 @@ const { chromium } = require('playwright');
   await page.locator('.measures button', { hasText: 'wall-clock' }).first().click();
   await page.locator('.measures button', { hasText: 'CPU time' }).first().click();
   assert.equal(await solid(), wallOnly, 'back to wall-clock time alone');
+  // Cost per byte: the same lines, the axis in ns per byte, lower is faster.
+  await page.locator('.measures button', { hasText: 'cost' }).click();
+  assert.equal(await solid(), wallOnly, 'cost view draws the same lines');
+  await page.locator('.cell:not(.empty)').first().click(); await page.waitForTimeout(300);
+  assert(/ns per byte, lower is faster/.test(await page.locator('.zoom').innerHTML()), 'the cost axis names its unit and direction');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  await page.locator('.measures button', { hasText: 'rate' }).click();
   // A touch screen: tap a chart open, tap it for its values, tap the button.
   const phone = await browser.newPage({ viewport: { width: 420, height: 860 }, hasTouch: true, isMobile: true });
   phone.on('pageerror', e => errors.push(e.message));
