@@ -166,14 +166,14 @@ pub(crate) fn header_keys(text: &str) -> Vec<&str> {
 #[test]
 fn every_samples_file_names_what_measured_and_where() {
     let machine = machine_metadata();
-    let header = samples_header(&machine, &[("rounds".to_owned(), "3".to_owned()), ("contender a".to_owned(), "/bin/a".to_owned())]);
+    let header = samples_header(&machine, &[("rounds".to_owned(), "3".to_owned()), ("contender".to_owned(), "a: /bin/a".to_owned())]);
     let keys = header_keys(&header);
     assert_eq!(&keys[..PROVENANCE.len()], PROVENANCE, "{header}");
-    assert_eq!(&keys[PROVENANCE.len()..PROVENANCE.len() + 2], ["rounds", "contender a"], "{header}");
+    assert_eq!(&keys[PROVENANCE.len()..PROVENANCE.len() + 2], ["rounds", "contender"], "{header}");
     assert!(header.starts_with(&format!("{SAMPLES_VERSION}\n")) && keys.contains(&"power") && keys.contains(&"load"), "{header}");
     let path = std::env::temp_dir().join(format!("samples-header-{}.tsv", std::process::id()));
     std::fs::write(&path, format!("{header}{SAMPLES_COLUMNS}\n")).unwrap();
     let file = read_samples(path.to_str().unwrap());
     std::fs::remove_file(&path).unwrap();
-    assert!(file.headers.iter().any(|(k, v)| k == "contender a" && v == "/bin/a"));
+    assert!(file.headers.iter().any(|(k, v)| k == "contender" && v == "a: /bin/a"));
 }

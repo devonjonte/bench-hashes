@@ -427,6 +427,9 @@ struct RunSamples {
     /// and point. Shared samples have none: their two copies share the
     /// process, so its CPU time is both copies'.
     solo_cpu_ns: Vec<Vec<Vec<Option<u64>>>>,
+    /// Each solo sample's CPU-package energy in nanojoules
+    /// (DuoCopy::energy_nj), as solo_cpu_ns.
+    solo_energy_nj: Vec<Vec<Vec<Option<u64>>>>,
 }
 
 /*
@@ -1652,7 +1655,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
         shared: empty(),
         solo_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
         shared_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
-        solo_cpu_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+        solo_cpu_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], solo_energy_nj: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
     };
     let mut batch_iterations: Vec<Vec<usize>> = vec![vec![1usize; POINT_COUNT]; roster.len()];
     let point_orders: Vec<_> = POINTS.iter()
@@ -1760,7 +1763,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
 
                     /* The solo sample: this thread runs the batch, alone. */
                     clocks::load::tick();
-                    let DuoCopy { elapsed_ns, counts, preparation, started_ns, cpu_ns } = take_sample(algorithm, input, point, iterations);
+                    let DuoCopy { elapsed_ns, counts, preparation, started_ns, cpu_ns, energy_nj } = take_sample(algorithm, input, point, iterations);
 
                     /*
                      * The shared sample, under the same conditions, for the
@@ -1775,6 +1778,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
                     samples.solo[algorithm_index][size_index].push(per_unit(elapsed_ns));
                     samples.solo_started_ns[algorithm_index][size_index].push(started_ns);
                     samples.solo_cpu_ns[algorithm_index][size_index].push(cpu_ns);
+                    samples.solo_energy_nj[algorithm_index][size_index].push(energy_nj);
                     for copy in copies.iter().flatten() {
                         samples.shared[algorithm_index][size_index].push(per_unit(copy.elapsed_ns));
                         samples.shared_started_ns[algorithm_index][size_index].push(copy.started_ns);
@@ -2055,13 +2059,15 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
     }
     let started_ns = clocks::load::now_ns();
     let cpu0 = clocks::process_cpu_ns();
+    let energy0 = clocks::energy::package_nj();
     let counts0 = clocks::Counts::read();
     let started = clocks::now();
     run_batch(algorithm, input, point, iterations);
     let elapsed_ns = clocks::since_ns(started);
     let counts = counts0.zip(clocks::Counts::read()).map(|(before, after)| after.since(before));
+    let energy_nj = energy0.zip(clocks::energy::package_nj()).map(|(before, after)| after - before);
     let cpu_ns = cpu0.zip(clocks::process_cpu_ns()).map(|(before, after)| after - before);
-    DuoCopy { elapsed_ns, counts, preparation: None, started_ns, cpu_ns }
+    DuoCopy { elapsed_ns, counts, preparation: None, started_ns, cpu_ns, energy_nj }
 }
 
 /// Prepare and time an already-selected call, each after the program
@@ -2081,7 +2087,7 @@ fn take_prepared_sample(input: &[u8], iterations: usize, idle: bool, mut call: i
         // The write and the call, both the program's work (FROZEN.md, Zooko,
         // October 3, 2026); the trace keeps the write's own share.
         let counts = measured.calls.counts.zip(measured.preparation.counts).map(|(call, write)| call.plus(write));
-        DuoCopy { elapsed_ns: measured.calls.wall_ns + measured.preparation.wall_ns, counts, preparation: Some(measured.preparation), started_ns, cpu_ns: None }
+        DuoCopy { elapsed_ns: measured.calls.wall_ns + measured.preparation.wall_ns, counts, preparation: Some(measured.preparation), started_ns, cpu_ns: None, energy_nj: None }
     })
 }
 
@@ -3039,6 +3045,11 @@ struct DuoCopy {
     /// other work is no part of the call's), or where the platform has no
     /// process CPU clock.
     cpu_ns: Option<u64>,
+    /// The CPU package's energy across the sample, in nanojoules
+    /// (clocks::energy, read outside the timed interval beside the CPU
+    /// time): the whole package's, so a quiet machine's alone means the
+    /// call's. None where cpu_ns is, or where the platform counts none.
+    energy_nj: Option<u64>,
 }
 
 #[derive(Clone, Copy)]
@@ -3934,11 +3945,11 @@ fn append_kernel_report(output: &mut String, algorithm: Algorithm, use_case: Use
 /// The samples file's first line and its column row, which the reader
 /// (read_samples) requires: a file in another format is read with the
 /// tools of the commit that wrote it.
-const SAMPLES_VERSION: &str = "# bench-hashes samples v5";
-const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns";
+const SAMPLES_VERSION: &str = "# bench-hashes samples v6";
+const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ";
 
-/// A row's `cpu ns` field: each sample's process CPU time, or `-` where a
-/// cell has none (a sample after gaps, a shared one, no process CPU clock).
+/// A row's `cpu ns` or `energy nJ` field: each sample's, or `-` where a
+/// cell has none (a sample after gaps, a shared one, no such counter).
 fn cpu_field(cpu: &[Option<u64>]) -> String {
     match cpu.iter().copied().collect::<Option<Vec<u64>>>() {
         Some(ns) if !ns.is_empty() => ns.iter().map(u64::to_string).collect::<Vec<_>>().join(","),
@@ -3959,6 +3970,9 @@ struct SamplesFile {
     /// The cells whose samples carry the process's CPU time: each sample's,
     /// in nanoseconds, in the order of its wall-time samples.
     cpu: Vec<(String, Vec<u64>)>,
+    /// The cells whose samples carry the CPU package's energy: each
+    /// sample's, in nanojoules, in the same order.
+    energy: Vec<(String, Vec<u64>)>,
 }
 
 fn read_samples(path: &str) -> SamplesFile {
@@ -3971,6 +3985,7 @@ fn read_samples(path: &str) -> SamplesFile {
     let mut columns = false;
     let mut cells = Vec::new();
     let mut cpu = Vec::new();
+    let mut energy = Vec::new();
     for line in lines {
         if let Some(rest) = line.strip_prefix("# load: ") {
             load = Some(rest.to_owned());
@@ -3985,7 +4000,7 @@ fn read_samples(path: &str) -> SamplesFile {
             columns = true;
         } else {
             let fields: Vec<&str> = line.split('\t').collect();
-            assert_eq!(fields.len(), 8, "{path}: a row of eight fields: {line}");
+            assert_eq!(fields.len(), 9, "{path}: a row of nine fields: {line}");
             let samples: Vec<Measured> = fields[5].split(',').map(|sample| {
                 let (ns, units) = sample.split_once('/').expect("ns/units");
                 Measured::new(ns.parse().expect("ns"), units.parse().expect("units"))
@@ -3997,10 +4012,15 @@ fn read_samples(path: &str) -> SamplesFile {
                 assert_eq!(ns.len(), samples.len(), "{path}: a CPU time for every sample of {key}");
                 cpu.push((key.clone(), ns));
             }
+            if fields[8] != "-" {
+                let nj: Vec<u64> = fields[8].split(',').map(|nj| nj.parse().expect("energy nJ")).collect();
+                assert_eq!(nj.len(), samples.len(), "{path}: an energy for every sample of {key}");
+                energy.push((key.clone(), nj));
+            }
             cells.push((key, samples));
         }
     }
-    SamplesFile { headers, load: load.unwrap_or_else(|| panic!("{path}: a load line")), power: power.unwrap_or_else(|| panic!("{path}: a power line")), cells, cpu }
+    SamplesFile { headers, load: load.unwrap_or_else(|| panic!("{path}: a load line")), power: power.unwrap_or_else(|| panic!("{path}: a power line")), cells, cpu, energy }
 }
 
 /*
@@ -4027,38 +4047,41 @@ fn compare_command(arguments: &[String]) {
     let (old, new) = (&arguments[..split], &arguments[split + 1..]);
     assert!(old.len() >= 3 && old.len() == new.len(), "{usage}; at least three pairs");
     // Each cell's mean wall time per unit, and (where its samples carry
-    // it) its CPU time per unit: all the samples' CPU time over their units,
-    // in the same fixed point.
+    // them) its CPU time and energy per unit: all the samples' CPU time, or
+    // energy, over their units, in the same fixed point.
     let means = |path: &String| {
         let file = read_samples(path);
         if !file.load.starts_with("quiet") {
             println!("{path}: {}: its samples are no evidence of speed", file.load);
         }
         let cpu: std::collections::HashMap<String, Vec<u64>> = file.cpu.into_iter().collect();
+        let energy: std::collections::HashMap<String, Vec<u64>> = file.energy.into_iter().collect();
         file.cells.into_iter().map(|(key, samples)| {
-            let per_unit = cpu.get(&key).map(|ns| {
-                let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
-                (ns.iter().map(|&n| u128::from(n)).sum::<u128>() << 64) / units.max(1)
-            });
-            (key, Mean::of(&samples).fixed().0, per_unit)
-        }).collect::<Vec<(String, u128, Option<u128>)>>()
+            let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
+            let per_unit = |column: &std::collections::HashMap<String, Vec<u64>>| column.get(&key).map(|v| (v.iter().map(|&n| u128::from(n)).sum::<u128>() << 64) / units.max(1)).filter(|&v| v > 0);
+            let (c, e) = (per_unit(&cpu), per_unit(&energy));
+            (key.clone(), Mean::of(&samples).fixed().0, c, e)
+        }).collect::<Vec<(String, u128, Option<u128>, Option<u128>)>>()
     };
     // Every cell's means a pair, wall time and (where both sides carry it)
     // CPU time, in the first old run's order.
     type Pairs = Vec<(u128, u128)>;
     let mut order: Vec<String> = Vec::new();
-    let mut cells: std::collections::HashMap<String, (Pairs, Pairs)> = std::collections::HashMap::new();
+    let mut cells: std::collections::HashMap<String, (Pairs, Pairs, Pairs)> = std::collections::HashMap::new();
     for (old_path, new_path) in old.iter().zip(new) {
-        let new_means: std::collections::HashMap<String, (u128, Option<u128>)> = means(new_path).into_iter().map(|(k, m, c)| (k, (m, c))).collect();
-        for (key, old_mean, old_cpu) in means(old_path) {
-            let Some(&(new_mean, new_cpu)) = new_means.get(&key) else { continue };
+        let new_means: std::collections::HashMap<String, (u128, Option<u128>, Option<u128>)> = means(new_path).into_iter().map(|(k, m, c, e)| (k, (m, c, e))).collect();
+        for (key, old_mean, old_cpu, old_energy) in means(old_path) {
+            let Some(&(new_mean, new_cpu, new_energy)) = new_means.get(&key) else { continue };
             if !cells.contains_key(&key) {
                 order.push(key.clone());
             }
-            let (wall, cpu) = cells.entry(key).or_default();
+            let (wall, cpu, energy) = cells.entry(key).or_default();
             wall.push((old_mean, new_mean));
-            if let (Some(old_cpu), Some(new_cpu)) = (old_cpu, new_cpu) {
-                cpu.push((old_cpu, new_cpu));
+            if let (Some(o), Some(n)) = (old_cpu, new_cpu) {
+                cpu.push((o, n));
+            }
+            if let (Some(o), Some(n)) = (old_energy, new_energy) {
+                energy.push((o, n));
             }
         }
     }
@@ -4068,7 +4091,7 @@ fn compare_command(arguments: &[String]) {
     let judged = clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
     let times = |permille: u64| format!("x{}.{:03}", permille / 1000, permille % 1000);
     for (key, judgment) in order.into_iter().zip(judged) {
-        let (wall, cpu) = &cells[&key];
+        let (wall, cpu, energy) = &cells[&key];
         let verdict = match judgment.verdict {
             clocks::summary::Verdict::Slower => "slower",
             clocks::summary::Verdict::Faster => "faster",
@@ -4077,7 +4100,8 @@ fn compare_command(arguments: &[String]) {
         let faster = wall.iter().filter(|(old, new)| new < old).count();
         // CPU time beside wall time, by the same ratio, with no verdict (the
         // rule judges wall time), where every pair has it.
-        let cpu = if cpu.len() == wall.len() { format!("; CPU time {}", times(clocks::summary::geometric_mean_permille(cpu))) } else { String::new() };
+        let beside = |name: &str, pairs: &Pairs| if pairs.len() == wall.len() { format!("; {name} {}", times(clocks::summary::geometric_mean_permille(pairs))) } else { String::new() };
+        let cpu = beside("CPU time", cpu) + &beside("energy", energy);
         let (a, b) = (geometric_mean(wall.iter().map(|p| p.0)), geometric_mean(wall.iter().map(|p| p.1)));
         println!("{key}: {} -> {} ns/unit  {} {verdict}, {faster} of {} pairs faster{cpu}", Fixed(a).format_ns(), Fixed(b).format_ns(), times(judgment.ratio_permille), wall.len());
     }
@@ -4436,7 +4460,11 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
     let mut out = samples_header(machine, &run.map(|(key, value)| (key.to_owned(), value)));
     for &algorithm in &roster.algorithms {
         for use_case in UseCase::ALL.iter().filter(|&&use_case| algorithm.takes_part(use_case)) {
-            writeln!(out, "# kernel platform {} {:?}: {}", algorithm.key(), use_case, detect_kernels(algorithm, *use_case).platform).unwrap();
+            let kernels = detect_kernels(algorithm, *use_case);
+            writeln!(out, "# kernel platform {} {:?}: {}", algorithm.key(), use_case, kernels.platform).unwrap();
+            // The code path at every point, for the map's marks.
+            let at: Vec<String> = POINTS[use_case.points()].iter().map(|p| format!("{}={}", p.label, kernels.kernels[kernels.kernel_index_for(p.bytes)].name)).collect();
+            writeln!(out, "# kernels {} {:?}: {}", algorithm.key(), use_case, at.join(" | ")).unwrap();
         }
     }
     writeln!(out, "{SAMPLES_COLUMNS}").unwrap();
@@ -4461,13 +4489,13 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
                 let starts: Vec<String> = cell_starts.iter()
                     .map(|ns| (ns / 1_000_000).to_string())
                     .collect();
-                let cpu = match scenario {
-                    Scenario::Solo => cpu_field(&samples.solo_cpu_ns[algorithm_index][point_index]),
-                    Scenario::Shared => "-".to_string(),
+                let (cpu, energy) = match scenario {
+                    Scenario::Solo => (cpu_field(&samples.solo_cpu_ns[algorithm_index][point_index]), cpu_field(&samples.solo_energy_nj[algorithm_index][point_index])),
+                    Scenario::Shared => ("-".to_string(), "-".to_string()),
                 };
                 writeln!(
                     out,
-                    "{}\t{}\t{:?}\t{}\t{}\t{}\t{}\t{}",
+                    "{}\t{}\t{:?}\t{}\t{}\t{}\t{}\t{}\t{}",
                     algorithm.key(),
                     scenario.key(),
                     point.use_case,
@@ -4476,6 +4504,7 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
                     values.join(","),
                     starts.join(","),
                     cpu,
+                    energy,
                 )
                 .unwrap();
             }
@@ -4942,7 +4971,7 @@ mod correctness_tests {
         let mut samples = RunSamples { solo: empty(), shared: empty(),
             solo_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
             shared_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
-            solo_cpu_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
+            solo_cpu_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], solo_energy_nj: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
         let mut results: Results = vec![vec![None; POINT_COUNT]; roster.len()];
         for a in 0..roster.len() {
             for &p in &roster.points {
@@ -4957,6 +4986,7 @@ mod correctness_tests {
                     }
                     samples.solo_started_ns[a][p].push(r as u64 * 1_000_000);
                     samples.solo_cpu_ns[a][p].push(Some(2 * value(a, p, r)));
+                    samples.solo_energy_nj[a][p].push(Some(3 * value(a, p, r)));
                 }
                 results[a][p] = Some(Cell {
                     solo: Mean::of(&samples.solo[a][p]),
@@ -5045,14 +5075,14 @@ mod correctness_tests {
             clocks::load::Window { start_ns: 1_500_000, end_ns: 3_000_000, other_milli_cpus: 100, steal_milli_cpus: 7 },
         ];
         let tsv = generate_samples_tsv(&roster, &samples, &machine, "test");
-        assert!(tsv.starts_with("# bench-hashes samples v5\n"));
+        assert!(tsv.starts_with("# bench-hashes samples v6\n"));
         // The main run's own file carries the shared provenance first.
         assert_eq!(&harness_tests::header_keys(&tsv)[..harness_tests::PROVENANCE.len()], harness_tests::PROVENANCE, "{tsv}");
         assert!(tsv.contains("\n# load: busy: "), "{tsv}");
         assert!(tsv.contains("\n# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1:1200:0,1-3:100:7\n"), "{tsv}");
-        assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\n"));
-        assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\n"), "{tsv}");
-        assert!(tsv.contains("\nblake3-servil-st\tshared\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\t-\n"), "{tsv}");
+        assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\n"));
+        assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\t30000,30003,30006\n"), "{tsv}");
+        assert!(tsv.contains("\nblake3-servil-st\tshared\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\t-\t-\n"), "{tsv}");
         assert!(!tsv.contains("\tshared\tOneMessage\t"), "calls after a gap run alone: {tsv}");
     }
 
@@ -5085,6 +5115,10 @@ mod correctness_tests {
                     let cpu = read.cpu.iter().find(|(k, _)| *k == key).map(|(_, ns)| ns.clone());
                     let wanted = (scenario == "solo").then(|| samples.solo_cpu_ns[a][p].iter().map(|ns| ns.unwrap()).collect::<Vec<u64>>());
                     assert_eq!(cpu, wanted, "{key}'s CPU time");
+                    // Energy alike.
+                    let energy = read.energy.iter().find(|(k, _)| *k == key).map(|(_, nj)| nj.clone());
+                    let wanted = (scenario == "solo").then(|| samples.solo_energy_nj[a][p].iter().map(|nj| nj.unwrap()).collect::<Vec<u64>>());
+                    assert_eq!(energy, wanted, "{key}'s energy");
                     checked += 1;
                 }
             }

@@ -461,6 +461,9 @@ pub fn command(args: &[String]) {
     }
     // cells[cache][input][contender]: each round's run.
     let mut cells: Vec<Vec<Vec<Vec<clocks::child::Run>>>> = caches.iter().map(|_| inputs.iter().map(|_| specs.iter().map(|_| Vec::new()).collect()).collect()).collect();
+    // Each run's CPU-package energy (clocks::energy around the run, eviction
+    // outside it), in the shape of `cells`: None where the platform counts none.
+    let mut energy: Vec<Vec<Vec<Vec<Option<u64>>>>> = caches.iter().map(|_| inputs.iter().map(|_| specs.iter().map(|_| Vec::new()).collect()).collect()).collect();
     let orders = super::williams_orders(specs.len());
     let started = clocks::now();
     for round in 0..rounds {
@@ -480,7 +483,9 @@ pub fn command(args: &[String]) {
                     if cache == Cache::Cold {
                         evict(&input.files);
                     }
+                    let before = clocks::energy::package_nj();
                     cells[ci][i][c].push(run_once(&specs[c], round, input));
+                    energy[ci][i][c].push(before.zip(clocks::energy::package_nj()).map(|(b, a)| a - b));
                 }
             }
         }
@@ -494,7 +499,7 @@ pub fn command(args: &[String]) {
     let mut run = vec![("files".to_owned(), format!("{} on {filesystem}", files_dir.display())), ("rounds".to_owned(), rounds.to_string())];
     for c in &specs {
         for b in &c.builds {
-            run.push((format!("contender {}", c.name), format!("{} {} (blake3 {}; {})", b.program.display(), c.args.join(" "), b.digest, c.version)));
+            run.push(("contender".to_owned(), format!("{}: {} {} (blake3 {}; {})", c.name, b.program.display(), c.args.join(" "), b.digest, c.version)));
         }
     }
     let mut tsv = super::samples_header(&machine, &run);
@@ -518,7 +523,7 @@ pub fn command(args: &[String]) {
                 let samples: Vec<String> = runs.iter().map(|r| format!("{}/{}", r.wall_ns, input.bytes)).collect();
                 let starts: Vec<String> = runs.iter().map(|r| (r.started_ns / 1_000_000).to_string()).collect();
                 let cpu: Vec<Option<u64>> = runs.iter().map(|r| r.cpu_ns).collect();
-                tsv += &format!("{}\t{}\tb3sum\t{}\tB\t{}\t{}\t{}\n", spec.name, cache.name(), input.label, samples.join(","), starts.join(","), super::cpu_field(&cpu));
+                tsv += &format!("{}\t{}\tb3sum\t{}\tB\t{}\t{}\t{}\t{}\n", spec.name, cache.name(), input.label, samples.join(","), starts.join(","), super::cpu_field(&cpu), super::cpu_field(&energy[ci][i][c]));
             }
         }
     }
