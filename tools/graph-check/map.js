@@ -62,21 +62,25 @@ const { chromium } = require('playwright');
   const wallOnly = await solid();
   assert(wallOnly > 0 && (await dotted()) === 0, 'wall-clock time alone at first');
   const hasCpu = await page.evaluate(() => SECTIONS.some(S => Object.values(S.cells).some(c => c.cpu.some(Boolean))));
-  await page.locator('.measures button', { hasText: 'CPU time' }).first().click();
+  await page.locator('.measures button', { hasText: 'CPU' }).first().click();
   if (hasCpu) assert((await dotted()) > 0, 'CPU time draws dotted lines');
   await page.locator('.measures button', { hasText: 'wall-clock' }).first().click();
   assert.equal(await solid(), 0, 'wall-clock time off: no solid lines');
-  assert(await page.locator('.measures button', { hasText: 'energy' }).first().isDisabled(), 'energy waits until it is counted');
+  assert(await page.locator('.measures button', { hasText: 'joule' }).first().isDisabled(), 'energy waits until it is counted');
   await page.locator('.measures button', { hasText: 'wall-clock' }).first().click();
-  await page.locator('.measures button', { hasText: 'CPU time' }).first().click();
+  await page.locator('.measures button', { hasText: 'CPU' }).first().click();
   assert.equal(await solid(), wallOnly, 'back to wall-clock time alone');
   // Cost per byte: the same lines, the axis in ns per byte, lower is faster.
-  await page.locator('.measures button', { hasText: 'cost' }).click();
+  await page.locator('.measures .switch').click();
   assert.equal(await solid(), wallOnly, 'cost view draws the same lines');
   await page.locator('.cell:not(.empty)').first().click(); await page.waitForTimeout(300);
   assert(/ns per byte, lower is faster/.test(await page.locator('.zoom').innerHTML()), 'the cost axis names its unit and direction');
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
-  await page.locator('.measures button', { hasText: 'rate' }).click();
+  await page.locator('.measures .switch').click();
+  // A click outside an opened chart puts it back.
+  await page.locator('.cell:not(.empty)').first().click(); await page.waitForTimeout(300);
+  await page.mouse.click(5, 5); await page.waitForTimeout(300);
+  assert.equal(await page.locator('.zoom').count(), 0, 'a click outside puts the chart back');
   // A touch screen: tap a chart open, tap it for its values, tap the button.
   const phone = await browser.newPage({ viewport: { width: 420, height: 860 }, hasTouch: true, isMobile: true });
   phone.on('pageerror', e => errors.push(e.message));
