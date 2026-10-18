@@ -83,7 +83,7 @@ const { chromium } = require('playwright');
   await page.locator('.measures .switch').click();
   assert.equal(await solid(), wallOnly, 'cost view draws the same lines');
   await page.locator('.cell:not(.empty)').first().click(); await page.waitForTimeout(300);
-  assert(/ns per byte, lower is faster/.test(await page.locator('.zoom').innerHTML()), 'the cost axis names its unit and direction');
+  assert(/ns per byte.*lower is better/.test(await page.locator('.zoom').innerHTML()), 'the cost axis names its unit and direction');
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   await page.locator('.measures .switch').click();
   // A click outside an opened chart puts it back.
