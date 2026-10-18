@@ -51,12 +51,17 @@ the notes) may still change, to say it better.
   predecessor, whose after-effects moved single-file cells by up to 10%
   (the build after `sha256sum` about 10% slower, whichever it was;
   October 18). b3sum results before this change may be off by that much.
-- **b3sum's `xN` is the ratio of the means**, judged as `compare` judges
-  (each round a pair, every cell at once, a 3% margin), in place of the
-  median of the rounds' ratios (Devon Jonte, #28; Zooko, October 17):
-  three identical b3sum builds read x0.62, x0.69 and x0.98 by the median,
-  a cell that runs at two speeds landing on one or the other, and alike by
-  the mean.
+- **Every comparison prints the ratio it judges** (decided on Devon
+  Jonte's fork, October 18; bench-hashes #47, BLAKE3 #82): the geometric
+  mean of the pairs' ratios, the figure `clocks::summary::discoveries`
+  tests. `compare` prints it with each side's geometric mean of its runs'
+  means (whose ratio it is), `regress` beside each pair's ratio, and
+  b3sum's `xN` is it, each round a pair (it was the ratio of the
+  contenders' means over all rounds, beside a mark judged on this one).
+  The median of the rounds' ratios, the rule before October 17 (#28),
+  stays out: three identical b3sum builds read x0.62, x0.69 and x0.98 by
+  it, a cell that runs at two speeds landing on one mode or the other; a
+  geometric mean blends the modes as a mean does.
 - **`regress` with too few pairs for an interval says so** in place of
   stopping (Devon Jonte, #31; Zooko, October 17).
 - **The comparison rule judges every cell at once** (Devon Jonte, #11,
