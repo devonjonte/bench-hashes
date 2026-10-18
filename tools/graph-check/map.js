@@ -66,7 +66,16 @@ const { chromium } = require('playwright');
   if (hasCpu) assert((await dotted()) > 0, 'CPU time draws dotted lines');
   await page.locator('.measures button', { hasText: 'wall-clock' }).first().click();
   assert.equal(await solid(), 0, 'wall-clock time off: no solid lines');
-  assert(await page.locator('.measures button', { hasText: 'joule' }).first().isDisabled(), 'energy waits until it is counted');
+  // Energy: its chip works where the run counted it (dashed lines), and is
+  // disabled where it counted none.
+  const hasEnergy = await page.evaluate(() => SECTIONS.some(S => Object.values(S.cells).some(c => c.energy.some(Boolean))));
+  const energyChip = page.locator('.measures button', { hasText: 'joule' }).first();
+  assert.equal(await energyChip.isDisabled(), !hasEnergy, 'the energy chip follows the data');
+  if (hasEnergy) {
+    await energyChip.click();
+    assert((await page.locator('.cell polyline[stroke-dasharray="5 3"]').count()) > 0, 'energy draws dashed lines');
+    await page.locator('.measures button', { hasText: 'joule' }).first().click();
+  }
   await page.locator('.measures button', { hasText: 'wall-clock' }).first().click();
   await page.locator('.measures button', { hasText: 'CPU' }).first().click();
   assert.equal(await solid(), wallOnly, 'back to wall-clock time alone');
