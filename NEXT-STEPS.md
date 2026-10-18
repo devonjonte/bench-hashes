@@ -9,19 +9,23 @@ both repositories' `AGENTS.md`; the fork's design and measurements in its
 repository's measurement design in `NOTES.md`. This file says where the
 work stands and what comes next; its history is in git.
 
-## Where things stand (October 17, 2026, afternoon)
+## Where things stand (October 18, 2026, morning)
 
-- **`servil`** = 4484730: the proofs keep to the assembly kernels; the
-  stream replaced the queue (#59, with bench-hashes #20); the C library
-  `libb3_servil`; Miri's CI step 3 minutes (the pool splits from 16 KiB
-  under Miri); mutation testing on a change by its diff
-  (`check.py --since servil`, seconds), the whole run by itself when a
-  change removes or alters test code, and a listed missing test fails
-  the check. bench-hashes `main` pins it.
+- **`servil`** = c0e74e0. Every AArch64 assembly kernel is proved at
+  every group count: the block loops are proved once a pass
+  (`prove_block_loop.py`; `prove_hybrid_loop.py` for the kernel with an
+  integer lane, closing #40), so the chunk kernel's induction takes 15
+  minutes (was 4.3 hours), the message kernel's 3 (was about 16
+  CPU-hours), the hybrid's 44. The long proofs, 368 cases, passed on
+  f7c6d11 in 50 minutes; `x2_every` joins them from 3ce4f90. Windows
+  builds take MSVC's assembler alone. #77 (1 MiB pool pieces) is
+  reverted (#79, Devon: mt shared git objects +6.2% on the i7); b3sum is
+  to meet the folio effect itself. A new test holds idle workers to
+  parking while a stream is open. bench-hashes `main` pins 80aa44b.
 - **The gate, by day** (Zooko, October 17): tests, `check-builds`, CI,
   `perf_regress` on the VM and the Mac, the change's mutants. **By night,
-  on `servil`**: the long proofs (381 cases), the whole mutation run, and
-  any other job of hours; a failure is fixed forward first thing.
+  on `servil`**: the long proofs, the whole mutation run, and any other
+  job of hours; a failure is fixed forward first thing.
 - **Open from the stream:** mt solo lent 1 MiB about 10% slower than the
   queue (VM +11.7%, Mac +9.7%; the spin about 2% of it on the Mac, job
   1587). Devon traces it; `job_trace` on the Mac shows the first worker
@@ -30,72 +34,27 @@ work stands and what comes next; its history is in git.
 
 ## Tonight, while Zooko sleeps
 
-1. `sh tools/verify/long-proofs.sh servil` (the narrowing's tools have
-   not had a whole run; prove_hybrid now on every CPU, chunks_x2 back in
-   the steps). Then the whole mutation run on `servil`.
-2. **Build the block-loop proof** (item 2's design below: one pass of the
-   message kernel's block loop proved once, the group loop's proof using
-   it), then run it on the chunk and message kernels, and `x2_every`.
+1. `sh tools/verify/long-proofs.sh servil`: the first whole run with
+   `x2_every` (expect about an hour: it runs first, beside the rest).
+2. The whole mutation run on `servil`, after the proofs: run beside
+   them, the pool's chance survivors flip, and the check fails on noise.
+   The list matches an idle run on fc9903b.
 
 ## Next, in order
 
-1. **The stream** (fork #50, Devon). Direction approved (Zooko, October
-   16): digests written into the caller's memory (each submission names
-   its place; one handler takes the places back in order), a batch's
-   tasks pushed in one call with a wake check sized to the list, and a
-   cheaper `wake_for` for the whole pool. Measure it when Devon says the
-   design has settled: every FROZEN.md cell the queue serves, with his
-   port of the streaming cells; then the contract change to Zooko. Then
-   one scheduler (a job as one task-list entry with a cursor; Devon
-   prototypes, John reviews and measures). Until then no test, mutation,
-   or proof work on `queue.rs` or the job scheduler.
-2. **Long proofs in an hour or two** (Zooko, October 16). With the Rust
-   proofs gone, the run is the kernels' alone; its length is set by
-   `prove_sme2`'s inductions: the chunk kernel's (`every`, 4.3 hours) and
-   the message kernel's, one per message length, growing steeply with it
-   (16 minutes at 5 blocks, 3.6 hours at 14). The growth points to the
-   block loop inside each message being unrolled: an induction over the
-   blocks too would prove one block's step once. The hybrid kernel's
-   induction (`x2_every`, on `candidate/flat-walk-proofs`) never finished
-   in 9 hours and goes the same way. Each obligation gets a time budget,
-   reported when exceeded (Ode's lessons 12-14).
-
-   **The design** (read October 17): the message kernel
-   (`blake3_sme2_hash16_messages_512`, which the chunk kernel's entry
-   jumps into) has a block loop inside its group loop, 0x21c to 0xcbc:
-   `x7` counts blocks from 0, `x9` is the next block's offset (64 at the
-   first arrival), `x6` the iterations (`cbz x6` skips the loop), the hash
-   state in `z0`-`z7` (each iteration ends with the feed-forward `eor`s),
-   and each iteration compresses the block already in ZA while it loads
-   the next; the first block is loaded before the loop and the last
-   compressed after it (0xcc0). The proofs know the block count, so they
-   unroll this loop: n chained compressions per lane, built and compared.
-   Instead, (a) prove the block loop's step once, for every message
-   length: at the head, the hash state fresh symbols (what `Generalized`
-   already makes of the positions that differ) and ZA block K's bytes;
-   one iteration must leave the standard's compression of that state with
-   block K under the flags of block K (start at K = 0); (b) in the group
-   induction, check the loop starts at the key and block 0 and leaves after
-   n blocks, and take its result as the step folded n times, which is how
-   the standard defines a chunk's chaining value. No group-level
-   compression terms are built. The missing piece: block K's bytes at a
-   symbolic offset 64K. The message model (`chunk_byte` in
-   `prove_messages_every`) reads only at concrete offsets within a group,
-   so messages become arrays indexed by a symbolic offset (Z3's `Select`),
-   with `canon` and the checks following. Expected: `every` and the fifteen
-   `messages_every` cases, about 18 CPU-hours, in minutes.
-   **And the hybrid kernels' step** (`prove_hybrid.py`): 327 cases, 3.1
-   CPU-hours, on four workers of about 1 GB each, so 90 minutes on
-   October 17; sixteen workers would take about 12 (its README's "2 min"
-   is stale).
-3. **The kernel proofs, complete**: the SME2 hybrid kernel at every
-   group count (above), the ZA forms Isla cannot run yet, and then less
-   trusted: the machine-code proofs on Arm's own specification in Lean
-   (`probe/sail-lean`). `candidate/flat-walk-proofs` proves Rust (the SME2
-   flat walk as compiled), so it leaves the plan with the narrowing;
-   close #40 and the branch once Zooko agrees.
+1. **The lent 1 MiB gap** (above): understand it, then close it or
+   document it (AGENTS.md, "we own every slowdown").
+2. **Long proofs, faster still**: the hybrid kernel's group induction
+   takes about 40 of its 44 minutes, against 15 for the chunk kernel's; its
+   table's 144-byte stride (`URem`/`UDiv` in the entry function, where
+   the chunk kernel masks with 127) is the likely cost, untested (NOTES-servil.md). Each
+   obligation gets a time budget, reported when exceeded (Ode's lessons
+   12-14).
+3. **The kernel proofs, less trusted**: the ZA forms Isla cannot run
+   yet, and the machine-code proofs on Arm's own specification in Lean
+   (`probe/sail-lean`).
 4. **Mutation testing**: Loom for the pool's interleavings (the "OPEN"
-   survivors), and the queue's survivors go with the queue.
+   survivors, which flip from run to run under load).
 5. **Show each cell's kernel in the results again** (Zooko): the reports
    gain an "after a pause" entry (a batch of 1 to 8 one-block messages
    runs the pair kernel then), and the legend's claim that a call after
