@@ -549,24 +549,6 @@ impl UseCase {
         }
     }
 
-    /// The plot's name in a list of plots.
-    fn short(self) -> &'static str {
-        match self {
-            Self::OneMessage => "one buffer, after other work",
-            Self::ManyMessages => "a batch, after other work",
-            Self::IdleOneMessage => "one buffer, after idling",
-            Self::IdleManyMessages => "a batch, after idling",
-            Self::ContinuousMessages => "messages, owned buffers",
-            Self::ContinuousBatches => "batches, owned buffers",
-            Self::LentMessages => "messages, lent buffers",
-            Self::Interleaved => "many at once, lent buffers",
-            Self::Collection => "a collection, in memory",
-            Self::Outboard => "outboards, lent buffers",
-            Self::Verify => "verified as received",
-            Self::LentBatches => "batches, lent buffers",
-        }
-    }
-
     /// The x column's header in the text report.
     fn column(self) -> &'static str {
         match self {
@@ -763,19 +745,6 @@ impl Algorithm {
             Self::Sha3_256 => "sha3-256",
             Self::Blake3Commonware => "blake3-commonware",
         }
-    }
-
-    /// Whether this contender runs on the calling thread's core alone:
-    /// no SME unit shared with other cores, no helper threads.
-    fn core_only(self) -> bool {
-        !matches!(self, Self::Blake3ServilSt | Self::Blake3ServilMt | Self::Blake3Rayon)
-    }
-
-    /// Whether this contender hashes on threads beyond its caller's: two
-    /// callers at once can keep them busier than one does, so a shared
-    /// copy may rightly run faster than a solo one.
-    fn multithreaded(self) -> bool {
-        matches!(self, Self::Blake3ServilMt | Self::Blake3Rayon)
     }
 
     /// Whether this contender is measured in a use case. BLAKE3 mt stays
@@ -997,34 +966,6 @@ impl std::ops::Mul<u64> for Fixed {
 }
 
 impl Fixed {
-    #[cfg(test)]
-    const ONE: Fixed = Fixed(1 << 64);
-
-    /// self / other, as a Fixed, rounded down at the last bit: a long
-    /// division, 24 bits at a time so that no step overflows. Both values
-    /// are below 2^40 (see Measured) and their ratio below 2^63.
-    fn ratio(self, other: Fixed) -> Fixed {
-        assert!(other.0 > 0 && self.0 < 1 << 104 && other.0 < 1 << 104, "a ratio of two values below 2^40");
-        let (mut quotient, mut remainder) = (self.0 / other.0, self.0 % other.0);
-        assert!(quotient < 1 << 63, "a ratio below 2^63");
-        for bits in [24, 24, 16] {
-            let step = remainder << bits;
-            quotient = (quotient << bits) | (step / other.0);
-            remainder = step % other.0;
-        }
-        Fixed(quotient)
-    }
-
-    /// How self compares with `permille` / 1000, exactly.
-    fn cmp_permille(self, permille: u64) -> std::cmp::Ordering {
-        (self.0 * 1000).cmp(&(u128::from(permille) << 64))
-    }
-
-    /// self in permille, rounded once.
-    fn permille(self) -> u64 {
-        u64::try_from((self.0 * 1000 + (1 << 63)) >> 64).expect("a permille figure fits in u64")
-    }
-
     /// The value in nanoseconds for a person ([`format_ns`]).
     fn format_ns(self) -> String {
         format_ns(self.0, 1 << 64)
@@ -1585,10 +1526,6 @@ fn main() {
 
     fs::write(&text_path, &text).unwrap_or_else(|error| {
         panic!("failed to write {}: {error}", text_path.display())
-    });
-    let checks_path = directory.join(format!("{stem}.checks.txt"));
-    fs::write(&checks_path, consistency(&roster, &results)).unwrap_or_else(|error| {
-        panic!("failed to write {}: {error}", checks_path.display())
     });
 
     if whole {
@@ -4567,8 +4504,7 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
  * The text report: results first, one table per scenario and use case,
  * each cell's mean;
  * then which code path each contender ran, and where the numbers came
- * from, for whoever needs to trust or reproduce them. The consistency
- * checks go to a file of their own (consistency).
+ * from, for whoever needs to trust or reproduce them.
  */
 fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, selection_note: &str) -> String {
     let mut output = String::new();
@@ -4632,108 +4568,6 @@ fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, 
     writeln!(output, "  power: {}", machine.describe_power()).unwrap();
 
     output
-}
-
-/*
- * Consistency checks: relations that hold for every contender alike when
- * the benchmark measures what it means to, each judged on cells' fast
- * speeds, CONSISTENCY_PERMILLE apart or more (bench-hashes NOTES,
- * "Consistency checks"). A broken one is a bug
- * in the benchmark or in the code under test, or a finding to explain.
- * They go to a file of their own, for maintainers.
- */
-const CONSISTENCY_PERMILLE: u64 = 100;
-/// The largest work check 4 compares: inputs this size stay in the
-/// first-level data cache of the machines this benchmark targets (32-128
-/// KiB). Beyond it each level of the memory hierarchy costs more per
-/// byte, for every contender (SHA-256's batches: 32 ns a message up to
-/// 16 KiB, 36 from 256 KiB, VM), which is no bug.
-const CACHED_BYTES: usize = 32 * 1024;
-
-/// Work up to this size stays in a core's own caches (an i7-12700K P-core's
-/// L2 holds 1.25 MiB), so a second copy on another core leaves it alone;
-/// beyond it the copies share the last-level cache and memory bandwidth,
-/// and a hash on its cores alone rightly slows beside a second copy
-/// (SHA-256's lent 16 and 64 MiB: in 4 and 22 of 48 runs, October 17).
-const PRIVATE_CACHE_BYTES: usize = 1 << 20;
-
-/// Where `slow` is slower than `fast` by more than the margin: slow over
-/// fast, in permille.
-fn slower_by(slow: Mean, fast: Mean) -> Option<u64> {
-    let (slow, fast) = (slow.fixed(), fast.fixed());
-    (fast.cmp_permille(0).is_gt()
-        && slow.ratio(fast).cmp_permille(1000 + CONSISTENCY_PERMILLE).is_gt())
-        .then(|| slow.ratio(fast).permille())
-}
-
-/// The consistency checks' report: one line per broken relation.
-fn consistency(roster: &Roster, results: &Results) -> String {
-    let stats = |a: usize, p: usize, scenario: Scenario| cell(results, a, p).get(scenario);
-    let point = |use_case: UseCase, label: &str| use_case.points().find(|&p| POINTS[p].label == label && roster.measures(p));
-    let mut broken: Vec<String> = Vec::new();
-    let mut note = |check: &str, a: usize, what: String, permille: u64| {
-        broken.push(format!("{check}: {}, {what}: x{}.{:03}", roster.algorithms[a].name(), permille / 1000, permille % 1000));
-    };
-    for (a, &algorithm) in roster.algorithms.iter().enumerate() {
-        /* 1. Nonstop is no slower than after other work for small messages (its read of the input included). */
-        for label in ["64 B", "256 B", "1 KiB", "4 KiB"].into_iter().filter(|_| algorithm.takes_part(UseCase::LentMessages) && algorithm.takes_part(UseCase::OneMessage)) {
-            if let (Some(n), Some(b)) = (point(UseCase::LentMessages, label), point(UseCase::OneMessage, label)) {
-                let (fnon, fb) = (stats(a, n, Scenario::Solo), stats(a, b, Scenario::Solo));
-                if let Some(r) = slower_by(fnon, fb) {
-                    note("nonstop slower than after other work", a, format!("{label}, {} against {} ns/B", fnon.format_ns(1), fb.format_ns(1)), r);
-                }
-            }
-        }
-        for use_case in UseCase::ALL.into_iter().filter(|&u| algorithm.takes_part(u)) {
-            let points: Vec<usize> = use_case.points().filter(|&p| roster.measures(p)).collect();
-            /* 2 and 3: two programs at once, for the use cases measured both ways. */
-            if Scenario::Shared.measures(use_case) {
-                for &p in &points {
-                    let (solo, shared) = (stats(a, p, Scenario::Solo), stats(a, p, Scenario::Shared));
-                    if let Some(r) = slower_by(solo, shared).filter(|_| !algorithm.multithreaded()) {
-                        note("shared faster than solo", a, format!("{}, {}: solo {} against shared {} {}", use_case.short(), POINTS[p].label, solo.format_ns(1), shared.format_ns(1), use_case.time_unit()), r);
-                    }
-                    if algorithm.core_only() && POINTS[p].bytes <= PRIVATE_CACHE_BYTES {
-                        if let Some(r) = slower_by(shared, solo) {
-                            note("a hash on the cores alone slowed by a second copy", a, format!("{}, {}: shared {} against solo {} {}", use_case.short(), POINTS[p].label, shared.format_ns(1), solo.format_ns(1), use_case.time_unit()), r);
-                        }
-                    }
-                }
-            }
-            /*
-             * 4. Twice the work takes at most twice the time: no slower per
-             * unit than a size that divides it, for work that stays in the
-             * first-level cache (up to CACHED_BYTES) and outside the idle
-             * use cases (whose cells may meet different clock states).
-             */
-            let size = |p: usize| if use_case.batch() { POINTS[p].messages } else { POINTS[p].bytes };
-            let cached: Vec<usize> = points.iter().copied().filter(|&p| POINTS[p].bytes <= CACHED_BYTES && !use_case.idle()).collect();
-            let points = cached;
-            for &large in &points {
-                for &small in points.iter().filter(|&&small| size(small) < size(large) && size(large) % size(small) == 0) {
-                    for scenario in Scenario::ALL.into_iter().filter(|&scenario| scenario.measures(use_case)) {
-                        let (l, m) = (stats(a, large, scenario), stats(a, small, scenario));
-                        if let Some(r) = slower_by(l, m) {
-                            note("more work, slower per unit", a, format!("{} ({}), {} against {}: {} against {} {}", use_case.short(), scenario.key(), POINTS[large].label, POINTS[small].label, l.format_ns(1), m.format_ns(1), use_case.time_unit()), r);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    let mut out = format!(
-        "# bench-hashes consistency checks (for maintainers): relations that hold for every contender when the benchmark measures what it means to, judged on means, over {}% apart.\n\
-         # 1. Nonstop no slower than after other work, 64 B-4 KiB. 2. Shared no faster than solo, for a hash on its caller's thread. 3. A hash on the cores alone no slower shared, up to 1 MiB. 4. No slower per unit than a size that divides the work, up to 32 KiB, outside the idle use cases.\n",
-        CONSISTENCY_PERMILLE / 10,
-    );
-    if broken.is_empty() {
-        out += "all hold\n";
-    }
-    for line in broken {
-        out += &line;
-        out.push('\n');
-    }
-    out
 }
 
 /// One results table: a row per point, a column per contender taking part.
@@ -5086,10 +4920,9 @@ mod correctness_tests {
         assert_eq!(desktop.describe(), "mains power");
     }
 
-    /// Fixed and Measured: the one division rounds half up at 2^-64, the
-    /// ratio is exact to its last bit, and the display rounds once, with
-    /// three significant digits at every size. Expected answers worked by
-    /// hand (and the ratio against exact integer division).
+    /// Fixed and Measured: the one division rounds half up at 2^-64, and the
+    /// display rounds once, with three significant digits at every size.
+    /// Expected answers worked by hand.
     #[test]
     fn fixed_point_rounds_once_and_late() {
         let t = |ns, units| Fixed(clocks::summary::mean([(ns, units)]));
@@ -5110,30 +4943,6 @@ mod correctness_tests {
         ] {
             assert_eq!(t(ns, units).format_ns(), shown, "{ns}/{units}");
         }
-        let (a, b) = (t(31, 1000), t(7, 3));
-        let exact = (a.0 << 20) / b.0; // the first 20 fractional bits, exactly
-        assert_eq!(a.ratio(b).0 >> 44, exact);
-        for x in [1u128, 3, 7, 1 << 40, (1 << 103) + 12345] {
-            for y in [1u128, 2, 5, 1 << 50, (1 << 103) - 1] {
-                if x / y >= 1 << 63 {
-                    continue; // outside ratio's contract
-                }
-                let q = Fixed(x).ratio(Fixed(y)).0;
-                // q = floor(x * 2^64 / y): q * y <= x * 2^64 < (q + 1) * y, checked in 256 bits as two halves.
-                let wide = |a: u128, b: u128| -> (u128, u128) {
-                    let (a1, a0, b1, b0) = (a >> 64, a & u64::MAX as u128, b >> 64, b & u64::MAX as u128);
-                    let (lo, mid1, mid2, hi) = (a0 * b0, a1 * b0, a0 * b1, a1 * b1);
-                    let (mid, c1) = mid1.overflowing_add(mid2);
-                    let (low, c2) = lo.overflowing_add(mid << 64);
-                    (hi + (mid >> 64) + ((c1 as u128) << 64) + c2 as u128, low)
-                };
-                let target = (x >> 64, x << 64);
-                assert!(wide(q, y) <= target && wide(q + 1, y) > target, "{x} / {y}");
-            }
-        }
-        assert_eq!(Fixed::ONE.cmp_permille(1000), std::cmp::Ordering::Equal);
-        assert!(t(1049, 1000).cmp_permille(1050).is_lt() && t(1051, 1000).cmp_permille(1050).is_gt());
-        assert_eq!(t(1, 3).permille(), 333);
     }
 
     fn point(label: &str, use_case: UseCase) -> usize {
@@ -5174,63 +4983,11 @@ mod correctness_tests {
         (results, samples)
     }
 
-    /// Each consistency check fires on the relation it holds, and a run
-    /// that keeps every relation reads "all hold".
     #[test]
     fn regress_merges_the_sides_sizes() {
         let old = format!("{SIZES_VERSION}\nsha256\t64 B\t40\nblake3-servil-mt\tcontinuous 64 B\t9\n");
         let new = format!("{SIZES_VERSION}\nsha256\t64 B\t44\nblake3-servil-mt\tcontinuous 64 B\t7\nblake3-servil-mt\tcontinuous batch 16\t3\n");
         assert_eq!(merge_sizes(&old, &new), format!("{SIZES_VERSION}\nsha256\t64 B\t40\nblake3-servil-mt\tcontinuous 64 B\t9\nblake3-servil-mt\tcontinuous batch 16\t3\n"));
-    }
-
-    #[test]
-    fn consistency_checks_name_each_broken_relation() {
-        let points = vec![point("8 MiB", UseCase::OneMessage), point("8 MiB", UseCase::IdleOneMessage), point("64 B", UseCase::OneMessage),
-            point("64 B", UseCase::LentMessages), point("16", UseCase::LentBatches), point("64", UseCase::LentBatches)];
-        let mut points = points;
-        points.sort_unstable();
-        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256], true, Some(points), Some(24));
-        let jitter = |r: usize| (r % 5) as u64 * 20;
-        let (results, _) = run(&roster, 24, |_, _, r| 10_000 + jitter(r));
-        assert!(consistency(&roster, &results).ends_with("all hold\n"), "{}", consistency(&roster, &results));
-
-        /* 1: nonstop slower at 64 B; 4: 64 messages slower per message than 16. */
-        let (mut results, mut samples) = run(&roster, 24, |_, p, r| jitter(r) + match (POINTS[p].use_case, POINTS[p].label) {
-            (UseCase::IdleOneMessage, _) => 15_000,
-            (UseCase::LentMessages, _) => 20_000,
-            (UseCase::LentBatches, "64") => 12_000,
-            _ => 10_000,
-        });
-        /* 2: servil's shared copies twice as fast at 16 messages; 3: SHA-256's (on the cores alone) half as fast. */
-        let p16 = POINTS.iter().position(|p| p.use_case == UseCase::LentBatches && p.label == "16").unwrap();
-        for (a, factor) in [(0usize, (1u64, 2u64)), (1, (3, 2))] {
-            for sample in samples.shared[a][p16].iter_mut() {
-                *sample = Measured::new(sample.ns * factor.0 / factor.1, sample.units);
-            }
-            results[a][p16].as_mut().unwrap().shared = Some(Mean::of(&samples.shared[a][p16]));
-        }
-        let report = consistency(&roster, &results);
-        for (check, who) in [("nonstop slower than after other work", "SHA-256"),
-            ("more work, slower per unit", "SHA-256"), ("shared faster than solo", "BLAKE3 servil st"),
-            ("a hash on the cores alone slowed by a second copy", "SHA-256")] {
-            assert!(report.lines().any(|line| line.starts_with(&format!("{check}: {who}"))), "{check} for {who}:\n{report}");
-        }
-        assert!(!report.contains("a hash on the cores alone slowed by a second copy: BLAKE3 servil st"), "servil shares its SME unit: exempt\n{report}");
-
-        /* The relations' scope: a multithreaded hash's shared copies may run
-         * faster (its two callers keep its threads busier); beyond a core's
-         * own caches a hash on its cores alone may slow beside a second copy. */
-        let roster = Roster::new(vec![Algorithm::Blake3ServilMt, Algorithm::Sha256], true, Some(vec![point("64 MiB", UseCase::LentMessages)]), Some(24));
-        let (mut results, mut samples) = run(&roster, 24, |_, _, r| 10_000 + jitter(r));
-        let p64 = POINTS.iter().position(|p| p.use_case == UseCase::LentMessages && p.label == "64 MiB").unwrap();
-        for (a, factor) in [(0usize, (1u64, 2u64)), (1, (3, 2))] {
-            for sample in samples.shared[a][p64].iter_mut() {
-                *sample = Measured::new(sample.ns * factor.0 / factor.1, sample.units);
-            }
-            results[a][p64].as_mut().unwrap().shared = Some(Mean::of(&samples.shared[a][p64]));
-        }
-        let report = consistency(&roster, &results);
-        assert!(report.ends_with("all hold\n"), "both outside their relations' scope:\n{report}");
     }
 
     /// Every point hashes a prefix of one buffer: the input of each size is

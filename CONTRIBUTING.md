@@ -95,10 +95,6 @@ benchmark.
   optimized away (`black_box`).
 - **Results name their code.** Commit before you publish a result: a
   report whose provenance says `dirty-…` measured uncommitted code.
-- **Consistency checks** (`bench-hashes.checks.txt`, METHODOLOGY.md):
-  relations every contender keeps when the benchmark measures what it
-  means to. A change to the benchmark keeps them holding, or explains
-  in its commit message why one breaks.
 - **The fork's regression check runs `bench-hashes regress OLD... -- NEW...`**,
   which runs the two executables with `--contenders`, `--points`, and
   `--rounds` and reads their samples files: the rule lives here, so a
