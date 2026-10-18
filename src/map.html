@@ -129,11 +129,16 @@ function draw(S, c, w, h, axes) {
     }
     if (pts.length <= 3 || c.cases) s += pts.filter(Boolean).map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="${axes ? 4 : 2.5}" fill="#fff" stroke="${S.colors[i]}" stroke-width="1.6" stroke-dasharray="1.5 1.5"/>`).join("");
   }
+  /* Dots after every line, the fastest at each point drawn last, on top:
+     where two overlap, the faster one shows. */
+  const dots = [];
   if (MEASURES.wall) for (const i of live) {
     const pts = c.series[i].map((v, k) => [x(k), y(1 / v)]);
     s += pts.length === 1 || c.cases ? "" : `<polyline points="${pts.map(p => p.map(q => q.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="${S.colors[i]}" stroke-width="${axes ? 2.2 : 1.5}"/>`;
-    if (pts.length <= 3 || c.cases) s += pts.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="${axes ? 5 : 3}" fill="${S.colors[i]}"/>`).join("");
+    if (pts.length <= 3 || c.cases) dots.push(...pts.map(p => [p[1], `<circle cx="${p[0]}" cy="${p[1]}" r="${axes ? 5 : 3}" fill="${S.colors[i]}"/>`]));
   }
+  /* Higher on the chart is faster (and cheaper): draw from the bottom up. */
+  s += dots.sort((a, b) => b[0] - a[0]).map(d => d[1]).join("");
   return { svg: s + "</svg>", x, n, L, R, w };
 }
 /* What the lines measure, for the whole page: wall-clock time by default. */
