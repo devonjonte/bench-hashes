@@ -17,9 +17,20 @@ h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 17px; margin: 34px 0 6p
 .legend button.off { opacity: .35; }
 .legend button.beside::before { display: none; } .legend button.beside svg { vertical-align: 0; }
 /* What the lines measure: wall-clock time, CPU time, energy; any or all. */
-.measures { display: flex; gap: 8px; align-items: center; margin: 0 0 8px; font-size: 12px; color: #6b7280; }
+/* The panel and each section's names stay in view while the page scrolls:
+   the panel at the top, the names of the section on screen just under it. */
+.measures { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 8px; font-size: 12px; color: #6b7280;
+  position: sticky; top: 0; z-index: 8; background: #fdfdfc; padding: 6px 0; }
+.legend:not(.inzoom) { position: sticky; top: var(--bar, 38px); z-index: 8; background: #fdfdfc; padding: 4px 0 6px; }
 .measures button { font: 12px inherit; border: 1px solid #c4b5fd; background: #f5f3ff; color: #4c1d95; border-radius: 12px; padding: 3px 10px 3px 8px; cursor: pointer; }
 .measures button svg { vertical-align: 0; margin-right: 5px; }
+/* The rate/cost switch: a track whose knob slides to the side chosen. */
+.measures .switch { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; padding: 2px 4px; color: #6b7280; }
+.measures .switch .track { width: 34px; height: 18px; border-radius: 9px; background: #c4b5fd; position: relative; transition: background .15s; }
+.measures .switch .knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left .15s; }
+.measures .switch.on .knob { left: 18px; }
+.measures .switch .side:first-child { color: #4c1d95; font-weight: 600; } .measures .switch.on .side:first-child { color: #9ca3af; font-weight: 400; }
+.measures .switch.on .side:last-child { color: #4c1d95; font-weight: 600; }
 .measures button.off { background: #fff; border-color: #d1d5db; color: #6b7280; opacity: .6; }
 .measures button:disabled { cursor: not-allowed; opacity: .4; }
 #tip .was { color: #9ca3af; }
@@ -46,7 +57,7 @@ a.doc { color: inherit; text-decoration: underline dotted #9ca3af; text-underlin
 #tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
 </style></head><body>
 <h1>How fast BLAKE3 servil runs, beside other hashes</h1>
-<p class="sub">Each small chart is one measurement: its row is what a program hashes, its column how it calls. Lines show a rate (higher is faster) or, with the cost chip, nanoseconds per byte (lower is faster). Point at a row's or a column's name to see what it means. Open a chart to read its values under the pointer or where you tap; a hash's name below a title hides or shows its lines, and the chips above them choose what the lines measure: the time a program waits (wall-clock), the processor time it uses (CPU, dotted), or both.</p>
+<p class="sub">Each small chart is one measurement: its row is what a program hashes, its column how it calls. Point at a row's or a column's name to see what it means. Open a chart to read its values under the pointer or where you tap; a hash's name below a title hides or shows its lines, and the switch at the top shows each hash as a rate (bytes per second, higher is faster) or a cost (nanoseconds per byte, lower is faster), per second the program waits (wall-clock) or per second of processor time over all its threads (CPU, dotted).</p>
 <div id="sections"></div>
 <div id="tip"></div>
 <script>
@@ -156,33 +167,40 @@ const shown = nsPerByte => SHOW.cost ? nsPerByte : 1 / nsPerByte;
 /* The chart open now (its cell's key), so a chip that redraws the page keeps it open. */
 let OPEN = null;
 function render() {
+  /* A redraw keeps the reader's place on the page. */
+  const scrolled = window.scrollY;
+  requestAnimationFrame(() => window.scrollTo(0, scrolled));
   const root = document.getElementById("sections");
   document.removeEventListener("keydown", window.onZoomKey || (() => {}));
   document.getElementById("tip").style.display = "none";
-  root.innerHTML = "";
+  root.style.minHeight = root.offsetHeight + "px"; root.innerHTML = "";
     /* What the lines measure: wall-clock time by default; CPU time where the
      run recorded it; energy once the benchmark counts it. */
   const measures = document.createElement("div"); measures.className = "measures";
-  measures.append("Lines show:");
+  /* First the view: a switch between a rate (higher is faster) and a cost
+     (lower is faster); then which lines, each named for what its height is. */
+  const sw = document.createElement("button"); sw.className = "switch" + (SHOW.cost ? " on" : "");
+  sw.setAttribute("role", "switch"); sw.setAttribute("aria-checked", SHOW.cost);
+  sw.title = "Rate: bytes per second, higher is faster. Cost: nanoseconds per byte, lower is faster.";
+  sw.innerHTML = `<span class="side">rate</span><span class="track"><span class="knob"></span></span><span class="side">cost</span>`;
+  sw.onclick = () => { SHOW.cost = !SHOW.cost; SECTIONS.forEach(S => { delete S.axis; }); render(); reopen(); };
+  measures.append(sw, "Lines:");
   const icon = dots => `<svg width="20" height="10"><line x1="2" x2="18" y1="5" y2="5" stroke="currentColor" stroke-width="${dots ? 2.2 : 1.8}" ${dots ? 'stroke-dasharray="0.1 3.5" stroke-linecap="round"' : ""}/></svg>`;
-  for (const [m, label, dots, why] of [["wall", "wall-clock time", false, "The time the program waits for each hash."], ["cpu", "CPU time", true, "The processor time each hash used, all the program's threads: what it costs the machine, beside what the program waits."], ["energy", "energy", false, "Energy is not counted yet."]]) {
+  const lines = SHOW.cost
+    ? [["wall", "wall-clock ns per byte", false, "Nanoseconds the program waits per byte hashed."], ["cpu", "CPU ns per byte", true, "Nanoseconds of processor time per byte hashed, every thread of the program summed: what the hash costs the machine."], ["energy", "nJ per byte", false, "Energy is not counted yet."]]
+    : [["wall", "GB per wall-clock second", false, "Bytes hashed per second the program waits."], ["cpu", "GB per CPU second", true, "Bytes hashed per second of processor time, every thread of the program summed: higher is cheaper for the machine. A hash on one thread draws both lines together."], ["energy", "GB per joule", false, "Energy is not counted yet."]];
+  for (const [m, label, dots, why] of lines) {
     const b = document.createElement("button"); b.innerHTML = (m === "energy" ? "" : icon(dots)) + label; b.title = why;
-    if (m === "energy") b.disabled = true;
+    if (m === "energy") { b.disabled = true; b.classList.add("off"); }
     else {
       if (!MEASURES[m]) b.classList.add("off");
       b.onclick = () => { MEASURES[m] = !MEASURES[m]; if (!MEASURES.wall && !MEASURES.cpu) MEASURES.wall = true; render(); reopen(); };
     }
-    if (m === "energy") b.classList.add("off");
-    measures.appendChild(b);
-  }
-  measures.append(" as:");
-  for (const [cost, label, why] of [[false, "rate (GB/s)", "Bytes hashed per second: higher is faster."], [true, "cost (ns per byte)", "Nanoseconds per byte hashed: lower is faster. With CPU time, the processor time a byte costs, all threads."]]) {
-    const b = document.createElement("button"); b.textContent = label; b.title = why;
-    if (SHOW.cost !== cost) b.classList.add("off");
-    b.onclick = () => { SHOW.cost = cost; SECTIONS.forEach(S => { delete S.axis; }); render(); reopen(); };
     measures.appendChild(b);
   }
   root.appendChild(measures);
+  /* The names stick just under the panel, whatever its height (it wraps on a phone). */
+  requestAnimationFrame(() => document.documentElement.style.setProperty("--bar", measures.offsetHeight + "px"));
 
   SECTIONS.forEach((S, si) => {
     S.shownNow = S.shownNow || S.shown.slice();
@@ -300,12 +318,16 @@ function open(S, grid, cell, q, row, col, layer) {
   };
   z.onmousemove = e => { if (!touch) show(e); };
   z.onmouseleave = () => { tip.style.display = "none"; cur.setAttribute("visibility", "hidden"); };
-  const close = () => { OPEN = null; document.removeEventListener("keydown", onKey); tip.style.display = "none"; lit.forEach(h => h.classList.remove("lit")); place(start); setTimeout(() => z.remove(), 220); };
+  const close = () => { OPEN = null; document.removeEventListener("click", outside); document.removeEventListener("keydown", onKey); tip.style.display = "none"; lit.forEach(h => h.classList.remove("lit")); place(start); setTimeout(() => z.remove(), 220); };
   z.querySelector(".close").onclick = e => { e.stopPropagation(); close(); };
   /* Escape puts it back too. */
   const onKey = e => { if (e.key === "Escape") { document.removeEventListener("keydown", onKey); close(); } };
   document.addEventListener("keydown", onKey); window.onZoomKey = onKey;
   z.onclick = e => { if (touch) show(e); else close(); };
+  /* A click anywhere else on the page puts it back too, except on the
+     chips, which redraw it in place. */
+  const outside = e => { if (!z.isConnected) return document.removeEventListener("click", outside); if (!z.contains(e.target) && !e.target.closest(".measures, .legend")) close(); };
+  setTimeout(() => document.addEventListener("click", outside));
 }
 render();
 /* A chip clicked inside an open chart: redraw, and open it again at full size at once. */
