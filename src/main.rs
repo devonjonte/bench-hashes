@@ -1531,6 +1531,9 @@ fn main() {
     if arguments.first().map(String::as_str) == Some("b3sum") {
         return b3sum::command(&arguments[1..]);
     }
+    if arguments.first().map(String::as_str) == Some("leaves") {
+        return leaves::command(&arguments[1..]);
+    }
     if arguments.first().map(String::as_str) == Some("chart") {
         return chart::command(&arguments[1..]);
     }
@@ -5029,6 +5032,7 @@ fn xml_escape(input: &str) -> String {
 #[cfg(test)]
 mod harness_tests;
 mod b3sum;
+mod leaves;
 mod chart;
 mod map;
 

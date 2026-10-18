@@ -100,6 +100,16 @@ the notes) may still change, to say it better.
   files of 64 MiB, as many bytes as the 1 GiB file, in one run as
   `b3sum *.iso` hashes them (`--quick`: 4 of 16 MiB). Many large files
   at once are common, and no other input covered them.
+- **`bench-hashes leaves` measures produced Merkle leaves** (proposed by
+  Devon Jonte, #14; a new use case, Zooko's decision): 16384 and 1048576
+  64-byte leaves from a counter, handed to BLAKE3 servil four ways (lent to
+  `hash_many_multithreaded`, lent to a stream, copied into its ring, or
+  produced straight into it by `submit_batch_with`), each job timed whole
+  from the first leaf produced to the last digest read, solo and two
+  programs at once, CPU time beside wall time solo. A subcommand like
+  `b3sum`, outside the default run and the map. A prover's encoder makes
+  its leaves as it goes; this measures what each way of handing them over
+  costs that program.
 - **Every digest of a batch is stored in its slot** (Devon Jonte, #15; a
   bug fix): the harness stored only a batch's first digest, so the batch
   cells did less than this contract asks; they read a little slower now.
