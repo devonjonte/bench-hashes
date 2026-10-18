@@ -40,6 +40,8 @@ a.doc { color: inherit; text-decoration: underline dotted #9ca3af; text-underlin
 .zoom { position: absolute; background: #fff; border: 1px solid #c4b5fd; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.12); z-index: 5; overflow: hidden; transition: left .2s, top .2s, width .2s, height .2s; cursor: zoom-out; }
 .zoom .title { position: absolute; left: 14px; top: 10px; font-size: 13px; color: #374151; display: flex; gap: 6px; align-items: center; }
 .zoom .close { position: absolute; right: 8px; top: 6px; font-size: 12px; color: #4b5563; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 3px 10px; cursor: pointer; }
+.legend.inzoom { position: absolute; left: 70px; bottom: 6px; margin: 0; gap: 6px; }
+.legend.inzoom button { font-size: 11px; padding: 2px 8px 2px 6px; }
 #tip { position: fixed; pointer-events: none; background: #111827; color: #fff; font-size: 12px; padding: 6px 8px; border-radius: 6px; display: none; z-index: 9; white-space: nowrap; }
 #tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
 </style></head><body>
@@ -83,7 +85,7 @@ function axisOf(S) {
 function draw(S, c, w, h, axes) {
   const live = c.series.map((s, i) => s && S.shownNow[i] ? i : -1).filter(i => i >= 0);
   const [lo, hi] = axisOf(S);
-  const n = c.sizes.length, L = axes ? 70 : 8, R = axes ? 24 : 8, T = axes ? 40 : 8, B = axes ? 40 : 14;
+  const n = c.sizes.length, L = axes ? 70 : 8, R = axes ? 24 : 8, T = axes ? 40 : 8, B = axes ? 70 : 14;
   /* Sizes run edge to edge; separate cases sit in the middles of equal slots. */
   const x = k => n === 1 || c.cases ? L + (k + 0.5) * (w - L - R) / n : L + k * (w - L - R) / (n - 1);
   const y = v => h - B - (Math.log(v) - lo) / (hi - lo) * (h - T - B);
@@ -143,8 +145,13 @@ function draw(S, c, w, h, axes) {
 }
 /* What the lines measure, for the whole page: wall-clock time by default. */
 const MEASURES = { wall: true, cpu: false };
+/* The chart open now (its cell's key), so a chip that redraws the page keeps it open. */
+let OPEN = null;
 function render() {
-  const root = document.getElementById("sections"); root.innerHTML = "";
+  const root = document.getElementById("sections");
+  document.removeEventListener("keydown", window.onZoomKey || (() => {}));
+  document.getElementById("tip").style.display = "none";
+  root.innerHTML = "";
     /* What the lines measure: wall-clock time by default; CPU time where the
      run recorded it; energy once the benchmark counts it. */
   const measures = document.createElement("div"); measures.className = "measures";
@@ -155,7 +162,7 @@ function render() {
     if (m === "energy") b.disabled = true;
     else {
       if (!MEASURES[m]) b.classList.add("off");
-      b.onclick = () => { MEASURES[m] = !MEASURES[m]; if (!MEASURES.wall && !MEASURES.cpu) MEASURES.wall = true; render(); };
+      b.onclick = () => { MEASURES[m] = !MEASURES[m]; if (!MEASURES.wall && !MEASURES.cpu) MEASURES.wall = true; render(); reopen(); };
     }
     if (m === "energy") b.classList.add("off");
     measures.appendChild(b);
@@ -174,7 +181,7 @@ function render() {
     S.names.forEach((nm, i) => {
       const b = document.createElement("button"); b.textContent = nm; b.style.setProperty("--c", S.colors[i]);
       if (!S.shownNow[i]) b.classList.add("off");
-      b.onclick = () => { S.shownNow[i] = !S.shownNow[i]; render(); };
+      b.onclick = () => { S.shownNow[i] = !S.shownNow[i]; render(); reopen(); };
       legend.appendChild(b);
     });
     /* The earlier run beside this one: a chip that hides or shows its dashed lines. */
@@ -182,7 +189,7 @@ function render() {
       const b = document.createElement("button"); b.className = "beside" + (S.besideNow ? "" : " off");
       b.innerHTML = `<svg width="22" height="10"><line x1="1" x2="21" y1="5" y2="5" stroke="#6b7280" stroke-dasharray="4 3" stroke-width="1.6"/></svg> ${esc(S.before[0])}`;
       b.title = S.before[1];
-      b.onclick = () => { S.besideNow = !S.besideNow; render(); };
+      b.onclick = () => { S.besideNow = !S.besideNow; render(); reopen(); };
       legend.appendChild(b);
     }
     box.appendChild(legend);
@@ -231,13 +238,27 @@ function open(S, grid, cell, q, row, col, layer) {
   const z = document.createElement("div"); z.className = "zoom";
   const start = { left: cr.left - gr.left, top: cr.top - gr.top, width: cr.width, height: cr.height };
   const place = r => Object.assign(z.style, Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v + "px"])));
+  const instant = cell.dataset.instant === "1";
+  OPEN = cell.dataset.key;
+  if (instant) z.style.transition = "none";
   place(start); grid.appendChild(z);
   const d = draw(S, q, W, H, true);
   const rn = S.rows.find(r => r[0] === row)[1], cn = S.cols.find(c => c[0] === col)[1];
   const ln = S.layers.length > 1 ? ", " + S.layers.find(l => l[0] === layer)[1] : "";
   z.innerHTML = d.svg + `<div class="title">${glyph(row, 16)}${glyph(col, 16)} ${rn}, ${cn}${ln}: <code><a class="doc" href="${q.doc}" target="_blank" title="its documentation">${q.call}</a></code></div><button class="close">✕ put back</button>`;
   z.querySelector("a.doc").onclick = e => e.stopPropagation();
-  requestAnimationFrame(() => place({ left: X0, top: Y0, width: W, height: H }));
+  /* The section's names, inside the chart too: one hides or shows its lines here. */
+  const chips = document.createElement("div"); chips.className = "legend inzoom";
+  S.names.forEach((nm, i) => {
+    if (!q.series[i]) return;
+    const b = document.createElement("button"); b.textContent = nm; b.style.setProperty("--c", S.colors[i]);
+    if (!S.shownNow[i]) b.classList.add("off");
+    b.onclick = e => { e.stopPropagation(); S.shownNow[i] = !S.shownNow[i]; render(); reopen(); };
+    chips.appendChild(b);
+  });
+  z.appendChild(chips);
+  if (instant) { place({ left: X0, top: Y0, width: W, height: H }); requestAnimationFrame(() => { z.style.transition = ""; }); }
+  else requestAnimationFrame(() => place({ left: X0, top: Y0, width: W, height: H }));
   const lit = [...grid.querySelectorAll(".h")].filter(h => h.dataset.key === "row:" + row || h.dataset.key === "col:" + col);
   lit.forEach(h => h.classList.add("lit"));
   const tip = document.getElementById("tip"), cur = z.querySelector(".cursor");
@@ -265,14 +286,20 @@ function open(S, grid, cell, q, row, col, layer) {
   z.onmousemove = e => { if (!touch) show(e); };
   /* A mouse leaving hides the values; after a touch, the emulated mouse events that follow a tap would hide what the tap showed, so they wait for the next tap. */
   z.onmouseleave = () => { if (touch) return; tip.style.display = "none"; cur.setAttribute("visibility", "hidden"); };
-  const close = () => { document.removeEventListener("keydown", onKey); tip.style.display = "none"; lit.forEach(h => h.classList.remove("lit")); place(start); setTimeout(() => z.remove(), 220); };
+  const close = () => { OPEN = null; document.removeEventListener("keydown", onKey); tip.style.display = "none"; lit.forEach(h => h.classList.remove("lit")); place(start); setTimeout(() => z.remove(), 220); };
   z.querySelector(".close").onclick = e => { e.stopPropagation(); close(); };
   /* Escape puts it back too. */
   const onKey = e => { if (e.key === "Escape") { document.removeEventListener("keydown", onKey); close(); } };
-  document.addEventListener("keydown", onKey);
+  document.addEventListener("keydown", onKey); window.onZoomKey = onKey;
   z.onclick = e => { if (touch) show(e); else close(); };
 }
 render();
+/* A chip clicked inside an open chart: redraw, and open it again at full size at once. */
+function reopen() {
+  const key = OPEN; if (!key) return;
+  const cell = document.querySelector(`.cell[data-key="${CSS.escape(key)}"]`);
+  if (cell) { cell.dataset.instant = "1"; cell.click(); delete cell.dataset.instant; } else OPEN = null;
+}
 /* A link to one chart (#solo|one|lent, or #1:solo|file|cached for a later section) opens it. */
 function openFromHash() {
   if (location.hash.length < 2) return;
