@@ -3361,23 +3361,46 @@ impl Power {
 
     fn read_linux() -> Option<Power> {
         let read = |path: std::path::PathBuf| fs::read_to_string(path).ok().map(|text| text.trim().to_owned());
-        let (mut on_battery, mut battery_percent, mut any) = (false, None, false);
-        for entry in fs::read_dir("/sys/class/power_supply").ok()?.flatten() {
+        let supplies: Vec<(String, Option<String>, Option<u64>)> = fs::read_dir("/sys/class/power_supply").into_iter().flatten().flatten().filter_map(|entry| {
             let path = entry.path();
-            if read(path.join("type")).as_deref() == Some("Battery") {
-                any = true;
-                on_battery |= read(path.join("status")).as_deref() == Some("Discharging");
-                battery_percent = battery_percent.or(read(path.join("capacity")).and_then(|c| c.parse().ok()));
-            } else if read(path.join("type")).as_deref() == Some("Mains") {
-                any = true;
-            }
-        }
-        let profile = read("/sys/firmware/acpi/platform_profile".into());
-        if !any && profile.is_none() {
+            Some((read(path.join("type"))?, read(path.join("status")), read(path.join("capacity")).and_then(|c| c.parse().ok())))
+        }).collect();
+        // Every CPU's frequency policy, as each names it.
+        let every_cpu = |file: &str| -> Vec<String> {
+            let mut values: Vec<String> = fs::read_dir("/sys/devices/system/cpu/cpufreq").into_iter().flatten().flatten().filter_map(|e| read(e.path().join(file))).collect();
+            values.sort();
+            values.dedup();
+            values
+        };
+        Self::parse_linux(&supplies, read("/sys/firmware/acpi/platform_profile".into()).as_deref(), &every_cpu("scaling_governor"), &every_cpu("energy_performance_preference"))
+    }
+
+    /// The state from Linux's power supplies (type, status, capacity), its
+    /// ACPI platform profile, and its CPU frequency governors and
+    /// energy-performance preferences (each distinct value once): None
+    /// where it reports none of them.
+    fn parse_linux(supplies: &[(String, Option<String>, Option<u64>)], profile: Option<&str>, governors: &[String], preferences: &[String]) -> Option<Power> {
+        let batteries: Vec<_> = supplies.iter().filter(|(kind, _, _)| kind == "Battery").collect();
+        if supplies.is_empty() && profile.is_none() && governors.is_empty() && preferences.is_empty() {
             return None;
         }
-        let low_power = profile.as_deref().is_some_and(|p| p.starts_with("low-power") || p == "quiet" || p == "cool");
-        Some(Power { on_battery, battery_percent, mode: profile.map(|p| format!("platform profile {p}")), low_power })
+        let on_battery = batteries.iter().any(|(_, status, _)| status.as_deref() == Some("Discharging"));
+        let battery_percent = batteries.iter().find_map(|(_, _, capacity)| *capacity);
+        let mut mode = Vec::new();
+        if batteries.is_empty() {
+            mode.push("no battery".to_owned());
+        }
+        if let Some(p) = profile {
+            mode.push(format!("platform profile {p}"));
+        }
+        if !governors.is_empty() {
+            mode.push(format!("CPU frequency governor {}", governors.join("/")));
+        }
+        if !preferences.is_empty() {
+            mode.push(format!("energy-performance preference {}", preferences.join("/")));
+        }
+        let low_power = profile.is_some_and(|p| p.starts_with("low-power") || p == "quiet" || p == "cool") || preferences.iter().any(|p| p == "power");
+        Some(Power { on_battery, battery_percent, mode: Some(mode.join(", ")), low_power })
     }
 
     /// Whether this state can make results read slower than the machine
@@ -4866,6 +4889,16 @@ mod correctness_tests {
         let power = Power::parse_pmset(mains, &settings.replace("powermode            2", "lowpowermode         1")).unwrap();
         assert!(!power.on_battery && power.low_power);
         assert_eq!(power.describe(), "mains power, Low Power Mode");
+        // Linux: a desktop with no battery and no platform profile reports
+        // its CPU frequency policy; a laptop its battery; "power" is low power.
+        let (gov, epp) = (vec!["powersave".to_owned()], vec!["performance".to_owned()]);
+        let linux = Power::parse_linux(&[], None, &gov, &epp).unwrap();
+        assert_eq!(linux.describe(), "mains power, no battery, CPU frequency governor powersave, energy-performance preference performance");
+        assert!(!linux.slowing());
+        let laptop = Power::parse_linux(&[("Battery".to_owned(), Some("Discharging".to_owned()), Some(61)), ("Mains".to_owned(), None, None)], Some("balanced"), &[], &["power".to_owned()]).unwrap();
+        assert_eq!(laptop.describe(), "battery power (61% charged), platform profile balanced, energy-performance preference power");
+        assert!(laptop.slowing());
+        assert!(Power::parse_linux(&[], None, &[], &[]).is_none());
         let desktop = Power::parse_pmset("Now drawing from 'AC Power'\n", "").unwrap();
         assert!(!desktop.slowing());
         assert_eq!(desktop.describe(), "mains power");
