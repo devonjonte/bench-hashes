@@ -26,6 +26,14 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **Samples v6: energy, and each point's code path** (Devon Jonte's fork,
+  October 18; bench-hashes #38, energy back by Zooko's decision): an
+  `energy nJ` column beside `cpu ns`, each solo nonstop sample's CPU-package
+  energy and each b3sum run's; `# kernels` header lines with every point's
+  code path; one `contender` key per b3sum build (`NAME: build ...`; it was
+  `contender NAME`, a name inside the key). The map draws energy dashed
+  (GB per joule, or nJ per byte), and an opened chart marks each point's
+  code path. v5 files are read with the tools of the commit that wrote them.
 - **Energy beside wall time and CPU time** (Zooko, October 18, 2026,
   reversing October 17's lab-only rule; bench-hashes #38): the samples
   record energy where the platform gives a counter, and a cell without
