@@ -334,7 +334,7 @@ fn b3sum(path: &Path) -> Section {
                 sizes: points.iter().map(|p| p.to_string()).collect(),
                 unit: "GB/s",
                 call: "b3sum".to_owned(),
-                doc: "https://github.com/johnservil/BLAKE3/tree/servil/b3sum".to_owned(),
+                doc: "https://github.com/devonjonte/BLAKE3/tree/servil/b3sum".to_owned(),
                 cases: row == "tree",
                 per: points.iter().map(|p| names.iter().find_map(|n| cell(n, p)).map_or(0, |s| s[0].units)).collect(),
                 what: "a run",

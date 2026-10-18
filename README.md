@@ -1,5 +1,11 @@
 # bench-hashes
 
+> **This is Devon Jonte's fork** (`devonjonte/bench-hashes`, branch `main`): John
+> Servil's `main` plus changes decided here first, each also open as a pull request to
+> `johnservil/bench-hashes` (#45, #46, #47). It measures with Devon Jonte's line of
+> the servil fork (`devonjonte/BLAKE3`, branch `servil`); FROZEN.md records each
+> decision.
+
 Written by GPT-5.6 Sol, Claude Fable 5, and Claude Opus 5.5 to my (Zooko's) specifications.
 
 ## Is BLAKE3 faster than SHA-256?
