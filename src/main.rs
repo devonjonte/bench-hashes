@@ -927,16 +927,19 @@ impl Measured {
 
 }
 
-/// A cell's mean exactly as measured: total ns over total units. Kept for
-/// display: Q64.64 is ample for statistics, yet a half-way decimal can move
-/// one display tick if approximated first.
+/*
+ * A cell's figure: its mean, what a caller pays on average, the total time
+ * of its samples over the total work they did (clocks::summary), kept
+ * exactly as measured: Q64.64 is ample for arithmetic ([`Mean::fixed`]),
+ * yet a half-way decimal can move one display tick if approximated first.
+ */
 #[derive(Clone, Copy)]
-struct ExactMean {
+struct Mean {
     ns: u128,
     units: u128,
 }
 
-impl ExactMean {
+impl Mean {
     fn of(samples: &[Measured]) -> Self {
         assert!(!samples.is_empty(), "a mean needs samples");
         Self { ns: samples.iter().map(|m| u128::from(m.ns)).sum(), units: samples.iter().map(|m| u128::from(m.units)).sum() }
@@ -946,19 +949,27 @@ impl ExactMean {
         Fixed(clocks::summary::mean([(u64::try_from(self.ns).expect("a cell's samples total under 2^64 ns"), u64::try_from(self.units).expect("a cell's units fit in u64"))]))
     }
 
-    /// Scale the measured ratio before its one rounding for the reader.
+    /// The mean times `factor` (ns per `factor` units), rounded once for the
+    /// reader ([`format_ns`]).
     fn format_ns(self, factor: u64) -> String {
-        let numerator = self.ns.checked_mul(u128::from(factor)).expect("a scaled mean fits in u128");
-        let denominator = self.units;
-        let mut decimals = 3u32;
-        while decimals < 6 && numerator * 10u128.pow(decimals - 2) < denominator {
-            decimals += 1;
-        }
-        let scale = 10u128.pow(decimals);
-        let rounded = numerator.checked_mul(scale).and_then(|n| n.checked_add(denominator / 2))
-            .expect("a rounded mean fits in u128") / denominator;
-        format!("{}.{:0width$}", rounded / scale, rounded % scale, width = decimals as usize)
+        format_ns(self.ns.checked_mul(u128::from(factor)).expect("a scaled mean fits in u128"), self.units)
     }
+}
+
+/// Nanoseconds `numerator / denominator` for a person: three decimals, and
+/// more below 0.1 ns so that three significant digits show (six at most),
+/// rounded half up once: "0.437", "0.0311", "121.362". The one display rule
+/// for time per unit (the tables, compare, regress, leaves); b3sum's whole
+/// runs, durations with their units, have their own (b3sum::time).
+fn format_ns(numerator: u128, denominator: u128) -> String {
+    assert!(denominator > 0, "a figure needs a denominator");
+    let mut decimals = 3u32;
+    while decimals < 6 && numerator * 10u128.pow(decimals - 2) < denominator {
+        decimals += 1;
+    }
+    let scale = 10u128.pow(decimals);
+    let rounded = numerator.checked_mul(scale).and_then(|n| n.checked_add(denominator / 2)).expect("a rounded figure fits in u128") / denominator;
+    format!("{}.{:0width$}", rounded / scale, rounded % scale, width = decimals as usize)
 }
 
 /// A non-negative number in fixed point, 64 integer and 64 fractional bits
@@ -1014,36 +1025,11 @@ impl Fixed {
         u64::try_from((self.0 * 1000 + (1 << 63)) >> 64).expect("a permille figure fits in u64")
     }
 
-    /// Nanoseconds with three decimals, and more below 0.1 ns so that
-    /// three significant digits show, rounded once: "0.437", "0.0311",
-    /// "121.362".
+    /// The value in nanoseconds for a person ([`format_ns`]).
     fn format_ns(self) -> String {
-        let mut decimals = 3u32;
-        while decimals < 6 && self.0 < (1u128 << 64) / 10u128.pow(decimals - 2) {
-            decimals += 1;
-        }
-        let whole = 10u128.pow(decimals);
-        let rounded = (self.0 * whole + (1u128 << 63)) >> 64;
-        format!("{}.{:0width$}", rounded / whole, rounded % whole, width = decimals as usize)
+        format_ns(self.0, 1 << 64)
     }
 
-}
-
-/*
- * Summary of one cell's samples: its mean, the total time of its samples
- * over the total work they did (clocks::summary), what a caller pays on
- * average.
- */
-#[derive(Clone, Copy)]
-struct Statistics {
-    mean: PerUnit,
-    exact_mean: Option<ExactMean>,
-}
-
-impl Statistics {
-    fn format_mean(&self, factor: u64) -> String {
-        self.exact_mean.map_or_else(|| (self.mean * factor).format_ns(), |m| m.format_ns(factor))
-    }
 }
 
 /*
@@ -1098,13 +1084,13 @@ impl Scenario {
 /// that measures its use case (Scenario::measures).
 #[derive(Clone, Copy)]
 struct Cell {
-    solo: Statistics,
-    shared: Option<Statistics>,
+    solo: Mean,
+    shared: Option<Mean>,
 }
 
 impl Cell {
     /// Requires `scenario` to measure the cell's use case.
-    fn get(&self, scenario: Scenario) -> Statistics {
+    fn get(&self, scenario: Scenario) -> Mean {
         match scenario {
             Scenario::Solo => self.solo,
             Scenario::Shared => self.shared.expect("a shared cell exists for the nonstop use cases alone"),
@@ -1904,8 +1890,8 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
             assert!(!solo.is_empty() && solo.len() <= roster.rounds, "one solo sample per round at most, and one at least");
             assert_eq!(shared.len(), copies * solo.len(), "two shared samples, one per copy, beside every solo sample of a nonstop cell");
             results[algorithm_index][size_index] = Some(Cell {
-                solo: summarize_measured(solo),
-                shared: (copies > 0).then(|| summarize_measured(shared)),
+                solo: Mean::of(solo),
+                shared: (copies > 0).then(|| Mean::of(shared)),
             });
         }
     }
@@ -1951,7 +1937,7 @@ impl<'a> Progress<'a> {
 
     /* Called at the start of each round; `samples` holds every round so far. */
     fn round(&mut self, round: usize, samples: &Samples) {
-        self.round_inner(round, &running_medians(self.roster, samples, self.roster.progress_point()));
+        self.round_inner(round, &running_means(self.roster, samples, self.roster.progress_point()));
     }
 
     fn round_inner(&mut self, round: usize, medians: &str) {
@@ -1980,7 +1966,7 @@ impl<'a> Progress<'a> {
     }
 
     fn finish(&mut self, samples: &Samples) {
-        self.finish_inner(&running_medians(self.roster, samples, self.roster.progress_point()));
+        self.finish_inner(&running_means(self.roster, samples, self.roster.progress_point()));
     }
 
     fn finish_inner(&mut self, medians: &str) {
@@ -2017,7 +2003,7 @@ fn tenths_of_seconds(duration: std::time::Duration) -> String {
     format!("{}.{}", tenths / 10, tenths % 10)
 }
 
-fn running_medians(roster: &Roster, samples: &Samples, size_index: usize) -> String {
+fn running_means(roster: &Roster, samples: &Samples, size_index: usize) -> String {
     if samples.iter().all(|contender| contender[size_index].is_empty()) {
         return format!("means at {} pending", POINTS[size_index].label);
     }
@@ -2026,7 +2012,7 @@ fn running_medians(roster: &Roster, samples: &Samples, size_index: usize) -> Str
     let parts: Vec<String> = (0..roster.len())
         .filter(|&algorithm_index| !samples[algorithm_index][size_index].is_empty())
         .map(|algorithm_index| {
-            format!("{} {}", roster.algorithms[algorithm_index].name(), ExactMean::of(&samples[algorithm_index][size_index]).format_ns(1))
+            format!("{} {}", roster.algorithms[algorithm_index].name(), Mean::of(&samples[algorithm_index][size_index]).format_ns(1))
         })
         .collect();
 
@@ -3340,8 +3326,8 @@ mod common_crypto {
 
 /*
  * Optional per-sample trace for clock diagnosis: every solo sample's wall
- * nanoseconds and (on Apple) the thread's counts per core kind (the clocks
- * crate), with the round, its position in the round, the
+ * nanoseconds and the thread's counts per core kind (the clocks crate's
+ * Counts: Apple, and Linux on x86-64 hybrid CPUs; empty elsewhere), with the round, its position in the round, the
  * contender, size, and use case; then the duo sample's later finish and
  * each copy's own time and P/E counts. One CSV line per sample interval.
  * Off unless --trace-clocks PATH is given; every clock read sits outside
@@ -3378,7 +3364,7 @@ impl ClockTrace {
 
 /// A trace's six count fields (P cycles, instructions, time; then E),
 /// empty for a copy that took no sample and where the platform counts
-/// none (Linux: no per-thread cycle counts): never zeros that read as counts.
+/// none (clocks::Counts::read gives None): never zeros that read as counts.
 const NO_COUNTS: &str = ",,,,,";
 
 fn counts_csv(counts: Option<clocks::Counts>) -> String {
@@ -3642,14 +3628,6 @@ fn calibrate_batch(
 
 /// A cell's summary from its samples: their mean (clocks::summary), kept
 /// exact for display.
-fn summarize_measured(samples: &[Measured]) -> Statistics {
-    assert!(!samples.is_empty(), "a cell has at least one sample");
-    let exact = ExactMean::of(samples);
-    Statistics {
-        mean: exact.fixed(),
-        exact_mean: Some(exact),
-    }
-}
 
 /*
  * One code path a contender uses for a range of input sizes. `first` is the
@@ -4130,7 +4108,7 @@ fn compare_command(arguments: &[String]) {
                 let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
                 (ns.iter().map(|&n| u128::from(n)).sum::<u128>() << 64) / units.max(1)
             });
-            (key, ExactMean::of(&samples).fixed().0, per_unit)
+            (key, Mean::of(&samples).fixed().0, per_unit)
         }).collect::<Vec<(String, u128, Option<u128>)>>()
     };
     // Every cell's means and its pairs' ratios, in the first old run's order.
@@ -4415,7 +4393,7 @@ fn regress_command(arguments: &[String]) -> i32 {
             powers.push(file.power.clone());
         }
         let busy = (!load.starts_with("quiet")).then_some(load);
-        (file.cells.into_iter().map(|(key, samples)| (key, ExactMean::of(&samples).fixed().0)).collect(), busy)
+        (file.cells.into_iter().map(|(key, samples)| (key, Mean::of(&samples).fixed().0)).collect(), busy)
     };
     for pair in 0..pairs {
         let began = clocks::now();
@@ -4487,7 +4465,14 @@ fn regress_command(arguments: &[String]) -> i32 {
     i32::from(slower > 0)
 }
 
-fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &MachineMetadata, selection_note: &str) -> String {
+/*
+ * A samples file's header, the same in every samples file the benchmark
+ * writes (the main run's, b3sum's, leaves'): the format's version; what measured
+ * (this build of the benchmark, its compiler and target) and on what
+ * machine; then `run`'s own keys, what this run measured; then the
+ * machine's power and other programs' load over the run.
+ */
+fn samples_header(machine: &MachineMetadata, run: &[(String, String)]) -> String {
     let mut out = String::new();
     writeln!(out, "{SAMPLES_VERSION}").unwrap();
     for (key, value) in [
@@ -4495,21 +4480,18 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
         ("bench-hashes version", BENCH_VERSION),
         ("git commit", GIT_COMMIT),
         ("git clean status", GIT_CLEAN_STATUS),
-        ("blake3-servil source", BLAKE3_SERVIL_SOURCE_INFO),
-        ("blake3 source", BLAKE3_SOURCE_INFO),
-        ("sha256 source", SHA2_SOURCE_INFO),
-        ("cpu type", machine.cpu_type.as_str()),
-        ("cpu count", machine.cpu_count.to_string().as_str()),
-        ("os type", machine.os_type.as_str()),
-        ("cpu identity", machine.cpu_identity.as_str()),
         ("rust compiler", RUSTC_VERSION),
         ("build target", BUILD_TARGET),
         ("target features", TARGET_FEATURES),
         ("sample clock", clocks::WALL_CLOCK),
-        ("contenders", selection_note),
-        ("rounds", roster.rounds.to_string().as_str()),
-        ("points", roster.points.iter().map(|&index| POINTS[index].label).collect::<Vec<_>>().join(",").as_str()),
-    ] {
+        ("cpu type", machine.cpu_type.as_str()),
+        ("cpu count", machine.cpu_count.to_string().as_str()),
+        ("os type", machine.os_type.as_str()),
+        ("cpu identity", machine.cpu_identity.as_str()),
+    ]
+    .into_iter()
+    .chain(run.iter().map(|(key, value)| (key.as_str(), value.as_str())))
+    {
         writeln!(out, "# {key}: {value}").unwrap();
     }
     writeln!(out, "# power: {}", machine.describe_power()).unwrap();
@@ -4518,6 +4500,19 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
         .map(|w| format!("{}-{}:{}:{}", w.start_ns / 1_000_000, w.end_ns / 1_000_000, w.other_milli_cpus, w.steal_milli_cpus))
         .collect();
     writeln!(out, "# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): {}", windows.join(",")).unwrap();
+    out
+}
+
+fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &MachineMetadata, selection_note: &str) -> String {
+    let run = [
+        ("blake3-servil source", BLAKE3_SERVIL_SOURCE_INFO.to_owned()),
+        ("blake3 source", BLAKE3_SOURCE_INFO.to_owned()),
+        ("sha256 source", SHA2_SOURCE_INFO.to_owned()),
+        ("contenders", selection_note.to_owned()),
+        ("rounds", roster.rounds.to_string()),
+        ("points", roster.points.iter().map(|&index| POINTS[index].label).collect::<Vec<_>>().join(",")),
+    ];
+    let mut out = samples_header(machine, &run.map(|(key, value)| (key.to_owned(), value)));
     for &algorithm in &roster.algorithms {
         for use_case in UseCase::ALL.iter().filter(|&&use_case| algorithm.takes_part(use_case)) {
             writeln!(out, "# kernel platform {} {:?}: {}", algorithm.key(), use_case, detect_kernels(algorithm, *use_case).platform).unwrap();
@@ -4664,10 +4659,11 @@ const PRIVATE_CACHE_BYTES: usize = 1 << 20;
 
 /// Where `slow` is slower than `fast` by more than the margin: slow over
 /// fast, in permille.
-fn slower_by(slow: Statistics, fast: Statistics) -> Option<u64> {
-    (fast.mean.cmp_permille(0).is_gt()
-        && slow.mean.ratio(fast.mean).cmp_permille(1000 + CONSISTENCY_PERMILLE).is_gt())
-        .then(|| slow.mean.ratio(fast.mean).permille())
+fn slower_by(slow: Mean, fast: Mean) -> Option<u64> {
+    let (slow, fast) = (slow.fixed(), fast.fixed());
+    (fast.cmp_permille(0).is_gt()
+        && slow.ratio(fast).cmp_permille(1000 + CONSISTENCY_PERMILLE).is_gt())
+        .then(|| slow.ratio(fast).permille())
 }
 
 /// The consistency checks' report: one line per broken relation.
@@ -4684,7 +4680,7 @@ fn consistency(roster: &Roster, results: &Results) -> String {
             if let (Some(n), Some(b)) = (point(UseCase::LentMessages, label), point(UseCase::OneMessage, label)) {
                 let (fnon, fb) = (stats(a, n, Scenario::Solo), stats(a, b, Scenario::Solo));
                 if let Some(r) = slower_by(fnon, fb) {
-                    note("nonstop slower than after other work", a, format!("{label}, {} against {} ns/B", fnon.mean.format_ns(), fb.mean.format_ns()), r);
+                    note("nonstop slower than after other work", a, format!("{label}, {} against {} ns/B", fnon.format_ns(1), fb.format_ns(1)), r);
                 }
             }
         }
@@ -4695,11 +4691,11 @@ fn consistency(roster: &Roster, results: &Results) -> String {
                 for &p in &points {
                     let (solo, shared) = (stats(a, p, Scenario::Solo), stats(a, p, Scenario::Shared));
                     if let Some(r) = slower_by(solo, shared).filter(|_| !algorithm.multithreaded()) {
-                        note("shared faster than solo", a, format!("{}, {}: solo {} against shared {} {}", use_case.short(), POINTS[p].label, solo.mean.format_ns(), shared.mean.format_ns(), use_case.time_unit()), r);
+                        note("shared faster than solo", a, format!("{}, {}: solo {} against shared {} {}", use_case.short(), POINTS[p].label, solo.format_ns(1), shared.format_ns(1), use_case.time_unit()), r);
                     }
                     if algorithm.core_only() && POINTS[p].bytes <= PRIVATE_CACHE_BYTES {
                         if let Some(r) = slower_by(shared, solo) {
-                            note("a hash on the cores alone slowed by a second copy", a, format!("{}, {}: shared {} against solo {} {}", use_case.short(), POINTS[p].label, shared.mean.format_ns(), solo.mean.format_ns(), use_case.time_unit()), r);
+                            note("a hash on the cores alone slowed by a second copy", a, format!("{}, {}: shared {} against solo {} {}", use_case.short(), POINTS[p].label, shared.format_ns(1), solo.format_ns(1), use_case.time_unit()), r);
                         }
                     }
                 }
@@ -4718,7 +4714,7 @@ fn consistency(roster: &Roster, results: &Results) -> String {
                     for scenario in Scenario::ALL.into_iter().filter(|&scenario| scenario.measures(use_case)) {
                         let (l, m) = (stats(a, large, scenario), stats(a, small, scenario));
                         if let Some(r) = slower_by(l, m) {
-                            note("more work, slower per unit", a, format!("{} ({}), {} against {}: {} against {} {}", use_case.short(), scenario.key(), POINTS[large].label, POINTS[small].label, l.mean.format_ns(), m.mean.format_ns(), use_case.time_unit()), r);
+                            note("more work, slower per unit", a, format!("{} ({}), {} against {}: {} against {} {}", use_case.short(), scenario.key(), POINTS[large].label, POINTS[small].label, l.format_ns(1), m.format_ns(1), use_case.time_unit()), r);
                         }
                     }
                 }
@@ -4757,7 +4753,7 @@ fn append_table(output: &mut String, roster: &Roster, results: &Results, scenari
         write!(output, "  {:<8}", POINTS[point_index].label).unwrap();
         for &algorithm_index in &contenders {
             let statistics = cell(results, algorithm_index, point_index).get(scenario);
-            write!(output, "  {:>13} ", statistics.format_mean(1)).unwrap();
+            write!(output, "  {:>13} ", statistics.format_ns(1)).unwrap();
         }
         writeln!(output).unwrap();
     }
@@ -4981,7 +4977,7 @@ fn generate_guide(roster: &Roster, results: &Results, machine: &MachineMetadata)
                 first_series = false;
                 write!(data, "{}:{{", json_string(algorithm.key())).unwrap();
                 /* Per point: the mean (ns per unit). */
-                let means: Vec<String> = points.iter().map(|&index| cell(results, algorithm_index, index).get(scenario).format_mean(1)).collect();
+                let means: Vec<String> = points.iter().map(|&index| cell(results, algorithm_index, index).get(scenario).format_ns(1)).collect();
                 write!(data, "\"mean\":[{}]", means.join(",")).unwrap();
                 data.push('}');
             }
@@ -5170,8 +5166,8 @@ mod correctness_tests {
                     samples.solo_cpu_ns[a][p].push(Some(2 * value(a, p, r)));
                 }
                 results[a][p] = Some(Cell {
-                    solo: summarize_measured(&samples.solo[a][p]),
-                    shared: Scenario::Shared.measures(POINTS[p].use_case).then(|| summarize_measured(&samples.shared[a][p])),
+                    solo: Mean::of(&samples.solo[a][p]),
+                    shared: Scenario::Shared.measures(POINTS[p].use_case).then(|| Mean::of(&samples.shared[a][p])),
                 });
             }
         }
@@ -5211,7 +5207,7 @@ mod correctness_tests {
             for sample in samples.shared[a][p16].iter_mut() {
                 *sample = Measured::new(sample.ns * factor.0 / factor.1, sample.units);
             }
-            results[a][p16].as_mut().unwrap().shared = Some(summarize_measured(&samples.shared[a][p16]));
+            results[a][p16].as_mut().unwrap().shared = Some(Mean::of(&samples.shared[a][p16]));
         }
         let report = consistency(&roster, &results);
         for (check, who) in [("nonstop slower than after other work", "SHA-256"),
@@ -5231,7 +5227,7 @@ mod correctness_tests {
             for sample in samples.shared[a][p64].iter_mut() {
                 *sample = Measured::new(sample.ns * factor.0 / factor.1, sample.units);
             }
-            results[a][p64].as_mut().unwrap().shared = Some(summarize_measured(&samples.shared[a][p64]));
+            results[a][p64].as_mut().unwrap().shared = Some(Mean::of(&samples.shared[a][p64]));
         }
         let report = consistency(&roster, &results);
         assert!(report.ends_with("all hold\n"), "both outside their relations' scope:\n{report}");
@@ -5266,13 +5262,13 @@ mod correctness_tests {
         // 20555/400 = 51.3875; half-up decimal rounding gives these anchors.
         for (ns, expected) in [(2135, "5.338"), (20555, "51.388")] {
             let measured = [Measured::new(ns, 400), Measured::new(ns, 400)];
-            let statistics = summarize_measured(&measured);
-            assert_eq!(statistics.format_mean(1), expected);
-            assert_eq!(statistics.format_mean(400), format!("{ns}.000"));
+            let statistics = Mean::of(&measured);
+            assert_eq!(statistics.format_ns(1), expected);
+            assert_eq!(statistics.format_ns(400), format!("{ns}.000"));
         }
         // A mean is total time over total work: 3000 ns over 400 and 1000
         // over 400 make 4000 over 800, 5 ns a unit.
-        assert_eq!(summarize_measured(&[Measured::new(3000, 400), Measured::new(1000, 400)]).format_mean(1), "5.000");
+        assert_eq!(Mean::of(&[Measured::new(3000, 400), Measured::new(1000, 400)]).format_ns(1), "5.000");
     }
 
     #[test]
@@ -5309,6 +5305,8 @@ mod correctness_tests {
         ];
         let tsv = generate_samples_tsv(&roster, &samples, &machine, "test");
         assert!(tsv.starts_with("# bench-hashes samples v5\n"));
+        // The main run's own file carries the shared provenance first.
+        assert_eq!(&harness_tests::header_keys(&tsv)[..harness_tests::PROVENANCE.len()], harness_tests::PROVENANCE, "{tsv}");
         assert!(tsv.contains("\n# load: busy: "), "{tsv}");
         assert!(tsv.contains("\n# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1:1200:0,1-3:100:7\n"), "{tsv}");
         assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\n"));
@@ -5331,7 +5329,7 @@ mod correctness_tests {
         fs::write(&path, &tsv).unwrap();
         let read = read_samples(path.to_str().unwrap());
         fs::remove_file(&path).unwrap();
-        let figures = |cell: &[Measured]| summarize_measured(cell).format_mean(1);
+        let figures = |cell: &[Measured]| Mean::of(cell).format_ns(1);
         let mut checked = 0;
         for (a, algorithm) in roster.algorithms.iter().enumerate() {
             for &p in &roster.points {

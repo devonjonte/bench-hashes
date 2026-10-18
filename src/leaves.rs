@@ -26,7 +26,7 @@
  * main run's format, so `bench-hashes compare` reads it.
  */
 
-use super::{machine_metadata, output_directory, SAMPLES_COLUMNS, SAMPLES_VERSION};
+use super::{machine_metadata, output_directory, SAMPLES_COLUMNS};
 use std::fs;
 
 const MESSAGE_LEN: usize = 64;
@@ -212,18 +212,11 @@ pub fn command(arguments: &[String]) {
     machine.load = clocks::load::windows();
     machine.power[1] = super::Power::read();
 
-    let mut tsv = format!(
-        "{SAMPLES_VERSION}\n# timestamp: {}\n# bench-hashes version: {}\n# git commit: {}\n# blake3-servil source: {}\n# cpu type: {}\n# cpu count: {}\n# os type: {}\n# rounds: {rounds}\n# leaves: {MESSAGE_LEN}-byte messages from a counter; wall from producing the first to reading the last digest\n# power: {}\n# load: {}\n",
-        machine.timestamp,
-        super::BENCH_VERSION,
-        super::GIT_COMMIT,
-        super::BLAKE3_SERVIL_SOURCE_INFO,
-        machine.cpu_type,
-        machine.cpu_count,
-        machine.os_type,
-        machine.describe_power(),
-        clocks::load::describe(&machine.load)
-    );
+    let mut tsv = super::samples_header(&machine, &[
+        ("blake3-servil source".to_owned(), super::BLAKE3_SERVIL_SOURCE_INFO.to_owned()),
+        ("rounds".to_owned(), rounds.to_string()),
+        ("leaves".to_owned(), format!("{MESSAGE_LEN}-byte messages from a counter; wall from producing the first to reading the last digest")),
+    ]);
     tsv += SAMPLES_COLUMNS;
     tsv += "\n";
     let mut report = String::new();
@@ -233,8 +226,8 @@ pub fn command(arguments: &[String]) {
         let cpu = if samples.iter().all(|x| x.3.is_some()) { field(&|x| x.3.unwrap().to_string()) } else { "-".into() };
         tsv += &format!("{variant}\t{scenario}\tLeaves\t{count} messages\tmsg\t{}\t{}\t{cpu}\n", field(&|x| format!("{}/{}", x.0, x.1)), field(&|x| x.2.to_string()));
         // The report: means over the cell (ns and CPU ns a message, exact
-        // totals over totals, shown to two decimals).
-        let per = |num: u64, den: u64| format!("{}.{:02}", num / den, num % den * 100 / den);
+        // totals over totals, shown by the benchmark's one rule for them).
+        let per = |num: u64, den: u64| super::format_ns(u128::from(num), u128::from(den));
         let (w, n) = samples.iter().fold((0, 0), |(a, b), x| (a + x.0, b + x.1));
         let cpu = samples.iter().map(|x| x.3).sum::<Option<u64>>().map_or("-".into(), |c| per(c, n));
         report += &format!("{scenario:6} {count:>8} {variant:13} {:>8} ns {:>8} CPU ns  per message\n", per(w, n), cpu);

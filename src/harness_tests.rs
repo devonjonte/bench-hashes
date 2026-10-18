@@ -67,7 +67,7 @@ fn sparse_runs_remove_a_previous_guide() {
 fn guide_means_match_the_exact_report_rounding() {
     let point = UseCase::Interleaved.points().start;
     let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], false, Some(vec![point]), Some(2));
-    let statistics = summarize_measured(&[Measured::new(2135, 400), Measured::new(2135, 400)]);
+    let statistics = Mean::of(&[Measured::new(2135, 400), Measured::new(2135, 400)]);
     let mut results = vec![vec![None; POINT_COUNT]; roster.len()];
     for cells in &mut results {
         cells[point] = Some(super::Cell { solo: statistics, shared: Some(statistics) });
@@ -146,4 +146,34 @@ fn use_digest_stores_each_digest_in_its_slot() {
             assert_eq!(slots[i % DIGEST_SLOTS], digest(i), "digest {i}");
         }
     });
+}
+
+/// The provenance every samples file's header carries, in order (the main
+/// run's, b3sum's and leaves' all write theirs with samples_header): the
+/// keys before the run's own.
+pub(crate) const PROVENANCE: [&str; 12] = [
+    "timestamp", "bench-hashes version", "git commit", "git clean status", "rust compiler", "build target", "target features",
+    "sample clock", "cpu type", "cpu count", "os type", "cpu identity",
+];
+
+/// A samples file's header keys, in order.
+pub(crate) fn header_keys(text: &str) -> Vec<&str> {
+    text.lines().skip(1).take_while(|line| line.starts_with('#')).filter_map(|line| line.strip_prefix("# ")?.split_once(": ").map(|(k, _)| k)).collect()
+}
+
+/// samples_header: the provenance, then the run's own keys, then power and
+/// load, in the form read_samples takes.
+#[test]
+fn every_samples_file_names_what_measured_and_where() {
+    let machine = machine_metadata();
+    let header = samples_header(&machine, &[("rounds".to_owned(), "3".to_owned()), ("contender a".to_owned(), "/bin/a".to_owned())]);
+    let keys = header_keys(&header);
+    assert_eq!(&keys[..PROVENANCE.len()], PROVENANCE, "{header}");
+    assert_eq!(&keys[PROVENANCE.len()..PROVENANCE.len() + 2], ["rounds", "contender a"], "{header}");
+    assert!(header.starts_with(&format!("{SAMPLES_VERSION}\n")) && keys.contains(&"power") && keys.contains(&"load"), "{header}");
+    let path = std::env::temp_dir().join(format!("samples-header-{}.tsv", std::process::id()));
+    std::fs::write(&path, format!("{header}{SAMPLES_COLUMNS}\n")).unwrap();
+    let file = read_samples(path.to_str().unwrap());
+    std::fs::remove_file(&path).unwrap();
+    assert!(file.headers.iter().any(|(k, v)| k == "contender a" && v == "/bin/a"));
 }
