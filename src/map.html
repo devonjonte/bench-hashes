@@ -46,7 +46,7 @@ a.doc { color: inherit; text-decoration: underline dotted #9ca3af; text-underlin
 #tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
 </style></head><body>
 <h1>How fast BLAKE3 servil runs, beside other hashes</h1>
-<p class="sub">Each small chart is one measurement: its row is what a program hashes, its column how it calls. Higher lines are faster. Point at a row's or a column's name to see what it means. Open a chart to read its values under the pointer or where you tap; a hash's name below a title hides or shows its lines, and the chips above them choose what the lines measure: the time a program waits (wall-clock), the processor time it uses (CPU, dotted), or both.</p>
+<p class="sub">Each small chart is one measurement: its row is what a program hashes, its column how it calls. Lines show a rate (higher is faster) or, with the cost chip, nanoseconds per byte (lower is faster). Point at a row's or a column's name to see what it means. Open a chart to read its values under the pointer or where you tap; a hash's name below a title hides or shows its lines, and the chips above them choose what the lines measure: the time a program waits (wall-clock), the processor time it uses (CPU, dotted), or both.</p>
 <div id="sections"></div>
 <div id="tip"></div>
 <script>
@@ -76,7 +76,7 @@ function glyph(kind, size = 20, color = "#4b5563") {
    height reads the same in every chart, whatever names are set aside. */
 function axisOf(S) {
   if (!S.axis) {
-    const vals = Object.values(S.cells).flatMap(c => c.series.concat(c.before, c.cpu).filter(Boolean).flat()).filter(v => v).map(v => 1 / v);
+    const vals = Object.values(S.cells).flatMap(c => c.series.concat(c.before, c.cpu).filter(Boolean).flat()).filter(v => v).map(shown);
     S.axis = [Math.log(Math.min(...vals)) - 0.1, Math.log(Math.max(...vals)) + 0.1];
   }
   return S.axis;
@@ -98,17 +98,21 @@ function draw(S, c, w, h, axes) {
       s += `<line x1="${L}" x2="${w - R}" y1="${y(v)}" y2="${y(v)}" stroke="#f3f4f6"/><text x="${L - 6}" y="${y(v) + 4}" font-size="11" fill="#6b7280" text-anchor="end">${+v.toPrecision(2)}</text>`;
     }
     /* The title runs up the axis; its arrow, beside its end, points up, as faster lines lie. */
-    const M = MEASURES, title0 = M.wall && M.cpu ? `${c.unit} (dotted: GB per CPU-second)` : M.cpu ? "GB per CPU-second" : c.unit;
-    const mid = (T + h - B) / 2, title = `${title0}, higher is ${M.wall ? "faster" : "cheaper"}`, half = title.length * 3.1;
+    const M = MEASURES, title0 = SHOW.cost
+      ? (M.wall && M.cpu ? "ns per byte (dotted: CPU ns per byte)" : M.cpu ? "CPU ns per byte" : "ns per byte")
+      : (M.wall && M.cpu ? `${c.unit} (dotted: GB per CPU-second)` : M.cpu ? "GB per CPU-second" : c.unit);
+    const mid = (T + h - B) / 2, title = `${title0}, ${SHOW.cost ? "lower" : "higher"} is ${M.wall ? "faster" : "cheaper"}`, half = title.length * 3.1;
     s += `<text x="14" y="${mid}" font-size="11" fill="#6b7280" transform="rotate(-90 14 ${mid})" text-anchor="middle">${title}</text>`;
-    s += `<path d="M10 ${mid - half - 4} V${mid - half - 18} M6.5 ${mid - half - 13} L10 ${mid - half - 18} L13.5 ${mid - half - 13}" stroke="#6b7280" stroke-width="1.3" fill="none"/>`;
+    s += SHOW.cost
+      ? `<path d="M10 ${mid + half + 4} V${mid + half + 18} M6.5 ${mid + half + 13} L10 ${mid + half + 18} L13.5 ${mid + half + 13}" stroke="#6b7280" stroke-width="1.3" fill="none"/>`
+      : `<path d="M10 ${mid - half - 4} V${mid - half - 18} M6.5 ${mid - half - 13} L10 ${mid - half - 18} L13.5 ${mid - half - 13}" stroke="#6b7280" stroke-width="1.3" fill="none"/>`;
     c.sizes.forEach((lab, k) => { if (n < 12 || k % 3 === 0 || k === n - 1) s += `<text x="${x(k)}" y="${h - B + 16}" font-size="11" fill="#6b7280" text-anchor="middle">${lab}</text>`; });
     s += `<line class="cursor" x1="0" x2="0" y1="${T}" y2="${h - B}" stroke="#9ca3af" stroke-dasharray="3 3" visibility="hidden"/>`;
   }
   /* An earlier run beside this one: its lines dashed and pale, under the run's own. */
   if (S.besideNow) for (const i of live) {
     const was = c.before[i]; if (!was) continue;
-    const pts = was.map((v, k) => v ? [x(k), y(1 / v)] : null);
+    const pts = was.map((v, k) => v ? [x(k), y(shown(v))] : null);
     if (!(pts.filter(Boolean).length === 1 || c.cases)) {
       let run = [];
       for (const p of pts.concat([null])) {
@@ -122,7 +126,7 @@ function draw(S, c, w, h, axes) {
   /* CPU time: the processor time a unit took, all the program's threads, dotted. */
   if (MEASURES.cpu) for (const i of live) {
     const line = c.cpu[i]; if (!line) continue;
-    const pts = line.map((v, k) => v ? [x(k), y(1 / v)] : null);
+    const pts = line.map((v, k) => v ? [x(k), y(shown(v))] : null);
     let run = [];
     for (const p of pts.concat([null])) {
       if (p) { run.push(p); continue; }
@@ -135,16 +139,20 @@ function draw(S, c, w, h, axes) {
      where two overlap, the faster one shows. */
   const dots = [];
   if (MEASURES.wall) for (const i of live) {
-    const pts = c.series[i].map((v, k) => [x(k), y(1 / v)]);
+    const pts = c.series[i].map((v, k) => [x(k), y(shown(v))]);
     s += pts.length === 1 || c.cases ? "" : `<polyline points="${pts.map(p => p.map(q => q.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="${S.colors[i]}" stroke-width="${axes ? 2.2 : 1.5}"/>`;
-    if (pts.length <= 3 || c.cases) dots.push(...pts.map(p => [p[1], `<circle cx="${p[0]}" cy="${p[1]}" r="${axes ? 5 : 3}" fill="${S.colors[i]}"/>`]));
+    if (pts.length <= 3 || c.cases) dots.push(...pts.map((p, k) => [1 / c.series[i][k], `<circle cx="${p[0]}" cy="${p[1]}" r="${axes ? 5 : 3}" fill="${S.colors[i]}"/>`]));
   }
-  /* Higher on the chart is faster (and cheaper): draw from the bottom up. */
-  s += dots.sort((a, b) => b[0] - a[0]).map(d => d[1]).join("");
+  /* Slowest first, fastest last: where dots overlap, the fastest shows. */
+  s += dots.sort((a, b) => a[0] - b[0]).map(d => d[1]).join("");
   return { svg: s + "</svg>", x, n, L, R, w };
 }
 /* What the lines measure, for the whole page: wall-clock time by default. */
 const MEASURES = { wall: true, cpu: false };
+/* What a line's height is: a rate (bytes per second, higher is faster) by
+   default, or a cost (nanoseconds per byte, lower is faster). */
+const SHOW = { cost: false };
+const shown = nsPerByte => SHOW.cost ? nsPerByte : 1 / nsPerByte;
 /* The chart open now (its cell's key), so a chip that redraws the page keeps it open. */
 let OPEN = null;
 function render() {
@@ -165,6 +173,13 @@ function render() {
       b.onclick = () => { MEASURES[m] = !MEASURES[m]; if (!MEASURES.wall && !MEASURES.cpu) MEASURES.wall = true; render(); reopen(); };
     }
     if (m === "energy") b.classList.add("off");
+    measures.appendChild(b);
+  }
+  measures.append(" as:");
+  for (const [cost, label, why] of [[false, "rate (GB/s)", "Bytes hashed per second: higher is faster."], [true, "cost (ns per byte)", "Nanoseconds per byte hashed: lower is faster. With CPU time, the processor time a byte costs, all threads."]]) {
+    const b = document.createElement("button"); b.textContent = label; b.title = why;
+    if (SHOW.cost !== cost) b.classList.add("off");
+    b.onclick = () => { SHOW.cost = cost; SECTIONS.forEach(S => { delete S.axis; }); render(); reopen(); };
     measures.appendChild(b);
   }
   root.appendChild(measures);
@@ -276,8 +291,8 @@ function open(S, grid, cell, q, row, col, layer) {
     /* Beside an earlier run: its rate, and how many times faster the run is. */
     const was = i => { const v = S.besideNow && q.before[i] && q.before[i][k]; return v ? ` <span class="was">(before: ${(1 / v).toPrecision(3)}; now ×${(v / q.series[i][k]).toFixed(2)})</span>` : ""; };
     const time = ns => ns >= 1e6 ? (ns / 1e6).toPrecision(3) + " ms" : ns >= 1e3 ? (ns / 1e3).toPrecision(3) + " µs" : ns.toPrecision(3) + " ns";
-    const cpuOf = i => { const v = q.cpu[i] && q.cpu[i][k]; return v ? `${M.wall ? "; " : ""}CPU ${time(v * q.per[k])} ${q.what}` : M.wall ? "" : "no CPU time recorded"; };
-    tip.innerHTML = `<b>${q.sizes[k]}</b><br>` + rows.map(([i, rate, t]) => `<span class="sw" style="background:${S.colors[i]}"></span>${S.names[i]}: ` + (M.wall ? `${rate.toPrecision(3)} ${q.unit} · ${time(t * q.per[k])} ${q.what}${was(i)}` : "") + (M.cpu ? cpuOf(i) : "")).join("<br>");
+    const cpuOf = i => { const v = q.cpu[i] && q.cpu[i][k]; return v ? `${M.wall ? "; " : ""}CPU ${SHOW.cost ? v.toPrecision(3) + " ns/B · " : ""}${time(v * q.per[k])} ${q.what}` : M.wall ? "" : "no CPU time recorded"; };
+    tip.innerHTML = `<b>${q.sizes[k]}</b><br>` + rows.map(([i, rate, t]) => `<span class="sw" style="background:${S.colors[i]}"></span>${S.names[i]}: ` + (M.wall ? `${SHOW.cost ? t.toPrecision(3) + " ns/B" : rate.toPrecision(3) + " " + q.unit} · ${time(t * q.per[k])} ${q.what}${was(i)}` : "") + (M.cpu ? cpuOf(i) : "")).join("<br>");
     tip.style.display = "block";
     tip.style.left = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8) + "px";
     /* Above a finger, which would hide it; below a mouse pointer. */
