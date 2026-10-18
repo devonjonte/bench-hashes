@@ -115,8 +115,11 @@ work stands and what comes next; its history is in git.
    P-clusters' and the E-cluster's); give a multithreaded call's work to
    them, and look for faster, or nearly as fast and much cheaper in energy
    (Zooko: no trading wall time away for energy, only a little for a lot).
-   Newer Apple chips have more SME units. **Then circle back:** did the
-   energy measurements change a decision? If not, drop the instrument too.
+   Newer Apple chips have more SME units. **Circled back** (Zooko, October
+   17): energy chose the experiment (SME2 a third of NEON's energy a byte)
+   and wall time decided it (2-4% faster: not built now); the instruments
+   stay for experiments, on the Mac the runner's `powermetrics`, on Linux
+   `clocks::energy` (#65).
 7. **The C library, first-class** (Zooko: a de facto standard needs C):
    `candidate/c-api` (on the cuts) has `capi/b3.h`, a fresh design (Zooko:
    no compatibility with upstream's C API), over the crate, tested from
