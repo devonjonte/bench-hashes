@@ -26,6 +26,21 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **The b3sum suite's contenders built as each project recommends**
+  (Devon Jonte, #32; Zooko, October 17): the fork's b3sum statically
+  linked on Linux, as its README recommends, official BLAKE3's from
+  crates.io; METHODOLOGY says what linking alone is worth (a 64-byte file
+  in 0.49 against 0.74 ms on an i7-12700K), so part of the fork's lead in
+  the process-per-file cells is its linking.
+- **Fresh link layouts for the b3sum suite** (Devon Jonte, #33; Zooko,
+  October 17): a contender may be several builds of one program, one a
+  round (`tools/b3sum-contenders.sh` with `LAYOUTS=N`), as the library's
+  comparisons relink each side per pair.
+- **The b3sum suite's contenders run in a Williams design** (Devon Jonte,
+  #35; Zooko, October 17), the main run's: with the rotation, each kept one
+  predecessor, whose after-effects moved single-file cells by up to 10%
+  (the build after `sha256sum` about 10% slower, whichever it was;
+  October 18). b3sum results before this change may be off by that much.
 - **b3sum's `xN` is the ratio of the means**, judged as `compare` judges
   (each round a pair, every cell at once, a 3% margin), in place of the
   median of the rounds' ratios (Devon Jonte, #28; Zooko, October 17):
