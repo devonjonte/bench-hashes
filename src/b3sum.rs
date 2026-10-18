@@ -602,7 +602,7 @@ fn report(specs: &[Contender], inputs: &[Input], caches: &[Cache], cells: &[Vec<
         out += "\nverdicts:  none: the rule needs 3 rounds or more\n";
     }
     let verdicts: std::collections::HashMap<(usize, usize, usize), clocks::summary::Verdict> = if judged {
-        compared.into_iter().zip(clocks::summary::discoveries(&pairs, super::COMPARE_Q_PERMILLE, MARGIN_PERMILLE)).collect()
+        compared.into_iter().zip(clocks::summary::discoveries(&pairs, super::COMPARE_Q_PERMILLE, MARGIN_PERMILLE).into_iter().map(|j| j.verdict)).collect()
     } else {
         compared.into_iter().map(|key| (key, clocks::summary::Verdict::Level)).collect()
     };

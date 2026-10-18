@@ -2054,13 +2054,13 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
         return take_prepared_sample(input, iterations, idle, |input| run_batch(algorithm, input, point, 1));
     }
     let started_ns = clocks::load::now_ns();
-    let cpu0 = process_cpu_ns();
+    let cpu0 = clocks::process_cpu_ns();
     let counts0 = clocks::Counts::read();
     let started = clocks::now();
     run_batch(algorithm, input, point, iterations);
     let elapsed_ns = clocks::since_ns(started);
     let counts = counts0.zip(clocks::Counts::read()).map(|(before, after)| after.since(before));
-    let cpu_ns = cpu0.zip(process_cpu_ns()).map(|(before, after)| after - before);
+    let cpu_ns = cpu0.zip(clocks::process_cpu_ns()).map(|(before, after)| after - before);
     DuoCopy { elapsed_ns, counts, preparation: None, started_ns, cpu_ns }
 }
 
@@ -3041,12 +3041,6 @@ struct DuoCopy {
     cpu_ns: Option<u64>,
 }
 
-/// The process's CPU time so far, all its threads (clocks::process_cpu_ns):
-/// None where the platform has no such clock.
-fn process_cpu_ns() -> Option<u64> {
-    Some(clocks::process_cpu_ns()).filter(|&ns| ns > 0)
-}
-
 #[derive(Clone, Copy)]
 struct DuoJob {
     algorithm: Algorithm,
@@ -3992,8 +3986,9 @@ fn read_samples(path: &str) -> SamplesFile {
  * every cell both measured judged at once (clocks::summary::discoveries:
  * a paired t-test per cell, the false discovery rate held to
  * COMPARE_Q_PERMILLE over all cells, the regression check's margin): each
- * side's median mean, the median ratio with the range the sign test
- * leaves plausible, the verdict, and how many pairs ran faster. At least
+ * side's mean (the geometric mean of its runs'), the ratio judged (the
+ * geometric mean of the pairs' ratios, new over old, which is the two
+ * sides' figures' ratio), the verdict, and how many pairs ran faster. At least
  * three pairs. For two builds, `regress` (through the fork's
  * tools/perf_regress.py, which relinks each side with a fresh layout per
  * pair) runs and judges the pairs itself: link layout moves cold calls'
@@ -4025,9 +4020,11 @@ fn compare_command(arguments: &[String]) {
             (key, Mean::of(&samples).fixed().0, per_unit)
         }).collect::<Vec<(String, u128, Option<u128>)>>()
     };
-    // Every cell's means and its pairs' ratios, in the first old run's order.
+    // Every cell's means a pair, wall time and (where both sides carry it)
+    // CPU time, in the first old run's order.
+    type Pairs = Vec<(u128, u128)>;
     let mut order: Vec<String> = Vec::new();
-    let mut cells: std::collections::HashMap<String, (Vec<u128>, Vec<u128>, Vec<u64>, Vec<u64>)> = std::collections::HashMap::new();
+    let mut cells: std::collections::HashMap<String, (Pairs, Pairs)> = std::collections::HashMap::new();
     for (old_path, new_path) in old.iter().zip(new) {
         let new_means: std::collections::HashMap<String, (u128, Option<u128>)> = means(new_path).into_iter().map(|(k, m, c)| (k, (m, c))).collect();
         for (key, old_mean, old_cpu) in means(old_path) {
@@ -4035,49 +4032,40 @@ fn compare_command(arguments: &[String]) {
             if !cells.contains_key(&key) {
                 order.push(key.clone());
             }
-            let (olds, news, ratios, cpu_ratios) = cells.entry(key).or_default();
-            olds.push(old_mean);
-            news.push(new_mean);
-            ratios.push(clocks::summary::ratio_permille(new_mean, old_mean));
+            let (wall, cpu) = cells.entry(key).or_default();
+            wall.push((old_mean, new_mean));
             if let (Some(old_cpu), Some(new_cpu)) = (old_cpu, new_cpu) {
-                cpu_ratios.push(clocks::summary::ratio_permille(new_cpu, old_cpu));
+                cpu.push((old_cpu, new_cpu));
             }
         }
     }
     // Only cells every pair measured.
     order.retain(|key| cells[key].0.len() == old.len());
-    let tested: Vec<Vec<(u128, u128)>> = order.iter().map(|key| cells[key].0.iter().copied().zip(cells[key].1.iter().copied()).collect()).collect();
-    let verdicts = clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
-    for (key, verdict) in order.into_iter().zip(verdicts) {
-        let (olds, news, ratios, cpu_ratios) = &cells[&key];
-        let (a, b) = (median_u128(olds), median_u128(news));
-        let r = clocks::summary::median_permille(ratios);
-        let verdict = match verdict {
+    let tested: Vec<Pairs> = order.iter().map(|key| cells[key].0.clone()).collect();
+    let judged = clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
+    let times = |permille: u64| format!("x{}.{:03}", permille / 1000, permille % 1000);
+    for (key, judgment) in order.into_iter().zip(judged) {
+        let (wall, cpu) = &cells[&key];
+        let verdict = match judgment.verdict {
             clocks::summary::Verdict::Slower => "slower",
             clocks::summary::Verdict::Faster => "faster",
             clocks::summary::Verdict::Level => "level",
         };
-        let faster = ratios.iter().filter(|&&r| r < 1000).count();
-        let interval = clocks::summary::interval_permille(ratios).map_or_else(|| "too few pairs for an interval".to_string(), |(low, high)| format!("x{}.{:03}-{}.{:03}", low / 1000, low % 1000, high / 1000, high % 1000));
-        // CPU time beside wall time: the median of the pairs' ratios, no
-        // verdict (the rule judges wall time), where every pair has it.
-        let cpu = if !cpu_ratios.is_empty() && cpu_ratios.len() == ratios.len() {
-            let c = clocks::summary::median_permille(cpu_ratios);
-            format!("; CPU time x{}.{:03}", c / 1000, c % 1000)
-        } else {
-            String::new()
-        };
-        println!("{key}: {} -> {} ns/unit  x{}.{:03} ({interval}) {verdict}, {faster} of {} pairs faster{cpu}", Fixed(a).format_ns(), Fixed(b).format_ns(), r / 1000, r % 1000, ratios.len());
+        let faster = wall.iter().filter(|(old, new)| new < old).count();
+        // CPU time beside wall time, by the same ratio, with no verdict (the
+        // rule judges wall time), where every pair has it.
+        let cpu = if cpu.len() == wall.len() { format!("; CPU time {}", times(clocks::summary::geometric_mean_permille(cpu))) } else { String::new() };
+        let (a, b) = (geometric_mean(wall.iter().map(|p| p.0)), geometric_mean(wall.iter().map(|p| p.1)));
+        println!("{key}: {} -> {} ns/unit  {} {verdict}, {faster} of {} pairs faster{cpu}", Fixed(a).format_ns(), Fixed(b).format_ns(), times(judgment.ratio_permille), wall.len());
     }
 }
 
-/// The median of some values (for an even count, the mean of the middle two).
-fn median_u128(values: &[u128]) -> u128 {
-    assert!(!values.is_empty(), "a median needs a value");
-    let mut sorted = values.to_vec();
-    sorted.sort_unstable();
-    let n = sorted.len();
-    if n % 2 == 1 { sorted[n / 2] } else { (sorted[n / 2 - 1] + sorted[n / 2]).div_ceil(2) }
+/// The geometric mean of some positive Q64.64 values: each side's figure in
+/// compare, whose ratio is the ratio judged. For display only.
+fn geometric_mean(values: impl Iterator<Item = u128>) -> u128 {
+    let logs: Vec<f64> = values.map(|v| (v as f64).ln()).collect();
+    assert!(!logs.is_empty(), "a mean needs values");
+    (logs.iter().sum::<f64>() / logs.len() as f64).exp().round() as u128
 }
 
 /*
@@ -4356,19 +4344,15 @@ fn regress_command(arguments: &[String]) -> i32 {
     // (clocks::summary::discoveries).
     let judged: Vec<&String> = pairs_means.iter().filter(|(key, m)| m.len() == pairs && scope.judges(key)).map(|(k, _)| k).collect();
     let tested: Vec<Vec<(u128, u128)>> = judged.iter().map(|k| pairs_means[*k].clone()).collect();
-    let verdicts = clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
+    let judgments = clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
     let mut slower = 0;
-    for (key, verdict) in judged.into_iter().zip(verdicts) {
-        let values = &ratios[key];
-        if verdict == clocks::summary::Verdict::Level {
+    for (key, judgment) in judged.into_iter().zip(judgments) {
+        if judgment.verdict == clocks::summary::Verdict::Level {
             continue;
         }
-        let word = if verdict == clocks::summary::Verdict::Slower { slower += 1; "SLOWER" } else { "faster" };
-        let pairs: Vec<String> = values.iter().map(|&r| percent(r)).collect();
-        // The sign test's range needs enough pairs; the verdict (the t-test
-        // over all cells) does not, so a few pairs print none, as compare does.
-        let range = clocks::summary::interval_permille(values).map_or_else(|| "too few pairs for an interval".to_string(), |(low, high)| format!("{} to {}", percent(low), percent(high)));
-        println!("  {word} {key}: {} ({range}; median of {} pairs: {})", percent(clocks::summary::median_permille(values)), values.len(), pairs.join(" "));
+        let word = if judgment.verdict == clocks::summary::Verdict::Slower { slower += 1; "SLOWER" } else { "faster" };
+        let pairs: Vec<String> = ratios[key].iter().map(|&r| percent(r)).collect();
+        println!("  {word} {key}: {} (the pairs' geometric mean; {} pairs: {})", percent(judgment.ratio_permille), pairs.len(), pairs.join(" "));
     }
     if slower > 0 {
         println!("regress: REGRESSION: {slower} cells slower");
