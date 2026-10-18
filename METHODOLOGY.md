@@ -591,12 +591,12 @@ of the design, a multiple of n rounds for n contenders when n is even and
 of 2n when odd (18 rounds for three contenders); other round counts leave
 a few rounds' remainder, a fraction of a percent at that effect's size.
 Each cell's
-figure is its mean time per run; a contender's `xN` is its mean against
-the first contender's, marked slower or faster by the rule `compare` uses,
-each round a pair: every cell judged at once, beyond 3%. (A median of the
-rounds' ratios, the rule before, flips with the share of rounds in each
-mode where a cell runs at two speeds: a 1 GiB file read ×0.62 or ×0.98 by
-that alone, October 17.)
+figure is its mean time per run; a contender's `xN` against the first
+contender is the ratio `compare` judges, each round a pair: the geometric
+mean of the rounds' ratios, marked slower or faster where every cell
+judged at once says so, beyond 3%. (A median of the rounds' ratios flips
+with the share of rounds in each mode where a cell runs at two speeds: a
+1 GiB file read ×0.62 or ×0.98 by that alone, October 17.)
 
 The run writes `b3sum.result.txt` (the report) and `b3sum.samples.tsv`
 (each run's time, and its counts as `# counts` lines), and draws the
