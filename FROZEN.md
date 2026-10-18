@@ -38,7 +38,7 @@ the notes) may still change, to say it better.
   where the run recorded it), and energy (shown, not yet counted); any or
   all at once, on one axis. A chart with no CPU time recorded says so.
   The panel sticks at the top of the page, each section's names under it.
-  Beside them, a switch: rate (GB/s, higher is faster; the default) or cost (ns per
+  Beside them, an upright switch: knob up, rate (GB/s, "higher is better", the default); knob down, cost (ns per
   byte, lower is faster; Zooko, October 18, the graph's toggle before the
   map, brought back): with CPU time, the processor time a byte costs
   across every thread, so a multithreaded call's speed and its total work
