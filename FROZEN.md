@@ -26,6 +26,16 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **Energy beside wall time and CPU time** (Zooko, October 18, 2026,
+  reversing October 17's lab-only rule; bench-hashes #38): the samples
+  record energy where the platform gives a counter, and a cell without
+  one says so. The map gains a toggle panel of wall-clock time, CPU time,
+  and energy, wall-clock time the default. Speed verdicts and the
+  regression check stay on wall time.
+- **The consistency checks retire** (Zooko, October 18; bench-hashes #4,
+  T3, and #37): over six runs on an i7-12700K they found nothing real and
+  raised about eight false alarms a run, while `compare` already judges
+  every cell with the false-discovery rate controlled.
 - **The b3sum suite's contenders built as each project recommends**
   (Devon Jonte, #32; Zooko, October 17): the fork's b3sum statically
   linked on Linux, as its README recommends, official BLAKE3's from
@@ -100,8 +110,8 @@ the notes) may still change, to say it better.
   files of 64 MiB, as many bytes as the 1 GiB file, in one run as
   `b3sum *.iso` hashes them (`--quick`: 4 of 16 MiB). Many large files
   at once are common, and no other input covered them.
-- **`bench-hashes leaves` measures produced Merkle leaves** (proposed by
-  Devon Jonte, #14; a new use case, Zooko's decision): 16384 and 1048576
+- **`bench-hashes leaves` measures produced Merkle leaves** (Devon Jonte,
+  #14; a new use case, Zooko, October 18): 16384 and 1048576
   64-byte leaves from a counter, handed to BLAKE3 servil four ways (lent to
   `hash_many_multithreaded`, lent to a stream, copied into its ring, or
   produced straight into it by `submit_batch_with`), each job timed whole
@@ -113,7 +123,8 @@ the notes) may still change, to say it better.
 - **Every digest of a batch is stored in its slot** (Devon Jonte, #15; a
   bug fix): the harness stored only a batch's first digest, so the batch
   cells did less than this contract asks; they read a little slower now.
-- **A batch's digests stored in at most two moves** (Devon Jonte, #36): the
+- **A batch's digests stored in at most two moves** (Devon Jonte, #36;
+  Zooko, October 18): the
   same use, each digest in its slot, copied as one run up to the array's
   end and one on from its start; #15's loop copied each digest with its
   own `memcpy` call, which servil mt's stream caller paid for every

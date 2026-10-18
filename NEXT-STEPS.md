@@ -59,26 +59,13 @@ work stands and what comes next; its history is in git.
    gain an "after a pause" entry (a batch of 1 to 8 one-block messages
    runs the pair kernel then), and the legend's claim that a call after
    idling runs as after other work goes.
-6. **Energy: a lab instrument, out of the benchmark** (Zooko, October
-   17). A number in every report becomes a goal (Goodhart), and a note
-   about how to weigh it against wall time will not be read. So the
-   benchmark, FROZEN, and the gate carry wall time and CPU time alone (CPU
-   time shows work lingering after a call). Energy is measured only in
-   experiments: the runner's `"powermetrics": true` (the chip's power;
-   the per-process estimate errs by -16% to +30% with the instruction mix)
-   and `examples/energy_probe.rs` on `probe/mac-energy`. Measured (jobs
-   1579-1585): one thread on SME2 costs about a third of NEON's energy a
-   byte (about 690 against 1990 pJ) and runs 1.6 times as fast; a
-   multithreaded call is NEON on every worker in both builds. **The
-   experiment, judged by wall time:** the M4 Max has three SME units (two
-   P-clusters' and the E-cluster's); give a multithreaded call's work to
-   them, and look for faster, or nearly as fast and much cheaper in energy
-   (Zooko: no trading wall time away for energy, only a little for a lot).
-   Newer Apple chips have more SME units. **Circled back** (Zooko, October
-   17): energy chose the experiment (SME2 a third of NEON's energy a byte)
-   and wall time decided it (2-4% faster: not built now); the instruments
-   stay for experiments, on the Mac the runner's `powermetrics`, on Linux
-   `clocks::energy` (#65).
+6. **Energy returns to the benchmark** (Zooko, October 18, reversing
+   October 17; #38, Devon): every energy measurement back beside wall
+   time and CPU time, the map's toggle panel of wall-clock time, CPU time,
+   and energy (wall-clock time the default); verdicts and the gate stay
+   on wall time. #38 lists the lessons the design must answer (a package
+   counter measures the machine, it credits late, heat confounds it,
+   per-process estimates are models, coverage varies by platform).
 7. **The C library, first-class** (Zooko: a de facto standard needs C):
    `candidate/c-api` (on the cuts) has `capi/b3.h`, a fresh design (Zooko:
    no compatibility with upstream's C API), over the crate, tested from
