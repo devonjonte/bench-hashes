@@ -601,13 +601,15 @@ fn report(specs: &[Contender], inputs: &[Input], caches: &[Cache], cells: &[Vec<
     if !judged && specs.len() > 1 {
         out += "\nverdicts:  none: the rule needs 3 rounds or more\n";
     }
-    let verdicts: std::collections::HashMap<(usize, usize, usize), clocks::summary::Verdict> = if judged {
-        compared.into_iter().zip(clocks::summary::discoveries(&pairs, super::COMPARE_Q_PERMILLE, MARGIN_PERMILLE).into_iter().map(|j| j.verdict)).collect()
+    // Each comparison's ratio (the geometric mean of the rounds' ratios, the
+    // ratio the rule judges) and its verdict.
+    let judgments: std::collections::HashMap<(usize, usize, usize), clocks::summary::Judgment> = if judged {
+        compared.into_iter().zip(clocks::summary::discoveries(&pairs, super::COMPARE_Q_PERMILLE, MARGIN_PERMILLE)).collect()
     } else {
-        compared.into_iter().map(|key| (key, clocks::summary::Verdict::Level)).collect()
+        compared.into_iter().zip(&pairs).map(|(key, p)| (key, clocks::summary::Judgment { verdict: clocks::summary::Verdict::Level, ratio_permille: clocks::summary::geometric_mean_permille(p) })).collect()
     };
     for (ci, &cache) in caches.iter().enumerate() {
-        out += &format!("\n{}\nmean time per run, lower is better; xN: against {base}, the ratio of the means, marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 3%)\n", cache.heading());
+        out += &format!("\n{}\nmean time per run, lower is better; xN: against {base}, the ratio judged (the geometric mean of the rounds' ratios), marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 3%)\n", cache.heading());
         let mut rows: Vec<Vec<String>> = vec![std::iter::once("input".to_owned()).chain(specs.iter().map(|c| c.name.clone())).collect()];
         for (i, input) in inputs.iter().enumerate() {
             let mut row = vec![input.label.clone()];
@@ -621,8 +623,9 @@ fn report(specs: &[Contender], inputs: &[Input], caches: &[Cache], cells: &[Vec<
                     text += &format!(" {} GB/s", rate(input.bytes, ns));
                 }
                 if c > 0 {
-                    let ratio = clocks::summary::ratio_permille(mean.0, mean_of(&cells[ci][i][0]).0);
-                    let mark = match verdicts[&(ci, i, c)] {
+                    let judgment = judgments[&(ci, i, c)];
+                    let ratio = judgment.ratio_permille;
+                    let mark = match judgment.verdict {
                         clocks::summary::Verdict::Slower => " slower",
                         clocks::summary::Verdict::Faster => " faster",
                         clocks::summary::Verdict::Level => "",
