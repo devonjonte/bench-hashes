@@ -32,6 +32,12 @@ the notes) may still change, to say it better.
   one says so. The map gains a toggle panel of wall-clock time, CPU time,
   and energy, wall-clock time the default. Speed verdicts and the
   regression check stay on wall time.
+- **The map shows what its lines measure, by a panel** (Zooko's spec of
+  October 18, #38; Devon Jonte): chips at the top of the page for
+  wall-clock time (the default, solid lines), CPU time (dotted, as GB per
+  CPU-second: the processor time a unit took, all the program's threads,
+  where the run recorded it), and energy (shown, not yet counted); any or
+  all at once, on one axis. A chart with no CPU time recorded says so.
 - **The consistency checks retire** (Zooko, October 18; bench-hashes #4,
   T3, and #37): over six runs on an i7-12700K they found nothing real and
   raised about eight false alarms a run, while `compare` already judges
