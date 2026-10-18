@@ -6,7 +6,7 @@
 //! (`clocks::summary`), as the rest of bench-hashes; its samples file in
 //! bench-hashes' format, so `bench-hashes compare` reads it.
 
-use super::{output_directory, machine_metadata, ExactMean, Measured, SAMPLES_COLUMNS, SAMPLES_VERSION};
+use super::{output_directory, machine_metadata, Mean, Measured, SAMPLES_COLUMNS};
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -491,14 +491,13 @@ pub fn command(args: &[String]) {
 
     let directory = output_directory(&machine);
     fs::create_dir_all(&directory).unwrap();
-    let mut tsv = format!("{SAMPLES_VERSION}\n# timestamp: {}\n# bench-hashes version: {}\n# git commit: {}\n# cpu type: {}\n# cpu count: {}\n# os type: {}\n# files: {} on {filesystem}\n# rounds: {rounds}\n",
-        machine.timestamp, super::BENCH_VERSION, super::GIT_COMMIT, machine.cpu_type, machine.cpu_count, machine.os_type, files_dir.display());
+    let mut run = vec![("files".to_owned(), format!("{} on {filesystem}", files_dir.display())), ("rounds".to_owned(), rounds.to_string())];
     for c in &specs {
         for b in &c.builds {
-            tsv += &format!("# contender {}: {} {} (blake3 {}; {})\n", c.name, b.program.display(), c.args.join(" "), b.digest, c.version);
+            run.push((format!("contender {}", c.name), format!("{} {} (blake3 {}; {})", b.program.display(), c.args.join(" "), b.digest, c.version)));
         }
     }
-    tsv += &format!("# power: {}\n# load: {}\n", machine.describe_power(), clocks::load::describe(&machine.load));
+    let mut tsv = super::samples_header(&machine, &run);
     tsv += "# counts\tcontender\tcache\tinput\tround\twall_ns\tcpu_ns\tmax_rss_bytes\tstorage_read_bytes\tmajor_faults\tp_cycles\te_cycles\tp_time_ns\te_time_ns\n";
     for (ci, &cache) in caches.iter().enumerate() {
         for (i, input) in inputs.iter().enumerate() {
@@ -555,7 +554,8 @@ fn rate(bytes: u64, ns: u128) -> String {
     three(u128::from(bytes), ns.max(1))
 }
 
-/// Nanoseconds for people: "812 us", "1.23 ms", "2.05 s" (three significant digits).
+/// A whole run's duration for people: "812 us", "1.23 ms", "2.05 s" (three
+/// significant digits, rounded half up once). Times per unit are format_ns.
 pub(crate) fn time(ns: u128) -> String {
     match ns {
         n if n < 1_000 => format!("{n} ns"),
@@ -595,8 +595,17 @@ fn report(specs: &[Contender], inputs: &[Input], caches: &[Cache], cells: &[Vec<
     let pairs: Vec<Vec<(u128, u128)>> = compared.iter().map(|&(ci, i, c)| {
         cells[ci][i][0].iter().zip(&cells[ci][i][c]).map(|(b, r)| (per_run(b, inputs[i].bytes), per_run(r, inputs[i].bytes))).collect()
     }).collect();
-    let verdicts: std::collections::HashMap<(usize, usize, usize), clocks::summary::Verdict> =
-        compared.into_iter().zip(clocks::summary::discoveries(&pairs, super::COMPARE_Q_PERMILLE, MARGIN_PERMILLE)).collect();
+    // The rule needs three pairs a cell; fewer rounds judge none, as compare
+    // and regress (with only one contender, there is nothing to judge).
+    let judged = rounds >= 3 && !pairs.is_empty();
+    if !judged && specs.len() > 1 {
+        out += "\nverdicts:  none: the rule needs 3 rounds or more\n";
+    }
+    let verdicts: std::collections::HashMap<(usize, usize, usize), clocks::summary::Verdict> = if judged {
+        compared.into_iter().zip(clocks::summary::discoveries(&pairs, super::COMPARE_Q_PERMILLE, MARGIN_PERMILLE)).collect()
+    } else {
+        compared.into_iter().map(|key| (key, clocks::summary::Verdict::Level)).collect()
+    };
     for (ci, &cache) in caches.iter().enumerate() {
         out += &format!("\n{}\nmean time per run, lower is better; xN: against {base}, the ratio of the means, marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 3%)\n", cache.heading());
         let mut rows: Vec<Vec<String>> = vec![std::iter::once("input".to_owned()).chain(specs.iter().map(|c| c.name.clone())).collect()];
@@ -604,7 +613,7 @@ fn report(specs: &[Contender], inputs: &[Input], caches: &[Cache], cells: &[Vec<
             let mut row = vec![input.label.clone()];
             for (c, _) in specs.iter().enumerate() {
                 let runs = &cells[ci][i][c];
-                let mean_of = |runs: &[clocks::child::Run]| ExactMean::of(&runs.iter().map(|r| Measured::new(r.wall_ns, input.bytes)).collect::<Vec<_>>()).fixed();
+                let mean_of = |runs: &[clocks::child::Run]| Mean::of(&runs.iter().map(|r| Measured::new(r.wall_ns, input.bytes)).collect::<Vec<_>>()).fixed();
                 let mean = mean_of(runs);
                 let ns = (mean.0 * u128::from(input.bytes) + (1 << 63)) >> 64;
                 let mut text = time(ns);

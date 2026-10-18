@@ -2,8 +2,8 @@
 """The clock each sample ran at, in a bench-hashes --trace-clocks CSV.
 
 Each sample carries its wall time and the thread's cycles, instructions,
-and time on P-cores and E-cores (Apple; empty fields where the platform
-counts none). The script reports where the samples ran (P-cores, E-cores, split),
+and time on P-cores and E-cores (Apple, and Linux on x86-64 hybrid CPUs;
+empty fields where the platform counts none). The script reports where the samples ran (P-cores, E-cores, split),
 the distribution of their frequency (cycles over time), each cell's
 fastest and slowest sample beside the frequency it ran at, and windows of
 consecutive samples more than 5% off the median frequency: a boost or a

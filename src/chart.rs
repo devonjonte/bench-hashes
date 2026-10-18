@@ -4,7 +4,7 @@
 //! full run draws it; `bench-hashes chart SAMPLES.tsv` draws it from a
 //! stored file. The READMEs show the published records'.
 
-use super::{read_samples, ExactMean};
+use super::{read_samples, Mean};
 use std::fmt::Write as _;
 
 const SIZE: &str = "1 MiB";
@@ -33,7 +33,7 @@ pub fn from_samples(path: &str) -> Option<String> {
     let centi = |key: &str| -> Option<u128> {
         let cell = format!("{key}|solo|OneMessage|{SIZE}");
         let (_, samples) = file.cells.iter().find(|(k, _)| *k == cell)?;
-        let mean = ExactMean::of(samples).fixed().0;
+        let mean = Mean::of(samples).fixed().0;
         Some(((100u128 << 64) + mean / 2) / mean)
     };
     let mut bars: Vec<(String, u128, &str, bool)> = Vec::new();
