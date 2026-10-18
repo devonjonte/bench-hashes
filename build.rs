@@ -155,7 +155,7 @@ fn git_text_allow_failure(
 const SERVIL_CHECKOUT: &str = "..";
 
 /// The fork's repository, as Cargo.toml names it and Cargo.lock records it.
-const SERVIL_GIT: &str = "https://github.com/johnservil/BLAKE3";
+const SERVIL_GIT: &str = "https://github.com/devonjonte/BLAKE3";
 
 /// What `git` reports about a checkout: its origin URL, HEAD commit,
 /// nearest release tag, current branch, and whether the tree is clean.
@@ -412,7 +412,7 @@ fn git_output(repository: &Path, arguments: &[&str]) -> Output {
 /*
  * blake3-servil comes from the fork's repository at the commit Cargo.lock
  * pins, with a line such as
- *   source = "git+https://github.com/johnservil/BLAKE3?branch=servil#COMMIT"
+ *   source = "git+https://github.com/devonjonte/BLAKE3?branch=servil#COMMIT"
  * A `--config` patch replaces it with the enclosing checkout at `..`, and
  * Cargo.lock then records no source; the checkout's own git state
  * identifies the code: origin URL, branch, exact commit, and a clean flag
