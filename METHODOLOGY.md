@@ -242,22 +242,6 @@ A single-threaded hash costs about the same in both. A multithreaded one
 shows in the shared scenario what its threads cost when the machine is
 shared; an SME2 kernel shows what sharing its unit costs.
 
-## Consistency checks
-
-Every run also writes `bench-hashes.checks.txt`, for people who maintain
-the benchmark or a contender: relations that hold for every contender
-alike when the benchmark measures what it means to. Nonstop calls are no slower than calls after other work for
-messages of 64 B-4 KiB; two copies of a hash that runs on its caller's
-thread are no faster than one (a multithreaded one's two callers can keep
-its threads busier than one does); a hash that runs on its core alone (no
-shared SME unit, no helper threads) is no slower beside a second copy, for
-work up to 1 MiB, within a core's own caches (beyond, the copies share the
-last-level cache and memory); and more work within the first-level cache
-(up to 32 KiB) is no slower per byte or message than a size that divides
-it. Each is judged on the cells' means, over 10% apart. A broken relation names a bug in the
-benchmark or in the contender, or a finding to explain; the file lists
-each, or says that all hold.
-
 ## Hash implementations
 
 The `BLAKE3 official` and `BLAKE3 servil st` contenders call the one-shot `hash`
@@ -628,8 +612,7 @@ report), `bench-hashes.map.html` (the map), `bench-hashes.chart.svg`
 and on one, and the fastest measured member of SHA-256, SHA3-256, and
 SHA-1, from each cell's mean; a quick run, which stops below 1 MiB, draws
 none), `bench-hashes.guide.html`
-(the guide for programmers), `bench-hashes.checks.txt` (the consistency
-checks, above), and `bench-hashes.samples.tsv` (every sample of every cell, every scenario,
+(the guide for programmers), and `bench-hashes.samples.tsv` (every sample of every cell, every scenario,
 in the order taken, each as `ns/units`, and in a last column the
 millisecond each sample started, with the provenance, the CPU's identity,
 and the load windows as `# key: value` lines). `bench-hashes compare` and `bench-hashes regress` read it. `--trace-clocks PATH` also writes each

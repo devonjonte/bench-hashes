@@ -53,8 +53,6 @@ your CPU and operating system:
   from their own code (see "Which function to use", below).
 - `bench-hashes.samples.tsv`: every single measurement, for your own
   analysis.
-- `bench-hashes.checks.txt`: consistency checks, for people who
-  maintain the benchmark or a hash.
 
 The map has a small chart for each way a program hashes. Its rows say
 what the program hashes: one message, a batch of 64-byte messages (a
