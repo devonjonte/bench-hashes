@@ -2064,13 +2064,30 @@ thread_local! {
 }
 
 /// `digests`, one digest or a batch's run of them (32 bytes each; a shorter
-/// one, as SHA-1's 20, is one digest): each in its slot, in turn.
+/// one, as SHA-1's 20, is one digest): each in its slot, in turn. A run is
+/// copied in at most two moves, up to the array's end and on from its start,
+/// so the use costs a batch what storing its digests costs (a move a digest
+/// took a call to memcpy each: the multithreaded stream's caller paid it for
+/// every message, in series with the workers).
 fn use_digest(digests: &[u8]) {
     DIGESTS.with_borrow_mut(|(slots, next)| {
-        for digest in digests.chunks(32) {
+        if digests.len() <= 32 {
             let slot = &mut slots[*next % DIGEST_SLOTS];
-            slot[..digest.len()].copy_from_slice(digest);
+            match <[u8; 32]>::try_from(digests) {
+                Ok(digest) => *slot = digest,
+                Err(_) => slot[..digests.len()].copy_from_slice(digests),
+            }
             *next += 1;
+            return;
+        }
+        let (mut run, rest) = digests.as_chunks::<32>();
+        assert!(rest.is_empty(), "a run of 32-byte digests, {} bytes", digests.len());
+        while !run.is_empty() {
+            let at = *next % DIGEST_SLOTS;
+            let n = run.len().min(DIGEST_SLOTS - at);
+            slots[at..at + n].copy_from_slice(&run[..n]);
+            *next += n;
+            run = &run[n..];
         }
     });
 }

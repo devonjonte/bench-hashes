@@ -103,6 +103,14 @@ the notes) may still change, to say it better.
 - **Every digest of a batch is stored in its slot** (Devon Jonte, #15; a
   bug fix): the harness stored only a batch's first digest, so the batch
   cells did less than this contract asks; they read a little slower now.
+- **A batch's digests stored in at most two moves** (Devon Jonte, #36): the
+  same use, each digest in its slot, copied as one run up to the array's
+  end and one on from its start; #15's loop copied each digest with its
+  own `memcpy` call, which servil mt's stream caller paid for every
+  message in series with the workers. The batch cells read faster on the
+  same code (servil mt ContinuousBatches 13-18%, the lent batches and
+  official's 5-13%; SHA-256 level), most of what #15 had added: the old
+  map's pipelined-batch lead over today's came from this copy.
 - **b3sum's suite adds the system's `sha256sum`** (GNU coreutils, where
   installed; Devon Jonte, #9): the SHA-256 tool people type, beside the
   b3sums, answering the README's question for the command line.

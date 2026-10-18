@@ -129,3 +129,21 @@ fn regress_measures_the_nonstop_use_cases_by_their_points_names() {
     assert!(REGRESS_POINTS.iter().all(|name| matches!(POINTS[point_named(name)].use_case, UseCase::LentMessages | UseCase::Interleaved | UseCase::LentBatches)), "regress judges the lent cells alone");
     assert_eq!(REGRESS_MARGIN_PERMILLE, 30);
 }
+
+/// Each digest in its slot, in turn (FROZEN.md's use of each hash): one at a
+/// time, a shorter one (SHA-1's 20 bytes), and a run that wraps the array.
+#[test]
+fn use_digest_stores_each_digest_in_its_slot() {
+    let digest = |i: usize| [(i % 251) as u8; 32];
+    let start = DIGESTS.with_borrow(|(_, next)| *next);
+    use_digest(&digest(start));
+    use_digest(&[7u8; 20]);
+    let run: Vec<u8> = (start + 2..start + 2 + DIGEST_SLOTS + 5).flat_map(digest).collect();
+    use_digest(&run);
+    DIGESTS.with_borrow(|(slots, next)| {
+        assert_eq!(*next, start + 2 + DIGEST_SLOTS + 5);
+        for i in start + 7..*next {
+            assert_eq!(slots[i % DIGEST_SLOTS], digest(i), "digest {i}");
+        }
+    });
+}
