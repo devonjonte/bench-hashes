@@ -33,12 +33,12 @@ the notes) may still change, to say it better.
   and energy, wall-clock time the default. Speed verdicts and the
   regression check stay on wall time.
 - **The map shows what its lines measure, by a panel** (Zooko's spec of
-  October 18, #38; Devon Jonte): chips at the top of the page for
-  wall-clock time (the default, solid lines), CPU time (dotted, as GB per
-  CPU-second: the processor time a unit took, all the program's threads,
+  October 18, #38; Devon Jonte): chips at the top of the page named for what a line's height is: per
+  wall-clock second (the default, solid lines), per CPU second (dotted: the processor time a unit took, all the program's threads,
   where the run recorded it), and energy (shown, not yet counted); any or
   all at once, on one axis. A chart with no CPU time recorded says so.
-  Beside them, rate (GB/s, higher is faster; the default) or cost (ns per
+  The panel sticks at the top of the page, each section's names under it.
+  Beside them, a switch: rate (GB/s, higher is faster; the default) or cost (ns per
   byte, lower is faster; Zooko, October 18, the graph's toggle before the
   map, brought back): with CPU time, the processor time a byte costs
   across every thread, so a multithreaded call's speed and its total work
