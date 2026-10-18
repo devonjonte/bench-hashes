@@ -4598,9 +4598,8 @@ fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, 
 
 /*
  * Consistency checks: relations that hold for every contender alike when
- * the benchmark measures what it means to, each judged on cells' fast
- * speeds, CONSISTENCY_PERMILLE apart or more (bench-hashes NOTES,
- * "Consistency checks"). A broken one is a bug
+ * the benchmark measures what it means to, each judged on cells' means,
+ * CONSISTENCY_PERMILLE apart or more. A broken one is a bug
  * in the benchmark or in the code under test, or a finding to explain.
  * They go to a file of their own, for maintainers.
  */
@@ -4663,12 +4662,15 @@ fn consistency(roster: &Roster, results: &Results) -> String {
             }
             /*
              * 4. Twice the work takes at most twice the time: no slower per
-             * unit than a size that divides it, for work that stays in the
-             * first-level cache (up to CACHED_BYTES) and outside the idle
-             * use cases (whose cells may meet different clock states).
+             * unit than a size that divides it, for a hash on its caller's
+             * thread (a multithreaded one starts its threads at a size of
+             * its choosing: BLAKE3 official mt at 16 KiB read x1.1-15 here
+             * in every run), for work that stays in the first-level cache
+             * (up to CACHED_BYTES) and outside the idle use cases (whose
+             * cells may meet different clock states).
              */
             let size = |p: usize| if use_case.batch() { POINTS[p].messages } else { POINTS[p].bytes };
-            let cached: Vec<usize> = points.iter().copied().filter(|&p| POINTS[p].bytes <= CACHED_BYTES && !use_case.idle()).collect();
+            let cached: Vec<usize> = points.iter().copied().filter(|&p| POINTS[p].bytes <= CACHED_BYTES && !use_case.idle() && !algorithm.multithreaded()).collect();
             let points = cached;
             for &large in &points {
                 for &small in points.iter().filter(|&&small| size(small) < size(large) && size(large) % size(small) == 0) {
@@ -4684,7 +4686,7 @@ fn consistency(roster: &Roster, results: &Results) -> String {
     }
     let mut out = format!(
         "# bench-hashes consistency checks (for maintainers): relations that hold for every contender when the benchmark measures what it means to, judged on means, over {}% apart.\n\
-         # 1. Nonstop no slower than after other work, 64 B-4 KiB. 2. Shared no faster than solo, for a hash on its caller's thread. 3. A hash on the cores alone no slower shared, up to 1 MiB. 4. No slower per unit than a size that divides the work, up to 32 KiB, outside the idle use cases.\n",
+         # 1. Nonstop no slower than after other work, 64 B-4 KiB. 2. Shared no faster than solo, for a hash on its caller's thread. 3. A hash on the cores alone no slower shared, up to 1 MiB. 4. No slower per unit than a size that divides the work, for a hash on its caller's thread, up to 32 KiB, outside the idle use cases.\n",
         CONSISTENCY_PERMILLE / 10,
     );
     if broken.is_empty() {
@@ -5181,6 +5183,18 @@ mod correctness_tests {
         }
         let report = consistency(&roster, &results);
         assert!(report.ends_with("all hold\n"), "both outside their relations' scope:\n{report}");
+
+        /* A multithreaded hash starts its threads at a size of its choosing:
+         * more work may take longer per unit there. */
+        let roster = Roster::new(vec![Algorithm::Blake3ServilMt, Algorithm::Sha256], true, Some({
+            let mut p = vec![point("16", UseCase::LentBatches), point("64", UseCase::LentBatches)];
+            p.sort_unstable();
+            p
+        }), Some(24));
+        let (results, _) = run(&roster, 24, |_, p, r| jitter(r) + if POINTS[p].label == "64" { 12_000 } else { 10_000 });
+        let report = consistency(&roster, &results);
+        assert!(report.contains("more work, slower per unit: SHA-256"), "{report}");
+        assert!(!report.contains("more work, slower per unit: BLAKE3 servil mt"), "multithreaded: outside check 4\n{report}");
     }
 
     /// Every point hashes a prefix of one buffer: the input of each size is
