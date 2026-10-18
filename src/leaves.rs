@@ -145,13 +145,13 @@ fn measure_program(program: &mut Program, variant: &str, count: usize, want: [u8
         .map(|_| {
             clocks::load::tick();
             let started_ns = clocks::load::now_ns();
-            let cpu = solo.then(clocks::process_cpu_ns);
+            let cpu = if solo { clocks::process_cpu_ns() } else { None };
             let t = clocks::now();
             for _ in 0..jobs {
                 job();
             }
             let wall_ns = clocks::since_ns(t);
-            let cpu_ns = cpu.map(|before| clocks::process_cpu_ns() - before);
+            let cpu_ns = cpu.zip(clocks::process_cpu_ns()).map(|(before, after)| after - before);
             (wall_ns, jobs * count as u64, started_ns / 1_000_000, cpu_ns)
         })
         .collect()

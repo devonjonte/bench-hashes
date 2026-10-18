@@ -453,13 +453,14 @@ order, at least three pairs), and judges all their cells at once: per
 cell a paired t-test on the logarithm of each pair's ratio, new mean over
 old, and over all the cells the Benjamini-Hochberg procedure at a 5%
 false discovery rate; a cell that passes is slower or faster beyond a 3%
-margin, the rest level. Beside each cell: each side's median mean, the
-median ratio with the range a sign test leaves plausible (about 90%),
-and how many pairs ran faster. It says so beside any run whose load was
-busy or unmeasured.
+margin, the rest level. Beside each cell: each side's figure (the
+geometric mean of its runs' means), the ratio judged (the geometric mean
+of the pairs' ratios, which is the two figures' ratio), and how many
+pairs ran faster. It says so beside any run whose load was busy or
+unmeasured.
 Where both sides' samples carry CPU time, it adds each cell's CPU-time
-ratio: per pair, new CPU time per unit over old (all of a run's samples'
-CPU time over their units), the median of the pairs, with no verdict.
+ratio by the same rule (per pair, new CPU time per unit over old, all of
+a run's samples' CPU time over their units), with no verdict.
 
 **CPU time.** Each solo sample of a continuous or lent cell records the
 process's CPU time across it, all its threads together
