@@ -57,13 +57,14 @@ fn mean_ns(samples: &[super::Measured]) -> f64 {
     mean as f64 / 18_446_744_073_709_551_616.0
 }
 
-/// A cell's CPU time per unit in nanoseconds, for drawing: all its samples'
-/// CPU time over their units, where the samples file records it (solo
-/// nonstop cells, b3sum's runs), else None.
-fn cpu_ns(file: &super::SamplesFile, key: &str, samples: &[super::Measured]) -> Option<f64> {
-    let (_, ns) = file.cpu.iter().find(|(k, _)| k == key)?;
+/// A cell's CPU time (ns) or energy (nJ) per unit, for drawing: all its
+/// samples' figures in `column` (the samples file's `cpu` or `energy`) over
+/// their units, where the file records them (solo nonstop cells, b3sum's
+/// runs), else None.
+fn per_unit(column: &[(String, Vec<u64>)], key: &str, samples: &[super::Measured]) -> Option<f64> {
+    let (_, v) = column.iter().find(|(k, _)| k == key)?;
     let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
-    Some(ns.iter().map(|&n| u128::from(n)).sum::<u128>() as f64 / units as f64)
+    Some(v.iter().map(|&n| u128::from(n)).sum::<u128>() as f64 / units as f64).filter(|&x| x > 0.0)
 }
 
 /// `text` as a JSON string, safe inside a script element.
@@ -96,9 +97,14 @@ struct Chart {
     /// An earlier run's means at the same points, by contender (a map
     /// drawn beside it; empty otherwise): None where it has none.
     before: Vec<Option<Vec<Option<f64>>>>,
-    /// CPU time per unit at the same points, by contender (cpu_ns): None
+    /// CPU time per unit at the same points, by contender (per_unit): None
     /// where the run recorded none.
     cpu: Vec<Option<Vec<Option<f64>>>>,
+    /// Energy per unit (nJ), alike.
+    energy: Vec<Option<Vec<Option<f64>>>>,
+    /// The code path each contender ran at each point, as the run recorded
+    /// it (`# kernels` headers): None where it recorded none.
+    kernels: Vec<Option<Vec<String>>>,
 }
 
 impl Chart {
@@ -113,8 +119,9 @@ impl Chart {
             Some(v) => format!("[{}]", v.iter().map(|x| x.map_or("null".to_owned(), |x| format!("{x:.6}"))).collect::<Vec<_>>().join(",")),
             None => "null".to_owned(),
         }).collect::<Vec<String>>().join(",");
-        format!("{{\"sizes\":[{}],\"unit\":{},\"call\":{},\"doc\":{},\"cases\":{},\"per\":[{}],\"what\":{},\"series\":[{}],\"before\":[{}],\"cpu\":[{}]}}",
-            sizes.join(","), json(self.unit), json(&self.call), json(&self.doc), self.cases, per.join(","), json(self.what), series.join(","), optional(&self.before), optional(&self.cpu))
+        format!("{{\"sizes\":[{}],\"unit\":{},\"call\":{},\"doc\":{},\"cases\":{},\"per\":[{}],\"what\":{},\"series\":[{}],\"before\":[{}],\"cpu\":[{}],\"energy\":[{}],\"kernels\":[{}]}}",
+            sizes.join(","), json(self.unit), json(&self.call), json(&self.doc), self.cases, per.join(","), json(self.what), series.join(","), optional(&self.before), optional(&self.cpu), optional(&self.energy),
+            self.kernels.iter().map(|k| match k { Some(v) => format!("[{}]", v.iter().map(|n| json(n)).collect::<Vec<_>>().join(",")), None => "null".to_owned() }).collect::<Vec<_>>().join(","))
     }
 }
 
@@ -217,8 +224,9 @@ fn details(headers: &[(String, String)], load: &str, power: &str, samples: &str)
     for (label, key) in [("Compiler", "rust compiler"), ("Target", "build target"), ("Files", "files")] {
         add(label, header(headers, key).to_owned(), String::new());
     }
-    for (k, v) in headers.iter().filter(|(k, _)| k.starts_with("contender ")) {
-        add(&format!("b3sum {}", &k["contender ".len()..]), v.rsplit('/').next().unwrap_or(v).to_owned(), String::new());
+    for (_, v) in headers.iter().filter(|(k, _)| k == "contender") {
+        let (name, how) = v.split_once(": ").expect("a contender line names its contender first");
+        add(&format!("b3sum {name}"), how.rsplit('/').next().unwrap_or(how).to_owned(), String::new());
     }
     add("Samples", samples.to_owned(), samples.to_owned());
     out
@@ -240,9 +248,9 @@ fn hashing(path: &Path) -> Section {
                 let key = format!("{}|{scenario}|{use_case:?}|{label}", a.key());
                 file.cells.iter().find(|(k, _)| *k == key).map(|(_, s)| mean_ns(s) / per_byte)
             };
-            let cpu = |a: &Algorithm, label: &str| {
+            let column = |col: &[(String, Vec<u64>)], a: &Algorithm, label: &str| {
                 let key = format!("{}|{scenario}|{use_case:?}|{label}", a.key());
-                file.cells.iter().find(|(k, _)| *k == key).and_then(|(_, s)| cpu_ns(&file, &key, s)).map(|ns| ns / per_byte)
+                file.cells.iter().find(|(k, _)| *k == key).and_then(|(_, s)| per_unit(col, &key, s)).map(|v| v / per_byte)
             };
             // The points this run measured for some contender, in axis order.
             let measured: Vec<_> = points.iter().filter(|p| algorithms.iter().any(|a| mean(a, p.label).is_some())).collect();
@@ -255,12 +263,28 @@ fn hashing(path: &Path) -> Section {
             let official = algorithms.iter().position(|a| *a == Algorithm::Blake3);
             let bao_tree = if matches!(use_case, UseCase::Outboard | UseCase::Verify) { official.and_then(|i| series[i].take()) } else { None };
             series.push(bao_tree);
-            let mut cpu_lines: Vec<Option<Vec<Option<f64>>>> = algorithms.iter().map(|a| {
-                let line: Vec<Option<f64>> = measured.iter().map(|p| cpu(a, p.label)).collect();
-                line.iter().any(Option::is_some).then_some(line)
+            // A line of `col` for each contender (and bao-tree's, as above).
+            let lines = |col: &[(String, Vec<u64>)]| -> Vec<Option<Vec<Option<f64>>>> {
+                let mut lines: Vec<Option<Vec<Option<f64>>>> = algorithms.iter().map(|a| {
+                    let line: Vec<Option<f64>> = measured.iter().map(|p| column(col, a, p.label)).collect();
+                    line.iter().any(Option::is_some).then_some(line)
+                }).collect();
+                let bao = if matches!(use_case, UseCase::Outboard | UseCase::Verify) { official.and_then(|i| lines[i].take()) } else { None };
+                lines.push(bao);
+                lines
+            };
+            let (cpu_lines, energy_lines) = (lines(&file.cpu), lines(&file.energy));
+            // Each contender's code path at each measured point (bao-tree's: none).
+            let mut kernels: Vec<Option<Vec<String>>> = algorithms.iter().map(|a| {
+                let line = header(&file.headers, &format!("kernels {} {use_case:?}", a.key()));
+                let at: std::collections::HashMap<&str, &str> = line.split(" | ").filter_map(|kv| kv.split_once('=')).collect();
+                measured.iter().map(|p| at.get(p.label).map(|n| n.to_string())).collect::<Option<Vec<String>>>()
             }).collect();
-            let bao_tree_cpu = if matches!(use_case, UseCase::Outboard | UseCase::Verify) { official.and_then(|i| cpu_lines[i].take()) } else { None };
-            cpu_lines.push(bao_tree_cpu);
+            if matches!(use_case, UseCase::Outboard | UseCase::Verify) {
+                // Official's line here is bao-tree's, whose code paths these are not.
+                if let Some(i) = official { kernels[i] = None; }
+            }
+            kernels.push(None);
             cells.push((cell_key(scenario, use_case), Chart {
                 sizes: measured.iter().map(|p| p.label.to_owned()).collect(),
                 unit: "GB/s",
@@ -272,6 +296,8 @@ fn hashing(path: &Path) -> Section {
                 series,
                 before: Vec::new(),
                 cpu: cpu_lines,
+                energy: energy_lines,
+                kernels,
             }));
         }
     }
@@ -330,6 +356,12 @@ fn b3sum(path: &Path) -> Section {
             if points.is_empty() || names.iter().all(|n| points.iter().all(|p| cell(n, p).is_none())) {
                 continue;
             }
+            let lines = |col: &[(String, Vec<u64>)]| -> Vec<Option<Vec<Option<f64>>>> {
+                names.iter().map(|n| {
+                    let line: Vec<Option<f64>> = points.iter().map(|p| cell(n, p).and_then(|s| per_unit(col, &format!("{n}|{cache}|b3sum|{p}"), s))).collect();
+                    line.iter().any(Option::is_some).then_some(line)
+                }).collect()
+            };
             cells.push((format!("solo|{row}|{col}"), Chart {
                 sizes: points.iter().map(|p| p.to_string()).collect(),
                 unit: "GB/s",
@@ -340,11 +372,9 @@ fn b3sum(path: &Path) -> Section {
                 what: "a run",
                 series: names.iter().map(|n| points.iter().map(|p| cell(n, p).map(|s| mean_ns(s))).collect()).collect(),
                 before: Vec::new(),
-                cpu: names.iter().map(|n| {
-                    let key = |p: &str| format!("{n}|{cache}|b3sum|{p}");
-                    let line: Vec<Option<f64>> = points.iter().map(|p| cell(n, p).and_then(|s| cpu_ns(&file, &key(p), s))).collect();
-                    line.iter().any(Option::is_some).then_some(line)
-                }).collect(),
+                cpu: lines(&file.cpu),
+                energy: lines(&file.energy),
+                kernels: names.iter().map(|_| None).collect(),
             }));
         }
     }

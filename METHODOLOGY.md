@@ -473,6 +473,23 @@ gap's other work would count as the call's, and a shared sample none,
 since its two copies share the process. A b3sum row holds each run's CPU
 time as the OS counts it for the child process.
 
+**Energy.** The same samples record the CPU package's energy across each
+(`clocks::energy`, RAPL's `energy-pkg` on Linux, read outside the timed
+interval beside the CPU time), in the `energy nJ` column, and a b3sum row
+each run's. It is the whole package's: the call's on a quiet machine
+alone (every run's load is checked), and it counts the idle cores and the
+uncore beside the busy ones. RAPL updates about once a millisecond, about
+a sample's length, so one sample's reading is coarse; its rounding falls
+either way, so a cell's energy, all its samples' over all their units, is
+not biased by it. `compare` prints its ratio beside CPU time's, with no
+verdict.
+
+**Code paths.** The samples file names each contender's code path at
+every point (`# kernels CONTENDER USECASE: POINT=PATH | ...`), as the
+report's KERNELS section does, so a map drawn later or elsewhere marks
+them: an opened chart shows each point's path as a shape, keyed under its
+title.
+
 `bench-hashes regress [--full] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE...` judges two
 builds the same way: eight pairs of runs (`--pairs`), pair i running the i-th
 executable of each side, back to back in alternating order, over the

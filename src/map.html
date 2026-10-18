@@ -57,7 +57,7 @@ a.doc { color: inherit; text-decoration: underline dotted #9ca3af; text-underlin
 #tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
 </style></head><body>
 <h1>How fast BLAKE3 servil runs, beside other hashes</h1>
-<p class="sub">Each small chart is one measurement: its row is what a program hashes, its column how it calls. Point at a row's or a column's name to see what it means. Open a chart to read its values under the pointer or where you tap; a hash's name below a title hides or shows its lines, and the switch at the top shows each hash as a rate (bytes per second; knob up, higher is better) or a cost (nanoseconds per byte; knob down, lower is better), per second the program waits (wall-clock) or per second of processor time over all its threads (CPU, dotted).</p>
+<p class="sub">Each small chart is one measurement: its row is what a program hashes, its column how it calls. Point at a row's or a column's name to see what it means. Open a chart to read its values under the pointer or where you tap; a hash's name below a title hides or shows its lines, and the switch at the top shows each hash as a rate (bytes per second; knob up, higher is better) or a cost (nanoseconds per byte; knob down, lower is better), per second the program waits (wall-clock), per second of processor time over all its threads (CPU, dotted), or per joule the CPU package used (energy, dashed).</p>
 <div id="sections"></div>
 <div id="tip"></div>
 <script>
@@ -87,7 +87,7 @@ function glyph(kind, size = 20, color = "#4b5563") {
    height reads the same in every chart, whatever names are set aside. */
 function axisOf(S) {
   if (!S.axis) {
-    const vals = Object.values(S.cells).flatMap(c => c.series.concat(c.before, c.cpu).filter(Boolean).flat()).filter(v => v).map(shown);
+    const vals = Object.values(S.cells).flatMap(c => c.series.concat(c.before, c.cpu, c.energy).filter(Boolean).flat()).filter(v => v).map(shown);
     S.axis = [Math.log(Math.min(...vals)) - 0.1, Math.log(Math.max(...vals)) + 0.1];
   }
   return S.axis;
@@ -96,7 +96,12 @@ function axisOf(S) {
 function draw(S, c, w, h, axes) {
   const live = c.series.map((s, i) => s && S.shownNow[i] ? i : -1).filter(i => i >= 0);
   const [lo, hi] = axisOf(S);
-  const n = c.sizes.length, L = axes ? 70 : 8, R = axes ? 24 : 8, T = axes ? 40 : 8, B = axes ? 70 : 14;
+  /* An opened chart marks each point with its code path's shape, and keys
+     the shapes under its title: a line a contender whose path changes. */
+  const SHAPES = ["●", "◆", "■", "▲", "▼"];
+  const paths = i => c.kernels && c.kernels[i] ? [...new Set(c.kernels[i])] : [];
+  const keyed = axes && MEASURES.wall ? live.filter(i => paths(i).length > 1) : [];
+  const n = c.sizes.length, L = axes ? 70 : 8, R = axes ? 24 : 8, T = axes ? 40 + 15 * keyed.length : 8, B = axes ? 70 : 14;
   /* Sizes run edge to edge; separate cases sit in the middles of equal slots. */
   const x = k => n === 1 || c.cases ? L + (k + 0.5) * (w - L - R) / n : L + k * (w - L - R) / (n - 1);
   const y = v => h - B - (Math.log(v) - lo) / (hi - lo) * (h - T - B);
@@ -109,10 +114,11 @@ function draw(S, c, w, h, axes) {
       s += `<line x1="${L}" x2="${w - R}" y1="${y(v)}" y2="${y(v)}" stroke="#f3f4f6"/><text x="${L - 6}" y="${y(v) + 4}" font-size="11" fill="#6b7280" text-anchor="end">${+v.toPrecision(2)}</text>`;
     }
     /* The title runs up the axis; its arrow, beside its end, points up, as faster lines lie. */
-    const M = MEASURES, title0 = SHOW.cost
-      ? (M.wall && M.cpu ? "ns per byte (dotted: CPU ns per byte)" : M.cpu ? "CPU ns per byte" : "ns per byte")
-      : (M.wall && M.cpu ? `${c.unit} (dotted: GB per CPU-second)` : M.cpu ? "GB per CPU-second" : c.unit);
-    const mid = (T + h - B) / 2, title = `${title0}, ${SHOW.cost ? "lower" : "higher"} is ${M.wall ? "faster" : "cheaper"}`, half = title.length * 3.1;
+    /* The axis names every selected measure: solid, dotted, dashed. */
+    const M = MEASURES, names = SHOW.cost ? { wall: "ns per byte", cpu: "CPU ns per byte", energy: "nJ per byte" } : { wall: c.unit, cpu: "GB per CPU second", energy: "GB per joule" };
+    const on = ["wall", "cpu", "energy"].filter(m => M[m]), style = { wall: "", cpu: "dotted: ", energy: "dashed: " };
+    const title0 = on.length === 1 ? names[on[0]] : names[on[0]] + " (" + on.slice(1).map(m => style[m] + names[m]).join("; ") + ")";
+    const mid = (T + h - B) / 2, title = `${title0}, ${SHOW.cost ? "lower" : "higher"} is better`, half = title.length * 3.1;
     s += `<text x="14" y="${mid}" font-size="11" fill="#6b7280" transform="rotate(-90 14 ${mid})" text-anchor="middle">${title}</text>`;
     s += SHOW.cost
       ? `<path d="M10 ${mid + half + 4} V${mid + half + 18} M6.5 ${mid + half + 13} L10 ${mid + half + 18} L13.5 ${mid + half + 13}" stroke="#6b7280" stroke-width="1.3" fill="none"/>`
@@ -134,17 +140,18 @@ function draw(S, c, w, h, axes) {
     }
     if (pts.length <= 3 || c.cases) s += pts.filter(Boolean).map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="${axes ? 5 : 3}" fill="none" stroke="${S.colors[i]}" stroke-opacity=".7" stroke-width="1.5"/>`).join("");
   }
-  /* CPU time: the processor time a unit took, all the program's threads, dotted. */
-  if (MEASURES.cpu) for (const i of live) {
-    const line = c.cpu[i]; if (!line) continue;
+  /* CPU time (the processor time a unit took, all the program's threads)
+     dotted; energy (the CPU package's, a unit's share) dashed. */
+  for (const [m, dash, cap] of [["cpu", `0.1 ${axes ? 4 : 3}`, "round"], ["energy", axes ? "7 4" : "5 3", "butt"]]) if (MEASURES[m]) for (const i of live) {
+    const line = c[m][i]; if (!line) continue;
     const pts = line.map((v, k) => v ? [x(k), y(shown(v))] : null);
     let run = [];
     for (const p of pts.concat([null])) {
       if (p) { run.push(p); continue; }
-      if (run.length > 1 && !c.cases) s += `<polyline points="${run.map(p => p.map(q => q.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="${S.colors[i]}" stroke-dasharray="0.1 ${axes ? 4 : 3}" stroke-linecap="round" stroke-width="${axes ? 2.6 : 1.8}"/>`;
+      if (run.length > 1 && !c.cases) s += `<polyline points="${run.map(p => p.map(q => q.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="${S.colors[i]}" stroke-dasharray="${dash}" stroke-linecap="${cap}" stroke-width="${axes ? (m === "cpu" ? 2.6 : 2) : (m === "cpu" ? 1.8 : 1.4)}"/>`;
       run = [];
     }
-    if (pts.length <= 3 || c.cases) s += pts.filter(Boolean).map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="${axes ? 4 : 2.5}" fill="#fff" stroke="${S.colors[i]}" stroke-width="1.6" stroke-dasharray="1.5 1.5"/>`).join("");
+    if (pts.length <= 3 || c.cases) s += pts.filter(Boolean).map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="${axes ? 4 : 2.5}" fill="#fff" stroke="${S.colors[i]}" stroke-width="1.6" stroke-dasharray="${m === "cpu" ? "1.5 1.5" : "3 1.5"}"/>`).join("");
   }
   /* Dots after every line, the fastest at each point drawn last, on top:
      where two overlap, the faster one shows. */
@@ -156,10 +163,18 @@ function draw(S, c, w, h, axes) {
   }
   /* Slowest first, fastest last: where dots overlap, the fastest shows. */
   s += dots.sort((a, b) => a[0] - b[0]).map(d => d[1]).join("");
+  /* The code paths: a shape at every point where the path changes along the
+     line, and their key. */
+  keyed.forEach((i, row) => {
+    const ps = paths(i), shape = k => SHAPES[ps.indexOf(c.kernels[i][k]) % SHAPES.length];
+    c.series[i].forEach((v, k) => { s += `<text x="${x(k)}" y="${y(shown(v)) + 4}" font-size="12" text-anchor="middle" fill="${S.colors[i]}" stroke="#fff" stroke-width="2.5" paint-order="stroke">${shape(k)}</text>`; });
+    const key = ps.map((p, j) => `${SHAPES[j % SHAPES.length]} ${p.replace(/&/g, "&amp;").replace(/</g, "&lt;")}`).join("   ");
+    s += `<text x="${L}" y="${40 + 15 * row}" font-size="11" fill="#4b5563"><tspan fill="${S.colors[i]}" font-weight="600">${S.names[i]}</tspan>: ${key}</text>`;
+  });
   return { svg: s + "</svg>", x, n, L, R, w };
 }
 /* What the lines measure, for the whole page: wall-clock time by default. */
-const MEASURES = { wall: true, cpu: false };
+const MEASURES = { wall: true, cpu: false, energy: false };
 /* What a line's height is: a rate (bytes per second, higher is faster) by
    default, or a cost (nanoseconds per byte, lower is faster). */
 const SHOW = { cost: false };
@@ -185,16 +200,18 @@ function render() {
   sw.innerHTML = `<span class="track"><span class="knob"></span></span><span class="dir">${SHOW.cost ? "↓ lower is better" : "↑ higher is better"}</span>`;
   sw.onclick = () => { SHOW.cost = !SHOW.cost; SECTIONS.forEach(S => { delete S.axis; }); render(); reopen(); };
   measures.append(sw, "·");
-  const icon = dots => `<svg width="20" height="10"><line x1="2" x2="18" y1="5" y2="5" stroke="currentColor" stroke-width="${dots ? 2.2 : 1.8}" ${dots ? 'stroke-dasharray="0.1 3.5" stroke-linecap="round"' : ""}/></svg>`;
+  const icon = m => `<svg width="20" height="10"><line x1="2" x2="18" y1="5" y2="5" stroke="currentColor" stroke-width="${m === "cpu" ? 2.2 : 1.8}" ${m === "cpu" ? 'stroke-dasharray="0.1 3.5" stroke-linecap="round"' : m === "energy" ? 'stroke-dasharray="5 3"' : ""}/></svg>`;
+  /* Energy where any run counted it (a quiet machine's CPU package, solo cells). */
+  const counted = m => SECTIONS.some(S => Object.values(S.cells).some(c => c[m].some(Boolean)));
   const lines = SHOW.cost
-    ? [["wall", "wall-clock ns per byte", false, "Nanoseconds the program waits per byte hashed."], ["cpu", "CPU ns per byte", true, "Nanoseconds of processor time per byte hashed, every thread of the program summed: what the hash costs the machine."], ["energy", "nJ per byte", false, "Energy is not counted yet."]]
-    : [["wall", "GB per wall-clock second", false, "Bytes hashed per second the program waits."], ["cpu", "GB per CPU second", true, "Bytes hashed per second of processor time, every thread of the program summed: higher is cheaper for the machine. A hash on one thread draws both lines together."], ["energy", "GB per joule", false, "Energy is not counted yet."]];
+    ? [["wall", "wall-clock ns per byte", false, "Nanoseconds the program waits per byte hashed."], ["cpu", "CPU ns per byte", true, "Nanoseconds of processor time per byte hashed, every thread of the program summed: what the hash costs the machine."], ["energy", "nJ per byte", false, "Nanojoules the CPU package used per byte hashed (solo cells; the whole package's, on a quiet machine)."]]
+    : [["wall", "GB per wall-clock second", false, "Bytes hashed per second the program waits."], ["cpu", "GB per CPU second", true, "Bytes hashed per second of processor time, every thread of the program summed: higher is cheaper for the machine. A hash on one thread draws both lines together."], ["energy", "GB per joule", false, "Bytes hashed per joule the CPU package used (solo cells; the whole package's, on a quiet machine): higher is cheaper."]];
   for (const [m, label, dots, why] of lines) {
-    const b = document.createElement("button"); b.innerHTML = (m === "energy" ? "" : icon(dots)) + label; b.title = why;
-    if (m === "energy") { b.disabled = true; b.classList.add("off"); }
+    const b = document.createElement("button"); b.innerHTML = icon(m) + label; b.title = why;
+    if (m !== "wall" && !counted(m)) { b.disabled = true; b.classList.add("off"); b.title = `This run counted no ${m === "cpu" ? "CPU time" : "energy"}.`; }
     else {
       if (!MEASURES[m]) b.classList.add("off");
-      b.onclick = () => { MEASURES[m] = !MEASURES[m]; if (!MEASURES.wall && !MEASURES.cpu) MEASURES.wall = true; render(); reopen(); };
+      b.onclick = () => { MEASURES[m] = !MEASURES[m]; if (!MEASURES.wall && !MEASURES.cpu && !MEASURES.energy) MEASURES.wall = true; render(); reopen(); };
     }
     measures.appendChild(b);
   }
@@ -247,8 +264,8 @@ function render() {
           const cell = document.createElement("div"); cell.className = "cell";
           const key = `${layer}|${r}|${c}`, q = S.cells[key];
           if (q) {
-            const noCpu = MEASURES.cpu && !MEASURES.wall && !q.cpu.some(Boolean);
-            cell.innerHTML = draw(S, q, 208, 94, false).svg + (noCpu ? `<span class="note">no CPU time recorded for this way of calling</span>` : "") + `<span class="call"><a class="doc" href="${q.doc}" target="_blank" title="${q.call}: its documentation">${q.call}</a></span>`;
+            const nothing = !MEASURES.wall && !(MEASURES.cpu && q.cpu.some(Boolean)) && !(MEASURES.energy && q.energy.some(Boolean));
+            cell.innerHTML = draw(S, q, 208, 94, false).svg + (nothing ? `<span class="note">nothing selected is recorded for this way of calling</span>` : "") + `<span class="call"><a class="doc" href="${q.doc}" target="_blank" title="${q.call}: its documentation">${q.call}</a></span>`;
             cell.querySelector("a.doc").onclick = e => e.stopPropagation();
             cell.dataset.key = si + ":" + key;
             cell.onclick = () => open(S, g, cell, q, r, c, layer);
@@ -310,7 +327,9 @@ function open(S, grid, cell, q, row, col, layer) {
     const was = i => { const v = S.besideNow && q.before[i] && q.before[i][k]; return v ? ` <span class="was">(before: ${(1 / v).toPrecision(3)}; now ×${(v / q.series[i][k]).toFixed(2)})</span>` : ""; };
     const time = ns => ns >= 1e6 ? (ns / 1e6).toPrecision(3) + " ms" : ns >= 1e3 ? (ns / 1e3).toPrecision(3) + " µs" : ns.toPrecision(3) + " ns";
     const cpuOf = i => { const v = q.cpu[i] && q.cpu[i][k]; return v ? `${M.wall ? "; " : ""}CPU ${SHOW.cost ? v.toPrecision(3) + " ns/B · " : ""}${time(v * q.per[k])} ${q.what}` : M.wall ? "" : "no CPU time recorded"; };
-    tip.innerHTML = `<b>${q.sizes[k]}</b><br>` + rows.map(([i, rate, t]) => `<span class="sw" style="background:${S.colors[i]}"></span>${S.names[i]}: ` + (M.wall ? `${SHOW.cost ? t.toPrecision(3) + " ns/B" : rate.toPrecision(3) + " " + q.unit} · ${time(t * q.per[k])} ${q.what}${was(i)}` : "") + (M.cpu ? cpuOf(i) : "")).join("<br>");
+    const energyOf = i => { const v = q.energy[i] && q.energy[i][k]; if (!v) return ""; const nj = v * q.per[k]; return `${M.wall || M.cpu ? "; " : ""}energy ${SHOW.cost ? v.toPrecision(3) + " nJ/B · " : (1 / v).toPrecision(3) + " GB/J · "}${nj >= 1e6 ? (nj / 1e6).toPrecision(3) + " mJ" : nj >= 1e3 ? (nj / 1e3).toPrecision(3) + " µJ" : nj.toPrecision(3) + " nJ"} ${q.what}`; };
+    const path = i => q.kernels && q.kernels[i] ? ` <span class="was">(${q.kernels[i][k]})</span>` : "";
+    tip.innerHTML = `<b>${q.sizes[k]}</b><br>` + rows.map(([i, rate, t]) => `<span class="sw" style="background:${S.colors[i]}"></span>${S.names[i]}: ` + (M.wall ? `${SHOW.cost ? t.toPrecision(3) + " ns/B" : rate.toPrecision(3) + " " + q.unit} · ${time(t * q.per[k])} ${q.what}${was(i)}${path(i)}` : "") + (M.cpu ? cpuOf(i) : "") + (M.energy ? energyOf(i) : "")).join("<br>");
     tip.style.display = "block";
     tip.style.left = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8) + "px";
     /* Above a finger, which would hide it; below a mouse pointer. */
