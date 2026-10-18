@@ -195,7 +195,9 @@ fn details(headers: &[(String, String)], load: &str, power: &str, samples: &str)
     let servil = header(headers, "blake3-servil source");
     if let Some(at) = servil.split("; commit ").nth(1) {
         let fork = at.split([';', ' ']).next().unwrap_or("");
-        add("BLAKE3 servil", format!("github.com/johnservil/BLAKE3 at {fork}"), format!("https://github.com/johnservil/BLAKE3/tree/{fork}"));
+        // The repository the run's code came from, as its header records it.
+        let repo = servil.split("; source https://").nth(1).and_then(|r| r.split(';').next()).expect("the blake3-servil source names its repository");
+        add("BLAKE3 servil", format!("{repo} at {fork}"), format!("https://{repo}/tree/{fork}"));
     }
     for (label, key) in [("BLAKE3 official", "blake3 source"), ("SHA-256", "sha256 source")] {
         add(label, header(headers, key).split(';').next().unwrap_or("").to_owned(), String::new());
@@ -309,7 +311,7 @@ fn b3sum(path: &Path) -> Section {
                 sizes: points.iter().map(|p| p.to_string()).collect(),
                 unit: "GB/s",
                 call: "b3sum".to_owned(),
-                doc: "https://github.com/johnservil/BLAKE3/tree/servil/b3sum".to_owned(),
+                doc: "https://github.com/devonjonte/BLAKE3/tree/servil/b3sum".to_owned(),
                 cases: row == "tree",
                 per: points.iter().map(|p| names.iter().find_map(|n| cell(n, p)).map_or(0, |s| s[0].units)).collect(),
                 what: "a run",
