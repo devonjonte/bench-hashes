@@ -36,9 +36,9 @@ work stands and what comes next; its history is in git.
 
 1. `sh tools/verify/long-proofs.sh servil`: the first whole run with
    `x2_every` (expect about an hour: it runs first, beside the rest).
-2. The whole mutation run on `servil`, after the proofs: run beside
-   them, the pool's chance survivors flip, and the check fails on noise.
-   The list matches an idle run on fc9903b.
+2. The whole mutation run on `servil`, after the proofs and with nothing
+   else running: beside other work the pool's chance survivors flip, and
+   the check fails on noise. The list matches an idle run on fc9903b.
 
 ## Next, in order
 
