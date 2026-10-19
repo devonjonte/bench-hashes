@@ -32,7 +32,7 @@ the rule itself.
 | choice | evidence | what it gives up |
 |---|---|---|
 | A run's **mean**, not a median or a fast speed (October 2) | Calibration with planted slowdowns, Mac jobs 1164-1167 (the fork's NOTES, "The regression check, calibrated"): at +6% the fast speed never caught 1 MiB (0 of 18); the mean caught all three cells nearly every time. | Nothing callers pay; a cell's two speeds stay visible in its samples. |
-| **Pairs of runs**, alternating (October 2) | Most uncertainty lies between processes: code placement, thread placement, the speed a cell settles into. Twelve samples or twenty-four gave the same between-run spread (September 26, ae3b7662); one binary's run means varied 1.49 times what its samples predict (audit/variance-on-unchanged-code.md). | The time of a second side's runs. |
+| **Pairs of runs**, alternating (October 2) | Most uncertainty lies between processes: code placement, thread placement, the speed a cell settles into. Twelve samples or twenty-four gave the same between-run spread (September 26, ae3b7662); one binary's run means varied 1.49 times what its samples predict (audit/variance-on-unchanged-code.md at commit `aadeca9d`). | The time of a second side's runs. |
 | **A fresh link layout per pair** (October 16) | A binary's layout moves the cells of calls made now and then by several percent, fixed for every run of that binary: alternation cannot cancel it. Two links of one source gave 27 false verdicts in 700 cells (the audit). | A relink per pair (seconds), done by `perf_regress`. |
 | **All cells judged at once**, false discovery rate 5% (October 16, Zooko) | A per-cell test at a few percent, over 700 cells, flags 15-27 cells of unchanged code; the sign test cannot go stricter with few pairs (8 pairs: best p = 1/256). With the rule: 0 of 700 in three unchanged-code controls, and the code's real changes found (the audit). | Floating point inside the t-test, which the statistics need. |
 | **A 3% margin** (October 2) | The planted calibration: +3% caught about half the time, +6% nearly always; one layout-only change in eight held at the lent 64 B cell near 3%. | Changes under 3% pass one commit at a time; the release check (`--against` the last release) sees their sum. |
@@ -60,7 +60,7 @@ Five patterns, each seen in the history:
    `tools/fresh-layouts.sh`, and private scripts each ran pairs slightly
    differently. **One driver; improve it instead of writing another.**
 4. **Reasons kept apart from the rule.** The calibrations live in the fork's
-   NOTES, the causes in `audit/`, the decisions in pull requests. Documents
+   NOTES, the causes in bench-hashes' audits (at commit `aadeca9d`), the decisions in pull requests. Documents
    described the rule as it stood, without the alternatives already tried.
    **This file holds them.**
 5. **Each fix revealed the next noise source.** Layout luck, then the slow

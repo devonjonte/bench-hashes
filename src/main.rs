@@ -1033,7 +1033,7 @@ impl Scenario {
     /// Whether this scenario measures `use_case`. Two copies at once
     /// measure the nonstop use cases alone: after a gap, a copy whose twin
     /// had just run the same code met that code in a cache the gap left
-    /// warm, and read faster than one program alone (bench-hashes NOTES,
+    /// warm, and read faster than one program alone (bench-hashes NOTES at aadeca9d,
     /// "Shared after a gap"; Zooko, September 30, 2026).
     fn measures(self, use_case: UseCase) -> bool {
         self == Self::Solo || !use_case.after_gap()
@@ -4121,7 +4121,7 @@ fn read_samples(path: &str) -> SamplesFile {
  * three pairs. For two builds, `regress` (through the fork's
  * tools/perf_regress.py, which relinks each side with a fresh layout per
  * pair) runs and judges the pairs itself: link layout moves cold calls'
- * cells by itself (audit/variance-on-unchanged-code.md).
+ * cells by itself (audit/variance-on-unchanged-code.md at aadeca9d).
  */
 /// The false discovery rate `compare` holds its verdicts to, over all the
 /// cells it judges.
@@ -4206,7 +4206,7 @@ fn geometric_mean(values: impl Iterator<Item = u128>) -> u128 {
  * slower than the old, measured on this machine (the fork's
  * tools/perf_regress.py builds them: each side relinked with a fresh
  * function order for every pair, since a binary's layout alone moves
- * cells, audit/variance-on-unchanged-code.md). REGRESS_PAIRS pairs of
+ * cells, audit/variance-on-unchanged-code.md at aadeca9d). REGRESS_PAIRS pairs of
  * runs, pair i running the i-th executable of each side (round robin),
  * back to back in alternating order (A B, B A, ...), each over
  * REGRESS_POINTS (with --full, a default run's every cell; with

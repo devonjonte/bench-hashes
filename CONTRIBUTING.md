@@ -121,7 +121,8 @@ the page", has the whole practice. Check a change with
 
 ## Maintainers' notes
 
-`AGENTS.md`, `PROCEDURES.md`, `NEXT-STEPS.md`, and `NOTES.md` are the maintainers' working
-notes: environment, current work, and the reasoning behind past
-decisions. Contributing needs none of them; `NOTES.md` explains why the
-measurement works as it does, should you want to change it.
+`AGENTS.md`, `PROCEDURES.md` and `NEXT-STEPS.md` are the maintainers' working
+notes: principles, environment, and current work. Contributing needs none
+of them. `METHODOLOGY.md` explains why the measurement works as it does,
+should you want to change it; earlier findings are in `git log`, and in the
+notes the tree held until commit `aadeca9d`.
