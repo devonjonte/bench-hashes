@@ -514,7 +514,7 @@ link layout per pair (the fork's `tools/perf_regress.py` relinks each
 side with a random function order): a binary's layout alone moves the
 cells of calls made now and then by several percent, and the same
 binary's runs differ with the address layout each process gets
-([audit/variance-on-unchanged-code.md](audit/variance-on-unchanged-code.md)).
+(`audit/variance-on-unchanged-code.md` at commit `aadeca9d`).
 On an i7-12700K, unchanged code read level in all 700 cells this way,
 where a sign test per cell had flagged 15-27. The queue's cells and the
 shared scenario stay out of the default check: on identical code the
@@ -752,3 +752,59 @@ subtracted. Each sample records, solo, the process's CPU time across it
 `shared` two at once, each with its own samples (their CPU time is both
 programs', so none is recorded). It writes `leaves.samples.tsv` in the
 main run's samples format, which `bench-hashes compare` reads.
+
+## Choices that stay settled, and why
+
+**The bytes hashed.** In memory, any bytes the program has written: their
+values change no contender's speed. Never memory read before it is
+written (uninitialised, or zeroed by the allocator without a write): the
+operating system backs a page nobody has written with one shared page of
+zeros, so a 64 MiB input would be read from one 4 KiB page in the L1
+cache, faster than any real data; and in Rust, reading uninitialised
+memory is undefined behaviour. The benchmark writes little-endian 64-bit
+counter words (`seed << 48 | index`, `make_input`) once, outside the timed
+work, so every block differs. Files on storage (`bench-hashes b3sum`)
+hold BLAKE3's extended output of their names: a filesystem or a drive
+that compresses would read zeros or counters from storage almost for free.
+
+**No contender's correctness is checked here.** That is each contender's
+own tests' business (the fork's `QUALITY.md`). The timed loop hands every
+digest to `black_box`, and the harness's tests check its own work: that
+each call's digest reaches its slot, and that each input of a collection
+or batch reaches the hash, in order.
+
+**Wall time is the basis.** Cycles per byte would hide a slowdown the
+core's cycle counter does not see (time waiting on Apple's SME unit: a
+25% slower SME2 batch cell read the same cycles per message), and a
+contender's own power draw throttling the clock is a cost its user pays.
+CPU time and energy are recorded beside wall time, never in its place.
+
+**The default roster is fixed:** BLAKE3 servil st and mt, and SHA-256 by
+two crates, sha2 and ring, since neither leads everywhere (on an Apple M4
+Max sha2 leads at 64 B and 128 B and in 64-byte batches, ring from
+256 B). `--all` adds the rest; the map opens showing servil mt, SHA-256
+ring and official BLAKE3 (`SHOWN_AT_FIRST`), the others a click away.
+
+**BLAKE3 commonware** (commonwarexyz/monorepo at 25851f1) gives BLAKE3
+batch kernels of its own, so it takes part in the batch use cases alone;
+its other calls are official BLAKE3's. Its default features stay on (x86's
+run-time AVX detection needs "std"), about 20 s of build. It stays while
+it pays for that.
+
+## What a contender could do that the benchmark would reward
+
+None of these is detected automatically; watch for them when reading a
+result.
+
+- **Caching across calls.** Every batch hashes the same buffer
+  `iterations` times; a contender that memoised on pointer and length
+  would score without limit. Inputs pass through `black_box`, but the
+  bytes don't change. A defence, if one is ever needed: rotate among
+  equal-size buffers, at a cache cost every contender would pay.
+- **Knowing the harness's thread count.** The shared scenario runs exactly
+  two copies; a multithreaded contender could detect that. More copies
+  (devonjonte/bench-hashes#1) would make it harder.
+- **Workers that stay hot.** A contender whose workers keep polling
+  between calls looks better in a tight loop than in a program that hashes
+  once a second; the after-idling cells (a 1 ms sleep before each call)
+  and CPU time and energy beside wall time show what it costs.
