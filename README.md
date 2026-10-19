@@ -1,5 +1,8 @@
 # bench-hashes
 
+> **Latest results:** https://devonjonte.github.io/bench-hashes/ (an i7-12700K on Linux:
+> hashing in memory and b3sum on files, with CPU time and energy beside wall time).
+>
 > **This is Devon Jonte's fork** (`devonjonte/bench-hashes`, branch `main`): John
 > Servil's `main` plus changes decided here first, each also open as a pull request to
 > `johnservil/bench-hashes` (#45, #46, #47). It measures with Devon Jonte's line of
