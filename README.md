@@ -66,9 +66,21 @@ objects, a store's files), a message with its outboard, for verified
 streaming, and a message received in that form, verified as it arrives. Its columns say how the program calls: now and then, *after
 other work* or *after a pause*, and nonstop, *waiting for each call* or
 *pipelined*; point at a row's or a column's name, or tap it, to see
-what it means. Higher lines are faster. Open a chart to read its values
-under the pointer or where you tap; a hash's name hides or shows its
-lines; each call's name links to its documentation.
+what it means. Open a chart to read its values under the pointer or
+where you tap; a hash's name hides or shows its lines; each call's name
+links to its documentation.
+
+The bar at the top stays in view as you scroll. Its switch shows each
+hash as a rate, knob up (bytes per second: higher is better), or as a
+cost, knob down (nanoseconds per byte: lower is better). Its chips choose
+what a line's height counts: per second the program waits (solid, the
+default), per second of processor time across all its threads (dotted),
+or per joule the CPU package used (dashed, where the computer counts
+energy). A hash on one thread draws its first two together; a
+multithreaded one shows here what its speed costs the machine. An opened
+chart marks each point's code path with a shape, and its values say where
+the program's thread ran (performance or efficiency cores, and at what
+clock).
 
 Under each section's title the map says where and when the run was made,
 and whether other programs kept the computer busy; "About this run" says
