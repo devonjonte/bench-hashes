@@ -432,6 +432,11 @@ struct RunSamples {
     /// Each solo sample's CPU-package energy in nanojoules
     /// (DuoCopy::energy_nj), as solo_cpu_ns.
     solo_energy_nj: Vec<Vec<Vec<Option<u64>>>>,
+    /// Each sample's calling-thread counts per core kind (clocks::Counts),
+    /// solo and shared as their samples: which kind of core ran it, and
+    /// at what clock. None where the platform counts none.
+    solo_counts: Vec<Vec<Vec<Option<clocks::Counts>>>>,
+    shared_counts: Vec<Vec<Vec<Option<clocks::Counts>>>>,
 }
 
 /*
@@ -1680,7 +1685,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
         shared: empty(),
         solo_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
         shared_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
-        solo_cpu_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], solo_energy_nj: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+        solo_cpu_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], solo_energy_nj: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], solo_counts: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], shared_counts: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
     };
     let mut batch_iterations: Vec<Vec<usize>> = vec![vec![1usize; POINT_COUNT]; roster.len()];
     let point_orders: Vec<_> = POINTS.iter()
@@ -1804,9 +1809,11 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
                     samples.solo_started_ns[algorithm_index][size_index].push(started_ns);
                     samples.solo_cpu_ns[algorithm_index][size_index].push(cpu_ns);
                     samples.solo_energy_nj[algorithm_index][size_index].push(energy_nj);
+                    samples.solo_counts[algorithm_index][size_index].push(counts);
                     for copy in copies.iter().flatten() {
                         samples.shared[algorithm_index][size_index].push(per_unit(copy.elapsed_ns));
                         samples.shared_started_ns[algorithm_index][size_index].push(copy.started_ns);
+                        samples.shared_counts[algorithm_index][size_index].push(copy.counts);
                     }
 
                     if let Some(trace) = trace.as_deref_mut() {
@@ -4032,7 +4039,17 @@ fn append_kernel_report(output: &mut String, algorithm: Algorithm, use_case: Use
 /// (read_samples) requires: a file in another format is read with the
 /// tools of the commit that wrote it.
 const SAMPLES_VERSION: &str = "# bench-hashes samples v6";
-const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ";
+const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts";
+
+/// A row's `core counts` field: each sample's calling-thread counts per
+/// core kind, `P time ns:P cycles:E time ns:E cycles`, or `-` where a
+/// cell's samples carry none (a platform without per-thread counts).
+fn counts_field(counts: &[Option<clocks::Counts>]) -> String {
+    match counts.iter().copied().collect::<Option<Vec<clocks::Counts>>>() {
+        Some(c) if !c.is_empty() => c.iter().map(|c| format!("{}:{}:{}:{}", c.p.time_ns, c.p.cycles, c.e.time_ns, c.e.cycles)).collect::<Vec<_>>().join(","),
+        _ => "-".to_string(),
+    }
+}
 
 /// A row's `cpu ns` or `energy nJ` field: each sample's, or `-` where a
 /// cell has none (a sample after gaps, a shared one, no such counter).
@@ -4059,6 +4076,9 @@ struct SamplesFile {
     /// The cells whose samples carry the CPU package's energy: each
     /// sample's, in nanojoules, in the same order.
     energy: Vec<(String, Vec<u64>)>,
+    /// The cells whose samples carry the calling thread's counts per core
+    /// kind: each sample's [P time ns, P cycles, E time ns, E cycles].
+    cores: Vec<(String, Vec<[u64; 4]>)>,
 }
 
 fn read_samples(path: &str) -> SamplesFile {
@@ -4072,6 +4092,7 @@ fn read_samples(path: &str) -> SamplesFile {
     let mut cells = Vec::new();
     let mut cpu = Vec::new();
     let mut energy = Vec::new();
+    let mut cores = Vec::new();
     for line in lines {
         if let Some(rest) = line.strip_prefix("# load: ") {
             load = Some(rest.to_owned());
@@ -4086,7 +4107,7 @@ fn read_samples(path: &str) -> SamplesFile {
             columns = true;
         } else {
             let fields: Vec<&str> = line.split('\t').collect();
-            assert_eq!(fields.len(), 9, "{path}: a row of nine fields: {line}");
+            assert_eq!(fields.len(), 10, "{path}: a row of ten fields: {line}");
             let samples: Vec<Measured> = fields[5].split(',').map(|sample| {
                 let (ns, units) = sample.split_once('/').expect("ns/units");
                 Measured::new(ns.parse().expect("ns"), units.parse().expect("units"))
@@ -4103,10 +4124,18 @@ fn read_samples(path: &str) -> SamplesFile {
                 assert_eq!(nj.len(), samples.len(), "{path}: an energy for every sample of {key}");
                 energy.push((key.clone(), nj));
             }
+            if fields[9] != "-" {
+                let c: Vec<[u64; 4]> = fields[9].split(',').map(|sample| {
+                    let v: Vec<u64> = sample.split(':').map(|x| x.parse().expect("a count")).collect();
+                    v.try_into().expect("P time, P cycles, E time, E cycles")
+                }).collect();
+                assert_eq!(c.len(), samples.len(), "{path}: counts for every sample of {key}");
+                cores.push((key.clone(), c));
+            }
             cells.push((key, samples));
         }
     }
-    SamplesFile { headers, load: load.unwrap_or_else(|| panic!("{path}: a load line")), power: power.unwrap_or_else(|| panic!("{path}: a power line")), cells, cpu, energy }
+    SamplesFile { headers, load: load.unwrap_or_else(|| panic!("{path}: a load line")), power: power.unwrap_or_else(|| panic!("{path}: a power line")), cells, cpu, energy, cores }
 }
 
 /*
@@ -4575,13 +4604,13 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
                 let starts: Vec<String> = cell_starts.iter()
                     .map(|ns| (ns / 1_000_000).to_string())
                     .collect();
-                let (cpu, energy) = match scenario {
-                    Scenario::Solo => (cpu_field(&samples.solo_cpu_ns[algorithm_index][point_index]), cpu_field(&samples.solo_energy_nj[algorithm_index][point_index])),
-                    Scenario::Shared => ("-".to_string(), "-".to_string()),
+                let (cpu, energy, counts) = match scenario {
+                    Scenario::Solo => (cpu_field(&samples.solo_cpu_ns[algorithm_index][point_index]), cpu_field(&samples.solo_energy_nj[algorithm_index][point_index]), counts_field(&samples.solo_counts[algorithm_index][point_index])),
+                    Scenario::Shared => ("-".to_string(), "-".to_string(), counts_field(&samples.shared_counts[algorithm_index][point_index])),
                 };
                 writeln!(
                     out,
-                    "{}\t{}\t{:?}\t{}\t{}\t{}\t{}\t{}\t{}",
+                    "{}\t{}\t{:?}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                     algorithm.key(),
                     scenario.key(),
                     point.use_case,
@@ -4591,6 +4620,7 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
                     starts.join(","),
                     cpu,
                     energy,
+                    counts,
                 )
                 .unwrap();
             }
@@ -5057,7 +5087,7 @@ mod correctness_tests {
         let mut samples = RunSamples { solo: empty(), shared: empty(),
             solo_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
             shared_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
-            solo_cpu_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], solo_energy_nj: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
+            solo_cpu_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], solo_energy_nj: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], solo_counts: vec![vec![Vec::new(); POINT_COUNT]; roster.len()], shared_counts: vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
         let mut results: Results = vec![vec![None; POINT_COUNT]; roster.len()];
         for a in 0..roster.len() {
             for &p in &roster.points {
@@ -5073,6 +5103,8 @@ mod correctness_tests {
                     samples.solo_started_ns[a][p].push(r as u64 * 1_000_000);
                     samples.solo_cpu_ns[a][p].push(Some(2 * value(a, p, r)));
                     samples.solo_energy_nj[a][p].push(Some(3 * value(a, p, r)));
+                    let level = |cycles, time_ns| clocks::Level { cycles, instructions: 0, time_ns };
+                    samples.solo_counts[a][p].push(Some(clocks::Counts { p: level(4 * value(a, p, r), value(a, p, r)), e: level(0, 0) }));
                 }
                 results[a][p] = Some(Cell {
                     solo: Mean::of(&samples.solo[a][p]),
@@ -5167,9 +5199,9 @@ mod correctness_tests {
         assert_eq!(&harness_tests::header_keys(&tsv)[..harness_tests::PROVENANCE.len()], harness_tests::PROVENANCE, "{tsv}");
         assert!(tsv.contains("\n# load: busy: "), "{tsv}");
         assert!(tsv.contains("\n# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1:1200:0,1-3:100:7\n"), "{tsv}");
-        assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\n"));
-        assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\t30000,30003,30006\n"), "{tsv}");
-        assert!(tsv.contains("\nblake3-servil-st\tshared\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\t-\t-\n"), "{tsv}");
+        assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\n"));
+        assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\t30000,30003,30006\t10000:40000:0:0,10001:40004:0:0,10002:40008:0:0\n"), "{tsv}");
+        assert!(tsv.contains("\nblake3-servil-st\tshared\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\t-\t-\t-\n"), "{tsv}");
         assert!(!tsv.contains("\tshared\tOneMessage\t"), "calls after a gap run alone: {tsv}");
     }
 
@@ -5206,6 +5238,10 @@ mod correctness_tests {
                     let energy = read.energy.iter().find(|(k, _)| *k == key).map(|(_, nj)| nj.clone());
                     let wanted = (scenario == "solo").then(|| samples.solo_energy_nj[a][p].iter().map(|nj| nj.unwrap()).collect::<Vec<u64>>());
                     assert_eq!(energy, wanted, "{key}'s energy");
+                    // Core counts alike (the helper gives solo samples counts, shared none).
+                    let cores = read.cores.iter().find(|(k, _)| *k == key).map(|(_, c)| c.clone());
+                    let wanted = (scenario == "solo").then(|| samples.solo_counts[a][p].iter().map(|c| { let c = c.unwrap(); [c.p.time_ns, c.p.cycles, c.e.time_ns, c.e.cycles] }).collect::<Vec<[u64; 4]>>());
+                    assert_eq!(cores, wanted, "{key}'s core counts");
                     checked += 1;
                 }
             }

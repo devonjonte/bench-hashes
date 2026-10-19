@@ -68,6 +68,14 @@ fn per_unit(column: &[(String, Vec<u64>)], key: &str, samples: &[super::Measured
     Some(v.iter().map(|&n| u128::from(n)).sum::<u128>() as f64 / units as f64).filter(|&x| x > 0.0)
 }
 
+/// A cell's core counts summed over its samples: [E share, P GHz, E GHz].
+fn where_ran(column: &[(String, Vec<[u64; 4]>)], key: &str) -> Option<[f64; 3]> {
+    let (_, v) = column.iter().find(|(k, _)| k == key)?;
+    let [pt, pc, et, ec] = v.iter().fold([0u128; 4], |a, c| [a[0] + u128::from(c[0]), a[1] + u128::from(c[1]), a[2] + u128::from(c[2]), a[3] + u128::from(c[3])]);
+    let ghz = |cycles: u128, ns: u128| if ns > 0 { cycles as f64 / ns as f64 } else { 0.0 };
+    (pt + et > 0).then(|| [et as f64 / (pt + et) as f64, ghz(pc, pt), ghz(ec, et)])
+}
+
 /// `text` as a JSON string, safe inside a script element.
 fn json(text: &str) -> String {
     let mut out = String::from("\"");
@@ -106,6 +114,10 @@ struct Chart {
     /// The code path each contender ran at each point, as the run recorded
     /// it (`# kernels` headers): None where it recorded none.
     kernels: Vec<Option<Vec<String>>>,
+    /// Where the calling thread ran at each point, by contender, from the
+    /// samples' core counts: [share of its time on E cores, P GHz, E GHz]
+    /// (a clock 0 where it spent no time on that kind); None where none.
+    cores: Vec<Option<Vec<Option<[f64; 3]>>>>,
 }
 
 impl Chart {
@@ -120,9 +132,13 @@ impl Chart {
             Some(v) => format!("[{}]", v.iter().map(|x| x.map_or("null".to_owned(), |x| format!("{x:.6}"))).collect::<Vec<_>>().join(",")),
             None => "null".to_owned(),
         }).collect::<Vec<String>>().join(",");
-        format!("{{\"sizes\":[{}],\"unit\":{},\"call\":{},\"doc\":{},\"cases\":{},\"per\":[{}],\"what\":{},\"series\":[{}],\"before\":[{}],\"cpu\":[{}],\"energy\":[{}],\"kernels\":[{}]}}",
+        format!("{{\"sizes\":[{}],\"unit\":{},\"call\":{},\"doc\":{},\"cases\":{},\"per\":[{}],\"what\":{},\"series\":[{}],\"before\":[{}],\"cpu\":[{}],\"energy\":[{}],\"kernels\":[{}],\"cores\":[{}]}}",
             sizes.join(","), json(self.unit), json(&self.call), json(&self.doc), self.cases, per.join(","), json(self.what), series.join(","), optional(&self.before), optional(&self.cpu), optional(&self.energy),
-            self.kernels.iter().map(|k| match k { Some(v) => format!("[{}]", v.iter().map(|n| json(n)).collect::<Vec<_>>().join(",")), None => "null".to_owned() }).collect::<Vec<_>>().join(","))
+            self.kernels.iter().map(|k| match k { Some(v) => format!("[{}]", v.iter().map(|n| json(n)).collect::<Vec<_>>().join(",")), None => "null".to_owned() }).collect::<Vec<_>>().join(","),
+            self.cores.iter().map(|c| match c {
+                Some(v) => format!("[{}]", v.iter().map(|x| x.map_or("null".to_owned(), |[e, p, q]| format!("[{e:.4},{p:.3},{q:.3}]"))).collect::<Vec<_>>().join(",")),
+                None => "null".to_owned(),
+            }).collect::<Vec<_>>().join(","))
     }
 }
 
@@ -281,6 +297,12 @@ fn hashing(path: &Path) -> Section {
                 let at: std::collections::HashMap<&str, &str> = line.split(" | ").filter_map(|kv| kv.split_once('=')).collect();
                 measured.iter().map(|p| at.get(p.label).map(|n| n.to_string())).collect::<Option<Vec<String>>>()
             }).collect();
+            let mut cores: Vec<Option<Vec<Option<[f64; 3]>>>> = algorithms.iter().map(|a| {
+                let line: Vec<Option<[f64; 3]>> = measured.iter().map(|p| where_ran(&file.cores, &format!("{}|{scenario}|{use_case:?}|{}", a.key(), p.label))).collect();
+                line.iter().any(Option::is_some).then_some(line)
+            }).collect();
+            let bao_cores = if matches!(use_case, UseCase::Outboard | UseCase::Verify) { official.and_then(|i| cores[i].take()) } else { None };
+            cores.push(bao_cores);
             if matches!(use_case, UseCase::Outboard | UseCase::Verify) {
                 // Official's line here is bao-tree's, whose code paths these are not.
                 if let Some(i) = official { kernels[i] = None; }
@@ -299,6 +321,7 @@ fn hashing(path: &Path) -> Section {
                 cpu: cpu_lines,
                 energy: energy_lines,
                 kernels,
+                cores,
             }));
         }
     }
@@ -383,6 +406,7 @@ fn b3sum(path: &Path) -> Section {
                 cpu: lines(&file.cpu),
                 energy: lines(&file.energy),
                 kernels: names.iter().map(|_| None).collect(),
+                cores: names.iter().map(|_| None).collect(),
             }));
         }
     }
