@@ -754,9 +754,10 @@ impl Algorithm {
     /// out of the batch use cases: `update_rayon` exists for large inputs,
     /// and a 64-byte message is a call to it that no program would make.
     /// The fork's multithreaded contender takes part through its batch
-    /// entry point, `hash_many_multithreaded`, and its queue. BLAKE3
-    /// servil st stays out of the continuous use cases: the fork's answer
-    /// to a continuous load is its multithreaded queue (FROZEN.md).
+    /// entry point, `hash_many_multithreaded`, and its stream. BLAKE3
+    /// servil st takes part in the continuous use cases as every hash
+    /// without a stream does, on the program's thread: a program that keeps
+    /// to one thread hashes its inputs so (FROZEN.md).
     /// BLAKE3 commonware takes part in the batches alone: its other calls
     /// are BLAKE3 official's.
     fn takes_part(self, use_case: UseCase) -> bool {
@@ -766,8 +767,8 @@ impl Algorithm {
         }
         match use_case {
             UseCase::ManyMessages | UseCase::IdleManyMessages | UseCase::LentBatches => !matches!(self, Self::Blake3Rayon),
-            UseCase::ContinuousBatches => !matches!(self, Self::Blake3Rayon | Self::Blake3ServilSt),
-            UseCase::ContinuousMessages => !matches!(self, Self::Blake3ServilSt),
+            UseCase::ContinuousBatches => !matches!(self, Self::Blake3Rayon),
+            UseCase::ContinuousMessages => true,
             UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::LentMessages | UseCase::Interleaved | UseCase::Collection => true,
             UseCase::Outboard => matches!(self, Self::Blake3 | Self::Blake3ServilSt | Self::Blake3ServilMt),
             UseCase::Verify => matches!(self, Self::Blake3 | Self::Blake3ServilSt | Self::Blake3ServilMt),
@@ -2832,13 +2833,15 @@ thread_local! {
  * these.
  */
 #[cfg(test)]
-const SERVIL_CALLS: [(Algorithm, UseCase, &str); 22] = [
+const SERVIL_CALLS: [(Algorithm, UseCase, &str); 24] = [
     (Algorithm::Blake3ServilSt, UseCase::OneMessage, "hash(input), each call after other work"),
     (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "hash_many(batch, 64, out), the padded batch contract, each call after other work"),
     (Algorithm::Blake3ServilMt, UseCase::OneMessage, "hash_multithreaded(input), each call after other work"),
     (Algorithm::Blake3ServilMt, UseCase::ManyMessages, "hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after other work"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "stream(Mode::Hash, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "stream(Mode::Hash, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again"),
+    (Algorithm::Blake3ServilSt, UseCase::ContinuousMessages, "hash(input), one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)"),
+    (Algorithm::Blake3ServilSt, UseCase::ContinuousBatches, "hash_many(batch, 64, out), the padded batch contract, one batch after another, each read into a kept buffer of the program's and hashed on its thread"),
     (Algorithm::Blake3ServilSt, UseCase::LentMessages, "hash(input), one message after another, each read into a kept buffer and lent until the call returns"),
     (Algorithm::Blake3ServilSt, UseCase::Interleaved, "a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; Hasher::update_each per turn, then Hasher::finalize_each for the messages that ended in it, each buffer lent until the calls return"),
     (Algorithm::Blake3ServilSt, UseCase::Collection, "hash_each_with(Mode::Hash, items, out), every item of the collection in one call, in memory"),
@@ -5058,7 +5061,8 @@ mod correctness_tests {
         let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt, Algorithm::Sha256],
             true, Some(vec![point("64 B", UseCase::ContinuousMessages)]), Some(24));
         assert!(!roster.whole_axes());
-        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt, Algorithm::Sha256],
+        // Commonware takes part in batches alone: no cells among these messages.
+        let roster = Roster::new(vec![Algorithm::Blake3Commonware, Algorithm::Blake3ServilMt, Algorithm::Sha256],
             true, Some(vec![point("64 B", UseCase::ContinuousMessages), point("256 B", UseCase::ContinuousMessages)]), Some(24));
         assert!(!roster.whole_axes(), "one selected contender has no cells here");
     }
