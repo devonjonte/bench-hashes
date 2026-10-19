@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which BLAKE3 function fits your program?</title>
+<style>
+:root { font: 17px/1.5 system-ui, sans-serif; color: #242b30; background: #fdfdfc; }
+body { margin: 0; }
+main { max-width: 46rem; margin: 2rem auto 4rem; padding: 0 1rem; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .5rem; }
+h2 { font-size: 1.5rem; margin: 2rem 0 .4rem; }
+h2 code { font-size: 1.3rem; }
+p { margin: .5rem 0; }
+.muted { color: #5b6a72; }
+#trail { font-size: .95rem; color: #5b6a72; min-height: 1.5rem; }
+#choices { display: grid; gap: .6rem; margin: 1rem 0; }
+button { font: inherit; border: 1px solid #b6c4cb; border-radius: .5rem; padding: .7rem 1rem; color: inherit; background: white; cursor: pointer; text-align: left; }
+button:hover, button:focus-visible { background: #edf5f8; border-color: #226a90; outline: none; }
+button.unsure { color: #5b6a72; }
+nav { display: flex; gap: .6rem; margin: 1.6rem 0 0; }
+nav button { padding: .4rem .8rem; }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; }
+code { background: #edf2f4; padding: .1rem .3rem; border-radius: .2rem; }
+pre { background: #f3f5f6; border: 1px solid #e1e6e9; border-radius: .5rem; padding: .9rem 1rem; overflow-x: auto; line-height: 1.45; margin: .6rem 0; }
+pre code { background: none; padding: 0; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: .8rem 0; }
+dt { color: #5b6a72; }
+dd { margin: 0; }
+/* The chips read as a sentence: "called [after idling] [after other work] [nonstop], [alone] [beside another program]". */
+.how { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .8rem 0 .4rem; color: #5b6a72; }
+.how button { border-radius: 999px; padding: .15rem .8rem; font-size: .9rem; color: #242b30; }
+.how button[aria-pressed="true"] { background: #e6dcff; border-color: #7a5cc4; }
+.how .sep { margin: 0 .2rem; }
+svg { width: 100%; height: auto; display: block; }
+details { margin: 1.2rem 0; }
+summary { cursor: pointer; color: #226a90; }
+details > *:not(summary) { margin-left: 0; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+<h1>Which BLAKE3 function fits your program?</h1>
+<p class="muted">A few questions about how your program receives data. Then: the function to call, from the <a href="https://github.com/johnservil/BLAKE3">BLAKE3 servil</a> crate, and how fast it ran on this computer beside SHA-256.</p>
+<p id="trail" aria-live="polite"></p>
+
+<section id="question">
+<h2 id="q-title" tabindex="-1"></h2>
+<p id="q-help" class="muted"></p>
+<div id="choices"></div>
+</section>
+
+<section id="result" hidden>
+<h2>Use <code id="fn"></code></h2>
+<p id="summary"></p>
+<p id="speed-summary"></p>
+<p id="stand-in" hidden class="muted"></p>
+<div class="how" id="how"></div>
+<div id="chart"></div>
+<p id="unmeasured" hidden class="muted">This run holds no measurement of this function called this way. A full run of the benchmark measures every function in this guide.</p>
+<details id="program"><summary>A complete program</summary>
+<pre><code id="example"></code></pre>
+<dl>
+<dt>You pass</dt><dd id="pass"></dd>
+<dt>You get</dt><dd id="get"></dd>
+<dt>Keep in mind</dt><dd id="mind"></dd>
+</dl>
+<p class="muted">Add <code>blake3-servil</code> to your <code>Cargo.toml</code>. This program is one of the benchmark's compiled examples.</p>
+</details>
+<details><summary>How this was measured</summary>
+<p id="method"></p>
+<p>Each comparison is of the cells' means: their samples' total time over the work they did, what a program pays on average.</p>
+</details>
+</section>
+
+<nav aria-label="Change your answers"><button id="back" hidden>Back</button><button id="restart" hidden>Start again</button></nav>
+</main>
+<script>
+"use strict";
+const DATA = {"contenders":[{"key":"blake3-servil-st","name":"BLAKE3 servil st","color":"#7c3aed"},{"key":"blake3-servil-mt","name":"BLAKE3 servil mt","color":"#4c1d95"},{"key":"blake3-official","name":"BLAKE3 official","color":"#3b82f6"},{"key":"sha256","name":"SHA-256","color":"#e07a45"},{"key":"sha256-ring","name":"SHA-256 ring","color":"#c2410c"},{"key":"sha3-256","name":"SHA3-256","color":"#db2777"},{"key":"sha1dc","name":"SHA-1DC","color":"#8a7a1e"}],"machine":"12th Gen Intel(R) Core(TM) i7-12700K","date":"2026-10-19","plots":[{"scenario":"solo","use":"MerkleTree","batch":false,"map":"solo|merkle|lent","labels":["1024","4096","16384","65536","262144"],"units":[262144,1048576,4194304,16777216,67108864],"bytes":[262144,1048576,4194304,16777216,67108864],"series":{"blake3-servil-st":{"mean":[0.248,0.269,0.330,0.326,0.323]},"blake3-servil-mt":{"mean":[0.242,0.161,0.159,0.137,0.124]},"blake3-official":{"mean":[0.243,0.272,0.340,0.326,0.326]},"sha256":{"mean":[0.828,0.859,0.899,0.886,0.879]},"sha256-ring":{"mean":[0.895,0.921,0.967,0.940,0.939]},"sha3-256":{"mean":[2.936,2.968,2.987,2.972,2.967]},"sha1dc":{"mean":[2.539,2.544,2.585,2.549,2.546]}}},{"scenario":"shared","use":"MerkleTree","batch":false,"map":"shared|merkle|lent","labels":["1024","4096","16384","65536","262144"],"units":[262144,1048576,4194304,16777216,67108864],"bytes":[262144,1048576,4194304,16777216,67108864],"series":{"blake3-servil-st":{"mean":[0.247,0.271,0.375,0.403,0.413]},"blake3-servil-mt":{"mean":[0.240,0.135,0.176,0.202,0.204]},"blake3-official":{"mean":[0.255,0.285,0.354,0.386,0.385]},"sha256":{"mean":[0.828,0.894,0.951,0.935,0.924]},"sha256-ring":{"mean":[0.903,0.964,1.021,0.996,0.992]},"sha3-256":{"mean":[3.053,3.163,3.089,3.048,3.043]},"sha1dc":{"mean":[2.594,2.581,2.655,2.599,2.612]}}}]};
+const EXAMPLES = {"hash":"// One message, all in memory, hashed on the calling thread.\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize();\n    let message = b\"hello, world\";\n    // `hash` reads the whole slice and returns a 32-byte digest.\n    let digest = blake3_servil::hash(message);\n    println!(\"{}\", digest.to_hex());\n}\n","hash_multithreaded":"// One message, all in memory, spread over the program's spare cores.\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize();\n    // Starting the helper threads once, early, keeps that cost off the\n    // first hash. Later calls find them ready.\n    blake3_servil::initialize_multithreaded(None);\n    let message = vec![7u8; 8 * 1024 * 1024]; // 8 MiB\n    // Same digest as `hash`; large inputs finish sooner.\n    let digest = blake3_servil::hash_multithreaded(&message);\n    println!(\"{}\", digest.to_hex());\n}\n","hash_many":"// Many messages of one length, hashed in one call on the calling thread.\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize();\n    // Messages sit back to back in one buffer: message i starts at i * 64.\n    // A length that is no multiple of 64 gets zero padding up to the next\n    // multiple; the padding belongs to the caller.\n    let nodes: Vec\u003cu8> = (0..1000 * 64).map(|i| i as u8).collect();\n    let mut digests = vec![[0u8; 32]; 1000];\n    blake3_servil::hash_many(&nodes, 64, &mut digests);\n    // digests[i] is the hash of message i.\n    assert_eq!(digests[3], *blake3_servil::hash(&nodes[3 * 64..4 * 64]).as_bytes());\n}\n","hash_many_multithreaded":"// Many messages of one length, one call, spread over the program's cores.\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize();\n    blake3_servil::initialize_multithreaded(None);\n    // Message i starts at byte i * 64 (see hash_many for other lengths).\n    let leaves: Vec\u003cu8> = (0..100_000 * 64).map(|i| (i / 64) as u8).collect();\n    let mut digests = vec![[0u8; 32]; 100_000];\n    blake3_servil::hash_many_multithreaded(&leaves, 64, &mut digests);\n    println!(\"{} digests\", digests.len());\n}\n","update":"// One message arriving in pieces (a file read, a network stream).\nuse std::io::Read;\n\nfn main() -> std::io::Result\u003c()> {\n    // Once per process, before any other call.\n    blake3_servil::initialize();\n    let mut file = std::fs::File::open(\"Cargo.toml\")?;\n    let mut buffer = vec![0u8; 64 * 1024];\n    let mut hasher = blake3_servil::Hasher::new();\n    loop {\n        let n = file.read(&mut buffer)?;\n        if n == 0 { break; }\n        // Each piece extends the same message; the order matters.\n        hasher.update(&buffer[..n]);\n    }\n    // The digest of the whole message, whatever the piece sizes were.\n    println!(\"{}\", hasher.finalize().to_hex());\n    Ok(())\n}\n","update_multithreaded":"// Pieces that arrive faster than one thread can hash them; each piece is\n// borrowed only until the call returns.\nuse std::io::Read;\n\nfn main() -> std::io::Result\u003c()> {\n    // Once per process, before any other call.\n    blake3_servil::initialize();\n    blake3_servil::initialize_multithreaded(None);\n    let mut file = std::fs::File::open(\"Cargo.toml\")?;\n    let mut buffer = vec![0u8; 1 \u003c\u003c 20];\n    let mut hasher = blake3_servil::Hasher::new();\n    loop {\n        let n = file.read(&mut buffer)?;\n        if n == 0 { break; }\n        // Helper threads share each piece of 512 KiB or more; shorter\n        // pieces hash on this thread.\n        hasher.update_multithreaded(&buffer[..n]);\n    }\n    println!(\"{}\", hasher.finalize().to_hex());\n    Ok(())\n}\n","Stream::submit_with":"// Messages one after another, each read straight into the stream. Its\n// threads hash earlier messages while you read the next; each digest goes\n// into a place you own, and the place comes back to your handler.\nuse blake3_servil::{Hash, Mode};\nuse std::cell::RefCell;\n\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize_multithreaded(None);\n    // A fixed set of places, cycled: each comes back with its digest in it.\n    let mut places = vec![Hash::from_bytes([0; 32]); 64];\n    let free = RefCell::new(places.iter_mut().collect::\u003cVec\u003c_>>());\n    blake3_servil::stream(\n        Mode::Hash,\n        // Your handler receives each place back, in submission order, on\n        // this thread. Keep it short.\n        |done: &mut [Hash]| {\n            println!(\"{}\", done[0].to_hex());\n            free.borrow_mut().push(&mut done[0]);\n        },\n        |s| {\n            for message_number in 0..1000u32 {\n                // Take a free place, or hand finished ones back until one is.\n                let place = loop {\n                    if let Some(place) = free.borrow_mut().pop() {\n                        break place;\n                    }\n                    s.collect();\n                };\n                let message = message_number.to_le_bytes(); // your read goes here\n                s.submit_with(message.len(), |at, room| room.copy_from_slice(&message[at..][..room.len()]), place);\n            }\n            // Every place comes back before the stream ends.\n            s.finish();\n        },\n    );\n}\n","Stream::submit_reader":"// One long message read in pieces (a file, a socket): the stream reads it\n// straight into its own memory, hashing each piece while it reads the next,\n// and puts the digest in your place.\nuse blake3_servil::{Hash, Mode};\n\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize_multithreaded(None);\n    let message = vec![7u8; 10 \u003c\u003c 20]; // your reader goes here: a File, a TcpStream\n    let mut digest = Hash::from_bytes([0; 32]);\n    blake3_servil::stream(Mode::Hash, |_: &mut [Hash]| {}, |s| {\n        let len = s.submit_reader(&message[..], Some(message.len() as u64), &mut digest).expect(\"the read\");\n        assert_eq!(len, message.len() as u64);\n        s.finish();\n    });\n    println!(\"{}\", digest.to_hex());\n}\n","Stream::submit_batch_with":"// Batches of equal-length messages, one after another, each written straight\n// into the stream: its threads hash them side by side while you write the\n// next batch, each digest into the batch's place, which comes back whole.\nuse blake3_servil::{Hash, Mode};\nuse std::cell::RefCell;\n\nconst MESSAGES: usize = 1024; // each batch: 1024 messages of 64 bytes\n\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize_multithreaded(None);\n    // A fixed set of batch places, cycled.\n    let mut places = vec![Hash::from_bytes([0; 32]); 8 * MESSAGES];\n    let free = RefCell::new(places.chunks_mut(MESSAGES).collect::\u003cVec\u003c_>>());\n    blake3_servil::stream(\n        Mode::Hash,\n        |done: &mut [Hash]| {\n            println!(\"{}\", done[0].to_hex()); // the batch's first digest\n            free.borrow_mut().push(done);\n        },\n        |s| {\n            for batch_number in 0..100u8 {\n                let place = loop {\n                    if let Some(place) = free.borrow_mut().pop() {\n                        break place;\n                    }\n                    s.collect();\n                };\n                // Write the batch's bytes from `at` into `room`: each 64-byte\n                // message in its 64-byte slot (shorter ones zero-padded).\n                s.submit_batch_with(64, |_at, room| room.fill(batch_number), place); // your read goes here\n            }\n            s.finish();\n        },\n    );\n}\n"};
+
+/* The questions; the last choice of each is for a reader who cannot tell. */
+const QUESTIONS = {
+  threads: { title: "Can your program use several threads for hashing?", help: "", choices: [["many", "Yes"], ["one", "No, one thread"], ["one", "I'm not sure: one thread"]] },
+  shape: { title: "What shape is your data?", help: "A batch is many separate messages of one length, each with its own digest.", choices: [["message", "One message, all in one buffer"], ["pieces", "One message arriving in pieces"], ["batch", "A batch of equal-length messages"], ["message", "I'm not sure: one buffer"]] },
+  keepsUp: { title: "When the next input arrives, is your thread done with the last one?", help: "A network upload leaves time to spare. A file already in memory has the next piece ready at once.", choices: [["yes", "Yes, it waits for more data"], ["no", "No, there is always more ready"], ["yes", "I'm not sure: yes"]] },
+  buffer: { title: "Whose buffer does the data land in?", help: "A queue takes a buffer and hands it back later with its digest. A plain function only borrows one until it returns.", choices: [["owned", "Mine: my code chooses it"], ["owned", "Someone else's, but mine until I'm done"], ["lent", "Someone else's, lent only until I return"], ["lent", "I'm not sure: lent"]] },
+};
+function steps(a) {
+  const list = ["threads", "shape", "keepsUp"];
+  if (a.threads === "many" && a.keepsUp === "no") list.push("buffer");
+  return list;
+}
+
+/* The decision table (the crate's docs, "Which call to use"). */
+/* A message in pieces now and then: each piece costs about what hash costs on a buffer that long, so its plots are hash's. */
+const PATTERNS = { message: ["IdleOneMessage", "OneMessage", "LentMessages"], pieces: ["IdleOneMessage", "OneMessage", "LentMessages"], batch: ["IdleManyMessages", "ManyMessages", "LentBatches"] };
+function recommendation(a) {
+  const many = a.threads === "many", nonstop = a.keepsUp === "no", s = a.shape;
+  if (many && nonstop && a.buffer === "owned") {
+    const call = { message: "Stream::submit_with", pieces: "Stream::submit_reader", batch: "Stream::submit_batch_with" }[s];
+    return { call, contender: "blake3-servil-mt", uses: [s === "batch" ? "ContinuousBatches" : "ContinuousMessages"], useIndex: 0, shape: s,
+      summary: "A stream: you write or read each input straight into it and keep producing; its threads hash them, each digest into a place you own, and hand the places back in order to a handler you write.",
+      pass: s === "batch" ? "Each batch of equal-length messages, written into the stream as it asks, and a place for its digests." : s === "pieces" ? "A reader (a file, a socket); the stream reads the message in pieces, hashing each while it reads the next." : "Each message, written into the stream as it asks, and a place for its digest.",
+      get: "Each place back, digests in it, in the order you submitted, on your thread. submit_with() returns once the input is in the stream.",
+      mind: "Keep the handler short. Cycle a fixed set of places: the handler puts each back, and you take one, collecting when none is free. Call finish() last." };
+  }
+  const mt = many && (s !== "pieces" || nonstop);
+  const call = { message: "hash", pieces: "update", batch: "hash_many" }[s] + (mt ? "_multithreaded" : "");
+  // A pattern toggle keeps the actual API. Multithreaded pieces use
+  // update after a gap and update_multithreaded nonstop: separate calls.
+  const uses = s === "pieces" && many
+    ? (mt ? [null, null, "LentMessages"] : ["IdleOneMessage", "OneMessage", null])
+    : PATTERNS[s];
+  return { call, contender: mt ? "blake3-servil-mt" : "blake3-servil-st", uses, useIndex: nonstop ? 2 : 1, shape: s,
+    summary: s === "batch" ? `One call hashes every message in the buffer${mt ? ", spread over your spare cores" : ""}: how a Merkle tree hashes a layer.`
+      : s === "pieces" ? `A Hasher keeps the message's state between pieces${mt ? "; helper threads share each piece" : ""}: how a file or a stream is hashed as it arrives.`
+      : `The plain function: it reads the buffer and returns the digest${mt ? ", spreading a large message over your spare cores" : ""}.`,
+    pass: s === "batch" ? "One buffer holding all the messages, each starting at a multiple of the message length rounded up to 64 bytes (zero the padding), and a slice of 32-byte arrays for the digests." : s === "pieces" ? "Each piece as a byte slice, in order; any sizes." : "The whole message as a byte slice.",
+    get: s === "batch" ? "The digests, in message order." : s === "pieces" ? "From finalize(): the digest of the whole message, the same whatever the piece sizes were." : "A Hash: 32 bytes, with to_hex() and constant-time equality.",
+    mind: mt ? "Call initialize_multithreaded(None) once at startup, so the first call finds its threads ready. The digest equals the single-threaded function's." : "Runs on your thread alone: right for a machine whose other cores are busy." };
+}
+
+
+const el = id => document.getElementById(id);
+let answers = {}, history = [], current = null, scenario = "solo", useIndex = 0;
+
+function choose(key, value, label) { answers[key] = value; history.push({ key, label }); show(); }
+function show() {
+  el("trail").textContent = history.map(h => h.label).join(" · ");
+  el("back").hidden = el("restart").hidden = history.length === 0;
+  const next = steps(answers).find(key => !(key in answers));
+  el("question").hidden = !next;
+  el("result").hidden = !!next;
+  if (next) {
+    const q = QUESTIONS[next];
+    el("q-title").textContent = q.title;
+    el("q-help").textContent = q.help;
+    el("choices").replaceChildren(...q.choices.map(([value, label], i) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      if (i === q.choices.length - 1) b.className = "unsure";
+      b.onclick = () => choose(next, value, label);
+      return b;
+    }));
+    el("q-title").focus();
+    return;
+  }
+  current = recommendation(answers);
+  useIndex = current.useIndex;
+  el("fn").textContent = current.call;
+  el("summary").textContent = current.summary;
+  el("example").textContent = EXAMPLES[current.call];
+  el("pass").textContent = current.pass;
+  el("get").textContent = current.get;
+  el("mind").textContent = current.mind;
+  el("program").open = false;
+  drawSpeed();
+  el("fn").closest("h2").scrollIntoView({ block: "start" });
+}
+
+const plotFor = (use, sc) => DATA.plots.find(p => p.scenario === sc && p.use === use && p.series[current.contender]);
+const rival = plot => ["sha256-ring", "sha256", "sha256-cc"].find(key => plot.series[key]);
+/* Which points this function covers: a message in pieces, the lengths of several pieces (past 64 KiB); else all. */
+function pointsFor(plot) {
+  const all = [...plot.labels.keys()];
+  if (plot.use !== "ContinuousMessages" || current.shape !== "pieces") return all;
+  return all.filter(k => plot.units[k] > 65536);
+}
+
+/* The chips: the pattern the benchmark called the function in, and alone or beside another program. */
+function drawChips(plot) {
+  const how = el("how");
+  how.replaceChildren();
+  const add = (label, pressed, onclick) => { const b = document.createElement("button"); b.textContent = label; b.setAttribute("aria-pressed", pressed); b.onclick = onclick; how.appendChild(b); };
+  const text = t => { const s = document.createElement("span"); s.textContent = t; how.appendChild(s); };
+  text("Called");
+  if (current.uses.length === 3) {
+    const measured = current.uses.map(use => !!plotFor(use, scenario));
+    ["after idling", "after other work", "nonstop"].forEach((label, i) => { if (measured[i]) add(label, useIndex === i, () => { useIndex = i; drawSpeed(); }); });
+  } else text("nonstop");
+  /* Two programs at once are measured nonstop alone (a gap's twin warmed the other's code). */
+  if (plotFor(current.uses[useIndex], "shared")) {
+    text(",");
+    add("alone", scenario === "solo", () => { scenario = "solo"; drawSpeed(); });
+    add("beside another program", scenario === "shared", () => { scenario = "shared"; drawSpeed(); });
+  } else text(", alone");
+}
+
+function drawSpeed() {
+  if (!plotFor(current.uses[useIndex], scenario)) scenario = "solo";
+  const r = current, plot = plotFor(r.uses[useIndex], scenario);
+  drawChips(plot);
+  const points = plot ? pointsFor(plot) : [];
+  const measured = plot && points.length > 0;
+  el("unmeasured").hidden = measured;
+  el("chart").hidden = el("speed-summary").hidden = !measured;
+  if (!measured) { el("method").textContent = ""; el("stand-in").hidden = true; return; }
+  const other = rival(plot);
+  const mine = DATA.contenders.find(c => c.key === r.contender), theirs = DATA.contenders.find(c => c.key === other);
+  /* hash's plot standing in for update's pieces now and then: its x is each piece's length. */
+  const standIn = r.shape === "pieces" && !r.call.startsWith("Stream::");
+  el("stand-in").hidden = !standIn;
+  el("stand-in").textContent = standIn ? `Each piece costs about what ${r.call === "update_multithreaded" ? "hash_multithreaded" : "hash"} costs on one buffer of the piece's length: these are its measurements.` : "";
+  const unit = plot.batch ? " messages" : "";
+
+  /* The sentence, from the same numbers as the dots: the size from which the lead holds to the largest. */
+  let text = `${mine.name}, measured alone; this run has no SHA-256 to compare with.`;
+  if (theirs) {
+    const ahead = points.map(k => +plot.series[r.contender].mean[k] < +plot.series[other].mean[k]);
+    const behind = points.map(k => +plot.series[r.contender].mean[k] > +plot.series[other].mean[k]);
+    let from = ahead.length;
+    while (from > 0 && ahead[from - 1]) from--;
+    if (points.length === 1) text = `${ahead[0] ? "Faster than" : behind[0] ? "Slower than" : "As fast as"} ${theirs.name} on a ${plot.labels[points[0]]} message${r.call === "Stream::submit_reader" ? " in 64 KiB pieces" : ""}.`;
+    else if (from === 0) text = `Faster than ${theirs.name} at every size measured.`;
+    else if (behind.every(Boolean)) text = `Slower than ${theirs.name} at every size measured.`;
+    else if (from === ahead.length) text = ahead.some(Boolean) ? "The two trade places across the sizes measured." : `As fast as ${theirs.name} or slower at every size measured.`;
+    else text = `Faster than ${theirs.name} from ${plot.labels[points[from]]}${unit} up; ${ahead.slice(0, from).some(x => x) ? "the two trade places below that" : `${theirs.name} leads below that`}.`;
+  }
+  el("speed-summary").textContent = text;
+
+  /* The door to the measurement: the same chart on the map, opened. */
+  el("chart").innerHTML = `<a href="bench-hashes.map.html#${encodeURIComponent(plot.map)}">See it on the map, with every hash measured beside it ›</a>`;
+  el("method").textContent = methodText(plot);
+}
+function escapeXml(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+function methodText(plot) {
+  const where = `on ${DATA.machine}, ${DATA.date}`, sc = scenario === "solo" ? "one program hashing" : "two programs hashing at once; the time of either";
+  const use = plot.use;
+  if (use === "ContinuousMessages" || use === "ContinuousBatches")
+    return `Measured ${where}, ${sc}. The program read each input into one of its own buffers (a memory copy, the cheapest read) and handed it to the queue, keeping about 1 MiB or 1024 buffers in flight; the time runs from the first read to the last digest, so reading and hashing overlap. SHA-256 ran the same producer with a plain call per input.`;
+  if (use.startsWith("Lent"))
+    return `Measured ${where}, ${sc}. The program read each input into a buffer (a memory copy) and called the function, one input after another with nothing between; the read is inside the time. Every contender ran the same loop.`;
+  if (use.startsWith("Idle"))
+    return `Measured ${where}, ${sc}. The program called the function, slept a millisecond, as a server waits for its next request, wrote the next input, and called again; the function found helper threads asleep and a core that may have slowed or powered down. The write of the next input and the second call are timed.`;
+  return `Measured ${where}, ${sc}. The program called the function, then ran a fixed other program (about 1 MiB of code) and read 128 MiB of data, at least a millisecond in all, wrote the next input, and called again: the function found its code and data out of the caches and its helper threads asleep, as in a program that hashes between its other tasks. The write of the next input and the second call are timed.`;
+}
+
+el("back").onclick = () => { const last = history.pop(); delete answers[last.key]; show(); };
+el("restart").onclick = () => { answers = {}; history = []; show(); window.scrollTo(0, 0); };
+show();
+</script>
+</body>
+</html>

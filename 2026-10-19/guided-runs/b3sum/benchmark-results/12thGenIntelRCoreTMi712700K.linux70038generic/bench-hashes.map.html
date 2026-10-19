@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>How fast BLAKE3 servil runs, beside other hashes</title>
+<style>
+body { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: #111827; margin: 24px; background: #fdfdfc; }
+h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 17px; margin: 34px 0 6px; }
+.sub { color: #6b7280; margin: 0 0 14px; max-width: 980px; }
+.about { color: #6b7280; font-size: 12px; margin: 0 0 2px; }
+.run { color: #9ca3af; font-size: 12px; margin: 0 0 8px; }
+.run summary { cursor: pointer; width: max-content; }
+.run dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 6px 0 4px 14px; max-width: 980px; }
+.run dt { color: #6b7280; }
+.run dd { margin: 0; overflow-wrap: anywhere; }
+.run a { color: inherit; }
+.legend { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 6px; }
+.legend button { font: 12px inherit; border: 1px solid #d1d5db; background: #fff; border-radius: 12px; padding: 3px 10px 3px 8px; cursor: pointer; }
+.legend button::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
+.legend button.off { opacity: .35; }
+.legend button.beside::before { display: none; } .legend button.beside svg { vertical-align: 0; }
+#tip .was { color: #9ca3af; }
+.layer { font-size: 13px; color: #374151; display: flex; align-items: center; gap: 6px; margin: 14px 0 4px; cursor: help; user-select: none; width: max-content; padding: 2px 6px; border-radius: 6px; position: relative; }
+.layer:hover, .layer.show { background: #ede9fe; }
+.grid { position: relative; display: grid; grid-template-columns: 170px repeat(var(--cols), 210px); gap: 6px; width: max-content; }
+.h { font-size: 12px; color: #4b5563; text-align: center; padding: 4px; border-radius: 6px; cursor: help; user-select: none; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+.h:hover, .h.show, .h.lit { background: #ede9fe; color: #111827; }
+/* A header's meaning: under it while the pointer rests on it, or after a click or tap. */
+.means { display: none; position: absolute; top: 100%; left: 0; margin-top: 4px; width: 240px; z-index: 7; background: #111827; color: #fff; font-size: 12px; line-height: 1.4; text-align: left; padding: 7px 9px; border-radius: 6px; }
+.h:hover .means, .h.show .means, .layer:hover .means, .layer.show .means { display: block; }
+.h.row { flex-direction: row; gap: 6px; justify-content: flex-start; text-align: left; }
+.cell { height: 96px; border-radius: 8px; background: #fff; border: 1px solid #e5e7eb; position: relative; cursor: zoom-in; transition: opacity .15s; }
+.cell.empty { background: #fafaf9; border-color: #f1f1ef; cursor: default; }
+.cell .note { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #9ca3af; text-align: center; padding: 6px; }
+.cell .call { position: absolute; left: 6px; bottom: 3px; font: 10px ui-monospace, Menlo, monospace; color: #6b7280; }
+a.doc { color: inherit; text-decoration: underline dotted #9ca3af; text-underline-offset: 2px; } a.doc:hover { color: #6d28d9; text-decoration-color: #6d28d9; }
+.zoom { position: absolute; background: #fff; border: 1px solid #c4b5fd; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.12); z-index: 5; overflow: hidden; transition: left .2s, top .2s, width .2s, height .2s; cursor: zoom-out; }
+.zoom .title { position: absolute; left: 14px; top: 10px; font-size: 13px; color: #374151; display: flex; gap: 6px; align-items: center; }
+.zoom .close { position: absolute; right: 8px; top: 6px; font-size: 12px; color: #4b5563; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 3px 10px; cursor: pointer; }
+#tip { position: fixed; pointer-events: none; background: #111827; color: #fff; font-size: 12px; padding: 6px 8px; border-radius: 6px; display: none; z-index: 9; white-space: nowrap; }
+#tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
+</style></head><body>
+<h1>How fast BLAKE3 servil runs, beside other hashes</h1>
+<p class="sub">Each small chart is one measurement: its row is what a program hashes, its column how it calls. Higher lines are faster. Point at a row's or a column's name to see what it means. Open a chart to read its values under the pointer or where you tap; a hash's name below a title hides or shows its lines.</p>
+<div id="sections"></div>
+<div id="tip"></div>
+<script>
+const SECTIONS = [{"title":"How fast b3sum hashes files, from its start to its exit","rows":[["file","a file","One file, of the size along the chart's axis."],["tree","a tree of files","Many files, given to b3sum in one run."]],"cols":[["cached","in the page cache","Each file was read moments before, so the operating system holds it in memory."],["storage","read from storage","Each file was dropped from the operating system's memory before the run, so b3sum reads it from the disk."]],"layers":[["solo","one program","One program hashes; the machine is otherwise quiet."]],"names":["base","guided","official"],"colors":["#3b82f6","#4c1d95","#c2410c"],"shown":[true,true,true],"cells":{"solo|file|cached":{"sizes":["4 KiB","64 KiB","1 MiB","16 MiB","256 MiB","1 GiB"],"unit":"GB/s","call":"b3sum","doc":"https://github.com/johnservil/BLAKE3/tree/servil/b3sum","cases":false,"per":[4096,65536,1048576,16777216,268435456,1073741824],"what":"a run","series":[[125.338962,7.440100,0.635576,0.071004,0.029851,0.034187],[125.787516,7.585094,0.659840,0.072005,0.030137,0.029061],[316.729750,17.798655,1.119693,0.107880,0.042353,0.041920]],"before":[]},"solo|tree|cached":{"sizes":["1000 x 16 KiB","1000 x 16 KiB, a process each","mixed tree, 1000 files, 74 MiB","16 x 64 MiB"],"unit":"GB/s","call":"b3sum","doc":"https://github.com/johnservil/BLAKE3/tree/servil/b3sum","cases":true,"per":[16384000,16384000,77688832,1073741824],"what":"a run","series":[[0.202775,23.350912,0.067709,0.031986],[0.196546,23.645696,0.070589,0.035185],[0.912050,65.669896,0.225295,0.039090]],"before":[]},"solo|file|storage":{"sizes":["4 KiB","64 KiB","1 MiB","16 MiB","256 MiB","1 GiB"],"unit":"GB/s","call":"b3sum","doc":"https://github.com/johnservil/BLAKE3/tree/servil/b3sum","cases":false,"per":[4096,65536,1048576,16777216,268435456,1073741824],"what":"a run","series":[[187.748101,9.705778,1.314422,0.338711,0.306804,0.311304],[195.884576,9.747666,1.300236,0.348618,0.296183,0.304554],[367.987047,20.099431,1.888051,0.412532,0.298407,0.302660]],"before":[]},"solo|tree|storage":{"sizes":["1000 x 16 KiB","1000 x 16 KiB, a process each","mixed tree, 1000 files, 74 MiB","16 x 64 MiB"],"unit":"GB/s","call":"b3sum","doc":"https://github.com/johnservil/BLAKE3/tree/servil/b3sum","cases":true,"per":[16384000,16384000,77688832,1073741824],"what":"a run","series":[[0.463714,26.714319,0.329725,0.292339],[0.478559,26.866737,0.331161,0.288942],[3.875896,69.588297,1.338957,0.302584]],"before":[]}},"about":"12th Gen Intel(R) Core(TM) i7-12700K, 20 CPUs, Linux · 2026-10-19 · the machine quiet","details":[["Measured","2026-10-19 04:53:24 UTC",""],["Machine","12th Gen Intel(R) Core(TM) i7-12700K, 20 CPUs, linux7.0.0-38-generic",""],["Power","not reported by this OS",""],["Other programs","quiet: other programs kept 0.13 CPUs busy on average, 0.51 in the busiest window",""],["bench-hashes","0.16.1","https://github.com/johnservil/bench-hashes/releases/tag/v0.16.1%2B90af10682bd18c798d480fe1fd1c9aeb2b632c4c"],["bench-hashes commit","0c5390f7631e61a45ab44ea836f21718f73aded9","https://github.com/johnservil/bench-hashes/tree/0c5390f7631e61a45ab44ea836f21718f73aded9"],["Files","/home/agent/bench-hashes-validation/b3sum-linux/files on ext4 (/dev/nvme0n1p5 on /home/agent)",""],["b3sum base","b3sum-c7b8111-L0  (blake3 252383493323555737ed5513d408d39e6202dd224a53008dcc9c4220080769fe; b3sum 1.8.7)",""],["b3sum base","b3sum-c7b8111-L1  (blake3 e8ed80f4eea2c7b707dad16e6c0ab08930dd401a04b70d3ad36f36ed0dda04bc; b3sum 1.8.7)",""],["b3sum base","b3sum-c7b8111-L2  (blake3 b5e6a63cd3c6276e3407829da0f197a8ca0df4af7f0a98a6e001f19830b9d720; b3sum 1.8.7)",""],["b3sum base","b3sum-c7b8111-L3  (blake3 2d5a2fa9d1c7982661945f2220dca3eae45bb96acb6837b427385bde65c74c07; b3sum 1.8.7)",""],["b3sum guided","b3sum-3fcb8b8-L0  (blake3 51bf551e00607cf41e270f471c827da6905a60f7c2dc2cc490ebea8c106c9919; b3sum 1.8.7)",""],["b3sum guided","b3sum-3fcb8b8-L1  (blake3 773c553bed30500e9c8a1a2dd22e20817d19e1142ae4ffd817ba987c8292580d; b3sum 1.8.7)",""],["b3sum guided","b3sum-3fcb8b8-L2  (blake3 2a2dc90bbe898966c1e73f068484537a8b188cd1c9ef8ee464dc62fa607be1d9; b3sum 1.8.7)",""],["b3sum guided","b3sum-3fcb8b8-L3  (blake3 d98ab6505f1ee83449152b2b90ed19b7627bf589e2838bcbb5d6e07d5147d337; b3sum 1.8.7)",""],["b3sum official","b3sum-official-1.8.2-L0  (blake3 53fc1b907d2a0404cb7635217c043b7106a1442dfdfca0d4dc2525a5f5670460; b3sum 1.8.2)",""],["b3sum official","b3sum-official-1.8.2-L1  (blake3 86f1edfd57d2936b836e2981a59763167e0d4c94e9c2cb6064c47fb8412f93fa; b3sum 1.8.2)",""],["b3sum official","b3sum-official-1.8.2-L2  (blake3 aa28c659810a3c8cb5738b3eeeed7b09344f8fbe46ce0eaea9a9f849b89898b3; b3sum 1.8.2)",""],["b3sum official","b3sum-official-1.8.2-L3  (blake3 485ee7355748aa1d43fe97d7b80b2b15d08925bacca76a0fc27442945bf7b2b6; b3sum 1.8.2)",""],["Samples","b3sum.samples.tsv","b3sum.samples.tsv"]],"run":"bench-hashes 0.16.1","before":["",""]}];
+function glyph(kind, size = 20, color = "#4b5563") {
+  const r = (x, y, w, h, o = 1) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1.2" fill="${color}" opacity="${o}"/>`;
+  const g = {
+    one: r(2, 8, 18, 6),
+    batch: [0, 1, 2].map(j => r(7, 2 + j * 6.5, 8, 5)).join(""),
+    many: [0, 1, 2].map(j => r(1 + j * 2, 3 + j * 6, 8 + (j % 2) * 6, 4)).join(""),
+    coll: [[1, 3, 6], [9, 3, 11], [1, 10, 14], [17, 10, 4], [1, 17, 9], [12, 17, 9]].map(([x, y, w]) => r(x, y, w, 4)).join(""),
+    outb: r(1, 15, 20, 5) + `<path d="M11 13 V9 M5 13 V10 H17 V13 M11 9 V4" stroke="${color}" stroke-width="1.6" fill="none"/>` + `<circle cx="11" cy="3.5" r="2.2" fill="${color}"/>`,
+    busy: `<circle cx="11" cy="11" r="4" fill="none" stroke="${color}" stroke-width="2.5"/>` + [0, 45, 90, 135, 180, 225, 270, 315].map(a => `<rect x="10" y="2" width="2" height="4" fill="${color}" transform="rotate(${a} 11 11)"/>`).join(""),
+    idle: `<path d="M14 3 a8 8 0 1 0 5 13 a6.5 6.5 0 1 1 -5 -13 z" fill="${color}"/>`,
+    lent: r(1, 7, 7, 8) + `<path d="M10 11 h6 M14 11 l-2.5 -2.5 M14 11 l-2.5 2.5" stroke="${color}" stroke-width="1.8" fill="none" stroke-linecap="round"/><rect x="17" y="7" width="4" height="8" rx="1" fill="none" stroke="${color}" stroke-width="1.5"/>`,
+    piped: [0, 1, 2].map(j => r(1 + j * 7, 8, 5.5, 6, 1 - j * .3)).join("") + `<path d="M2 18 h18 m-3 -2.5 l3 2.5 l-3 2.5" stroke="${color}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
+    solo: `<circle cx="11" cy="6" r="3.5" fill="${color}"/><path d="M4.5 20 a6.5 6.5 0 0 1 13 0 z" fill="${color}"/>`,
+    shared: `<circle cx="7" cy="7" r="3" fill="${color}"/><path d="M1.5 20 a5.5 5.5 0 0 1 11 0 z" fill="${color}"/><circle cx="15.5" cy="7" r="3" fill="${color}"/><path d="M10 20 a5.5 5.5 0 0 1 11 0 z" fill="${color}"/>`,
+    file: `<path d="M5 2 h8 l5 5 v13 h-13 z" fill="none" stroke="${color}" stroke-width="1.8"/><path d="M13 2 v5 h5" fill="none" stroke="${color}" stroke-width="1.5"/>`,
+    tree: `<path d="M3 3 h6 l2 2 h8 v13 h-16 z" fill="none" stroke="${color}" stroke-width="1.8"/>` + r(6, 9, 10, 2) + r(6, 13, 7, 2),
+    cached: r(3, 4, 16, 14) + [6, 10, 14].map(x => `<rect x="${x}" y="1" width="1.6" height="3" fill="${color}"/><rect x="${x}" y="18" width="1.6" height="3" fill="${color}"/>`).join(""),
+    storage: `<ellipse cx="11" cy="5" rx="8" ry="3" fill="none" stroke="${color}" stroke-width="1.8"/><path d="M3 5 v12 a8 3 0 0 0 16 0 v-12" fill="none" stroke="${color}" stroke-width="1.8"/>`,
+  }[kind] || "";
+  return `<svg width="${size}" height="${size}" viewBox="0 0 22 22">${g}</svg>`;
+}
+/* A section's one rate axis: every chart of it, every contender, so a line's
+   height reads the same in every chart, whatever names are set aside. */
+function axisOf(S) {
+  if (!S.axis) {
+    const vals = Object.values(S.cells).flatMap(c => c.series.concat(c.before).filter(Boolean).flat()).filter(v => v).map(v => 1 / v);
+    S.axis = [Math.log(Math.min(...vals)) - 0.1, Math.log(Math.max(...vals)) + 0.1];
+  }
+  return S.axis;
+}
+/* One chart's lines, rates (bytes over each mean time) on the section's log scale; the opened one with axes. */
+function draw(S, c, w, h, axes) {
+  const live = c.series.map((s, i) => s && S.shownNow[i] ? i : -1).filter(i => i >= 0);
+  const [lo, hi] = axisOf(S);
+  const n = c.sizes.length, L = axes ? 70 : 8, R = axes ? 24 : 8, T = axes ? 40 : 8, B = axes ? 40 : 14;
+  /* Sizes run edge to edge; separate cases sit in the middles of equal slots. */
+  const x = k => n === 1 || c.cases ? L + (k + 0.5) * (w - L - R) / n : L + k * (w - L - R) / (n - 1);
+  const y = v => h - B - (Math.log(v) - lo) / (hi - lo) * (h - T - B);
+  let s = `<svg width="${w}" height="${h}">`;
+  /* Every chart of a section shares its scale; faint lines at each power of ten show it. */
+  if (!axes) for (let e = Math.ceil(lo / Math.LN10); e <= Math.floor(hi / Math.LN10); e++) s += `<line x1="${L}" x2="${w - R}" y1="${y(10 ** e)}" y2="${y(10 ** e)}" stroke="#f1f1ef"/>`;
+  if (axes) {
+    for (let e = Math.floor(Math.log10(Math.exp(lo))) - 1; e <= Math.ceil(Math.log10(Math.exp(hi))); e++) for (const m of [1, 2, 5]) {
+      const v = m * 10 ** e; if (Math.log(v) < lo || Math.log(v) > hi) continue;
+      s += `<line x1="${L}" x2="${w - R}" y1="${y(v)}" y2="${y(v)}" stroke="#f3f4f6"/><text x="${L - 6}" y="${y(v) + 4}" font-size="11" fill="#6b7280" text-anchor="end">${+v.toPrecision(2)}</text>`;
+    }
+    /* The title runs up the axis; its arrow, beside its end, points up, as faster lines lie. */
+    const mid = (T + h - B) / 2, title = `${c.unit}, higher is faster`, half = title.length * 3.1;
+    s += `<text x="14" y="${mid}" font-size="11" fill="#6b7280" transform="rotate(-90 14 ${mid})" text-anchor="middle">${title}</text>`;
+    s += `<path d="M10 ${mid - half - 4} V${mid - half - 18} M6.5 ${mid - half - 13} L10 ${mid - half - 18} L13.5 ${mid - half - 13}" stroke="#6b7280" stroke-width="1.3" fill="none"/>`;
+    c.sizes.forEach((lab, k) => { if (n < 12 || k % 3 === 0 || k === n - 1) s += `<text x="${x(k)}" y="${h - B + 16}" font-size="11" fill="#6b7280" text-anchor="middle">${lab}</text>`; });
+    s += `<line class="cursor" x1="0" x2="0" y1="${T}" y2="${h - B}" stroke="#9ca3af" stroke-dasharray="3 3" visibility="hidden"/>`;
+  }
+  /* An earlier run beside this one: its lines dashed and pale, under the run's own. */
+  if (S.besideNow) for (const i of live) {
+    const was = c.before[i]; if (!was) continue;
+    const pts = was.map((v, k) => v ? [x(k), y(1 / v)] : null);
+    if (!(pts.filter(Boolean).length === 1 || c.cases)) {
+      let run = [];
+      for (const p of pts.concat([null])) {
+        if (p) { run.push(p); continue; }
+        if (run.length > 1) s += `<polyline points="${run.map(p => p.map(q => q.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="${S.colors[i]}" stroke-opacity=".55" stroke-dasharray="4 3" stroke-width="${axes ? 2 : 1.3}"/>`;
+        run = [];
+      }
+    }
+    if (pts.length <= 3 || c.cases) s += pts.filter(Boolean).map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="${axes ? 5 : 3}" fill="none" stroke="${S.colors[i]}" stroke-opacity=".7" stroke-width="1.5"/>`).join("");
+  }
+  for (const i of live) {
+    const pts = c.series[i].map((v, k) => [x(k), y(1 / v)]);
+    s += pts.length === 1 || c.cases ? "" : `<polyline points="${pts.map(p => p.map(q => q.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="${S.colors[i]}" stroke-width="${axes ? 2.2 : 1.5}"/>`;
+    if (pts.length <= 3 || c.cases) s += pts.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="${axes ? 5 : 3}" fill="${S.colors[i]}"/>`).join("");
+  }
+  return { svg: s + "</svg>", x, n, L, R, w };
+}
+function render() {
+  const root = document.getElementById("sections"); root.innerHTML = "";
+  SECTIONS.forEach((S, si) => {
+    S.shownNow = S.shownNow || S.shown.slice();
+    if (S.besideNow === undefined) S.besideNow = !!S.before[0];
+    const box = document.createElement("div");
+    const esc = t => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const rows = S.details.map(([k, v, a]) => `<dt>${esc(k)}</dt><dd>${a ? `<a href="${esc(a)}">${esc(v)}</a>` : esc(v)}</dd>`).join("");
+    const vs = S.before[0] ? `<p class="about">Solid lines: ${esc(S.run)}. Dashed lines: ${esc(S.before[0])}, ${esc(S.before[1])}.</p>` : "";
+    box.innerHTML = `<h2>${S.title}</h2><p class="about">${esc(S.about)}</p>${vs}<details class="run"><summary>About this run</summary><dl>${rows}</dl></details>`;
+    const legend = document.createElement("div"); legend.className = "legend";
+    S.names.forEach((nm, i) => {
+      const b = document.createElement("button"); b.textContent = nm; b.style.setProperty("--c", S.colors[i]);
+      if (!S.shownNow[i]) b.classList.add("off");
+      b.onclick = () => { S.shownNow[i] = !S.shownNow[i]; render(); };
+      legend.appendChild(b);
+    });
+    /* The earlier run beside this one: a chip that hides or shows its dashed lines. */
+    if (S.before[0]) {
+      const b = document.createElement("button"); b.className = "beside" + (S.besideNow ? "" : " off");
+      b.innerHTML = `<svg width="22" height="10"><line x1="1" x2="21" y1="5" y2="5" stroke="#6b7280" stroke-dasharray="4 3" stroke-width="1.6"/></svg> ${esc(S.before[0])}`;
+      b.title = S.before[1];
+      b.onclick = () => { S.besideNow = !S.besideNow; render(); };
+      legend.appendChild(b);
+    }
+    box.appendChild(legend);
+    for (const [layer, lname, lnote] of S.layers) {
+      if (S.layers.length > 1) {
+        const lay = document.createElement("div");
+        lay.className = "layer";
+        lay.innerHTML = glyph(layer, 18) + lname + `<span class="means">${lnote}</span>`;
+        lay.onclick = () => lay.classList.toggle("show");
+        box.appendChild(lay);
+      }
+      const g = document.createElement("div"); g.className = "grid"; g.style.setProperty("--cols", S.cols.length); box.appendChild(g);
+      g.appendChild(document.createElement("div"));
+      for (const [c, cname, cmeans] of S.cols) {
+        const h = document.createElement("div"); h.className = "h";
+        h.innerHTML = glyph(c) + cname + `<span class="means">${cmeans}</span>`; h.dataset.key = "col:" + c; h.onclick = () => h.classList.toggle("show"); g.appendChild(h);
+      }
+      for (const [r, rname, rmeans] of S.rows) {
+        const h = document.createElement("div"); h.className = "h row";
+        h.innerHTML = glyph(r) + `<span>${rname}</span><span class="means">${rmeans}</span>`; h.dataset.key = "row:" + r; h.onclick = () => h.classList.toggle("show"); g.appendChild(h);
+        for (const [c] of S.cols) {
+          const cell = document.createElement("div"); cell.className = "cell";
+          const key = `${layer}|${r}|${c}`, q = S.cells[key];
+          if (q) {
+            cell.innerHTML = draw(S, q, 208, 94, false).svg + `<span class="call"><a class="doc" href="${q.doc}" target="_blank" title="${q.call}: its documentation">${q.call}</a></span>`;
+            cell.querySelector("a.doc").onclick = e => e.stopPropagation();
+            cell.dataset.key = si + ":" + key;
+            cell.onclick = () => open(S, g, cell, q, r, c, layer);
+          } else {
+            cell.classList.add("empty");
+          }
+          g.appendChild(cell);
+        }
+      }
+    }
+    root.appendChild(box);
+  });
+}
+/* Opening: the chart grows from its own cell over the cells' area, the headers in view, and shrinks back into it. */
+function open(S, grid, cell, q, row, col, layer) {
+  const gr = grid.getBoundingClientRect(), cr = cell.getBoundingClientRect();
+  const first = grid.querySelector(".cell").getBoundingClientRect();
+  const X0 = first.left - gr.left, Y0 = first.top - gr.top;
+  const W = Math.max(gr.width - X0, 640), H = Math.max(gr.height - Y0, 340);
+  const z = document.createElement("div"); z.className = "zoom";
+  const start = { left: cr.left - gr.left, top: cr.top - gr.top, width: cr.width, height: cr.height };
+  const place = r => Object.assign(z.style, Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v + "px"])));
+  place(start); grid.appendChild(z);
+  const d = draw(S, q, W, H, true);
+  const rn = S.rows.find(r => r[0] === row)[1], cn = S.cols.find(c => c[0] === col)[1];
+  const ln = S.layers.length > 1 ? ", " + S.layers.find(l => l[0] === layer)[1] : "";
+  z.innerHTML = d.svg + `<div class="title">${glyph(row, 16)}${glyph(col, 16)} ${rn}, ${cn}${ln}: <code><a class="doc" href="${q.doc}" target="_blank" title="its documentation">${q.call}</a></code></div><button class="close">✕ put back</button>`;
+  z.querySelector("a.doc").onclick = e => e.stopPropagation();
+  requestAnimationFrame(() => place({ left: X0, top: Y0, width: W, height: H }));
+  const lit = [...grid.querySelectorAll(".h")].filter(h => h.dataset.key === "row:" + row || h.dataset.key === "col:" + col);
+  lit.forEach(h => h.classList.add("lit"));
+  const tip = document.getElementById("tip"), cur = z.querySelector(".cursor");
+  /* A touch's tap shows the values at its point (the finger moves no
+     pointer); a mouse's click, or the button, puts the chart back. */
+  let touch = false;
+  z.onpointerdown = e => { touch = e.pointerType !== "mouse"; };
+  const show = e => {
+    const zr = z.getBoundingClientRect(), mx = e.clientX - zr.left;
+    const slot = (d.w - d.L - d.R) / (q.cases ? d.n : Math.max(d.n - 1, 1));
+    const k = d.n === 1 ? 0 : Math.max(0, Math.min(d.n - 1, Math.round((mx - d.L) / slot - (q.cases ? 0.5 : 0))));
+    cur.setAttribute("x1", d.x(k)); cur.setAttribute("x2", d.x(k)); cur.setAttribute("visibility", "visible");
+    const rows = q.series.map((s, i) => s && S.shownNow[i] ? [i, 1 / s[k], s[k]] : null).filter(Boolean).sort((a, b) => b[1] - a[1]);
+    /* Beside an earlier run: its rate, and how many times faster the run is. */
+    const was = i => { const v = S.besideNow && q.before[i] && q.before[i][k]; return v ? ` <span class="was">(before: ${(1 / v).toPrecision(3)}; now ×${(v / q.series[i][k]).toFixed(2)})</span>` : ""; };
+    const time = ns => ns >= 1e6 ? (ns / 1e6).toPrecision(3) + " ms" : ns >= 1e3 ? (ns / 1e3).toPrecision(3) + " µs" : ns.toPrecision(3) + " ns";
+    tip.innerHTML = `<b>${q.sizes[k]}</b><br>` + rows.map(([i, rate, t]) => `<span class="sw" style="background:${S.colors[i]}"></span>${S.names[i]}: ${rate.toPrecision(3)} ${q.unit} · ${time(t * q.per[k])} ${q.what}${was(i)}`).join("<br>");
+    tip.style.display = "block";
+    tip.style.left = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8) + "px";
+    /* Above a finger, which would hide it; below a mouse pointer. */
+    tip.style.top = (touch ? Math.max(8, e.clientY - tip.offsetHeight - 24) : e.clientY + 10) + "px";
+  };
+  z.onmousemove = e => { if (!touch) show(e); };
+  z.onmouseleave = () => { tip.style.display = "none"; cur.setAttribute("visibility", "hidden"); };
+  const close = () => { document.removeEventListener("keydown", onKey); tip.style.display = "none"; lit.forEach(h => h.classList.remove("lit")); place(start); setTimeout(() => z.remove(), 220); };
+  z.querySelector(".close").onclick = e => { e.stopPropagation(); close(); };
+  /* Escape puts it back too. */
+  const onKey = e => { if (e.key === "Escape") { document.removeEventListener("keydown", onKey); close(); } };
+  document.addEventListener("keydown", onKey);
+  z.onclick = e => { if (touch) show(e); else close(); };
+}
+render();
+/* A link to one chart (#solo|one|lent, or #1:solo|file|cached for a later section) opens it. */
+function openFromHash() {
+  if (location.hash.length < 2) return;
+  const want = decodeURIComponent(location.hash.slice(1)), key = want.includes(":") ? want : "0:" + want;
+  const cell = document.querySelector(`.cell[data-key="${CSS.escape(key)}"]`);
+  if (cell && !document.querySelector(".zoom")) { cell.scrollIntoView({ block: "center" }); cell.click(); }
+}
+openFromHash();
+window.addEventListener("hashchange", openFromHash);
+</script></body></html>

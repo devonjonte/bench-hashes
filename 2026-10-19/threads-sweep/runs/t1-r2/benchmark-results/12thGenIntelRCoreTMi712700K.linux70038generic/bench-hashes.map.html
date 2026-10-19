@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>How fast BLAKE3 servil runs, beside other hashes</title>
+<style>
+body { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: #111827; margin: 24px; background: #fdfdfc; }
+h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 17px; margin: 34px 0 6px; }
+.sub { color: #6b7280; margin: 0 0 14px; max-width: 980px; }
+.about { color: #6b7280; font-size: 12px; margin: 0 0 2px; }
+.run { color: #9ca3af; font-size: 12px; margin: 0 0 8px; }
+.run summary { cursor: pointer; width: max-content; }
+.run dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 6px 0 4px 14px; max-width: 980px; }
+.run dt { color: #6b7280; }
+.run dd { margin: 0; overflow-wrap: anywhere; }
+.run a { color: inherit; }
+.legend { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 6px; }
+.legend button { font: 12px inherit; border: 1px solid #d1d5db; background: #fff; border-radius: 12px; padding: 3px 10px 3px 8px; cursor: pointer; }
+.legend button::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
+.legend button.off { opacity: .35; }
+.legend button.beside::before { display: none; } .legend button.beside svg { vertical-align: 0; }
+/* What the lines measure: wall-clock time, CPU time, energy; any or all. */
+/* The panel and each section's names stay in view while the page scrolls:
+   the panel at the top, the names of the section on screen just under it. */
+.measures { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 8px; font-size: 12px; color: #6b7280;
+  position: sticky; top: 0; z-index: 8; background: #fdfdfc; padding: 6px 0; }
+.legend:not(.inzoom) { position: sticky; top: var(--bar, 38px); z-index: 8; background: #fdfdfc; padding: 4px 0 6px; }
+.measures button { font: 12px inherit; border: 1px solid #c4b5fd; background: #f5f3ff; color: #4c1d95; border-radius: 12px; padding: 3px 10px 3px 8px; cursor: pointer; }
+.measures button svg { vertical-align: 0; margin-right: 5px; }
+/* The view's switch stands upright: its knob up, higher lines are better
+   (a rate); down, lower lines are better (a cost). Its label says so. */
+.measures .switch { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; padding: 0 4px; cursor: pointer; color: #4c1d95; font-weight: 600; }
+.measures .switch .track { width: 18px; height: 32px; border-radius: 9px; background: #c4b5fd; position: relative; }
+.measures .switch .knob { position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: top .15s; }
+.measures .switch.on .knob { top: 16px; }
+.measures .switch .dir { white-space: nowrap; }
+.measures button.off { background: #fff; border-color: #d1d5db; color: #6b7280; opacity: .6; }
+.measures button:disabled { cursor: not-allowed; opacity: .4; }
+#tip .was { color: #9ca3af; }
+.layer { font-size: 13px; color: #374151; display: flex; align-items: center; gap: 6px; margin: 14px 0 4px; cursor: help; user-select: none; width: max-content; padding: 2px 6px; border-radius: 6px; position: relative; }
+.layer:hover, .layer.show { background: #ede9fe; }
+.grid { position: relative; display: grid; grid-template-columns: 170px repeat(var(--cols), 210px); gap: 6px; width: max-content; }
+.h { font-size: 12px; color: #4b5563; text-align: center; padding: 4px; border-radius: 6px; cursor: help; user-select: none; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+.h:hover, .h.show, .h.lit { background: #ede9fe; color: #111827; }
+/* A header's meaning: under it while the pointer rests on it, or after a click or tap. */
+.means { display: none; position: absolute; top: 100%; left: 0; margin-top: 4px; width: 240px; z-index: 7; background: #111827; color: #fff; font-size: 12px; line-height: 1.4; text-align: left; padding: 7px 9px; border-radius: 6px; }
+.h:hover .means, .h.show .means, .layer:hover .means, .layer.show .means { display: block; }
+.h.row { flex-direction: row; gap: 6px; justify-content: flex-start; text-align: left; }
+.cell { height: 96px; border-radius: 8px; background: #fff; border: 1px solid #e5e7eb; position: relative; cursor: zoom-in; transition: opacity .15s; }
+.cell.empty { background: #fafaf9; border-color: #f1f1ef; cursor: default; }
+.cell .note { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #9ca3af; text-align: center; padding: 6px; }
+.cell .call { position: absolute; left: 6px; bottom: 3px; font: 10px ui-monospace, Menlo, monospace; color: #6b7280; }
+a.doc { color: inherit; text-decoration: underline dotted #9ca3af; text-underline-offset: 2px; } a.doc:hover { color: #6d28d9; text-decoration-color: #6d28d9; }
+.zoom { position: absolute; background: #fff; border: 1px solid #c4b5fd; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.12); z-index: 5; overflow: hidden; transition: left .2s, top .2s, width .2s, height .2s; cursor: zoom-out; }
+.zoom .title { position: absolute; left: 14px; top: 10px; font-size: 13px; color: #374151; display: flex; gap: 6px; align-items: center; }
+.zoom .close { position: absolute; right: 8px; top: 6px; font-size: 12px; color: #4b5563; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 3px 10px; cursor: pointer; }
+.legend.inzoom { position: absolute; left: 70px; bottom: 6px; margin: 0; gap: 6px; }
+.legend.inzoom button { font-size: 11px; padding: 2px 8px 2px 6px; }
+/* A narrow screen (a phone): the grid scales to the screen's width, and a
+   chart opens as a panel across it, at full size, under the bar. */
+@media (max-width: 999px) { body { margin: 10px; } .sub { font-size: 13px; } }
+.zoom.phone { position: fixed; z-index: 9; }
+#tip { position: fixed; pointer-events: none; background: #111827; color: #fff; font-size: 12px; padding: 6px 8px; border-radius: 6px; display: none; z-index: 10; white-space: nowrap; }
+#tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
+/* After the rules above, which it narrows for a phone. */
+@media (max-width: 999px) { #tip { white-space: normal; box-sizing: border-box; max-width: calc(100vw - 8px); } .zoom.phone .title { right: 44px; font-size: 12px; line-height: 1.35; } .zoom.phone .close .word { display: none; } }
+</style></head><body>
+<h1>How fast BLAKE3 servil runs, beside other hashes</h1>
+<p class="sub">Each small chart is one measurement: its row is what a program hashes, its column how it calls. Point at a row's or a column's name to see what it means. Open a chart to read its values under the pointer or where you tap; a hash's name below a title hides or shows its lines, and the switch at the top shows each hash as a rate (bytes per second; knob up, higher is better) or a cost (nanoseconds per byte; knob down, lower is better), per second the program waits (wall-clock), per second of processor time over all its threads (CPU, dotted), or per joule the CPU package used (energy, dashed).</p>
+<div id="sections"></div>
+<div id="tip"></div>
+<script>
+const SECTIONS = [{"title":"How fast each hash runs, by what a program hashes and how it calls","rows":[["one","one message","One message in memory, of the length along the chart's axis."],["batch","a batch of short messages","Many 64-byte messages hashed together, such as a Merkle tree's nodes; the axis counts the messages."],["many","many messages at once, in pieces","64 messages in progress at once, each arriving in pieces, as a server's uploads arrive."],["coll","a collection of items","A collection of items of every size, such as a repository's objects or a store's files, hashed together."],["outb","a message with its outboard, for verified streaming","A message's hash and its outboard: the hash tree's nodes, kept beside the message so that any part of it can be verified when it is sent (Bao, iroh-blobs)."],["recv","a message received, verified as it arrives","A message received with its hash tree's nodes, each part verified as it arrives (iroh-blobs)."]],"cols":[["busy","now and then, after other work","The program hashes now and then and does other work in between, which pushes the hash's code and data out of the CPU's caches."],["idle","now and then, after a pause","The program hashes now and then and waits in between (for the network, say), so the core rests and starts the next hash slowly."],["lent","nonstop, waiting for each call","The program hashes input after input as fast as it can, reading each input once the hash before it has returned."],["piped","nonstop, pipelined","The program hashes input after input as fast as it can, and reads the next inputs while earlier ones hash: it hands its inputs to BLAKE3 servil's stream, which hashes them on other threads. The other hashes have no such call and hash on the program's thread."]],"layers":[["solo","one program","One program hashes; the machine is otherwise quiet."],["shared","two programs at once","Two programs hash at the same moment, nonstop, sharing the machine."]],"names":["BLAKE3 official","BLAKE3 servil mt, 1 threads","bao-tree (iroh-blobs)"],"colors":["#3b82f6","#4c1d95","#15803d"],"shown":[true,true,true],"cells":{"solo|one|piped":{"sizes":["1 MiB"],"unit":"GB/s","call":"Stream::submit_with","doc":"https://johnservil.github.io/BLAKE3/blake3_servil/struct.Stream.html#method.submit_with","cases":false,"per":[1048576],"what":"a message","series":[[0.202249],[0.243662],null],"before":[],"cpu":[[0.203135],[0.245174],null],"energy":[[11.654750],[13.661671],null],"kernels":[["AVX2 vectors, eight chunks at a time"],["Stream::submit_with"],null],"cores":[[[0.0000,4.878,0.000]],[[0.0000,4.863,0.000]],null]},"shared|one|piped":{"sizes":["1 MiB"],"unit":"GB/s","call":"Stream::submit_with","doc":"https://johnservil.github.io/BLAKE3/blake3_servil/struct.Stream.html#method.submit_with","cases":false,"per":[1048576],"what":"a message","series":[[0.202887],[0.236456],null],"before":[],"cpu":[null,null,null],"energy":[null,null,null],"kernels":[["AVX2 vectors, eight chunks at a time"],["Stream::submit_with"],null],"cores":[[[0.0000,4.849,0.000]],[[0.0033,4.833,2.090]],null]},"solo|one|lent":{"sizes":["1 MiB","4 MiB","16 MiB"],"unit":"GB/s","call":"hash_multithreaded","doc":"https://johnservil.github.io/BLAKE3/blake3_servil/fn.hash_multithreaded.html","cases":false,"per":[1048576,4194304,16777216],"what":"a message","series":[[0.214522,0.266331,0.261292],[0.214810,0.262572,0.259670],null],"before":[],"cpu":[[0.215431,0.267626,0.261516],[0.215785,0.263806,0.259975],null],"energy":[[12.068752,14.441715,12.299552],[12.021095,15.045316,12.325321],null],"kernels":[["AVX2 vectors, eight chunks at a time","AVX2 vectors, eight chunks at a time","AVX2 vectors, eight chunks at a time"],["AVX2 hash_many (8-way)","AVX2 hash_many (8-way)","AVX2 hash_many (8-way)"],null],"cores":[[[0.0000,4.884,0.000],[0.0000,4.876,0.000],[0.0100,4.898,3.765]],[[0.0000,4.883,0.000],[0.0000,4.881,0.000],[0.0000,4.894,0.000]],null]},"shared|one|lent":{"sizes":["1 MiB","4 MiB","16 MiB"],"unit":"GB/s","call":"hash_multithreaded","doc":"https://johnservil.github.io/BLAKE3/blake3_servil/fn.hash_multithreaded.html","cases":false,"per":[1048576,4194304,16777216],"what":"a message","series":[[0.218737,0.297670,0.296966],[0.219024,0.298145,0.301777],null],"before":[],"cpu":[null,null,null],"energy":[null,null,null],"kernels":[["AVX2 vectors, eight chunks at a time","AVX2 vectors, eight chunks at a time","AVX2 vectors, eight chunks at a time"],["AVX2 hash_many (8-way)","AVX2 hash_many (8-way)","AVX2 hash_many (8-way)"],null],"cores":[[[0.0000,4.857,0.000],[0.0000,4.855,0.000],[0.0000,4.867,0.000]],[[0.0033,4.848,3.717],[0.0000,4.823,0.000],[0.0000,4.836,0.000]],null]}},"about":"12th Gen Intel(R) Core(TM) i7-12700K, 20 CPUs, Linux · 2026-10-19 · the machine quiet","details":[["Measured","2026-10-19 04:59:39 UTC",""],["Machine","12th Gen Intel(R) Core(TM) i7-12700K, 20 CPUs, linux7.0.0-38-generic",""],["Power","mains power, no battery, CPU frequency governor powersave, energy-performance preference performance",""],["Other programs","quiet: other programs kept 0.19 CPUs busy on average, 0.21 in the busiest window",""],["bench-hashes","0.16.1","https://github.com/johnservil/bench-hashes/releases/tag/v0.16.1%2B90af10682bd18c798d480fe1fd1c9aeb2b632c4c"],["bench-hashes commit","5eefafdad742f0a5a62660099e60cd7a91bbfc3a (dirty-677cd2cdc9613fdf81bdb50425f287460a080bc569ef706241c99bdfcf0b1e72)","https://github.com/johnservil/bench-hashes/tree/5eefafdad742f0a5a62660099e60cd7a91bbfc3a"],["BLAKE3 servil","github.com/devonjonte/BLAKE3 at f8521550ce559db7a290ec2d84170e9d3e887613","https://github.com/devonjonte/BLAKE3/tree/f8521550ce559db7a290ec2d84170e9d3e887613"],["BLAKE3 official","blake3 1.8.7",""],["SHA-256","sha2 0.11.0",""],["Compiler","rustc 1.98.1 (48a229cea 2026-09-01)",""],["Target","x86_64-unknown-linux-gnu",""],["Samples","bench-hashes.samples.tsv","bench-hashes.samples.tsv"]],"run":"bench-hashes 0.16.1, BLAKE3 servil f852155","before":["",""]}];
+function glyph(kind, size = 20, color = "#4b5563") {
+  const r = (x, y, w, h, o = 1) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1.2" fill="${color}" opacity="${o}"/>`;
+  const g = {
+    one: r(2, 8, 18, 6),
+    batch: [0, 1, 2].map(j => r(7, 2 + j * 6.5, 8, 5)).join(""),
+    many: [0, 1, 2].map(j => r(1 + j * 2, 3 + j * 6, 8 + (j % 2) * 6, 4)).join(""),
+    coll: [[1, 3, 6], [9, 3, 11], [1, 10, 14], [17, 10, 4], [1, 17, 9], [12, 17, 9]].map(([x, y, w]) => r(x, y, w, 4)).join(""),
+    outb: r(1, 15, 20, 5) + `<path d="M11 13 V9 M5 13 V10 H17 V13 M11 9 V4" stroke="${color}" stroke-width="1.6" fill="none"/>` + `<circle cx="11" cy="3.5" r="2.2" fill="${color}"/>`,
+    busy: `<circle cx="11" cy="11" r="4" fill="none" stroke="${color}" stroke-width="2.5"/>` + [0, 45, 90, 135, 180, 225, 270, 315].map(a => `<rect x="10" y="2" width="2" height="4" fill="${color}" transform="rotate(${a} 11 11)"/>`).join(""),
+    idle: `<path d="M14 3 a8 8 0 1 0 5 13 a6.5 6.5 0 1 1 -5 -13 z" fill="${color}"/>`,
+    lent: r(1, 7, 7, 8) + `<path d="M10 11 h6 M14 11 l-2.5 -2.5 M14 11 l-2.5 2.5" stroke="${color}" stroke-width="1.8" fill="none" stroke-linecap="round"/><rect x="17" y="7" width="4" height="8" rx="1" fill="none" stroke="${color}" stroke-width="1.5"/>`,
+    piped: [0, 1, 2].map(j => r(1 + j * 7, 8, 5.5, 6, 1 - j * .3)).join("") + `<path d="M2 18 h18 m-3 -2.5 l3 2.5 l-3 2.5" stroke="${color}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
+    solo: `<circle cx="11" cy="6" r="3.5" fill="${color}"/><path d="M4.5 20 a6.5 6.5 0 0 1 13 0 z" fill="${color}"/>`,
+    shared: `<circle cx="7" cy="7" r="3" fill="${color}"/><path d="M1.5 20 a5.5 5.5 0 0 1 11 0 z" fill="${color}"/><circle cx="15.5" cy="7" r="3" fill="${color}"/><path d="M10 20 a5.5 5.5 0 0 1 11 0 z" fill="${color}"/>`,
+    file: `<path d="M5 2 h8 l5 5 v13 h-13 z" fill="none" stroke="${color}" stroke-width="1.8"/><path d="M13 2 v5 h5" fill="none" stroke="${color}" stroke-width="1.5"/>`,
+    tree: `<path d="M3 3 h6 l2 2 h8 v13 h-16 z" fill="none" stroke="${color}" stroke-width="1.8"/>` + r(6, 9, 10, 2) + r(6, 13, 7, 2),
+    cached: r(3, 4, 16, 14) + [6, 10, 14].map(x => `<rect x="${x}" y="1" width="1.6" height="3" fill="${color}"/><rect x="${x}" y="18" width="1.6" height="3" fill="${color}"/>`).join(""),
+    storage: `<ellipse cx="11" cy="5" rx="8" ry="3" fill="none" stroke="${color}" stroke-width="1.8"/><path d="M3 5 v12 a8 3 0 0 0 16 0 v-12" fill="none" stroke="${color}" stroke-width="1.8"/>`,
+  }[kind] || "";
+  return `<svg width="${size}" height="${size}" viewBox="0 0 22 22">${g}</svg>`;
+}
+/* A section's one rate axis: every chart of it, every contender, so a line's
+   height reads the same in every chart, whatever names are set aside. */
+function axisOf(S) {
+  if (!S.axis) {
+    const vals = Object.values(S.cells).flatMap(c => c.series.concat(c.before, c.cpu, c.energy).filter(Boolean).flat()).filter(v => v).map(shown);
+    S.axis = [Math.log(Math.min(...vals)) - 0.1, Math.log(Math.max(...vals)) + 0.1];
+  }
+  return S.axis;
+}
+/* One chart's lines, rates (bytes over each mean time) on the section's log scale; the opened one with axes. */
+function draw(S, c, w, h, axes) {
+  const live = c.series.map((s, i) => s && S.shownNow[i] ? i : -1).filter(i => i >= 0);
+  const [lo, hi] = axisOf(S);
+  /* An opened chart marks each point with its code path's shape, and keys
+     the shapes under its title: a line a contender whose path changes. */
+  const SHAPES = ["●", "◆", "■", "▲", "▼"];
+  const paths = i => c.kernels && c.kernels[i] ? [...new Set(c.kernels[i])] : [];
+  const keyed = axes && MEASURES.wall ? live.filter(i => paths(i).length > 1) : [];
+  /* A phone's opened chart: its title takes two lines, its names three. */
+  const tall = axes && narrow(), top = tall ? 72 : 40;
+  const n = c.sizes.length, L = axes ? (tall ? 50 : 70) : 8, R = axes ? (tall ? 12 : 24) : 8, T = axes ? top + 15 * keyed.length : 8, B = axes ? (tall ? 128 : 70) : 14;
+  /* Sizes run edge to edge; separate cases sit in the middles of equal slots. */
+  const x = k => n === 1 || c.cases ? L + (k + 0.5) * (w - L - R) / n : L + k * (w - L - R) / (n - 1);
+  const y = v => h - B - (Math.log(v) - lo) / (hi - lo) * (h - T - B);
+  let s = `<svg width="${w}" height="${h}">`;
+  /* Every chart of a section shares its scale; faint lines at each power of ten show it. */
+  if (!axes) for (let e = Math.ceil(lo / Math.LN10); e <= Math.floor(hi / Math.LN10); e++) s += `<line x1="${L}" x2="${w - R}" y1="${y(10 ** e)}" y2="${y(10 ** e)}" stroke="#f1f1ef"/>`;
+  if (axes) {
+    for (let e = Math.floor(Math.log10(Math.exp(lo))) - 1; e <= Math.ceil(Math.log10(Math.exp(hi))); e++) for (const m of [1, 2, 5]) {
+      const v = m * 10 ** e; if (Math.log(v) < lo || Math.log(v) > hi) continue;
+      s += `<line x1="${L}" x2="${w - R}" y1="${y(v)}" y2="${y(v)}" stroke="#f3f4f6"/><text x="${L - 6}" y="${y(v) + 4}" font-size="11" fill="#6b7280" text-anchor="end">${+v.toPrecision(2)}</text>`;
+    }
+    /* The title runs up the axis; its arrow, beside its end, points up, as faster lines lie. */
+    /* The axis names every selected measure: solid, dotted, dashed. */
+    const M = MEASURES, names = SHOW.cost ? { wall: "ns per byte", cpu: "CPU ns per byte", energy: "nJ per byte" } : { wall: c.unit, cpu: "GB per CPU second", energy: "GB per joule" };
+    const on = ["wall", "cpu", "energy"].filter(m => M[m]), style = { wall: "", cpu: "dotted: ", energy: "dashed: " };
+    const title0 = on.length === 1 ? names[on[0]] : names[on[0]] + " (" + on.slice(1).map(m => style[m] + names[m]).join("; ") + ")";
+    const mid = (T + h - B) / 2, title = `${title0}, ${SHOW.cost ? "lower" : "higher"} is better`, half = title.length * 3.1;
+    s += `<text x="14" y="${mid}" font-size="11" fill="#6b7280" transform="rotate(-90 14 ${mid})" text-anchor="middle">${title}</text>`;
+    s += SHOW.cost
+      ? `<path d="M10 ${mid + half + 4} V${mid + half + 18} M6.5 ${mid + half + 13} L10 ${mid + half + 18} L13.5 ${mid + half + 13}" stroke="#6b7280" stroke-width="1.3" fill="none"/>`
+      : `<path d="M10 ${mid - half - 4} V${mid - half - 18} M6.5 ${mid - half - 13} L10 ${mid - half - 18} L13.5 ${mid - half - 13}" stroke="#6b7280" stroke-width="1.3" fill="none"/>`;
+    /* As many size labels as fit, about 48 px each. */
+    const every = Math.max(1, Math.ceil(n * 48 / (w - L - R)));
+    c.sizes.forEach((lab, k) => { if (k % every === 0 || k === n - 1) s += `<text x="${x(k)}" y="${h - B + 16}" font-size="11" fill="#6b7280" text-anchor="middle">${lab}</text>`; });
+    s += `<line class="cursor" x1="0" x2="0" y1="${T}" y2="${h - B}" stroke="#9ca3af" stroke-dasharray="3 3" visibility="hidden"/>`;
+  }
+  /* An earlier run beside this one: its lines dashed and pale, under the run's own. */
+  if (S.besideNow) for (const i of live) {
+    const was = c.before[i]; if (!was) continue;
+    const pts = was.map((v, k) => v ? [x(k), y(shown(v))] : null);
+    if (!(pts.filter(Boolean).length === 1 || c.cases)) {
+      let run = [];
+      for (const p of pts.concat([null])) {
+        if (p) { run.push(p); continue; }
+        if (run.length > 1) s += `<polyline points="${run.map(p => p.map(q => q.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="${S.colors[i]}" stroke-opacity=".55" stroke-dasharray="4 3" stroke-width="${axes ? 2 : 1.3}"/>`;
+        run = [];
+      }
+    }
+    if (pts.length <= 3 || c.cases) s += pts.filter(Boolean).map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="${axes ? 5 : 3}" fill="none" stroke="${S.colors[i]}" stroke-opacity=".7" stroke-width="1.5"/>`).join("");
+  }
+  /* CPU time (the processor time a unit took, all the program's threads)
+     dotted; energy (the CPU package's, a unit's share) dashed. */
+  for (const [m, dash, cap] of [["cpu", `0.1 ${axes ? 4 : 3}`, "round"], ["energy", axes ? "7 4" : "5 3", "butt"]]) if (MEASURES[m]) for (const i of live) {
+    const line = c[m][i]; if (!line) continue;
+    const pts = line.map((v, k) => v ? [x(k), y(shown(v))] : null);
+    let run = [];
+    for (const p of pts.concat([null])) {
+      if (p) { run.push(p); continue; }
+      if (run.length > 1 && !c.cases) s += `<polyline points="${run.map(p => p.map(q => q.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="${S.colors[i]}" stroke-dasharray="${dash}" stroke-linecap="${cap}" stroke-width="${axes ? (m === "cpu" ? 2.6 : 2) : (m === "cpu" ? 1.8 : 1.4)}"/>`;
+      run = [];
+    }
+    if (pts.length <= 3 || c.cases) s += pts.filter(Boolean).map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="${axes ? 4 : 2.5}" fill="#fff" stroke="${S.colors[i]}" stroke-width="1.6" stroke-dasharray="${m === "cpu" ? "1.5 1.5" : "3 1.5"}"/>`).join("");
+  }
+  /* Dots after every line, the fastest at each point drawn last, on top:
+     where two overlap, the faster one shows. */
+  const dots = [];
+  if (MEASURES.wall) for (const i of live) {
+    const pts = c.series[i].map((v, k) => [x(k), y(shown(v))]);
+    s += pts.length === 1 || c.cases ? "" : `<polyline points="${pts.map(p => p.map(q => q.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="${S.colors[i]}" stroke-width="${axes ? 2.2 : 1.5}"/>`;
+    if (pts.length <= 3 || c.cases) dots.push(...pts.map((p, k) => [1 / c.series[i][k], `<circle cx="${p[0]}" cy="${p[1]}" r="${axes ? 5 : 3}" fill="${S.colors[i]}"/>`]));
+  }
+  /* Slowest first, fastest last: where dots overlap, the fastest shows. */
+  s += dots.sort((a, b) => a[0] - b[0]).map(d => d[1]).join("");
+  /* The code paths: a shape at every point where the path changes along the
+     line, and their key. */
+  keyed.forEach((i, row) => {
+    const ps = paths(i), shape = k => SHAPES[ps.indexOf(c.kernels[i][k]) % SHAPES.length];
+    c.series[i].forEach((v, k) => { s += `<text x="${x(k)}" y="${y(shown(v)) + 4}" font-size="12" text-anchor="middle" fill="${S.colors[i]}" stroke="#fff" stroke-width="2.5" paint-order="stroke">${shape(k)}</text>`; });
+    const key = ps.map((p, j) => `${SHAPES[j % SHAPES.length]} ${p.replace(/&/g, "&amp;").replace(/</g, "&lt;")}`).join("   ");
+    s += `<text x="${L}" y="${top + 15 * row}" font-size="11" fill="#4b5563"><tspan fill="${S.colors[i]}" font-weight="600">${S.names[i]}</tspan>: ${key}</text>`;
+  });
+  return { svg: s + "</svg>", x, n, L, R, w };
+}
+/* The page is narrow (a phone): grids scale to fit, charts open across it. */
+/* The screen's width: clientWidth (a phone widens innerWidth to fit content
+   wider than itself, so it would never read narrow). */
+const screenWidth = () => document.documentElement.clientWidth;
+const narrow = () => screenWidth() < 1000;
+let GRIDS = [];
+function fitGrids() {
+  for (const g of GRIDS) {
+    g.style.zoom = 1;
+    g.style.zoom = narrow() ? Math.min(1, (screenWidth() - 20) / g.scrollWidth) : 1;
+  }
+}
+window.addEventListener("resize", () => { const was = OPEN; render(); if (was) { OPEN = was; reopen(); } });
+/* What the lines measure, for the whole page: wall-clock time by default. */
+const MEASURES = { wall: true, cpu: false, energy: false };
+/* What a line's height is: a rate (bytes per second, higher is faster) by
+   default, or a cost (nanoseconds per byte, lower is faster). */
+const SHOW = { cost: false };
+const shown = nsPerByte => SHOW.cost ? nsPerByte : 1 / nsPerByte;
+/* The chart open now (its cell's key), so a chip that redraws the page keeps it open. */
+let OPEN = null;
+function render() {
+  /* A redraw keeps the reader's place on the page. */
+  const scrolled = window.scrollY;
+  requestAnimationFrame(() => window.scrollTo(0, scrolled));
+  const root = document.getElementById("sections");
+  document.removeEventListener("keydown", window.onZoomKey || (() => {}));
+  document.getElementById("tip").style.display = "none";
+  root.style.minHeight = root.offsetHeight + "px"; root.innerHTML = ""; GRIDS = [];
+    /* What the lines measure: wall-clock time by default; CPU time where the
+     run recorded it; energy once the benchmark counts it. */
+  const measures = document.createElement("div"); measures.className = "measures";
+  /* First the view: a switch between a rate (higher is faster) and a cost
+     (lower is faster); then which lines, each named for what its height is. */
+  const sw = document.createElement("button"); sw.className = "switch" + (SHOW.cost ? " on" : "");
+  sw.setAttribute("role", "switch"); sw.setAttribute("aria-checked", SHOW.cost);
+  sw.title = SHOW.cost ? "Lines are costs, nanoseconds per byte: lower is better. Click to show rates (higher is better)." : "Lines are rates, bytes per second: higher is better. Click to show costs (lower is better).";
+  sw.innerHTML = `<span class="track"><span class="knob"></span></span><span class="dir">${SHOW.cost ? "↓ lower is better" : "↑ higher is better"}</span>`;
+  sw.onclick = () => { SHOW.cost = !SHOW.cost; SECTIONS.forEach(S => { delete S.axis; }); render(); reopen(); };
+  measures.append(sw, "·");
+  const icon = m => `<svg width="20" height="10"><line x1="2" x2="18" y1="5" y2="5" stroke="currentColor" stroke-width="${m === "cpu" ? 2.2 : 1.8}" ${m === "cpu" ? 'stroke-dasharray="0.1 3.5" stroke-linecap="round"' : m === "energy" ? 'stroke-dasharray="5 3"' : ""}/></svg>`;
+  /* Energy where any run counted it (a quiet machine's CPU package, solo cells). */
+  const counted = m => SECTIONS.some(S => Object.values(S.cells).some(c => c[m].some(Boolean)));
+  const lines = SHOW.cost
+    ? [["wall", "wall-clock ns per byte", false, "Nanoseconds the program waits per byte hashed."], ["cpu", "CPU ns per byte", true, "Nanoseconds of processor time per byte hashed, every thread of the program summed: what the hash costs the machine."], ["energy", "nJ per byte", false, "Nanojoules the CPU package used per byte hashed (solo cells; the whole package's, on a quiet machine)."]]
+    : [["wall", "GB per wall-clock second", false, "Bytes hashed per second the program waits."], ["cpu", "GB per CPU second", true, "Bytes hashed per second of processor time, every thread of the program summed: higher is cheaper for the machine. A hash on one thread draws both lines together."], ["energy", "GB per joule", false, "Bytes hashed per joule the CPU package used (solo cells; the whole package's, on a quiet machine): higher is cheaper."]];
+  for (const [m, label, dots, why] of lines) {
+    const b = document.createElement("button"); b.innerHTML = icon(m) + label; b.title = why;
+    if (m !== "wall" && !counted(m)) { b.disabled = true; b.classList.add("off"); b.title = `This run counted no ${m === "cpu" ? "CPU time" : "energy"}.`; }
+    else {
+      if (!MEASURES[m]) b.classList.add("off");
+      b.onclick = () => { MEASURES[m] = !MEASURES[m]; if (!MEASURES.wall && !MEASURES.cpu && !MEASURES.energy) MEASURES.wall = true; render(); reopen(); };
+    }
+    measures.appendChild(b);
+  }
+  root.appendChild(measures);
+  /* The names stick just under the panel, whatever its height (it wraps on a phone). */
+  requestAnimationFrame(() => document.documentElement.style.setProperty("--bar", measures.offsetHeight + "px"));
+
+  SECTIONS.forEach((S, si) => {
+    S.shownNow = S.shownNow || S.shown.slice();
+    if (S.besideNow === undefined) S.besideNow = !!S.before[0];
+    const box = document.createElement("div");
+    const esc = t => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const rows = S.details.map(([k, v, a]) => `<dt>${esc(k)}</dt><dd>${a ? `<a href="${esc(a)}">${esc(v)}</a>` : esc(v)}</dd>`).join("");
+    const vs = S.before[0] ? `<p class="about">Solid lines: ${esc(S.run)}. Dashed lines: ${esc(S.before[0])}, ${esc(S.before[1])}.</p>` : "";
+    box.innerHTML = `<h2>${S.title}</h2><p class="about">${esc(S.about)}</p>${vs}<details class="run"><summary>About this run</summary><dl>${rows}</dl></details>`;
+    const legend = document.createElement("div"); legend.className = "legend";
+    S.names.forEach((nm, i) => {
+      const b = document.createElement("button"); b.textContent = nm; b.style.setProperty("--c", S.colors[i]);
+      if (!S.shownNow[i]) b.classList.add("off");
+      b.onclick = () => { S.shownNow[i] = !S.shownNow[i]; render(); reopen(); };
+      legend.appendChild(b);
+    });
+    /* The earlier run beside this one: a chip that hides or shows its dashed lines. */
+    if (S.before[0]) {
+      const b = document.createElement("button"); b.className = "beside" + (S.besideNow ? "" : " off");
+      b.innerHTML = `<svg width="22" height="10"><line x1="1" x2="21" y1="5" y2="5" stroke="#6b7280" stroke-dasharray="4 3" stroke-width="1.6"/></svg> ${esc(S.before[0])}`;
+      b.title = S.before[1];
+      b.onclick = () => { S.besideNow = !S.besideNow; render(); reopen(); };
+      legend.appendChild(b);
+    }
+    box.appendChild(legend);
+    for (const [layer, lname, lnote] of S.layers) {
+      if (S.layers.length > 1) {
+        const lay = document.createElement("div");
+        lay.className = "layer";
+        lay.innerHTML = glyph(layer, 18) + lname + `<span class="means">${lnote}</span>`;
+        lay.onclick = () => lay.classList.toggle("show");
+        box.appendChild(lay);
+      }
+      const g = document.createElement("div"); g.className = "grid"; g.style.setProperty("--cols", S.cols.length); box.appendChild(g);
+      GRIDS.push(g);
+      g.appendChild(document.createElement("div"));
+      for (const [c, cname, cmeans] of S.cols) {
+        const h = document.createElement("div"); h.className = "h";
+        h.innerHTML = glyph(c) + cname + `<span class="means">${cmeans}</span>`; h.dataset.key = "col:" + c; h.onclick = () => h.classList.toggle("show"); g.appendChild(h);
+      }
+      for (const [r, rname, rmeans] of S.rows) {
+        const h = document.createElement("div"); h.className = "h row";
+        h.innerHTML = glyph(r) + `<span>${rname}</span><span class="means">${rmeans}</span>`; h.dataset.key = "row:" + r; h.onclick = () => h.classList.toggle("show"); g.appendChild(h);
+        for (const [c] of S.cols) {
+          const cell = document.createElement("div"); cell.className = "cell";
+          const key = `${layer}|${r}|${c}`, q = S.cells[key];
+          if (q) {
+            const nothing = !MEASURES.wall && !(MEASURES.cpu && q.cpu.some(Boolean)) && !(MEASURES.energy && q.energy.some(Boolean));
+            cell.innerHTML = draw(S, q, 208, 94, false).svg + (nothing ? `<span class="note">nothing selected is recorded for this way of calling</span>` : "") + `<span class="call"><a class="doc" href="${q.doc}" target="_blank" title="${q.call}: its documentation">${q.call}</a></span>`;
+            cell.querySelector("a.doc").onclick = e => e.stopPropagation();
+            cell.dataset.key = si + ":" + key;
+            cell.onclick = () => open(S, g, cell, q, r, c, layer);
+          } else {
+            cell.classList.add("empty");
+          }
+          g.appendChild(cell);
+        }
+      }
+    }
+    root.appendChild(box);
+  });
+  fitGrids();
+}
+/* Opening: the chart grows from its own cell over the cells' area, the headers in view, and shrinks back into it. */
+function open(S, grid, cell, q, row, col, layer) {
+  const gr = grid.getBoundingClientRect(), cr = cell.getBoundingClientRect();
+  const first = grid.querySelector(".cell").getBoundingClientRect();
+  const phone = narrow();
+  /* A phone: a panel across the screen under the bar, at full size (the
+     grid is scaled down); else over the grid's cells, the headers in view. */
+  const bar = document.querySelector(".measures").getBoundingClientRect().bottom;
+  const X0 = phone ? 6 : first.left - gr.left, Y0 = phone ? bar + 4 : first.top - gr.top;
+  const W = phone ? screenWidth() - 12 : Math.max(gr.width - X0, 640);
+  const H = phone ? Math.max(360, window.innerHeight - Y0 - 6) : Math.max(gr.height - Y0, 340);
+  const z = document.createElement("div"); z.className = "zoom" + (phone ? " phone" : "");
+  const start = phone ? { left: cr.left, top: cr.top, width: cr.width, height: cr.height } : { left: cr.left - gr.left, top: cr.top - gr.top, width: cr.width, height: cr.height };
+  const place = r => Object.assign(z.style, Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v + "px"])));
+  const instant = cell.dataset.instant === "1";
+  OPEN = cell.dataset.key;
+  if (instant) z.style.transition = "none";
+  place(start); (phone ? document.body : grid).appendChild(z);
+  const d = draw(S, q, W, H, true);
+  const rn = S.rows.find(r => r[0] === row)[1], cn = S.cols.find(c => c[0] === col)[1];
+  const ln = S.layers.length > 1 ? ", " + S.layers.find(l => l[0] === layer)[1] : "";
+  z.innerHTML = d.svg + `<div class="title">${glyph(row, 16)}${glyph(col, 16)} ${rn}, ${cn}${ln}: <code><a class="doc" href="${q.doc}" target="_blank" title="its documentation">${q.call}</a></code></div><button class="close">✕<span class="word"> put back</span></button>`;
+  z.querySelector("a.doc").onclick = e => e.stopPropagation();
+  /* The section's names, inside the chart too: one hides or shows its lines here. */
+  const chips = document.createElement("div"); chips.className = "legend inzoom";
+  S.names.forEach((nm, i) => {
+    if (!q.series[i]) return;
+    const b = document.createElement("button"); b.textContent = nm; b.style.setProperty("--c", S.colors[i]);
+    if (!S.shownNow[i]) b.classList.add("off");
+    b.onclick = e => { e.stopPropagation(); S.shownNow[i] = !S.shownNow[i]; render(); reopen(); };
+    chips.appendChild(b);
+  });
+  z.appendChild(chips);
+  if (instant) { place({ left: X0, top: Y0, width: W, height: H }); requestAnimationFrame(() => { z.style.transition = ""; }); }
+  else requestAnimationFrame(() => place({ left: X0, top: Y0, width: W, height: H }));
+  const lit = [...grid.querySelectorAll(".h")].filter(h => h.dataset.key === "row:" + row || h.dataset.key === "col:" + col);
+  lit.forEach(h => h.classList.add("lit"));
+  const tip = document.getElementById("tip"), cur = z.querySelector(".cursor");
+  /* A touch's tap shows the values at its point (the finger moves no
+     pointer); a mouse's click, or the button, puts the chart back. */
+  let touch = false;
+  z.onpointerdown = e => { touch = e.pointerType !== "mouse"; };
+  const show = e => {
+    const zr = z.getBoundingClientRect(), mx = e.clientX - zr.left;
+    const slot = (d.w - d.L - d.R) / (q.cases ? d.n : Math.max(d.n - 1, 1));
+    const k = d.n === 1 ? 0 : Math.max(0, Math.min(d.n - 1, Math.round((mx - d.L) / slot - (q.cases ? 0.5 : 0))));
+    cur.setAttribute("x1", d.x(k)); cur.setAttribute("x2", d.x(k)); cur.setAttribute("visibility", "visible");
+    const M = MEASURES;
+    const rows = q.series.map((s, i) => s && S.shownNow[i] ? [i, 1 / s[k], s[k]] : null).filter(Boolean).sort((a, b) => b[1] - a[1]);
+    /* Beside an earlier run: its rate, and how many times faster the run is. */
+    const was = i => { const v = S.besideNow && q.before[i] && q.before[i][k]; return v ? ` <span class="was">(before: ${(1 / v).toPrecision(3)}; now ×${(v / q.series[i][k]).toFixed(2)})</span>` : ""; };
+    const time = ns => ns >= 1e6 ? (ns / 1e6).toPrecision(3) + " ms" : ns >= 1e3 ? (ns / 1e3).toPrecision(3) + " µs" : ns.toPrecision(3) + " ns";
+    const cpuOf = i => { const v = q.cpu[i] && q.cpu[i][k]; return v ? `${M.wall ? "; " : ""}CPU ${SHOW.cost ? v.toPrecision(3) + " ns/B · " : ""}${time(v * q.per[k])} ${q.what}` : M.wall ? "" : "no CPU time recorded"; };
+    const energyOf = i => { const v = q.energy[i] && q.energy[i][k]; if (!v) return ""; const nj = v * q.per[k]; return `${M.wall || M.cpu ? "; " : ""}energy ${SHOW.cost ? v.toPrecision(3) + " nJ/B · " : (1 / v).toPrecision(3) + " GB/J · "}${nj >= 1e6 ? (nj / 1e6).toPrecision(3) + " mJ" : nj >= 1e3 ? (nj / 1e3).toPrecision(3) + " µJ" : nj.toPrecision(3) + " nJ"} ${q.what}`; };
+    /* Where the caller ran: its E-core share and the clocks, where counted. */
+    const ran = i => { const c = q.cores && q.cores[i] && q.cores[i][k]; if (!c) return ""; const [e, p, ee] = c; return ` <span class="was">[${e < 0.005 ? `P cores, ${p.toFixed(2)} GHz` : e > 0.995 ? `E cores, ${ee.toFixed(2)} GHz` : `${(100 * e).toFixed(0)}% on E cores; P ${p.toFixed(2)}, E ${ee.toFixed(2)} GHz`}]</span>`; };
+    const path = i => (q.kernels && q.kernels[i] ? ` <span class="was">(${q.kernels[i][k]})</span>` : "") + ran(i);
+    tip.innerHTML = `<b>${q.sizes[k]}</b><br>` + rows.map(([i, rate, t]) => `<span class="sw" style="background:${S.colors[i]}"></span>${S.names[i]}: ` + (M.wall ? `${SHOW.cost ? t.toPrecision(3) + " ns/B" : rate.toPrecision(3) + " " + q.unit} · ${time(t * q.per[k])} ${q.what}${was(i)}${path(i)}` : "") + (M.cpu ? cpuOf(i) : "") + (M.energy ? energyOf(i) : "")).join("<br>");
+    tip.style.display = "block";
+    /* Measured at the left edge, at its full width, then placed. */
+    tip.style.left = "0px";
+    tip.style.left = Math.max(4, Math.min(e.clientX + 14, screenWidth() - tip.offsetWidth - 4)) + "px";
+    /* Above a finger, which would hide it; below a mouse pointer. */
+    tip.style.top = (touch ? Math.max(8, e.clientY - tip.offsetHeight - 24) : e.clientY + 10) + "px";
+  };
+  z.onmousemove = e => { if (!touch) show(e); };
+  /* A mouse leaving hides the values; after a touch, the emulated mouse events that follow a tap would hide what the tap showed, so they wait for the next tap. */
+  z.onmouseleave = () => { if (touch) return; tip.style.display = "none"; cur.setAttribute("visibility", "hidden"); };
+  const close = () => { OPEN = null; document.removeEventListener("click", outside); document.removeEventListener("keydown", onKey); tip.style.display = "none"; lit.forEach(h => h.classList.remove("lit")); place(start); setTimeout(() => z.remove(), 220); };
+  z.querySelector(".close").onclick = e => { e.stopPropagation(); close(); };
+  /* Escape puts it back too. */
+  const onKey = e => { if (e.key === "Escape") { document.removeEventListener("keydown", onKey); close(); } };
+  document.addEventListener("keydown", onKey); window.onZoomKey = onKey;
+  z.onclick = e => { if (touch) show(e); else close(); };
+  /* A click anywhere else on the page puts it back too, except on the
+     chips, which redraw it in place. */
+  const outside = e => { if (!z.isConnected) return document.removeEventListener("click", outside); if (!z.contains(e.target) && !e.target.closest(".measures, .legend")) close(); };
+  setTimeout(() => document.addEventListener("click", outside));
+}
+render();
+/* A chip clicked inside an open chart: redraw, and open it again at full size at once. */
+function reopen() {
+  const key = OPEN; if (!key) return;
+  const cell = document.querySelector(`.cell[data-key="${CSS.escape(key)}"]`);
+  if (cell) { cell.dataset.instant = "1"; cell.click(); delete cell.dataset.instant; } else OPEN = null;
+}
+/* A link to one chart (#solo|one|lent, or #1:solo|file|cached for a later section) opens it. */
+function openFromHash() {
+  if (location.hash.length < 2) return;
+  const want = decodeURIComponent(location.hash.slice(1)), key = want.includes(":") ? want : "0:" + want;
+  const cell = document.querySelector(`.cell[data-key="${CSS.escape(key)}"]`);
+  if (cell && !document.querySelector(".zoom")) { cell.scrollIntoView({ block: "center" }); cell.click(); }
+}
+openFromHash();
+window.addEventListener("hashchange", openFromHash);
+</script></body></html>

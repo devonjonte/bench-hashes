@@ -1,0 +1,77 @@
+Hash speed on 12th Gen Intel(R) Core(TM) i7-12700K (linux7.0.0-38-generic, 20 CPUs), 2026-10-19 05:00:45 UTC
+Full run: 96 rounds. Each cell is the mean time per unit (total time over total work), lower is better.
+
+In “Messages one after another, buffers owned” and “Messages one after another, buffers lent”, the program hashes one input after another, as fast as it can, alone and with a second program doing the same at once.
+
+SOLO: one copy of each contender, on one thread.
+
+  Messages one after another, buffers owned (ns/B)
+  size        B3 servil mt     B3 official
+  1 MiB            0.0486           0.210 
+
+  Messages one after another, buffers lent (ns/B)
+  size        B3 servil mt     B3 official
+  1 MiB            0.0830           0.225 
+  4 MiB            0.0792           0.266 
+  16 MiB           0.0859           0.265 
+
+SHARED: two copies of the contender at once, each hashing its own input on its own thread, inputs one after another; the time of each copy.
+
+  Messages one after another, buffers owned (ns/B)
+  size        B3 servil mt     B3 official
+  1 MiB            0.0543           0.208 
+
+  Messages one after another, buffers lent (ns/B)
+  size        B3 servil mt     B3 official
+  1 MiB            0.0751           0.230 
+  4 MiB            0.0906           0.287 
+  16 MiB            0.143           0.297 
+
+KERNELS: the code path each contender ran, from the point named on (a call after idling runs the same as after other work).
+  A message in one buffer, after other work:
+    BLAKE3 servil mt: 64 B SSE4.1 compression; 2 KiB AVX2 hash_many (8-way); 512 KiB split over threads
+    BLAKE3 official: 64 B SSE4.1 vectors, one chunk at a time; 4 KiB SSE4.1 vectors, four chunks at a time; 8 KiB AVX2 vectors, eight chunks at a time
+  A batch of 64-byte messages, after other work:
+    BLAKE3 servil mt: 1 SSE4.1 compression; 2 AVX2 hash_many (8-way); 8192 split over threads
+    BLAKE3 official: 1 one message at a time; 8 AVX2 vectors, eight messages at a time
+  Messages one after another, buffers owned:
+    BLAKE3 servil mt: 64 B Stream::submit_with
+    BLAKE3 official: 64 B SSE4.1 vectors, one chunk at a time; 4 KiB SSE4.1 vectors, four chunks at a time; 16 KiB AVX2 vectors, eight chunks at a time
+  Batches one after another, buffers owned:
+    BLAKE3 servil mt: 16 Stream::submit_batch_with
+    BLAKE3 official: 16 AVX2 vectors, eight messages at a time
+  Messages one after another, buffers lent:
+    BLAKE3 servil mt: 64 B SSE4.1 compression; 4 KiB AVX2 hash_many (8-way); 1 MiB split over threads
+    BLAKE3 official: 64 B SSE4.1 vectors, one chunk at a time; 4 KiB SSE4.1 vectors, four chunks at a time; 16 KiB AVX2 vectors, eight chunks at a time
+  Many messages at once, each arriving in pieces, buffers lent:
+    BLAKE3 servil mt: 256 open Hasher::update_each_multithreaded
+    BLAKE3 official: 256 open AVX2 vectors, eight chunks at a time
+  A collection's items, each hashed once, in memory:
+    BLAKE3 servil mt: git objects hash_each_multithreaded_with
+    BLAKE3 official: git objects AVX2 vectors, eight chunks at a time
+  Messages with their outboards, for verified streaming, buffers lent:
+    BLAKE3 servil mt: 1 MiB outboard_multithreaded_with
+    BLAKE3 official: 1 MiB bao-tree PreOrderMemOutboard::create
+  Messages received in their encodings, verified as they arrive:
+    BLAKE3 servil mt: 1 MiB Verifier::update
+    BLAKE3 official: 1 MiB bao-tree decode_ranges
+  Batches one after another, buffers lent:
+    BLAKE3 servil mt: 16 AVX2 hash_many (8-way); 16384 split over threads
+    BLAKE3 official: 16 AVX2 vectors, eight messages at a time
+  A collection's items one after another, each read into a buffer, then hashed:
+    BLAKE3 servil mt: git objects Stream::submit_with
+    BLAKE3 official: git objects AVX2 vectors, eight chunks at a time
+
+PROVENANCE
+  bench-hashes 0.16.1+90af10682bd18c798d480fe1fd1c9aeb2b632c4c, https://github.com/devonjonte/bench-hashes, commit 5eefafdad742f0a5a62660099e60cd7a91bbfc3a (dirty-677cd2cdc9613fdf81bdb50425f287460a080bc569ef706241c99bdfcf0b1e72)
+  contenders: --contenders blake3-servil-mt,blake3-official; --threads 12
+  BLAKE3 servil mt: blake3-servil 0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5; source https://github.com/devonjonte/BLAKE3; branch servil; commit f8521550ce559db7a290ec2d84170e9d3e887613; clean; multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: the fork chooses when to wake its worker threads; the kernel tables below show the one-shot calls' thresholds
+  BLAKE3 official: blake3 1.8.7; crate archive SHA-256 6d9e454fc11f76977dc803893aff6304ed33d6a26efae8696573bea74baa27ae; source registry+https://github.com/rust-lang/crates.io-index; single-threaded; blake3::hash for one message, the crate's hidden batch function blake3::platform::Platform::hash_many::<N> for a batch, sixteen messages per call
+  CPU: model name: 12th Gen Intel(R) Core(TM) i7-12700K · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l2 cdp_l2 ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdt_a rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize pconfig arch_lbr ibt flush_l1d arch_capabilities · machine: B748
+  rustc 1.98.1 (48a229cea 2026-09-01); target x86_64-unknown-linux-gnu; features fxsr,sse,sse2
+  clock: std::time::Instant → CLOCK_MONOTONIC (stops during suspend, NTP slew only)
+  load during the run: quiet: other programs kept 0.13 CPUs busy on average, 0.16 in the busiest window
+  power: mains power, no battery, CPU frequency governor powersave, energy-performance preference performance
+# Data results (text) are in "benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.result.txt" .
+# Samples (TSV) are in "benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.samples.tsv" .
+# Map (HTML) is in "benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html" .

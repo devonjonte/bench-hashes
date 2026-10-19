@@ -1,0 +1,44 @@
+Hash speed on 12th Gen Intel(R) Core(TM) i7-12700K (linux7.0.0-38-generic, 20 CPUs), 2026-10-19 18:31:50 UTC
+Full run: 96 rounds. Each cell is the mean time per unit (total time over total work), lower is better.
+
+In “A Merkle tree over leaves just written into place, every layer kept”, the program hashes one input after another, as fast as it can, alone and with a second program doing the same at once.
+
+SOLO: one copy of each contender, on one thread.
+
+  A Merkle tree over leaves just written into place, every layer kept (ns/B)
+  leaves      B3 servil st    B3 servil mt     B3 official         SHA-256    SHA-256 ring        SHA3-256         SHA-1DC
+  1024              0.248           0.241           0.242           0.824           0.894           2.910           2.554 
+  4096              0.272           0.154           0.278           0.862           0.927           2.946           2.551 
+  16384             0.340           0.153           0.330           0.891           0.959           3.015           2.569 
+  65536             0.332           0.153           0.327           0.878           0.974           3.023           2.622 
+  262144            0.327           0.122           0.328           0.879           0.946           2.994           2.535 
+
+SHARED: two copies of the contender at once, each hashing its own input on its own thread, inputs one after another; the time of each copy.
+
+  A Merkle tree over leaves just written into place, every layer kept (ns/B)
+  leaves      B3 servil st    B3 servil mt     B3 official         SHA-256    SHA-256 ring        SHA3-256         SHA-1DC
+  1024              0.254           0.240           0.244           0.832           0.905           2.926           2.672 
+  4096              0.338           0.133           0.288           0.903           0.947           3.009           2.554 
+  16384             0.693           0.167           0.363           0.951           1.034           3.098           2.626 
+  65536             0.766           0.214           0.380           0.930           1.020           3.073           2.684 
+  262144            0.863           0.209           0.387           0.931           0.995           3.055           2.594 
+
+PROVENANCE
+  bench-hashes 0.16.1+90af10682bd18c798d480fe1fd1c9aeb2b632c4c, https://github.com/devonjonte/bench-hashes, commit d4d5f6ad43bb144c4a656649c25f3bf72cb83f78 (dirty-7d67427909feb5042ca3c5729cdba408b898933c23b41cd019880dd20426c04f)
+  contenders: --contenders blake3-servil-st,blake3-servil-mt,blake3-official,sha256,sha256-ring,sha3-256,sha1dc
+  BLAKE3 servil st: blake3-servil 0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5; source https://github.com/johnservil/BLAKE3; branch servil; commit eedd8961d8dfe49e1b32fbc901011c458864fef3; clean; single-threaded; blake3_servil::hash for one message, blake3_servil::hash_many for a batch, Hasher::update per piece for many messages at once
+  BLAKE3 servil mt: blake3-servil 0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5; source https://github.com/johnservil/BLAKE3; branch servil; commit eedd8961d8dfe49e1b32fbc901011c458864fef3; clean; multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: the fork chooses when to wake its worker threads
+  BLAKE3 official: blake3 1.8.7; crate archive SHA-256 6d9e454fc11f76977dc803893aff6304ed33d6a26efae8696573bea74baa27ae; source registry+https://github.com/rust-lang/crates.io-index; single-threaded; blake3::hash for one message, the crate's hidden batch function blake3::platform::Platform::hash_many::<N> for a batch, sixteen messages per call
+  SHA-256: sha2 0.11.0; crate archive SHA-256 446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4; source registry+https://github.com/rust-lang/crates.io-index; single-threaded
+  SHA-256 ring: ring 0.17.14; crate archive SHA-256 a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7; source registry+https://github.com/rust-lang/crates.io-index; single-threaded
+  SHA3-256: sha3 0.11.0; crate archive SHA-256 be176f1a57ce4e3d31c1a166222d9768de5954f811601fb7ca06fc8203905ce1; source registry+https://github.com/rust-lang/crates.io-index; single-threaded
+  SHA-1DC: sha1-checked 0.10.0; crate archive SHA-256 89f599ac0c323ebb1c6082821a54962b839832b03984598375bff3975b804423; source registry+https://github.com/rust-lang/crates.io-index; single-threaded
+  CPU: model name: 12th Gen Intel(R) Core(TM) i7-12700K · microcode: 0x3e · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l2 cdp_l2 ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdt_a rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize pconfig arch_lbr ibt flush_l1d arch_capabilities · machine: B748
+  rustc 1.98.1 (48a229cea 2026-09-01); target x86_64-unknown-linux-gnu; features fxsr,sse,sse2
+  clock: std::time::Instant → CLOCK_MONOTONIC (stops during suspend, NTP slew only)
+  load during the run: busy: other programs kept 0.36 CPUs busy on average, 1.36 in the busiest window; busy in 2 of 21 windows (6.1-7.2 s, 18.4-19.5 s)
+  power: mains power, no battery, CPU frequency governor powersave, energy-performance preference performance
+# API guide (HTML) is in "benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.guide.html" .
+# Data results (text) are in "benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.result.txt" .
+# Samples (TSV) are in "benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.samples.tsv" .
+# Map (HTML) is in "benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html" .
