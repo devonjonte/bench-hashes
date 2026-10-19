@@ -797,36 +797,6 @@ its other calls are official BLAKE3's. Its default features stay on (x86's
 run-time AVX detection needs "std"), about 20 s of build. It stays while
 it pays for that.
 
-## Designs tried and set aside
-
-Each of these was in the benchmark once and left it on evidence. A
-proposal that brings one back names the evidence that reopens it: until
-then it stays out (Zooko, October 19, 2026: "how can we make it so our
-successors stop thrashing the design back and forth?").
-
-- **Sampling each cell until its interval narrows** (September 23-26:
-  `809861f6`, `4f86d9aa`; removed in `a57fe76d`). Long and "unsure" cells
-  were sampled until the 95% interval of their median was narrow. A plain
-  count did as well, faster: the median cell agreed between two runs to
-  1.4% without it, 1.9% with it, and a full run fell from 25 s to 18.8 s
-  (VM). Most of a cell's variance lies between runs (link layout, the
-  machine's state: 65-67% in #41's evaluation), which an interval within
-  one run cannot see. Reopens on evidence that the variance within a run
-  is what limits agreement between runs.
-- **A warm-up phase** (removed in `f81859a5`, September 22). Calibration
-  already runs every contender at every point; the warm-up changed
-  nothing measurable and cost a minute.
-- **Judging by the fast speed, the median, or a sign test** (September
-  and October 1; `67f5300c`). The mean of each run, its pairs judged by
-  the geometric mean of their ratios, replaced them on the regression
-  check's calibration (`1a2d01ff`, October 2; the sign test left with
-  BLAKE3 #82). The trim of the slowest samples Zooko chose on October 19
-  (#41) is a change to the mean's samples, not a return to the median.
-- **Consistency checks beside the measurements** (retired October 18, #46,
-  Zooko): they judged nothing a comparison did not.
-- **Continuous cells in a phase of their own** (#29, October 17): with and
-  without it no cell differed (`data` branch, `2026-10-19/phase80`).
-
 ## What a contender could do that the benchmark would reward
 
 None of these is detected automatically; watch for them when reading a

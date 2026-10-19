@@ -150,7 +150,7 @@ Misuse and misfortune (several of a program's threads calling at once, other loa
 
 # This repository
 
-Read `NEXT-STEPS.md` first: it says what the work is now and where the last session left things. `METHODOLOGY.md` holds the measurement design and its reasons, and the designs tried and set aside: before proposing a way to measure, sample, or judge, read that section and search `git log` for the idea; a proposal that brings one back names the evidence that reopens it (Zooko, October 19, 2026), `COMPARISONS.md` the comparison rule's. History stays behind the door: `git log`, and the notes and audits the tree held until October 18 at commit `aadeca9d` (`git show aadeca9d:NOTES.md`). This file is the principles and the repository's shape; `PROCEDURES.md` is how things are done here and the environment.
+Read `NEXT-STEPS.md` first: it says what the work is now and where the last session left things. `METHODOLOGY.md` holds the measurement design and its reasons, `COMPARISONS.md` the comparison rule's. History stays behind the door: `git log`, and the notes and audits the tree held until October 18 at commit `aadeca9d` (`git show aadeca9d:NOTES.md`). This file is the principles and the repository's shape; `PROCEDURES.md` is how things are done here and the environment.
 
 `AGENTS.md`, `NEXT-STEPS.md`, `FROZEN.md`, `PROCEDURES.md` and `COMPARISONS.md` are for the servil team. `README.md` (also the GitHub Pages home page) and `METHODOLOGY.md` are for people who run the benchmark and read its results; `CONTRIBUTING.md` is for other developer teams. Keep each document to its audience (the fork's `AGENTS.md`, "Audiences").
 
