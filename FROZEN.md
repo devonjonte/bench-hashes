@@ -26,6 +26,13 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **A collection, pipelined** (Devon Jonte's fork, October 18; Zooko's
+  question): a new use case, ContinuousCollection, at the two collections
+  (git objects, Nix files), solo and shared: the items one after another,
+  each read into the program's buffer, then hashed, as a program reads a
+  store's files and hashes them. BLAKE3 servil mt streams them
+  (`submit_with`), every other hash hashes each on the program's thread.
+  The map draws it in the collection's row, pipelined column.
 - **BLAKE3 servil st takes part in the pipelined (continuous) cells**
   (Devon Jonte's fork, October 18; Zooko's question): as every hash
   without a stream does, on the program's thread, one input after another
@@ -462,8 +469,9 @@ use case Collection: git objects, Nix files
 use case Outboard: 1 MiB, 64 MiB
 use case Verify: 1 MiB, 64 MiB
 use case LentBatches: 16, 64, 256, 1024, 4096, 16384, 65536
+use case ContinuousCollection: git objects, Nix files
 scenarios: solo, shared
-shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, Outboard, Verify, LentBatches
+shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, Outboard, Verify, LentBatches, ContinuousCollection
 blake3-servil-st OneMessage: hash(input), each call after other work
 blake3-servil-st ManyMessages: hash_many(batch, 64, out), the padded batch contract, each call after other work
 blake3-servil-mt OneMessage: hash_multithreaded(input), each call after other work
@@ -472,6 +480,8 @@ blake3-servil-mt ContinuousMessages: stream(Mode::Hash, handler, body), one a sa
 blake3-servil-mt ContinuousBatches: stream(Mode::Hash, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again
 blake3-servil-st ContinuousMessages: hash(input), one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)
 blake3-servil-st ContinuousBatches: hash_many(batch, 64, out), the padded batch contract, one batch after another, each read into a kept buffer of the program's and hashed on its thread
+blake3-servil-mt ContinuousCollection: stream(Mode::Hash, handler, body), one a sample: the collection's items one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
+blake3-servil-st ContinuousCollection: hash(input), the collection's items one after another, each read into a kept buffer of the program's and hashed on its thread
 blake3-servil-st LentMessages: hash(input), one message after another, each read into a kept buffer and lent until the call returns
 blake3-servil-st Interleaved: a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; Hasher::update_each per turn, then Hasher::finalize_each for the messages that ended in it, each buffer lent until the calls return
 blake3-servil-st Collection: hash_each_with(Mode::Hash, items, out), every item of the collection in one call, in memory

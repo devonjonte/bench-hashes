@@ -104,7 +104,7 @@ const COLLECTION_COUNT: usize = 2;
 /// A message's outboard, at two lengths (FROZEN.md).
 const OUTBOARD_COUNT: usize = 2;
 const VERIFY_COUNT: usize = 2;
-const POINT_COUNT: usize = 2 * (INPUT_COUNT + BATCH_COUNT) + 2 * CONTINUOUS_MESSAGE_COUNT + INTERLEAVED_COUNT + COLLECTION_COUNT + OUTBOARD_COUNT + VERIFY_COUNT + 2 * CONTINUOUS_BATCH_COUNT;
+const POINT_COUNT: usize = 2 * (INPUT_COUNT + BATCH_COUNT) + 2 * CONTINUOUS_MESSAGE_COUNT + INTERLEAVED_COUNT + 2 * COLLECTION_COUNT + OUTBOARD_COUNT + VERIFY_COUNT + 2 * CONTINUOUS_BATCH_COUNT;
 /// A long message reaches a contender in pieces of this many bytes (a
 /// typical read buffer), the last one shorter.
 const PIECE_LEN: usize = 64 * 1024;
@@ -407,6 +407,8 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::lent_batch("4096", 4096),
     Point::lent_batch("16384", 16384),
     Point::lent_batch("65536", 65536),
+    Point::continuous_collection(0),
+    Point::continuous_collection(1),
 ];
 
 /// results[contender_index][point_index], contenders in the roster's
@@ -480,12 +482,17 @@ enum UseCase {
     /// written into the message's buffer.
     Verify,
     LentBatches,
+    /// A collection's items one after another, each read into the
+    /// program's buffer, then hashed (COLLECTIONS): the collection
+    /// pipelined, as a program reads a store's files and hashes them.
+    ContinuousCollection,
 }
 
 impl UseCase {
-    const ALL: [UseCase; 12] = [UseCase::OneMessage, UseCase::ManyMessages, UseCase::IdleOneMessage,
+    const ALL: [UseCase; 13] = [UseCase::OneMessage, UseCase::ManyMessages, UseCase::IdleOneMessage,
         UseCase::IdleManyMessages, UseCase::ContinuousMessages, UseCase::ContinuousBatches,
-        UseCase::LentMessages, UseCase::Interleaved, UseCase::Collection, UseCase::Outboard, UseCase::Verify, UseCase::LentBatches];
+        UseCase::LentMessages, UseCase::Interleaved, UseCase::Collection, UseCase::Outboard, UseCase::Verify, UseCase::LentBatches,
+        UseCase::ContinuousCollection];
 
     /// Whether each call comes after a gap (the synchronous use cases:
     /// after other work, or after idling), or one follows another (the
@@ -523,7 +530,7 @@ impl UseCase {
     fn message_len(self) -> usize {
         match self {
             Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => MESSAGE_LEN,
-            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved | Self::Collection | Self::Outboard | Self::Verify => panic!("{self:?} hashes messages of their own lengths"),
+            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved | Self::Collection | Self::ContinuousCollection | Self::Outboard | Self::Verify => panic!("{self:?} hashes messages of their own lengths"),
         }
     }
 
@@ -549,6 +556,7 @@ impl UseCase {
             Self::Outboard => "Messages with their outboards, for verified streaming, buffers lent",
             Self::Verify => "Messages received in their encodings, verified as they arrive",
             Self::LentBatches => "Batches one after another, buffers lent",
+            Self::ContinuousCollection => "A collection's items one after another, each read into a buffer, then hashed",
         }
     }
 
@@ -556,7 +564,7 @@ impl UseCase {
     fn column(self) -> &'static str {
         match self {
             Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved => "size",
-            Self::Collection => "collection",
+            Self::Collection | Self::ContinuousCollection => "collection",
             Self::Outboard | Self::Verify => "size",
             Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => "messages",
         }
@@ -570,7 +578,7 @@ impl UseCase {
      */
     fn units(self, point: Point, iterations: usize) -> u64 {
         match self {
-            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved | Self::Collection | Self::Outboard | Self::Verify => point.bytes as u64 * iterations as u64,
+            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved | Self::Collection | Self::ContinuousCollection | Self::Outboard | Self::Verify => point.bytes as u64 * iterations as u64,
             Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => point.messages as u64 * iterations as u64,
         }
     }
@@ -611,6 +619,7 @@ impl UseCase {
             Self::Outboard => "outboard ",
             Self::Verify => "verify ",
             Self::LentBatches => "lent batch ",
+            Self::ContinuousCollection => "continuous collection ",
         }
     }
 }
@@ -667,6 +676,12 @@ impl Point {
     const fn collection(index: usize) -> Self {
         let (label, classes) = COLLECTIONS[index];
         Self { label, bytes: collection_bytes(classes), messages: collection_count(classes), use_case: UseCase::Collection }
+    }
+
+    const fn continuous_collection(index: usize) -> Self {
+        let mut point = Self::collection(index);
+        point.use_case = UseCase::ContinuousCollection;
+        point
     }
 
     const fn interleaved(label: &'static str, bytes: usize) -> Self {
@@ -769,7 +784,7 @@ impl Algorithm {
             UseCase::ManyMessages | UseCase::IdleManyMessages | UseCase::LentBatches => !matches!(self, Self::Blake3Rayon),
             UseCase::ContinuousBatches => !matches!(self, Self::Blake3Rayon),
             UseCase::ContinuousMessages => true,
-            UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::LentMessages | UseCase::Interleaved | UseCase::Collection => true,
+            UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::LentMessages | UseCase::Interleaved | UseCase::Collection | UseCase::ContinuousCollection => true,
             UseCase::Outboard => matches!(self, Self::Blake3 | Self::Blake3ServilSt | Self::Blake3ServilMt),
             UseCase::Verify => matches!(self, Self::Blake3 | Self::Blake3ServilSt | Self::Blake3ServilMt),
         }
@@ -2153,12 +2168,13 @@ fn hash_batch(
     assert!(iterations > 0, "batch size must be positive");
     let messages = point.messages;
     let message_len = if point.use_case.batch() { point.use_case.message_len() } else { input.len() };
-    assert!(messages == 1 || point.use_case == UseCase::Collection || input.len() == messages * message_len, "a batch is {messages} messages of {message_len} bytes");
+    assert!(messages == 1 || matches!(point.use_case, UseCase::Collection | UseCase::ContinuousCollection) || input.len() == messages * message_len, "a batch is {messages} messages of {message_len} bytes");
     assert!(algorithm.takes_part(point.use_case), "{} takes no part in {:?}", algorithm.key(), point.use_case);
 
     match point.use_case {
         UseCase::Interleaved => return hash_interleaved(algorithm, input, iterations, consume),
         UseCase::Collection => return hash_collection(algorithm, input, point, iterations, consume),
+        UseCase::ContinuousCollection => return hash_continuous_collection(algorithm, input, point, iterations, consume),
         UseCase::Outboard => return hash_outboard(algorithm, input, iterations, consume),
         UseCase::Verify => return hash_verify(algorithm, input, iterations, consume),
         UseCase::ContinuousMessages => return hash_continuous_messages(algorithm, input, iterations, consume),
@@ -2350,11 +2366,62 @@ fn encoding(input: &[u8]) -> ([u8; 32], std::sync::Arc<Vec<u8>>) {
  * one after another in `input`, each item hashed by the contender's
  * one-message call (hash_in_memory), its hash to `consume`.
  */
-fn hash_collection(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
+/// A collection point's items: each (offset, length) in its input, made once.
+fn items_of(point: Point, input: &[u8]) -> &'static [(usize, usize)] {
     static ITEMS: [std::sync::OnceLock<Vec<(usize, usize)>>; COLLECTION_COUNT] = [const { std::sync::OnceLock::new() }; COLLECTION_COUNT];
     let index = COLLECTIONS.iter().position(|(label, _)| *label == point.label).expect("a collection's point");
-    let items = ITEMS[index].get_or_init(|| collection_items(COLLECTIONS[index].1));
     assert_eq!(input.len(), point.bytes, "the collection's items fill its input");
+    ITEMS[index].get_or_init(|| collection_items(COLLECTIONS[index].1))
+}
+
+/*
+ * A collection pipelined (UseCase::ContinuousCollection): `iterations`
+ * passes over its items, one after another, each read into a buffer of the
+ * program's, then hashed, its digest into `consume`. BLAKE3 servil mt reads
+ * each straight into its stream's ring (submit_with) and hashes on its
+ * workers while the next is read; every other hash, on the program's thread
+ * after reading it, as it hashes one message in memory.
+ */
+fn hash_continuous_collection(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
+    let items = items_of(point, input);
+    if algorithm == Algorithm::Blake3ServilMt {
+        let mut places = take_places(STREAM_PLACES_PER_MESSAGE);
+        let free = std::cell::RefCell::new(places.chunks_mut(1).collect::<Vec<_>>());
+        blake3_servil::stream(
+            blake3_servil::Mode::Hash,
+            |place: &mut [blake3_servil::Hash]| {
+                consume(place[0].as_bytes());
+                free.borrow_mut().push(place);
+            },
+            |s| {
+                for _ in 0..iterations {
+                    for &(offset, len) in items {
+                        let item = black_box(&input[offset..offset + len]);
+                        let place = free_place(&free, s);
+                        s.submit_with(len, |at, room| room.copy_from_slice(&item[at..][..room.len()]), &mut place[0]);
+                    }
+                }
+                s.finish();
+            },
+        );
+        drop(free);
+        return keep_places(places);
+    }
+    let longest = items.iter().map(|&(_, len)| len).max().unwrap_or(0);
+    let mut buffers = take_buffers(1, longest);
+    for _ in 0..iterations {
+        for &(offset, len) in items {
+            let buffer = &mut buffers[0];
+            buffer.clear();
+            buffer.extend_from_slice(black_box(&input[offset..offset + len]));
+            hash_in_memory(algorithm, buffer, Point::one("", len), 1, &mut consume);
+        }
+    }
+    keep_buffers(1, longest, buffers);
+}
+
+fn hash_collection(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
+    let items = items_of(point, input);
     if matches!(algorithm, Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt) {
         // The fork's call for a collection: every item in one call.
         let each = if algorithm == Algorithm::Blake3ServilSt { blake3_servil::hash_each_with } else { blake3_servil::hash_each_multithreaded_with };
@@ -2833,7 +2900,7 @@ thread_local! {
  * these.
  */
 #[cfg(test)]
-const SERVIL_CALLS: [(Algorithm, UseCase, &str); 24] = [
+const SERVIL_CALLS: [(Algorithm, UseCase, &str); 26] = [
     (Algorithm::Blake3ServilSt, UseCase::OneMessage, "hash(input), each call after other work"),
     (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "hash_many(batch, 64, out), the padded batch contract, each call after other work"),
     (Algorithm::Blake3ServilMt, UseCase::OneMessage, "hash_multithreaded(input), each call after other work"),
@@ -2842,6 +2909,8 @@ const SERVIL_CALLS: [(Algorithm, UseCase, &str); 24] = [
     (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "stream(Mode::Hash, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again"),
     (Algorithm::Blake3ServilSt, UseCase::ContinuousMessages, "hash(input), one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)"),
     (Algorithm::Blake3ServilSt, UseCase::ContinuousBatches, "hash_many(batch, 64, out), the padded batch contract, one batch after another, each read into a kept buffer of the program's and hashed on its thread"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousCollection, "stream(Mode::Hash, handler, body), one a sample: the collection's items one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
+    (Algorithm::Blake3ServilSt, UseCase::ContinuousCollection, "hash(input), the collection's items one after another, each read into a kept buffer of the program's and hashed on its thread"),
     (Algorithm::Blake3ServilSt, UseCase::LentMessages, "hash(input), one message after another, each read into a kept buffer and lent until the call returns"),
     (Algorithm::Blake3ServilSt, UseCase::Interleaved, "a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; Hasher::update_each per turn, then Hasher::finalize_each for the messages that ended in it, each buffer lent until the calls return"),
     (Algorithm::Blake3ServilSt, UseCase::Collection, "hash_each_with(Mode::Hash, items, out), every item of the collection in one call, in memory"),
@@ -3485,6 +3554,8 @@ fn continuous_min_inputs(input: &[u8], point: Point) -> usize {
         }
         UseCase::ContinuousBatches => 2 * in_flight(input.len()),
         UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::ManyMessages | UseCase::IdleManyMessages | UseCase::LentMessages | UseCase::Interleaved | UseCase::Collection | UseCase::Outboard | UseCase::Verify | UseCase::LentBatches => 1,
+        /* A pass over the collection keeps its many items in flight. */
+        UseCase::ContinuousCollection => 1,
     }
 }
 
@@ -3816,6 +3887,7 @@ fn detect_kernels(algorithm: Algorithm, use_case: UseCase) -> Kernels {
             UseCase::ContinuousBatches => Some(vec![kernel(0, "Stream::submit_batch_with")]),
             UseCase::Interleaved => Some(vec![kernel(0, "Hasher::update_each_multithreaded")]),
             UseCase::Collection => Some(vec![kernel(0, "hash_each_multithreaded_with")]),
+            UseCase::ContinuousCollection => Some(vec![kernel(0, "Stream::submit_with")]),
             _ => None,
         };
         if let Some(kernels) = kernels {
@@ -3838,6 +3910,8 @@ fn detect_kernels(algorithm: Algorithm, use_case: UseCase) -> Kernels {
         /* An idle use case makes its twin's call. */
         UseCase::IdleOneMessage | UseCase::IdleManyMessages => detect_kernels(algorithm, use_case.call()),
         UseCase::OneMessage | UseCase::LentMessages | UseCase::Collection | UseCase::Outboard | UseCase::Verify => one_message,
+        /* Each item a call on the program's thread, of its own length. */
+        UseCase::ContinuousCollection => one_message,
         /* Pieces run the one-message kernels, so those that start past the longest piece never run. */
         UseCase::Interleaved => one_message.up_to(16 * 1024),
         /* A message of up to PIECE_LEN is one call's input; a longer one arrives in pieces. */
@@ -5169,7 +5243,12 @@ mod correctness_tests {
         assert_eq!(UseCase::Outboard.points(), outboard..outboard + OUTBOARD_COUNT);
         let verify = outboard + OUTBOARD_COUNT;
         assert_eq!(UseCase::Verify.points(), verify..verify + VERIFY_COUNT);
-        assert_eq!(UseCase::LentBatches.points(), verify + VERIFY_COUNT..POINT_COUNT);
+        let lent_batches = verify + VERIFY_COUNT;
+        assert_eq!(UseCase::LentBatches.points(), lent_batches..lent_batches + CONTINUOUS_BATCH_COUNT);
+        assert_eq!(UseCase::ContinuousCollection.points(), lent_batches + CONTINUOUS_BATCH_COUNT..POINT_COUNT);
+        for (k, point) in POINTS[UseCase::ContinuousCollection.points()].iter().enumerate() {
+            assert_eq!((point.label, point.bytes), (POINTS[UseCase::Collection.points()][k].label, POINTS[UseCase::Collection.points()][k].bytes), "the pipelined collections are the collections");
+        }
         for (k, point) in POINTS[UseCase::Collection.points()].iter().enumerate() {
             assert_eq!((point.label, point.messages), (COLLECTIONS[k].0, 2048), "each collection is 2048 items");
         }

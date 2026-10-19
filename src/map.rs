@@ -26,6 +26,7 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
         UseCase::ContinuousBatches => ("batch", "piped", "Stream::submit_batch_with", "struct.Stream.html#method.submit_batch_with"),
         UseCase::Interleaved => ("many", "lent", "Hasher::update_each_multithreaded", "struct.Hasher.html#method.update_each_multithreaded"),
         UseCase::Collection => ("coll", "lent", "hash_each_multithreaded_with", "fn.hash_each_multithreaded_with.html"),
+        UseCase::ContinuousCollection => ("coll", "piped", "Stream::submit_with", "struct.Stream.html#method.submit_with"),
         UseCase::Outboard => ("outb", "lent", "outboard_multithreaded_with", "fn.outboard_multithreaded_with.html"),
         UseCase::Verify => ("recv", "lent", "Verifier::update", "struct.Verifier.html#method.update"),
     }
@@ -43,7 +44,7 @@ const DOCS: &str = "https://johnservil.github.io/BLAKE3/blake3_servil/";
 /// What one unit of a point's time pays for, in the tooltip's words.
 fn what(use_case: UseCase) -> &'static str {
     match use_case {
-        UseCase::Collection => "the collection",
+        UseCase::Collection | UseCase::ContinuousCollection => "the collection",
         UseCase::Interleaved => "a megabyte of pieces",
         _ if use_case.batch() => "a batch",
         _ => "a message",
@@ -290,7 +291,7 @@ fn hashing(path: &Path) -> Section {
                 unit: "GB/s",
                 call: call.to_owned(),
                 doc: format!("{DOCS}{doc}"),
-                cases: matches!(use_case, UseCase::Interleaved | UseCase::Collection),
+                cases: matches!(use_case, UseCase::Interleaved | UseCase::Collection | UseCase::ContinuousCollection),
                 per: measured.iter().map(|p| p.bytes as u64).collect(),
                 what: what(use_case),
                 series,
