@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which BLAKE3 function fits your program?</title>
+<style>
+:root { font: 17px/1.5 system-ui, sans-serif; color: #242b30; background: #fdfdfc; }
+body { margin: 0; }
+main { max-width: 46rem; margin: 2rem auto 4rem; padding: 0 1rem; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .5rem; }
+h2 { font-size: 1.5rem; margin: 2rem 0 .4rem; }
+h2 code { font-size: 1.3rem; }
+p { margin: .5rem 0; }
+.muted { color: #5b6a72; }
+#trail { font-size: .95rem; color: #5b6a72; min-height: 1.5rem; }
+#choices { display: grid; gap: .6rem; margin: 1rem 0; }
+button { font: inherit; border: 1px solid #b6c4cb; border-radius: .5rem; padding: .7rem 1rem; color: inherit; background: white; cursor: pointer; text-align: left; }
+button:hover, button:focus-visible { background: #edf5f8; border-color: #226a90; outline: none; }
+button.unsure { color: #5b6a72; }
+nav { display: flex; gap: .6rem; margin: 1.6rem 0 0; }
+nav button { padding: .4rem .8rem; }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; }
+code { background: #edf2f4; padding: .1rem .3rem; border-radius: .2rem; }
+pre { background: #f3f5f6; border: 1px solid #e1e6e9; border-radius: .5rem; padding: .9rem 1rem; overflow-x: auto; line-height: 1.45; margin: .6rem 0; }
+pre code { background: none; padding: 0; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: .8rem 0; }
+dt { color: #5b6a72; }
+dd { margin: 0; }
+/* The chips read as a sentence: "called [after idling] [after other work] [nonstop], [alone] [beside another program]". */
+.how { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: .8rem 0 .4rem; color: #5b6a72; }
+.how button { border-radius: 999px; padding: .15rem .8rem; font-size: .9rem; color: #242b30; }
+.how button[aria-pressed="true"] { background: #e6dcff; border-color: #7a5cc4; }
+.how .sep { margin: 0 .2rem; }
+svg { width: 100%; height: auto; display: block; }
+details { margin: 1.2rem 0; }
+summary { cursor: pointer; color: #226a90; }
+details > *:not(summary) { margin-left: 0; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+<h1>Which BLAKE3 function fits your program?</h1>
+<p class="muted">A few questions about how your program receives data. Then: the function to call, from the <a href="https://github.com/johnservil/BLAKE3">BLAKE3 servil</a> crate, and how fast it ran on this computer beside SHA-256.</p>
+<p id="trail" aria-live="polite"></p>
+
+<section id="question">
+<h2 id="q-title" tabindex="-1"></h2>
+<p id="q-help" class="muted"></p>
+<div id="choices"></div>
+</section>
+
+<section id="result" hidden>
+<h2>Use <code id="fn"></code></h2>
+<p id="summary"></p>
+<p id="speed-summary"></p>
+<p id="stand-in" hidden class="muted"></p>
+<div class="how" id="how"></div>
+<div id="chart"></div>
+<p id="unmeasured" hidden class="muted">This run holds no measurement of this function called this way. A full run of the benchmark measures every function in this guide.</p>
+<details id="program"><summary>A complete program</summary>
+<pre><code id="example"></code></pre>
+<dl>
+<dt>You pass</dt><dd id="pass"></dd>
+<dt>You get</dt><dd id="get"></dd>
+<dt>Keep in mind</dt><dd id="mind"></dd>
+</dl>
+<p class="muted">Add <code>blake3-servil</code> to your <code>Cargo.toml</code>. This program is one of the benchmark's compiled examples.</p>
+</details>
+<details><summary>How this was measured</summary>
+<p id="method"></p>
+<p>Each comparison is of the cells' means: their samples' total time over the work they did, what a program pays on average.</p>
+</details>
+</section>
+
+<nav aria-label="Change your answers"><button id="back" hidden>Back</button><button id="restart" hidden>Start again</button></nav>
+</main>
+<script>
+"use strict";
+const DATA = {"contenders":[{"key":"blake3-servil-st","name":"BLAKE3 servil st","color":"#7c3aed"},{"key":"blake3-servil-mt","name":"BLAKE3 servil mt","color":"#4c1d95"},{"key":"blake3-official","name":"BLAKE3 official","color":"#3b82f6"},{"key":"blake3-official-mt","name":"BLAKE3 official mt","color":"#1e3a8a"},{"key":"sha256","name":"SHA-256","color":"#e07a45"},{"key":"sha256-ring","name":"SHA-256 ring","color":"#c2410c"},{"key":"sha3-256","name":"SHA3-256","color":"#db2777"},{"key":"sha1dc","name":"SHA-1DC","color":"#8a7a1e"}],"machine":"12th Gen Intel(R) Core(TM) i7-12700K","date":"2026-10-19","plots":[{"scenario":"solo","use":"OneMessage","batch":false,"map":"solo|one|busy","labels":["64 B","128 B","256 B","512 B","1 KiB","2 KiB","2304 B","3 KiB","3839 B","4 KiB","4470 B","7935 B","8 KiB","16 KiB","32 KiB","64 KiB","128 KiB","256 KiB","512 KiB","1 MiB","2 MiB","3 MiB","4 MiB","8 MiB","32 MiB","64 MiB","128 MiB"],"units":[64,128,256,512,1024,2048,2304,3072,3839,4096,4470,7935,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,3145728,4194304,8388608,33554432,67108864,134217728],"bytes":[64,128,256,512,1024,2048,2304,3072,3839,4096,4470,7935,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,3145728,4194304,8388608,33554432,67108864,134217728],"series":{"blake3-servil-st":{"mean":[13.780,7.492,4.543,2.599,1.861,1.007,1.217,1.089,1.329,0.629,0.740,0.551,0.446,0.361,0.326,0.322,0.307,0.309,0.301,0.269,0.258,0.268,0.255,0.268,0.258,0.258,0.262]},"blake3-servil-mt":{"mean":[14.650,7.181,4.681,2.659,1.744,1.055,1.137,1.047,0.917,0.631,0.795,0.568,0.450,0.365,0.327,0.309,0.318,0.309,0.230,0.181,0.144,0.123,0.105,0.100,0.0827,0.0810,0.0789]},"blake3-official":{"mean":[13.602,7.975,4.305,2.443,1.866,1.034,1.102,1.013,1.011,0.693,0.754,0.671,0.422,0.365,0.325,0.306,0.306,0.307,0.301,0.273,0.266,0.257,0.255,0.270,0.258,0.262,0.260]},"blake3-official-mt":{"mean":[17.949,7.834,4.591,2.826,1.895,1.059,1.126,1.054,1.070,0.709,0.719,0.717,0.467,6.469,3.673,1.880,1.366,0.605,0.331,0.204,0.140,0.161,0.114,0.105,0.0837,0.0831,0.0793]},"sha256":{"mean":[14.395,7.545,4.333,2.558,2.363,0.999,0.974,0.836,0.798,0.755,0.760,0.662,0.657,0.608,0.579,0.582,0.574,0.560,0.526,0.492,0.481,0.482,0.478,0.490,0.478,0.479,0.478]},"sha256-ring":{"mean":[24.633,8.060,4.354,2.584,1.631,1.122,1.011,0.867,0.785,0.811,0.806,0.729,0.668,0.616,0.584,0.578,0.572,0.564,0.517,0.494,0.478,0.482,0.487,0.492,0.478,0.477,0.476]},"sha3-256":{"mean":[18.366,9.466,5.533,4.185,3.165,2.708,2.528,2.429,2.358,2.384,2.309,2.218,2.199,2.111,2.147,1.988,2.024,1.804,1.796,1.759,1.735,1.740,1.731,1.732,1.734,1.730,1.736]},"sha1dc":{"mean":[24.638,16.067,8.082,5.056,3.648,2.739,2.596,2.503,2.287,2.179,2.085,2.000,1.969,1.862,1.794,1.836,1.732,1.637,1.635,1.583,1.551,1.546,1.552,1.565,1.550,1.561,1.554]}}},{"scenario":"solo","use":"ManyMessages","batch":true,"map":"solo|batch|busy","labels":["1","2","3","4","6","8","12","16","24","32","48","64","128","256","512","1024","2048","4096","8192","16384","32768","65536","131072","262144"],"units":[1,2,3,4,6,8,12,16,24,32,48,64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072,262144],"bytes":[64,128,192,256,384,512,768,1024,1536,2048,3072,4096,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,4194304,8388608,16777216],"series":{"blake3-servil-st":{"mean":[883.905,464.232,347.365,246.188,168.405,152.455,125.661,84.283,61.277,57.636,38.283,33.020,27.369,23.039,20.988,19.824,19.798,20.081,19.172,17.459,16.093,15.961,16.571,15.497]},"blake3-servil-mt":{"mean":[925.714,452.786,341.214,256.125,191.833,138.054,109.280,80.804,67.042,51.354,38.681,34.367,26.014,22.364,21.098,19.946,29.904,20.879,14.546,11.279,8.222,6.962,6.325,6.235]},"blake3-official":{"mean":[1164.357,567.661,466.369,305.482,241.345,192.031,134.536,99.696,69.982,60.490,46.292,40.545,28.920,23.989,22.793,21.626,21.329,21.200,22.319,17.613,18.768,16.915,17.639,16.923]},"sha256":{"mean":[987.679,563.911,418.702,321.250,219.268,202.933,159.250,144.754,120.101,110.241,100.943,93.000,85.138,82.016,81.603,79.084,77.796,71.280,69.058,67.252,67.488,67.102,66.835,65.767]},"sha256-ring":{"mean":[1039.714,578.125,432.119,354.598,252.607,218.531,185.958,163.107,138.381,124.462,111.518,115.569,95.754,91.221,94.777,91.528,88.255,79.046,77.136,74.785,76.253,74.910,75.721,74.445]},"sha3-256":{"mean":[1352.893,851.786,707.214,612.643,483.857,458.143,402.387,376.121,367.039,339.567,328.714,319.333,314.305,307.463,301.928,283.000,276.322,263.580,259.168,253.960,253.399,254.191,255.723,255.526]},"sha1dc":{"mean":[1856.786,1044.946,888.643,702.196,554.810,482.777,466.893,396.491,345.274,320.471,297.491,279.290,266.745,252.284,255.212,236.861,225.785,223.145,213.034,222.266,210.403,211.808,212.553,211.787]}}},{"scenario":"solo","use":"IdleOneMessage","batch":false,"map":"solo|one|idle","labels":["64 B","128 B","256 B","512 B","1 KiB","2 KiB","2304 B","3 KiB","3839 B","4 KiB","4470 B","7935 B","8 KiB","16 KiB","32 KiB","64 KiB","128 KiB","256 KiB","512 KiB","1 MiB","2 MiB","3 MiB","4 MiB","8 MiB","32 MiB","64 MiB","128 MiB"],"units":[64,128,256,512,1024,2048,2304,3072,3839,4096,4470,7935,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,3145728,4194304,8388608,33554432,67108864,134217728],"bytes":[64,128,256,512,1024,2048,2304,3072,3839,4096,4470,7935,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,3145728,4194304,8388608,33554432,67108864,134217728],"series":{"blake3-servil-st":{"mean":[5.209,3.013,1.930,1.252,1.065,0.616,0.594,0.693,0.537,0.406,0.473,0.324,0.271,0.260,0.222,0.217,0.208,0.207,0.213,0.216,0.240,0.219,0.220,0.241,0.260,0.259,0.261]},"blake3-servil-mt":{"mean":[5.041,2.542,1.593,1.267,0.981,0.676,0.696,0.674,0.576,0.388,0.460,0.335,0.278,0.220,0.233,0.213,0.215,0.208,0.173,0.145,0.103,0.0875,0.0950,0.0830,0.0832,0.0782,0.0836]},"blake3-official":{"mean":[4.596,2.559,1.801,1.141,0.907,0.612,0.637,0.675,0.667,0.363,0.396,0.489,0.263,0.235,0.234,0.217,0.206,0.215,0.212,0.216,0.217,0.216,0.225,0.245,0.263,0.258,0.260]},"blake3-official-mt":{"mean":[5.872,3.749,1.914,1.519,1.123,0.689,0.717,0.664,0.761,0.431,0.424,0.528,0.322,5.629,3.419,1.687,0.917,0.527,0.330,0.166,0.122,0.111,0.111,0.0910,0.0865,0.0819,0.0839]},"sha256":{"mean":[5.758,3.253,1.713,1.072,0.819,0.596,0.556,0.545,0.542,0.518,0.494,0.471,0.467,0.455,0.450,0.466,0.449,0.443,0.447,0.447,0.454,0.455,0.483,0.483,0.480,0.478,0.479]},"sha256-ring":{"mean":[6.374,4.766,1.832,1.096,0.725,0.615,0.649,0.576,0.519,0.549,0.502,0.460,0.475,0.482,0.446,0.442,0.443,0.563,0.457,0.455,0.459,0.452,0.460,0.495,0.479,0.479,0.478]},"sha3-256":{"mean":[7.914,3.948,2.722,2.245,2.098,1.963,1.840,1.870,1.789,1.842,1.781,1.803,1.721,1.707,1.678,1.683,1.691,1.782,1.761,1.692,1.707,1.721,1.723,1.743,1.738,1.740,1.738]},"sha1dc":{"mean":[15.901,9.569,4.844,3.229,2.824,2.094,1.992,1.868,1.743,1.637,1.607,1.705,1.621,1.517,1.475,1.471,1.482,1.510,1.543,1.545,1.536,1.527,1.540,1.566,1.565,1.560,1.549]}}},{"scenario":"solo","use":"IdleManyMessages","batch":true,"map":"solo|batch|idle","labels":["1","2","3","4","6","8","12","16","24","32","48","64","128","256","512","1024","2048","4096","8192","16384","32768","65536","131072","262144"],"units":[1,2,3,4,6,8,12,16,24,32,48,64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072,262144],"bytes":[64,128,192,256,384,512,768,1024,1536,2048,3072,4096,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,4194304,8388608,16777216],"series":{"blake3-servil-st":{"mean":[258.905,185.402,141.205,110.732,68.660,55.866,39.082,29.990,26.128,23.032,18.169,17.682,15.112,13.779,13.951,13.911,13.598,13.504,13.696,13.797,14.017,14.301,15.476,15.794]},"blake3-servil-mt":{"mean":[357.843,180.257,126.556,96.679,76.401,47.638,32.863,36.421,24.177,22.664,18.413,18.643,15.767,16.432,14.596,13.486,13.857,13.433,11.016,9.694,6.616,5.682,5.771,6.394]},"blake3-official":{"mean":[569.429,273.940,167.440,139.902,101.890,75.094,55.389,53.656,43.668,24.172,24.054,22.705,17.532,15.442,15.512,14.391,14.441,13.912,14.375,14.392,15.685,15.489,16.961,17.045]},"sha256":{"mean":[420.375,291.902,177.667,188.268,134.480,111.798,104.321,94.328,77.424,82.373,74.082,68.405,64.604,64.660,117.246,63.940,63.981,69.732,64.440,65.121,64.894,65.929,66.851,66.599]},"sha256-ring":{"mean":[865.589,260.351,241.619,188.906,138.524,125.254,109.262,95.290,101.418,82.600,77.655,78.693,75.006,74.243,73.464,72.706,71.926,72.141,72.801,74.758,73.741,75.584,75.888,74.808]},"sha3-256":{"mean":[588.329,420.446,385.512,349.054,344.060,317.045,291.054,281.357,267.914,265.212,256.845,259.018,252.139,251.022,255.204,252.188,249.209,251.262,249.856,251.250,251.782,254.298,256.428,255.643]},"sha1dc":{"mean":[1008.500,688.821,520.167,444.179,376.131,321.375,319.304,278.665,281.092,235.808,250.068,227.991,232.717,213.613,209.956,208.012,206.367,216.861,208.567,210.748,214.349,211.721,213.558,212.404]}}},{"scenario":"solo","use":"ContinuousMessages","batch":false,"map":"solo|one|piped","labels":["64 B","256 B","1 KiB","4 KiB","16 KiB","64 KiB","256 KiB","1 MiB","4 MiB","16 MiB","64 MiB"],"units":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"bytes":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"series":{"blake3-servil-st":{"mean":[0.744,0.734,0.726,0.270,0.194,0.202,0.238,0.205,0.215,0.231,0.229]},"blake3-servil-mt":{"mean":[0.348,0.111,0.0726,0.0615,0.0532,0.0440,0.0439,0.0473,0.0565,0.0635,0.0671]},"blake3-official":{"mean":[0.727,0.734,0.733,0.274,0.209,0.202,0.203,0.208,0.213,0.224,0.228]},"blake3-official-mt":{"mean":[0.777,0.736,0.738,0.269,1.090,0.332,0.347,0.365,0.335,0.315,0.315]},"sha256":{"mean":[1.003,0.578,0.464,0.449,0.432,0.452,0.458,0.456,0.455,0.465,0.463]},"sha256-ring":{"mean":[1.163,0.615,0.477,0.444,0.431,0.441,0.442,0.447,0.454,0.464,0.465]},"sha3-256":{"mean":[3.954,1.906,1.800,1.764,1.730,1.693,1.701,1.704,1.707,1.714,1.719]},"sha1dc":{"mean":[3.236,1.818,1.531,1.374,1.397,1.437,1.497,1.570,1.538,1.531,1.523]}}},{"scenario":"solo","use":"ContinuousBatches","batch":true,"map":"solo|batch|piped","labels":["16","64","256","1024","4096","16384","65536"],"units":[16,64,256,1024,4096,16384,65536],"bytes":[1024,4096,16384,65536,262144,1048576,4194304],"series":{"blake3-servil-st":{"mean":[13.436,12.536,14.043,13.424,14.780,14.909,16.037]},"blake3-servil-mt":{"mean":[4.877,4.492,4.077,4.121,4.297,4.579,5.337]},"blake3-official":{"mean":[13.380,12.577,13.446,13.495,13.648,15.102,16.381]},"sha256":{"mean":[65.111,64.044,64.123,64.016,65.054,65.589,66.480]},"sha256-ring":{"mean":[73.740,72.846,71.284,74.071,72.227,73.248,75.129]},"sha3-256":{"mean":[264.864,255.927,257.247,260.986,256.177,258.542,261.287]},"sha1dc":{"mean":[205.335,200.150,200.859,216.427,209.465,211.002,213.266]}}},{"scenario":"solo","use":"LentMessages","batch":false,"map":"solo|one|lent","labels":["64 B","256 B","1 KiB","4 KiB","16 KiB","64 KiB","256 KiB","1 MiB","4 MiB","16 MiB","64 MiB"],"units":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"bytes":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"series":{"blake3-servil-st":{"mean":[0.741,0.735,0.734,0.270,0.200,0.206,0.199,0.242,0.264,0.267,0.262]},"blake3-servil-mt":{"mean":[0.737,0.722,0.726,0.268,0.193,0.231,0.198,0.0793,0.0864,0.0869,0.0807]},"blake3-official":{"mean":[0.720,0.762,0.728,0.265,0.201,0.251,0.201,0.225,0.268,0.264,0.264]},"blake3-official-mt":{"mean":[0.783,0.726,0.729,0.266,1.206,0.346,0.115,0.111,0.113,0.0931,0.0855]},"sha256":{"mean":[1.007,0.567,0.463,0.436,0.434,0.455,0.450,0.466,0.492,0.482,0.480]},"sha256-ring":{"mean":[1.152,0.609,0.476,0.443,0.430,0.438,0.439,0.463,0.498,0.491,0.485]},"sha3-256":{"mean":[3.679,1.875,1.796,1.724,1.826,1.833,1.688,1.749,1.755,1.764,1.741]},"sha1dc":{"mean":[3.149,1.759,1.519,1.371,1.433,1.510,1.511,1.577,1.588,1.566,1.569]}}},{"scenario":"solo","use":"Interleaved","batch":false,"map":"solo|many|lent","labels":["256"],"units":[1048576],"bytes":[1048576],"series":{"blake3-servil-st":{"mean":[0.312]},"blake3-servil-mt":{"mean":[0.316]},"blake3-official":{"mean":[0.487]},"blake3-official-mt":{"mean":[0.531]},"sha256":{"mean":[0.457]},"sha256-ring":{"mean":[0.453]},"sha3-256":{"mean":[1.726]},"sha1dc":{"mean":[1.590]}}},{"scenario":"solo","use":"Collection","batch":false,"map":"solo|coll|lent","labels":["git objects","Nix files"],"units":[43216008,34764744],"bytes":[43216008,34764744],"series":{"blake3-servil-st":{"mean":[0.217,0.224]},"blake3-servil-mt":{"mean":[0.0315,0.0366]},"blake3-official":{"mean":[0.225,0.236]},"blake3-official-mt":{"mean":[0.443,0.308]},"sha256":{"mean":[0.428,0.431]},"sha256-ring":{"mean":[0.429,0.432]},"sha3-256":{"mean":[1.693,1.700]},"sha1dc":{"mean":[1.501,1.453]}}},{"scenario":"solo","use":"Outboard","batch":false,"map":"solo|outb|lent","labels":["1 MiB","64 MiB"],"units":[1048576,67108864],"bytes":[1048576,67108864],"series":{"blake3-servil-st":{"mean":[0.251,0.262]},"blake3-servil-mt":{"mean":[0.0870,0.0854]},"blake3-official":{"mean":[0.251,0.288]}}},{"scenario":"solo","use":"Verify","batch":false,"map":"solo|recv|lent","labels":["1 MiB","64 MiB"],"units":[1048576,67108864],"bytes":[1048576,67108864],"series":{"blake3-servil-st":{"mean":[0.250,0.315]},"blake3-servil-mt":{"mean":[0.254,0.317]},"blake3-official":{"mean":[0.257,0.325]}}},{"scenario":"solo","use":"LentBatches","batch":true,"map":"solo|batch|lent","labels":["16","64","256","1024","4096","16384","65536"],"units":[16,64,256,1024,4096,16384,65536],"bytes":[1024,4096,16384,65536,262144,1048576,4194304],"series":{"blake3-servil-st":{"mean":[13.399,12.505,12.840,13.230,13.999,14.908,17.272]},"blake3-servil-mt":{"mean":[13.322,12.482,12.652,13.327,13.352,6.569,7.329]},"blake3-official":{"mean":[13.392,12.485,13.025,13.791,14.288,14.941,17.275]},"sha256":{"mean":[63.205,62.623,62.632,63.415,63.508,65.941,68.173]},"sha256-ring":{"mean":[71.473,73.938,71.317,72.788,72.882,74.312,75.780]},"sha3-256":{"mean":[253.056,254.502,255.576,257.694,257.089,260.994,263.187]},"sha1dc":{"mean":[205.789,200.039,208.123,206.946,222.709,212.205,216.338]}}},{"scenario":"solo","use":"ContinuousCollection","batch":false,"map":"solo|coll|piped","labels":["git objects","Nix files"],"units":[43216008,34764744],"bytes":[43216008,34764744],"series":{"blake3-servil-st":{"mean":[0.243,0.260]},"blake3-servil-mt":{"mean":[0.0769,0.0737]},"blake3-official":{"mean":[0.246,0.263]},"blake3-official-mt":{"mean":[0.521,0.383]},"sha256":{"mean":[0.469,0.475]},"sha256-ring":{"mean":[0.471,0.476]},"sha3-256":{"mean":[1.723,1.735]},"sha1dc":{"mean":[1.520,1.475]}}},{"scenario":"solo","use":"MerkleTree","batch":false,"map":"solo|merkle|lent","labels":["1024","4096","16384","65536","262144"],"units":[262144,1048576,4194304,16777216,67108864],"bytes":[262144,1048576,4194304,16777216,67108864],"series":{"blake3-servil-st":{"mean":[0.241,0.271,0.332,0.328,0.324]},"blake3-servil-mt":{"mean":[0.238,0.165,0.157,0.131,0.121]},"blake3-official":{"mean":[0.241,0.267,0.325,0.325,0.325]},"sha256":{"mean":[0.827,0.861,0.895,0.885,0.875]},"sha256-ring":{"mean":[0.884,0.924,0.948,0.940,0.932]},"sha3-256":{"mean":[2.901,2.942,2.982,2.965,2.946]},"sha1dc":{"mean":[2.490,2.514,2.546,2.525,2.518]}}},{"scenario":"shared","use":"ContinuousMessages","batch":false,"map":"shared|one|piped","labels":["64 B","256 B","1 KiB","4 KiB","16 KiB","64 KiB","256 KiB","1 MiB","4 MiB","16 MiB","64 MiB"],"units":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"bytes":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"series":{"blake3-servil-st":{"mean":[0.769,0.741,0.731,0.287,0.213,0.230,0.222,0.226,0.221,0.227,0.230]},"blake3-servil-mt":{"mean":[0.348,0.115,0.0737,0.0619,0.0553,0.0467,0.0485,0.0531,0.0544,0.0697,0.0758]},"blake3-official":{"mean":[0.762,0.736,0.733,0.267,0.217,0.254,0.228,0.243,0.228,0.233,0.230]},"blake3-official-mt":{"mean":[0.769,0.738,0.735,0.269,0.751,0.268,0.266,0.270,0.277,0.284,0.287]},"sha256":{"mean":[1.006,0.592,0.464,0.453,0.447,0.442,0.441,0.466,0.452,0.467,0.467]},"sha256-ring":{"mean":[1.171,0.620,0.482,0.441,0.452,0.442,0.452,0.461,0.452,0.466,0.467]},"sha3-256":{"mean":[3.831,1.910,1.804,1.844,1.895,1.775,1.764,1.837,1.721,1.719,1.719]},"sha1dc":{"mean":[3.365,1.924,1.537,1.384,1.500,1.491,1.507,1.585,1.568,1.527,1.525]}}},{"scenario":"shared","use":"ContinuousBatches","batch":true,"map":"shared|batch|piped","labels":["16","64","256","1024","4096","16384","65536"],"units":[16,64,256,1024,4096,16384,65536],"bytes":[1024,4096,16384,65536,262144,1048576,4194304],"series":{"blake3-servil-st":{"mean":[13.465,13.267,12.806,14.086,14.252,15.045,17.342]},"blake3-servil-mt":{"mean":[5.130,5.001,4.068,4.145,4.508,4.671,6.256]},"blake3-official":{"mean":[13.958,14.455,12.844,14.223,13.571,15.679,17.500]},"sha256":{"mean":[63.633,64.328,63.312,63.818,63.680,66.219,67.921]},"sha256-ring":{"mean":[73.389,72.818,73.101,73.186,73.858,75.525,77.231]},"sha3-256":{"mean":[252.153,253.825,252.114,255.198,253.718,256.733,260.168]},"sha1dc":{"mean":[214.164,202.402,201.875,207.893,211.407,211.455,215.689]}}},{"scenario":"shared","use":"LentMessages","batch":false,"map":"shared|one|lent","labels":["64 B","256 B","1 KiB","4 KiB","16 KiB","64 KiB","256 KiB","1 MiB","4 MiB","16 MiB","64 MiB"],"units":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"bytes":[64,256,1024,4096,16384,65536,262144,1048576,4194304,16777216,67108864],"series":{"blake3-servil-st":{"mean":[0.730,0.730,0.727,0.280,0.201,0.213,0.200,0.229,0.293,0.320,0.308]},"blake3-servil-mt":{"mean":[0.737,0.722,0.737,0.281,0.201,0.208,0.202,0.0741,0.0901,0.144,0.139]},"blake3-official":{"mean":[0.746,0.728,0.732,0.284,0.219,0.202,0.199,0.236,0.280,0.308,0.308]},"blake3-official-mt":{"mean":[0.759,0.729,0.732,0.269,0.774,0.278,0.141,0.115,0.123,0.171,0.157]},"sha256":{"mean":[1.011,0.571,0.465,0.445,0.432,0.454,0.441,0.466,0.509,0.529,0.528]},"sha256-ring":{"mean":[1.173,0.611,0.478,0.443,0.441,0.456,0.442,0.466,0.511,0.525,0.527]},"sha3-256":{"mean":[3.805,1.862,1.838,1.827,1.776,1.687,1.711,1.751,1.805,1.805,1.790]},"sha1dc":{"mean":[3.300,1.776,1.524,1.495,1.391,1.464,1.511,1.601,1.613,1.618,1.607]}}},{"scenario":"shared","use":"Interleaved","batch":false,"map":"shared|many|lent","labels":["256"],"units":[1048576],"bytes":[1048576],"series":{"blake3-servil-st":{"mean":[0.324]},"blake3-servil-mt":{"mean":[0.312]},"blake3-official":{"mean":[0.481]},"blake3-official-mt":{"mean":[0.584]},"sha256":{"mean":[0.452]},"sha256-ring":{"mean":[0.454]},"sha3-256":{"mean":[1.712]},"sha1dc":{"mean":[1.578]}}},{"scenario":"shared","use":"Collection","batch":false,"map":"shared|coll|lent","labels":["git objects","Nix files"],"units":[43216008,34764744],"bytes":[43216008,34764744],"series":{"blake3-servil-st":{"mean":[0.220,0.223]},"blake3-servil-mt":{"mean":[0.0439,0.0463]},"blake3-official":{"mean":[0.230,0.240]},"blake3-official-mt":{"mean":[0.404,0.282]},"sha256":{"mean":[0.432,0.432]},"sha256-ring":{"mean":[0.433,0.434]},"sha3-256":{"mean":[1.696,1.700]},"sha1dc":{"mean":[1.499,1.445]}}},{"scenario":"shared","use":"Outboard","batch":false,"map":"shared|outb|lent","labels":["1 MiB","64 MiB"],"units":[1048576,67108864],"bytes":[1048576,67108864],"series":{"blake3-servil-st":{"mean":[0.232,0.309]},"blake3-servil-mt":{"mean":[0.0804,0.144]},"blake3-official":{"mean":[0.271,0.339]}}},{"scenario":"shared","use":"Verify","batch":false,"map":"shared|recv|lent","labels":["1 MiB","64 MiB"],"units":[1048576,67108864],"bytes":[1048576,67108864],"series":{"blake3-servil-st":{"mean":[0.263,0.379]},"blake3-servil-mt":{"mean":[0.265,0.349]},"blake3-official":{"mean":[0.261,0.353]}}},{"scenario":"shared","use":"LentBatches","batch":true,"map":"shared|batch|lent","labels":["16","64","256","1024","4096","16384","65536"],"units":[16,64,256,1024,4096,16384,65536],"bytes":[1024,4096,16384,65536,262144,1048576,4194304],"series":{"blake3-servil-st":{"mean":[13.236,12.602,13.199,13.923,13.731,15.211,20.822]},"blake3-servil-mt":{"mean":[13.625,12.644,12.627,13.999,13.316,5.854,8.794]},"blake3-official":{"mean":[13.855,12.759,12.632,13.991,13.475,15.656,19.604]},"sha256":{"mean":[65.298,63.007,63.277,65.349,63.721,66.563,70.911]},"sha256-ring":{"mean":[75.449,72.595,73.395,75.944,73.681,75.698,78.320]},"sha3-256":{"mean":[267.603,251.325,253.044,267.636,259.394,256.602,263.833]},"sha1dc":{"mean":[204.639,199.414,209.004,226.276,216.117,221.729,219.562]}}},{"scenario":"shared","use":"ContinuousCollection","batch":false,"map":"shared|coll|piped","labels":["git objects","Nix files"],"units":[43216008,34764744],"bytes":[43216008,34764744],"series":{"blake3-servil-st":{"mean":[0.249,0.261]},"blake3-servil-mt":{"mean":[0.0798,0.0793]},"blake3-official":{"mean":[0.251,0.266]},"blake3-official-mt":{"mean":[0.478,0.360]},"sha256":{"mean":[0.471,0.475]},"sha256-ring":{"mean":[0.473,0.475]},"sha3-256":{"mean":[1.738,1.736]},"sha1dc":{"mean":[1.537,1.467]}}},{"scenario":"shared","use":"MerkleTree","batch":false,"map":"shared|merkle|lent","labels":["1024","4096","16384","65536","262144"],"units":[262144,1048576,4194304,16777216,67108864],"bytes":[262144,1048576,4194304,16777216,67108864],"series":{"blake3-servil-st":{"mean":[0.242,0.269,0.369,0.399,0.408]},"blake3-servil-mt":{"mean":[0.239,0.134,0.164,0.200,0.207]},"blake3-official":{"mean":[0.245,0.270,0.356,0.378,0.382]},"sha256":{"mean":[0.831,0.865,0.939,0.935,0.931]},"sha256-ring":{"mean":[0.898,0.937,0.997,0.999,0.985]},"sha3-256":{"mean":[2.967,2.956,3.037,3.027,3.019]},"sha1dc":{"mean":[2.494,2.531,2.620,2.592,2.570]}}}]};
+const EXAMPLES = {"hash":"// One message, all in memory, hashed on the calling thread.\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize();\n    let message = b\"hello, world\";\n    // `hash` reads the whole slice and returns a 32-byte digest.\n    let digest = blake3_servil::hash(message);\n    println!(\"{}\", digest.to_hex());\n}\n","hash_multithreaded":"// One message, all in memory, spread over the program's spare cores.\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize();\n    // Starting the helper threads once, early, keeps that cost off the\n    // first hash. Later calls find them ready.\n    blake3_servil::initialize_multithreaded(None);\n    let message = vec![7u8; 8 * 1024 * 1024]; // 8 MiB\n    // Same digest as `hash`; large inputs finish sooner.\n    let digest = blake3_servil::hash_multithreaded(&message);\n    println!(\"{}\", digest.to_hex());\n}\n","hash_many":"// Many messages of one length, hashed in one call on the calling thread.\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize();\n    // Messages sit back to back in one buffer: message i starts at i * 64.\n    // A length that is no multiple of 64 gets zero padding up to the next\n    // multiple; the padding belongs to the caller.\n    let nodes: Vec\u003cu8> = (0..1000 * 64).map(|i| i as u8).collect();\n    let mut digests = vec![[0u8; 32]; 1000];\n    blake3_servil::hash_many(&nodes, 64, &mut digests);\n    // digests[i] is the hash of message i.\n    assert_eq!(digests[3], *blake3_servil::hash(&nodes[3 * 64..4 * 64]).as_bytes());\n}\n","hash_many_multithreaded":"// Many messages of one length, one call, spread over the program's cores.\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize();\n    blake3_servil::initialize_multithreaded(None);\n    // Message i starts at byte i * 64 (see hash_many for other lengths).\n    let leaves: Vec\u003cu8> = (0..100_000 * 64).map(|i| (i / 64) as u8).collect();\n    let mut digests = vec![[0u8; 32]; 100_000];\n    blake3_servil::hash_many_multithreaded(&leaves, 64, &mut digests);\n    println!(\"{} digests\", digests.len());\n}\n","update":"// One message arriving in pieces (a file read, a network stream).\nuse std::io::Read;\n\nfn main() -> std::io::Result\u003c()> {\n    // Once per process, before any other call.\n    blake3_servil::initialize();\n    let mut file = std::fs::File::open(\"Cargo.toml\")?;\n    let mut buffer = vec![0u8; 64 * 1024];\n    let mut hasher = blake3_servil::Hasher::new();\n    loop {\n        let n = file.read(&mut buffer)?;\n        if n == 0 { break; }\n        // Each piece extends the same message; the order matters.\n        hasher.update(&buffer[..n]);\n    }\n    // The digest of the whole message, whatever the piece sizes were.\n    println!(\"{}\", hasher.finalize().to_hex());\n    Ok(())\n}\n","update_multithreaded":"// Pieces that arrive faster than one thread can hash them; each piece is\n// borrowed only until the call returns.\nuse std::io::Read;\n\nfn main() -> std::io::Result\u003c()> {\n    // Once per process, before any other call.\n    blake3_servil::initialize();\n    blake3_servil::initialize_multithreaded(None);\n    let mut file = std::fs::File::open(\"Cargo.toml\")?;\n    let mut buffer = vec![0u8; 1 \u003c\u003c 20];\n    let mut hasher = blake3_servil::Hasher::new();\n    loop {\n        let n = file.read(&mut buffer)?;\n        if n == 0 { break; }\n        // Helper threads share each piece of 512 KiB or more; shorter\n        // pieces hash on this thread.\n        hasher.update_multithreaded(&buffer[..n]);\n    }\n    println!(\"{}\", hasher.finalize().to_hex());\n    Ok(())\n}\n","Stream::submit_with":"// Messages one after another, each read straight into the stream. Its\n// threads hash earlier messages while you read the next; each digest goes\n// into a place you own, and the place comes back to your handler.\nuse blake3_servil::{Hash, Mode};\nuse std::cell::RefCell;\n\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize_multithreaded(None);\n    // A fixed set of places, cycled: each comes back with its digest in it.\n    let mut places = vec![Hash::from_bytes([0; 32]); 64];\n    let free = RefCell::new(places.iter_mut().collect::\u003cVec\u003c_>>());\n    blake3_servil::stream(\n        Mode::Hash,\n        // Your handler receives each place back, in submission order, on\n        // this thread. Keep it short.\n        |done: &mut [Hash]| {\n            println!(\"{}\", done[0].to_hex());\n            free.borrow_mut().push(&mut done[0]);\n        },\n        |s| {\n            for message_number in 0..1000u32 {\n                // Take a free place, or hand finished ones back until one is.\n                let place = loop {\n                    if let Some(place) = free.borrow_mut().pop() {\n                        break place;\n                    }\n                    s.collect();\n                };\n                let message = message_number.to_le_bytes(); // your read goes here\n                s.submit_with(message.len(), |at, room| room.copy_from_slice(&message[at..][..room.len()]), place);\n            }\n            // Every place comes back before the stream ends.\n            s.finish();\n        },\n    );\n}\n","Stream::submit_reader":"// One long message read in pieces (a file, a socket): the stream reads it\n// straight into its own memory, hashing each piece while it reads the next,\n// and puts the digest in your place.\nuse blake3_servil::{Hash, Mode};\n\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize_multithreaded(None);\n    let message = vec![7u8; 10 \u003c\u003c 20]; // your reader goes here: a File, a TcpStream\n    let mut digest = Hash::from_bytes([0; 32]);\n    blake3_servil::stream(Mode::Hash, |_: &mut [Hash]| {}, |s| {\n        let len = s.submit_reader(&message[..], Some(message.len() as u64), &mut digest).expect(\"the read\");\n        assert_eq!(len, message.len() as u64);\n        s.finish();\n    });\n    println!(\"{}\", digest.to_hex());\n}\n","Stream::submit_batch_with":"// Batches of equal-length messages, one after another, each written straight\n// into the stream: its threads hash them side by side while you write the\n// next batch, each digest into the batch's place, which comes back whole.\nuse blake3_servil::{Hash, Mode};\nuse std::cell::RefCell;\n\nconst MESSAGES: usize = 1024; // each batch: 1024 messages of 64 bytes\n\nfn main() {\n    // Once per process, before any other call.\n    blake3_servil::initialize_multithreaded(None);\n    // A fixed set of batch places, cycled.\n    let mut places = vec![Hash::from_bytes([0; 32]); 8 * MESSAGES];\n    let free = RefCell::new(places.chunks_mut(MESSAGES).collect::\u003cVec\u003c_>>());\n    blake3_servil::stream(\n        Mode::Hash,\n        |done: &mut [Hash]| {\n            println!(\"{}\", done[0].to_hex()); // the batch's first digest\n            free.borrow_mut().push(done);\n        },\n        |s| {\n            for batch_number in 0..100u8 {\n                let place = loop {\n                    if let Some(place) = free.borrow_mut().pop() {\n                        break place;\n                    }\n                    s.collect();\n                };\n                // Write the batch's bytes from `at` into `room`: each 64-byte\n                // message in its 64-byte slot (shorter ones zero-padded).\n                s.submit_batch_with(64, |_at, room| room.fill(batch_number), place); // your read goes here\n            }\n            s.finish();\n        },\n    );\n}\n"};
+
+/* The questions; the last choice of each is for a reader who cannot tell. */
+const QUESTIONS = {
+  threads: { title: "Can your program use several threads for hashing?", help: "", choices: [["many", "Yes"], ["one", "No, one thread"], ["one", "I'm not sure: one thread"]] },
+  shape: { title: "What shape is your data?", help: "A batch is many separate messages of one length, each with its own digest.", choices: [["message", "One message, all in one buffer"], ["pieces", "One message arriving in pieces"], ["batch", "A batch of equal-length messages"], ["message", "I'm not sure: one buffer"]] },
+  keepsUp: { title: "When the next input arrives, is your thread done with the last one?", help: "A network upload leaves time to spare. A file already in memory has the next piece ready at once.", choices: [["yes", "Yes, it waits for more data"], ["no", "No, there is always more ready"], ["yes", "I'm not sure: yes"]] },
+  buffer: { title: "Whose buffer does the data land in?", help: "A queue takes a buffer and hands it back later with its digest. A plain function only borrows one until it returns.", choices: [["owned", "Mine: my code chooses it"], ["owned", "Someone else's, but mine until I'm done"], ["lent", "Someone else's, lent only until I return"], ["lent", "I'm not sure: lent"]] },
+};
+function steps(a) {
+  const list = ["threads", "shape", "keepsUp"];
+  if (a.threads === "many" && a.keepsUp === "no") list.push("buffer");
+  return list;
+}
+
+/* The decision table (the crate's docs, "Which call to use"). */
+/* A message in pieces now and then: each piece costs about what hash costs on a buffer that long, so its plots are hash's. */
+const PATTERNS = { message: ["IdleOneMessage", "OneMessage", "LentMessages"], pieces: ["IdleOneMessage", "OneMessage", "LentMessages"], batch: ["IdleManyMessages", "ManyMessages", "LentBatches"] };
+function recommendation(a) {
+  const many = a.threads === "many", nonstop = a.keepsUp === "no", s = a.shape;
+  if (many && nonstop && a.buffer === "owned") {
+    const call = { message: "Stream::submit_with", pieces: "Stream::submit_reader", batch: "Stream::submit_batch_with" }[s];
+    return { call, contender: "blake3-servil-mt", uses: [s === "batch" ? "ContinuousBatches" : "ContinuousMessages"], useIndex: 0, shape: s,
+      summary: "A stream: you write or read each input straight into it and keep producing; its threads hash them, each digest into a place you own, and hand the places back in order to a handler you write.",
+      pass: s === "batch" ? "Each batch of equal-length messages, written into the stream as it asks, and a place for its digests." : s === "pieces" ? "A reader (a file, a socket); the stream reads the message in pieces, hashing each while it reads the next." : "Each message, written into the stream as it asks, and a place for its digest.",
+      get: "Each place back, digests in it, in the order you submitted, on your thread. submit_with() returns once the input is in the stream.",
+      mind: "Keep the handler short. Cycle a fixed set of places: the handler puts each back, and you take one, collecting when none is free. Call finish() last." };
+  }
+  const mt = many && (s !== "pieces" || nonstop);
+  const call = { message: "hash", pieces: "update", batch: "hash_many" }[s] + (mt ? "_multithreaded" : "");
+  // A pattern toggle keeps the actual API. Multithreaded pieces use
+  // update after a gap and update_multithreaded nonstop: separate calls.
+  const uses = s === "pieces" && many
+    ? (mt ? [null, null, "LentMessages"] : ["IdleOneMessage", "OneMessage", null])
+    : PATTERNS[s];
+  return { call, contender: mt ? "blake3-servil-mt" : "blake3-servil-st", uses, useIndex: nonstop ? 2 : 1, shape: s,
+    summary: s === "batch" ? `One call hashes every message in the buffer${mt ? ", spread over your spare cores" : ""}: how a Merkle tree hashes a layer.`
+      : s === "pieces" ? `A Hasher keeps the message's state between pieces${mt ? "; helper threads share each piece" : ""}: how a file or a stream is hashed as it arrives.`
+      : `The plain function: it reads the buffer and returns the digest${mt ? ", spreading a large message over your spare cores" : ""}.`,
+    pass: s === "batch" ? "One buffer holding all the messages, each starting at a multiple of the message length rounded up to 64 bytes (zero the padding), and a slice of 32-byte arrays for the digests." : s === "pieces" ? "Each piece as a byte slice, in order; any sizes." : "The whole message as a byte slice.",
+    get: s === "batch" ? "The digests, in message order." : s === "pieces" ? "From finalize(): the digest of the whole message, the same whatever the piece sizes were." : "A Hash: 32 bytes, with to_hex() and constant-time equality.",
+    mind: mt ? "Call initialize_multithreaded(None) once at startup, so the first call finds its threads ready. The digest equals the single-threaded function's." : "Runs on your thread alone: right for a machine whose other cores are busy." };
+}
+
+
+const el = id => document.getElementById(id);
+let answers = {}, history = [], current = null, scenario = "solo", useIndex = 0;
+
+function choose(key, value, label) { answers[key] = value; history.push({ key, label }); show(); }
+function show() {
+  el("trail").textContent = history.map(h => h.label).join(" · ");
+  el("back").hidden = el("restart").hidden = history.length === 0;
+  const next = steps(answers).find(key => !(key in answers));
+  el("question").hidden = !next;
+  el("result").hidden = !!next;
+  if (next) {
+    const q = QUESTIONS[next];
+    el("q-title").textContent = q.title;
+    el("q-help").textContent = q.help;
+    el("choices").replaceChildren(...q.choices.map(([value, label], i) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      if (i === q.choices.length - 1) b.className = "unsure";
+      b.onclick = () => choose(next, value, label);
+      return b;
+    }));
+    el("q-title").focus();
+    return;
+  }
+  current = recommendation(answers);
+  useIndex = current.useIndex;
+  el("fn").textContent = current.call;
+  el("summary").textContent = current.summary;
+  el("example").textContent = EXAMPLES[current.call];
+  el("pass").textContent = current.pass;
+  el("get").textContent = current.get;
+  el("mind").textContent = current.mind;
+  el("program").open = false;
+  drawSpeed();
+  el("fn").closest("h2").scrollIntoView({ block: "start" });
+}
+
+const plotFor = (use, sc) => DATA.plots.find(p => p.scenario === sc && p.use === use && p.series[current.contender]);
+const rival = plot => ["sha256-ring", "sha256", "sha256-cc"].find(key => plot.series[key]);
+/* Which points this function covers: a message in pieces, the lengths of several pieces (past 64 KiB); else all. */
+function pointsFor(plot) {
+  const all = [...plot.labels.keys()];
+  if (plot.use !== "ContinuousMessages" || current.shape !== "pieces") return all;
+  return all.filter(k => plot.units[k] > 65536);
+}
+
+/* The chips: the pattern the benchmark called the function in, and alone or beside another program. */
+function drawChips(plot) {
+  const how = el("how");
+  how.replaceChildren();
+  const add = (label, pressed, onclick) => { const b = document.createElement("button"); b.textContent = label; b.setAttribute("aria-pressed", pressed); b.onclick = onclick; how.appendChild(b); };
+  const text = t => { const s = document.createElement("span"); s.textContent = t; how.appendChild(s); };
+  text("Called");
+  if (current.uses.length === 3) {
+    const measured = current.uses.map(use => !!plotFor(use, scenario));
+    ["after idling", "after other work", "nonstop"].forEach((label, i) => { if (measured[i]) add(label, useIndex === i, () => { useIndex = i; drawSpeed(); }); });
+  } else text("nonstop");
+  /* Two programs at once are measured nonstop alone (a gap's twin warmed the other's code). */
+  if (plotFor(current.uses[useIndex], "shared")) {
+    text(",");
+    add("alone", scenario === "solo", () => { scenario = "solo"; drawSpeed(); });
+    add("beside another program", scenario === "shared", () => { scenario = "shared"; drawSpeed(); });
+  } else text(", alone");
+}
+
+function drawSpeed() {
+  if (!plotFor(current.uses[useIndex], scenario)) scenario = "solo";
+  const r = current, plot = plotFor(r.uses[useIndex], scenario);
+  drawChips(plot);
+  const points = plot ? pointsFor(plot) : [];
+  const measured = plot && points.length > 0;
+  el("unmeasured").hidden = measured;
+  el("chart").hidden = el("speed-summary").hidden = !measured;
+  if (!measured) { el("method").textContent = ""; el("stand-in").hidden = true; return; }
+  const other = rival(plot);
+  const mine = DATA.contenders.find(c => c.key === r.contender), theirs = DATA.contenders.find(c => c.key === other);
+  /* hash's plot standing in for update's pieces now and then: its x is each piece's length. */
+  const standIn = r.shape === "pieces" && !r.call.startsWith("Stream::");
+  el("stand-in").hidden = !standIn;
+  el("stand-in").textContent = standIn ? `Each piece costs about what ${r.call === "update_multithreaded" ? "hash_multithreaded" : "hash"} costs on one buffer of the piece's length: these are its measurements.` : "";
+  const unit = plot.batch ? " messages" : "";
+
+  /* The sentence, from the same numbers as the dots: the size from which the lead holds to the largest. */
+  let text = `${mine.name}, measured alone; this run has no SHA-256 to compare with.`;
+  if (theirs) {
+    const ahead = points.map(k => +plot.series[r.contender].mean[k] < +plot.series[other].mean[k]);
+    const behind = points.map(k => +plot.series[r.contender].mean[k] > +plot.series[other].mean[k]);
+    let from = ahead.length;
+    while (from > 0 && ahead[from - 1]) from--;
+    if (points.length === 1) text = `${ahead[0] ? "Faster than" : behind[0] ? "Slower than" : "As fast as"} ${theirs.name} on a ${plot.labels[points[0]]} message${r.call === "Stream::submit_reader" ? " in 64 KiB pieces" : ""}.`;
+    else if (from === 0) text = `Faster than ${theirs.name} at every size measured.`;
+    else if (behind.every(Boolean)) text = `Slower than ${theirs.name} at every size measured.`;
+    else if (from === ahead.length) text = ahead.some(Boolean) ? "The two trade places across the sizes measured." : `As fast as ${theirs.name} or slower at every size measured.`;
+    else text = `Faster than ${theirs.name} from ${plot.labels[points[from]]}${unit} up; ${ahead.slice(0, from).some(x => x) ? "the two trade places below that" : `${theirs.name} leads below that`}.`;
+  }
+  el("speed-summary").textContent = text;
+
+  /* The door to the measurement: the same chart on the map, opened. */
+  el("chart").innerHTML = `<a href="bench-hashes.map.html#${encodeURIComponent(plot.map)}">See it on the map, with every hash measured beside it ›</a>`;
+  el("method").textContent = methodText(plot);
+}
+function escapeXml(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+function methodText(plot) {
+  const where = `on ${DATA.machine}, ${DATA.date}`, sc = scenario === "solo" ? "one program hashing" : "two programs hashing at once; the time of either";
+  const use = plot.use;
+  if (use === "ContinuousMessages" || use === "ContinuousBatches")
+    return `Measured ${where}, ${sc}. The program read each input into one of its own buffers (a memory copy, the cheapest read) and handed it to the queue, keeping about 1 MiB or 1024 buffers in flight; the time runs from the first read to the last digest, so reading and hashing overlap. SHA-256 ran the same producer with a plain call per input.`;
+  if (use.startsWith("Lent"))
+    return `Measured ${where}, ${sc}. The program read each input into a buffer (a memory copy) and called the function, one input after another with nothing between; the read is inside the time. Every contender ran the same loop.`;
+  if (use.startsWith("Idle"))
+    return `Measured ${where}, ${sc}. The program called the function, slept a millisecond, as a server waits for its next request, wrote the next input, and called again; the function found helper threads asleep and a core that may have slowed or powered down. The write of the next input and the second call are timed.`;
+  return `Measured ${where}, ${sc}. The program called the function, then ran a fixed other program (about 1 MiB of code) and read 128 MiB of data, at least a millisecond in all, wrote the next input, and called again: the function found its code and data out of the caches and its helper threads asleep, as in a program that hashes between its other tasks. The write of the next input and the second call are timed.`;
+}
+
+el("back").onclick = () => { const last = history.pop(); delete answers[last.key]; show(); };
+el("restart").onclick = () => { answers = {}; history = []; show(); window.scrollTo(0, 0); };
+show();
+</script>
+</body>
+</html>

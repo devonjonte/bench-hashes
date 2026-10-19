@@ -21,12 +21,13 @@ your program calls the hash. bench-hashes measures them on your
 computer, from 64-byte messages to 128 MiB and in batches of small
 messages, called now and then or nonstop, and draws the answer as a
 map you open in a web browser: a small chart for each way a program
-hashes. One message of 1 MiB on an Apple M4 Max:
+hashes. One message of 1 MiB on an Intel i7-12700K (Linux):
 
-<img src="benchmark-results/AppleM4Max.darwin25/bench-hashes.chart.svg" alt="Hashing one 1 MiB message on an Apple M4 Max: BLAKE3 on every core and on one core beside SHA-256, SHA3-256, and SHA-1, in GB/s" width="720">
+<img src="benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.chart.svg" alt="Hashing one 1 MiB message on an i7-12700K: BLAKE3 on every core 5.51 GB/s and on one core 3.71, SHA-256 2.03, SHA-1 0.63, SHA3-256 0.57" width="720">
 
 Every size, on each machine measured so far:
 
+- [Intel i7-12700K, Linux](https://devonjonte.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html)
 - [Apple M4 Max, macOS](https://johnservil.github.io/bench-hashes/benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html)
 - [A Linux VM on that Mac](https://johnservil.github.io/bench-hashes/benchmark-results/aarch64.linux618520virt/bench-hashes.map.html)
 
