@@ -2257,7 +2257,7 @@ fn hash_messages(algorithm: Algorithm, input: &[u8], messages: usize, message_le
             if !batch {
                 each_message(input, message_len, iterations, |m| *blake3::hash(m).as_bytes(), consume)
             } else {
-                blake3_batch(input, message_len, iterations, consume)
+                blake3_batch(input, message_len, None, iterations, consume)
             }
         }
         Algorithm::Sha256 => each_message(input, message_len, iterations, |m| Sha256::digest(m), consume),
@@ -2869,6 +2869,66 @@ fn hash_lent(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize
  * root, every layer kept in buffers of the program's; the root into
  * `consume`.
  */
+/*
+ * A tree's two kinds of node hash, kept apart (Zooko, October 19): were a
+ * leaf hashed as a parent is, a parent's two child digests would pass for
+ * a leaf, and a proof could open a leaf the tree never held (the standard
+ * Merkle tree vulnerability). The BLAKE3 contenders hash leaves and
+ * parents as keyed hashes under two keys derived from their contexts,
+ * BLAKE3's own domain separation, at a batch call's speed; every other
+ * hash prefixes a byte, 0x00 to a leaf and 0x01 to a parent (RFC 6962).
+ */
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Node {
+    Leaf,
+    Parent,
+}
+
+impl Node {
+    fn key(self) -> &'static [u8; 32] {
+        static KEYS: std::sync::LazyLock<[[u8; 32]; 2]> = std::sync::LazyLock::new(|| {
+            [blake3::derive_key("bench-hashes 2026-10-19 Merkle tree leaf", b""), blake3::derive_key("bench-hashes 2026-10-19 Merkle tree parent", b"")]
+        });
+        &KEYS[self as usize]
+    }
+
+    fn prefix(self) -> u8 {
+        self as u8
+    }
+}
+
+/// One layer of a tree: `input`'s messages of `message_len` bytes hashed as
+/// `node`s, each contender's way (Node), every digest into `consume`.
+fn hash_tree_layer(algorithm: Algorithm, input: &[u8], message_len: usize, node: Node, consume: impl FnMut(&[u8])) {
+    use sha1_checked::digest::Update as _;
+    use sha2::Digest as _;
+    let messages = input.len() / message_len;
+    let prefix = [node.prefix()];
+    match algorithm {
+        Algorithm::Blake3 => blake3_batch(input, message_len, Some(node.key()), 1, consume),
+        Algorithm::Blake3ServilSt => servil_batch(input, messages, message_len, 1, |i, l, o| blake3_servil::hash_many_with(blake3_servil::Mode::Keyed(node.key()), i, l, o), consume),
+        Algorithm::Blake3ServilMt => servil_batch(input, messages, message_len, 1, |i, l, o| blake3_servil::hash_many_multithreaded_with(blake3_servil::Mode::Keyed(node.key()), i, l, o), consume),
+        Algorithm::Sha256 => each_message(input, message_len, 1, |m| -> [u8; 32] { Sha256::new().chain_update(prefix).chain_update(m).finalize().into() }, consume),
+        Algorithm::Sha3_256 => each_message(input, message_len, 1, |m| -> [u8; 32] { sha3::Sha3_256::new().chain_update(prefix).chain_update(m).finalize().into() }, consume),
+        Algorithm::Sha256Ring => each_message(input, message_len, 1, |m| {
+            let mut context = ring::digest::Context::new(&ring::digest::SHA256);
+            context.update(&prefix);
+            context.update(m);
+            context.finish()
+        }, consume),
+        Algorithm::Sha256CommonCrypto => each_message(input, message_len, 1, |m| common_crypto::sha256_pieces(&mut |piece: &mut dyn FnMut(&[u8])| { piece(&prefix); piece(m); }), consume),
+        Algorithm::Sha1Dc => each_message(input, message_len, 1, |m| {
+            let mut hasher = sha1_checked::Sha1::new();
+            hasher.update(&prefix);
+            hasher.update(m);
+            let mut digest = [0u8; 20];
+            digest.copy_from_slice(hasher.try_finalize().hash());
+            digest
+        }, consume),
+        Algorithm::Blake3Rayon | Algorithm::Blake3Commonware => panic!("{} takes no part in a Merkle tree", algorithm.key()),
+    }
+}
+
 fn hash_merkle(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
     assert!(point.messages.is_power_of_two() && input.len() == point.messages * MERKLE.leaf_len, "a tree's leaves are a power of two of MERKLE.leaf_len bytes");
     let depth = point.messages.trailing_zeros() as usize;
@@ -2883,7 +2943,8 @@ fn hash_merkle(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
             let (done, rest) = buffers.split_at_mut(layer + 1);
             let (from, to) = (&done[layer], &mut rest[0]);
             to.clear();
-            hash_messages(algorithm, from, from.len() / message_len, message_len, true, 1, |digest| to.extend_from_slice(digest));
+            let node = if layer == 0 { Node::Leaf } else { Node::Parent };
+            hash_tree_layer(algorithm, from, message_len, node, |digest| to.extend_from_slice(digest));
             message_len = 2 * algorithm.digest_len();
         }
         consume(&buffers[depth + 1]);
@@ -2997,8 +3058,8 @@ thread_local! {
  */
 #[cfg(test)]
 const SERVIL_CALLS: [(Algorithm, UseCase, &str); 28] = [
-    (Algorithm::Blake3ServilSt, UseCase::MerkleTree, "hash_many(layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer, then each layer of parents (64 B, two children's digests) into a kept buffer of its own, to the root"),
-    (Algorithm::Blake3ServilMt, UseCase::MerkleTree, "hash_many_multithreaded(layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer, then each layer of parents (64 B, two children's digests) into a kept buffer of its own, to the root"),
+    (Algorithm::Blake3ServilSt, UseCase::MerkleTree, "hash_many_with(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root"),
+    (Algorithm::Blake3ServilMt, UseCase::MerkleTree, "hash_many_multithreaded_with(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root"),
     (Algorithm::Blake3ServilSt, UseCase::OneMessage, "hash(input), each call after other work"),
     (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "hash_many(batch, 64, out), the padded batch contract, each call after other work"),
     (Algorithm::Blake3ServilMt, UseCase::OneMessage, "hash_multithreaded(input), each call after other work"),
@@ -3098,21 +3159,27 @@ fn keep_batch_digests(digests: Vec<[u8; 32]>) {
 /// (WHIR's Merkle trees call it this way). The whole batch's digests go to
 /// `consume` per pass.
 #[inline(always)]
-fn blake3_batch(input: &[u8], message_len: usize, iterations: usize, consume: impl FnMut(&[u8])) {
+fn blake3_batch(input: &[u8], message_len: usize, key: Option<&[u8; 32]>, iterations: usize, consume: impl FnMut(&[u8])) {
     match message_len {
-        MESSAGE_LEN => blake3_batch_of::<MESSAGE_LEN>(input, iterations, consume),
-        256 => blake3_batch_of::<256>(input, iterations, consume),
+        MESSAGE_LEN => blake3_batch_of::<MESSAGE_LEN>(input, key, iterations, consume),
+        256 => blake3_batch_of::<256>(input, key, iterations, consume),
         other => panic!("no blake3 batch of {other}-byte messages"),
     }
 }
 
 #[inline(always)]
-fn blake3_batch_of<const N: usize>(input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8])) {
+fn blake3_batch_of<const N: usize>(input: &[u8], key: Option<&[u8; 32]>, iterations: usize, mut consume: impl FnMut(&[u8])) {
     /* BLAKE3's IV and flags, private in the crate. */
     const IV: [u32; 8] = [0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19];
     const CHUNK_START: u8 = 1 << 0;
     const CHUNK_END: u8 = 1 << 1;
     const ROOT: u8 = 1 << 3;
+    const KEYED_HASH: u8 = 1 << 4;
+    /* A keyed hash's key words, little-endian, in place of the IV. */
+    let (words, keyed) = match key {
+        Some(k) => (core::array::from_fn(|i| u32::from_le_bytes(k[4 * i..4 * i + 4].try_into().unwrap())), KEYED_HASH),
+        None => (IV, 0),
+    };
     let (messages, rest) = input.as_chunks::<N>();
     assert!(rest.is_empty(), "a batch is whole {N}-byte messages");
     let platform = blake3::platform::Platform::detect();
@@ -3123,7 +3190,7 @@ fn blake3_batch_of<const N: usize>(input: &[u8], iterations: usize, mut consume:
             for (slot, message) in table.iter_mut().zip(group) {
                 *slot = message;
             }
-            platform.hash_many::<N>(&table[..group.len()], &IV, 0, blake3::IncrementCounter::No, 0, CHUNK_START, CHUNK_END | ROOT, out.as_flattened_mut());
+            platform.hash_many::<N>(&table[..group.len()], &words, 0, blake3::IncrementCounter::No, keyed, CHUNK_START, CHUNK_END | ROOT, out.as_flattened_mut());
         }
         consume(digests[..messages.len()].as_flattened());
     }

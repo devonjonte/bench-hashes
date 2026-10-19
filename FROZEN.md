@@ -31,10 +31,16 @@ the notes) may still change, to say it better.
   Reed-Solomon codeword (WHIR, the fork's docs/whir-merkle-trees.md). The
   program writes its leaves (256 bytes each) into its buffer, then hashes
   them and each layer of parents (two children's digests) to the root,
-  every layer kept, at 1024 to 262144 leaves, solo and shared. Each
+  every layer kept, at 1024 to 262144 leaves, solo and shared. Leaves and
+  parents are hashed apart (Zooko, October 19: a tree that hashes them
+  alike lets two child digests pass for a leaf, the standard Merkle tree
+  vulnerability): the BLAKE3 contenders as keyed hashes under a leaf key
+  and a parent key derived from their contexts, every other hash with a
+  prefix byte, 0x00 to a leaf and 0x01 to a parent (RFC 6962). Each
   contender hashes a layer with its batch call (BLAKE3 official: the hidden
-  `Platform::hash_many`, as WHIR's engine does; servil: `hash_many`, mt
-  `hash_many_multithreaded`), and one call a node where it has none. BLAKE3
+  `Platform::hash_many` with the key, as WHIR's engine calls it; servil:
+  `hash_many_with`, mt `hash_many_multithreaded_with`), and one call a node
+  where it has none. BLAKE3
   official mt and commonware (64-byte messages only) take no part. The map
   draws it in its own row, the nonstop column.
 - **A collection, pipelined** (Devon Jonte's fork, October 18; Zooko's
@@ -493,8 +499,8 @@ use case ContinuousCollection: git objects, Nix files
 use case MerkleTree: 1024, 4096, 16384, 65536, 262144
 scenarios: solo, shared
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, Outboard, Verify, LentBatches, ContinuousCollection, MerkleTree
-blake3-servil-st MerkleTree: hash_many(layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer, then each layer of parents (64 B, two children's digests) into a kept buffer of its own, to the root
-blake3-servil-mt MerkleTree: hash_many_multithreaded(layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer, then each layer of parents (64 B, two children's digests) into a kept buffer of its own, to the root
+blake3-servil-st MerkleTree: hash_many_with(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root
+blake3-servil-mt MerkleTree: hash_many_multithreaded_with(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root
 blake3-servil-st OneMessage: hash(input), each call after other work
 blake3-servil-st ManyMessages: hash_many(batch, 64, out), the padded batch contract, each call after other work
 blake3-servil-mt OneMessage: hash_multithreaded(input), each call after other work

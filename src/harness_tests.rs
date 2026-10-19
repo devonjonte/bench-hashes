@@ -26,7 +26,7 @@ fn official_batch_wrapper_hashes_each_message_with_plain_api_flags() {
         let expected: Vec<u8> = input.chunks_exact(MESSAGE_LEN)
             .flat_map(|message| *blake3::hash(message).as_bytes()).collect();
         let mut actual = Vec::new();
-        blake3_batch(&input, MESSAGE_LEN, 2, |digests| actual.extend_from_slice(digests));
+        blake3_batch(&input, MESSAGE_LEN, None, 2, |digests| actual.extend_from_slice(digests));
         assert_eq!(actual, expected.repeat(2), "{messages} separate hashes, in input order");
     }
 }
@@ -182,30 +182,49 @@ fn a_pipelined_collection_hashes_every_item() {
 #[test]
 fn a_merkle_tree_has_the_root_of_its_layers_hashed_node_by_node() {
     blake3_servil::initialize_multithreaded(None);
-    /* The root, a node at a time with one plain call each: the leaves,
-     * then each parent of two children's digests. */
-    fn root(leaves: &[u8], leaf_len: usize, hash: impl Fn(&[u8]) -> Vec<u8>) -> Vec<u8> {
-        let mut layer: Vec<Vec<u8>> = leaves.chunks(leaf_len).map(&hash).collect();
+    /* The root, a node at a time with one plain call each: each leaf as a
+     * leaf, then each parent of two children's digests as a parent. */
+    fn root(leaves: &[u8], leaf_len: usize, hash: impl Fn(Node, &[u8]) -> Vec<u8>) -> Vec<u8> {
+        let mut layer: Vec<Vec<u8>> = leaves.chunks(leaf_len).map(|leaf| hash(Node::Leaf, leaf)).collect();
         while layer.len() > 1 {
-            layer = layer.chunks(2).map(|pair| hash(&[pair[0].as_slice(), pair[1].as_slice()].concat())).collect();
+            layer = layer.chunks(2).map(|pair| hash(Node::Parent, &[pair[0].as_slice(), pair[1].as_slice()].concat())).collect();
         }
         layer.pop().unwrap()
     }
+    /* RFC 6962's prefix, then the message, in one buffer. */
+    let with = |node: Node, m: &[u8]| [&[node.prefix()][..], m].concat();
     let point = POINTS[UseCase::MerkleTree.points()][0];
     let input = make_input(point.bytes);
-    let blake3_root = root(&input, MERKLE.leaf_len, |m| blake3::hash(m).as_bytes().to_vec());
-    let sha256_root = root(&input, MERKLE.leaf_len, |m| Sha256::digest(m).to_vec());
-    let sha1_root = root(&input, MERKLE.leaf_len, |m| sha1_checked::Sha1::try_digest(m).hash().to_vec());
+    let blake3_root = root(&input, MERKLE.leaf_len, |node, m| blake3::keyed_hash(node.key(), m).as_bytes().to_vec());
+    let sha256_root = root(&input, MERKLE.leaf_len, |node, m| Sha256::digest(with(node, m)).to_vec());
+    let sha1_root = root(&input, MERKLE.leaf_len, |node, m| sha1_checked::Sha1::try_digest(with(node, m)).hash().to_vec());
+    let sha3_root = root(&input, MERKLE.leaf_len, |node, m| sha3::Sha3_256::digest(with(node, m)).to_vec());
     for algorithm in Algorithm::ALL.into_iter().filter(|a| a.availability().is_ok() && a.takes_part(UseCase::MerkleTree)) {
         let want = match algorithm {
             Algorithm::Blake3 | Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt => &blake3_root,
             Algorithm::Sha256 | Algorithm::Sha256Ring | Algorithm::Sha256CommonCrypto => &sha256_root,
             Algorithm::Sha1Dc => &sha1_root,
-            Algorithm::Sha3_256 => &root(&input, MERKLE.leaf_len, |m| sha3::Sha3_256::digest(m).to_vec()),
+            Algorithm::Sha3_256 => &sha3_root,
             Algorithm::Blake3Rayon | Algorithm::Blake3Commonware => unreachable!("{} takes no part in a Merkle tree", algorithm.key()),
         };
         let mut roots: Vec<Vec<u8>> = Vec::new();
         hash_batch(algorithm, &input, point, 2, |r| roots.push(r.to_vec()));
         assert_eq!(roots, vec![want.clone(), want.clone()], "{}: the root of {} leaves, each tree", algorithm.key(), point.messages);
+    }
+}
+
+#[test]
+fn a_merkle_tree_hashes_leaves_and_parents_apart() {
+    blake3_servil::initialize_multithreaded(None);
+    /* Two child digests side by side, hashed as a parent and as a leaf:
+     * were they equal, the pair would pass for a leaf. */
+    let pair = make_input(64);
+    for algorithm in Algorithm::ALL.into_iter().filter(|a| a.availability().is_ok() && a.takes_part(UseCase::MerkleTree)) {
+        let digest = |node| {
+            let mut out = Vec::new();
+            hash_tree_layer(algorithm, &pair, 64, node, |d| out.extend_from_slice(d));
+            out
+        };
+        assert_ne!(digest(Node::Leaf), digest(Node::Parent), "{}: a leaf and a parent of the same bytes", algorithm.key());
     }
 }
