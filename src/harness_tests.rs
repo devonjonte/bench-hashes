@@ -41,17 +41,26 @@ fn batch_digest_storage_survives_a_smaller_cell_without_zeroing() {
 fn official_batch_wrapper_hashes_each_message_with_plain_api_flags() {
     for messages in [1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 1024] {
         let input = make_input_seeded(messages * MESSAGE_LEN, 17);
-        let expected: Vec<u8> = input.chunks_exact(MESSAGE_LEN)
-            .flat_map(|message| *blake3::hash(message).as_bytes()).collect();
+        let expected: Vec<u8> = input
+            .chunks_exact(MESSAGE_LEN)
+            .flat_map(|message| *blake3::hash(message).as_bytes())
+            .collect();
         let mut actual = Vec::new();
-        blake3_batch(&input, MESSAGE_LEN, 2, |digests| actual.extend_from_slice(digests));
-        assert_eq!(actual, expected.repeat(2), "{messages} separate hashes, in input order");
+        blake3_batch(&input, MESSAGE_LEN, 2, |digests| {
+            actual.extend_from_slice(digests)
+        });
+        assert_eq!(
+            actual,
+            expected.repeat(2),
+            "{messages} separate hashes, in input order"
+        );
     }
 }
 
 #[test]
 fn sparse_runs_remove_a_previous_guide() {
-    let directory = std::env::temp_dir().join(format!("bench-hashes-audit-output-{}", std::process::id()));
+    let directory =
+        std::env::temp_dir().join(format!("bench-hashes-audit-output-{}", std::process::id()));
     fs::create_dir_all(&directory).unwrap();
     for name in ["bench-hashes.guide.html", "bench-hashes.result.txt"] {
         fs::write(directory.join(name), "previous run").unwrap();
@@ -66,14 +75,25 @@ fn sparse_runs_remove_a_previous_guide() {
 #[test]
 fn guide_means_match_the_exact_report_rounding() {
     let point = UseCase::Interleaved.points().start;
-    let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], false, Some(vec![point]), Some(2));
+    let roster = Roster::new(
+        vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring],
+        false,
+        Some(vec![point]),
+        Some(2),
+    );
     let statistics = Mean::of(&[Measured::new(2135, 400), Measured::new(2135, 400)]);
     let mut results = vec![vec![None; POINT_COUNT]; roster.len()];
     for cells in &mut results {
-        cells[point] = Some(super::Cell { solo: statistics, shared: Some(statistics) });
+        cells[point] = Some(super::Cell {
+            solo: statistics,
+            shared: Some(statistics),
+        });
     }
     let guide = generate_guide(&roster, &results, &machine_metadata());
-    assert!(guide.contains("\"mean\":[5.338]"), "the report rounds 2135/400 to 5.338; the guide must too");
+    assert!(
+        guide.contains("\"mean\":[5.338]"),
+        "the report rounds 2135/400 to 5.338; the guide must too"
+    );
 }
 
 #[test]
@@ -83,7 +103,9 @@ fn sampled_visits_complete_the_participating_williams_design() {
     for n in 2..=Algorithm::ALL.len() {
         for use_case in UseCase::ALL {
             let orders = participating_orders(&Algorithm::ALL[..n], use_case);
-            if orders.is_empty() { continue; }
+            if orders.is_empty() {
+                continue;
+            }
             let participants = &orders[0];
             for rounds in [QUICK_ROUNDS, FULL_ROUNDS] {
                 for offset in 0..POINT_COUNT {
@@ -93,9 +115,18 @@ fn sampled_visits_complete_the_participating_williams_design() {
                             realized.push(orders[realized.len() % orders.len()].clone());
                         }
                     }
-                    assert_eq!(realized.len(), STEADY_SAMPLES.next_multiple_of(orders.len()));
-                    let normalized: Vec<Vec<usize>> = realized.iter().map(|row| row.iter()
-                        .map(|a| participants.iter().position(|p| p == a).unwrap()).collect()).collect();
+                    assert_eq!(
+                        realized.len(),
+                        STEADY_SAMPLES.next_multiple_of(orders.len())
+                    );
+                    let normalized: Vec<Vec<usize>> = realized
+                        .iter()
+                        .map(|row| {
+                            row.iter()
+                                .map(|a| participants.iter().position(|p| p == a).unwrap())
+                                .collect()
+                        })
+                        .collect();
                     if participants.len() > 1 {
                         assert_orders_balanced(&normalized, participants.len());
                     }
@@ -113,7 +144,9 @@ fn sample_schedule_handles_short_explicit_round_counts() {
     for rounds in 1..=96 {
         for orders in 1..=18 {
             for offset in [0, 1, 7, 95] {
-                let count = (0..rounds).filter(|r| cell_wants_sample(r + offset, rounds, orders)).count();
+                let count = (0..rounds)
+                    .filter(|r| cell_wants_sample(r + offset, rounds, orders))
+                    .count();
                 assert_eq!(count, STEADY_SAMPLES.next_multiple_of(orders).min(rounds));
             }
         }
@@ -124,9 +157,18 @@ fn sample_schedule_handles_short_explicit_round_counts() {
 fn regress_measures_the_nonstop_use_cases_by_their_points_names() {
     for name in REGRESS_POINTS {
         let point = POINTS[point_named(name)];
-        assert!(!point.use_case.after_gap(), "{name}: regress measures nonstop cells alone (layout luck after a gap)");
+        assert!(
+            !point.use_case.after_gap(),
+            "{name}: regress measures nonstop cells alone (layout luck after a gap)"
+        );
     }
-    assert!(REGRESS_POINTS.iter().all(|name| matches!(POINTS[point_named(name)].use_case, UseCase::LentMessages | UseCase::Interleaved | UseCase::LentBatches)), "regress judges the lent cells alone");
+    assert!(
+        REGRESS_POINTS.iter().all(|name| matches!(
+            POINTS[point_named(name)].use_case,
+            UseCase::LentMessages | UseCase::Interleaved | UseCase::LentBatches
+        )),
+        "regress judges the lent cells alone"
+    );
     assert_eq!(REGRESS_MARGIN_PERMILLE, 30);
 }
 
@@ -138,7 +180,9 @@ fn use_digest_stores_each_digest_in_its_slot() {
     let start = DIGESTS.with_borrow(|(_, next)| *next);
     use_digest(&digest(start));
     use_digest(&[7u8; 20]);
-    let run: Vec<u8> = (start + 2..start + 2 + DIGEST_SLOTS + 5).flat_map(digest).collect();
+    let run: Vec<u8> = (start + 2..start + 2 + DIGEST_SLOTS + 5)
+        .flat_map(digest)
+        .collect();
     use_digest(&run);
     DIGESTS.with_borrow(|(slots, next)| {
         assert_eq!(*next, start + 2 + DIGEST_SLOTS + 5);
@@ -152,13 +196,27 @@ fn use_digest_stores_each_digest_in_its_slot() {
 /// run's, b3sum's and leaves' all write theirs with samples_header): the
 /// keys before the run's own.
 pub(crate) const PROVENANCE: [&str; 12] = [
-    "timestamp", "bench-hashes version", "git commit", "git clean status", "rust compiler", "build target", "target features",
-    "sample clock", "cpu type", "cpu count", "os type", "cpu identity",
+    "timestamp",
+    "bench-hashes version",
+    "git commit",
+    "git clean status",
+    "rust compiler",
+    "build target",
+    "target features",
+    "sample clock",
+    "cpu type",
+    "cpu count",
+    "os type",
+    "cpu identity",
 ];
 
 /// A samples file's header keys, in order.
 pub(crate) fn header_keys(text: &str) -> Vec<&str> {
-    text.lines().skip(1).take_while(|line| line.starts_with('#')).filter_map(|line| line.strip_prefix("# ")?.split_once(": ").map(|(k, _)| k)).collect()
+    text.lines()
+        .skip(1)
+        .take_while(|line| line.starts_with('#'))
+        .filter_map(|line| line.strip_prefix("# ")?.split_once(": ").map(|(k, _)| k))
+        .collect()
 }
 
 /// samples_header: the provenance, then the run's own keys, then power and
@@ -166,14 +224,32 @@ pub(crate) fn header_keys(text: &str) -> Vec<&str> {
 #[test]
 fn every_samples_file_names_what_measured_and_where() {
     let machine = machine_metadata();
-    let header = samples_header(&machine, &[("rounds".to_owned(), "3".to_owned()), ("contender a".to_owned(), "/bin/a".to_owned())]);
+    let header = samples_header(
+        &machine,
+        &[
+            ("rounds".to_owned(), "3".to_owned()),
+            ("contender a".to_owned(), "/bin/a".to_owned()),
+        ],
+    );
     let keys = header_keys(&header);
     assert_eq!(&keys[..PROVENANCE.len()], PROVENANCE, "{header}");
-    assert_eq!(&keys[PROVENANCE.len()..PROVENANCE.len() + 2], ["rounds", "contender a"], "{header}");
-    assert!(header.starts_with(&format!("{SAMPLES_VERSION}\n")) && keys.contains(&"power") && keys.contains(&"load"), "{header}");
+    assert_eq!(
+        &keys[PROVENANCE.len()..PROVENANCE.len() + 2],
+        ["rounds", "contender a"],
+        "{header}"
+    );
+    assert!(
+        header.starts_with(&format!("{SAMPLES_VERSION}\n"))
+            && keys.contains(&"power")
+            && keys.contains(&"load"),
+        "{header}"
+    );
     let path = std::env::temp_dir().join(format!("samples-header-{}.tsv", std::process::id()));
     std::fs::write(&path, format!("{header}{SAMPLES_COLUMNS}\n")).unwrap();
     let file = read_samples(path.to_str().unwrap());
     std::fs::remove_file(&path).unwrap();
-    assert!(file.headers.iter().any(|(k, v)| k == "contender a" && v == "/bin/a"));
+    assert!(file
+        .headers
+        .iter()
+        .any(|(k, v)| k == "contender a" && v == "/bin/a"));
 }

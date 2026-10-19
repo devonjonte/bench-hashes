@@ -4,11 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-fn hash_framed(
-    hasher: &mut Hasher,
-    label: &[u8],
-    contents: &[u8],
-) {
+fn hash_framed(hasher: &mut Hasher, label: &[u8], contents: &[u8]) {
     hasher.update(&(label.len() as u64).to_le_bytes());
     hasher.update(label);
     hasher.update(&(contents.len() as u64).to_le_bytes());
@@ -17,8 +13,7 @@ fn hash_framed(
 
 fn main() {
     let manifest_dir = PathBuf::from(
-        env::var_os("CARGO_MANIFEST_DIR")
-            .expect("Cargo must provide CARGO_MANIFEST_DIR"),
+        env::var_os("CARGO_MANIFEST_DIR").expect("Cargo must provide CARGO_MANIFEST_DIR"),
     );
 
     println!("cargo:rerun-if-changed=Cargo.toml");
@@ -32,34 +27,13 @@ fn main() {
         "Cargo.lock must exist so benchmark source versions are reproducible"
     );
 
-    let lock = fs::read_to_string(&lock_path)
-        .expect("Cargo.lock must be valid UTF-8");
+    let lock = fs::read_to_string(&lock_path).expect("Cargo.lock must be valid UTF-8");
 
-    emit_required_package(
-        "BLAKE3_SOURCE_INFO",
-        &lock,
-        "blake3",
-    );
-    emit_required_package(
-        "SHA2_SOURCE_INFO",
-        &lock,
-        "sha2",
-    );
-    emit_required_package(
-        "SHA1_CHECKED_SOURCE_INFO",
-        &lock,
-        "sha1-checked",
-    );
-    emit_required_package(
-        "SHA3_SOURCE_INFO",
-        &lock,
-        "sha3",
-    );
-    emit_required_package(
-        "RING_SOURCE_INFO",
-        &lock,
-        "ring",
-    );
+    emit_required_package("BLAKE3_SOURCE_INFO", &lock, "blake3");
+    emit_required_package("SHA2_SOURCE_INFO", &lock, "sha2");
+    emit_required_package("SHA1_CHECKED_SOURCE_INFO", &lock, "sha1-checked");
+    emit_required_package("SHA3_SOURCE_INFO", &lock, "sha3");
+    emit_required_package("RING_SOURCE_INFO", &lock, "ring");
     emit_servil_package(&manifest_dir, &lock);
 
     /*
@@ -72,8 +46,7 @@ fn main() {
     let checkout = env::var_os("BENCH_HASHES_CHECKOUT").map_or(manifest_dir.clone(), PathBuf::from);
     emit_git_metadata(&checkout);
 
-    let rustc = env::var_os("RUSTC")
-        .expect("Cargo must provide RUSTC");
+    let rustc = env::var_os("RUSTC").expect("Cargo must provide RUSTC");
 
     let rustc_output = Command::new(rustc)
         .arg("--version")
@@ -90,11 +63,10 @@ fn main() {
         .trim()
         .to_owned();
 
-    let target = env::var("TARGET")
-        .expect("Cargo must provide TARGET");
+    let target = env::var("TARGET").expect("Cargo must provide TARGET");
 
-    let target_features = env::var("CARGO_CFG_TARGET_FEATURE")
-        .expect("Cargo must provide CARGO_CFG_TARGET_FEATURE");
+    let target_features =
+        env::var("CARGO_CFG_TARGET_FEATURE").expect("Cargo must provide CARGO_CFG_TARGET_FEATURE");
 
     emit_env("BENCH_RUSTC_VERSION", &rustc_version);
     emit_env("BENCH_BUILD_TARGET", &target);
@@ -127,10 +99,7 @@ fn normalize_git_source(source: &str) -> String {
  * A repository can legitimately have no reachable release tags, so a
  * describe failure is a soft result rather than a contract violation.
  */
-fn git_text_allow_failure(
-    repository: &Path,
-    arguments: &[&str],
-) -> Option<String> {
+fn git_text_allow_failure(repository: &Path, arguments: &[&str]) -> Option<String> {
     let output = Command::new("git")
         .args(arguments)
         .current_dir(repository)
@@ -175,7 +144,11 @@ fn watch_repository(repository: &Path) {
     // tags and packed refs live in the repository's common directory.
     let absolute = |path: String| {
         let path = PathBuf::from(path);
-        if path.is_absolute() { path } else { repository.join(path) }
+        if path.is_absolute() {
+            path
+        } else {
+            repository.join(path)
+        }
     };
     let git_directory = absolute(git_text(repository, &["rev-parse", "--git-dir"]));
     let common_directory = absolute(git_text(repository, &["rev-parse", "--git-common-dir"]));
@@ -198,22 +171,15 @@ fn watch_repository(repository: &Path) {
         }
     }
 
-    let tracked_files = git_bytes(
-        repository,
-        &["ls-files", "-z"],
-    );
+    let tracked_files = git_bytes(repository, &["ls-files", "-z"]);
 
     for path in tracked_files
         .split(|byte| *byte == 0)
         .filter(|path| !path.is_empty())
     {
-        let path = String::from_utf8(path.to_vec())
-            .expect("tracked Git paths must be UTF-8");
+        let path = String::from_utf8(path.to_vec()).expect("tracked Git paths must be UTF-8");
 
-        println!(
-            "cargo:rerun-if-changed={}",
-            repository.join(path).display()
-        );
+        println!("cargo:rerun-if-changed={}", repository.join(path).display());
     }
 }
 
@@ -222,20 +188,11 @@ fn watch_repository(repository: &Path) {
 /// checkout, where it is an untracked directory). A dirty tree is fingerprinted by hashing its status, its
 /// diff against HEAD, and every untracked file.
 fn git_state(repository: &Path, skip: Option<&str>) -> GitState {
-    let source = normalize_git_source(&git_text(
-        repository,
-        &["remote", "get-url", "origin"],
-    ));
+    let source = normalize_git_source(&git_text(repository, &["remote", "get-url", "origin"]));
 
-    let commit = git_text(
-        repository,
-        &["rev-parse", "HEAD"],
-    );
+    let commit = git_text(repository, &["rev-parse", "HEAD"]);
 
-    let branch = git_text(
-        repository,
-        &["rev-parse", "--abbrev-ref", "HEAD"],
-    );
+    let branch = git_text(repository, &["rev-parse", "--abbrev-ref", "HEAD"]);
 
     let tags = match git_text_allow_failure(
         repository,
@@ -269,7 +226,11 @@ fn git_state(repository: &Path, skip: Option<&str>) -> GitState {
     let pathspec: Vec<&str> = ["--", "."].into_iter().chain(exclude.as_deref()).collect();
     let status = git_bytes(
         repository,
-        &[&["status", "--porcelain=v1", "-z", "--untracked-files=all"][..], &pathspec].concat(),
+        &[
+            &["status", "--porcelain=v1", "-z", "--untracked-files=all"][..],
+            &pathspec,
+        ]
+        .concat(),
     );
 
     let clean_status = if status.is_empty() || only_servil_patched(repository, &status) {
@@ -287,7 +248,11 @@ fn git_state(repository: &Path, skip: Option<&str>) -> GitState {
 
         let untracked = git_bytes(
             repository,
-            &[&["ls-files", "--others", "--exclude-standard", "-z"][..], &pathspec].concat(),
+            &[
+                &["ls-files", "--others", "--exclude-standard", "-z"][..],
+                &pathspec,
+            ]
+            .concat(),
         );
 
         let mut hasher = Hasher::new();
@@ -304,32 +269,20 @@ fn git_state(repository: &Path, skip: Option<&str>) -> GitState {
             .split(|byte| *byte == 0)
             .filter(|path| !path.is_empty())
         {
-            let path = String::from_utf8(path_bytes.to_vec())
-                .expect("untracked Git paths must be UTF-8");
+            let path =
+                String::from_utf8(path_bytes.to_vec()).expect("untracked Git paths must be UTF-8");
 
             /* A nested checkout (a directory) contributes its own provenance;
-               its contents are not hashed here. */
+            its contents are not hashed here. */
             if repository.join(&path).is_dir() {
                 continue;
             }
 
             let contents = fs::read(repository.join(&path))
-                .unwrap_or_else(|error| {
-                    panic!(
-                        "failed to read untracked file {path:?}: {error}"
-                    )
-                });
+                .unwrap_or_else(|error| panic!("failed to read untracked file {path:?}: {error}"));
 
-            hash_framed(
-                &mut hasher,
-                b"untracked path",
-                path.as_bytes(),
-            );
-            hash_framed(
-                &mut hasher,
-                b"untracked contents",
-                &contents,
-            );
+            hash_framed(&mut hasher, b"untracked path", path.as_bytes());
+            hash_framed(&mut hasher, b"untracked contents", &contents);
         }
 
         format!("dirty-{}", hasher.finalize().to_hex())
@@ -362,8 +315,8 @@ fn only_servil_patched(repository: &Path, status: &[u8]) -> bool {
             .join("\n")
     };
     let committed = git_text(repository, &["show", "HEAD:Cargo.lock"]);
-    let current = fs::read_to_string(repository.join("Cargo.lock"))
-        .expect("Cargo.lock must be valid UTF-8");
+    let current =
+        fs::read_to_string(repository.join("Cargo.lock")).expect("Cargo.lock must be valid UTF-8");
     without_servil_source(&committed) == without_servil_source(current.trim())
 }
 
@@ -419,10 +372,9 @@ fn git_output(repository: &Path, arguments: &[&str]) -> Output {
  * or a hash of the uncommitted changes. Both emit the same fields.
  */
 fn emit_servil_package(manifest_dir: &Path, lock: &str) {
-    let block = package_block(lock, "blake3-servil")
-        .expect("blake3-servil must be present in Cargo.lock");
-    let version = quoted_field(block, "version")
-        .expect("Cargo.lock package must have a version");
+    let block =
+        package_block(lock, "blake3-servil").expect("blake3-servil must be present in Cargo.lock");
+    let version = quoted_field(block, "version").expect("Cargo.lock package must have a version");
 
     let description = match quoted_field(block, "source") {
         Some(source) => {
@@ -456,17 +408,9 @@ fn emit_servil_package(manifest_dir: &Path, lock: &str) {
     emit_env("BLAKE3_SERVIL_SOURCE_INFO", &description);
 }
 
-fn emit_required_package(
-    environment_variable: &str,
-    lock: &str,
-    package_name: &str,
-) {
+fn emit_required_package(environment_variable: &str, lock: &str, package_name: &str) {
     let description = package_description(lock, package_name)
-        .unwrap_or_else(|| {
-            panic!(
-                "{package_name} must be present in Cargo.lock"
-            )
-        });
+        .unwrap_or_else(|| panic!("{package_name} must be present in Cargo.lock"));
 
     emit_env(environment_variable, &description);
 }
@@ -478,14 +422,10 @@ fn package_block<'a>(lock: &'a str, name: &str) -> Option<&'a str> {
         .find(|package| quoted_field(package, "name").as_deref() == Some(name))
 }
 
-fn package_description(
-    lock: &str,
-    name: &str,
-) -> Option<String> {
+fn package_description(lock: &str, name: &str) -> Option<String> {
     let package = package_block(lock, name)?;
 
-    let version = quoted_field(package, "version")
-        .expect("Cargo.lock package must have a version");
+    let version = quoted_field(package, "version").expect("Cargo.lock package must have a version");
 
     let mut result = format!("{name} {version}");
 
@@ -509,9 +449,7 @@ fn quoted_field(block: &str, key: &str) -> Option<String> {
         let value = line.trim().strip_prefix(&prefix)?;
 
         assert!(
-            value.len() >= 2
-                && value.starts_with('"')
-                && value.ends_with('"'),
+            value.len() >= 2 && value.starts_with('"') && value.ends_with('"'),
             "{key} must be a quoted Cargo.lock field"
         );
 

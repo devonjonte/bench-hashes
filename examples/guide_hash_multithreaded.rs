@@ -6,7 +6,7 @@ fn main() {
     // first hash. Later calls find them ready.
     blake3_servil::initialize_multithreaded(None);
     let message = vec![7u8; 8 * 1024 * 1024]; // 8 MiB
-    // Same digest as `hash`; large inputs finish sooner.
+                                              // Same digest as `hash`; large inputs finish sooner.
     let digest = blake3_servil::hash_multithreaded(&message);
     println!("{}", digest.to_hex());
 }

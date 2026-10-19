@@ -28,7 +28,8 @@ fn main() {
                 };
                 // Write the batch's bytes from `at` into `room`: each 64-byte
                 // message in its 64-byte slot (shorter ones zero-padded).
-                s.submit_batch_with(64, |_at, room| room.fill(batch_number), place); // your read goes here
+                s.submit_batch_with(64, |_at, room| room.fill(batch_number), place);
+                // your read goes here
             }
             s.finish();
         },

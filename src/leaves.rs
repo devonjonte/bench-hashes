@@ -56,7 +56,11 @@ struct Program {
 
 impl Program {
     fn new(count: usize) -> Program {
-        Program { buffer: vec![0u8; count * MESSAGE_LEN], digests: vec![[0u8; 32]; count], places: vec![blake3_servil::Hash::from_bytes([0; 32]); count] }
+        Program {
+            buffer: vec![0u8; count * MESSAGE_LEN],
+            digests: vec![[0u8; 32]; count],
+            places: vec![blake3_servil::Hash::from_bytes([0; 32]); count],
+        }
     }
 
     /// One job of `variant` over `count` messages: the digests' checksum.
@@ -76,7 +80,12 @@ impl Program {
                 let digests = &mut self.digests[..count];
                 blake3_servil::hash_many_multithreaded(buffer, MESSAGE_LEN, digests);
                 // Sound: a Hash is its 32 bytes.
-                fold(unsafe { core::slice::from_raw_parts(digests.as_ptr() as *const blake3_servil::Hash, count) });
+                fold(unsafe {
+                    core::slice::from_raw_parts(
+                        digests.as_ptr() as *const blake3_servil::Hash,
+                        count,
+                    )
+                });
             }
             // The stream's variants write the digests into the same kept
             // space as lend-oneshot, then fold them as it does.
@@ -84,28 +93,48 @@ impl Program {
                 produce(0, buffer);
                 let buffer = &*buffer;
                 let places = &mut self.places[..count];
-                blake3_servil::stream(blake3_servil::Mode::Hash, |_| {}, |s| {
-                    s.submit_batch(buffer, MESSAGE_LEN, places);
-                    s.finish();
-                });
+                blake3_servil::stream(
+                    blake3_servil::Mode::Hash,
+                    |_| {},
+                    |s| {
+                        s.submit_batch(buffer, MESSAGE_LEN, places);
+                        s.finish();
+                    },
+                );
                 fold(&self.places[..count]);
             }
             "copy-ring" => {
                 produce(0, buffer);
                 let buffer = &*buffer;
                 let places = &mut self.places[..count];
-                blake3_servil::stream(blake3_servil::Mode::Hash, |_| {}, |s| {
-                    s.submit_batch_with(MESSAGE_LEN, |at, room| room.copy_from_slice(&buffer[at..][..room.len()]), places);
-                    s.finish();
-                });
+                blake3_servil::stream(
+                    blake3_servil::Mode::Hash,
+                    |_| {},
+                    |s| {
+                        s.submit_batch_with(
+                            MESSAGE_LEN,
+                            |at, room| room.copy_from_slice(&buffer[at..][..room.len()]),
+                            places,
+                        );
+                        s.finish();
+                    },
+                );
                 fold(&self.places[..count]);
             }
             "write-ring" => {
                 let places = &mut self.places[..count];
-                blake3_servil::stream(blake3_servil::Mode::Hash, |_| {}, |s| {
-                    s.submit_batch_with(MESSAGE_LEN, |at, room| produce(at / MESSAGE_LEN, room), places);
-                    s.finish();
-                });
+                blake3_servil::stream(
+                    blake3_servil::Mode::Hash,
+                    |_| {},
+                    |s| {
+                        s.submit_batch_with(
+                            MESSAGE_LEN,
+                            |at, room| produce(at / MESSAGE_LEN, room),
+                            places,
+                        );
+                        s.finish();
+                    },
+                );
                 fold(&self.places[..count]);
             }
             _ => unreachable!("a variant of VARIANTS"),
@@ -133,8 +162,20 @@ type Sample = (u64, u64, u64, Option<u64>);
 /// One program's samples of a cell this round, as clocks::measure takes
 /// them (jobs enough for SAMPLE_NS, counted once, then that many a
 /// sample), each bracketed by the process's CPU time when `solo`.
-fn measure_program(program: &mut Program, variant: &str, count: usize, want: [u8; 32], solo: bool) -> Vec<Sample> {
-    let mut job = || assert_eq!(program.job(variant, count), want, "{variant}: every leaf's digest");
+fn measure_program(
+    program: &mut Program,
+    variant: &str,
+    count: usize,
+    want: [u8; 32],
+    solo: bool,
+) -> Vec<Sample> {
+    let mut job = || {
+        assert_eq!(
+            program.job(variant, count),
+            want,
+            "{variant}: every leaf's digest"
+        )
+    };
     let sizing = clocks::now();
     let mut jobs = 0u64;
     while clocks::since_ns(sizing) < SAMPLE_NS {
@@ -151,32 +192,79 @@ fn measure_program(program: &mut Program, variant: &str, count: usize, want: [u8
                 job();
             }
             let wall_ns = clocks::since_ns(t);
-            let cpu_ns = cpu.zip(clocks::process_cpu_ns()).map(|(before, after)| after - before);
+            let cpu_ns = cpu
+                .zip(clocks::process_cpu_ns())
+                .map(|(before, after)| after - before);
             (wall_ns, jobs * count as u64, started_ns / 1_000_000, cpu_ns)
         })
         .collect()
 }
 
-fn measure_cell(programs: &mut [Program], variant: &str, count: usize, want: [u8; 32]) -> Vec<Sample> {
+fn measure_cell(
+    programs: &mut [Program],
+    variant: &str,
+    count: usize,
+    want: [u8; 32],
+) -> Vec<Sample> {
     let solo = programs.len() == 1;
     std::thread::scope(|scope| {
-        let handles: Vec<_> = programs.iter_mut().map(|p| scope.spawn(move || measure_program(p, variant, count, want, solo))).collect();
-        handles.into_iter().flat_map(|h| h.join().expect("a program's thread")).collect()
+        let handles: Vec<_> = programs
+            .iter_mut()
+            .map(|p| scope.spawn(move || measure_program(p, variant, count, want, solo)))
+            .collect();
+        handles
+            .into_iter()
+            .flat_map(|h| h.join().expect("a program's thread"))
+            .collect()
     })
 }
 
 pub fn command(arguments: &[String]) {
     let usage = "bench-hashes leaves [--rounds N] [--variants V,...] [--counts N,...] [--scenarios solo,two]";
     let mut rounds = 12usize;
-    let (mut variants, mut counts, mut scenarios) = (VARIANTS.to_vec(), COUNTS.to_vec(), SCENARIOS.to_vec());
+    let (mut variants, mut counts, mut scenarios) =
+        (VARIANTS.to_vec(), COUNTS.to_vec(), SCENARIOS.to_vec());
     let mut it = arguments.iter();
-    let list = |v: Option<&String>| -> Vec<String> { v.expect(usage).split(',').map(str::to_owned).collect() };
+    let list = |v: Option<&String>| -> Vec<String> {
+        v.expect(usage).split(',').map(str::to_owned).collect()
+    };
     while let Some(a) = it.next() {
         match a.as_str() {
-            "--rounds" => rounds = it.next().expect(usage).parse().expect("--rounds takes a whole number"),
-            "--variants" => variants = list(it.next()).iter().map(|v| *VARIANTS.iter().find(|&&k| k == v).unwrap_or_else(|| panic!("no variant {v}: {VARIANTS:?}"))).collect(),
-            "--counts" => counts = list(it.next()).iter().map(|c| c.parse().expect("a count")).collect(),
-            "--scenarios" => scenarios = list(it.next()).iter().map(|v| *SCENARIOS.iter().find(|&&k| k == v).unwrap_or_else(|| panic!("no scenario {v}"))).collect(),
+            "--rounds" => {
+                rounds = it
+                    .next()
+                    .expect(usage)
+                    .parse()
+                    .expect("--rounds takes a whole number")
+            }
+            "--variants" => {
+                variants = list(it.next())
+                    .iter()
+                    .map(|v| {
+                        *VARIANTS
+                            .iter()
+                            .find(|&&k| k == v)
+                            .unwrap_or_else(|| panic!("no variant {v}: {VARIANTS:?}"))
+                    })
+                    .collect()
+            }
+            "--counts" => {
+                counts = list(it.next())
+                    .iter()
+                    .map(|c| c.parse().expect("a count"))
+                    .collect()
+            }
+            "--scenarios" => {
+                scenarios = list(it.next())
+                    .iter()
+                    .map(|v| {
+                        *SCENARIOS
+                            .iter()
+                            .find(|&&k| k == v)
+                            .unwrap_or_else(|| panic!("no scenario {v}"))
+                    })
+                    .collect()
+            }
             other => panic!("{usage}: unknown argument {other}"),
         }
     }
@@ -192,7 +280,9 @@ pub fn command(arguments: &[String]) {
         }
     }
     let wants: Vec<[u8; 32]> = counts.iter().map(|&n| expected(n)).collect();
-    let mut programs: Vec<Program> = (0..2).map(|_| Program::new(*counts.iter().max().unwrap())).collect();
+    let mut programs: Vec<Program> = (0..2)
+        .map(|_| Program::new(*counts.iter().max().unwrap()))
+        .collect();
     // Each cell's rounds; first one untimed round of every cell (one-time
     // costs: the pool, the stream's storage, the buffers' pages).
     let mut results: Vec<Vec<Sample>> = cells.iter().map(|_| Vec::new()).collect();
@@ -222,21 +312,43 @@ pub fn command(arguments: &[String]) {
     let mut report = String::new();
     for (c, &(scenario, count, variant)) in cells.iter().enumerate() {
         let samples = &results[c];
-        let field = |f: &dyn Fn(&Sample) -> String| samples.iter().map(f).collect::<Vec<_>>().join(",");
-        let cpu = if samples.iter().all(|x| x.3.is_some()) { field(&|x| x.3.unwrap().to_string()) } else { "-".into() };
-        tsv += &format!("{variant}\t{scenario}\tLeaves\t{count} messages\tmsg\t{}\t{}\t{cpu}\n", field(&|x| format!("{}/{}", x.0, x.1)), field(&|x| x.2.to_string()));
+        let field =
+            |f: &dyn Fn(&Sample) -> String| samples.iter().map(f).collect::<Vec<_>>().join(",");
+        let cpu = if samples.iter().all(|x| x.3.is_some()) {
+            field(&|x| x.3.unwrap().to_string())
+        } else {
+            "-".into()
+        };
+        tsv += &format!(
+            "{variant}\t{scenario}\tLeaves\t{count} messages\tmsg\t{}\t{}\t{cpu}\n",
+            field(&|x| format!("{}/{}", x.0, x.1)),
+            field(&|x| x.2.to_string())
+        );
         // The report: means over the cell (ns and CPU ns a message, exact
         // totals over totals, shown by the benchmark's one rule for them).
         let per = |num: u64, den: u64| super::format_ns(u128::from(num), u128::from(den));
         let (w, n) = samples.iter().fold((0, 0), |(a, b), x| (a + x.0, b + x.1));
-        let cpu = samples.iter().map(|x| x.3).sum::<Option<u64>>().map_or("-".into(), |c| per(c, n));
-        report += &format!("{scenario:6} {count:>8} {variant:13} {:>8} ns {:>8} CPU ns  per message\n", per(w, n), cpu);
+        let cpu = samples
+            .iter()
+            .map(|x| x.3)
+            .sum::<Option<u64>>()
+            .map_or("-".into(), |c| per(c, n));
+        report += &format!(
+            "{scenario:6} {count:>8} {variant:13} {:>8} ns {:>8} CPU ns  per message\n",
+            per(w, n),
+            cpu
+        );
     }
     let directory = output_directory(&machine);
     fs::create_dir_all(&directory).unwrap();
     let path = directory.join("leaves.samples.tsv");
     fs::write(&path, tsv).unwrap();
-    println!("bench-hashes leaves: {}\nload: {}\n\n{report}\n# Samples (TSV) are in {:?} .", super::BLAKE3_SERVIL_SOURCE_INFO, clocks::load::describe(&machine.load), path);
+    println!(
+        "bench-hashes leaves: {}\nload: {}\n\n{report}\n# Samples (TSV) are in {:?} .",
+        super::BLAKE3_SERVIL_SOURCE_INFO,
+        clocks::load::describe(&machine.load),
+        path
+    );
 }
 
 #[cfg(test)]
@@ -253,7 +365,11 @@ mod tests {
             let want = expected(count);
             let mut program = Program::new(count);
             for variant in VARIANTS {
-                assert_eq!(program.job(variant, count), want, "{variant}, {count} leaves");
+                assert_eq!(
+                    program.job(variant, count),
+                    want,
+                    "{variant}, {count} leaves"
+                );
             }
         }
     }

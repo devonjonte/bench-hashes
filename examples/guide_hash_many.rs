@@ -9,5 +9,8 @@ fn main() {
     let mut digests = vec![[0u8; 32]; 1000];
     blake3_servil::hash_many(&nodes, 64, &mut digests);
     // digests[i] is the hash of message i.
-    assert_eq!(digests[3], *blake3_servil::hash(&nodes[3 * 64..4 * 64]).as_bytes());
+    assert_eq!(
+        digests[3],
+        *blake3_servil::hash(&nodes[3 * 64..4 * 64]).as_bytes()
+    );
 }

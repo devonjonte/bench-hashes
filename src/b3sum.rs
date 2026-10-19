@@ -6,7 +6,7 @@
 //! (`clocks::summary`), as the rest of bench-hashes; its samples file in
 //! bench-hashes' format, so `bench-hashes compare` reads it.
 
-use super::{output_directory, machine_metadata, Mean, Measured, SAMPLES_COLUMNS};
+use super::{machine_metadata, output_directory, Mean, Measured, SAMPLES_COLUMNS};
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -39,45 +39,109 @@ struct Input {
 /// in a single run as `find . -type f -print0 | xargs -0 b3sum` runs it;
 /// and many large files, as many bytes as the largest single file.
 fn inputs(dir: &Path, quick: bool) -> Vec<Input> {
-    let sizes: &[u64] = if quick { &[4 * KIB, MIB, 16 * MIB] } else { &[4 * KIB, 64 * KIB, MIB, 16 * MIB, 256 * MIB, GIB] };
+    let sizes: &[u64] = if quick {
+        &[4 * KIB, MIB, 16 * MIB]
+    } else {
+        &[4 * KIB, 64 * KIB, MIB, 16 * MIB, 256 * MIB, GIB]
+    };
     fs::create_dir_all(dir).unwrap_or_else(|e| panic!("cannot make {}: {e}", dir.display()));
     let mut inputs: Vec<Input> = sizes
         .iter()
         .map(|&len| {
             let name = format!("file-{len}");
             ensure_file(dir, &name, len);
-            Input { label: size_label(len), files: vec![dir.join(name)], bytes: len, each: false }
+            Input {
+                label: size_label(len),
+                files: vec![dir.join(name)],
+                bytes: len,
+                each: false,
+            }
         })
         .collect();
-    let uniform: &[(u64, u64)] = if quick { &[(100, 16 * KIB)] } else { &[(1000, 16 * KIB)] };
-    let uniform_tree = tree(dir, &format!("tree-{}x{}", uniform[0].0, uniform[0].1), uniform, format!("{} x {}", uniform[0].0, size_label(uniform[0].1)));
-    let each = Input { label: format!("{} x {}, a process each", uniform[0].0, size_label(uniform[0].1)), files: uniform_tree.files.clone(), bytes: uniform_tree.bytes, each: true };
+    let uniform: &[(u64, u64)] = if quick {
+        &[(100, 16 * KIB)]
+    } else {
+        &[(1000, 16 * KIB)]
+    };
+    let uniform_tree = tree(
+        dir,
+        &format!("tree-{}x{}", uniform[0].0, uniform[0].1),
+        uniform,
+        format!("{} x {}", uniform[0].0, size_label(uniform[0].1)),
+    );
+    let each = Input {
+        label: format!(
+            "{} x {}, a process each",
+            uniform[0].0,
+            size_label(uniform[0].1)
+        ),
+        files: uniform_tree.files.clone(),
+        bytes: uniform_tree.bytes,
+        each: true,
+    };
     inputs.push(uniform_tree);
     inputs.push(each);
     let mixed: &[(u64, u64)] = if quick { MIXED_QUICK } else { MIXED };
     let count: u64 = mixed.iter().map(|&(n, _)| n).sum();
     let bytes: u64 = mixed.iter().map(|&(n, len)| n * len).sum();
-    inputs.push(tree(dir, &format!("mixed-{count}"), mixed, format!("mixed tree, {count} files, {}", size_label_approx(bytes))));
+    inputs.push(tree(
+        dir,
+        &format!("mixed-{count}"),
+        mixed,
+        format!("mixed tree, {count} files, {}", size_label_approx(bytes)),
+    ));
     // Many large files: as many bytes as the largest single file, in
     // files each large enough for the pool, as `b3sum *.iso` hashes them.
-    let large: &[(u64, u64)] = if quick { &[(4, 16 * MIB)] } else { &[(16, 64 * MIB)] };
-    inputs.push(tree(dir, &format!("large-{}x{}", large[0].0, large[0].1), large, format!("{} x {}", large[0].0, size_label(large[0].1))));
+    let large: &[(u64, u64)] = if quick {
+        &[(4, 16 * MIB)]
+    } else {
+        &[(16, 64 * MIB)]
+    };
+    inputs.push(tree(
+        dir,
+        &format!("large-{}x{}", large[0].0, large[0].1),
+        large,
+        format!("{} x {}", large[0].0, size_label(large[0].1)),
+    ));
     inputs
 }
 
 /// The mixed tree, (files, bytes each): most files small, most bytes in a
 /// few large ones, as in a source checkout.
-const MIXED: &[(u64, u64)] = &[(300, KIB), (300, 4 * KIB), (200, 16 * KIB), (120, 64 * KIB), (60, 256 * KIB), (15, MIB), (4, 4 * MIB), (1, 16 * MIB)];
-const MIXED_QUICK: &[(u64, u64)] = &[(30, KIB), (30, 4 * KIB), (20, 16 * KIB), (12, 64 * KIB), (6, 256 * KIB), (2, MIB)];
+const MIXED: &[(u64, u64)] = &[
+    (300, KIB),
+    (300, 4 * KIB),
+    (200, 16 * KIB),
+    (120, 64 * KIB),
+    (60, 256 * KIB),
+    (15, MIB),
+    (4, 4 * MIB),
+    (1, 16 * MIB),
+];
+const MIXED_QUICK: &[(u64, u64)] = &[
+    (30, KIB),
+    (30, 4 * KIB),
+    (20, 16 * KIB),
+    (12, 64 * KIB),
+    (6, 256 * KIB),
+    (2, MIB),
+];
 
 /// A directory of files with the given (count, length) classes, named in
 /// the order b3sum gets them: the sizes interleaved (file j takes the
 /// class of position j x 389 mod count in the classes listed out, 389 and
 /// the counts sharing no factor), as a directory listing mixes them.
 fn tree(dir: &Path, name: &str, classes: &[(u64, u64)], label: String) -> Input {
-    let lengths: Vec<u64> = classes.iter().flat_map(|&(n, len)| std::iter::repeat_n(len, n as usize)).collect();
+    let lengths: Vec<u64> = classes
+        .iter()
+        .flat_map(|&(n, len)| std::iter::repeat_n(len, n as usize))
+        .collect();
     let count = lengths.len() as u64;
-    assert_eq!(gcd(count, 389), 1, "a stride sharing no factor with the count takes every file once");
+    assert_eq!(
+        gcd(count, 389),
+        1,
+        "a stride sharing no factor with the count takes every file once"
+    );
     fs::create_dir_all(dir.join(name)).unwrap();
     let mut files = Vec::new();
     for j in 0..count {
@@ -86,11 +150,20 @@ fn tree(dir: &Path, name: &str, classes: &[(u64, u64)], label: String) -> Input 
         ensure_file(dir, &file, len);
         files.push(dir.join(file));
     }
-    Input { label, files, bytes: lengths.iter().sum(), each: false }
+    Input {
+        label,
+        files,
+        bytes: lengths.iter().sum(),
+        each: false,
+    }
 }
 
 fn gcd(a: u64, b: u64) -> u64 {
-    if b == 0 { a } else { gcd(b, a % b) }
+    if b == 0 {
+        a
+    } else {
+        gcd(b, a % b)
+    }
 }
 
 fn size_label(len: u64) -> String {
@@ -107,7 +180,9 @@ fn size_label(len: u64) -> String {
 /// alike on every machine and incompressible (a filesystem or a drive that
 /// compresses would read zeros from storage almost for free).
 fn contents(name: &str) -> blake3_servil::OutputReader {
-    blake3_servil::Hasher::new().update(name.as_bytes()).finalize_xof()
+    blake3_servil::Hasher::new()
+        .update(name.as_bytes())
+        .finalize_xof()
 }
 
 /// Make `dir/name` hold `len` bytes of its contents, unless it holds them: a
@@ -122,11 +197,15 @@ fn ensure_file(dir: &Path, name: &str, len: u64) {
     let head_len = len.min(32) as usize;
     if let Ok(mut file) = File::open(&path) {
         let mut head = [0u8; 32];
-        if file.metadata().map(|m| m.len()).ok() == Some(len) && file.read_exact(&mut head[..head_len]).is_ok() && head[..head_len] == first[..head_len] {
+        if file.metadata().map(|m| m.len()).ok() == Some(len)
+            && file.read_exact(&mut head[..head_len]).is_ok()
+            && head[..head_len] == first[..head_len]
+        {
             return;
         }
     }
-    let mut file = File::create(&path).unwrap_or_else(|e| panic!("cannot write {}: {e}", path.display()));
+    let mut file =
+        File::create(&path).unwrap_or_else(|e| panic!("cannot write {}: {e}", path.display()));
     let mut reader = contents(name);
     let mut buffer = vec![0u8; MIB as usize];
     let mut left = len;
@@ -159,7 +238,9 @@ impl Cache {
     fn heading(self) -> &'static str {
         match self {
             Cache::Warm => "Files in the page cache (warm: read moments before)",
-            Cache::Cold => "Files read from storage (cold: evicted from the page cache before each run)",
+            Cache::Cold => {
+                "Files read from storage (cold: evicted from the page cache before each run)"
+            }
         }
     }
 }
@@ -218,7 +299,10 @@ mod imp {
             if cached == 0 {
                 return;
             }
-            assert!(started.elapsed() < std::time::Duration::from_secs(2), "{cached} pages of a file stay in the page cache 2 s after posix_fadvise(DONTNEED)");
+            assert!(
+                started.elapsed() < std::time::Duration::from_secs(2),
+                "{cached} pages of a file stay in the page cache 2 s after posix_fadvise(DONTNEED)"
+            );
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
     }
@@ -236,7 +320,14 @@ mod imp {
         // Sound: a fresh read-only shared mapping of an open file, unmapped
         // below; `resident` holds a byte a page.
         unsafe {
-            let map = mmap(core::ptr::null_mut(), len, PROT_READ, MAP_SHARED, file.as_raw_fd(), 0);
+            let map = mmap(
+                core::ptr::null_mut(),
+                len,
+                PROT_READ,
+                MAP_SHARED,
+                file.as_raw_fd(),
+                0,
+            );
             assert!(!map.is_null() && map as isize != -1, "mmap for mincore");
             assert_eq!(mincore(map, len, resident.as_mut_ptr()), 0, "mincore");
             munmap(map, len);
@@ -252,7 +343,10 @@ mod imp {
         for line in mounts.lines() {
             let fields: Vec<&str> = line.split(' ').collect();
             if fields.len() > 2 && dir.starts_with(fields[1]) && fields[1].len() >= best.0 {
-                best = (fields[1].len(), format!("{} ({} on {})", fields[2], fields[0], fields[1]));
+                best = (
+                    fields[1].len(),
+                    format!("{} ({} on {})", fields[2], fields[0], fields[1]),
+                );
             }
         }
         best.1
@@ -282,7 +376,14 @@ mod imp {
         }
         // Sound: a fresh read-only shared mapping of an open file, unmapped below.
         unsafe {
-            let at = mmap(std::ptr::null_mut(), len, PROT_READ, MAP_SHARED, file.as_raw_fd(), 0);
+            let at = mmap(
+                std::ptr::null_mut(),
+                len,
+                PROT_READ,
+                MAP_SHARED,
+                file.as_raw_fd(),
+                0,
+            );
             assert!(at as isize != -1, "mmap for eviction");
             assert_eq!(msync(at, len, MS_INVALIDATE), 0, "msync(MS_INVALIDATE)");
             assert_eq!(munmap(at, len), 0, "munmap");
@@ -299,7 +400,12 @@ mod imp {
             return "unknown".to_owned();
         }
         // struct statfs (64-bit inodes): f_fstypename at 72 (16 bytes), f_mntonname at 88.
-        let text = |bytes: &[u8]| String::from_utf8_lossy(&bytes[..bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())]).into_owned();
+        let text = |bytes: &[u8]| {
+            String::from_utf8_lossy(
+                &bytes[..bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())],
+            )
+            .into_owned()
+        };
         format!("{} (on {})", text(&buf[72..88]), text(&buf[88..88 + 1024]))
     }
 }
@@ -355,8 +461,16 @@ fn contenders(specs: Vec<Contender>) -> Vec<Contender> {
     for c in specs {
         match out.iter_mut().find(|o| o.name == c.name) {
             Some(o) => {
-                assert_eq!(o.args, c.args, "contender {}: every build runs with the same arguments", c.name);
-                assert_eq!(o.version, c.version, "contender {}: every build is the same version", c.name);
+                assert_eq!(
+                    o.args, c.args,
+                    "contender {}: every build runs with the same arguments",
+                    c.name
+                );
+                assert_eq!(
+                    o.version, c.version,
+                    "contender {}: every build is the same version",
+                    c.name
+                );
                 o.builds.extend(c.builds);
             }
             None => out.push(c),
@@ -366,39 +480,85 @@ fn contenders(specs: Vec<Contender>) -> Vec<Contender> {
 }
 
 fn contender(spec: &str) -> Contender {
-    let (name, command) = spec.split_once('=').unwrap_or_else(|| panic!("a contender is NAME=COMMAND, found {spec:?}"));
-    assert!(!name.is_empty() && !name.contains(['\t', ' ', '|']), "a contender's name has no spaces, tabs, or bars: {name:?}");
+    let (name, command) = spec
+        .split_once('=')
+        .unwrap_or_else(|| panic!("a contender is NAME=COMMAND, found {spec:?}"));
+    assert!(
+        !name.is_empty() && !name.contains(['\t', ' ', '|']),
+        "a contender's name has no spaces, tabs, or bars: {name:?}"
+    );
     let mut words = command.split_whitespace().map(str::to_owned);
-    let program = PathBuf::from(words.next().unwrap_or_else(|| panic!("contender {name} names no program")));
-    let program = if program.components().count() > 1 { std::fs::canonicalize(&program).unwrap_or_else(|e| panic!("{}: {e}", program.display())) } else { program };
-    let bytes = std::fs::read(&program).or_else(|_| which(&program).map(std::fs::read).expect("the program is in PATH")).unwrap_or_else(|e| panic!("cannot read {}: {e}", program.display()));
-    let output = Command::new(&program).arg("--version").output().unwrap_or_else(|e| panic!("cannot run {}: {e}", program.display()));
+    let program = PathBuf::from(
+        words
+            .next()
+            .unwrap_or_else(|| panic!("contender {name} names no program")),
+    );
+    let program = if program.components().count() > 1 {
+        std::fs::canonicalize(&program).unwrap_or_else(|e| panic!("{}: {e}", program.display()))
+    } else {
+        program
+    };
+    let bytes = std::fs::read(&program)
+        .or_else(|_| {
+            which(&program)
+                .map(std::fs::read)
+                .expect("the program is in PATH")
+        })
+        .unwrap_or_else(|e| panic!("cannot read {}: {e}", program.display()));
+    let output = Command::new(&program)
+        .arg("--version")
+        .output()
+        .unwrap_or_else(|e| panic!("cannot run {}: {e}", program.display()));
     Contender {
         name: name.to_owned(),
-        builds: vec![Build { program, digest: blake3_servil::hash(&bytes).to_hex().to_string() }],
+        builds: vec![Build {
+            program,
+            digest: blake3_servil::hash(&bytes).to_hex().to_string(),
+        }],
         args: words.collect(),
         // The first line: GNU tools follow theirs with copyright lines.
-        version: String::from_utf8_lossy(&output.stdout).lines().next().unwrap_or("").trim().to_owned(),
+        version: String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_owned(),
     }
 }
 
 /// `program` found in PATH, for a bare name.
 fn which(program: &Path) -> Option<PathBuf> {
-    std::env::split_paths(&std::env::var_os("PATH")?).map(|dir| dir.join(program)).find(|path| path.is_file())
+    std::env::split_paths(&std::env::var_os("PATH")?)
+        .map(|dir| dir.join(program))
+        .find(|path| path.is_file())
 }
 
 // ---------- Measuring ----------
 
 /// One run's counts beyond its wall time, as the samples file's comment
 /// lines keep them.
-fn counts_line(name: &str, cache: Cache, input: &str, round: u64, run: &clocks::child::Run) -> String {
+fn counts_line(
+    name: &str,
+    cache: Cache,
+    input: &str,
+    round: u64,
+    run: &clocks::child::Run,
+) -> String {
     let opt = |v: Option<u64>| v.map_or("-".to_owned(), |v| v.to_string());
     let c = run.counts;
     let level = |f: fn(&clocks::Counts) -> u64| opt(c.as_ref().map(f));
     format!(
         "# counts\t{name}\t{}\t{input}\t{round}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
-        cache.name(), run.wall_ns, opt(run.cpu_ns), opt(run.max_rss_bytes), opt(run.storage_read_bytes), opt(run.major_faults),
-        level(|c| c.p.cycles), level(|c| c.e.cycles), level(|c| c.p.time_ns), level(|c| c.e.time_ns),
+        cache.name(),
+        run.wall_ns,
+        opt(run.cpu_ns),
+        opt(run.max_rss_bytes),
+        opt(run.storage_read_bytes),
+        opt(run.major_faults),
+        level(|c| c.p.cycles),
+        level(|c| c.e.cycles),
+        level(|c| c.p.time_ns),
+        level(|c| c.e.time_ns),
     )
 }
 
@@ -411,9 +571,18 @@ pub fn command(args: &[String]) {
     while let Some(arg) = it.next() {
         match arg.as_str() {
             "--quick" => quick = true,
-            "--rounds" => rounds = Some(it.next().expect("--rounds N").parse::<u64>().expect("--rounds takes a whole number")),
+            "--rounds" => {
+                rounds = Some(
+                    it.next()
+                        .expect("--rounds N")
+                        .parse::<u64>()
+                        .expect("--rounds takes a whole number"),
+                )
+            }
             "--files" => files_dir = PathBuf::from(it.next().expect("--files DIR")),
-            flag if flag.starts_with("--") => panic!("unknown option {flag}; see README, \"b3sum\""),
+            flag if flag.starts_with("--") => {
+                panic!("unknown option {flag}; see README, \"b3sum\"")
+            }
             spec => specs.push(contender(spec)),
         }
     }
@@ -422,31 +591,52 @@ pub fn command(args: &[String]) {
     let rounds = rounds.unwrap_or(if quick { 5 } else { 15 });
     assert!(rounds >= 2, "two rounds at least");
 
-    eprintln!("bench-hashes b3sum: making the input files in {} (kept for later runs)", files_dir.display());
+    eprintln!(
+        "bench-hashes b3sum: making the input files in {} (kept for later runs)",
+        files_dir.display()
+    );
     let inputs = inputs(&files_dir, quick);
     let files_dir = fs::canonicalize(&files_dir).unwrap();
     let filesystem = imp::filesystem(&files_dir);
-    let caches: Vec<Cache> = if cold_possible(&filesystem) { vec![Cache::Warm, Cache::Cold] } else { vec![Cache::Warm] };
+    let caches: Vec<Cache> = if cold_possible(&filesystem) {
+        vec![Cache::Warm, Cache::Cold]
+    } else {
+        vec![Cache::Warm]
+    };
     let mut machine = machine_metadata();
 
     let mut buffer = vec![0u8; MIB as usize];
-    let run_files = |c: &Contender, round: u64, input: &Input, files: &[PathBuf]| -> clocks::child::Run {
-        let mut command = Command::new(&c.build(round).program);
-        command.args(&c.args).args(files).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
-        let run = clocks::child::run(&mut command);
-        if !run.success {
-            // Show what it said, then stop: a failing contender measures nothing.
-            let _ = Command::new(&c.build(round).program).args(&c.args).args(files).stdout(Stdio::null()).status();
-            panic!("contender {} failed on {}", c.name, input.label);
-        }
-        run
-    };
+    let run_files =
+        |c: &Contender, round: u64, input: &Input, files: &[PathBuf]| -> clocks::child::Run {
+            let mut command = Command::new(&c.build(round).program);
+            command
+                .args(&c.args)
+                .args(files)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null());
+            let run = clocks::child::run(&mut command);
+            if !run.success {
+                // Show what it said, then stop: a failing contender measures nothing.
+                let _ = Command::new(&c.build(round).program)
+                    .args(&c.args)
+                    .args(files)
+                    .stdout(Stdio::null())
+                    .status();
+                panic!("contender {} failed on {}", c.name, input.label);
+            }
+            run
+        };
     let run_once = |c: &Contender, round: u64, input: &Input| -> clocks::child::Run {
         if !input.each {
             return run_files(c, round, input, &input.files);
         }
         // A process per file: the runs as one (clocks::child::Run::sum).
-        let runs: Vec<_> = input.files.iter().map(|f| run_files(c, round, input, std::slice::from_ref(f))).collect();
+        let runs: Vec<_> = input
+            .files
+            .iter()
+            .map(|f| run_files(c, round, input, std::slice::from_ref(f)))
+            .collect();
         clocks::child::Run::sum(&runs)
     };
     // Every build once on every input, untimed, so the executables and the
@@ -460,7 +650,15 @@ pub fn command(args: &[String]) {
         }
     }
     // cells[cache][input][contender]: each round's run.
-    let mut cells: Vec<Vec<Vec<Vec<clocks::child::Run>>>> = caches.iter().map(|_| inputs.iter().map(|_| specs.iter().map(|_| Vec::new()).collect()).collect()).collect();
+    let mut cells: Vec<Vec<Vec<Vec<clocks::child::Run>>>> = caches
+        .iter()
+        .map(|_| {
+            inputs
+                .iter()
+                .map(|_| specs.iter().map(|_| Vec::new()).collect())
+                .collect()
+        })
+        .collect();
     let orders = super::williams_orders(specs.len());
     let started = clocks::now();
     for round in 0..rounds {
@@ -484,17 +682,36 @@ pub fn command(args: &[String]) {
                 }
             }
         }
-        eprintln!("bench-hashes b3sum: round {} of {rounds} done, {} s", round + 1, clocks::since_ns(started) / 1_000_000_000);
+        eprintln!(
+            "bench-hashes b3sum: round {} of {rounds} done, {} s",
+            round + 1,
+            clocks::since_ns(started) / 1_000_000_000
+        );
     }
     machine.load = clocks::load::windows();
     machine.power[1] = super::Power::read();
 
     let directory = output_directory(&machine);
     fs::create_dir_all(&directory).unwrap();
-    let mut run = vec![("files".to_owned(), format!("{} on {filesystem}", files_dir.display())), ("rounds".to_owned(), rounds.to_string())];
+    let mut run = vec![
+        (
+            "files".to_owned(),
+            format!("{} on {filesystem}", files_dir.display()),
+        ),
+        ("rounds".to_owned(), rounds.to_string()),
+    ];
     for c in &specs {
         for b in &c.builds {
-            run.push((format!("contender {}", c.name), format!("{} {} (blake3 {}; {})", b.program.display(), c.args.join(" "), b.digest, c.version)));
+            run.push((
+                format!("contender {}", c.name),
+                format!(
+                    "{} {} (blake3 {}; {})",
+                    b.program.display(),
+                    c.args.join(" "),
+                    b.digest,
+                    c.version
+                ),
+            ));
         }
     }
     let mut tsv = super::samples_header(&machine, &run);
@@ -515,20 +732,46 @@ pub fn command(args: &[String]) {
         for (i, input) in inputs.iter().enumerate() {
             for (c, spec) in specs.iter().enumerate() {
                 let runs = &cells[ci][i][c];
-                let samples: Vec<String> = runs.iter().map(|r| format!("{}/{}", r.wall_ns, input.bytes)).collect();
-                let starts: Vec<String> = runs.iter().map(|r| (r.started_ns / 1_000_000).to_string()).collect();
+                let samples: Vec<String> = runs
+                    .iter()
+                    .map(|r| format!("{}/{}", r.wall_ns, input.bytes))
+                    .collect();
+                let starts: Vec<String> = runs
+                    .iter()
+                    .map(|r| (r.started_ns / 1_000_000).to_string())
+                    .collect();
                 let cpu: Vec<Option<u64>> = runs.iter().map(|r| r.cpu_ns).collect();
-                tsv += &format!("{}\t{}\tb3sum\t{}\tB\t{}\t{}\t{}\n", spec.name, cache.name(), input.label, samples.join(","), starts.join(","), super::cpu_field(&cpu));
+                tsv += &format!(
+                    "{}\t{}\tb3sum\t{}\tB\t{}\t{}\t{}\n",
+                    spec.name,
+                    cache.name(),
+                    input.label,
+                    samples.join(","),
+                    starts.join(","),
+                    super::cpu_field(&cpu)
+                );
             }
         }
     }
     let samples_path = directory.join("b3sum.samples.tsv");
     fs::write(&samples_path, tsv).unwrap();
     super::map::write(&directory, None);
-    let report = report(&specs, &inputs, &caches, &cells, &machine, &filesystem, quick, rounds);
+    let report = report(
+        &specs,
+        &inputs,
+        &caches,
+        &cells,
+        &machine,
+        &filesystem,
+        quick,
+        rounds,
+    );
     fs::write(directory.join("b3sum.result.txt"), &report).unwrap();
     print!("{report}");
-    eprintln!("bench-hashes b3sum: report, samples, and map in {}", directory.display());
+    eprintln!(
+        "bench-hashes b3sum: report, samples, and map in {}",
+        directory.display()
+    );
 }
 
 // ---------- The report ----------
@@ -546,7 +789,11 @@ fn three(value: u128, scale: u128) -> String {
     }
     let scaled = (value * 10u128.pow(decimals) + scale / 2) / scale;
     let p = 10u128.pow(decimals);
-    if decimals == 0 { scaled.to_string() } else { format!("{}.{:0w$}", scaled / p, scaled % p, w = decimals as usize) }
+    if decimals == 0 {
+        scaled.to_string()
+    } else {
+        format!("{}.{:0w$}", scaled / p, scaled % p, w = decimals as usize)
+    }
 }
 
 /// Bytes over nanoseconds: gigabytes per second, three significant digits.
@@ -566,19 +813,45 @@ pub(crate) fn time(ns: u128) -> String {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn report(specs: &[Contender], inputs: &[Input], caches: &[Cache], cells: &[Vec<Vec<Vec<clocks::child::Run>>>], machine: &super::MachineMetadata, filesystem: &str, quick: bool, rounds: u64) -> String {
+fn report(
+    specs: &[Contender],
+    inputs: &[Input],
+    caches: &[Cache],
+    cells: &[Vec<Vec<Vec<clocks::child::Run>>>],
+    machine: &super::MachineMetadata,
+    filesystem: &str,
+    quick: bool,
+    rounds: u64,
+) -> String {
     let mut out = String::new();
     out += "bench-hashes b3sum: how long b3sum takes to hash files, from its start to its exit\n\n";
-    out += &format!("machine:   {}, {} CPUs, {}\nfiles on:  {filesystem}\n", machine.cpu_type, machine.cpu_count, machine.os_type);
+    out += &format!(
+        "machine:   {}, {} CPUs, {}\nfiles on:  {filesystem}\n",
+        machine.cpu_type, machine.cpu_count, machine.os_type
+    );
     out += &format!("load:      {}\n", clocks::load::describe(&machine.load));
-    out += &format!("runs:      {rounds} rounds, each contender once on each input in each{}\n", if quick { " (--quick: a check, not a record)" } else { "" });
+    out += &format!(
+        "runs:      {rounds} rounds, each contender once on each input in each{}\n",
+        if quick {
+            " (--quick: a check, not a record)"
+        } else {
+            ""
+        }
+    );
     if !caches.contains(&Cache::Cold) {
         out += "cold:      not measured: this platform or filesystem cannot evict one file from the page cache\n";
     }
     out += "\ncontenders:\n";
     for c in specs {
         for b in &c.builds {
-            out += &format!("  {:<14} {} {}   ({}, blake3 {})\n", c.name, b.program.display(), c.args.join(" "), c.version, &b.digest[..16]);
+            out += &format!(
+                "  {:<14} {} {}   ({}, blake3 {})\n",
+                c.name,
+                b.program.display(),
+                c.args.join(" "),
+                c.version,
+                &b.digest[..16]
+            );
         }
     }
     let base = &specs[0].name;
@@ -592,9 +865,16 @@ fn report(specs: &[Contender], inputs: &[Input], caches: &[Cache], cells: &[Vec<
             }
         }
     }
-    let pairs: Vec<Vec<(u128, u128)>> = compared.iter().map(|&(ci, i, c)| {
-        cells[ci][i][0].iter().zip(&cells[ci][i][c]).map(|(b, r)| (per_run(b, inputs[i].bytes), per_run(r, inputs[i].bytes))).collect()
-    }).collect();
+    let pairs: Vec<Vec<(u128, u128)>> = compared
+        .iter()
+        .map(|&(ci, i, c)| {
+            cells[ci][i][0]
+                .iter()
+                .zip(&cells[ci][i][c])
+                .map(|(b, r)| (per_run(b, inputs[i].bytes), per_run(r, inputs[i].bytes)))
+                .collect()
+        })
+        .collect();
     // The rule needs three pairs a cell; fewer rounds judge none, as compare
     // and regress (with only one contender, there is nothing to judge).
     let judged = rounds >= 3 && !pairs.is_empty();
@@ -603,19 +883,49 @@ fn report(specs: &[Contender], inputs: &[Input], caches: &[Cache], cells: &[Vec<
     }
     // Each comparison's ratio (the geometric mean of the rounds' ratios, the
     // ratio the rule judges) and its verdict.
-    let judgments: std::collections::HashMap<(usize, usize, usize), clocks::summary::Judgment> = if judged {
-        compared.into_iter().zip(clocks::summary::discoveries(&pairs, super::COMPARE_Q_PERMILLE, MARGIN_PERMILLE)).collect()
-    } else {
-        compared.into_iter().zip(&pairs).map(|(key, p)| (key, clocks::summary::Judgment { verdict: clocks::summary::Verdict::Level, ratio_permille: clocks::summary::geometric_mean_permille(p) })).collect()
-    };
+    let judgments: std::collections::HashMap<(usize, usize, usize), clocks::summary::Judgment> =
+        if judged {
+            compared
+                .into_iter()
+                .zip(clocks::summary::discoveries(
+                    &pairs,
+                    super::COMPARE_Q_PERMILLE,
+                    MARGIN_PERMILLE,
+                ))
+                .collect()
+        } else {
+            compared
+                .into_iter()
+                .zip(&pairs)
+                .map(|(key, p)| {
+                    (
+                        key,
+                        clocks::summary::Judgment {
+                            verdict: clocks::summary::Verdict::Level,
+                            ratio_permille: clocks::summary::geometric_mean_permille(p),
+                        },
+                    )
+                })
+                .collect()
+        };
     for (ci, &cache) in caches.iter().enumerate() {
         out += &format!("\n{}\nmean time per run, lower is better; xN: against {base}, the ratio judged (the geometric mean of the rounds' ratios), marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 3%)\n", cache.heading());
-        let mut rows: Vec<Vec<String>> = vec![std::iter::once("input".to_owned()).chain(specs.iter().map(|c| c.name.clone())).collect()];
+        let mut rows: Vec<Vec<String>> = vec![std::iter::once("input".to_owned())
+            .chain(specs.iter().map(|c| c.name.clone()))
+            .collect()];
         for (i, input) in inputs.iter().enumerate() {
             let mut row = vec![input.label.clone()];
             for (c, _) in specs.iter().enumerate() {
                 let runs = &cells[ci][i][c];
-                let mean_of = |runs: &[clocks::child::Run]| Mean::of(&runs.iter().map(|r| Measured::new(r.wall_ns, input.bytes)).collect::<Vec<_>>()).fixed();
+                let mean_of = |runs: &[clocks::child::Run]| {
+                    Mean::of(
+                        &runs
+                            .iter()
+                            .map(|r| Measured::new(r.wall_ns, input.bytes))
+                            .collect::<Vec<_>>(),
+                    )
+                    .fixed()
+                };
                 let mean = mean_of(runs);
                 let ns = (mean.0 * u128::from(input.bytes) + (1 << 63)) >> 64;
                 let mut text = time(ns);
@@ -638,15 +948,26 @@ fn report(specs: &[Contender], inputs: &[Input], caches: &[Cache], cells: &[Vec<
         }
         out += &table(&rows);
         out += "\nCPUs busy (CPU time over wall time) and peak memory, medians\n";
-        let mut rows: Vec<Vec<String>> = vec![std::iter::once("input".to_owned()).chain(specs.iter().map(|c| c.name.clone())).collect()];
+        let mut rows: Vec<Vec<String>> = vec![std::iter::once("input".to_owned())
+            .chain(specs.iter().map(|c| c.name.clone()))
+            .collect()];
         for (i, input) in inputs.iter().enumerate() {
             let mut row = vec![input.label.clone()];
             for (c, _) in specs.iter().enumerate() {
                 let runs = &cells[ci][i][c];
-                let busy = median_u64(runs.iter().filter_map(|r| r.cpu_ns.map(|cpu| (cpu * 100 + r.wall_ns / 2) / r.wall_ns)).collect());
+                let busy = median_u64(
+                    runs.iter()
+                        .filter_map(|r| r.cpu_ns.map(|cpu| (cpu * 100 + r.wall_ns / 2) / r.wall_ns))
+                        .collect(),
+                );
                 let rss = median_u64(runs.iter().filter_map(|r| r.max_rss_bytes).collect());
                 row.push(match (busy, rss) {
-                    (Some(b), Some(m)) => format!("{}.{:02} CPUs, {} MiB", b / 100, b % 100, (m + MIB / 2) / MIB),
+                    (Some(b), Some(m)) => format!(
+                        "{}.{:02} CPUs, {} MiB",
+                        b / 100,
+                        b % 100,
+                        (m + MIB / 2) / MIB
+                    ),
                     _ => "not counted here".to_owned(),
                 });
             }
@@ -658,9 +979,20 @@ fn report(specs: &[Contender], inputs: &[Input], caches: &[Cache], cells: &[Vec<
             let mut warm_cells = Vec::new();
             for (i, input) in inputs.iter().enumerate() {
                 for (c, spec) in specs.iter().enumerate() {
-                    if let Some(read) = median_u64(cells[ci][i][c].iter().filter_map(|r| r.storage_read_bytes).collect()) {
+                    if let Some(read) = median_u64(
+                        cells[ci][i][c]
+                            .iter()
+                            .filter_map(|r| r.storage_read_bytes)
+                            .collect(),
+                    ) {
                         if read * 2 < input.bytes {
-                            warm_cells.push(format!("{} on {} read {} of {} from storage", spec.name, input.label, size_label_approx(read), size_label(input.bytes)));
+                            warm_cells.push(format!(
+                                "{} on {} read {} of {} from storage",
+                                spec.name,
+                                input.label,
+                                size_label_approx(read),
+                                size_label(input.bytes)
+                            ));
                         }
                     }
                 }
@@ -668,7 +1000,10 @@ fn report(specs: &[Contender], inputs: &[Input], caches: &[Cache], cells: &[Vec<
             out += &if warm_cells.is_empty() {
                 "\nEvery cold run read its files from storage (by the counts).\n".to_owned()
             } else {
-                format!("\nNot cold: the page cache still served these runs (median reads): {}.\n", warm_cells.join("; "))
+                format!(
+                    "\nNot cold: the page cache still served these runs (median reads): {}.\n",
+                    warm_cells.join("; ")
+                )
             };
         }
     }
@@ -681,19 +1016,33 @@ fn median_u64(mut v: Vec<u64>) -> Option<u64> {
     }
     v.sort_unstable();
     let n = v.len();
-    Some(if n % 2 == 1 { v[n / 2] } else { (v[n / 2 - 1] + v[n / 2]).div_ceil(2) })
+    Some(if n % 2 == 1 {
+        v[n / 2]
+    } else {
+        (v[n / 2 - 1] + v[n / 2]).div_ceil(2)
+    })
 }
 
 fn size_label_approx(bytes: u64) -> String {
-    if bytes >= MIB { format!("{} MiB", (bytes + MIB / 2) / MIB) } else { format!("{} KiB", (bytes + KIB / 2) / KIB) }
+    if bytes >= MIB {
+        format!("{} MiB", (bytes + MIB / 2) / MIB)
+    } else {
+        format!("{} KiB", (bytes + KIB / 2) / KIB)
+    }
 }
 
 /// Columns padded to their widest cell.
 fn table(rows: &[Vec<String>]) -> String {
-    let widths: Vec<usize> = (0..rows[0].len()).map(|i| rows.iter().map(|r| r[i].chars().count()).max().unwrap()).collect();
+    let widths: Vec<usize> = (0..rows[0].len())
+        .map(|i| rows.iter().map(|r| r[i].chars().count()).max().unwrap())
+        .collect();
     let mut out = String::new();
     for row in rows {
-        let cells: Vec<String> = row.iter().zip(&widths).map(|(cell, &w)| format!("{cell}{}", " ".repeat(w - cell.chars().count()))).collect();
+        let cells: Vec<String> = row
+            .iter()
+            .zip(&widths)
+            .map(|(cell, &w)| format!("{cell}{}", " ".repeat(w - cell.chars().count())))
+            .collect();
         out += cells.join("   ").trim_end();
         out += "\n";
     }
@@ -721,7 +1070,10 @@ mod tests {
         blake3_servil::initialize();
         let mut first = [0u8; 32];
         contents("").fill(&mut first);
-        assert_eq!(blake3_servil::Hash::from(first).to_hex().as_str(), "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262");
+        assert_eq!(
+            blake3_servil::Hash::from(first).to_hex().as_str(),
+            "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"
+        );
     }
 
     /// The mixed tree's interleaving takes every file once.

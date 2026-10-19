@@ -9,7 +9,9 @@ fn main() -> std::io::Result<()> {
     let mut hasher = blake3_servil::Hasher::new();
     loop {
         let n = file.read(&mut buffer)?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         // Each piece extends the same message; the order matters.
         hasher.update(&buffer[..n]);
     }

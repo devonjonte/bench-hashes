@@ -11,7 +11,9 @@ fn main() -> std::io::Result<()> {
     let mut hasher = blake3_servil::Hasher::new();
     loop {
         let n = file.read(&mut buffer)?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         // Helper threads share each piece of 512 KiB or more; shorter
         // pieces hash on this thread.
         hasher.update_multithreaded(&buffer[..n]);
