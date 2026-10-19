@@ -45,7 +45,8 @@ const TARGET_SAMPLE_NS: u128 = 1_000_000;
 /*
  * Every cell samples in a share of the rounds, spread over the run at an
  * offset of its own, so drift and other programs' load reach every cell
- * alike: at least STEADY_SAMPLES, rounded up to whole Williams cycles.
+ * alike: the use case's visits (UseCase::visits), rounded up to whole
+ * Williams cycles.
  * Every participating contender at a point samples the same visits.
  * Thinning long contenders separately aliased their orders and compared
  * different moments. Complete cycles cost more time for long hashes.
@@ -89,7 +90,28 @@ const GAP_WORK_BYTES: usize = 128 * 1024 * 1024;
 const GAP_SAMPLE_NS: u128 = 2_000;
 /// Calls timed after the gap to size a synchronous cell's sample.
 const CALIBRATION_GAPS: u64 = 4;
-const STEADY_SAMPLES: usize = 12;
+/*
+ * Visits a cell takes in a run, by how the cell calls (UseCase::visits):
+ * each visit one solo sample and, where the use case is measured shared,
+ * two shared samples beside it. Tuned on October 19, 2026 from eight pairs
+ * of A/A runs on an i7-12700K (identical code, fresh link layouts; the
+ * data branch of devonjonte/bench-hashes, 2026-10-19/stat41/aa; the
+ * derivation bench-hashes-validation/bench-design/tune-samples.py): the
+ * spread of a cell's figure between runs, by samples taken, against its
+ * spread at 24 samples. Cells after a gap keep narrowing to 24 samples (at
+ * 12, 1.29x the spread at 24); nonstop solo cells stop narrowing at 6
+ * (1.04x); nonstop shared cells at 12 (1.29x), which 6 visits give. On the
+ * planted slowdowns kept beside the A/A runs, these counts caught the rare
+ * slow mode 88 times of 138 against 52 at a flat 12 and 93 at a flat 24,
+ * with false alarms 0, 0 and 2. Measured on two runs each of eight
+ * contenders (i7-12700K): the nonstop phase 144 s from 104, the gap phases
+ * 342 s from 213 (a full run 465 s from 378); between the two runs the
+ * cells after a gap agreed to 2.2% at the median from 3.4%, nonstop solo
+ * cells to 1.1% from 1.2% on fewer samples. Re-derive with new A/A runs,
+ * another machine's included, before changing them.
+ */
+const GAP_VISITS: usize = 24;
+const NONSTOP_VISITS: usize = 6;
 
 /// Points on the one-message axis, and on each many-messages axis.
 const INPUT_COUNT: usize = 27;
@@ -565,6 +587,12 @@ impl UseCase {
             Self::IdleInterleavedTurn => Self::InterleavedTurn,
             other => other,
         }
+    }
+
+    /// Visits a cell of this use case takes in a run (GAP_VISITS and
+    /// NONSTOP_VISITS, tuned there).
+    fn visits(self) -> usize {
+        if self.after_gap() { GAP_VISITS } else { NONSTOP_VISITS }
     }
 
     /// Whether a call hashes a batch of messages.
@@ -1842,7 +1870,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
                 let point = POINTS[size_index];
                 let orders = &point_orders[size_index];
                 if point.use_case.pattern_key() != pattern || orders.is_empty()
-                    || (!roster.every_round && !cell_wants_sample(round + size_index, roster.rounds, orders.len())) {
+                    || (!roster.every_round && !cell_wants_sample(round + size_index, roster.rounds, orders.len(), point.use_case.visits())) {
                     continue;
                 }
                 let algorithm_order = &orders[visits[size_index] % orders.len()];
@@ -3722,12 +3750,13 @@ impl MachineMetadata {
     }
 }
 
-/// Spread complete cycles of `orders` over `rounds`, at a point's offset.
-/// Requires positive counts. Defaults have room for the whole design;
-/// explicit --rounds bypasses thinning and accepts partial designs.
-fn cell_wants_sample(slot: usize, rounds: usize, orders: usize) -> bool {
+/// Spread complete cycles of `orders` over `rounds`, at a point's offset,
+/// for `visits` of the point a run (UseCase::visits). Requires positive
+/// counts. Defaults have room for the whole design; explicit --rounds
+/// bypasses thinning and accepts partial designs.
+fn cell_wants_sample(slot: usize, rounds: usize, orders: usize, visits: usize) -> bool {
     assert!(rounds > 0 && orders > 0);
-    let target = STEADY_SAMPLES.next_multiple_of(orders).min(rounds);
+    let target = visits.next_multiple_of(orders).min(rounds);
     (slot % rounds) * target % rounds < target
 }
 

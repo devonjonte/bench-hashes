@@ -71,11 +71,11 @@ fn sampled_visits_complete_the_participating_williams_design() {
                 for offset in 0..POINT_COUNT {
                     let mut realized = Vec::new();
                     for round in 0..rounds {
-                        if cell_wants_sample(round + offset, rounds, orders.len()) {
+                        if cell_wants_sample(round + offset, rounds, orders.len(), 12) {
                             realized.push(orders[realized.len() % orders.len()].clone());
                         }
                     }
-                    assert_eq!(realized.len(), STEADY_SAMPLES.next_multiple_of(orders.len()));
+                    assert_eq!(realized.len(), 12usize.next_multiple_of(orders.len()));
                     let normalized: Vec<Vec<usize>> = realized.iter().map(|row| row.iter()
                         .map(|a| participants.iter().position(|p| p == a).unwrap()).collect()).collect();
                     if participants.len() > 1 {
@@ -95,8 +95,8 @@ fn sample_schedule_handles_short_explicit_round_counts() {
     for rounds in 1..=96 {
         for orders in 1..=18 {
             for offset in [0, 1, 7, 95] {
-                let count = (0..rounds).filter(|r| cell_wants_sample(r + offset, rounds, orders)).count();
-                assert_eq!(count, STEADY_SAMPLES.next_multiple_of(orders).min(rounds));
+                let count = (0..rounds).filter(|r| cell_wants_sample(r + offset, rounds, orders, 12)).count();
+                assert_eq!(count, 12usize.next_multiple_of(orders).min(rounds));
             }
         }
     }
@@ -226,5 +226,20 @@ fn a_merkle_tree_hashes_leaves_and_parents_apart() {
             out
         };
         assert_ne!(digest(Node::Leaf), digest(Node::Parent), "{}: a leaf and a parent of the same bytes", algorithm.key());
+    }
+}
+
+/// Each use case's visits a run follow how it calls: after a gap, 24;
+/// nonstop, 6 (one solo sample a visit, two shared where measured shared).
+#[test]
+fn visits_a_run_follow_how_a_cell_calls() {
+    assert_eq!(UseCase::OneMessage.visits(), GAP_VISITS);
+    assert_eq!(UseCase::IdleInterleavedTurn.visits(), GAP_VISITS);
+    assert_eq!(UseCase::LentMessages.visits(), NONSTOP_VISITS);
+    assert_eq!(UseCase::MerkleTree.visits(), NONSTOP_VISITS);
+    // A full run has room for the largest count in whole Williams cycles.
+    for use_case in UseCase::ALL {
+        let orders = participating_orders(&Algorithm::ALL, use_case).len().max(1);
+        assert!(use_case.visits().next_multiple_of(orders) <= FULL_ROUNDS, "{use_case:?}: {} visits over {orders} orders fit {FULL_ROUNDS} rounds", use_case.visits());
     }
 }
