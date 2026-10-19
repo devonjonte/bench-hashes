@@ -177,3 +177,22 @@ fn every_samples_file_names_what_measured_and_where() {
     std::fs::remove_file(&path).unwrap();
     assert!(file.headers.iter().any(|(k, v)| k == "contender" && v == "a: /bin/a"));
 }
+
+/// A pipelined collection hashes every item, in order, each to its own
+/// digest: for every contender taking part, the digests it hands on match
+/// each item hashed alone (BLAKE3 servil's stream included).
+#[test]
+fn a_pipelined_collection_hashes_every_item() {
+    blake3_servil::initialize_multithreaded(None);
+    for point in &POINTS[UseCase::ContinuousCollection.points()] {
+        let input = make_input(point.bytes);
+        let items = items_of(*point, &input);
+        let want: Vec<[u8; 32]> = items.iter().map(|&(o, l)| *blake3_servil::hash(&input[o..o + l]).as_bytes()).collect();
+        for algorithm in [Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt, Algorithm::Blake3] {
+            let mut got: Vec<[u8; 32]> = Vec::new();
+            hash_batch(algorithm, &input, *point, 2, |d| got.push(d.try_into().unwrap()));
+            assert_eq!(got.len(), 2 * want.len(), "{}: every item, each pass", algorithm.key());
+            assert!(got[..want.len()] == want[..] && got[want.len()..] == want[..], "{}: {}: each item's digest, in order", algorithm.key(), point.label);
+        }
+    }
+}
