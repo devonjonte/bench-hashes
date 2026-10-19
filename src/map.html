@@ -338,7 +338,8 @@ function open(S, grid, cell, q, row, col, layer) {
     tip.style.top = (touch ? Math.max(8, e.clientY - tip.offsetHeight - 24) : e.clientY + 10) + "px";
   };
   z.onmousemove = e => { if (!touch) show(e); };
-  z.onmouseleave = () => { tip.style.display = "none"; cur.setAttribute("visibility", "hidden"); };
+  /* A mouse leaving hides the values; after a touch, the emulated mouse events that follow a tap would hide what the tap showed, so they wait for the next tap. */
+  z.onmouseleave = () => { if (touch) return; tip.style.display = "none"; cur.setAttribute("visibility", "hidden"); };
   const close = () => { OPEN = null; document.removeEventListener("click", outside); document.removeEventListener("keydown", onKey); tip.style.display = "none"; lit.forEach(h => h.classList.remove("lit")); place(start); setTimeout(() => z.remove(), 220); };
   z.querySelector(".close").onclick = e => { e.stopPropagation(); close(); };
   /* Escape puts it back too. */
