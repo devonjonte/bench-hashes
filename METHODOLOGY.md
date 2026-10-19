@@ -704,6 +704,17 @@ power supply, and its report says the OS reports none.
 
 ## Build settings and provenance
 
+Every samples file names what decided its machine code, so another person
+can rebuild it: bench-hashes' repository, commit and clean state (a dirty
+tree's BLAKE3 fingerprint), a BLAKE3 fingerprint of `Cargo.lock` (every
+dependency's exact version and checksum), the Rust and C compilers (the C
+compiler assembles ring's and the fork's C and assembly), `RUSTFLAGS`, the
+target and its features, and one `source CONTENDER` line for every
+contender the run measured: a crate's version and archive checksum, a git
+commit, or the system library it calls. The CPU's identity includes its
+microcode. A b3sum contender's line names its build by the BLAKE3 digest
+of its executable.
+
 Release builds use optimization level 3, fat LTO, one codegen unit,
 abort-on-panic, and no incremental compilation, for the target's
 generic CPU, as programs are shipped: every contender chooses its code

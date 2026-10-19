@@ -213,7 +213,7 @@ pub fn command(arguments: &[String]) {
     machine.power[1] = super::Power::read();
 
     let mut tsv = super::samples_header(&machine, &[
-        ("blake3-servil source".to_owned(), super::BLAKE3_SERVIL_SOURCE_INFO.to_owned()),
+        ("source blake3-servil-mt".to_owned(), super::BLAKE3_SERVIL_SOURCE_INFO.to_owned()),
         ("rounds".to_owned(), rounds.to_string()),
         ("leaves".to_owned(), format!("{MESSAGE_LEN}-byte messages from a counter; wall from producing the first to reading the last digest")),
     ]);
