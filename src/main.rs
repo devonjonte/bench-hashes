@@ -207,6 +207,9 @@ const GIT_CLEAN_STATUS: &str = env!("BENCH_GIT_CLEAN_STATUS");
 const RUSTC_VERSION: &str = env!("BENCH_RUSTC_VERSION");
 const BUILD_TARGET: &str = env!("BENCH_BUILD_TARGET");
 const TARGET_FEATURES: &str = env!("BENCH_TARGET_FEATURES");
+const LOCK_FINGERPRINT: &str = env!("BENCH_LOCK_FINGERPRINT");
+const C_COMPILER: &str = env!("BENCH_C_COMPILER");
+const RUSTFLAGS: &str = env!("BENCH_RUSTFLAGS");
 
 const BLAKE3_SOURCE_INFO: &str = env!("BLAKE3_SOURCE_INFO");
 const SHA2_SOURCE_INFO: &str = env!("SHA2_SOURCE_INFO");
@@ -4538,9 +4541,13 @@ fn samples_header(machine: &MachineMetadata, run: &[(String, String)]) -> String
     for (key, value) in [
         ("timestamp", machine.timestamp.as_str()),
         ("bench-hashes version", BENCH_VERSION),
+        ("bench-hashes source", GIT_SOURCE),
         ("git commit", GIT_COMMIT),
         ("git clean status", GIT_CLEAN_STATUS),
+        ("dependency lock", LOCK_FINGERPRINT),
         ("rust compiler", RUSTC_VERSION),
+        ("c compiler", C_COMPILER),
+        ("rustflags", RUSTFLAGS),
         ("build target", BUILD_TARGET),
         ("target features", TARGET_FEATURES),
         ("sample clock", clocks::WALL_CLOCK),
@@ -4564,15 +4571,15 @@ fn samples_header(machine: &MachineMetadata, run: &[(String, String)]) -> String
 }
 
 fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &MachineMetadata, selection_note: &str) -> String {
-    let run = [
-        ("blake3-servil source", BLAKE3_SERVIL_SOURCE_INFO.to_owned()),
-        ("blake3 source", BLAKE3_SOURCE_INFO.to_owned()),
-        ("sha256 source", SHA2_SOURCE_INFO.to_owned()),
-        ("contenders", selection_note.to_owned()),
-        ("rounds", roster.rounds.to_string()),
-        ("points", roster.points.iter().map(|&index| POINTS[index].label).collect::<Vec<_>>().join(",")),
-    ];
-    let mut out = samples_header(machine, &run.map(|(key, value)| (key.to_owned(), value)));
+    // Each contender's source, every one the run measured (a contender added
+    // later has its line without anyone remembering to add it).
+    let mut run: Vec<(String, String)> = roster.algorithms.iter().map(|a| (format!("source {}", a.key()), a.source().to_owned())).collect();
+    run.extend([
+        ("contenders".to_owned(), selection_note.to_owned()),
+        ("rounds".to_owned(), roster.rounds.to_string()),
+        ("points".to_owned(), roster.points.iter().map(|&index| POINTS[index].label).collect::<Vec<_>>().join(",")),
+    ]);
+    let mut out = samples_header(machine, &run);
     for &algorithm in &roster.algorithms {
         for use_case in UseCase::ALL.iter().filter(|&&use_case| algorithm.takes_part(use_case)) {
             let kernels = detect_kernels(algorithm, *use_case);
@@ -4791,7 +4798,7 @@ fn cpu_identity() -> String {
     let mut parts: Vec<String> = Vec::new();
     if let Ok(cpuinfo) = fs::read_to_string("/proc/cpuinfo") {
         let first = cpuinfo.split("\n\n").next().unwrap_or("");
-        for key in ["CPU implementer", "CPU variant", "CPU part", "CPU revision", "model name", "Features", "flags"] {
+        for key in ["CPU implementer", "CPU variant", "CPU part", "CPU revision", "model name", "microcode", "Features", "flags"] {
             if let Some(line) = first.lines().find(|line| line.split(':').next().is_some_and(|k| k.trim() == key)) {
                 parts.push(format!("{key}: {}", line.split_once(':').unwrap().1.trim()));
             }

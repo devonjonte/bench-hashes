@@ -151,9 +151,9 @@ fn use_digest_stores_each_digest_in_its_slot() {
 /// The provenance every samples file's header carries, in order (the main
 /// run's, b3sum's and leaves' all write theirs with samples_header): the
 /// keys before the run's own.
-pub(crate) const PROVENANCE: [&str; 12] = [
-    "timestamp", "bench-hashes version", "git commit", "git clean status", "rust compiler", "build target", "target features",
-    "sample clock", "cpu type", "cpu count", "os type", "cpu identity",
+pub(crate) const PROVENANCE: [&str; 16] = [
+    "timestamp", "bench-hashes version", "bench-hashes source", "git commit", "git clean status", "dependency lock", "rust compiler",
+    "c compiler", "rustflags", "build target", "target features", "sample clock", "cpu type", "cpu count", "os type", "cpu identity",
 ];
 
 /// A samples file's header keys, in order.
