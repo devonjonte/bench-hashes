@@ -224,7 +224,7 @@ pub fn command(arguments: &[String]) {
         let samples = &results[c];
         let field = |f: &dyn Fn(&Sample) -> String| samples.iter().map(f).collect::<Vec<_>>().join(",");
         let cpu = if samples.iter().all(|x| x.3.is_some()) { field(&|x| x.3.unwrap().to_string()) } else { "-".into() };
-        tsv += &format!("{variant}\t{scenario}\tLeaves\t{count} messages\tmsg\t{}\t{}\t{cpu}\t-\n", field(&|x| format!("{}/{}", x.0, x.1)), field(&|x| x.2.to_string()));
+        tsv += &format!("{variant}\t{scenario}\tLeaves\t{count} messages\tmsg\t{}\t{}\t{cpu}\t-\t-\n", field(&|x| format!("{}/{}", x.0, x.1)), field(&|x| x.2.to_string()));
         // The report: means over the cell (ns and CPU ns a message, exact
         // totals over totals, shown by the benchmark's one rule for them).
         let per = |num: u64, den: u64| super::format_ns(u128::from(num), u128::from(den));

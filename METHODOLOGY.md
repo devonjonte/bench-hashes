@@ -484,6 +484,14 @@ either way, so a cell's energy, all its samples' over all their units, is
 not biased by it. `compare` prints its ratio beside CPU time's, with no
 verdict.
 
+**Where each sample ran.** Every sample, solo and shared, records the
+calling thread's counts per core kind across it (`clocks::Counts`: time
+and cycles on P cores and on E cores; Apple, and Linux on x86-64 hybrids),
+in the `core counts` column, `P time:P cycles:E time:E cycles`, or `-`
+where the platform counts none. The map's tooltip names a point's E-core
+share and clocks, so a change in where a hash ran reads as that, not as
+a change in the hash. The pool's workers are not counted yet.
+
 **Threads.** BLAKE3 servil mt's pool holds one thread per CPU, its caller
 among them, unless a run says `--threads N`, which sets it for the whole
 run (the pool is the process's): the samples' `contenders` line records it,
