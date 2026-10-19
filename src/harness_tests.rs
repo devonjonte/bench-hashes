@@ -7,8 +7,8 @@ use super::*;
 #[test]
 fn asynchronous_labels_describe_the_measured_api() {
     for (use_case, api) in [
-        (UseCase::ContinuousBatches, "Stream::submit_batch_with"),
-        (UseCase::Interleaved, "Hasher::update_each_multithreaded"),
+        (UseCase::ContinuousBatches, "Stream::submit_batch_with (kernels unreported)"),
+        (UseCase::Interleaved, "Hasher::update_each_multithreaded (kernels unreported)"),
     ] {
         let kernels = detect_kernels(Algorithm::Blake3ServilMt, use_case);
         assert_eq!(kernels.platform, "API (kernel unreported)");
@@ -19,7 +19,7 @@ fn asynchronous_labels_describe_the_measured_api() {
     let messages = detect_kernels(Algorithm::Blake3ServilMt, UseCase::ContinuousMessages);
     assert_eq!(messages.platform, "API (kernel unreported)");
     assert_eq!(messages.kernels.len(), 1);
-    assert_eq!(messages.kernels[0].name, "Stream::submit_with");
+    assert_eq!(messages.kernels[0].name, "Stream::submit_with (kernels unreported)");
 }
 
 #[test]

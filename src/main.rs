@@ -3878,39 +3878,37 @@ fn servil_kernels(report: blake3_servil::KernelReport) -> Kernels {
 /// The contender must take part in the use case.
 fn detect_kernels(algorithm: Algorithm, use_case: UseCase) -> Kernels {
     assert!(algorithm.takes_part(use_case), "{} takes no part in {use_case:?}", algorithm.name());
+    /* A call the library reports no kernels for: its name, saying so. */
+    let unreported = |api: &str| Kernels::new("API (kernel unreported)", vec![Kernel { first: 0, name: format!("{api} (kernels unreported)") }]);
     // The stream and incremental MT APIs have no kernel-report entry point.
     // Their known API boundaries remain useful; their schedules stay
     // explicitly unreported instead of inheriting one-shot thresholds.
     if use_case == UseCase::Verify {
-        let api = if algorithm == Algorithm::Blake3 { "bao-tree decode_ranges" } else { "Verifier::update" };
-        return Kernels::new("API (kernel unreported)", vec![Kernel { first: 0, name: api.to_owned() }]);
+        return unreported(if algorithm == Algorithm::Blake3 { "bao-tree decode_ranges" } else { "Verifier::update" });
     }
     if use_case == UseCase::Outboard {
-        let api = match algorithm {
+        return unreported(match algorithm {
             Algorithm::Blake3 => "bao-tree PreOrderMemOutboard::create",
             Algorithm::Blake3ServilMt => "outboard_multithreaded_with",
             _ => "outboard_with",
-        };
-        return Kernels::new("API (kernel unreported)", vec![Kernel { first: 0, name: api.to_owned() }]);
+        });
     }
     if algorithm == Algorithm::Blake3ServilSt && use_case == UseCase::Collection {
-        return Kernels::new("API (kernel unreported)", vec![Kernel { first: 0, name: "hash_each_with".to_owned() }]);
+        return unreported("hash_each_with");
     }
     if algorithm == Algorithm::Blake3ServilSt && use_case == UseCase::Interleaved {
-        return Kernels::new("API (kernel unreported)", vec![Kernel { first: 0, name: "Hasher::update_each".to_owned() }]);
+        return unreported("Hasher::update_each");
     }
     if algorithm == Algorithm::Blake3ServilMt {
-        let kernel = |first, api: &str| Kernel { first, name: api.to_owned() };
-        let kernels = match use_case {
-            UseCase::ContinuousMessages => Some(vec![kernel(0, "Stream::submit_with")]),
-            UseCase::ContinuousBatches => Some(vec![kernel(0, "Stream::submit_batch_with")]),
-            UseCase::Interleaved => Some(vec![kernel(0, "Hasher::update_each_multithreaded")]),
-            UseCase::Collection => Some(vec![kernel(0, "hash_each_multithreaded_with")]),
-            UseCase::ContinuousCollection => Some(vec![kernel(0, "Stream::submit_with")]),
+        let api = match use_case {
+            UseCase::ContinuousMessages | UseCase::ContinuousCollection => Some("Stream::submit_with"),
+            UseCase::ContinuousBatches => Some("Stream::submit_batch_with"),
+            UseCase::Interleaved => Some("Hasher::update_each_multithreaded"),
+            UseCase::Collection => Some("hash_each_multithreaded_with"),
             _ => None,
         };
-        if let Some(kernels) = kernels {
-            return Kernels::new("API (kernel unreported)", kernels);
+        if let Some(api) = api {
+            return unreported(api);
         }
     }
     let one_message = match algorithm {
