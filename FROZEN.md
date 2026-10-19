@@ -403,7 +403,7 @@ their users seldom make):
   follows the same call (one untimed call, gap and all, before a
   sample's first: Zooko, September 30, 2026), since a gap leaves some of
   what ran before it in the caches, and the benchmark's own schedule
-  would otherwise decide what that was (bench-hashes NOTES, "Shared
+  would otherwise decide what that was (bench-hashes NOTES at `aadeca9d`, "Shared
   after a gap"). The program writes the input after the gap, before the
   call, and the write is part of the sample (Zooko, October 3, 2026,
   replacing September 28's exclusion).
@@ -451,7 +451,7 @@ their users seldom make):
   to themselves, and a pessimistic estimate of what users see; measured
   and reported, not optimised for directly. After a gap a copy met the
   code its twin had just run in a cache the gap left warm, and read
-  faster than one program alone (NOTES, "Shared after a gap"). The map
+  faster than one program alone (bench-hashes NOTES at `aadeca9d`, "Shared after a gap"). The map
   draws solo and shared.
 - **Planned, to add under this contract**: keyed and derive-key spot
   checks in perf_regress.

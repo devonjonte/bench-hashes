@@ -1,5 +1,9 @@
 # bench-hashes
 
+> **History** is behind a door: `git log`, and the maintainers' notes, audits and
+> shared results the tree held until October 18, at commit `aadeca9d`
+> (`git show aadeca9d:NOTES.md`).
+
 Written by GPT-5.6 Sol, Claude Fable 5, and Claude Opus 5.5 to my (Zooko's) specifications.
 
 ## Is BLAKE3 faster than SHA-256?
