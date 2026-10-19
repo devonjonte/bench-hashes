@@ -21,7 +21,7 @@ h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 17px; margin: 34px 0 6p
    the panel at the top, the names of the section on screen just under it. */
 .measures { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 8px; font-size: 12px; color: #6b7280;
   position: sticky; top: 0; z-index: 8; background: #fdfdfc; padding: 6px 0; }
-.legend:not(.inzoom) { position: sticky; top: var(--bar, 38px); z-index: 8; background: #fdfdfc; padding: 4px 0 6px; }
+.legend { position: sticky; top: var(--bar, 38px); z-index: 8; background: #fdfdfc; padding: 4px 0 6px; }
 .measures button { font: 12px inherit; border: 1px solid #c4b5fd; background: #f5f3ff; color: #4c1d95; border-radius: 12px; padding: 3px 10px 3px 8px; cursor: pointer; }
 .measures button svg { vertical-align: 0; margin-right: 5px; }
 /* The view's switch stands upright: its knob up, higher lines are better
@@ -51,8 +51,11 @@ a.doc { color: inherit; text-decoration: underline dotted #9ca3af; text-underlin
 .zoom { position: absolute; background: #fff; border: 1px solid #c4b5fd; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.12); z-index: 5; overflow: hidden; transition: left .2s, top .2s, width .2s, height .2s; cursor: zoom-out; }
 .zoom .title { position: absolute; left: 14px; top: 10px; font-size: 13px; color: #374151; display: flex; gap: 6px; align-items: center; }
 .zoom .close { position: absolute; right: 8px; top: 6px; font-size: 12px; color: #4b5563; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 3px 10px; cursor: pointer; }
-.legend.inzoom { position: absolute; left: 70px; bottom: 6px; margin: 0; gap: 6px; }
-.legend.inzoom button { font-size: 11px; padding: 2px 8px 2px 6px; }
+/* An opened chart's contenders: a line each, its toggle. */
+.zoom .key { position: absolute; right: 10px; display: flex; flex-direction: column; align-items: flex-start; }
+.zoom .key button { font: 11px inherit; line-height: 16px; height: 18px; border: none; background: none; padding: 0 4px; margin: 0; cursor: pointer; color: #4b5563; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; border-radius: 4px; }
+.zoom .key button b { color: var(--c); } .zoom .key button:hover { background: #f5f3ff; }
+.zoom .key button.off { opacity: .35; } .zoom .key button.off b { text-decoration: line-through; }
 /* A narrow screen (a phone): the grid scales to the screen's width, and a
    chart opens as a panel across it, at full size, under the bar. */
 @media (max-width: 999px) { body { margin: 10px; } .sub { font-size: 13px; } }
@@ -113,9 +116,12 @@ function draw(S, c, w, h, axes) {
   const SHAPES = ["●", "◆", "■", "▲", "▼"];
   const paths = i => c.kernels && c.kernels[i] ? [...new Set(c.kernels[i])] : [];
   const keyed = axes && MEASURES.wall ? live.filter(i => paths(i).length > 1) : [];
-  /* A phone's opened chart: its title takes two lines, its names three. */
+  /* An opened chart lists every contender it has, a line each, above the
+     plot (the lines are the toggles: open() places them), a phone's title
+     taking two lines; case labels may take two lines below it. */
+  const listed = axes ? c.series.map((v, i) => v ? i : -1).filter(i => i >= 0) : [];
   const tall = axes && narrow(), top = tall ? 72 : 40;
-  const n = c.sizes.length, L = axes ? (tall ? 50 : 70) : 8, R = axes ? (tall ? 12 : 24) : 34, T = axes ? top + 15 * keyed.length : 8, B = axes ? (tall ? 128 : 70) : 14;
+  const n = c.sizes.length, L = axes ? (tall ? 50 : 70) : 8, R = axes ? 52 : 34, T = axes ? top + 18 * listed.length : 8, B = axes ? (c.cases ? 64 : 48) : 14;
   /* Sizes run edge to edge; separate cases sit in the middles of equal slots. */
   const x = k => n === 1 || c.cases ? L + (k + 0.5) * (w - L - R) / n : L + k * (w - L - R) / (n - 1);
   const y = v => h - B - (Math.log(v) - lo) / (hi - lo) * (h - T - B);
@@ -124,7 +130,7 @@ function draw(S, c, w, h, axes) {
      ten, labelled small, show it in equal steps per factor of ten. */
   if (!axes) for (let e = Math.ceil(lo / Math.LN10); e <= Math.floor(hi / Math.LN10); e++) {
     s += `<line x1="${L}" x2="${w - R}" y1="${y(10 ** e)}" y2="${y(10 ** e)}" stroke="#eceae6"/>`;
-    s += `<text x="${w - R + 2}" y="${y(10 ** e) + 3}" font-size="8" fill="#a8a29e">${+(10 ** e).toPrecision(1)}</text>`;
+    s += `<text x="${L + 1}" y="${y(10 ** e) - 2}" font-size="8" fill="#b4aea8">${+(10 ** e).toPrecision(1)}</text>`;
   }
   if (axes) {
     for (let e = Math.floor(Math.log10(Math.exp(lo))) - 1; e <= Math.ceil(Math.log10(Math.exp(hi))); e++) for (const m of [1, 2, 5]) {
@@ -143,7 +149,10 @@ function draw(S, c, w, h, axes) {
       : `<path d="M10 ${mid - half - 4} V${mid - half - 18} M6.5 ${mid - half - 13} L10 ${mid - half - 18} L13.5 ${mid - half - 13}" stroke="#6b7280" stroke-width="1.3" fill="none"/>`;
     /* As many size labels as fit, about 48 px each. */
     const every = Math.max(1, Math.ceil(n * 48 / (w - L - R)));
-    c.sizes.forEach((lab, k) => { if (k % every === 0 || k === n - 1) s += `<text x="${x(k)}" y="${h - B + 16}" font-size="11" fill="#6b7280" text-anchor="middle">${lab}</text>`; });
+    /* Case labels wrap to the width of their slot, so neighbours never overlap. */
+    const slot = (w - L - R) / Math.max(n, 1), chars = Math.max(6, Math.floor(slot / 6.2));
+    const wrap = lab => lab.split(" ").reduce((lines, word) => { const last = lines[lines.length - 1]; if (last && (last + " " + word).length <= chars) lines[lines.length - 1] = last + " " + word; else lines.push(word); return lines; }, []);
+    c.sizes.forEach((lab, k) => { if (c.cases || k % every === 0 || k === n - 1) s += `<text x="${x(k)}" y="${h - B + 16}" font-size="11" fill="#6b7280" text-anchor="middle">${(c.cases ? wrap(lab) : [lab]).map((t, j) => `<tspan x="${x(k)}" dy="${j ? 13 : 0}">${t}</tspan>`).join("")}</text>`; });
     s += `<line class="cursor" x1="0" x2="0" y1="${T}" y2="${h - B}" stroke="#9ca3af" stroke-dasharray="3 3" visibility="hidden"/>`;
   }
   /* An earlier run beside this one: its lines dashed and pale, under the run's own. */
@@ -188,16 +197,19 @@ function draw(S, c, w, h, axes) {
   keyed.forEach((i, row) => {
     const ps = paths(i), shape = k => SHAPES[ps.indexOf(c.kernels[i][k]) % SHAPES.length];
     c.series[i].forEach((v, k) => { s += `<text x="${x(k)}" y="${y(shown(v)) + 4}" font-size="12" text-anchor="middle" fill="${S.colors[i]}" stroke="#fff" stroke-width="2.5" paint-order="stroke">${shape(k)}</text>`; });
-    const key = ps.map((p, j) => `${SHAPES[j % SHAPES.length]} ${p.replace(/&/g, "&amp;").replace(/</g, "&lt;")}`).join("   ");
-    s += `<text x="${L}" y="${top + 15 * row}" font-size="11" fill="#4b5563"><tspan fill="${S.colors[i]}" font-weight="600">${S.names[i]}</tspan>: ${key}</text>`;
   });
   /* A small chart's span: at its last point, a bracket from the worst line
      shown to the best, and how many times better the best is. */
-  if (!axes && MEASURES.wall) {
-    const k = n - 1, at = live.map(i => c.series[i][k]).filter(Boolean);
-    if (at.length > 1) {
-      const best = Math.min(...at), worst = Math.max(...at), y1 = y(shown(best)), y2 = y(shown(worst)), bx = w - R + 16;
-      if (worst / best >= 1.15) s += `<path d="M${bx - 3} ${y1} H${bx} V${y2} H${bx - 3}" fill="none" stroke="#6b7280" stroke-width="1"/><text x="${bx + 2}" y="${(y1 + y2) / 2 + 3}" font-size="9" fill="#374151">×${(worst / best).toPrecision(2)}</text>`;
+  /* The span, worst line shown to best, as a bracket: at a chart's last
+     point, and in an opened chart of separate cases at every case. */
+  if (MEASURES.wall) {
+    const at = axes && c.cases ? [...Array(n).keys()] : [n - 1];
+    for (const k of at) {
+      const vs = live.map(i => c.series[i][k]).filter(Boolean);
+      if (vs.length < 2) continue;
+      const best = Math.min(...vs), worst = Math.max(...vs), y1 = y(shown(best)), y2 = y(shown(worst));
+      const bx = x(k) + (axes ? 12 : 8), fs = axes ? 12 : 9;
+      if (worst / best >= 1.15) s += `<path d="M${bx - 3} ${y1} H${bx} V${y2} H${bx - 3}" fill="none" stroke="#6b7280" stroke-width="1"/><text x="${bx + 3}" y="${(y1 + y2) / 2 + fs / 3}" font-size="${fs}" fill="#374151">×${(worst / best).toPrecision(2)}</text>`;
     }
   }
   return { svg: s + "</svg>", x, n, L, R, w };
@@ -231,6 +243,8 @@ function render() {
   document.removeEventListener("keydown", window.onZoomKey || (() => {}));
   document.getElementById("tip").style.display = "none";
   root.style.minHeight = root.offsetHeight + "px"; root.innerHTML = ""; GRIDS = [];
+  /* A phone's opened chart lives outside the sections: it goes with them. */
+  document.querySelectorAll(".zoom.phone").forEach(z => z.remove());
     /* What the lines measure: wall-clock time by default; CPU time where the
      run recorded it; energy once the benchmark counts it. */
   const measures = document.createElement("div"); measures.className = "measures";
@@ -346,16 +360,22 @@ function open(S, grid, cell, q, row, col, layer) {
   const ln = S.layers.length > 1 ? ", " + S.layers.find(l => l[0] === layer)[1] : "";
   z.innerHTML = d.svg + `<div class="title">${glyph(row, 16)}${glyph(col, 16)} ${rn}, ${cn}${ln}: <code><a class="doc" href="${q.doc}" target="_blank" title="its documentation">${q.call}</a></code></div><button class="close">✕<span class="word"> put back</span></button>`;
   z.querySelector("a.doc").onclick = e => e.stopPropagation();
-  /* The section's names, inside the chart too: one hides or shows its lines here. */
-  const chips = document.createElement("div"); chips.className = "legend inzoom";
-  S.names.forEach((nm, i) => {
-    if (!q.series[i]) return;
-    const b = document.createElement("button"); b.textContent = nm; b.style.setProperty("--c", S.colors[i]);
+  /* Every contender the chart has, a line each under the title: its name,
+     and its code paths with their marks' shapes; a line is its toggle. */
+  const key = document.createElement("div"); key.className = "key";
+  key.style.left = d.L + "px"; key.style.top = (phone && narrow() ? 72 : 40) - 13 + "px";
+  const SH = ["●", "◆", "■", "▲", "▼"], esc = t => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  q.series.forEach((v, i) => {
+    if (!v) return;
+    const ps = q.kernels && q.kernels[i] ? [...new Set(q.kernels[i])] : [];
+    const b = document.createElement("button"); b.style.setProperty("--c", S.colors[i]);
+    b.innerHTML = `<b>${esc(S.names[i])}</b>${ps.length ? ": " + (ps.length > 1 ? ps.map((p, j) => `${SH[j % SH.length]} ${esc(p)}`).join("&nbsp;&nbsp; ") : esc(ps[0])) : ""}`;
     if (!S.shownNow[i]) b.classList.add("off");
+    b.title = b.textContent + (S.shownNow[i] ? " (click to hide its lines)" : " (click to show its lines)");
     b.onclick = e => { e.stopPropagation(); S.shownNow[i] = !S.shownNow[i]; render(); reopen(); };
-    chips.appendChild(b);
+    key.appendChild(b);
   });
-  z.appendChild(chips);
+  z.appendChild(key);
   if (instant) { place({ left: X0, top: Y0, width: W, height: H }); requestAnimationFrame(() => { z.style.transition = ""; }); }
   else requestAnimationFrame(() => place({ left: X0, top: Y0, width: W, height: H }));
   const lit = [...grid.querySelectorAll(".h")].filter(h => h.dataset.key === "row:" + row || h.dataset.key === "col:" + col);
