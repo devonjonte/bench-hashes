@@ -43,7 +43,8 @@ the notes) may still change, to say it better.
   October 18; bench-hashes #38, energy back by Zooko's decision): an
   `energy nJ` column beside `cpu ns`, each solo nonstop sample's CPU-package
   energy and each b3sum run's; `# kernels` header lines with every point's
-  code path; one `contender` key per b3sum build (`NAME: build ...`; it was
+  code path; a `core counts` column, each sample's calling-thread time and
+  cycles on P and E cores; one `contender` key per b3sum build (`NAME: build ...`; it was
   `contender NAME`, a name inside the key). The map draws energy dashed
   (GB per joule, or nJ per byte), and an opened chart marks each point's
   code path. v5 files are read with the tools of the commit that wrote them.
