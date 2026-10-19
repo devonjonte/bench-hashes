@@ -34,6 +34,8 @@ const { chromium } = require('playwright');
     await page.mouse.move(box.x + box.width / 2, Math.min(box.y + box.height / 2, Math.max(box.y + 60, 850)));
     assert(await page.locator('#tip').isVisible(), `chart ${i}: the values under the pointer`);
     assert(/\d/.test(await page.locator('#tip').textContent()), `chart ${i}: numbers in the tip`);
+    const tipBox = await page.locator('#tip').boundingBox(), view = page.viewportSize();
+    assert(tipBox.x >= 0 && tipBox.x + tipBox.width <= view.width, `chart ${i}: the values fit inside the window`);
     // A click on the plot (the names above it are toggles) puts it back.
     await page.locator('.zoom').click({ position: { x: box.width / 2, y: box.height * 0.7 } });
     await page.waitForTimeout(300);
@@ -91,6 +93,21 @@ const { chromium } = require('playwright');
   await page.locator('.cell:not(.empty)').first().click(); await page.waitForTimeout(300);
   await page.mouse.click(5, 5); await page.waitForTimeout(300);
   assert.equal(await page.locator('.zoom').count(), 0, 'a click outside puts the chart back');
+  // The widest values (every measure shown, a narrower window) still fit
+  // inside the window.
+  const narrowPage = await browser.newPage({ viewport: { width: 1000, height: 800 } });
+  narrowPage.on('pageerror', e => errors.push(e.message));
+  await narrowPage.goto(url);
+  for (const chip of ['CPU', 'joule']) {
+    const b = narrowPage.locator('.measures button', { hasText: chip }).first();
+    if (!(await b.isDisabled())) await b.click();
+  }
+  await narrowPage.locator('.cell:not(.empty)').first().click(); await narrowPage.waitForTimeout(300);
+  const wide = await narrowPage.locator('.zoom').boundingBox();
+  await narrowPage.mouse.move(wide.x + wide.width * 0.9, wide.y + wide.height * 0.6);
+  const wideTip = await narrowPage.locator('#tip').boundingBox();
+  assert(wideTip.x >= 0 && wideTip.x + wideTip.width <= 1000 && wideTip.y >= 0 && wideTip.y + wideTip.height <= 800, 'every measure\'s values fit inside the window');
+  await narrowPage.close();
   // A touch screen: tap a chart open, tap it for its values, tap the button.
   const phone = await browser.newPage({ viewport: { width: 420, height: 860 }, hasTouch: true, isMobile: true });
   phone.on('pageerror', e => errors.push(e.message));
@@ -108,8 +125,8 @@ const { chromium } = require('playwright');
   const lines = async () => phone.locator('.zoom polyline').count();
   const all = await lines();
   const shown = phone.locator('.zoom .key button:not(.off)').first();
-  const name = await shown.locator('b').textContent();
-  const named = () => phone.locator('.zoom .key button', { has: phone.locator('b', { hasText: new RegExp('^' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }) });
+  const name = await shown.textContent();
+  const named = () => phone.locator('.zoom .key button', { hasText: new RegExp('^' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') });
   await shown.tap(); await phone.waitForTimeout(300);
   assert.equal(await phone.locator('.zoom').count(), 1, 'a name tapped keeps the chart open');
   assert(/\boff\b/.test(await named().getAttribute('class')), 'the tapped name shows off');

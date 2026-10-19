@@ -39,15 +39,13 @@ the notes) may still change, to say it better.
   read into the program's buffer. A program that keeps to one thread
   hashes its inputs so; leaving servil st out broke the column's own rule
   and hid the one-thread line beside official's.
-- **Samples v6: energy, and each point's code path** (Devon Jonte's fork,
+- **Samples v6: energy, and where each sample ran** (Devon Jonte's fork,
   October 18; bench-hashes #38, energy back by Zooko's decision): an
   `energy nJ` column beside `cpu ns`, each solo nonstop sample's CPU-package
-  energy and each b3sum run's; `# kernels` header lines with every point's
-  code path; a `core counts` column, each sample's calling-thread time and
+  energy and each b3sum run's; a `core counts` column, each sample's calling-thread time and
   cycles on P and E cores; one `contender` key per b3sum build (`NAME: build ...`; it was
   `contender NAME`, a name inside the key). The map draws energy dashed
-  (GB per joule, or nJ per byte), and an opened chart marks each point's
-  code path. v5 files are read with the tools of the commit that wrote them.
+  (GB per joule, or nJ per byte). v5 files are read with the tools of the commit that wrote them.
 - **Energy beside wall time and CPU time** (Zooko, October 18, 2026,
   reversing October 17's lab-only rule; bench-hashes #38): the samples
   record energy where the platform gives a counter, and a cell without
@@ -65,8 +63,11 @@ the notes) may still change, to say it better.
   label each power of ten and bracket, at their last point, the span from
   the worst line shown to the best ("x6.2"; Zooko, October 19); an opened
   chart keeps the bracket, at every case where it holds separate cases. In
-  an opened chart the contenders' names, a line each above the plot with
-  their code paths, are the toggles (Zooko, October 19).
+  an opened chart the contenders' names above the plot are the toggles,
+  and the x axis names what its points are, with their unit (Zooko,
+  October 19). The code paths are reported nowhere: a stream's or a
+  pool's cannot be reported as a one-shot call's are, so none are (Zooko,
+  October 19, reversing October 18).
   Beside them, an upright switch: knob up, rate (GB/s, "higher is better", the default); knob down, cost (ns per
   byte, lower is faster; Zooko, October 18, the graph's toggle before the
   map, brought back): with CPU time, the processor time a byte costs
@@ -472,7 +473,7 @@ use case IdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 5
 use case ContinuousMessages: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case ContinuousBatches: 16, 64, 256, 1024, 4096, 16384, 65536
 use case LentMessages: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
-use case Interleaved: 256 open
+use case Interleaved: 256
 use case Collection: git objects, Nix files
 use case Outboard: 1 MiB, 64 MiB
 use case Verify: 1 MiB, 64 MiB

@@ -396,7 +396,7 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::lent("4 MiB", 4 * 1024 * 1024),
     Point::lent("16 MiB", 16 * 1024 * 1024),
     Point::lent("64 MiB", 64 * 1024 * 1024),
-    Point::interleaved("256 open", INTERLEAVED.chunk),
+    Point::interleaved("256", INTERLEAVED.chunk),
     Point::collection(0),
     Point::collection(1),
     Point::outboard("1 MiB", 1024 * 1024),
@@ -571,7 +571,8 @@ impl UseCase {
     /// The x column's header in the text report.
     fn column(self) -> &'static str {
         match self {
-            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved => "size",
+            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages => "size",
+            Self::Interleaved => "messages open",
             Self::Collection | Self::ContinuousCollection => "collection",
             Self::Outboard | Self::Verify => "size",
             Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => "messages",
@@ -614,7 +615,7 @@ impl UseCase {
     }
 
     /// The prefix that names this use case's points on the command line
-    /// ("interleaved 256 open"), empty for the first two.
+    /// ("interleaved 256"), empty for the first two.
     fn label_prefix(self) -> &'static str {
         match self {
             Self::OneMessage | Self::ManyMessages => "",
@@ -710,11 +711,9 @@ impl Point {
 /*
  * A contender is one hash implementation under test: which crate (the
  * crates.io blake3, the servil fork, sha2, ...) in which mode
- * (single-threaded or multithreaded). Which kernel that implementation
- * runs at each input size is chosen at run time and reported by
- * detect_kernels. Adding a contender means a variant here, an entry in
- * ALL, a key, a name, a color, a provenance string, a kernel description,
- * and an arm in hash_batch; the harness handles selection, interleaving,
+ * (single-threaded or multithreaded). Adding a contender means a variant
+ * here, an entry in ALL, a key, a name, a color, a provenance string, and
+ * an arm in hash_batch; the harness handles selection, interleaving,
  * and reporting for any count.
  */
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -800,9 +799,8 @@ impl Algorithm {
 
     /// Whether this contender can run in this build, or why not. A
     /// property of the target platform alone, so --list reads the same on
-    /// every machine of one platform; machine capacity (CPU count, which
-    /// kernel a CPU selects) shows up in the results and the kernel
-    /// report, never here.
+    /// every machine of one platform; machine capacity (CPU count, the
+    /// CPU's instructions) shows up in the results, never here.
     fn availability(self) -> Result<(), String> {
         match self {
             Self::Blake3
@@ -876,8 +874,7 @@ impl Algorithm {
     }
 
     /// The contender's mode: how many threads it may use and how, for the
-    /// report header. The kernels it runs are a separate matter (see
-    /// detect_kernels), chosen at run time.
+    /// report header.
     fn mode(self) -> &'static str {
         match self {
             Self::Blake3 => "single-threaded; blake3::hash for one message, the crate's hidden batch function blake3::platform::Platform::hash_many::<N> for a batch, sixteen messages per call",
@@ -889,7 +886,7 @@ impl Algorithm {
             Self::Blake3Commonware => "single-threaded; commonware-cryptography's Blake3::hash_many for a batch, one message per SIMD lane (NEON 4 on AArch64; AVX2 8, AVX-512 16 on x86-64), its digests in a new Vec each call",
             Self::Blake3ServilSt => "single-threaded; blake3_servil::hash for one message, blake3_servil::hash_many for a batch, Hasher::update per piece for many messages at once",
             Self::Blake3Rayon => "multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread",
-            Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: the fork chooses when to wake its worker threads; the kernel tables below show the one-shot calls' thresholds",
+            Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: the fork chooses when to wake its worker threads",
         }
     }
 
@@ -1272,7 +1269,7 @@ cell sampled in a share of them.
                                    --all
   --points LABEL,...               measure only these points (labels as in the
                                    report: \"64 B\", \"8 MiB\", \"1024\" messages,
-                                   \"interleaved 256 open\", \"continuous 64 KiB\",
+                                   \"interleaved 256\", \"continuous 64 KiB\",
                                    \"continuous batch 1024\"); with
                                    --contenders only
   --rounds N                       exactly N sample rounds, every cell sampled in each
@@ -1420,7 +1417,7 @@ fn parse_arguments() -> Options {
 
 /*
  * The point a `--points` name names: a label's prefix names its use cases
- * ("interleaved 256 open", "idle 16", "continuous batch 1024"), the longest
+ * ("interleaved 256", "idle 16", "continuous batch 1024"), the longest
  * prefix that matches, the plain label the calls after other work.
  */
 fn point_named(name: &str) -> usize {
@@ -3596,7 +3593,7 @@ fn calibrate_batch(
      * would size its samples short: untimed batches first (Devon Jonte,
      * bench-hashes#4: the queue's 64 B samples 154-199 us against the 1 ms
      * target; the Mac's 176 us), and each probe the fastest of three. One
-     * untimed batch and one probe left Interleaved 256 open still warming
+     * untimed batch and one probe left Interleaved 256 still warming
      * in some builds (i7-12700K: probes 0.57-0.79 ms against 0.28 ms an
      * iteration steady), which halved its samples and read it 4-10% slower
      * with no slower hashing (johnservil/bench-hashes#11).
@@ -3663,368 +3660,6 @@ fn calibrate_batch(
 
 /// A cell's summary from its samples: their mean (clocks::summary), kept
 /// exact for display.
-
-/*
- * One code path a contender uses for a range of input sizes. `first` is the
- * smallest input in bytes that takes this path; a contender's kernels are
- * listed in ascending order of `first`, the first starting at 0.
- */
-#[derive(Clone)]
-struct Kernel {
-    first: usize,
-    /// Short name for the report and the hover panel, e.g. "NEON hash_many".
-    name: String,
-}
-
-/*
- * A contender's code paths by input size, with the platform name for the
- * report header. `kernels` is non-empty, ascending in `first`, and starts
- * at 0.
- */
-struct Kernels {
-    platform: &'static str,
-    kernels: Vec<Kernel>,
-}
-
-impl Kernels {
-    fn new(platform: &'static str, kernels: Vec<Kernel>) -> Self {
-        assert!(!kernels.is_empty(), "a contender has at least one kernel");
-        assert_eq!(kernels[0].first, 0, "the first kernel covers the smallest inputs");
-        assert!(
-            kernels.windows(2).all(|pair| pair[0].first < pair[1].first),
-            "kernels ascend in their first input size"
-        );
-        Self { platform, kernels }
-    }
-
-    /// The kernels that start at `bytes` or below: those an input of at
-    /// most `bytes` can reach.
-    fn up_to(mut self, bytes: usize) -> Self {
-        self.kernels.retain(|kernel| kernel.first <= bytes);
-        self
-    }
-
-    /// Index of the kernel for an input of `bytes` (a batch's bytes in all).
-    fn kernel_index_for(&self, bytes: usize) -> usize {
-        self.kernels
-            .iter()
-            .rposition(|kernel| bytes >= kernel.first)
-            .expect("the first kernel starts at 0")
-    }
-}
-
-/*
- * Code paths of the crates.io blake3 crate, from BLAKE3 v1.8.7's
- * src/platform.rs and the SIMD hash_many fallback chains. One chunk is
- * 1024 bytes; hash_many batches whole chunks and hands leftovers below the
- * SIMD degree to the single-chunk path.
- */
-fn detect_blake3_kernels() -> Kernels {
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    {
-        let (platform, one, wide, degree) = if std::arch::is_x86_feature_detected!("avx512f")
-            && std::arch::is_x86_feature_detected!("avx512vl")
-        {
-            ("AVX-512", "AVX-512 vectors, one chunk at a time", "AVX-512 vectors, sixteen chunks at a time", 16)
-        } else if std::arch::is_x86_feature_detected!("avx2") {
-            ("AVX2", "SSE4.1 vectors, one chunk at a time", "AVX2 vectors, eight chunks at a time", 8)
-        } else if std::arch::is_x86_feature_detected!("sse4.1") {
-            ("SSE4.1", "SSE4.1 vectors, one chunk at a time", "SSE4.1 vectors, four chunks at a time", 4)
-        } else if std::arch::is_x86_feature_detected!("sse2") {
-            ("SSE2", "SSE2 vectors, one chunk at a time", "SSE2 vectors, four chunks at a time", 4)
-        } else {
-            ("portable", "portable code, one chunk at a time", "portable code", 1)
-        };
-        let mut kernels = vec![Kernel {
-            first: 0,
-            name: one.to_owned(),
-        }];
-        if degree > 4 {
-            kernels.push(Kernel {
-                first: 4 * 1024,
-                name: "SSE4.1 vectors, four chunks at a time".to_owned(),
-            });
-        }
-        if degree > 1 {
-            kernels.push(Kernel {
-                first: degree * 1024,
-                name: wide.to_owned(),
-            });
-        }
-        return Kernels::new(platform, kernels);
-    }
-
-    #[cfg(target_arch = "aarch64")]
-    {
-        return Kernels::new(
-            "NEON",
-            vec![
-                Kernel {
-                    first: 0,
-                    name: "portable code, one chunk at a time".to_owned(),
-                },
-                Kernel {
-                    first: 4 * 1024,
-                    name: "NEON vectors, four chunks at a time".to_owned(),
-                },
-            ],
-        );
-    }
-
-    #[allow(unreachable_code)]
-    Kernels::new(
-        "portable",
-        vec![Kernel {
-            first: 0,
-            name: "portable code".to_owned(),
-        }],
-    )
-}
-
-/*
- * SHA-256 and SHA-1DC each run one code path at every size. Their kernels
- * still carry a name so the hover panel can say what produced the point.
- */
-fn detect_sha256_kernels() -> Kernels {
-    let name = if cfg!(target_arch = "aarch64") {
-        "the CPU's SHA-256 instructions"
-    } else if cfg!(any(target_arch = "x86", target_arch = "x86_64")) {
-        "the CPU's SHA-256 instructions, where it has them"
-    } else {
-        "portable code"
-    };
-    Kernels::new(
-        "sha2",
-        vec![Kernel {
-            first: 0,
-            name: name.to_owned(),
-        }],
-    )
-}
-
-/// commonware's batch kernel: its own choice, by the same detection.
-fn detect_commonware_kernels() -> Kernels {
-    #[cfg(target_arch = "x86_64")]
-    let name = if std::arch::is_x86_feature_detected!("avx512f") { "AVX-512, 16 messages a call" } else if std::arch::is_x86_feature_detected!("avx2") { "AVX2, 8 messages a call" } else { "blake3::hash, one message a call" };
-    #[cfg(target_arch = "aarch64")]
-    let name = "NEON, 4 messages a call";
-    #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-    let name = "blake3::hash, one message a call";
-    Kernels::new("commonware", vec![Kernel { first: 0, name: name.to_owned() }])
-}
-
-fn detect_sha3_kernels() -> Kernels {
-    #[cfg(target_arch = "aarch64")]
-    let instructions = std::arch::is_aarch64_feature_detected!("sha3");
-    #[cfg(not(target_arch = "aarch64"))]
-    let instructions = false;
-    Kernels::new(
-        "sha3",
-        vec![Kernel {
-            first: 0,
-            name: if instructions { "ARMv8 SHA-3 instructions".to_owned() } else { "portable code".to_owned() },
-        }],
-    )
-}
-
-fn detect_sha1dc_kernels() -> Kernels {
-    Kernels::new(
-        "sha1-checked",
-        vec![Kernel {
-            first: 0,
-            name: "portable code with collision detection".to_owned(),
-        }],
-    )
-}
-
-fn detect_common_crypto_kernels() -> Kernels {
-    Kernels::new(
-        "CommonCrypto",
-        vec![Kernel {
-            first: 0,
-            name: "Apple's library, with the CPU's SHA-256 instructions".to_owned(),
-        }],
-    )
-}
-
-fn detect_ring_kernels() -> Kernels {
-    let name = if cfg!(target_arch = "aarch64") {
-        "the CPU's SHA-256 instructions, interleaved"
-    } else if cfg!(any(target_arch = "x86", target_arch = "x86_64")) {
-        "the CPU's SHA-256 instructions, or vector code"
-    } else {
-        "portable code"
-    };
-    Kernels::new(
-        "ring",
-        vec![Kernel {
-            first: 0,
-            name: name.to_owned(),
-        }],
-    )
-}
-
-/*
- * The servil fork describes its own kernels: kernel_report() and
- * kernel_report_multithreaded() come from the same run-time detection
- * its hash functions use, so the report describes what was measured.
- */
-fn servil_kernels(report: blake3_servil::KernelReport) -> Kernels {
-    let kernels = report.kernels.iter().map(|kernel| Kernel { first: kernel.from_len, name: kernel.name.to_owned() }).collect();
-    Kernels::new(report.platform, kernels)
-}
-
-/// The code paths a contender runs in a use case, by the point's bytes.
-/// The contender must take part in the use case.
-fn detect_kernels(algorithm: Algorithm, use_case: UseCase) -> Kernels {
-    assert!(algorithm.takes_part(use_case), "{} takes no part in {use_case:?}", algorithm.name());
-    /* A call the library reports no kernels for: its name, saying so. */
-    let unreported = |api: &str| Kernels::new("API (kernel unreported)", vec![Kernel { first: 0, name: format!("{api} (kernels unreported)") }]);
-    // The stream and incremental MT APIs have no kernel-report entry point.
-    // Their known API boundaries remain useful; their schedules stay
-    // explicitly unreported instead of inheriting one-shot thresholds.
-    if use_case == UseCase::Verify {
-        return unreported(if algorithm == Algorithm::Blake3 { "bao-tree decode_ranges" } else { "Verifier::update" });
-    }
-    if use_case == UseCase::Outboard {
-        return unreported(match algorithm {
-            Algorithm::Blake3 => "bao-tree PreOrderMemOutboard::create",
-            Algorithm::Blake3ServilMt => "outboard_multithreaded_with",
-            _ => "outboard_with",
-        });
-    }
-    if algorithm == Algorithm::Blake3ServilSt && use_case == UseCase::Collection {
-        return unreported("hash_each_with");
-    }
-    if algorithm == Algorithm::Blake3ServilSt && use_case == UseCase::Interleaved {
-        return unreported("Hasher::update_each");
-    }
-    if algorithm == Algorithm::Blake3ServilMt {
-        let api = match use_case {
-            UseCase::ContinuousMessages | UseCase::ContinuousCollection => Some("Stream::submit_with"),
-            UseCase::ContinuousBatches => Some("Stream::submit_batch_with"),
-            UseCase::Interleaved => Some("Hasher::update_each_multithreaded"),
-            UseCase::Collection => Some("hash_each_multithreaded_with"),
-            _ => None,
-        };
-        if let Some(api) = api {
-            return unreported(api);
-        }
-    }
-    let one_message = match algorithm {
-        Algorithm::Blake3 => detect_blake3_kernels(),
-        Algorithm::Sha256 => detect_sha256_kernels(),
-        Algorithm::Sha1Dc => detect_sha1dc_kernels(),
-        Algorithm::Sha3_256 => detect_sha3_kernels(),
-        Algorithm::Blake3ServilSt => servil_kernels(blake3_servil::kernel_report()),
-        Algorithm::Sha256CommonCrypto => detect_common_crypto_kernels(),
-        Algorithm::Sha256Ring => detect_ring_kernels(),
-        Algorithm::Blake3Rayon => detect_blake3_rayon_kernels(),
-        Algorithm::Blake3ServilMt => servil_kernels(blake3_servil::kernel_report_multithreaded()),
-        Algorithm::Blake3Commonware => detect_commonware_kernels(),
-    };
-    match use_case {
-        /* An idle use case makes its twin's call. */
-        UseCase::IdleOneMessage | UseCase::IdleManyMessages => detect_kernels(algorithm, use_case.call()),
-        UseCase::OneMessage | UseCase::LentMessages | UseCase::Collection | UseCase::Outboard | UseCase::Verify => one_message,
-        /* Each item a call on the program's thread, of its own length. */
-        UseCase::ContinuousCollection => one_message,
-        /* Pieces run the one-message kernels, so those that start past the longest piece never run. */
-        UseCase::Interleaved => one_message.up_to(16 * 1024),
-        /* A message of up to PIECE_LEN is one call's input; a longer one arrives in pieces. */
-        UseCase::ContinuousMessages => one_message.up_to(PIECE_LEN),
-        UseCase::ContinuousBatches | UseCase::LentBatches => detect_kernels(algorithm, UseCase::ManyMessages),
-        UseCase::ManyMessages if algorithm == Algorithm::Blake3 => {
-            detect_blake3_many_kernels(use_case.message_len())
-        }
-        UseCase::ManyMessages if algorithm == Algorithm::Blake3ServilSt => {
-            servil_kernels(blake3_servil::kernel_report_many(use_case.message_len()))
-        }
-        UseCase::ManyMessages if algorithm == Algorithm::Blake3ServilMt => {
-            servil_kernels(blake3_servil::kernel_report_many_multithreaded(use_case.message_len()))
-        }
-        UseCase::ManyMessages => {
-            /* One call per message: the kernel for the message's length, whatever the batch size. */
-            let kernel = &one_message.kernels[one_message.kernel_index_for(use_case.message_len())];
-            Kernels::new(
-                one_message.platform,
-                vec![Kernel {
-                    first: 0,
-                    name: format!("{}, one message per call", kernel.name),
-                }],
-            )
-        }
-    }
-}
-
-/*
- * The blake3 crate's hidden batch function as blake3_batch calls it,
- * sixteen messages per call: each call hashes its messages in groups as
- * wide as the platform's widest vectors (the SIMD degree the one-message
- * table's last kernel names) and the rest one at a time.
- */
-fn detect_blake3_many_kernels(message_len: usize) -> Kernels {
-    let blake3 = detect_blake3_kernels();
-    let degree = (blake3.kernels[blake3.kernels.len() - 1].first / 1024).max(1);
-    let words = match degree {
-        4 => "four",
-        8 => "eight",
-        16 => "sixteen",
-        _ => "several",
-    };
-    let mut kernels = vec![Kernel {
-        first: 0,
-        name: "one message at a time".to_owned(),
-    }];
-    if degree > 1 {
-        kernels.push(Kernel {
-            first: degree * message_len,
-            name: format!("{} vectors, {words} messages at a time", blake3.platform),
-        });
-    }
-    Kernels::new(blake3.platform, kernels)
-}
-
-/*
- * update_rayon splits the tree with rayon::join down to the SIMD degree,
- * so any input above one SIMD width of chunks may cross threads; the
- * kernel boundary is where the crate's serial path ends.
- */
-fn detect_blake3_rayon_kernels() -> Kernels {
-    let single = detect_blake3_kernels();
-    let degree_bytes = single.kernels.last().map(|r| r.first).unwrap_or(0).max(2 * 1024);
-    Kernels::new(
-        single.platform,
-        vec![
-            Kernel {
-                first: 0,
-                name: "on the calling thread".to_owned(),
-            },
-            Kernel {
-                first: 2 * degree_bytes,
-                name: "split over Rayon's threads".to_owned(),
-            },
-        ],
-    )
-}
-
-/// The kernels a contender ran in a use case, by point: one line for a
-/// contender with a single kernel, a table for one that changes kernel
-/// along the axis.
-fn append_kernel_report(output: &mut String, algorithm: Algorithm, use_case: UseCase) {
-    let kernels = detect_kernels(algorithm, use_case);
-    let mut line = format!("    {}:", algorithm.name());
-    let mut previous = None;
-    for point in &POINTS[use_case.points()] {
-        let kernel_index = kernels.kernel_index_for(point.bytes);
-        if previous != Some(kernel_index) {
-            let separator = if previous.is_some() { ";" } else { "" };
-            write!(line, "{separator} {} {}", point.label, kernels.kernels[kernel_index].name).unwrap();
-            previous = Some(kernel_index);
-        }
-    }
-    writeln!(output, "{line}").unwrap();
-}
 
 /*
  * Every sample, for tools that do their own statistics (the fork's
@@ -4578,15 +4213,6 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
         ("points".to_owned(), roster.points.iter().map(|&index| POINTS[index].label).collect::<Vec<_>>().join(",")),
     ]);
     let mut out = samples_header(machine, &run);
-    for &algorithm in &roster.algorithms {
-        for use_case in UseCase::ALL.iter().filter(|&&use_case| algorithm.takes_part(use_case)) {
-            let kernels = detect_kernels(algorithm, *use_case);
-            writeln!(out, "# kernel platform {} {:?}: {}", algorithm.key(), use_case, kernels.platform).unwrap();
-            // The code path at every point, for the map's marks.
-            let at: Vec<String> = POINTS[use_case.points()].iter().map(|p| format!("{}={}", p.label, kernels.kernels[kernels.kernel_index_for(p.bytes)].name)).collect();
-            writeln!(out, "# kernels {} {:?}: {}", algorithm.key(), use_case, at.join(" | ")).unwrap();
-        }
-    }
     writeln!(out, "{SAMPLES_COLUMNS}").unwrap();
     for (algorithm_index, &algorithm) in roster.algorithms.iter().enumerate() {
         for scenario in Scenario::ALL {
@@ -4636,9 +4262,8 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
 
 /*
  * The text report: results first, one table per scenario and use case,
- * each cell's mean;
- * then which code path each contender ran, and where the numbers came
- * from, for whoever needs to trust or reproduce them.
+ * each cell's mean; then where the numbers came from, for whoever needs
+ * to trust or reproduce them.
  */
 fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, selection_note: &str) -> String {
     let mut output = String::new();
@@ -4679,15 +4304,6 @@ fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, 
             append_table(&mut output, roster, results, scenario, use_case);
         }
     }
-
-    writeln!(output, "KERNELS: the code path each contender ran, from the point named on (a call after idling runs the same as after other work).").unwrap();
-    for use_case in UseCase::ALL.into_iter().filter(|&use_case| use_case.call() == use_case) {
-        writeln!(output, "  {}:", use_case.heading()).unwrap();
-        for &algorithm in roster.algorithms.iter().filter(|algorithm| algorithm.takes_part(use_case)) {
-            append_kernel_report(&mut output, algorithm, use_case);
-        }
-    }
-    writeln!(output).unwrap();
 
     writeln!(output, "PROVENANCE").unwrap();
     writeln!(output, "  bench-hashes {BENCH_VERSION}, {GIT_SOURCE}, commit {GIT_COMMIT} ({GIT_CLEAN_STATUS})").unwrap();
@@ -4997,7 +4613,7 @@ fn json_string(text: &str) -> String {
 /* Provenance that describes the run as a whole. */
 
 /* Provenance that belongs to one contender and hides with it: the
-   implementation, its mode, and the platform its kernels ran on. */
+   implementation and its mode. */
 
 fn xml_escape(input: &str) -> String {
     let mut escaped = String::with_capacity(input.len());
@@ -5308,7 +4924,7 @@ mod correctness_tests {
             assert_eq!((owned.label, owned.bytes), (lent.label, lent.bytes));
         }
         let many = POINTS[UseCase::Interleaved.points()][0];
-        assert!(many.bytes == INTERLEAVED.chunk && many.label == "256 open" && INTERLEAVED.open == 256, "many messages at once: 256 open, a unit of INTERLEAVED.chunk bytes");
+        assert!(many.bytes == INTERLEAVED.chunk && many.label == "256" && INTERLEAVED.open == 256, "many messages at once: 256 messages open, a unit of INTERLEAVED.chunk bytes");
         for (k, point) in POINTS[UseCase::ContinuousMessages.points()].iter().enumerate() {
             assert_eq!(point.bytes, 64 << (2 * k), "the continuous messages go up by factors of four from 64 B");
         }

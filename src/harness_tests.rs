@@ -5,24 +5,6 @@
 use super::*;
 
 #[test]
-fn asynchronous_labels_describe_the_measured_api() {
-    for (use_case, api) in [
-        (UseCase::ContinuousBatches, "Stream::submit_batch_with (kernels unreported)"),
-        (UseCase::Interleaved, "Hasher::update_each_multithreaded (kernels unreported)"),
-    ] {
-        let kernels = detect_kernels(Algorithm::Blake3ServilMt, use_case);
-        assert_eq!(kernels.platform, "API (kernel unreported)");
-        assert_eq!(kernels.kernels.len(), 1);
-        assert_eq!(kernels.kernels[0].name, api);
-        assert_eq!(kernels.kernels[0].first, 0);
-    }
-    let messages = detect_kernels(Algorithm::Blake3ServilMt, UseCase::ContinuousMessages);
-    assert_eq!(messages.platform, "API (kernel unreported)");
-    assert_eq!(messages.kernels.len(), 1);
-    assert_eq!(messages.kernels[0].name, "Stream::submit_with (kernels unreported)");
-}
-
-#[test]
 fn batch_digest_storage_survives_a_smaller_cell_without_zeroing() {
     let mut large = take_batch_digests(8192);
     large.fill([0xa5; 32]);

@@ -280,12 +280,10 @@ every AArch64 core runs the scalar and integer + NEON hybrid kernels.
 On x86-64 it runs the crates.io crate's assembly kernels (SSE4.1, AVX2,
 AVX-512) and kernels of its own: passes that hash whole chunks and a
 partial one together, and batches of messages of two to fifteen chunks
-hashed across the messages. The report's kernel table names the
-platform the run measured. Its provenance line gives the repository,
+hashed across the messages. Its provenance line gives the repository,
 branch, and commit instead of a registry checksum. For a batch the fork's `hash_many`
 hashes messages of one to sixteen blocks many lanes at a time (sixteen
-per group on SME2, NEON below a group), and
-`kernel_report_many(message_len)` describes that by batch size.
+per group on SME2, NEON below a group).
 
 BLAKE3 official mt is the crates.io crate's own multithreading, called as a
 program calls it by default: `Hasher::new().update_rayon(input)` on
@@ -299,7 +297,7 @@ columns compare like for like.
 
 BLAKE3 servil mt is the fork's `blake3_servil::hash_multithreaded`,
 which returns the same hash as `blake3_servil::hash`. Inputs below
-the threshold shown in the kernel table stay on the calling thread.
+its split (512 KiB) stay on the calling thread.
 Larger inputs can split at subtree
 boundaries across the calling thread and worker threads the fork starts
 once per process and keeps; the caller merges the chaining values. How
@@ -311,15 +309,13 @@ The fork also offers `hash_multithreaded_with_budget(input,
 max_threads)` to cap one call's threads; the contender measures the
 uncapped call.
 
-The benchmark touches each implementation in three ways only: it lists
+The benchmark touches each implementation in two ways only: it lists
 it; it calls the entry points its users call, with no cap, pool, or
 wrapper of its own: its one-message call (`hash`, `hash_multithreaded`,
 `Hasher::update_rayon`, `digest`), its batch call where it has one
 (`hash_many`, `hash_many_multithreaded`, the crates.io crate's hidden
 `Platform::hash_many`), its incremental API (`update`,
-`update_multithreaded`), and for servil mt its stream; and it asks the
-servil fork to describe its kernels (`kernel_report()` and its `_many`
-and `_multithreaded` forms). It asks for no machine capacity, sets no
+`update_multithreaded`), and for servil mt its stream. It asks for no machine capacity, sets no
 environment, and checks no digests: each crate's own tests do.
 
 SHA-256 CommonCrypto, on Apple platforms only, calls the system's
@@ -360,21 +356,18 @@ kernel (every block including the root compression, with the state in
 registers throughout), two to fifteen chunks on integer + NEON hybrid
 kernels, and groups of sixteen on the SME2 kernel (16 KiB and above).
 BLAKE3 official mt leaves the caller's thread above one SIMD width of chunks;
-BLAKE3 servil mt can split over threads from the length its kernel table
-shows (512 KiB on an Apple M4 Max), another path with its own dot shape. SHA-256, SHA3-256, and SHA-1DC run one path at every size.
+BLAKE3 servil mt can split over threads from 512 KiB. SHA-256, SHA3-256, and SHA-1DC run one path at every size.
 
 In the many-messages use cases a contender looping one message per call
 runs the kernel for its message length at every batch size; the
 crates.io crate's batch function changes path at the platform's SIMD
 degree (four on NEON); BLAKE3 servil's at two (the NEON hybrid parent
 kernels) and at sixteen (the SME2 group kernel), and servil mt's again
-where a batch may leave the calling thread (the kernel table says
-where).
+where a batch may leave the calling thread.
 
-The text report lists the kernel at each point for every contender in
-each use case (one line for a contender with a single kernel) and marks
-where a new one begins. Colour stays with the contender, so a line keeps
-one colour while its dots change shape.
+These paths explain a line's bends; the benchmark measures them and
+reports none of them (Zooko, October 19: the paths of a stream or a
+pool cannot be reported alike, so none are).
 
 These inferences follow BLAKE3 v1.8.7's `src/platform.rs` and the
 fork's `src/ffi_sme2.rs` and `src/ffi_neon_hybrid.rs`.
@@ -497,12 +490,6 @@ among them, unless a run says `--threads N`, which sets it for the whole
 run (the pool is the process's): the samples' `contenders` line records it,
 and the map names the contender "BLAKE3 servil mt, N threads". `--threads 2`
 measures the smallest pipeline, one worker beside the program's thread.
-
-**Code paths.** The samples file names each contender's code path at
-every point (`# kernels CONTENDER USECASE: POINT=PATH | ...`), as the
-report's KERNELS section does, so a map drawn later or elsewhere marks
-them: an opened chart shows each point's path as a shape, keyed under its
-title.
 
 `bench-hashes regress [--full] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE...` judges two
 builds the same way: eight pairs of runs (`--pairs`), pair i running the i-th
@@ -718,7 +705,7 @@ of its executable.
 Release builds use optimization level 3, fat LTO, one codegen unit,
 abort-on-panic, and no incremental compilation, for the target's
 generic CPU, as programs are shipped: every contender chooses its code
-path from the CPU it finds at run time (the kernel tables say which).
+path from the CPU it finds at run time.
 
 The build script reads `Cargo.lock` and embeds each contender crate's
 resolved version, registry checksum or git commit, and source, and this
@@ -743,7 +730,7 @@ that function (after idling, after other work, nonstop; alone or beside
 another program, where measured). A sentence above the chart says from
 which size the call leads SHA-256, computed from the dots. Hovering a dot
 gives what a caller waits for, the time of one call or batch to three
-significant digits, with the rate and the code path; for the queue that
+significant digits, with the rate; for the queue that
 time is the stream's average per input with many in flight.
 `Queue::messages` covers messages up to 64 KiB and `Queue::pieces` the
 longer ones. For a message arriving in pieces now and then, the guide

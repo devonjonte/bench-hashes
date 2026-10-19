@@ -87,9 +87,8 @@ default), per second of processor time across all its threads (dotted),
 or per joule the CPU package used (dashed, where the computer counts
 energy). A hash on one thread draws its first two together; a
 multithreaded one shows here what its speed costs the machine. An opened
-chart marks each point's code path with a shape, and its values say where
-the program's thread ran (performance or efficiency cores, and at what
-clock).
+chart's values say where the program's thread ran (performance or
+efficiency cores, and at what clock).
 
 Under each section's title the map says where and when the run was made,
 and whether other programs kept the computer busy; "About this run" says

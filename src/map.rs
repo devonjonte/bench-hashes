@@ -41,6 +41,17 @@ pub fn cell_key(scenario: &str, use_case: UseCase) -> String {
 
 const DOCS: &str = "https://johnservil.github.io/BLAKE3/blake3_servil/";
 
+/// What a chart's points are, with their unit: the opened chart's x axis
+/// and the tooltip's heading.
+fn axis(use_case: UseCase) -> &'static str {
+    match use_case {
+        UseCase::Interleaved => "messages open at once",
+        UseCase::Collection | UseCase::ContinuousCollection => "collection",
+        _ if use_case.batch() => "messages in the batch (64 B each)",
+        _ => "message size",
+    }
+}
+
 /// What one unit of a point's time pays for, in the tooltip's words.
 fn what(use_case: UseCase) -> &'static str {
     match use_case {
@@ -102,6 +113,8 @@ struct Chart {
     cases: bool,
     per: Vec<u64>,
     what: &'static str,
+    /// What the points are (axis).
+    axis: &'static str,
     series: Vec<Option<Vec<f64>>>,
     /// An earlier run's means at the same points, by contender (a map
     /// drawn beside it; empty otherwise): None where it has none.
@@ -111,9 +124,6 @@ struct Chart {
     cpu: Vec<Option<Vec<Option<f64>>>>,
     /// Energy per unit (nJ), alike.
     energy: Vec<Option<Vec<Option<f64>>>>,
-    /// The code path each contender ran at each point, as the run recorded
-    /// it (`# kernels` headers): None where it recorded none.
-    kernels: Vec<Option<Vec<String>>>,
     /// Where the calling thread ran at each point, by contender, from the
     /// samples' core counts: [share of its time on E cores, P GHz, E GHz]
     /// (a clock 0 where it spent no time on that kind); None where none.
@@ -132,9 +142,8 @@ impl Chart {
             Some(v) => format!("[{}]", v.iter().map(|x| x.map_or("null".to_owned(), |x| format!("{x:.6}"))).collect::<Vec<_>>().join(",")),
             None => "null".to_owned(),
         }).collect::<Vec<String>>().join(",");
-        format!("{{\"sizes\":[{}],\"unit\":{},\"call\":{},\"doc\":{},\"cases\":{},\"per\":[{}],\"what\":{},\"series\":[{}],\"before\":[{}],\"cpu\":[{}],\"energy\":[{}],\"kernels\":[{}],\"cores\":[{}]}}",
-            sizes.join(","), json(self.unit), json(&self.call), json(&self.doc), self.cases, per.join(","), json(self.what), series.join(","), optional(&self.before), optional(&self.cpu), optional(&self.energy),
-            self.kernels.iter().map(|k| match k { Some(v) => format!("[{}]", v.iter().map(|n| json(n)).collect::<Vec<_>>().join(",")), None => "null".to_owned() }).collect::<Vec<_>>().join(","),
+        format!("{{\"sizes\":[{}],\"unit\":{},\"call\":{},\"doc\":{},\"cases\":{},\"per\":[{}],\"what\":{},\"axis\":{},\"series\":[{}],\"before\":[{}],\"cpu\":[{}],\"energy\":[{}],\"cores\":[{}]}}",
+            sizes.join(","), json(self.unit), json(&self.call), json(&self.doc), self.cases, per.join(","), json(self.what), json(self.axis), series.join(","), optional(&self.before), optional(&self.cpu), optional(&self.energy),
             self.cores.iter().map(|c| match c {
                 Some(v) => format!("[{}]", v.iter().map(|x| x.map_or("null".to_owned(), |[e, p, q]| format!("[{e:.4},{p:.3},{q:.3}]"))).collect::<Vec<_>>().join(",")),
                 None => "null".to_owned(),
@@ -296,23 +305,12 @@ fn hashing(path: &Path) -> Section {
                 lines
             };
             let (cpu_lines, energy_lines) = (lines(&file.cpu), lines(&file.energy));
-            // Each contender's code path at each measured point (bao-tree's: none).
-            let mut kernels: Vec<Option<Vec<String>>> = algorithms.iter().map(|a| {
-                let line = header(&file.headers, &format!("kernels {} {use_case:?}", a.key()));
-                let at: std::collections::HashMap<&str, &str> = line.split(" | ").filter_map(|kv| kv.split_once('=')).collect();
-                measured.iter().map(|p| at.get(p.label).map(|n| n.to_string())).collect::<Option<Vec<String>>>()
-            }).collect();
             let mut cores: Vec<Option<Vec<Option<[f64; 3]>>>> = algorithms.iter().map(|a| {
                 let line: Vec<Option<[f64; 3]>> = measured.iter().map(|p| where_ran(&file.cores, &format!("{}|{scenario}|{use_case:?}|{}", a.key(), p.label))).collect();
                 line.iter().any(Option::is_some).then_some(line)
             }).collect();
             let bao_cores = if matches!(use_case, UseCase::Outboard | UseCase::Verify) { official.and_then(|i| cores[i].take()) } else { None };
             cores.push(bao_cores);
-            if matches!(use_case, UseCase::Outboard | UseCase::Verify) {
-                // Official's line here is bao-tree's, whose code paths these are not.
-                if let Some(i) = official { kernels[i] = None; }
-            }
-            kernels.push(None);
             cells.push((cell_key(scenario, use_case), Chart {
                 sizes: measured.iter().map(|p| p.label.to_owned()).collect(),
                 unit: "GB/s",
@@ -321,11 +319,11 @@ fn hashing(path: &Path) -> Section {
                 cases: matches!(use_case, UseCase::Interleaved | UseCase::Collection | UseCase::ContinuousCollection),
                 per: measured.iter().map(|p| p.bytes as u64).collect(),
                 what: what(use_case),
+                axis: axis(use_case),
                 series,
                 before: Vec::new(),
                 cpu: cpu_lines,
                 energy: energy_lines,
-                kernels,
                 cores,
             }));
         }
@@ -335,7 +333,7 @@ fn hashing(path: &Path) -> Section {
         rows: vec![
             ("one", "one message", "One message in memory, of the length along the chart's axis."),
             ("batch", "a batch of short messages", "Many 64-byte messages hashed together, such as a Merkle tree's nodes; the axis counts the messages."),
-            ("many", "many messages at once, in pieces", "64 messages in progress at once, each arriving in pieces, as a server's uploads arrive."),
+            ("many", "many messages at once, in pieces", "256 messages in progress at once, their pieces arriving 64 at a time, as a server's uploads arrive."),
             ("coll", "a collection of items", "A collection of items of every size, such as a repository's objects or a store's files, hashed together."),
             ("outb", "a message with its outboard, for verified streaming", "A message's hash and its outboard: the hash tree's nodes, kept beside the message so that any part of it can be verified when it is sent (Bao, iroh-blobs)."),
             ("recv", "a message received, verified as it arrives", "A message received with its hash tree's nodes, each part verified as it arrives (iroh-blobs)."),
@@ -406,11 +404,11 @@ fn b3sum(path: &Path) -> Section {
                 cases: row == "tree",
                 per: points.iter().map(|p| names.iter().find_map(|n| cell(n, p)).map_or(0, |s| s[0].units)).collect(),
                 what: "a run",
+                axis: if row == "tree" { "tree" } else { "file size" },
                 series: names.iter().map(|n| points.iter().map(|p| cell(n, p).map(|s| mean_ns(s))).collect()).collect(),
                 before: Vec::new(),
                 cpu: lines(&file.cpu),
                 energy: lines(&file.energy),
-                kernels: names.iter().map(|_| None).collect(),
                 cores: names.iter().map(|_| None).collect(),
             }));
         }
