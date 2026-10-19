@@ -25,6 +25,8 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
         UseCase::LentBatches => ("batch", "lent", "hash_many_multithreaded", "fn.hash_many_multithreaded.html"),
         UseCase::ContinuousBatches => ("batch", "piped", "Stream::submit_batch_with", "struct.Stream.html#method.submit_batch_with"),
         UseCase::Interleaved => ("many", "lent", "Hasher::update_each_multithreaded", "struct.Hasher.html#method.update_each_multithreaded"),
+        UseCase::InterleavedTurn => ("many", "busy", "Hasher::update_each_multithreaded", "struct.Hasher.html#method.update_each_multithreaded"),
+        UseCase::IdleInterleavedTurn => ("many", "idle", "Hasher::update_each_multithreaded", "struct.Hasher.html#method.update_each_multithreaded"),
         UseCase::Collection => ("coll", "lent", "hash_each_multithreaded_with", "fn.hash_each_multithreaded_with.html"),
         UseCase::ContinuousCollection => ("coll", "piped", "Stream::submit_with", "struct.Stream.html#method.submit_with"),
         UseCase::Outboard => ("outb", "lent", "outboard_multithreaded_with", "fn.outboard_multithreaded_with.html"),
@@ -46,7 +48,7 @@ const DOCS: &str = "https://johnservil.github.io/BLAKE3/blake3_servil/";
 /// and the tooltip's heading.
 fn axis(use_case: UseCase) -> &'static str {
     match use_case {
-        UseCase::Interleaved => "messages open at once",
+        UseCase::Interleaved | UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => "messages open at once",
         UseCase::MerkleTree => "leaves (256 B each)",
         UseCase::Collection | UseCase::ContinuousCollection => "collection",
         _ if use_case.batch() => "messages in the batch (64 B each)",
@@ -59,6 +61,7 @@ fn what(use_case: UseCase) -> &'static str {
     match use_case {
         UseCase::Collection | UseCase::ContinuousCollection => "the collection",
         UseCase::Interleaved => "a megabyte of pieces",
+        UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => "a turn",
         UseCase::MerkleTree => "a tree",
         _ if use_case.batch() => "a batch",
         _ => "a message",
@@ -319,7 +322,7 @@ fn hashing(path: &Path) -> Section {
                 unit: "GB/s",
                 call: call.to_owned(),
                 doc: format!("{DOCS}{doc}"),
-                cases: matches!(use_case, UseCase::Interleaved | UseCase::Collection | UseCase::ContinuousCollection),
+                cases: matches!(use_case, UseCase::Interleaved | UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn | UseCase::Collection | UseCase::ContinuousCollection),
                 per: measured.iter().map(|p| p.bytes as u64).collect(),
                 what: what(use_case),
                 axis: axis(use_case),

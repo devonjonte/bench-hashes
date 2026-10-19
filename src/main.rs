@@ -104,7 +104,7 @@ const COLLECTION_COUNT: usize = 2;
 /// A message's outboard, at two lengths (FROZEN.md).
 const OUTBOARD_COUNT: usize = 2;
 const VERIFY_COUNT: usize = 2;
-const POINT_COUNT: usize = 2 * (INPUT_COUNT + BATCH_COUNT) + 2 * CONTINUOUS_MESSAGE_COUNT + INTERLEAVED_COUNT + 2 * COLLECTION_COUNT + OUTBOARD_COUNT + VERIFY_COUNT + 2 * CONTINUOUS_BATCH_COUNT + MERKLE_COUNT;
+const POINT_COUNT: usize = 2 * (INPUT_COUNT + BATCH_COUNT) + 2 * CONTINUOUS_MESSAGE_COUNT + INTERLEAVED_COUNT + 2 * COLLECTION_COUNT + OUTBOARD_COUNT + VERIFY_COUNT + 2 * CONTINUOUS_BATCH_COUNT + MERKLE_COUNT + 2 * INTERLEAVED_COUNT;
 /// A long message reaches a contender in pieces of this many bytes (a
 /// typical read buffer), the last one shorter.
 const PIECE_LEN: usize = 64 * 1024;
@@ -187,6 +187,9 @@ struct InterleavedSpec {
     pieces: &'static [usize],
     messages: &'static [usize],
     chunk: usize,
+    /// One call's pieces after a gap (InterleavedTurn): a turn, up to
+    /// TURN pieces in this many bytes (a turn of 64 averages about 306 KB).
+    turn: usize,
 }
 
 const INTERLEAVED: InterleavedSpec = InterleavedSpec {
@@ -194,6 +197,7 @@ const INTERLEAVED: InterleavedSpec = InterleavedSpec {
     pieces: &[1448, 1448, 4096, 1448, 16 * 1024],
     messages: &[64, 1000, 4470, 16 * 1024, 100_000, 1024 * 1024, 16 * 1024 * 1024],
     chunk: 1024 * 1024,
+    turn: 256 * 1024,
 };
 /*
  * A Merkle tree (UseCase::MerkleTree; Zooko, October 19, 2026): the
@@ -432,6 +436,8 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::merkle("16384", 1 << 14),
     Point::merkle("65536", 1 << 16),
     Point::merkle("262144", 1 << 18),
+    Point::interleaved_turn("256"),
+    Point::interleaved_turn("256").idle(),
 ];
 
 /// results[contender_index][point_index], contenders in the roster's
@@ -519,19 +525,25 @@ enum UseCase {
     /// parents (two children's digests) in one batch, to the root, every
     /// layer kept, as a prover commits to a Reed-Solomon codeword.
     MerkleTree,
+    /// Many messages at once (Interleaved), one turn a call (up to TURN
+    /// pieces, INTERLEAVED.turn bytes), each after other work, as a server
+    /// handles a turn of uploads between its other tasks.
+    InterleavedTurn,
+    /// The same turns, each after idling, as a server waits on the network.
+    IdleInterleavedTurn,
 }
 
 impl UseCase {
-    const ALL: [UseCase; 14] = [UseCase::OneMessage, UseCase::ManyMessages, UseCase::IdleOneMessage,
+    const ALL: [UseCase; 16] = [UseCase::OneMessage, UseCase::ManyMessages, UseCase::IdleOneMessage,
         UseCase::IdleManyMessages, UseCase::ContinuousMessages, UseCase::ContinuousBatches,
         UseCase::LentMessages, UseCase::Interleaved, UseCase::Collection, UseCase::Outboard, UseCase::Verify, UseCase::LentBatches,
-        UseCase::ContinuousCollection, UseCase::MerkleTree];
+        UseCase::ContinuousCollection, UseCase::MerkleTree, UseCase::InterleavedTurn, UseCase::IdleInterleavedTurn];
 
     /// Whether each call comes after a gap (the synchronous use cases:
     /// after other work, or after idling), or one follows another (the
     /// continuous ones).
     fn after_gap(self) -> bool {
-        matches!(self.call(), Self::OneMessage | Self::ManyMessages)
+        matches!(self.call(), Self::OneMessage | Self::ManyMessages | Self::InterleavedTurn)
     }
 
     /// How the program calls, as the graph's chips name it.
@@ -541,7 +553,7 @@ impl UseCase {
 
     /// Whether the program idles before each call.
     fn idle(self) -> bool {
-        matches!(self, Self::IdleOneMessage | Self::IdleManyMessages)
+        matches!(self, Self::IdleOneMessage | Self::IdleManyMessages | Self::IdleInterleavedTurn)
     }
 
     /// The use case whose call this one makes: an idle use case makes its
@@ -550,6 +562,7 @@ impl UseCase {
         match self {
             Self::IdleOneMessage => Self::OneMessage,
             Self::IdleManyMessages => Self::ManyMessages,
+            Self::IdleInterleavedTurn => Self::InterleavedTurn,
             other => other,
         }
     }
@@ -563,7 +576,7 @@ impl UseCase {
     fn message_len(self) -> usize {
         match self {
             Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => MESSAGE_LEN,
-            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved | Self::Collection | Self::ContinuousCollection | Self::Outboard | Self::Verify | Self::MerkleTree => panic!("{self:?} hashes messages of their own lengths"),
+            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved | Self::Collection | Self::ContinuousCollection | Self::Outboard | Self::Verify | Self::MerkleTree | Self::InterleavedTurn | Self::IdleInterleavedTurn => panic!("{self:?} hashes messages of their own lengths"),
         }
     }
 
@@ -585,6 +598,8 @@ impl UseCase {
             Self::ContinuousBatches => "Batches one after another, buffers owned",
             Self::LentMessages => "Messages one after another, buffers lent",
             Self::Interleaved => "Many messages at once, each arriving in pieces, buffers lent",
+            Self::InterleavedTurn => "Many messages at once, a turn of their pieces after other work",
+            Self::IdleInterleavedTurn => "Many messages at once, a turn of their pieces after idling",
             Self::Collection => "A collection's items, each hashed once, in memory",
             Self::Outboard => "Messages with their outboards, for verified streaming, buffers lent",
             Self::Verify => "Messages received in their encodings, verified as they arrive",
@@ -598,7 +613,7 @@ impl UseCase {
     fn column(self) -> &'static str {
         match self {
             Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages => "size",
-            Self::Interleaved => "messages open",
+            Self::Interleaved | Self::InterleavedTurn | Self::IdleInterleavedTurn => "messages open",
             Self::Collection | Self::ContinuousCollection => "collection",
             Self::Outboard | Self::Verify => "size",
             Self::MerkleTree => "leaves",
@@ -614,7 +629,7 @@ impl UseCase {
      */
     fn units(self, point: Point, iterations: usize) -> u64 {
         match self {
-            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved | Self::Collection | Self::ContinuousCollection | Self::Outboard | Self::Verify | Self::MerkleTree => point.bytes as u64 * iterations as u64,
+            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved | Self::Collection | Self::ContinuousCollection | Self::Outboard | Self::Verify | Self::MerkleTree | Self::InterleavedTurn | Self::IdleInterleavedTurn => point.bytes as u64 * iterations as u64,
             Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => point.messages as u64 * iterations as u64,
         }
     }
@@ -651,6 +666,8 @@ impl UseCase {
             Self::ContinuousBatches => "continuous batch ",
             Self::LentMessages => "lent ",
             Self::Interleaved => "interleaved ",
+            Self::InterleavedTurn => "turn ",
+            Self::IdleInterleavedTurn => "idle turn ",
             Self::Collection => "collection ",
             Self::Outboard => "outboard ",
             Self::Verify => "verify ",
@@ -681,6 +698,7 @@ impl Point {
         let use_case = match self.use_case {
             UseCase::OneMessage => UseCase::IdleOneMessage,
             UseCase::ManyMessages => UseCase::IdleManyMessages,
+            UseCase::InterleavedTurn => UseCase::IdleInterleavedTurn,
             _ => panic!("only the calls after other work have idle twins"),
         };
         Self { use_case, ..self }
@@ -723,6 +741,11 @@ impl Point {
 
     const fn interleaved(label: &'static str, bytes: usize) -> Self {
         Self { label, bytes, messages: 1, use_case: UseCase::Interleaved }
+    }
+
+    /// The same open messages, one turn of their pieces a call.
+    const fn interleaved_turn(label: &'static str) -> Self {
+        Self { label, bytes: INTERLEAVED.turn, messages: 1, use_case: UseCase::InterleavedTurn }
     }
 
     /// A Merkle tree of `leaves` leaves of MERKLE.leaf_len bytes.
@@ -834,6 +857,7 @@ impl Algorithm {
             UseCase::Verify => matches!(self, Self::Blake3 | Self::Blake3ServilSt | Self::Blake3ServilMt),
             /* A tree's layers are batches: BLAKE3 official mt has no batch call. */
             UseCase::MerkleTree => !matches!(self, Self::Blake3Rayon),
+            UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => true,
         }
     }
 
@@ -2228,7 +2252,7 @@ fn hash_batch(
     assert!(algorithm.takes_part(point.use_case), "{} takes no part in {:?}", algorithm.key(), point.use_case);
 
     match point.use_case {
-        UseCase::Interleaved => return hash_interleaved(algorithm, input, iterations, consume),
+        UseCase::Interleaved | UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => return hash_interleaved(algorithm, input, point.bytes, iterations, consume),
         UseCase::Collection => return hash_collection(algorithm, input, point, iterations, consume),
         UseCase::ContinuousCollection => return hash_continuous_collection(algorithm, input, point, iterations, consume),
         UseCase::Outboard => return hash_outboard(algorithm, input, iterations, consume),
@@ -2575,17 +2599,17 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
  * message's incremental API; each message's hash, when it ends, goes to
  * `consume`.
  */
-fn hash_interleaved(algorithm: Algorithm, input: &[u8], iterations: usize, consume: impl FnMut(&[u8])) {
+fn hash_interleaved(algorithm: Algorithm, input: &[u8], budget: usize, iterations: usize, consume: impl FnMut(&[u8])) {
     use sha2::Digest as _;
     use sha1_checked::digest::Update as _;
     let key = algorithm.key();
     match algorithm {
-        Algorithm::Blake3 => each_interleaved(key, input, iterations, blake3::Hasher::new, per_piece(|h: &mut blake3::Hasher, p| { h.update(p); }), per_message(blake3::Hasher::new, |h| *h.finalize().as_bytes()), consume),
-        Algorithm::Blake3Rayon => each_interleaved(key, input, iterations, blake3::Hasher::new, per_piece(|h: &mut blake3::Hasher, p| { h.update_rayon(p); }), per_message(blake3::Hasher::new, |h| *h.finalize().as_bytes()), consume),
+        Algorithm::Blake3 => each_interleaved(key, input, budget, iterations, blake3::Hasher::new, per_piece(|h: &mut blake3::Hasher, p| { h.update(p); }), per_message(blake3::Hasher::new, |h| *h.finalize().as_bytes()), consume),
+        Algorithm::Blake3Rayon => each_interleaved(key, input, budget, iterations, blake3::Hasher::new, per_piece(|h: &mut blake3::Hasher, p| { h.update_rayon(p); }), per_message(blake3::Hasher::new, |h| *h.finalize().as_bytes()), consume),
         Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt => {
             let update = if algorithm == Algorithm::Blake3ServilSt { blake3_servil::Hasher::update_each } else { blake3_servil::Hasher::update_each_multithreaded };
             let mut digests = Vec::new();
-            each_interleaved(key, input, iterations, blake3_servil::Hasher::new, update, move |hashers: &mut [blake3_servil::Hasher], ended: &[usize], consume: &mut dyn FnMut(&[u8])| {
+            each_interleaved(key, input, budget, iterations, blake3_servil::Hasher::new, update, move |hashers: &mut [blake3_servil::Hasher], ended: &[usize], consume: &mut dyn FnMut(&[u8])| {
                 digests.resize(ended.len(), [0u8; 32]);
                 blake3_servil::Hasher::finalize_each(hashers, ended, &mut digests);
                 for (&i, digest) in ended.iter().zip(&digests) {
@@ -2594,22 +2618,22 @@ fn hash_interleaved(algorithm: Algorithm, input: &[u8], iterations: usize, consu
                 }
             }, consume)
         }
-        Algorithm::Sha256 => each_interleaved(key, input, iterations, Sha256::new, per_piece(|h: &mut Sha256, p| sha2::Digest::update(h, p)), per_message(Sha256::new, |h| -> [u8; 32] { h.finalize().into() }), consume),
+        Algorithm::Sha256 => each_interleaved(key, input, budget, iterations, Sha256::new, per_piece(|h: &mut Sha256, p| sha2::Digest::update(h, p)), per_message(Sha256::new, |h| -> [u8; 32] { h.finalize().into() }), consume),
         Algorithm::Sha256Ring => {
             let new = || ring::digest::Context::new(&ring::digest::SHA256);
-            each_interleaved(key, input, iterations, new, per_piece(|h: &mut ring::digest::Context, p| h.update(p)), per_message(new, |h| {
+            each_interleaved(key, input, budget, iterations, new, per_piece(|h: &mut ring::digest::Context, p| h.update(p)), per_message(new, |h| {
                 let mut digest = [0u8; 32];
                 digest.copy_from_slice(h.finish().as_ref());
                 digest
             }), consume)
         }
-        Algorithm::Sha256CommonCrypto => each_interleaved(key, input, iterations, common_crypto::Sha256State::new, per_piece(|h: &mut common_crypto::Sha256State, p| h.update(p)), per_message(common_crypto::Sha256State::new, |h| h.finish()), consume),
-        Algorithm::Sha1Dc => each_interleaved(key, input, iterations, sha1_checked::Sha1::new, per_piece(|h: &mut sha1_checked::Sha1, p| h.update(p)), per_message(sha1_checked::Sha1::new, |h| {
+        Algorithm::Sha256CommonCrypto => each_interleaved(key, input, budget, iterations, common_crypto::Sha256State::new, per_piece(|h: &mut common_crypto::Sha256State, p| h.update(p)), per_message(common_crypto::Sha256State::new, |h| h.finish()), consume),
+        Algorithm::Sha1Dc => each_interleaved(key, input, budget, iterations, sha1_checked::Sha1::new, per_piece(|h: &mut sha1_checked::Sha1, p| h.update(p)), per_message(sha1_checked::Sha1::new, |h| {
             let mut digest = [0u8; 20];
             digest.copy_from_slice(h.try_finalize().hash());
             digest
         }), consume),
-        Algorithm::Sha3_256 => each_interleaved(key, input, iterations, sha3::Sha3_256::new, per_piece(|h: &mut sha3::Sha3_256, p| sha3::Digest::update(h, p)), per_message(sha3::Sha3_256::new, |h| -> [u8; 32] { h.finalize().into() }), consume),
+        Algorithm::Sha3_256 => each_interleaved(key, input, budget, iterations, sha3::Sha3_256::new, per_piece(|h: &mut sha3::Sha3_256, p| sha3::Digest::update(h, p)), per_message(sha3::Sha3_256::new, |h| -> [u8; 32] { h.finalize().into() }), consume),
         Algorithm::Blake3Commonware => unreachable!("BLAKE3 commonware hashes batches alone"),
     }
 }
@@ -2656,6 +2680,7 @@ const TURN: usize = 64;
 fn each_interleaved<S: 'static>(
     key: &'static str,
     input: &[u8],
+    budget: usize,
     iterations: usize,
     new: impl Fn() -> S,
     update: impl Fn(&mut [S], &[(usize, &[u8])]),
@@ -2664,7 +2689,7 @@ fn each_interleaved<S: 'static>(
 ) {
     let spec = &INTERLEAVED;
     let longest = spec.pieces.iter().copied().max().unwrap();
-    assert!(input.len() >= spec.chunk && input.len() > longest, "the pieces come from a source longer than a piece");
+    assert!(input.len() >= budget && input.len() > longest, "the pieces come from a source of a call's budget, longer than a piece");
     assert!(TURN <= spec.open, "a turn holds at most one piece of each open message");
     let kept = SCHEDULES.with(|all| {
         let mut all = all.borrow_mut();
@@ -2687,7 +2712,7 @@ fn each_interleaved<S: 'static>(
     let mut turn: Vec<(usize, usize, usize)> = Vec::with_capacity(TURN);
     let mut ended: Vec<usize> = Vec::with_capacity(TURN);
     for _ in 0..iterations {
-        let mut budget = spec.chunk;
+        let mut budget = budget;
         while budget > 0 {
             // A turn: up to TURN pieces, each read into its own buffer.
             turn.clear();
@@ -3057,7 +3082,11 @@ thread_local! {
  * these.
  */
 #[cfg(test)]
-const SERVIL_CALLS: [(Algorithm, UseCase, &str); 28] = [
+const SERVIL_CALLS: [(Algorithm, UseCase, &str); 32] = [
+    (Algorithm::Blake3ServilSt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: Hasher::update_each, then Hasher::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilSt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: Hasher::update_each, then Hasher::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilMt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: Hasher::update_each_multithreaded, then Hasher::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilMt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: Hasher::update_each_multithreaded, then Hasher::finalize_each for the messages that ended in it"),
     (Algorithm::Blake3ServilSt, UseCase::MerkleTree, "hash_many_with(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root"),
     (Algorithm::Blake3ServilMt, UseCase::MerkleTree, "hash_many_multithreaded_with(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root"),
     (Algorithm::Blake3ServilSt, UseCase::OneMessage, "hash(input), each call after other work"),
@@ -3719,7 +3748,7 @@ fn continuous_min_inputs(input: &[u8], point: Point) -> usize {
             2 * in_flight(input.len().min(PIECE_LEN)).div_ceil(pieces)
         }
         UseCase::ContinuousBatches => 2 * in_flight(input.len()),
-        UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::ManyMessages | UseCase::IdleManyMessages | UseCase::LentMessages | UseCase::Interleaved | UseCase::Collection | UseCase::Outboard | UseCase::Verify | UseCase::LentBatches | UseCase::MerkleTree => 1,
+        UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::ManyMessages | UseCase::IdleManyMessages | UseCase::LentMessages | UseCase::Interleaved | UseCase::Collection | UseCase::Outboard | UseCase::Verify | UseCase::LentBatches | UseCase::MerkleTree | UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => 1,
         /* A pass over the collection keeps its many items in flight. */
         UseCase::ContinuousCollection => 1,
     }
@@ -5063,7 +5092,11 @@ mod correctness_tests {
         assert_eq!(UseCase::LentBatches.points(), lent_batches..lent_batches + CONTINUOUS_BATCH_COUNT);
         let continuous_collection = lent_batches + CONTINUOUS_BATCH_COUNT;
         assert_eq!(UseCase::ContinuousCollection.points(), continuous_collection..continuous_collection + COLLECTION_COUNT);
-        assert_eq!(UseCase::MerkleTree.points(), continuous_collection + COLLECTION_COUNT..POINT_COUNT);
+        let merkle = continuous_collection + COLLECTION_COUNT;
+        assert_eq!(UseCase::MerkleTree.points(), merkle..merkle + MERKLE_COUNT);
+        let turn = merkle + MERKLE_COUNT;
+        assert_eq!(UseCase::InterleavedTurn.points(), turn..turn + INTERLEAVED_COUNT);
+        assert_eq!(UseCase::IdleInterleavedTurn.points(), turn + INTERLEAVED_COUNT..POINT_COUNT);
         for (k, point) in POINTS[UseCase::ContinuousCollection.points()].iter().enumerate() {
             assert_eq!((point.label, point.bytes), (POINTS[UseCase::Collection.points()][k].label, POINTS[UseCase::Collection.points()][k].bytes), "the pipelined collections are the collections");
         }

@@ -26,6 +26,13 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **Many messages at once, a turn after a gap** (Zooko, October 19): two
+  new use cases, InterleavedTurn and IdleInterleavedTurn, the map's two
+  empty cells of the many-messages row. The 256 open messages of
+  Interleaved, one turn of their pieces a call (up to 64 pieces, 256 KiB),
+  each after other work or after idling, as a server handles a turn of
+  uploads between its other tasks or after waiting on the network; solo,
+  as every call after a gap.
 - **A Merkle tree** (Zooko, October 19, for v0.8): a new use case,
   MerkleTree, the commitment a zero-knowledge prover makes to its
   Reed-Solomon codeword (WHIR, the fork's docs/whir-merkle-trees.md). The
@@ -497,8 +504,14 @@ use case Verify: 1 MiB, 64 MiB
 use case LentBatches: 16, 64, 256, 1024, 4096, 16384, 65536
 use case ContinuousCollection: git objects, Nix files
 use case MerkleTree: 1024, 4096, 16384, 65536, 262144
+use case InterleavedTurn: 256
+use case IdleInterleavedTurn: 256
 scenarios: solo, shared
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, Outboard, Verify, LentBatches, ContinuousCollection, MerkleTree
+blake3-servil-st InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: Hasher::update_each, then Hasher::finalize_each for the messages that ended in it
+blake3-servil-st IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: Hasher::update_each, then Hasher::finalize_each for the messages that ended in it
+blake3-servil-mt InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: Hasher::update_each_multithreaded, then Hasher::finalize_each for the messages that ended in it
+blake3-servil-mt IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: Hasher::update_each_multithreaded, then Hasher::finalize_each for the messages that ended in it
 blake3-servil-st MerkleTree: hash_many_with(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root
 blake3-servil-mt MerkleTree: hash_many_multithreaded_with(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root
 blake3-servil-st OneMessage: hash(input), each call after other work
