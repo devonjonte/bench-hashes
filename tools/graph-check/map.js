@@ -104,7 +104,7 @@ const { chromium } = require('playwright');
   }
   await narrowPage.locator('.cell:not(.empty)').first().click(); await narrowPage.waitForTimeout(300);
   const wide = await narrowPage.locator('.zoom').boundingBox();
-  await narrowPage.mouse.move(wide.x + wide.width * 0.9, wide.y + wide.height * 0.6);
+  await narrowPage.mouse.move(wide.x + wide.width * 0.9, Math.min(wide.y + wide.height * 0.6, 760));
   const wideTip = await narrowPage.locator('#tip').boundingBox();
   assert(wideTip.x >= 0 && wideTip.x + wideTip.width <= 1000 && wideTip.y >= 0 && wideTip.y + wideTip.height <= 800, 'every measure\'s values fit inside the window');
   await narrowPage.close();
