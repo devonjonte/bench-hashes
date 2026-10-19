@@ -322,7 +322,14 @@ fn hashing(path: &Path) -> Section {
             ("solo", "one program", "One program hashes; the machine is otherwise quiet."),
             ("shared", "two programs at once", "Two programs hash at the same moment, nonstop, sharing the machine."),
         ],
-        names: algorithms.iter().map(|a| a.name()).chain([BAO_TREE]).map(str::to_owned).collect(),
+        // A run with --threads N names servil mt's count (its pool is the run's).
+        names: {
+            let threads = header(&file.headers, "contenders").split("; --threads ").nth(1).map(str::to_owned);
+            algorithms.iter().map(|a| match (&threads, a) {
+                (Some(n), Algorithm::Blake3ServilMt) => format!("{}, {n} threads", a.name()),
+                _ => a.name().to_owned(),
+            }).chain([BAO_TREE.to_owned()]).collect()
+        },
         colors: algorithms.iter().map(|a| a.color()).chain(["#15803d"]).map(str::to_owned).collect(),
         shown: algorithms.iter().map(|a| SHOWN_AT_FIRST.contains(a)).chain([true]).collect(),
         cells,
