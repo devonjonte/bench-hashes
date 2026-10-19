@@ -60,6 +60,10 @@ the notes) may still change, to say it better.
   where the run recorded it), and energy (shown, not yet counted); any or
   all at once, on one axis. A chart with no CPU time recorded says so.
   The panel sticks at the top of the page, each section's names under it.
+  Every chart on the page shares one log scale (over the measures shown),
+  so one way of calling's level compares with another's; small charts
+  label each power of ten and bracket, at their last point, the span from
+  the worst line shown to the best ("x6.2"; Zooko, October 19).
   Beside them, an upright switch: knob up, rate (GB/s, "higher is better", the default); knob down, cost (ns per
   byte, lower is faster; Zooko, October 18, the graph's toggle before the
   map, brought back): with CPU time, the processor time a byte costs
