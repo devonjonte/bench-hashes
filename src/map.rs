@@ -224,21 +224,26 @@ fn details(headers: &[(String, String)], load: &str, power: &str, samples: &str)
     let version = header(headers, "bench-hashes version");
     let commit = header(headers, "git commit");
     let clean = header(headers, "git clean status");
-    add("bench-hashes", version.split('+').next().unwrap_or("").to_owned(),
-        format!("https://github.com/johnservil/bench-hashes/releases/tag/v{}", version.replace('+', "%2B")));
-    add("bench-hashes commit", format!("{commit}{}", if clean.is_empty() || clean == "clean" { String::new() } else { format!(" ({clean})") }),
-        format!("https://github.com/johnservil/bench-hashes/tree/{commit}"));
-    let servil = header(headers, "blake3-servil source");
+    // The repository the benchmark was built from, as its header records it.
+    let bench = header(headers, "bench-hashes source");
+    let bench = bench.strip_prefix("https://").unwrap_or(bench);
+    add("bench-hashes", version.split('+').next().unwrap_or("").to_owned(), String::new());
+    add("bench-hashes commit", format!("{bench} at {commit}{}", if clean.is_empty() || clean == "clean" { String::new() } else { format!(" ({clean})") }),
+        format!("https://{bench}/tree/{commit}"));
+    let servil = servil_source(headers);
     if let Some(at) = servil.split("; commit ").nth(1) {
         let fork = at.split([';', ' ']).next().unwrap_or("");
         // The repository the run's code came from, as its header records it.
         let repo = servil.split("; source https://").nth(1).and_then(|r| r.split(';').next()).expect("the blake3-servil source names its repository");
         add("BLAKE3 servil", format!("{repo} at {fork}"), format!("https://{repo}/tree/{fork}"));
     }
-    for (label, key) in [("BLAKE3 official", "blake3 source"), ("SHA-256", "sha256 source")] {
-        add(label, header(headers, key).split(';').next().unwrap_or("").to_owned(), String::new());
+    // Every other contender's source, as the run recorded it.
+    for (k, v) in headers.iter().filter(|(k, _)| k.starts_with("source ") && !k.starts_with("source blake3-servil")) {
+        let key = &k["source ".len()..];
+        let name = Algorithm::ALL.into_iter().find(|a| a.key() == key).map_or(key.to_owned(), |a| a.name().to_owned());
+        add(&name, v.split(';').next().unwrap_or("").to_owned(), String::new());
     }
-    for (label, key) in [("Compiler", "rust compiler"), ("Target", "build target"), ("Files", "files")] {
+    for (label, key) in [("Rust compiler", "rust compiler"), ("C compiler", "c compiler"), ("RUSTFLAGS", "rustflags"), ("Dependencies", "dependency lock"), ("Target", "build target"), ("Files", "files")] {
         add(label, header(headers, key).to_owned(), String::new());
     }
     for (_, v) in headers.iter().filter(|(k, _)| k == "contender") {
@@ -433,10 +438,16 @@ fn b3sum(path: &Path) -> Section {
 }
 
 /// Draw `directory`'s map from the samples files in it; true if it held any.
+/// BLAKE3 servil's source as the run recorded it (either servil contender's
+/// line: one crate), or "" where the run measured neither.
+fn servil_source(headers: &[(String, String)]) -> &str {
+    headers.iter().find(|(k, _)| k.starts_with("source blake3-servil")).map_or("", |(_, v)| v.as_str())
+}
+
 /// A run's name: its bench-hashes release and BLAKE3 servil's commit.
 fn run_name(headers: &[(String, String)]) -> String {
     let version = header(headers, "bench-hashes version").split('+').next().unwrap_or("");
-    let fork = header(headers, "blake3-servil source").split("commit ").nth(1).map_or("", |c| &c[..c.len().min(7)]);
+    let fork = servil_source(headers).split("commit ").nth(1).map_or("", |c| &c[..c.len().min(7)]);
     if fork.is_empty() { format!("bench-hashes {version}") } else { format!("bench-hashes {version}, BLAKE3 servil {fork}") }
 }
 

@@ -99,6 +99,25 @@ fn main() {
     emit_env("BENCH_RUSTC_VERSION", &rustc_version);
     emit_env("BENCH_BUILD_TARGET", &target);
     emit_env("BENCH_TARGET_FEATURES", &target_features);
+
+    /*
+     * What else decides the machine code, beyond this commit and the
+     * crates' sources: every dependency's exact version and checksum (a
+     * BLAKE3 fingerprint of Cargo.lock), the C compiler that assembles the
+     * contenders' C and assembly (ring's, the fork's, through the cc crate:
+     * $CC or cc), and RUSTFLAGS.
+     */
+    emit_env("BENCH_LOCK_FINGERPRINT", &format!("blake3 {} of Cargo.lock", Hasher::new().update(lock.as_bytes()).finalize().to_hex()));
+    println!("cargo:rerun-if-env-changed=CC");
+    let cc = env::var("CC").unwrap_or_else(|_| "cc".to_owned());
+    let cc_version = Command::new(&cc).arg("--version").output().ok()
+        .filter(|out| out.status.success())
+        .and_then(|out| String::from_utf8(out.stdout).ok())
+        .and_then(|text| text.lines().next().map(str::to_owned))
+        .unwrap_or_else(|| format!("{cc}: no version"));
+    emit_env("BENCH_C_COMPILER", &format!("{cc}: {cc_version}"));
+    let rustflags = env::var("CARGO_ENCODED_RUSTFLAGS").unwrap_or_default().replace('\x1f', " ");
+    emit_env("BENCH_RUSTFLAGS", if rustflags.is_empty() { "none" } else { &rustflags });
 }
 
 fn normalize_git_source(source: &str) -> String {
