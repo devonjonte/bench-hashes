@@ -34,7 +34,8 @@ const { chromium } = require('playwright');
     await page.mouse.move(box.x + box.width / 2, Math.min(box.y + box.height / 2, Math.max(box.y + 60, 850)));
     assert(await page.locator('#tip').isVisible(), `chart ${i}: the values under the pointer`);
     assert(/\d/.test(await page.locator('#tip').textContent()), `chart ${i}: numbers in the tip`);
-    await page.locator('.zoom').click({ position: { x: box.width / 2, y: 60 } });
+    // A click on the plot (the names above it are toggles) puts it back.
+    await page.locator('.zoom').click({ position: { x: box.width / 2, y: box.height * 0.7 } });
     await page.waitForTimeout(300);
     assert.equal(await page.locator('.zoom').count(), 0, `chart ${i} closes`);
     assert.equal(await page.locator('.h.lit').count(), 0, `chart ${i}: headers unlit`);
@@ -101,10 +102,21 @@ const { chromium } = require('playwright');
   await phone.waitForTimeout(150);
   assert.equal(await phone.locator('.zoom').count(), 1, 'a tap on an open chart keeps it open');
   assert(await phone.locator('#tip').isVisible(), 'a tap shows the values at its point');
+  // A name in the open chart is its contender's toggle: a tap hides its
+  // lines (fewer drawn), marks the name off, and the chart stays open; a
+  // second tap brings them back.
+  const lines = async () => phone.locator('.zoom polyline').count();
+  const all = await lines();
+  await phone.locator('.zoom .key button').first().tap(); await phone.waitForTimeout(300);
+  assert.equal(await phone.locator('.zoom').count(), 1, 'a name tapped keeps the chart open');
+  assert(/\boff\b/.test(await phone.locator('.zoom .key button').first().getAttribute('class')), 'the tapped name shows off');
+  assert((await lines()) < all, 'its lines are hidden');
+  await phone.locator('.zoom .key button').first().tap(); await phone.waitForTimeout(300);
+  assert.equal(await lines(), all, 'a second tap brings them back');
   await phone.locator('.zoom .close').tap();
   await phone.waitForTimeout(300);
   assert.equal(await phone.locator('.zoom').count(), 0, 'the button puts the chart back');
   assert.deepEqual(errors, []);
-  console.log(`${charts} charts opened and closed, ${docs.length} documentation links, headers, headers' meanings, a chart's link, Escape, what the lines measure, touch: pass`);
+  console.log(`${charts} charts opened and closed, ${docs.length} documentation links, headers, headers' meanings, a chart's link, Escape, what the lines measure, touch, names as toggles: pass`);
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });
