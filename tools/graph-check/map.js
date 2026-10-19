@@ -107,11 +107,14 @@ const { chromium } = require('playwright');
   // second tap brings them back.
   const lines = async () => phone.locator('.zoom polyline').count();
   const all = await lines();
-  await phone.locator('.zoom .key button').first().tap(); await phone.waitForTimeout(300);
+  const shown = phone.locator('.zoom .key button:not(.off)').first();
+  const name = await shown.locator('b').textContent();
+  const named = () => phone.locator('.zoom .key button', { has: phone.locator('b', { hasText: new RegExp('^' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }) });
+  await shown.tap(); await phone.waitForTimeout(300);
   assert.equal(await phone.locator('.zoom').count(), 1, 'a name tapped keeps the chart open');
-  assert(/\boff\b/.test(await phone.locator('.zoom .key button').first().getAttribute('class')), 'the tapped name shows off');
+  assert(/\boff\b/.test(await named().getAttribute('class')), 'the tapped name shows off');
   assert((await lines()) < all, 'its lines are hidden');
-  await phone.locator('.zoom .key button').first().tap(); await phone.waitForTimeout(300);
+  await named().tap(); await phone.waitForTimeout(300);
   assert.equal(await lines(), all, 'a second tap brings them back');
   await phone.locator('.zoom .close').tap();
   await phone.waitForTimeout(300);
