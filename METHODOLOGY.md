@@ -484,6 +484,12 @@ either way, so a cell's energy, all its samples' over all their units, is
 not biased by it. `compare` prints its ratio beside CPU time's, with no
 verdict.
 
+**Threads.** BLAKE3 servil mt's pool holds one thread per CPU, its caller
+among them, unless a run says `--threads N`, which sets it for the whole
+run (the pool is the process's): the samples' `contenders` line records it,
+and the map names the contender "BLAKE3 servil mt, N threads". `--threads 2`
+measures the smallest pipeline, one worker beside the program's thread.
+
 **Code paths.** The samples file names each contender's code path at
 every point (`# kernels CONTENDER USECASE: POINT=PATH | ...`), as the
 report's KERNELS section does, so a map drawn later or elsewhere marks

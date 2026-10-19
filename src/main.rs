@@ -1268,6 +1268,9 @@ cell sampled in a share of them.
                                    \"continuous batch 1024\"); with
                                    --contenders only
   --rounds N                       exactly N sample rounds, every cell sampled in each
+  --threads N                      BLAKE3 servil mt on N threads in all, its
+                                   caller among them (default: one a CPU); the
+                                   results name the count
   --trace-clocks PATH              also write one CSV line per sample interval
                                    with its wall time and (on Apple) the
                                    thread's cycles, instructions, and time per
@@ -1297,6 +1300,8 @@ struct Options {
     trace_path: Option<std::path::PathBuf>,
     quick: bool,
     sizes: Sizes,
+    /// BLAKE3 servil mt's threads (--threads N; None: one a CPU).
+    threads: Option<std::num::NonZeroUsize>,
 }
 
 /// How a run sizes each cell's samples. A comparison's runs share one set
@@ -1387,6 +1392,8 @@ fn parse_arguments() -> Options {
         indices
     });
     let rounds = take_value("--rounds").map(|n| n.parse::<usize>().expect("--rounds takes a whole number"));
+    /* --threads N: BLAKE3 servil mt's pool, N threads in all (its caller among them). */
+    let threads = take_value("--threads").map(|n| n.parse::<std::num::NonZeroUsize>().expect("--threads takes a whole number above 0"));
     /* --calibrate-only PATH or --sizes PATH may accompany any selection. */
     let sizes = match (take_value("--calibrate-only"), take_value("--sizes")) {
         (None, None) => Sizes::Calibrate,
@@ -1400,7 +1407,7 @@ fn parse_arguments() -> Options {
         (points.is_none() && rounds.is_none()) || selection == Selection::Explicit,
         "--points and --rounds narrow a --contenders run\n\n{USAGE}"
     );
-    Options { selection, explicit, points, rounds, trace_path, quick, sizes }
+    Options { selection, explicit, points, rounds, trace_path, quick, sizes, threads }
 }
 
 /*
@@ -1486,7 +1493,7 @@ fn main() {
     if arguments.first().map(String::as_str) == Some("map") {
         return map::command(&arguments[1..]);
     }
-    let Options { selection, explicit, points, rounds, trace_path, quick, sizes } = parse_arguments();
+    let Options { selection, explicit, points, rounds, trace_path, quick, sizes, threads } = parse_arguments();
     let mut trace = trace_path.map(ClockTrace::new);
     let mut machine = machine_metadata();
 
@@ -1506,10 +1513,12 @@ fn main() {
             (explicit, format!("--contenders {keys}"))
         }
     };
+    // The thread count is the run's, so its contenders' note names it.
+    let selection_note = match threads { Some(n) => format!("{selection_note}; --threads {n}"), None => selection_note };
     // A program that calls the fork's multithreaded entry points or its
     // queue starts their threads once, first: the fork's contract.
     if algorithms.contains(&Algorithm::Blake3ServilMt) {
-        blake3_servil::initialize_multithreaded(None);
+        blake3_servil::initialize_multithreaded(threads);
     }
     let roster = Roster::new(algorithms, quick, points, rounds);
     let (results, samples, load) = measure_all(&roster, trace.as_mut(), &sizes);
