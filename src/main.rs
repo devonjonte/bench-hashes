@@ -104,7 +104,7 @@ const COLLECTION_COUNT: usize = 2;
 /// A message's outboard, at two lengths (FROZEN.md).
 const OUTBOARD_COUNT: usize = 2;
 const VERIFY_COUNT: usize = 2;
-const POINT_COUNT: usize = 2 * (INPUT_COUNT + BATCH_COUNT) + 2 * CONTINUOUS_MESSAGE_COUNT + INTERLEAVED_COUNT + 2 * COLLECTION_COUNT + OUTBOARD_COUNT + VERIFY_COUNT + 2 * CONTINUOUS_BATCH_COUNT;
+const POINT_COUNT: usize = 2 * (INPUT_COUNT + BATCH_COUNT) + 2 * CONTINUOUS_MESSAGE_COUNT + INTERLEAVED_COUNT + 2 * COLLECTION_COUNT + OUTBOARD_COUNT + VERIFY_COUNT + 2 * CONTINUOUS_BATCH_COUNT + MERKLE_COUNT;
 /// A long message reaches a contender in pieces of this many bytes (a
 /// typical read buffer), the last one shorter.
 const PIECE_LEN: usize = 64 * 1024;
@@ -195,6 +195,21 @@ const INTERLEAVED: InterleavedSpec = InterleavedSpec {
     messages: &[64, 1000, 4470, 16 * 1024, 100_000, 1024 * 1024, 16 * 1024 * 1024],
     chunk: 1024 * 1024,
 };
+/*
+ * A Merkle tree (UseCase::MerkleTree; Zooko, October 19, 2026): the
+ * commitment a zero-knowledge prover makes to a Reed-Solomon codeword
+ * (WHIR's, for one: the fork's docs/whir-merkle-trees.md): the program
+ * writes the codeword's leaves into its buffer, then hashes them, a
+ * digest each, and each layer of parents, two children's digests side by
+ * side, to the root, keeping every layer for the openings. Leaves of 256
+ * bytes, as WHIR's tree of that note; the leaf counts powers of two.
+ */
+struct MerkleSpec {
+    leaf_len: usize,
+}
+const MERKLE: MerkleSpec = MerkleSpec { leaf_len: 256 };
+const MERKLE_COUNT: usize = 5;
+
 /// Every message in the batches is one BLAKE3 block of 64 bytes, the size
 /// of a Merkle tree's inner node (two 32-byte children).
 const MESSAGE_LEN: usize = 64;
@@ -412,6 +427,11 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::lent_batch("65536", 65536),
     Point::continuous_collection(0),
     Point::continuous_collection(1),
+    Point::merkle("1024", 1 << 10),
+    Point::merkle("4096", 1 << 12),
+    Point::merkle("16384", 1 << 14),
+    Point::merkle("65536", 1 << 16),
+    Point::merkle("262144", 1 << 18),
 ];
 
 /// results[contender_index][point_index], contenders in the roster's
@@ -494,13 +514,18 @@ enum UseCase {
     /// program's buffer, then hashed (COLLECTIONS): the collection
     /// pipelined, as a program reads a store's files and hashes them.
     ContinuousCollection,
+    /// A Merkle tree built over leaves the program has just written into
+    /// place (MERKLE): the leaves hashed in one batch, then each layer of
+    /// parents (two children's digests) in one batch, to the root, every
+    /// layer kept, as a prover commits to a Reed-Solomon codeword.
+    MerkleTree,
 }
 
 impl UseCase {
-    const ALL: [UseCase; 13] = [UseCase::OneMessage, UseCase::ManyMessages, UseCase::IdleOneMessage,
+    const ALL: [UseCase; 14] = [UseCase::OneMessage, UseCase::ManyMessages, UseCase::IdleOneMessage,
         UseCase::IdleManyMessages, UseCase::ContinuousMessages, UseCase::ContinuousBatches,
         UseCase::LentMessages, UseCase::Interleaved, UseCase::Collection, UseCase::Outboard, UseCase::Verify, UseCase::LentBatches,
-        UseCase::ContinuousCollection];
+        UseCase::ContinuousCollection, UseCase::MerkleTree];
 
     /// Whether each call comes after a gap (the synchronous use cases:
     /// after other work, or after idling), or one follows another (the
@@ -538,7 +563,7 @@ impl UseCase {
     fn message_len(self) -> usize {
         match self {
             Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => MESSAGE_LEN,
-            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved | Self::Collection | Self::ContinuousCollection | Self::Outboard | Self::Verify => panic!("{self:?} hashes messages of their own lengths"),
+            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved | Self::Collection | Self::ContinuousCollection | Self::Outboard | Self::Verify | Self::MerkleTree => panic!("{self:?} hashes messages of their own lengths"),
         }
     }
 
@@ -565,6 +590,7 @@ impl UseCase {
             Self::Verify => "Messages received in their encodings, verified as they arrive",
             Self::LentBatches => "Batches one after another, buffers lent",
             Self::ContinuousCollection => "A collection's items one after another, each read into a buffer, then hashed",
+            Self::MerkleTree => "A Merkle tree over leaves just written into place, every layer kept",
         }
     }
 
@@ -575,6 +601,7 @@ impl UseCase {
             Self::Interleaved => "messages open",
             Self::Collection | Self::ContinuousCollection => "collection",
             Self::Outboard | Self::Verify => "size",
+            Self::MerkleTree => "leaves",
             Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => "messages",
         }
     }
@@ -587,7 +614,7 @@ impl UseCase {
      */
     fn units(self, point: Point, iterations: usize) -> u64 {
         match self {
-            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved | Self::Collection | Self::ContinuousCollection | Self::Outboard | Self::Verify => point.bytes as u64 * iterations as u64,
+            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages | Self::Interleaved | Self::Collection | Self::ContinuousCollection | Self::Outboard | Self::Verify | Self::MerkleTree => point.bytes as u64 * iterations as u64,
             Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => point.messages as u64 * iterations as u64,
         }
     }
@@ -629,6 +656,7 @@ impl UseCase {
             Self::Verify => "verify ",
             Self::LentBatches => "lent batch ",
             Self::ContinuousCollection => "continuous collection ",
+            Self::MerkleTree => "merkle ",
         }
     }
 }
@@ -695,6 +723,11 @@ impl Point {
 
     const fn interleaved(label: &'static str, bytes: usize) -> Self {
         Self { label, bytes, messages: 1, use_case: UseCase::Interleaved }
+    }
+
+    /// A Merkle tree of `leaves` leaves of MERKLE.leaf_len bytes.
+    const fn merkle(label: &'static str, leaves: usize) -> Self {
+        Self { label, bytes: leaves * MERKLE.leaf_len, messages: leaves, use_case: UseCase::MerkleTree }
     }
 
     const fn lent_batch(label: &'static str, messages: usize) -> Self {
@@ -772,6 +805,11 @@ impl Algorithm {
         }
     }
 
+    /// The bytes of one digest: a Merkle tree's parent is two of them.
+    fn digest_len(self) -> usize {
+        if self == Self::Sha1Dc { 20 } else { 32 }
+    }
+
     /// Whether this contender is measured in a use case. BLAKE3 mt stays
     /// out of the batch use cases: `update_rayon` exists for large inputs,
     /// and a 64-byte message is a call to it that no program would make.
@@ -794,6 +832,8 @@ impl Algorithm {
             UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::LentMessages | UseCase::Interleaved | UseCase::Collection | UseCase::ContinuousCollection => true,
             UseCase::Outboard => matches!(self, Self::Blake3 | Self::Blake3ServilSt | Self::Blake3ServilMt),
             UseCase::Verify => matches!(self, Self::Blake3 | Self::Blake3ServilSt | Self::Blake3ServilMt),
+            /* A tree's layers are batches: BLAKE3 official mt has no batch call. */
+            UseCase::MerkleTree => !matches!(self, Self::Blake3Rayon),
         }
     }
 
@@ -2184,7 +2224,7 @@ fn hash_batch(
     assert!(iterations > 0, "batch size must be positive");
     let messages = point.messages;
     let message_len = if point.use_case.batch() { point.use_case.message_len() } else { input.len() };
-    assert!(messages == 1 || matches!(point.use_case, UseCase::Collection | UseCase::ContinuousCollection) || input.len() == messages * message_len, "a batch is {messages} messages of {message_len} bytes");
+    assert!(messages == 1 || matches!(point.use_case, UseCase::Collection | UseCase::ContinuousCollection | UseCase::MerkleTree) || input.len() == messages * message_len, "a batch is {messages} messages of {message_len} bytes");
     assert!(algorithm.takes_part(point.use_case), "{} takes no part in {:?}", algorithm.key(), point.use_case);
 
     match point.use_case {
@@ -2196,6 +2236,7 @@ fn hash_batch(
         UseCase::ContinuousMessages => return hash_continuous_messages(algorithm, input, iterations, consume),
         UseCase::ContinuousBatches => return hash_continuous_batches(algorithm, input, point, iterations, consume),
         UseCase::LentMessages | UseCase::LentBatches => return hash_lent(algorithm, input, point, iterations, consume),
+        UseCase::MerkleTree => return hash_merkle(algorithm, input, point, iterations, consume),
         UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::ManyMessages | UseCase::IdleManyMessages => hash_in_memory(algorithm, input, point, iterations, consume),
     }
 }
@@ -2203,11 +2244,17 @@ fn hash_batch(
 /// hash_batch for the use cases whose input is in memory: one message, or
 /// a batch of them.
 fn hash_in_memory(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, consume: impl FnMut(&[u8])) {
-    let messages = point.messages;
     let message_len = if point.use_case.batch() { point.use_case.message_len() } else { input.len() };
+    hash_messages(algorithm, input, point.messages, message_len, point.use_case.batch(), iterations, consume);
+}
+
+/// `messages` messages of `message_len` bytes back to back in `input`,
+/// each contender's way: through its batch call where `batch` and it has
+/// one, else one call each; every digest into `consume`.
+fn hash_messages(algorithm: Algorithm, input: &[u8], messages: usize, message_len: usize, batch: bool, iterations: usize, consume: impl FnMut(&[u8])) {
     match algorithm {
         Algorithm::Blake3 => {
-            if !point.use_case.batch() {
+            if !batch {
                 each_message(input, message_len, iterations, |m| *blake3::hash(m).as_bytes(), consume)
             } else {
                 blake3_batch(input, message_len, iterations, consume)
@@ -2225,7 +2272,7 @@ fn hash_in_memory(algorithm: Algorithm, input: &[u8], point: Point, iterations: 
             digest
         }, consume),
         Algorithm::Blake3ServilSt => {
-            if !point.use_case.batch() {
+            if !batch {
                 each_message(input, message_len, iterations, |m| *blake3_servil::hash(m).as_bytes(), consume)
             } else {
                 servil_batch(input, messages, message_len, iterations, blake3_servil::hash_many, consume)
@@ -2238,7 +2285,7 @@ fn hash_in_memory(algorithm: Algorithm, input: &[u8], point: Point, iterations: 
             each_message(input, message_len, iterations, |m| *blake3::Hasher::new().update_rayon(m).finalize().as_bytes(), consume)
         }
         Algorithm::Blake3ServilMt => {
-            if !point.use_case.batch() {
+            if !batch {
                 each_message(input, message_len, iterations, |m| *blake3_servil::hash_multithreaded(m).as_bytes(), consume)
             } else {
                 servil_batch(input, messages, message_len, iterations, blake3_servil::hash_many_multithreaded, consume)
@@ -2813,6 +2860,39 @@ fn hash_lent(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize
     keep_buffers(1, input.len(), buffers);
 }
 
+/*
+ * A Merkle tree (UseCase::MerkleTree, MERKLE): `iterations` trees, each
+ * over the point's leaves written into the program's kept buffer (the
+ * prover producing its codeword in place), then hashed layer by layer
+ * with the contender's batch call (hash_messages): the leaves, then each
+ * layer of parents, a parent two children's digests side by side, to the
+ * root, every layer kept in buffers of the program's; the root into
+ * `consume`.
+ */
+fn hash_merkle(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
+    assert!(point.messages.is_power_of_two() && input.len() == point.messages * MERKLE.leaf_len, "a tree's leaves are a power of two of MERKLE.leaf_len bytes");
+    let depth = point.messages.trailing_zeros() as usize;
+    /* The leaves, then each layer's digests: a buffer each, of its size. */
+    let size = |k: usize| if k == 0 { input.len() } else { (point.messages >> (k - 1)) * algorithm.digest_len() };
+    let mut buffers: Vec<Vec<u8>> = (0..depth + 2).map(|k| take_buffers(1, size(k)).pop().unwrap()).collect();
+    for _ in 0..iterations {
+        buffers[0].clear();
+        buffers[0].extend_from_slice(black_box(input));
+        let mut message_len = MERKLE.leaf_len;
+        for layer in 0..=depth {
+            let (done, rest) = buffers.split_at_mut(layer + 1);
+            let (from, to) = (&done[layer], &mut rest[0]);
+            to.clear();
+            hash_messages(algorithm, from, from.len() / message_len, message_len, true, 1, |digest| to.extend_from_slice(digest));
+            message_len = 2 * algorithm.digest_len();
+        }
+        consume(&buffers[depth + 1]);
+    }
+    for (k, buffer) in buffers.into_iter().enumerate() {
+        keep_buffers(1, size(k), vec![buffer]);
+    }
+}
+
 thread_local! {
     /*
      * The continuous use cases' read buffers, kept from one sample to the
@@ -2916,7 +2996,9 @@ thread_local! {
  * these.
  */
 #[cfg(test)]
-const SERVIL_CALLS: [(Algorithm, UseCase, &str); 26] = [
+const SERVIL_CALLS: [(Algorithm, UseCase, &str); 28] = [
+    (Algorithm::Blake3ServilSt, UseCase::MerkleTree, "hash_many(layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer, then each layer of parents (64 B, two children's digests) into a kept buffer of its own, to the root"),
+    (Algorithm::Blake3ServilMt, UseCase::MerkleTree, "hash_many_multithreaded(layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer, then each layer of parents (64 B, two children's digests) into a kept buffer of its own, to the root"),
     (Algorithm::Blake3ServilSt, UseCase::OneMessage, "hash(input), each call after other work"),
     (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "hash_many(batch, 64, out), the padded batch contract, each call after other work"),
     (Algorithm::Blake3ServilMt, UseCase::OneMessage, "hash_multithreaded(input), each call after other work"),
@@ -3019,6 +3101,7 @@ fn keep_batch_digests(digests: Vec<[u8; 32]>) {
 fn blake3_batch(input: &[u8], message_len: usize, iterations: usize, consume: impl FnMut(&[u8])) {
     match message_len {
         MESSAGE_LEN => blake3_batch_of::<MESSAGE_LEN>(input, iterations, consume),
+        256 => blake3_batch_of::<256>(input, iterations, consume),
         other => panic!("no blake3 batch of {other}-byte messages"),
     }
 }
@@ -3569,7 +3652,7 @@ fn continuous_min_inputs(input: &[u8], point: Point) -> usize {
             2 * in_flight(input.len().min(PIECE_LEN)).div_ceil(pieces)
         }
         UseCase::ContinuousBatches => 2 * in_flight(input.len()),
-        UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::ManyMessages | UseCase::IdleManyMessages | UseCase::LentMessages | UseCase::Interleaved | UseCase::Collection | UseCase::Outboard | UseCase::Verify | UseCase::LentBatches => 1,
+        UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::ManyMessages | UseCase::IdleManyMessages | UseCase::LentMessages | UseCase::Interleaved | UseCase::Collection | UseCase::Outboard | UseCase::Verify | UseCase::LentBatches | UseCase::MerkleTree => 1,
         /* A pass over the collection keeps its many items in flight. */
         UseCase::ContinuousCollection => 1,
     }
@@ -4911,7 +4994,9 @@ mod correctness_tests {
         assert_eq!(UseCase::Verify.points(), verify..verify + VERIFY_COUNT);
         let lent_batches = verify + VERIFY_COUNT;
         assert_eq!(UseCase::LentBatches.points(), lent_batches..lent_batches + CONTINUOUS_BATCH_COUNT);
-        assert_eq!(UseCase::ContinuousCollection.points(), lent_batches + CONTINUOUS_BATCH_COUNT..POINT_COUNT);
+        let continuous_collection = lent_batches + CONTINUOUS_BATCH_COUNT;
+        assert_eq!(UseCase::ContinuousCollection.points(), continuous_collection..continuous_collection + COLLECTION_COUNT);
+        assert_eq!(UseCase::MerkleTree.points(), continuous_collection + COLLECTION_COUNT..POINT_COUNT);
         for (k, point) in POINTS[UseCase::ContinuousCollection.points()].iter().enumerate() {
             assert_eq!((point.label, point.bytes), (POINTS[UseCase::Collection.points()][k].label, POINTS[UseCase::Collection.points()][k].bytes), "the pipelined collections are the collections");
         }

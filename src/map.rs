@@ -28,6 +28,7 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
         UseCase::Collection => ("coll", "lent", "hash_each_multithreaded_with", "fn.hash_each_multithreaded_with.html"),
         UseCase::ContinuousCollection => ("coll", "piped", "Stream::submit_with", "struct.Stream.html#method.submit_with"),
         UseCase::Outboard => ("outb", "lent", "outboard_multithreaded_with", "fn.outboard_multithreaded_with.html"),
+        UseCase::MerkleTree => ("merkle", "lent", "hash_many_multithreaded", "fn.hash_many_multithreaded.html"),
         UseCase::Verify => ("recv", "lent", "Verifier::update", "struct.Verifier.html#method.update"),
     }
 }
@@ -46,6 +47,7 @@ const DOCS: &str = "https://johnservil.github.io/BLAKE3/blake3_servil/";
 fn axis(use_case: UseCase) -> &'static str {
     match use_case {
         UseCase::Interleaved => "messages open at once",
+        UseCase::MerkleTree => "leaves (256 B each)",
         UseCase::Collection | UseCase::ContinuousCollection => "collection",
         _ if use_case.batch() => "messages in the batch (64 B each)",
         _ => "message size",
@@ -57,6 +59,7 @@ fn what(use_case: UseCase) -> &'static str {
     match use_case {
         UseCase::Collection | UseCase::ContinuousCollection => "the collection",
         UseCase::Interleaved => "a megabyte of pieces",
+        UseCase::MerkleTree => "a tree",
         _ if use_case.batch() => "a batch",
         _ => "a message",
     }
@@ -333,6 +336,7 @@ fn hashing(path: &Path) -> Section {
         rows: vec![
             ("one", "one message", "One message in memory, of the length along the chart's axis."),
             ("batch", "a batch of short messages", "Many 64-byte messages hashed together, such as a Merkle tree's nodes; the axis counts the messages."),
+            ("merkle", "a Merkle tree", "A Merkle tree over 256-byte leaves the program has just written into place, every layer kept, as a zero-knowledge prover commits to its Reed-Solomon codeword (WHIR); the axis counts the leaves."),
             ("many", "many messages at once, in pieces", "256 messages in progress at once, their pieces arriving 64 at a time, as a server's uploads arrive."),
             ("coll", "a collection of items", "A collection of items of every size, such as a repository's objects or a store's files, hashed together."),
             ("outb", "a message with its outboard, for verified streaming", "A message's hash and its outboard: the hash tree's nodes, kept beside the message so that any part of it can be verified when it is sent (Bao, iroh-blobs)."),
