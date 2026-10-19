@@ -6,7 +6,7 @@ Mac first, then in the VM, measured by this benchmark; prove what users
 rely on; keep everything as simple as it can be. The principles are in
 both repositories' `AGENTS.md`; the fork's design and measurements in its
 `NOTES-servil.md`, what is proved and tested in its `QUALITY.md`; this
-repository's measurement design in `NOTES.md`. This file says where the
+repository's measurement design in `METHODOLOGY.md`. This file says where the
 work stands and what comes next; its history is in git.
 
 ## Where things stand (October 18, 2026, morning)
