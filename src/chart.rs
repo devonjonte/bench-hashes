@@ -66,11 +66,7 @@ pub fn from_samples(path: &str) -> Option<String> {
             });
         }
     }
-    Some(draw(
-        &file,
-        "Hashing one 128 MiB message, after a pause",
-        bars,
-    ))
+    Some(draw(&file, "Hashing one 128 MiB message", bars))
 }
 
 /// b3sum's chart: the mixed tree of 1000 files, in the page cache, b3sum
