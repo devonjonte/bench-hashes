@@ -298,8 +298,9 @@ fn touched_points(fork: &Path, bench: &Path, cache: &Path, old: &str, new: &str,
             current = Some(f.to_string());
         } else if line.starts_with("@@") {
             if let Some(f) = &current {
-                let range = line.split('+').nth(1).unwrap().split(' ').next().unwrap();
-                let (start, count) = range.split_once(',').map(|(s, c)| (s.parse::<usize>().unwrap(), c.parse::<usize>().unwrap())).unwrap_or((range.parse().unwrap(), 1));
+                // "@@ -a,b +c,d @@ context": the new side's range is c,d.
+                let range = line.split_whitespace().nth(2).unwrap().trim_start_matches('+');
+                let (start, count) = range.split_once(',').map(|(s, c)| (s.parse::<usize>().unwrap(), c.parse::<usize>().unwrap())).unwrap_or_else(|| (range.parse().unwrap(), 1));
                 touched.entry(f.clone()).or_default().extend(start..start + count);
             }
         }
