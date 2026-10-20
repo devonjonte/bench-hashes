@@ -26,6 +26,13 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **BLAKE3 commonware retires** (Zooko, October 20): its kernels were
+  commonware's pull request #4982, which closed unmerged; commonware's
+  shipped BLAKE3 is the official `blake3` crate (a thread-pool split of
+  messages from 128 KiB beside it), which the benchmark measures already as
+  BLAKE3 official and BLAKE3 official mt. A comparison with code its
+  authors chose not to ship serves no reader. The contender crate, its
+  cells and its colour go; the batch charts open with three lines.
 - **Many messages at once, a turn after a gap** (Zooko, October 19): two
   new use cases, InterleavedTurn and IdleInterleavedTurn, the map's two
   empty cells of the many-messages row. The 256 open messages of
@@ -48,7 +55,7 @@ the notes) may still change, to say it better.
   `Platform::hash_many` with the key, as WHIR's engine calls it; servil:
   `hash_many_with`, mt `hash_many_multithreaded_with`), and one call a node
   where it has none. BLAKE3
-  official mt and commonware (64-byte messages only) take no part. The map
+  official mt takes no part. The map
   draws it in its own row, the nonstop column.
 - **A collection, pipelined** (Devon Jonte's fork, October 18; Zooko's
   question): a new use case, ContinuousCollection, at the two collections

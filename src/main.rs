@@ -1046,13 +1046,10 @@ enum Algorithm {
     /// RustCrypto's SHA3-256 (the sha3 crate), with the ARMv8 SHA-3
     /// instructions where the CPU has them (keccak's run-time detection).
     Sha3_256,
-    /// commonware-cryptography's BLAKE3 batches (its pull request #4982):
-    /// one message per SIMD lane, in contenders/commonware-blake3.
-    Blake3Commonware,
 }
 
 impl Algorithm {
-    const ALL: [Algorithm; 10] = [
+    const ALL: [Algorithm; 9] = [
         Algorithm::Blake3,
         Algorithm::Sha256,
         Algorithm::Sha1Dc,
@@ -1062,7 +1059,6 @@ impl Algorithm {
         Algorithm::Blake3Rayon,
         Algorithm::Blake3ServilMt,
         Algorithm::Sha3_256,
-        Algorithm::Blake3Commonware,
     ];
 
     /// Command-line key, as in `--contenders blake3,sha256-cc`.
@@ -1077,7 +1073,6 @@ impl Algorithm {
             Self::Blake3Rayon => "blake3-official-mt",
             Self::Blake3ServilMt => "blake3-servil-mt",
             Self::Sha3_256 => "sha3-256",
-            Self::Blake3Commonware => "blake3-commonware",
         }
     }
 
@@ -1098,19 +1093,8 @@ impl Algorithm {
     /// servil st takes part in the continuous use cases as every hash
     /// without a stream does, on the program's thread: a program that keeps
     /// to one thread hashes its inputs so (FROZEN.md).
-    /// BLAKE3 commonware takes part in the batches alone: its other calls
-    /// are BLAKE3 official's.
     fn takes_part(self, use_case: UseCase) -> bool {
         let use_case = use_case.call();
-        if self == Self::Blake3Commonware {
-            return matches!(
-                use_case,
-                UseCase::ManyMessages
-                    | UseCase::IdleManyMessages
-                    | UseCase::LentBatches
-                    | UseCase::ContinuousBatches
-            );
-        }
         match use_case {
             UseCase::ManyMessages | UseCase::IdleManyMessages | UseCase::LentBatches => {
                 !matches!(self, Self::Blake3Rayon)
@@ -1150,8 +1134,7 @@ impl Algorithm {
             | Self::Blake3ServilSt
             | Self::Blake3Rayon
             | Self::Blake3ServilMt
-            | Self::Sha3_256
-            | Self::Blake3Commonware => Ok(()),
+            | Self::Sha3_256 => Ok(()),
             Self::Sha256CommonCrypto => {
                 if cfg!(target_vendor = "apple") {
                     Ok(())
@@ -1173,7 +1156,6 @@ impl Algorithm {
             Self::Blake3Rayon => "BLAKE3 official mt",
             Self::Blake3ServilMt => "BLAKE3 servil mt",
             Self::Sha3_256 => "SHA3-256",
-            Self::Blake3Commonware => "BLAKE3 commonware",
         }
     }
 
@@ -1193,7 +1175,6 @@ impl Algorithm {
             Self::Blake3Rayon => "#1e3a8a",
             Self::Blake3ServilMt => "#4c1d95",
             Self::Sha3_256 => "#db2777",
-            Self::Blake3Commonware => "#ca8a04",
         }
     }
 
@@ -1209,7 +1190,6 @@ impl Algorithm {
             Self::Blake3Rayon => BLAKE3_SOURCE_INFO,
             Self::Blake3ServilMt => BLAKE3_SERVIL_SOURCE_INFO,
             Self::Sha3_256 => SHA3_SOURCE_INFO,
-            Self::Blake3Commonware => "commonwarexyz/monorepo pull request #4982, commit 3aa183f0592d65e23b6f9435f938ca6659d64bd1: cryptography/src/blake3/simd, unchanged, in contenders/commonware-blake3",
         }
     }
 
@@ -1223,7 +1203,6 @@ impl Algorithm {
             | Self::Sha256CommonCrypto
             | Self::Sha256Ring
             | Self::Sha3_256 => "single-threaded",
-            Self::Blake3Commonware => "single-threaded; commonware-cryptography's Blake3::hash_many for a batch, one message per SIMD lane (NEON 4 on AArch64; AVX2 8, AVX-512 16 on x86-64), its digests in a new Vec each call",
             Self::Blake3ServilSt => "single-threaded; blake3_servil::hash for one message, blake3_servil::hash_many for a batch, Hasher::update per piece for many messages at once",
             Self::Blake3Rayon => "multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread",
             Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: the fork chooses when to wake its worker threads",
@@ -1632,14 +1611,12 @@ const DEFAULT_CONTENDERS: [Algorithm; 4] = [
  * mt matches servil below its threading threshold), SHA-256 ring (the
  * faster SHA-256 from 256 B up; sha2, faster below and in 64-byte
  * batches, is one click away), and the crates.io BLAKE3 most programs
- * use, and BLAKE3 commonware, which draws in the batch charts alone. A
- * run with none of them opens with every contender shown.
+ * use. A run with none of them opens with every contender shown.
  */
-const SHOWN_AT_FIRST: [Algorithm; 4] = [
+const SHOWN_AT_FIRST: [Algorithm; 3] = [
     Algorithm::Blake3ServilMt,
     Algorithm::Sha256Ring,
     Algorithm::Blake3,
-    Algorithm::Blake3Commonware,
 ];
 
 /*
@@ -2855,7 +2832,6 @@ fn one_message_call(algorithm: Algorithm) -> fn(&[u8]) {
                     .as_bytes(),
             )
         },
-        Algorithm::Blake3Commonware => unreachable!("BLAKE3 commonware hashes batches alone"),
     }
 }
 
@@ -3084,33 +3060,6 @@ fn hash_messages(
                     consume,
                 )
             }
-        }
-        Algorithm::Blake3Commonware => {
-            commonware_batch(input, messages, message_len, iterations, consume)
-        }
-    }
-}
-
-/// A batch through commonware's `hash_many`, which takes the messages as
-/// slices (here the batch's 64-byte arrays, in place) and returns their
-/// digests in a new Vec.
-fn commonware_batch(
-    input: &[u8],
-    messages: usize,
-    message_len: usize,
-    iterations: usize,
-    mut consume: impl FnMut(&[u8]),
-) {
-    assert_eq!(
-        (message_len, input.len()),
-        (64, messages * 64),
-        "a batch of 64-byte messages"
-    );
-    let (batch, _) = input.as_chunks::<64>();
-    for _ in 0..iterations {
-        let digests = commonware_blake3::blake3::hash_many(black_box(batch));
-        for digest in &digests {
-            consume(&digest.0);
         }
     }
 }
@@ -3511,7 +3460,6 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             },
             consume,
         ),
-        Algorithm::Blake3Commonware => unreachable!("BLAKE3 commonware hashes batches alone"),
     }
 }
 
@@ -3645,7 +3593,6 @@ fn hash_interleaved(
             per_message(sha3::Sha3_256::new, |h| -> [u8; 32] { h.finalize().into() }),
             consume,
         ),
-        Algorithm::Blake3Commonware => unreachable!("BLAKE3 commonware hashes batches alone"),
     }
 }
 
@@ -4107,7 +4054,7 @@ fn hash_tree_layer(
             },
             consume,
         ),
-        Algorithm::Blake3Rayon | Algorithm::Blake3Commonware => {
+        Algorithm::Blake3Rayon => {
             panic!("{} takes no part in a Merkle tree", algorithm.key())
         }
     }
@@ -6923,24 +6870,6 @@ mod correctness_tests {
             Some(24),
         );
         assert!(!roster.whole_axes());
-        // Commonware takes part in batches alone: no cells among these messages.
-        let roster = Roster::new(
-            vec![
-                Algorithm::Blake3Commonware,
-                Algorithm::Blake3ServilMt,
-                Algorithm::Sha256,
-            ],
-            true,
-            Some(vec![
-                point("64 B", UseCase::ContinuousMessages),
-                point("256 B", UseCase::ContinuousMessages),
-            ]),
-            Some(24),
-        );
-        assert!(
-            !roster.whole_axes(),
-            "one selected contender has no cells here"
-        );
     }
 
     #[test]

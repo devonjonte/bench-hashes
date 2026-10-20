@@ -791,12 +791,6 @@ Max sha2 leads at 64 B and 128 B and in 64-byte batches, ring from
 256 B). `--all` adds the rest; the map opens showing servil mt, SHA-256
 ring and official BLAKE3 (`SHOWN_AT_FIRST`), the others a click away.
 
-**BLAKE3 commonware** (commonwarexyz/monorepo pull request #4982 at 3aa183f0, copied unchanged into `contenders/commonware-blake3`) gives BLAKE3
-batch kernels of its own, so it takes part in the batch use cases alone;
-its other calls are official BLAKE3's. Its default features stay on (x86's
-run-time AVX detection needs "std"), about 20 s of build. It stays while
-it pays for that.
-
 ## What a contender could do that the benchmark would reward
 
 None of these is detected automatically; watch for them when reading a

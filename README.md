@@ -101,11 +101,7 @@ The contenders:
   computers.
 
 `cargo run --release -- --all` adds the official BLAKE3 crate, SHA3-256,
-SHA-1DC, Apple's CommonCrypto SHA-256, and **BLAKE3 commonware**: the
-batch kernels of
-[commonware](https://github.com/commonwarexyz/monorepo/pull/4982)'s
-cryptography crate, measured on batches of 64-byte messages; it takes
-longer. `--contenders` picks any set by name, among them the official
+SHA-1DC, and Apple's CommonCrypto SHA-256; it takes longer. `--contenders` picks any set by name, among them the official
 crate on its thread pool (`blake3-official-mt`), which runs only when
 named (`--list` shows the names).
 
