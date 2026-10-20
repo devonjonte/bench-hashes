@@ -221,9 +221,7 @@ hash the same way, storing it in the program's slot for its message.
 The working buffer's pages are written when it is made, so operating
 systems that share untouched zero pages give it real physical memory.
 Each thread keeps one work buffer and one producer buffer across samples.
-`--trace-clocks` records the producer's wall time and counts on rows
-labelled `preparation solo`; the
-hashing rows describe the write and the call together. In both, a pool's workers have
+In both, a pool's workers have
 fallen asleep. After other work the caller's core is busy and its caches
 hold the other program's code and data. After idling the core may have
 slowed or powered down, or the thread may wake on another core: an
@@ -643,9 +641,7 @@ none), `bench-hashes.guide.html`
 (the guide for programmers), and `bench-hashes.samples.tsv` (every sample of every cell, every scenario,
 in the order taken, each as `ns/units`, and in a last column the
 millisecond each sample started, with the provenance, the CPU's identity,
-and the load windows as `# key: value` lines). `bench-hashes compare` and `bench-hashes regress` read it. `--trace-clocks PATH` also writes each
-sample's thread counts per core kind (cycles, instructions, time), the
-clock each call ran at.
+and the load windows as `# key: value` lines). `bench-hashes compare` and `bench-hashes regress` read it.
 
 `bench-hashes chart SAMPLES.tsv` draws a samples file's chart again
 beside it, and `bench-hashes map FOLDER` a folder's map; both come from

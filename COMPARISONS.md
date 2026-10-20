@@ -104,7 +104,7 @@ bench-hashes #25.
    +6% (the fork's `B3_PLANT` probe). Count false and true verdicts.
 3. Change every producer, reader, driver, test, and document at once:
    `clocks::summary`, `compare`, `regress`, `perf_regress`, METHODOLOGY,
-   AGENTS, PROCEDURES, FROZEN.md (the gate's points, pairs, and margin are
+   AGENTS, FROZEN.md (the gate's points, pairs, and margin are
    Zooko's decision).
 4. Add a row above: the choice, its evidence, and what it gives up; and any
    alternative you measured and set aside below.
