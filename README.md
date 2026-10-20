@@ -4,18 +4,20 @@
 > shared results the tree held until October 18, at commit `aadeca9d`
 > (`git show aadeca9d:NOTES.md`).
 
-Written by GPT-5.6 Sol, Claude Fable 5, and Claude Opus 5.5 to my (Zooko's) specifications.
+Written by AI at Zooko's request and to his specifications.
 
 ## Is BLAKE3 faster than SHA-256?
 
-It depends on your computer, on how long your messages are, and on how
-your program calls the hash. bench-hashes measures them on your
-computer, from 64-byte messages to 128 MiB and in batches of small
-messages, called now and then or nonstop, and draws the answer as a
-map you open in a web browser: a small chart for each way a program
-hashes. One message of 1 MiB on an Apple M4 Max:
+It depends. Try it! bench-hashes measures the hashes on your computer,
+for each way a program hashes, and draws the answer as a map you open in
+a web browser. One 128 MiB message, hashed by a program that had paused,
+on an Apple M4 Max:
 
-<img src="benchmark-results/AppleM4Max.darwin25/bench-hashes.chart.svg" alt="Hashing one 1 MiB message on an Apple M4 Max: BLAKE3 on every core and on one core beside SHA-256, SHA3-256, and SHA-1, in GB/s" width="720">
+<img src="benchmark-results/AppleM4Max.darwin25/bench-hashes.chart.svg" alt="Hashing one 128 MiB message after a pause on an Apple M4 Max: BLAKE3 on every core and on one core beside SHA-256, SHA3-256 and SHA-1, in GB/s" width="720">
+
+And `b3sum` against the system's sum programs on a tree of 1000 files:
+
+<img src="benchmark-results/AppleM4Max.darwin25/b3sum.chart.svg" alt="Hashing a tree of 1000 files on an Apple M4 Max: b3sum beside sha256sum, sha1sum and md5sum, in GB/s" width="720">
 
 Every size, on each machine measured so far:
 
@@ -61,7 +63,7 @@ your CPU and operating system:
 The map has a small chart for each way a program hashes. Its rows say
 what the program hashes: one message, a batch of 64-byte messages (a
 Merkle tree's nodes), many messages at once arriving in pieces (a
-server's uploads), a collection of items of every size (a repository's
+server's uploads), a collection of messages of every size (a repository's
 objects, a store's files), a message with its outboard, for verified
 streaming, and a message received in that form, verified as it arrives. Its columns say how the program calls: now and then, *after
 other work* or *after a pause*, and nonstop, *waiting for each call* or
@@ -130,10 +132,8 @@ evicted from it before each run (read from storage):
 A contender is `NAME=COMMAND`, a `b3sum` and its flags, or any program
 that hashes the files it is given (the files are appended);
 `tools/b3sum-contenders.sh` builds official BLAKE3's `b3sum` 1.8.2 and
-the fork's at given commits, and adds GNU coreutils' `sha256sum` where it
-is installed (one thread), the SHA-256 tool programs already use. The
-script finds it by its `--version`, as `sha256sum` or `gnusha256sum`:
-some systems give another implementation the name. The first contender
+the fork's at given commits, and adds the system's `sha256sum`, `sha1sum`
+and `md5sum`, the programs a user chooses between. The first contender
 is the one the others are compared with. `--files` chooses where the files live:
 put them on the storage you care about (they are made once, 1.4 GiB, and
 kept). `--quick` runs a smaller set in seconds. The report and samples go

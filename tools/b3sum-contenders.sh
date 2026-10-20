@@ -6,10 +6,8 @@
 # DIR/b3sum-COMMIT          the fork's b3sum at each COMMIT (default: FORK's HEAD),
 #                           built from a clean worktree of that commit as its
 #                           README recommends: statically linked on Linux
-# sha256sum                 GNU coreutils' sha256sum, where installed, for the
-#                           hash programs already use: found by its --version,
-#                           as sha256sum or gnusha256sum (some systems name
-#                           another implementation sha256sum, uutils on Ubuntu)
+# sha256sum, sha1sum, md5sum  the system's own, where installed: the programs
+#                           a user chooses between
 # Each b3sum is built as its own project recommends (official's from
 # crates.io, as `cargo install b3sum` builds it); on Linux, the fork's static
 # link alone makes each of its runs about 240 us shorter (METHODOLOGY, b3sum).
@@ -78,10 +76,11 @@ for rev in "$@"; do
     fi
     args="$args $(relink "fork-$commit" "$target/worktree-$commit/b3sum/Cargo.toml" "$dir/b3sum-$commit" "$static" | tr '\n' ' ')"
 done
-for name in sha256sum gnusha256sum; do
-    if path=$(command -v "$name") && "$path" --version 2>/dev/null | head -n 1 | grep -q 'GNU coreutils'; then
-        args="$args sha256sum=$path"
-        break
+# The system's own sum programs, as a user has them (whichever
+# implementation the platform ships: GNU or uutils coreutils, BSD).
+for name in sha256sum sha1sum md5sum; do
+    if path=$(command -v "$name"); then
+        args="$args $name=$path"
     fi
 done
 echo "$args"

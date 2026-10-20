@@ -784,6 +784,13 @@ pub fn command(args: &[String]) {
         rounds,
     );
     fs::write(directory.join("b3sum.result.txt"), &report).unwrap();
+    let chart_path = directory.join("b3sum.chart.svg");
+    match super::chart::b3sum_from_samples(samples_path.to_str().expect("a path in UTF-8")) {
+        Some(chart) => fs::write(&chart_path, chart).unwrap(),
+        None => {
+            let _ = fs::remove_file(&chart_path);
+        }
+    }
     print!("{report}");
     eprintln!(
         "bench-hashes b3sum: report, samples, and map in {}",
