@@ -129,7 +129,7 @@ fn draw(file: &SamplesFile, title: &str, mut bars: Vec<Bar>) -> String {
         .next()
         .unwrap_or("?")
         .to_owned();
-    let subtitle = "faster to the right".to_owned();
+    let subtitle = "faster →".to_owned();
     let footer = format!(
         "{}, {} CPUs · bench-hashes {} on {date}",
         header("cpu type"),
