@@ -50,8 +50,6 @@ your CPU and operating system:
   (a full run draws it; `bench-hashes chart` draws it again from a
   samples file).
 - `bench-hashes.result.txt`: the same numbers as text tables.
-- `bench-hashes.guide.html`: for programmers who want to call BLAKE3
-  from their own code (see "Which function to use", below).
 - `bench-hashes.samples.tsv`: every single measurement, for your own
   analysis.
 
@@ -108,14 +106,10 @@ named (`--list` shows the names).
 
 ## Which function to use
 
-Programmers who want this speed in their own program open their run's
-`bench-hashes.guide.html` ([the i7-12700K's](https://devonjonte.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.guide.html)). It asks a few questions about how the program
-receives its data (one thread or several; one message, pieces, or a
-batch; whether the thread keeps up; whose buffer the data lands in) and
-answers with one call from the servil crate, a complete Rust example, how
-that call's measured speed on your computer compares with SHA-256's, and
-a link to its chart on the map. Every
-question has an "I'm not sure" answer that leads to a safe choice.
+The servil crate's documentation has a table, "Which call to use", that
+leads from the shape of a program's data to one call:
+https://johnservil.github.io/BLAKE3/blake3_servil/. The map's rows are
+those shapes, so each row's chart shows that call's measured speed here.
 
 ## How fast is b3sum?
 

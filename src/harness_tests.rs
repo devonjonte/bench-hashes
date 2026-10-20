@@ -1,6 +1,6 @@
 //! Checks of the benchmark's own work, independent of speed: what a timed
 //! interval holds besides the hash (zeroing), the realized
-//! contender orders, what the guide and output directory show, and the
+//! contender orders, what the output directory shows, and the
 //! official crate's batch wrapper.
 use super::*;
 
@@ -37,46 +37,6 @@ fn official_batch_wrapper_hashes_each_message_with_plain_api_flags() {
             "{messages} separate hashes, in input order"
         );
     }
-}
-
-#[test]
-fn sparse_runs_remove_a_previous_guide() {
-    let directory =
-        std::env::temp_dir().join(format!("bench-hashes-audit-output-{}", std::process::id()));
-    fs::create_dir_all(&directory).unwrap();
-    for name in ["bench-hashes.guide.html", "bench-hashes.result.txt"] {
-        fs::write(directory.join(name), "previous run").unwrap();
-    }
-    remove_guide(&directory);
-    assert!(!directory.join("bench-hashes.guide.html").exists());
-    assert!(directory.join("bench-hashes.result.txt").exists());
-    remove_guide(&directory); // First sparse run has no guide.
-    fs::remove_dir_all(directory).unwrap();
-}
-
-#[test]
-fn guide_means_match_the_exact_report_rounding() {
-    let point = UseCase::Interleaved.points().start;
-    let roster = Roster::new(
-        vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring],
-        false,
-        Some(vec![point]),
-        Some(2),
-        &TO_CHECK_FOR_REGRESSIONS,
-    );
-    let statistics = Mean::of(&[Measured::new(2135, 400), Measured::new(2135, 400)]);
-    let mut results = vec![vec![None; POINT_COUNT]; roster.len()];
-    for cells in &mut results {
-        cells[point] = Some(super::Cell {
-            solo: statistics,
-            shared: Some(statistics),
-        });
-    }
-    let guide = generate_guide(&roster, &results, &machine_metadata());
-    assert!(
-        guide.contains("\"mean\":[5.338]"),
-        "the report rounds 2135/400 to 5.338; the guide must too"
-    );
 }
 
 /// A point's visits walk its Williams orders in turn, so no order is more

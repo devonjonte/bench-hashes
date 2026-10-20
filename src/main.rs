@@ -1549,27 +1549,6 @@ impl Roster {
         }
     }
 
-    /// Whether every point of each use case measured runs from the axis's
-    /// start to the run's limit for it (a quick run's shorter axes count):
-    /// the graph needs axes without holes.
-    fn whole_axes(&self) -> bool {
-        self.algorithms.iter().all(|algorithm| {
-            self.points
-                .iter()
-                .any(|&index| algorithm.takes_part(POINTS[index].use_case))
-        }) && UseCase::ALL.iter().all(|&use_case| {
-            let measured: Vec<usize> = use_case
-                .points()
-                .filter(|&index| self.measures(index))
-                .collect();
-            measured.is_empty()
-                || (measured.len() >= use_case.points().len().min(2)
-                    && measured
-                        == (use_case.points().start..measured.last().unwrap() + 1)
-                            .collect::<Vec<_>>())
-        })
-    }
-
     /// Whether this run measures POINTS[point_index].
     fn measures(&self, point_index: usize) -> bool {
         self.points.binary_search(&point_index).is_ok()
@@ -2060,9 +2039,6 @@ fn main() {
     machine.power[1] = Power::read();
 
     let text = generate_text(&roster, &results, &machine, &selection_note);
-    /* The graph draws whole axes: every point of each use case it shows. */
-    let whole = roster.whole_axes();
-
     print!("{text}");
 
     let directory = output_directory(&machine);
@@ -2084,15 +2060,6 @@ fn main() {
     fs::write(&text_path, &text)
         .unwrap_or_else(|error| panic!("failed to write {}: {error}", text_path.display()));
 
-    if whole {
-        let guide_path = directory.join(format!("{stem}.guide.html"));
-        fs::write(&guide_path, generate_guide(&roster, &results, &machine))
-            .unwrap_or_else(|error| panic!("failed to write {}: {error}", guide_path.display()));
-        println!("# API guide (HTML) is in \"{}\" .", guide_path.display());
-    } else {
-        remove_guide(&directory);
-    }
-
     println!("# Data results (text) are in \"{}\" .", text_path.display(),);
     println!("# Samples (TSV) are in \"{}\" .", samples_path.display());
     map::write(&directory, None);
@@ -2111,19 +2078,6 @@ fn main() {
                     panic!("failed to remove stale {}: {error}", chart_path.display())
                 });
             }
-        }
-    }
-}
-
-/// Sparse runs replace the report and samples too, so a guide from an
-/// older full run leaves their directory with them.
-fn remove_guide(directory: &std::path::Path) {
-    for name in ["bench-hashes.guide.html"] {
-        let path = directory.join(name);
-        if path.exists() {
-            fs::remove_file(&path).unwrap_or_else(|error| {
-                panic!("failed to remove stale {}: {error}", path.display())
-            });
         }
     }
 }
@@ -6350,173 +6304,6 @@ fn output_directory(machine: &MachineMetadata) -> std::path::PathBuf {
     std::path::PathBuf::from("benchmark-results").join(format!("{cpu}.{os}"))
 }
 
-/// A self-contained decision guide: the questions, a complete example per
-/// call (compiled as this crate's examples), and this run's medians for
-/// every plot, drawn by the page's own small chart. Escape '<' inside
-/// script data so graph text cannot close the page's script.
-fn generate_guide(roster: &Roster, results: &Results, machine: &MachineMetadata) -> String {
-    let mut data = String::from("{\"contenders\":[");
-    for (index, algorithm) in roster.algorithms.iter().enumerate() {
-        if index > 0 {
-            data.push(',');
-        }
-        write!(
-            data,
-            "{{\"key\":{},\"name\":{},\"color\":\"{}\"}}",
-            json_string(algorithm.key()),
-            json_string(algorithm.name()),
-            algorithm.color()
-        )
-        .unwrap();
-    }
-    write!(
-        data,
-        "],\"machine\":{},\"date\":{},\"plots\":[",
-        json_string(&machine.cpu_type),
-        json_string(machine.timestamp.split(' ').next().unwrap_or(""))
-    )
-    .unwrap();
-    let mut first = true;
-    for scenario in Scenario::ALL {
-        for use_case in UseCase::ALL
-            .into_iter()
-            .filter(|&use_case| scenario.measures(use_case))
-        {
-            let points: Vec<usize> = use_case
-                .points()
-                .filter(|&index| roster.measures(index))
-                .collect();
-            if points.is_empty() {
-                continue;
-            }
-            if !first {
-                data.push(',');
-            }
-            first = false;
-            write!(
-                data,
-                "{{\"scenario\":\"{}\",\"use\":\"{:?}\",\"batch\":{},\"map\":{},\"labels\":[",
-                scenario.key(),
-                use_case,
-                use_case.batch(),
-                json_string(&map::cell_key(scenario.key(), use_case))
-            )
-            .unwrap();
-            data.push_str(
-                &points
-                    .iter()
-                    .map(|&index| json_string(POINTS[index].label))
-                    .collect::<Vec<_>>()
-                    .join(","),
-            );
-            data.push_str("],\"units\":[");
-            data.push_str(
-                &points
-                    .iter()
-                    .map(|&index| use_case.units(POINTS[index], 1).to_string())
-                    .collect::<Vec<_>>()
-                    .join(","),
-            );
-            data.push_str("],\"bytes\":[");
-            data.push_str(
-                &points
-                    .iter()
-                    .map(|&index| POINTS[index].bytes.to_string())
-                    .collect::<Vec<_>>()
-                    .join(","),
-            );
-            data.push_str("],\"series\":{");
-            let mut first_series = true;
-            for (algorithm_index, algorithm) in roster.algorithms.iter().enumerate() {
-                if !algorithm.takes_part(use_case) {
-                    continue;
-                }
-                if !first_series {
-                    data.push(',');
-                }
-                first_series = false;
-                write!(data, "{}:{{", json_string(algorithm.key())).unwrap();
-                /* Per point: the mean (ns per unit). */
-                let means: Vec<String> = points
-                    .iter()
-                    .map(|&index| {
-                        cell(results, algorithm_index, index)
-                            .get(scenario)
-                            .format_ns(1)
-                    })
-                    .collect();
-                write!(data, "\"mean\":[{}]", means.join(",")).unwrap();
-                data.push('}');
-            }
-            data.push_str("}}");
-        }
-    }
-    data.push_str("]}");
-    let mut examples = String::from("{");
-    for (index, (call, source)) in GUIDE_EXAMPLES.iter().enumerate() {
-        if index > 0 {
-            examples.push(',');
-        }
-        write!(examples, "{}:{}", json_string(call), json_string(source)).unwrap();
-    }
-    examples.push('}');
-    let escape = |text: String| text.replace('<', "\\u003c");
-    include_str!("guide.html")
-        .replace("@DATA@", &escape(data))
-        .replace("@EXAMPLES@", &escape(examples))
-}
-
-/// Each recommended call's complete program, compiled as an example of
-/// this crate (`cargo build --examples`), so what the guide shows builds.
-const GUIDE_EXAMPLES: [(&str, &str); 9] = [
-    ("hash", include_str!("../examples/guide_hash.rs")),
-    (
-        "hash_multithreaded",
-        include_str!("../examples/guide_hash_multithreaded.rs"),
-    ),
-    ("hash_many", include_str!("../examples/guide_hash_many.rs")),
-    (
-        "hash_many_multithreaded",
-        include_str!("../examples/guide_hash_many_multithreaded.rs"),
-    ),
-    ("update", include_str!("../examples/guide_update.rs")),
-    (
-        "update_multithreaded",
-        include_str!("../examples/guide_update_multithreaded.rs"),
-    ),
-    (
-        "Stream::submit_with",
-        include_str!("../examples/guide_stream_messages.rs"),
-    ),
-    (
-        "Stream::submit_reader",
-        include_str!("../examples/guide_stream_pieces.rs"),
-    ),
-    (
-        "Stream::submit_batch_with",
-        include_str!("../examples/guide_stream_batches.rs"),
-    ),
-];
-
-fn json_string(text: &str) -> String {
-    let mut quoted = String::from("\"");
-    for c in text.chars() {
-        match c {
-            '\\' => quoted.push_str("\\\\"),
-            '\"' => quoted.push_str("\\\""),
-            '\n' => quoted.push_str("\\n"),
-            '\r' => quoted.push_str("\\r"),
-            '\t' => quoted.push_str("\\t"),
-            c if c < ' ' || matches!(c, '\u{2028}' | '\u{2029}') => {
-                write!(quoted, "\\u{:04x}", c as u32).unwrap()
-            }
-            c => quoted.push(c),
-        }
-    }
-    quoted.push('\"');
-    quoted
-}
-
 /* Provenance that describes the run as a whole. */
 
 /* Provenance that belongs to one contender and hides with it: the
@@ -6776,41 +6563,6 @@ mod correctness_tests {
     }
 
     #[test]
-    fn sparse_regression_runs_write_samples_without_a_graph() {
-        let roster = Roster::new(
-            vec![
-                Algorithm::Blake3ServilSt,
-                Algorithm::Blake3ServilMt,
-                Algorithm::Sha256,
-            ],
-            true,
-            Some(vec![point("64 B", UseCase::ContinuousMessages)]),
-            Some(24),
-            &TO_CHECK_FOR_REGRESSIONS,
-        );
-        assert!(!roster.whole_axes());
-        // Commonware takes part in batches alone: no cells among these messages.
-        let roster = Roster::new(
-            vec![
-                Algorithm::Blake3Commonware,
-                Algorithm::Blake3ServilMt,
-                Algorithm::Sha256,
-            ],
-            true,
-            Some(vec![
-                point("64 B", UseCase::ContinuousMessages),
-                point("256 B", UseCase::ContinuousMessages),
-            ]),
-            Some(24),
-            &TO_CHECK_FOR_REGRESSIONS,
-        );
-        assert!(
-            !roster.whole_axes(),
-            "one selected contender has no cells here"
-        );
-    }
-
-    #[test]
     fn samples_file_places_each_sample_in_the_load_windows() {
         blake3_servil::initialize();
         let roster = Roster::new(
@@ -6960,36 +6712,6 @@ mod correctness_tests {
             }
         }
         assert_eq!(checked, read.cells.len(), "every cell read back, none more");
-    }
-
-    #[test]
-    fn graph_strings_escape_controls_and_guide_keeps_script_data_inside() {
-        assert_eq!(
-            json_string("a\n\r\t\0\"\\"),
-            "\"a\\n\\r\\t\\u0000\\\"\\\\\""
-        );
-        let roster = Roster::new(
-            vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring],
-            true,
-            None,
-            Some(24),
-            &TO_CHECK_FOR_REGRESSIONS,
-        );
-        let (results, _) = run(&roster, 24, |_, _, r| 10_000 + r as u64);
-        let mut machine = machine_metadata();
-        machine.cpu_type = "</script><b>".to_owned();
-        let guide = generate_guide(&roster, &results, &machine);
-        assert!(guide.contains("\\u003c/script>\\u003cb>"));
-        assert_eq!(
-            guide.matches("</script>").count(),
-            1,
-            "only the template closes the outer script"
-        );
-        assert!(!guide.contains("@DATA@") && !guide.contains("@EXAMPLES@"));
-        assert!(
-            guide.contains("\"map\":\"solo|"),
-            "each plot names its chart on the map"
-        );
     }
 
     #[test]
