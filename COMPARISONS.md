@@ -107,7 +107,7 @@ bench-hashes #25.
    patches: `hash()` and the pool's split hashing their first 6% again).
    Count false and true verdicts.
 3. Change every producer, reader, driver, test, and document at once:
-   `clocks::summary`, `compare`, `check`, METHODOLOGY, AGENTS, PROCEDURES,
+   `clocks::summary`, `compare`, `check`, METHODOLOGY, AGENTS,
    FROZEN.md (the gate's cells, pairs, and margin are Zooko's decision).
 4. Add a row above: the choice, its evidence, and what it gives up; and any
    alternative you measured and set aside below.
