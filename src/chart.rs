@@ -64,7 +64,11 @@ pub fn from_samples(path: &str) -> Option<String> {
         .next()
         .unwrap_or("?")
         .to_owned();
-    let servil = header("blake3-servil source");
+    let servil = file
+        .headers
+        .iter()
+        .find(|(k, _)| k.starts_with("source blake3-servil"))
+        .map_or("?", |(_, v)| v.as_str());
     let commit = servil
         .split("commit ")
         .nth(1)
@@ -162,9 +166,9 @@ mod tests {
             std::process::id()
         ));
         let row = |key: &str, ns: u64| {
-            format!("{key}\tsolo\tOneMessage\t1 MiB\tB\t{ns}/1048576,{ns}/1048576\t1,2\t-\n")
+            format!("{key}\tsolo\tOneMessage\t1 MiB\tB\t{ns}/1048576,{ns}/1048576\t1,2\t-\t-\t-\n")
         };
-        let text = format!("{}\n# timestamp: 2026-10-02 12:00:00 UTC\n# bench-hashes version: 0.13.0+abc\n# blake3-servil source: x; commit 0123456789abcdef; clean\n# cpu type: Test CPU\n# cpu count: 4\n# power: n/a\n# load: quiet\n{}\n{}{}{}",
+        let text = format!("{}\n# timestamp: 2026-10-02 12:00:00 UTC\n# bench-hashes version: 0.13.0+abc\n# source blake3-servil-mt: x; commit 0123456789abcdef; clean\n# cpu type: Test CPU\n# cpu count: 4\n# power: n/a\n# load: quiet\n{}\n{}{}{}",
             super::super::SAMPLES_VERSION, super::super::SAMPLES_COLUMNS, row("blake3-servil-mt", 100_000), row("blake3-servil-st", 400_000), row("sha256", 800_000));
         std::fs::write(&path, text).unwrap();
         let svg = super::from_samples(path.to_str().unwrap()).expect("a chart");

@@ -659,6 +659,17 @@ pub fn command(args: &[String]) {
                 .collect()
         })
         .collect();
+    // Each run's CPU-package energy (clocks::energy around the run, eviction
+    // outside it), in the shape of `cells`: None where the platform counts none.
+    let mut energy: Vec<Vec<Vec<Vec<Option<u64>>>>> = caches
+        .iter()
+        .map(|_| {
+            inputs
+                .iter()
+                .map(|_| specs.iter().map(|_| Vec::new()).collect())
+                .collect()
+        })
+        .collect();
     let orders = super::williams_orders(specs.len());
     let started = clocks::now();
     for round in 0..rounds {
@@ -678,7 +689,10 @@ pub fn command(args: &[String]) {
                     if cache == Cache::Cold {
                         evict(&input.files);
                     }
+                    let before = clocks::energy::package_nj();
                     cells[ci][i][c].push(run_once(&specs[c], round, input));
+                    energy[ci][i][c]
+                        .push(before.zip(clocks::energy::package_nj()).map(|(b, a)| a - b));
                 }
             }
         }
@@ -703,9 +717,10 @@ pub fn command(args: &[String]) {
     for c in &specs {
         for b in &c.builds {
             run.push((
-                format!("contender {}", c.name),
+                "contender".to_owned(),
                 format!(
-                    "{} {} (blake3 {}; {})",
+                    "{}: {} {} (blake3 {}; {})",
+                    c.name,
                     b.program.display(),
                     c.args.join(" "),
                     b.digest,
@@ -742,13 +757,15 @@ pub fn command(args: &[String]) {
                     .collect();
                 let cpu: Vec<Option<u64>> = runs.iter().map(|r| r.cpu_ns).collect();
                 tsv += &format!(
-                    "{}\t{}\tb3sum\t{}\tB\t{}\t{}\t{}\n",
+                    "{}\t{}\tb3sum\t{}\tB\t{}\t{}\t{}\t{}\t{}\n",
                     spec.name,
                     cache.name(),
                     input.label,
                     samples.join(","),
                     starts.join(","),
-                    super::cpu_field(&cpu)
+                    super::cpu_field(&cpu),
+                    super::cpu_field(&energy[ci][i][c]),
+                    "-"
                 );
             }
         }

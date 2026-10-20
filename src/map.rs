@@ -70,17 +70,41 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
             "Hasher::update_each_multithreaded",
             "struct.Hasher.html#method.update_each_multithreaded",
         ),
+        UseCase::InterleavedTurn => (
+            "many",
+            "busy",
+            "Hasher::update_each_multithreaded",
+            "struct.Hasher.html#method.update_each_multithreaded",
+        ),
+        UseCase::IdleInterleavedTurn => (
+            "many",
+            "idle",
+            "Hasher::update_each_multithreaded",
+            "struct.Hasher.html#method.update_each_multithreaded",
+        ),
         UseCase::Collection => (
             "coll",
             "lent",
             "hash_each_multithreaded_with",
             "fn.hash_each_multithreaded_with.html",
         ),
+        UseCase::ContinuousCollection => (
+            "coll",
+            "piped",
+            "Stream::submit_with",
+            "struct.Stream.html#method.submit_with",
+        ),
         UseCase::Outboard => (
             "outb",
             "lent",
             "outboard_multithreaded_with",
             "fn.outboard_multithreaded_with.html",
+        ),
+        UseCase::MerkleTree => (
+            "merkle",
+            "lent",
+            "hash_many_multithreaded",
+            "fn.hash_many_multithreaded.html",
         ),
         UseCase::Verify => (
             "recv",
@@ -100,11 +124,27 @@ pub fn cell_key(scenario: &str, use_case: UseCase) -> String {
 
 const DOCS: &str = "https://johnservil.github.io/BLAKE3/blake3_servil/";
 
+/// What a chart's points are, with their unit: the opened chart's x axis
+/// and the tooltip's heading.
+fn axis(use_case: UseCase) -> &'static str {
+    match use_case {
+        UseCase::Interleaved | UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => {
+            "messages open at once"
+        }
+        UseCase::MerkleTree => "leaves (256 B each)",
+        UseCase::Collection | UseCase::ContinuousCollection => "collection",
+        _ if use_case.batch() => "messages in the batch (64 B each)",
+        _ => "message size",
+    }
+}
+
 /// What one unit of a point's time pays for, in the tooltip's words.
 fn what(use_case: UseCase) -> &'static str {
     match use_case {
-        UseCase::Collection => "the collection",
+        UseCase::Collection | UseCase::ContinuousCollection => "the collection",
         UseCase::Interleaved => "a megabyte of pieces",
+        UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => "a turn",
+        UseCase::MerkleTree => "a tree",
         _ if use_case.batch() => "a batch",
         _ => "a message",
     }
@@ -117,13 +157,35 @@ fn mean_ns(samples: &[super::Measured]) -> f64 {
     mean as f64 / 18_446_744_073_709_551_616.0
 }
 
-/// A cell's CPU time per unit in nanoseconds, for drawing: all its samples'
-/// CPU time over their units, where the samples file records it (solo
-/// nonstop cells, b3sum's runs), else None.
-fn cpu_ns(file: &super::SamplesFile, key: &str, samples: &[super::Measured]) -> Option<f64> {
-    let (_, ns) = file.cpu.iter().find(|(k, _)| k == key)?;
+/// A cell's CPU time (ns) or energy (nJ) per unit, for drawing: all its
+/// samples' figures in `column` (the samples file's `cpu` or `energy`) over
+/// their units, where the file records them (solo nonstop cells, b3sum's
+/// runs), else None.
+fn per_unit(column: &[(String, Vec<u64>)], key: &str, samples: &[super::Measured]) -> Option<f64> {
+    let (_, v) = column.iter().find(|(k, _)| k == key)?;
     let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
-    Some(ns.iter().map(|&n| u128::from(n)).sum::<u128>() as f64 / units as f64)
+    Some(v.iter().map(|&n| u128::from(n)).sum::<u128>() as f64 / units as f64).filter(|&x| x > 0.0)
+}
+
+/// A cell's core counts summed over its samples: [E share, P GHz, E GHz].
+fn where_ran(column: &[(String, Vec<[u64; 4]>)], key: &str) -> Option<[f64; 3]> {
+    let (_, v) = column.iter().find(|(k, _)| k == key)?;
+    let [pt, pc, et, ec] = v.iter().fold([0u128; 4], |a, c| {
+        [
+            a[0] + u128::from(c[0]),
+            a[1] + u128::from(c[1]),
+            a[2] + u128::from(c[2]),
+            a[3] + u128::from(c[3]),
+        ]
+    });
+    let ghz = |cycles: u128, ns: u128| {
+        if ns > 0 {
+            cycles as f64 / ns as f64
+        } else {
+            0.0
+        }
+    };
+    (pt + et > 0).then(|| [et as f64 / (pt + et) as f64, ghz(pc, pt), ghz(ec, et)])
 }
 
 /// `text` as a JSON string, safe inside a script element.
@@ -154,13 +216,21 @@ struct Chart {
     cases: bool,
     per: Vec<u64>,
     what: &'static str,
+    /// What the points are (axis).
+    axis: &'static str,
     series: Vec<Option<Vec<f64>>>,
     /// An earlier run's means at the same points, by contender (a map
     /// drawn beside it; empty otherwise): None where it has none.
     before: Vec<Option<Vec<Option<f64>>>>,
-    /// CPU time per unit at the same points, by contender (cpu_ns): None
+    /// CPU time per unit at the same points, by contender (per_unit): None
     /// where the run recorded none.
     cpu: Vec<Option<Vec<Option<f64>>>>,
+    /// Energy per unit (nJ), alike.
+    energy: Vec<Option<Vec<Option<f64>>>>,
+    /// Where the calling thread ran at each point, by contender, from the
+    /// samples' core counts: [share of its time on E cores, P GHz, E GHz]
+    /// (a clock 0 where it spent no time on that kind); None where none.
+    cores: Vec<Option<Vec<Option<[f64; 3]>>>>,
 }
 
 impl Chart {
@@ -197,8 +267,12 @@ impl Chart {
                 .collect::<Vec<String>>()
                 .join(",")
         };
-        format!("{{\"sizes\":[{}],\"unit\":{},\"call\":{},\"doc\":{},\"cases\":{},\"per\":[{}],\"what\":{},\"series\":[{}],\"before\":[{}],\"cpu\":[{}]}}",
-            sizes.join(","), json(self.unit), json(&self.call), json(&self.doc), self.cases, per.join(","), json(self.what), series.join(","), optional(&self.before), optional(&self.cpu))
+        format!("{{\"sizes\":[{}],\"unit\":{},\"call\":{},\"doc\":{},\"cases\":{},\"per\":[{}],\"what\":{},\"axis\":{},\"series\":[{}],\"before\":[{}],\"cpu\":[{}],\"energy\":[{}],\"cores\":[{}]}}",
+            sizes.join(","), json(self.unit), json(&self.call), json(&self.doc), self.cases, per.join(","), json(self.what), json(self.axis), series.join(","), optional(&self.before), optional(&self.cpu), optional(&self.energy),
+            self.cores.iter().map(|c| match c {
+                Some(v) => format!("[{}]", v.iter().map(|x| x.map_or("null".to_owned(), |[e, p, q]| format!("[{e:.4},{p:.3},{q:.3}]"))).collect::<Vec<_>>().join(",")),
+                None => "null".to_owned(),
+            }).collect::<Vec<_>>().join(","))
     }
 }
 
@@ -350,27 +424,27 @@ fn details(
     let version = header(headers, "bench-hashes version");
     let commit = header(headers, "git commit");
     let clean = header(headers, "git clean status");
+    // The repository the benchmark was built from, as its header records it.
+    let bench = header(headers, "bench-hashes source");
+    let bench = bench.strip_prefix("https://").unwrap_or(bench);
     add(
         "bench-hashes",
         version.split('+').next().unwrap_or("").to_owned(),
-        format!(
-            "https://github.com/johnservil/bench-hashes/releases/tag/v{}",
-            version.replace('+', "%2B")
-        ),
+        String::new(),
     );
     add(
         "bench-hashes commit",
         format!(
-            "{commit}{}",
+            "{bench} at {commit}{}",
             if clean.is_empty() || clean == "clean" {
                 String::new()
             } else {
                 format!(" ({clean})")
             }
         ),
-        format!("https://github.com/johnservil/bench-hashes/tree/{commit}"),
+        format!("https://{bench}/tree/{commit}"),
     );
-    let servil = header(headers, "blake3-servil source");
+    let servil = servil_source(headers);
     if let Some(at) = servil.split("; commit ").nth(1) {
         let fork = at.split([';', ' ']).next().unwrap_or("");
         // The repository the run's code came from, as its header records it.
@@ -385,31 +459,39 @@ fn details(
             format!("https://{repo}/tree/{fork}"),
         );
     }
-    for (label, key) in [
-        ("BLAKE3 official", "blake3 source"),
-        ("SHA-256", "sha256 source"),
-    ] {
+    // Every other contender's source, as the run recorded it.
+    for (k, v) in headers
+        .iter()
+        .filter(|(k, _)| k.starts_with("source ") && !k.starts_with("source blake3-servil"))
+    {
+        let key = &k["source ".len()..];
+        let name = Algorithm::ALL
+            .into_iter()
+            .find(|a| a.key() == key)
+            .map_or(key.to_owned(), |a| a.name().to_owned());
         add(
-            label,
-            header(headers, key)
-                .split(';')
-                .next()
-                .unwrap_or("")
-                .to_owned(),
+            &name,
+            v.split(';').next().unwrap_or("").to_owned(),
             String::new(),
         );
     }
     for (label, key) in [
-        ("Compiler", "rust compiler"),
+        ("Rust compiler", "rust compiler"),
+        ("C compiler", "c compiler"),
+        ("RUSTFLAGS", "rustflags"),
+        ("Dependencies", "dependency lock"),
         ("Target", "build target"),
         ("Files", "files"),
     ] {
         add(label, header(headers, key).to_owned(), String::new());
     }
-    for (k, v) in headers.iter().filter(|(k, _)| k.starts_with("contender ")) {
+    for (_, v) in headers.iter().filter(|(k, _)| k == "contender") {
+        let (name, how) = v
+            .split_once(": ")
+            .expect("a contender line names its contender first");
         add(
-            &format!("b3sum {}", &k["contender ".len()..]),
-            v.rsplit('/').next().unwrap_or(v).to_owned(),
+            &format!("b3sum {name}"),
+            how.rsplit('/').next().unwrap_or(how).to_owned(),
             String::new(),
         );
     }
@@ -447,13 +529,13 @@ fn hashing(path: &Path) -> Section {
                     .find(|(k, _)| *k == key)
                     .map(|(_, s)| mean_ns(s) / per_byte)
             };
-            let cpu = |a: &Algorithm, label: &str| {
+            let column = |col: &[(String, Vec<u64>)], a: &Algorithm, label: &str| {
                 let key = format!("{}|{scenario}|{use_case:?}|{label}", a.key());
                 file.cells
                     .iter()
                     .find(|(k, _)| *k == key)
-                    .and_then(|(_, s)| cpu_ns(&file, &key, s))
-                    .map(|ns| ns / per_byte)
+                    .and_then(|(_, s)| per_unit(col, &key, s))
+                    .map(|v| v / per_byte)
             };
             // The points this run measured for some contender, in axis order.
             let measured: Vec<_> = points
@@ -476,19 +558,46 @@ fn hashing(path: &Path) -> Section {
                 None
             };
             series.push(bao_tree);
-            let mut cpu_lines: Vec<Option<Vec<Option<f64>>>> = algorithms
+            // A line of `col` for each contender (and bao-tree's, as above).
+            let lines = |col: &[(String, Vec<u64>)]| -> Vec<Option<Vec<Option<f64>>>> {
+                let mut lines: Vec<Option<Vec<Option<f64>>>> = algorithms
+                    .iter()
+                    .map(|a| {
+                        let line: Vec<Option<f64>> =
+                            measured.iter().map(|p| column(col, a, p.label)).collect();
+                        line.iter().any(Option::is_some).then_some(line)
+                    })
+                    .collect();
+                let bao = if matches!(use_case, UseCase::Outboard | UseCase::Verify) {
+                    official.and_then(|i| lines[i].take())
+                } else {
+                    None
+                };
+                lines.push(bao);
+                lines
+            };
+            let (cpu_lines, energy_lines) = (lines(&file.cpu), lines(&file.energy));
+            let mut cores: Vec<Option<Vec<Option<[f64; 3]>>>> = algorithms
                 .iter()
                 .map(|a| {
-                    let line: Vec<Option<f64>> = measured.iter().map(|p| cpu(a, p.label)).collect();
+                    let line: Vec<Option<[f64; 3]>> = measured
+                        .iter()
+                        .map(|p| {
+                            where_ran(
+                                &file.cores,
+                                &format!("{}|{scenario}|{use_case:?}|{}", a.key(), p.label),
+                            )
+                        })
+                        .collect();
                     line.iter().any(Option::is_some).then_some(line)
                 })
                 .collect();
-            let bao_tree_cpu = if matches!(use_case, UseCase::Outboard | UseCase::Verify) {
-                official.and_then(|i| cpu_lines[i].take())
+            let bao_cores = if matches!(use_case, UseCase::Outboard | UseCase::Verify) {
+                official.and_then(|i| cores[i].take())
             } else {
                 None
             };
-            cpu_lines.push(bao_tree_cpu);
+            cores.push(bao_cores);
             cells.push((
                 cell_key(scenario, use_case),
                 Chart {
@@ -496,12 +605,22 @@ fn hashing(path: &Path) -> Section {
                     unit: "GB/s",
                     call: call.to_owned(),
                     doc: format!("{DOCS}{doc}"),
-                    cases: matches!(use_case, UseCase::Interleaved | UseCase::Collection),
+                    cases: matches!(
+                        use_case,
+                        UseCase::Interleaved
+                            | UseCase::InterleavedTurn
+                            | UseCase::IdleInterleavedTurn
+                            | UseCase::Collection
+                            | UseCase::ContinuousCollection
+                    ),
                     per: measured.iter().map(|p| p.bytes as u64).collect(),
                     what: what(use_case),
+                    axis: axis(use_case),
                     series,
                     before: Vec::new(),
                     cpu: cpu_lines,
+                    energy: energy_lines,
+                    cores,
                 },
             ));
         }
@@ -511,7 +630,8 @@ fn hashing(path: &Path) -> Section {
         rows: vec![
             ("one", "one message", "One message in memory, of the length along the chart's axis."),
             ("batch", "a batch of short messages", "Many 64-byte messages hashed together, such as a Merkle tree's nodes; the axis counts the messages."),
-            ("many", "many messages at once, in pieces", "64 messages in progress at once, each arriving in pieces, as a server's uploads arrive."),
+            ("merkle", "a Merkle tree", "A Merkle tree over 256-byte leaves the program has just written into place, leaves and parents hashed apart, every layer kept, as a zero-knowledge prover commits to its Reed-Solomon codeword (WHIR); the axis counts the leaves."),
+            ("many", "many messages at once, in pieces", "256 messages in progress at once, their pieces arriving 64 at a time, as a server's uploads arrive."),
             ("coll", "a collection of items", "A collection of items of every size, such as a repository's objects or a store's files, hashed together."),
             ("outb", "a message with its outboard, for verified streaming", "A message's hash and its outboard: the hash tree's nodes, kept beside the message so that any part of it can be verified when it is sent (Bao, iroh-blobs)."),
             ("recv", "a message received, verified as it arrives", "A message received with its hash tree's nodes, each part verified as it arrives (iroh-blobs)."),
@@ -526,7 +646,14 @@ fn hashing(path: &Path) -> Section {
             ("solo", "one program", "One program hashes; the machine is otherwise quiet."),
             ("shared", "two programs at once", "Two programs hash at the same moment, nonstop, sharing the machine."),
         ],
-        names: algorithms.iter().map(|a| a.name()).chain([BAO_TREE]).map(str::to_owned).collect(),
+        // A run with --threads N names servil mt's count (its pool is the run's).
+        names: {
+            let threads = header(&file.headers, "contenders").split("; --threads ").nth(1).map(str::to_owned);
+            algorithms.iter().map(|a| match (&threads, a) {
+                (Some(n), Algorithm::Blake3ServilMt) => format!("{}, {n} threads", a.name()),
+                _ => a.name().to_owned(),
+            }).chain([BAO_TREE.to_owned()]).collect()
+        },
         colors: algorithms.iter().map(|a| a.color()).chain(["#15803d"]).map(str::to_owned).collect(),
         shown: algorithms.iter().map(|a| SHOWN_AT_FIRST.contains(a)).chain([true]).collect(),
         cells,
@@ -587,6 +714,22 @@ fn b3sum(path: &Path) -> Section {
             {
                 continue;
             }
+            let lines = |col: &[(String, Vec<u64>)]| -> Vec<Option<Vec<Option<f64>>>> {
+                names
+                    .iter()
+                    .map(|n| {
+                        let line: Vec<Option<f64>> = points
+                            .iter()
+                            .map(|p| {
+                                cell(n, p).and_then(|s| {
+                                    per_unit(col, &format!("{n}|{cache}|b3sum|{p}"), s)
+                                })
+                            })
+                            .collect();
+                        line.iter().any(Option::is_some).then_some(line)
+                    })
+                    .collect()
+            };
             cells.push((
                 format!("solo|{row}|{col}"),
                 Chart {
@@ -605,6 +748,7 @@ fn b3sum(path: &Path) -> Section {
                         })
                         .collect(),
                     what: "a run",
+                    axis: if row == "tree" { "tree" } else { "file size" },
                     series: names
                         .iter()
                         .map(|n| {
@@ -615,17 +759,9 @@ fn b3sum(path: &Path) -> Section {
                         })
                         .collect(),
                     before: Vec::new(),
-                    cpu: names
-                        .iter()
-                        .map(|n| {
-                            let key = |p: &str| format!("{n}|{cache}|b3sum|{p}");
-                            let line: Vec<Option<f64>> = points
-                                .iter()
-                                .map(|p| cell(n, p).and_then(|s| cpu_ns(&file, &key(p), s)))
-                                .collect();
-                            line.iter().any(Option::is_some).then_some(line)
-                        })
-                        .collect(),
+                    cpu: lines(&file.cpu),
+                    energy: lines(&file.energy),
+                    cores: names.iter().map(|_| None).collect(),
                 },
             ));
         }
@@ -653,13 +789,22 @@ fn b3sum(path: &Path) -> Section {
 }
 
 /// Draw `directory`'s map from the samples files in it; true if it held any.
+/// BLAKE3 servil's source as the run recorded it (either servil contender's
+/// line: one crate), or "" where the run measured neither.
+fn servil_source(headers: &[(String, String)]) -> &str {
+    headers
+        .iter()
+        .find(|(k, _)| k.starts_with("source blake3-servil"))
+        .map_or("", |(_, v)| v.as_str())
+}
+
 /// A run's name: its bench-hashes release and BLAKE3 servil's commit.
 fn run_name(headers: &[(String, String)]) -> String {
     let version = header(headers, "bench-hashes version")
         .split('+')
         .next()
         .unwrap_or("");
-    let fork = header(headers, "blake3-servil source")
+    let fork = servil_source(headers)
         .split("commit ")
         .nth(1)
         .map_or("", |c| &c[..c.len().min(7)]);

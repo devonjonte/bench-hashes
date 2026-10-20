@@ -44,9 +44,6 @@ every place, and the compiler names any match you miss.
    entry point), and its incremental API, for long messages read in
    pieces (`hash_stream`) and for many messages at once
    (`hash_interleaved`).
-4. Describe its code paths for the report's kernel tables
-   (`detect_kernels`); one path at every size is a fine start.
-
 Then `cargo test --release` and
 `cargo run --release -- --contenders yours,sha256-ring,blake3-servil-mt`.
 The harness does the rest: interleaving, the use cases and scenarios,
@@ -84,8 +81,7 @@ benchmark.
   its plain entry point (single-threaded, multithreaded, a batch call, or
   its incremental API for messages in pieces; for the fork's multithreaded
   contender, its stream for inputs one after another) with no pool, cap,
-  or wrapper of its own, and asks the fork for its
-  `kernel_report()`. A contender without a batch entry point hashes a
+  or wrapper of its own. A contender without a batch entry point hashes a
   batch as `for m in batch { hash(m) }`.
 - **What the benchmark asks of the fork is frozen.** `FROZEN.md` lists
   each use case's calls and call pattern, and a test compares it with the
@@ -121,7 +117,8 @@ the page", has the whole practice. Check a change with
 
 ## Maintainers' notes
 
-`AGENTS.md`, `PROCEDURES.md`, `NEXT-STEPS.md`, and `NOTES.md` are the maintainers' working
-notes: environment, current work, and the reasoning behind past
-decisions. Contributing needs none of them; `NOTES.md` explains why the
-measurement works as it does, should you want to change it.
+`AGENTS.md`, `PROCEDURES.md` and `NEXT-STEPS.md` are the maintainers' working
+notes: principles, environment, and current work. Contributing needs none
+of them. `METHODOLOGY.md` explains why the measurement works as it does,
+should you want to change it; earlier findings are in `git log`, and in the
+notes the tree held until commit `aadeca9d`.

@@ -34,7 +34,10 @@ const { chromium } = require('playwright');
     await page.mouse.move(box.x + box.width / 2, Math.min(box.y + box.height / 2, Math.max(box.y + 60, 850)));
     assert(await page.locator('#tip').isVisible(), `chart ${i}: the values under the pointer`);
     assert(/\d/.test(await page.locator('#tip').textContent()), `chart ${i}: numbers in the tip`);
-    await page.locator('.zoom').click({ position: { x: box.width / 2, y: 60 } });
+    const tipBox = await page.locator('#tip').boundingBox(), view = page.viewportSize();
+    assert(tipBox.x >= 0 && tipBox.x + tipBox.width <= view.width, `chart ${i}: the values fit inside the window`);
+    // A click on the plot (the names above it are toggles) puts it back.
+    await page.locator('.zoom').click({ position: { x: box.width / 2, y: box.height * 0.7 } });
     await page.waitForTimeout(300);
     assert.equal(await page.locator('.zoom').count(), 0, `chart ${i} closes`);
     assert.equal(await page.locator('.h.lit').count(), 0, `chart ${i}: headers unlit`);
@@ -66,7 +69,16 @@ const { chromium } = require('playwright');
   if (hasCpu) assert((await dotted()) > 0, 'CPU time draws dotted lines');
   await page.locator('.measures button', { hasText: 'wall-clock' }).first().click();
   assert.equal(await solid(), 0, 'wall-clock time off: no solid lines');
-  assert(await page.locator('.measures button', { hasText: 'joule' }).first().isDisabled(), 'energy waits until it is counted');
+  // Energy: its chip works where the run counted it (dashed lines), and is
+  // disabled where it counted none.
+  const hasEnergy = await page.evaluate(() => SECTIONS.some(S => Object.values(S.cells).some(c => c.energy.some(Boolean))));
+  const energyChip = page.locator('.measures button', { hasText: 'joule' }).first();
+  assert.equal(await energyChip.isDisabled(), !hasEnergy, 'the energy chip follows the data');
+  if (hasEnergy) {
+    await energyChip.click();
+    assert((await page.locator('.cell polyline[stroke-dasharray="5 3"]').count()) > 0, 'energy draws dashed lines');
+    await page.locator('.measures button', { hasText: 'joule' }).first().click();
+  }
   await page.locator('.measures button', { hasText: 'wall-clock' }).first().click();
   await page.locator('.measures button', { hasText: 'CPU' }).first().click();
   assert.equal(await solid(), wallOnly, 'back to wall-clock time alone');
@@ -74,13 +86,28 @@ const { chromium } = require('playwright');
   await page.locator('.measures .switch').click();
   assert.equal(await solid(), wallOnly, 'cost view draws the same lines');
   await page.locator('.cell:not(.empty)').first().click(); await page.waitForTimeout(300);
-  assert(/ns per byte, lower is faster/.test(await page.locator('.zoom').innerHTML()), 'the cost axis names its unit and direction');
+  assert(/ns per byte.*lower is better/.test(await page.locator('.zoom').innerHTML()), 'the cost axis names its unit and direction');
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   await page.locator('.measures .switch').click();
   // A click outside an opened chart puts it back.
   await page.locator('.cell:not(.empty)').first().click(); await page.waitForTimeout(300);
   await page.mouse.click(5, 5); await page.waitForTimeout(300);
   assert.equal(await page.locator('.zoom').count(), 0, 'a click outside puts the chart back');
+  // The widest values (every measure shown, a narrower window) still fit
+  // inside the window.
+  const narrowPage = await browser.newPage({ viewport: { width: 1000, height: 800 } });
+  narrowPage.on('pageerror', e => errors.push(e.message));
+  await narrowPage.goto(url);
+  for (const chip of ['CPU', 'joule']) {
+    const b = narrowPage.locator('.measures button', { hasText: chip }).first();
+    if (!(await b.isDisabled())) await b.click();
+  }
+  await narrowPage.locator('.cell:not(.empty)').first().click(); await narrowPage.waitForTimeout(300);
+  const wide = await narrowPage.locator('.zoom').boundingBox();
+  await narrowPage.mouse.move(wide.x + wide.width * 0.9, Math.min(wide.y + wide.height * 0.6, 760));
+  const wideTip = await narrowPage.locator('#tip').boundingBox();
+  assert(wideTip.x >= 0 && wideTip.x + wideTip.width <= 1000 && wideTip.y >= 0 && wideTip.y + wideTip.height <= 800, 'every measure\'s values fit inside the window');
+  await narrowPage.close();
   // A touch screen: tap a chart open, tap it for its values, tap the button.
   const phone = await browser.newPage({ viewport: { width: 420, height: 860 }, hasTouch: true, isMobile: true });
   phone.on('pageerror', e => errors.push(e.message));
@@ -92,10 +119,24 @@ const { chromium } = require('playwright');
   await phone.waitForTimeout(150);
   assert.equal(await phone.locator('.zoom').count(), 1, 'a tap on an open chart keeps it open');
   assert(await phone.locator('#tip').isVisible(), 'a tap shows the values at its point');
+  // A name in the open chart is its contender's toggle: a tap hides its
+  // lines (fewer drawn), marks the name off, and the chart stays open; a
+  // second tap brings them back.
+  const lines = async () => phone.locator('.zoom polyline').count();
+  const all = await lines();
+  const shown = phone.locator('.zoom .key button:not(.off)').first();
+  const name = await shown.textContent();
+  const named = () => phone.locator('.zoom .key button', { hasText: new RegExp('^' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') });
+  await shown.tap(); await phone.waitForTimeout(300);
+  assert.equal(await phone.locator('.zoom').count(), 1, 'a name tapped keeps the chart open');
+  assert(/\boff\b/.test(await named().getAttribute('class')), 'the tapped name shows off');
+  assert((await lines()) < all, 'its lines are hidden');
+  await named().tap(); await phone.waitForTimeout(300);
+  assert.equal(await lines(), all, 'a second tap brings them back');
   await phone.locator('.zoom .close').tap();
   await phone.waitForTimeout(300);
   assert.equal(await phone.locator('.zoom').count(), 0, 'the button puts the chart back');
   assert.deepEqual(errors, []);
-  console.log(`${charts} charts opened and closed, ${docs.length} documentation links, headers, headers' meanings, a chart's link, Escape, what the lines measure, touch: pass`);
+  console.log(`${charts} charts opened and closed, ${docs.length} documentation links, headers, headers' meanings, a chart's link, Escape, what the lines measure, touch, names as toggles: pass`);
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });

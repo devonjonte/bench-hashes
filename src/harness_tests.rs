@@ -5,24 +5,6 @@
 use super::*;
 
 #[test]
-fn asynchronous_labels_describe_the_measured_api() {
-    for (use_case, api) in [
-        (UseCase::ContinuousBatches, "Stream::submit_batch_with"),
-        (UseCase::Interleaved, "Hasher::update_each_multithreaded"),
-    ] {
-        let kernels = detect_kernels(Algorithm::Blake3ServilMt, use_case);
-        assert_eq!(kernels.platform, "API (kernel unreported)");
-        assert_eq!(kernels.kernels.len(), 1);
-        assert_eq!(kernels.kernels[0].name, api);
-        assert_eq!(kernels.kernels[0].first, 0);
-    }
-    let messages = detect_kernels(Algorithm::Blake3ServilMt, UseCase::ContinuousMessages);
-    assert_eq!(messages.platform, "API (kernel unreported)");
-    assert_eq!(messages.kernels.len(), 1);
-    assert_eq!(messages.kernels[0].name, "Stream::submit_with");
-}
-
-#[test]
 fn batch_digest_storage_survives_a_smaller_cell_without_zeroing() {
     let mut large = take_batch_digests(8192);
     large.fill([0xa5; 32]);
@@ -46,7 +28,7 @@ fn official_batch_wrapper_hashes_each_message_with_plain_api_flags() {
             .flat_map(|message| *blake3::hash(message).as_bytes())
             .collect();
         let mut actual = Vec::new();
-        blake3_batch(&input, MESSAGE_LEN, 2, |digests| {
+        blake3_batch(&input, MESSAGE_LEN, None, 2, |digests| {
             actual.extend_from_slice(digests)
         });
         assert_eq!(
@@ -111,14 +93,11 @@ fn sampled_visits_complete_the_participating_williams_design() {
                 for offset in 0..POINT_COUNT {
                     let mut realized = Vec::new();
                     for round in 0..rounds {
-                        if cell_wants_sample(round + offset, rounds, orders.len()) {
+                        if cell_wants_sample(round + offset, rounds, orders.len(), 12) {
                             realized.push(orders[realized.len() % orders.len()].clone());
                         }
                     }
-                    assert_eq!(
-                        realized.len(),
-                        STEADY_SAMPLES.next_multiple_of(orders.len())
-                    );
+                    assert_eq!(realized.len(), 12usize.next_multiple_of(orders.len()));
                     let normalized: Vec<Vec<usize>> = realized
                         .iter()
                         .map(|row| {
@@ -145,9 +124,9 @@ fn sample_schedule_handles_short_explicit_round_counts() {
         for orders in 1..=18 {
             for offset in [0, 1, 7, 95] {
                 let count = (0..rounds)
-                    .filter(|r| cell_wants_sample(r + offset, rounds, orders))
+                    .filter(|r| cell_wants_sample(r + offset, rounds, orders, 12))
                     .count();
-                assert_eq!(count, STEADY_SAMPLES.next_multiple_of(orders).min(rounds));
+                assert_eq!(count, 12usize.next_multiple_of(orders).min(rounds));
             }
         }
     }
@@ -195,12 +174,16 @@ fn use_digest_stores_each_digest_in_its_slot() {
 /// The provenance every samples file's header carries, in order (the main
 /// run's, b3sum's and leaves' all write theirs with samples_header): the
 /// keys before the run's own.
-pub(crate) const PROVENANCE: [&str; 12] = [
+pub(crate) const PROVENANCE: [&str; 16] = [
     "timestamp",
     "bench-hashes version",
+    "bench-hashes source",
     "git commit",
     "git clean status",
+    "dependency lock",
     "rust compiler",
+    "c compiler",
+    "rustflags",
     "build target",
     "target features",
     "sample clock",
@@ -228,14 +211,14 @@ fn every_samples_file_names_what_measured_and_where() {
         &machine,
         &[
             ("rounds".to_owned(), "3".to_owned()),
-            ("contender a".to_owned(), "/bin/a".to_owned()),
+            ("contender".to_owned(), "a: /bin/a".to_owned()),
         ],
     );
     let keys = header_keys(&header);
     assert_eq!(&keys[..PROVENANCE.len()], PROVENANCE, "{header}");
     assert_eq!(
         &keys[PROVENANCE.len()..PROVENANCE.len() + 2],
-        ["rounds", "contender a"],
+        ["rounds", "contender"],
         "{header}"
     );
     assert!(
@@ -251,5 +234,156 @@ fn every_samples_file_names_what_measured_and_where() {
     assert!(file
         .headers
         .iter()
-        .any(|(k, v)| k == "contender a" && v == "/bin/a"));
+        .any(|(k, v)| k == "contender" && v == "a: /bin/a"));
+}
+
+/// A pipelined collection hashes every item, in order, each to its own
+/// digest: for every contender taking part, the digests it hands on match
+/// each item hashed alone (BLAKE3 servil's stream included).
+#[test]
+fn a_pipelined_collection_hashes_every_item() {
+    blake3_servil::initialize_multithreaded(None);
+    for point in &POINTS[UseCase::ContinuousCollection.points()] {
+        let input = make_input(point.bytes);
+        let items = items_of(*point, &input);
+        let want: Vec<[u8; 32]> = items
+            .iter()
+            .map(|&(o, l)| *blake3_servil::hash(&input[o..o + l]).as_bytes())
+            .collect();
+        for algorithm in [
+            Algorithm::Blake3ServilSt,
+            Algorithm::Blake3ServilMt,
+            Algorithm::Blake3,
+        ] {
+            let mut got: Vec<[u8; 32]> = Vec::new();
+            hash_batch(algorithm, &input, *point, 2, |d| {
+                got.push(d.try_into().unwrap())
+            });
+            assert_eq!(
+                got.len(),
+                2 * want.len(),
+                "{}: every item, each pass",
+                algorithm.key()
+            );
+            assert!(
+                got[..want.len()] == want[..] && got[want.len()..] == want[..],
+                "{}: {}: each item's digest, in order",
+                algorithm.key(),
+                point.label
+            );
+        }
+    }
+}
+
+#[test]
+fn a_merkle_tree_has_the_root_of_its_layers_hashed_node_by_node() {
+    blake3_servil::initialize_multithreaded(None);
+    /* The root, a node at a time with one plain call each: each leaf as a
+     * leaf, then each parent of two children's digests as a parent. */
+    fn root(leaves: &[u8], leaf_len: usize, hash: impl Fn(Node, &[u8]) -> Vec<u8>) -> Vec<u8> {
+        let mut layer: Vec<Vec<u8>> = leaves
+            .chunks(leaf_len)
+            .map(|leaf| hash(Node::Leaf, leaf))
+            .collect();
+        while layer.len() > 1 {
+            layer = layer
+                .chunks(2)
+                .map(|pair| {
+                    hash(
+                        Node::Parent,
+                        &[pair[0].as_slice(), pair[1].as_slice()].concat(),
+                    )
+                })
+                .collect();
+        }
+        layer.pop().unwrap()
+    }
+    /* RFC 6962's prefix, then the message, in one buffer. */
+    let with = |node: Node, m: &[u8]| [&[node.prefix()][..], m].concat();
+    let point = POINTS[UseCase::MerkleTree.points()][0];
+    let input = make_input(point.bytes);
+    let blake3_root = root(&input, MERKLE.leaf_len, |node, m| {
+        blake3::keyed_hash(node.key(), m).as_bytes().to_vec()
+    });
+    let sha256_root = root(&input, MERKLE.leaf_len, |node, m| {
+        Sha256::digest(with(node, m)).to_vec()
+    });
+    let sha1_root = root(&input, MERKLE.leaf_len, |node, m| {
+        sha1_checked::Sha1::try_digest(with(node, m))
+            .hash()
+            .to_vec()
+    });
+    let sha3_root = root(&input, MERKLE.leaf_len, |node, m| {
+        sha3::Sha3_256::digest(with(node, m)).to_vec()
+    });
+    for algorithm in Algorithm::ALL
+        .into_iter()
+        .filter(|a| a.availability().is_ok() && a.takes_part(UseCase::MerkleTree))
+    {
+        let want = match algorithm {
+            Algorithm::Blake3 | Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt => {
+                &blake3_root
+            }
+            Algorithm::Sha256 | Algorithm::Sha256Ring | Algorithm::Sha256CommonCrypto => {
+                &sha256_root
+            }
+            Algorithm::Sha1Dc => &sha1_root,
+            Algorithm::Sha3_256 => &sha3_root,
+            Algorithm::Blake3Rayon | Algorithm::Blake3Commonware => {
+                unreachable!("{} takes no part in a Merkle tree", algorithm.key())
+            }
+        };
+        let mut roots: Vec<Vec<u8>> = Vec::new();
+        hash_batch(algorithm, &input, point, 2, |r| roots.push(r.to_vec()));
+        assert_eq!(
+            roots,
+            vec![want.clone(), want.clone()],
+            "{}: the root of {} leaves, each tree",
+            algorithm.key(),
+            point.messages
+        );
+    }
+}
+
+#[test]
+fn a_merkle_tree_hashes_leaves_and_parents_apart() {
+    blake3_servil::initialize_multithreaded(None);
+    /* Two child digests side by side, hashed as a parent and as a leaf:
+     * were they equal, the pair would pass for a leaf. */
+    let pair = make_input(64);
+    for algorithm in Algorithm::ALL
+        .into_iter()
+        .filter(|a| a.availability().is_ok() && a.takes_part(UseCase::MerkleTree))
+    {
+        let digest = |node| {
+            let mut out = Vec::new();
+            hash_tree_layer(algorithm, &pair, 64, node, |d| out.extend_from_slice(d));
+            out
+        };
+        assert_ne!(
+            digest(Node::Leaf),
+            digest(Node::Parent),
+            "{}: a leaf and a parent of the same bytes",
+            algorithm.key()
+        );
+    }
+}
+
+/// Each use case's visits a run follow how it calls: after a gap, 24;
+/// nonstop, 6 (one solo sample a visit, two shared where measured shared).
+#[test]
+fn visits_a_run_follow_how_a_cell_calls() {
+    assert_eq!(UseCase::OneMessage.visits(), GAP_VISITS);
+    assert_eq!(UseCase::IdleInterleavedTurn.visits(), GAP_VISITS);
+    assert_eq!(UseCase::LentMessages.visits(), NONSTOP_VISITS);
+    assert_eq!(UseCase::MerkleTree.visits(), NONSTOP_VISITS);
+    // A full run has room for the largest count in whole Williams cycles.
+    for use_case in UseCase::ALL {
+        let orders = participating_orders(&Algorithm::ALL, use_case).len().max(1);
+        assert!(
+            use_case.visits().next_multiple_of(orders) <= FULL_ROUNDS,
+            "{use_case:?}: {} visits over {orders} orders fit {FULL_ROUNDS} rounds",
+            use_case.visits()
+        );
+    }
 }

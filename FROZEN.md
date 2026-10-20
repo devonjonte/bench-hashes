@@ -26,6 +26,50 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **Many messages at once, a turn after a gap** (Zooko, October 19): two
+  new use cases, InterleavedTurn and IdleInterleavedTurn, the map's two
+  empty cells of the many-messages row. The 256 open messages of
+  Interleaved, one turn of their pieces a call (up to 64 pieces, 256 KiB),
+  each after other work or after idling, as a server handles a turn of
+  uploads between its other tasks or after waiting on the network; solo,
+  as every call after a gap.
+- **A Merkle tree** (Zooko, October 19, for v0.8): a new use case,
+  MerkleTree, the commitment a zero-knowledge prover makes to its
+  Reed-Solomon codeword (WHIR, the fork's docs/whir-merkle-trees.md). The
+  program writes its leaves (256 bytes each) into its buffer, then hashes
+  them and each layer of parents (two children's digests) to the root,
+  every layer kept, at 1024 to 262144 leaves, solo and shared. Leaves and
+  parents are hashed apart (Zooko, October 19: a tree that hashes them
+  alike lets two child digests pass for a leaf, the standard Merkle tree
+  vulnerability): the BLAKE3 contenders as keyed hashes under a leaf key
+  and a parent key derived from their contexts, every other hash with a
+  prefix byte, 0x00 to a leaf and 0x01 to a parent (RFC 6962). Each
+  contender hashes a layer with its batch call (BLAKE3 official: the hidden
+  `Platform::hash_many` with the key, as WHIR's engine calls it; servil:
+  `hash_many_with`, mt `hash_many_multithreaded_with`), and one call a node
+  where it has none. BLAKE3
+  official mt and commonware (64-byte messages only) take no part. The map
+  draws it in its own row, the nonstop column.
+- **A collection, pipelined** (Devon Jonte's fork, October 18; Zooko's
+  question): a new use case, ContinuousCollection, at the two collections
+  (git objects, Nix files), solo and shared: the items one after another,
+  each read into the program's buffer, then hashed, as a program reads a
+  store's files and hashes them. BLAKE3 servil mt streams them
+  (`submit_with`), every other hash hashes each on the program's thread.
+  The map draws it in the collection's row, pipelined column.
+- **BLAKE3 servil st takes part in the pipelined (continuous) cells**
+  (Devon Jonte's fork, October 18; Zooko's question): as every hash
+  without a stream does, on the program's thread, one input after another
+  read into the program's buffer. A program that keeps to one thread
+  hashes its inputs so; leaving servil st out broke the column's own rule
+  and hid the one-thread line beside official's.
+- **Samples v6: energy, and where each sample ran** (Devon Jonte's fork,
+  October 18; bench-hashes #38, energy back by Zooko's decision): an
+  `energy nJ` column beside `cpu ns`, each solo nonstop sample's CPU-package
+  energy and each b3sum run's; a `core counts` column, each sample's calling-thread time and
+  cycles on P and E cores; one `contender` key per b3sum build (`NAME: build ...`; it was
+  `contender NAME`, a name inside the key). The map draws energy dashed
+  (GB per joule, or nJ per byte). v5 files are read with the tools of the commit that wrote them.
 - **Energy beside wall time and CPU time** (Zooko, October 18, 2026,
   reversing October 17's lab-only rule; bench-hashes #38): the samples
   record energy where the platform gives a counter, and a cell without
@@ -38,6 +82,16 @@ the notes) may still change, to say it better.
   where the run recorded it), and energy (shown, not yet counted); any or
   all at once, on one axis. A chart with no CPU time recorded says so.
   The panel sticks at the top of the page, each section's names under it.
+  Every chart on the page shares one log scale (over the measures shown),
+  so one way of calling's level compares with another's; small charts
+  label each power of ten and bracket, at their last point, the span from
+  the worst line shown to the best ("x6.2"; Zooko, October 19); an opened
+  chart keeps the bracket, at every case where it holds separate cases. In
+  an opened chart the contenders' names above the plot are the toggles,
+  and the x axis names what its points are, with their unit (Zooko,
+  October 19). The code paths are reported nowhere: a stream's or a
+  pool's cannot be reported as a one-shot call's are, so none are (Zooko,
+  October 19, reversing October 18).
   Beside them, an upright switch: knob up, rate (GB/s, "higher is better", the default); knob down, cost (ns per
   byte, lower is faster; Zooko, October 18, the graph's toggle before the
   map, brought back): with CPU time, the processor time a byte costs
@@ -382,7 +436,7 @@ their users seldom make):
   follows the same call (one untimed call, gap and all, before a
   sample's first: Zooko, September 30, 2026), since a gap leaves some of
   what ran before it in the caches, and the benchmark's own schedule
-  would otherwise decide what that was (bench-hashes NOTES, "Shared
+  would otherwise decide what that was (bench-hashes NOTES at `aadeca9d`, "Shared
   after a gap"). The program writes the input after the gap, before the
   call, and the write is part of the sample (Zooko, October 3, 2026,
   replacing September 28's exclusion).
@@ -430,7 +484,7 @@ their users seldom make):
   to themselves, and a pessimistic estimate of what users see; measured
   and reported, not optimised for directly. After a gap a copy met the
   code its twin had just run in a cache the gap left warm, and read
-  faster than one program alone (NOTES, "Shared after a gap"). The map
+  faster than one program alone (bench-hashes NOTES at `aadeca9d`, "Shared after a gap"). The map
   draws solo and shared.
 - **Planned, to add under this contract**: keyed and derive-key spot
   checks in perf_regress.
@@ -443,19 +497,33 @@ use case IdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 5
 use case ContinuousMessages: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case ContinuousBatches: 16, 64, 256, 1024, 4096, 16384, 65536
 use case LentMessages: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
-use case Interleaved: 256 open
+use case Interleaved: 256
 use case Collection: git objects, Nix files
 use case Outboard: 1 MiB, 64 MiB
 use case Verify: 1 MiB, 64 MiB
 use case LentBatches: 16, 64, 256, 1024, 4096, 16384, 65536
+use case ContinuousCollection: git objects, Nix files
+use case MerkleTree: 1024, 4096, 16384, 65536, 262144
+use case InterleavedTurn: 256
+use case IdleInterleavedTurn: 256
 scenarios: solo, shared
-shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, Outboard, Verify, LentBatches
+shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, Outboard, Verify, LentBatches, ContinuousCollection, MerkleTree
+blake3-servil-st InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: Hasher::update_each, then Hasher::finalize_each for the messages that ended in it
+blake3-servil-st IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: Hasher::update_each, then Hasher::finalize_each for the messages that ended in it
+blake3-servil-mt InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: Hasher::update_each_multithreaded, then Hasher::finalize_each for the messages that ended in it
+blake3-servil-mt IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: Hasher::update_each_multithreaded, then Hasher::finalize_each for the messages that ended in it
+blake3-servil-st MerkleTree: hash_many_with(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root
+blake3-servil-mt MerkleTree: hash_many_multithreaded_with(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root
 blake3-servil-st OneMessage: hash(input), each call after other work
 blake3-servil-st ManyMessages: hash_many(batch, 64, out), the padded batch contract, each call after other work
 blake3-servil-mt OneMessage: hash_multithreaded(input), each call after other work
 blake3-servil-mt ManyMessages: hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after other work
 blake3-servil-mt ContinuousMessages: stream(Mode::Hash, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
 blake3-servil-mt ContinuousBatches: stream(Mode::Hash, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again
+blake3-servil-st ContinuousMessages: hash(input), one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)
+blake3-servil-st ContinuousBatches: hash_many(batch, 64, out), the padded batch contract, one batch after another, each read into a kept buffer of the program's and hashed on its thread
+blake3-servil-mt ContinuousCollection: stream(Mode::Hash, handler, body), one a sample: the collection's items one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
+blake3-servil-st ContinuousCollection: hash(input), the collection's items one after another, each read into a kept buffer of the program's and hashed on its thread
 blake3-servil-st LentMessages: hash(input), one message after another, each read into a kept buffer and lent until the call returns
 blake3-servil-st Interleaved: a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; Hasher::update_each per turn, then Hasher::finalize_each for the messages that ended in it, each buffer lent until the calls return
 blake3-servil-st Collection: hash_each_with(Mode::Hash, items, out), every item of the collection in one call, in memory
