@@ -491,22 +491,32 @@ run (the pool is the process's): the samples' `contenders` line records it,
 and the map names the contender "BLAKE3 servil mt, N threads". `--threads 2`
 measures the smallest pipeline, one worker beside the program's thread.
 
-`bench-hashes regress [--full] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE...` judges two
-builds the same way: eight pairs of runs (`--pairs`), pair i running the i-th
-executable of each side, back to back in alternating order, over the
-lent cells (a program hands its buffer to a call and waits), one copy
-alone; with `--full`, a default run's every cell; `--rounds K` makes each
-run sample every cell K times, and `--keep DIR` keeps every run's samples
-file. Before its pairs, `regress` calibrates once a side (`--calibrate-only`,
+`bench-hashes check [--against REV]`, run from a bench-hashes checkout
+inside a checkout of the fork, answers whether a change to the fork hurt
+its speed anywhere: it builds the two sides itself (the fork's working
+tree and the commit checked against, each relinked with a fresh function
+order per pair), records once which lines of the fork each cell executes
+(a coverage build, cached), checks the cells that execute a line the
+change touches (`--cells all` for every cell), and judges them as below.
+A change to assembly or the build checks every cell. It replaces the
+fork's `tools/perf_regress.py` and the fixed list of five cells the check
+once ran, which was blind to the cells after a gap and to the stream.
+
+Underneath, `bench-hashes regress [--contenders A,B [--points P,Q]] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE...`
+judges two builds: eight pairs of runs (`--pairs`), pair i running the
+i-th executable of each side, back to back in alternating order, over the
+default contenders' every cell or the cells named; each run takes the
+regression check's visits (a cell after a gap in 24 rounds, a nonstop
+cell in 6: `TO_CHECK_FOR_REGRESSIONS`); `--keep DIR` keeps every run's
+samples file. Before its pairs, `regress` calibrates once a side (`--calibrate-only`,
 by each side's first build), and every run of either side takes those
 sample sizes (`--sizes`) instead of calibrating its own: a cell both sides
 measure takes the old side's size, so both do the same work a sample; a
 cell only one side measures (two benchmarks' cells, `--bench`), its own
 side's. No run pays a calibration. Each run is `regress`'s child, and `regress` checks the load around
 it (below, "Load from other programs"), so a run may be as short as its
-measurement needs. Give each side a fresh
-link layout per pair (the fork's `tools/perf_regress.py` relinks each
-side with a random function order): a binary's layout alone moves the
+measurement needs. `check` gives each side a fresh
+link layout per pair (a random function order): a binary's layout alone moves the
 cells of calls made now and then by several percent, and the same
 binary's runs differ with the address layout each process gets
 (`audit/variance-on-unchanged-code.md` at commit `aadeca9d`).

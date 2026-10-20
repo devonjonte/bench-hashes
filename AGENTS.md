@@ -170,4 +170,4 @@ The benchmarker touches an implementation in two ways only: listing it, calling 
 
 # The fork's regression check depends on this benchmark
 
-The fork's `tools/perf_regress.py` builds this benchmark against both sides of every code commit and runs `bench-hashes regress` on the two builds (`PROCEDURES.md` has the details).
+`bench-hashes check` builds this benchmark against both sides of a change to the fork, chooses the cells the change touches, and runs `bench-hashes regress` on the two builds (`src/check.rs`).

@@ -13,8 +13,7 @@ For the servil team: how things are done in this repository. The principles are 
   maps before committing.
 - **Exploratory runs** go in a scratch directory with the built
   executable (`cd /tmp/qr && /tmp/target/release/bench-hashes --quick
-  ...`, or `$(pypy3 /workspace/blake3-servil/tools/perf_regress.py build)` for the
-  fork's working tree): a run from this directory overwrites the records.
+  ...`): a run from this directory overwrites the records.
 - **Looking at the map**: a screenshot with Playwright and Chromium
   (`tools/graph-check/map.js` opens it the same way), crop with `convert`,
   copy into `/workspace/blake3-servil/tmp/`, and read it by its host path
@@ -26,7 +25,7 @@ For the servil team: how things are done in this repository. The principles are 
 
 # The fork's performance-regression check runs this benchmark
 
-The fork's `tools/perf_regress.py` builds this benchmark twice through the `--config` patch, against the fork's `HEAD` and against its working tree, relinks each side with a fresh function order per pair, and runs `bench-hashes regress OLD... -- NEW...`: the regression rule, its points, and its margins live here, beside `POINTS`, and `COMPARISONS.md` gives their reasons (read it before changing them). Both sides use this checkout's source, so a change here never skews that comparison. The fork's `PROCEDURES.md` has the procedure every fork commit follows.
+`bench-hashes check` builds this benchmark twice through the `--config` patch, against the fork's `HEAD` and against its working tree, relinks each side with a fresh function order per pair, chooses the cells the change touches, and runs `bench-hashes regress OLD... -- NEW...`: the regression rule and its margins live here, and `COMPARISONS.md` gives their reasons (read it before changing them). Both sides use this checkout's source, so a change here never skews that comparison. The fork's `PROCEDURES.md` has the procedure every fork commit follows.
 
 # Before a question goes to Zooko
 

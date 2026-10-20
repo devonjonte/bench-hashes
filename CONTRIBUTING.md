@@ -60,11 +60,10 @@ put this repository inside it and let the fork's tool build it there:
 ```sh
 git clone --branch servil https://github.com/johnservil/BLAKE3
 git clone https://github.com/johnservil/bench-hashes BLAKE3/bench-hashes
-cd BLAKE3
-pypy3 tools/perf_regress.py build     # prints the executable's path (python3 where PyPy is absent)
+cd BLAKE3/bench-hashes && cargo run --release -- check   # the fork's working tree against its HEAD
 ```
 
-The tool builds in a directory of its own (`tmp/perf-ab/new/`), with a
+`check` builds in directories of its own (the fork's `target/check/`), with a
 copy of this repository whose `Cargo.lock` points at the fork checkout,
 and leaves your checkouts' files as they were. Run the executable from a
 scratch directory (it writes `benchmark-results/` there); the report
