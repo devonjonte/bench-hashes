@@ -235,8 +235,7 @@ too: on an Apple M4 Max, a call of several milliseconds after idling ran
 15-50% slower than after other work (SHA-256 at 8 MiB 0.43-0.51 against
 0.29-0.34 ns/B), its core near 3.8-4.0 GHz where after other work it ran
 near 4.5, which is what a server that mostly waits gets.
-`--trace-clocks` records each call's cycles and time, the clock it ran
-at. A full run takes about a minute.
+A full run takes about a minute.
 
 A single-threaded hash costs about the same in both. A multithreaded one
 shows in the shared scenario what its threads cost when the machine is

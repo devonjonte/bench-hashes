@@ -1723,11 +1723,6 @@ cell sampled in a share of them.
   --threads N                      BLAKE3 servil mt on N threads in all, its
                                    caller among them (default: one a CPU); the
                                    results name the count
-  --trace-clocks PATH              also write one CSV line per sample interval
-                                   with its wall time and (on Apple) the
-                                   thread's cycles, instructions, and time per
-                                   core kind, for the solo sample and each
-                                   shared copy
 
   bench-hashes compare OLD.tsv... -- NEW.tsv...
                                    compare runs' samples files in pairs (the
@@ -1749,7 +1744,6 @@ struct Options {
     explicit: Vec<Algorithm>,
     points: Option<Vec<usize>>,
     rounds: Option<usize>,
-    trace_path: Option<std::path::PathBuf>,
     quick: bool,
     sizes: Sizes,
     /// BLAKE3 servil mt's threads (--threads N; None: one a CPU).
@@ -1850,20 +1844,6 @@ fn parse_arguments() -> Options {
     let quick = take_flag("--quick");
     let for_check = take_flag("--for-regression-check");
 
-    /* --trace-clocks PATH may accompany any selection. */
-    let trace_path = arguments
-        .iter()
-        .position(|argument| argument == "--trace-clocks")
-        .map(|index| {
-            assert!(
-                index + 1 < arguments.len(),
-                "--trace-clocks needs a file path\n\n{USAGE}"
-            );
-            let path = std::path::PathBuf::from(&arguments[index + 1]);
-            arguments.drain(index..=index + 1);
-            path
-        });
-
     /* --points LIST and --rounds N narrow a --contenders run. */
     let mut take_value = |flag: &str| {
         arguments
@@ -1917,7 +1897,6 @@ fn parse_arguments() -> Options {
         explicit,
         points,
         rounds,
-        trace_path,
         quick,
         sizes,
         threads,
@@ -2033,13 +2012,11 @@ fn main() {
         explicit,
         points,
         rounds,
-        trace_path,
         quick,
         sizes,
         threads,
         visits,
     } = parse_arguments();
-    let mut trace = trace_path.map(ClockTrace::new);
     let mut machine = machine_metadata();
 
     let (algorithms, selection_note) = match selection {
@@ -2078,13 +2055,9 @@ fn main() {
         blake3_servil::initialize_multithreaded(threads);
     }
     let roster = Roster::new(algorithms, quick, points, rounds, visits);
-    let (results, samples, load) = measure_all(&roster, trace.as_mut(), &sizes);
+    let (results, samples, load) = measure_all(&roster, &sizes);
     machine.load = load;
     machine.power[1] = Power::read();
-
-    if let Some(trace) = &trace {
-        trace.write();
-    }
 
     let text = generate_text(&roster, &results, &machine, &selection_note);
     /* The graph draws whole axes: every point of each use case it shows. */
@@ -2210,11 +2183,7 @@ fn cell(results: &Results, algorithm_index: usize, point_index: usize) -> &Cell 
         .expect("the contender takes part in this point's use case")
 }
 
-fn measure_all(
-    roster: &Roster,
-    mut trace: Option<&mut ClockTrace>,
-    sizes: &Sizes,
-) -> (Results, RunSamples, Vec<clocks::load::Window>) {
+fn measure_all(roster: &Roster, sizes: &Sizes) -> (Results, RunSamples, Vec<clocks::load::Window>) {
     /* Inputs for the points measured; an empty buffer stands in for the rest. */
     /*
      * The bytes are irrelevant to every contender's speed, so each point
@@ -2416,7 +2385,7 @@ fn measure_all(
 
                 let input = inputs[size_index];
 
-                for (position, &algorithm_index) in algorithm_order.iter().enumerate() {
+                for &algorithm_index in algorithm_order {
                     let algorithm = roster.algorithms[algorithm_index];
                     let iterations = batch_iterations[algorithm_index][size_index];
 
@@ -2425,7 +2394,6 @@ fn measure_all(
                     let DuoCopy {
                         elapsed_ns,
                         counts,
-                        preparation,
                         started_ns,
                         cpu_ns,
                         energy_nj,
@@ -2452,52 +2420,6 @@ fn measure_all(
                         samples.shared_started_ns[algorithm_index][size_index]
                             .push(copy.started_ns);
                         samples.shared_counts[algorithm_index][size_index].push(copy.counts);
-                    }
-
-                    if let Some(trace) = trace.as_deref_mut() {
-                        /* A solo row leaves the shared columns empty. */
-                        let (later, copy_fields) = match &copies {
-                            Some(copies) => (
-                                copies
-                                    .iter()
-                                    .map(|copy| copy.elapsed_ns)
-                                    .max()
-                                    .unwrap()
-                                    .to_string(),
-                                format!(
-                                    "{},{},{},{}",
-                                    copies[0].elapsed_ns,
-                                    counts_csv(copies[0].counts),
-                                    copies[1].elapsed_ns,
-                                    counts_csv(copies[1].counts)
-                                ),
-                            ),
-                            None => (String::new(), format!(",{NO_COUNTS},,{NO_COUNTS}")),
-                        };
-                        let scenario = if copies.is_some() {
-                            "solo and shared"
-                        } else {
-                            "solo"
-                        };
-                        trace.lines.push(format!(
-                            "{round},{},{},{},{iterations},{elapsed_ns},{},{:?},{later},{copy_fields},{scenario}",
-                            point_offset * algorithm_order.len() + position,
-                            algorithm.key(),
-                            input.len(),
-                            counts_csv(counts),
-                            point.use_case,
-                        ));
-                        if let Some(preparation) = preparation {
-                            assert!(
-                                copies.is_none(),
-                                "a use case with a preparation runs after a gap, alone"
-                            );
-                            trace.lines.push(format!(
-                                "{round},{},{},{},{iterations},{},{},{:?},,,{NO_COUNTS},,{NO_COUNTS},preparation solo",
-                                point_offset * algorithm_order.len() + position, algorithm.key(), input.len(),
-                                preparation.wall_ns, counts_csv(preparation.counts), point.use_case,
-                            ));
-                        }
                     }
                 }
             }
@@ -2810,7 +2732,6 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
     DuoCopy {
         elapsed_ns,
         counts,
-        preparation: None,
         started_ns,
         cpu_ns,
         energy_nj,
@@ -2845,7 +2766,7 @@ fn take_prepared_sample(
             |produced| call(black_box(produced)),
         );
         // The write and the call, both the program's work (FROZEN.md, Zooko,
-        // October 3, 2026); the trace keeps the write's own share.
+        // October 3, 2026).
         let counts = measured
             .calls
             .counts
@@ -2854,7 +2775,6 @@ fn take_prepared_sample(
         DuoCopy {
             elapsed_ns: measured.calls.wall_ns + measured.preparation.wall_ns,
             counts,
-            preparation: Some(measured.preparation),
             started_ns,
             cpu_ns: None,
             energy_nj: None,
@@ -4580,7 +4500,6 @@ struct DuoCopy {
     started_ns: u64,
     elapsed_ns: u64,
     counts: Option<clocks::Counts>,
-    preparation: Option<clocks::Batch>,
     /// The process's CPU time across the sample, all its threads (read
     /// outside the timed interval): None for a sample after gaps (their
     /// other work is no part of the call's), or where the platform has no
@@ -4856,70 +4775,6 @@ mod common_crypto {
             unreachable!()
         }
     }
-}
-
-/*
- * Optional per-sample trace for clock diagnosis: every solo sample's wall
- * nanoseconds and the thread's counts per core kind (the clocks crate's
- * Counts: Apple, and Linux on x86-64 hybrid CPUs; empty elsewhere), with the round, its position in the round, the
- * contender, size, and use case; then the duo sample's later finish and
- * each copy's own time and P/E counts. One CSV line per sample interval.
- * Off unless --trace-clocks PATH is given; every clock read sits outside
- * the timed intervals.
- */
-struct ClockTrace {
-    lines: Vec<String>,
-    path: std::path::PathBuf,
-}
-
-impl ClockTrace {
-    fn new(path: std::path::PathBuf) -> Self {
-        let mut lines = Vec::with_capacity(8192);
-        let mut header = "round,position,contender,size_bytes,iterations,wall_ns,p_cycles,p_instructions,p_time_ns,e_cycles,e_instructions,e_time_ns,use_case,duo_ns".to_owned();
-        for copy in 0..2 {
-            for field in [
-                "ns",
-                "p_cycles",
-                "p_instructions",
-                "p_time_ns",
-                "e_cycles",
-                "e_instructions",
-                "e_time_ns",
-            ] {
-                header += &format!(",copy{copy}_{field}");
-            }
-        }
-        /* Rows from the rounds carry both scenarios; after-idle rows one call burst, no copies. */
-        header += ",scenario";
-        lines.push(header);
-        Self { lines, path }
-    }
-
-    fn write(&self) {
-        let body = self.lines.join("\n") + "\n";
-        fs::write(&self.path, body)
-            .unwrap_or_else(|error| panic!("failed to write {}: {error}", self.path.display()));
-        eprintln!(
-            "clock trace: {} samples in {}",
-            self.lines.len() - 1,
-            self.path.display()
-        );
-    }
-}
-
-/// A trace's six count fields (P cycles, instructions, time; then E),
-/// empty for a copy that took no sample and where the platform counts
-/// none (clocks::Counts::read gives None): never zeros that read as counts.
-const NO_COUNTS: &str = ",,,,,";
-
-fn counts_csv(counts: Option<clocks::Counts>) -> String {
-    let Some(c) = counts else {
-        return NO_COUNTS.to_owned();
-    };
-    format!(
-        "{},{},{},{},{},{}",
-        c.p.cycles, c.p.instructions, c.p.time_ns, c.e.cycles, c.e.instructions, c.e.time_ns
-    )
 }
 
 /*
