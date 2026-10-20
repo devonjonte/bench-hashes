@@ -116,8 +116,9 @@ the page", has the whole practice. Check a change with
 
 ## Maintainers' notes
 
-`AGENTS.md`, `PROCEDURES.md` and `NEXT-STEPS.md` are the maintainers' working
-notes: principles, environment, and current work. Contributing needs none
-of them. `METHODOLOGY.md` explains why the measurement works as it does,
+`AGENTS.md` holds the maintainers' principles and the repository's shape;
+the open work is in the issues. Contributing needs neither. A release is
+`python3 tools/gen-ver.py X.Y.Z` from a clean tree: two version commits
+and a tag. `METHODOLOGY.md` explains why the measurement works as it does,
 should you want to change it; earlier findings are in `git log`, and in the
 notes the tree held until commit `aadeca9d`.
