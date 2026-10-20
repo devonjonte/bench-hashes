@@ -144,7 +144,7 @@ the notes) may still change, to say it better.
   percent. On unchanged code the per-cell sign test called 15 to 27 of 700
   cells faster or slower; this rule reads all 700 level, and finds the
   cells a real change moves. `regress --full` judges every cell of a
-  default run. COMPARISONS.md keeps the rule's choices and their evidence.
+  default run. METHODOLOGY keeps the rule's choices and their evidence.
 - **A cell's samples are sized after three untimed batches, from the
   fastest of three probes** (Devon Jonte, #12): one untimed batch and one
   probe left a cell still warming in some builds, which halved its samples
