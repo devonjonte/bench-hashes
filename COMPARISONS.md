@@ -18,20 +18,22 @@ judges all of a comparison's cells at once: per cell a paired t-test on the
 logarithm of each pair's ratio, new over old; over all cells the
 Benjamini-Hochberg procedure at a 5% false discovery rate; and a cell that
 passes is slower or faster only beyond a 3% margin. Each pair gets a **fresh
-link layout** on both sides (the fork's `tools/perf_regress.py` relinks each
-side with a random function order). `bench-hashes compare` applies the rule
-to samples files; `bench-hashes regress` runs the pairs and applies it, over
-the lent cells, or every cell with `--full`.
+link layout** on both sides (`check` relinks each side with a random
+function order). `bench-hashes compare` applies the rule to samples files;
+`bench-hashes check` builds both sides of a change to the fork, chooses the
+cells whose code it touches (every cell with `--cells all`), runs the pairs
+and applies the rule.
 
-**Use one driver.** `perf_regress.py compare OLD NEW [--full]` builds the
-sides, relinks them per pair, and runs `regress`. A hand-written loop of runs
-skips something sooner or later: fresh layouts, alternation, the load check,
-the rule itself.
+**Use one driver.** `bench-hashes check [--against REV]` builds the sides,
+relinks them per pair, and runs the pairs. A hand-written loop of runs skips
+something sooner or later: fresh layouts, alternation, the load check, the
+rule itself.
 
 ## Each choice and its evidence
 
 | choice | evidence | what it gives up |
 |---|---|---|
+| **`check` is the fork's speed gate: the cells a change touches, 4 pairs** (October 20, Zooko) | Calibrated on the i7-12700K (the `data` branch, `2026-10-20/check-validation`) and the M4 Max (the fork's Mac jobs 1642, 1636, 1637, with bench-hashes `ddf457e`): on the Mac, an A/A of servil `e1a6515` against itself over every cell at 8 pairs found no cell slower (16 min); `hash()` hashing its first 6% again was caught at 4 pairs in servil st's continuous cells, +5% to +28% (11 min); the pool's split hashing its first 6% again was caught at 4 pairs in servil mt's cells from 512 KiB, +7% to +25%, the cells after a gap among them (7 min). On the i7, the same A/A was clean over 146 cells and the same plants caught (64 and 28 cells at 8 pairs; 48 and 22 at 4). | A change under the margin passes; a slowdown in a cell whose code the change leaves as it was is not looked for (the full map, run at each release, is where it shows). |
 | The mean **sets its slowest hundredth of samples aside** (October 19, Zooko; #41) | The predeclared evaluation on #41 (the `data` branch, `2026-10-19/stat41`): against the plain mean it kept most of a planted one-in-ten slow mode (x1.113 against x1.149), halved false alarms under contamination (3 against 7 cells), and halved the spread; harder trims hid the slow mode. | The slowest samples' time, up to a hundredth of a run's: a cell slow in more than a hundredth of its samples shows it almost in full. |
 | A run's **mean**, not a median or a fast speed (October 2) | Calibration with planted slowdowns, Mac jobs 1164-1167 (the fork's NOTES, "The regression check, calibrated"): at +6% the fast speed never caught 1 MiB (0 of 18); the mean caught all three cells nearly every time. | Nothing callers pay; a cell's two speeds stay visible in its samples. |
 | **Pairs of runs**, alternating (October 2) | Most uncertainty lies between processes: code placement, thread placement, the speed a cell settles into. Twelve samples or twenty-four gave the same between-run spread (September 26, ae3b7662); one binary's run means varied 1.49 times what its samples predict (audit/variance-on-unchanged-code.md). | The time of a second side's runs. |
@@ -99,13 +101,14 @@ bench-hashes #25.
 
 1. State the question the rule answers (a quick gate on a few cells, or a
    survey of every cell) and how many cells it judges at once.
-2. Calibrate on this machine and the Mac, with the rule's own driver:
-   identical code with fresh layouts (A/A), and planted slowdowns of +3% and
-   +6% (the fork's `B3_PLANT` probe). Count false and true verdicts.
+2. Calibrate on this machine and the Mac, with the rule's own driver
+   (`check`): identical code with fresh layouts (A/A, `--cells all`), and
+   planted slowdowns of +6% as commits (the fork's `tmp/night/plants/`
+   patches: `hash()` and the pool's split hashing their first 6% again).
+   Count false and true verdicts.
 3. Change every producer, reader, driver, test, and document at once:
-   `clocks::summary`, `compare`, `regress`, `perf_regress`, METHODOLOGY,
-   AGENTS, PROCEDURES, FROZEN.md (the gate's points, pairs, and margin are
-   Zooko's decision).
+   `clocks::summary`, `compare`, `check`, METHODOLOGY, AGENTS, PROCEDURES,
+   FROZEN.md (the gate's cells, pairs, and margin are Zooko's decision).
 4. Add a row above: the choice, its evidence, and what it gives up; and any
    alternative you measured and set aside below.
 
