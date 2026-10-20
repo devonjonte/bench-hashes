@@ -21,8 +21,10 @@
 //!    bench's source and the fork's commit); the change's diff names the
 //!    lines it touches; the points that execute one are checked, the rest
 //!    skipped, since nothing they run changed. A change to assembly, the
-//!    build script or a manifest checks every point (coverage cannot see
-//!    into assembly). `--cells all` checks every point regardless.
+//!    build script, or what a manifest builds (the fork's or clocks':
+//!    anything but its tests, examples, benches and dev-dependencies)
+//!    checks every point (coverage cannot see into assembly or the build).
+//!    `--cells all` checks every point regardless.
 //! 3. Runs `bench-hashes regress` over the pairs: servil st and servil mt
 //!    (the code that changes) at the regression check's visits
 //!    (TO_CHECK_FOR_REGRESSIONS), judged all at once (clocks::summary).
@@ -508,11 +510,12 @@ fn touched_points(
     if changed_files.lines().any(|f| {
         f.starts_with("c/")
             || f == "build.rs"
-            || f.ends_with("Cargo.toml")
             || f.ends_with(".S")
             || f.ends_with(".asm")
+            || (matches!(f, "Cargo.toml" | "clocks/Cargo.toml")
+                && manifest_builds_differently(fork, old, new, f))
     }) {
-        eprintln!("check: assembly, the build script or a manifest changed: every point");
+        eprintln!("check: assembly, the build script or the build's manifest changed: every point");
         return every();
     }
     let mut touched: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
@@ -801,4 +804,66 @@ fn patches(copy: &Path, checkout: &Path) -> [String; 2] {
             checkout.join("clocks").display()
         ),
     ]
+}
+
+/// Whether `manifest`'s change between `old` and `new` touches what the
+/// bench's build of the fork uses: a changed line, on either side, in any
+/// section but `[[test]]`, `[[example]]`, `[[bench]]` and
+/// `[dev-dependencies]` (a test's entry changes no cell).
+fn manifest_builds_differently(fork: &Path, old: &str, new: &str, manifest: &str) -> bool {
+    let unused = |section: &str| {
+        matches!(
+            section,
+            "[[test]]" | "[[example]]" | "[[bench]]" | "[dev-dependencies]"
+        )
+    };
+    // Each line's section, in one side's file.
+    let sections = |rev: &str| -> Vec<String> {
+        let text = Command::new("git")
+            .args(["show", &format!("{rev}:{manifest}")])
+            .current_dir(fork)
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+            .unwrap_or_default();
+        let mut current = String::new();
+        text.lines()
+            .map(|l| {
+                let t = l.trim();
+                if t.starts_with('[') {
+                    current = t.to_string();
+                }
+                current.clone()
+            })
+            .collect()
+    };
+    let (before, after) = (sections(old), sections(new));
+    let diff = git(
+        fork,
+        &[
+            "diff",
+            "--unified=0",
+            &format!("{old}..{new}"),
+            "--",
+            manifest,
+        ],
+    );
+    for line in diff.lines().filter(|l| l.starts_with("@@")) {
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        for (field, side) in [
+            (fields[1].trim_start_matches('-'), &before),
+            (fields[2].trim_start_matches('+'), &after),
+        ] {
+            let (start, count) = field
+                .split_once(',')
+                .map(|(s, c)| (s.parse::<usize>().unwrap(), c.parse::<usize>().unwrap()))
+                .unwrap_or_else(|| (field.parse().unwrap(), 1));
+            // A pure insertion or deletion names the line before it (count 0).
+            for n in start.max(1)..=(start + count.max(1) - 1) {
+                if side.get(n - 1).is_none_or(|s| !unused(s)) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
