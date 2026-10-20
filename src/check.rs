@@ -37,8 +37,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Pairs of runs a check takes (its layouts a side).
-const PAIRS: usize = 8;
+/// Pairs of runs a check takes (its layouts a side). Measured October 20,
+/// 2026 (i7-12700K; the data branch, 2026-10-20/check-validation), 4 pairs
+/// against 8: a hash() plant 6% a call caught in 48 cells against 60; a
+/// plant in the pool's split path in 22 of its 28 cells against 28; the
+/// A/A over the same 146 cells no cell slower either way; a check that
+/// chooses 73 points 6 minutes against 14. Every plant is still found;
+/// `--pairs 8` sees more of its cells.
+const PAIRS: usize = 4;
 /// The two sides' contenders: the code a change to the fork changes.
 const SUBJECTS: &str = "blake3-servil-st,blake3-servil-mt";
 
