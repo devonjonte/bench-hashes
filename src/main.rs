@@ -182,7 +182,7 @@ const PIECE_LEN: usize = 64 * 1024;
  * state. A sample's unit of work is `chunk` bytes of pieces.
  */
 /*
- * A collection of items of different lengths (UseCase::Collection; Zooko,
+ * A collection of messages of different lengths (UseCase::Collection; Zooko,
  * October 3, 2026): a program naming each item of a collection by its
  * hash, as a content-addressed store, git, Bazel, or Nix does, each item
  * hashed once, one after another, all in memory. Each collection is a
@@ -245,7 +245,7 @@ const COLLECTIONS: [(&str, &[(usize, usize)]); COLLECTION_COUNT] = [
     ),
 ];
 
-/// A collection's items as (offset, length) in one buffer, in the stride's order.
+/// A collection's messages as (offset, length) in one buffer, in the stride's order.
 fn collection_items(classes: &[(usize, usize)]) -> Vec<(usize, usize)> {
     let lengths: Vec<usize> = classes
         .iter()
@@ -615,7 +615,7 @@ enum UseCase {
     /// connections, each piece copied as a receive would, then fed to that
     /// message's incremental API.
     Interleaved,
-    /// A collection's items, each hashed once, one after another, in
+    /// A collection's messages, each hashed once, one after another, in
     /// memory (COLLECTIONS).
     Collection,
     /// Messages one after another, each written into a kept buffer, then
@@ -628,7 +628,7 @@ enum UseCase {
     /// written into the message's buffer.
     Verify,
     LentBatches,
-    /// A collection's items one after another, each read into the
+    /// A collection's messages one after another, each read into the
     /// program's buffer, then hashed (COLLECTIONS): the collection
     /// pipelined, as a program reads a store's files and hashes them.
     ContinuousCollection,
@@ -780,12 +780,12 @@ impl UseCase {
             Self::IdleInterleavedTurn => {
                 "Many messages at once, a turn of their pieces after idling"
             }
-            Self::Collection => "A collection's items, each hashed once, in memory",
+            Self::Collection => "A collection's messages, each hashed once, in memory",
             Self::Outboard => "Messages with their outboards, for verified streaming, buffers lent",
             Self::Verify => "Messages received in their encodings, verified as they arrive",
             Self::LentBatches => "Batches one after another, buffers lent",
             Self::ContinuousCollection => {
-                "A collection's items one after another, each read into a buffer, then hashed"
+                "A collection's messages one after another, each read into a buffer, then hashed"
             }
             Self::MerkleTree => {
                 "A Merkle tree over leaves just written into place, every layer kept"
@@ -2129,7 +2129,7 @@ fn main() {
             println!("# Speed chart (SVG) is in \"{}\" .", chart_path.display());
         }
         None => {
-            // A quick run has no 1 MiB cells: no chart, and none left from an older run.
+            // A quick run has no 128 MiB cells: no chart, and none left from an older run.
             if chart_path.exists() {
                 fs::remove_file(&chart_path).unwrap_or_else(|error| {
                     panic!("failed to remove stale {}: {error}", chart_path.display())
@@ -3336,7 +3336,7 @@ fn items_of(point: Point, input: &[u8]) -> &'static [(usize, usize)] {
     assert_eq!(
         input.len(),
         point.bytes,
-        "the collection's items fill its input"
+        "the collection's messages fill its input"
     );
     ITEMS[index].get_or_init(|| collection_items(COLLECTIONS[index].1))
 }
@@ -4321,8 +4321,8 @@ const SERVIL_CALLS: [(Algorithm, UseCase, &str); 32] = [
     (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "stream(Mode::Hash, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again"),
     (Algorithm::Blake3ServilSt, UseCase::ContinuousMessages, "hash(input), one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)"),
     (Algorithm::Blake3ServilSt, UseCase::ContinuousBatches, "hash_many(batch, 64, out), the padded batch contract, one batch after another, each read into a kept buffer of the program's and hashed on its thread"),
-    (Algorithm::Blake3ServilMt, UseCase::ContinuousCollection, "stream(Mode::Hash, handler, body), one a sample: the collection's items one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
-    (Algorithm::Blake3ServilSt, UseCase::ContinuousCollection, "hash(input), the collection's items one after another, each read into a kept buffer of the program's and hashed on its thread"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousCollection, "stream(Mode::Hash, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
+    (Algorithm::Blake3ServilSt, UseCase::ContinuousCollection, "hash(input), the collection's messages one after another, each read into a kept buffer of the program's and hashed on its thread"),
     (Algorithm::Blake3ServilSt, UseCase::LentMessages, "hash(input), one message after another, each read into a kept buffer and lent until the call returns"),
     (Algorithm::Blake3ServilSt, UseCase::Interleaved, "a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; Hasher::update_each per turn, then Hasher::finalize_each for the messages that ended in it, each buffer lent until the calls return"),
     (Algorithm::Blake3ServilSt, UseCase::Collection, "hash_each_with(Mode::Hash, items, out), every item of the collection in one call, in memory"),

@@ -196,9 +196,11 @@ the notes) may still change, to say it better.
   same code (servil mt ContinuousBatches 13-18%, the lent batches and
   official's 5-13%; SHA-256 level), most of what #15 had added: the old
   map's pipelined-batch lead over today's came from this copy.
-- **b3sum's suite adds the system's `sha256sum`** (GNU coreutils, where
-  installed; Devon Jonte, #9): the SHA-256 tool people type, beside the
-  b3sums, answering the README's question for the command line.
+- **b3sum's suite adds the system's `sha256sum`, `sha1sum` and `md5sum`**
+  (whichever implementation the platform ships; Devon Jonte, #9; Zooko,
+  October 20: the default programs, since those are what a user chooses
+  between, where it took the fastest SHA-256 it could find): the sum
+  programs people type, beside the b3sums.
 - **b3sum's "from storage" cells start from storage** (Devon Jonte, #18;
   a bug fix): each eviction is confirmed with `mincore`, retried until no
   page of the file stays cached (a b3sum that leaves its mappings to exit
@@ -338,7 +340,7 @@ changes are drawn by one benchmark.
   several; all give the same bytes. Verifying a
   range as it arrives costs about what building costs (the fork's
   `verify_range_with`), so one cell serves both.
-- **A collection of items of different lengths, each hashed once**: a
+- **A collection of messages of different lengths, each hashed once**: a
   program naming every item of a collection by its hash, as git, Bazel,
   Nix, and the content-addressed stores do, all in memory, one item after
   another, through each contender's one-message call. Two collections,
@@ -522,8 +524,8 @@ blake3-servil-mt ContinuousMessages: stream(Mode::Hash, handler, body), one a sa
 blake3-servil-mt ContinuousBatches: stream(Mode::Hash, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again
 blake3-servil-st ContinuousMessages: hash(input), one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)
 blake3-servil-st ContinuousBatches: hash_many(batch, 64, out), the padded batch contract, one batch after another, each read into a kept buffer of the program's and hashed on its thread
-blake3-servil-mt ContinuousCollection: stream(Mode::Hash, handler, body), one a sample: the collection's items one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
-blake3-servil-st ContinuousCollection: hash(input), the collection's items one after another, each read into a kept buffer of the program's and hashed on its thread
+blake3-servil-mt ContinuousCollection: stream(Mode::Hash, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
+blake3-servil-st ContinuousCollection: hash(input), the collection's messages one after another, each read into a kept buffer of the program's and hashed on its thread
 blake3-servil-st LentMessages: hash(input), one message after another, each read into a kept buffer and lent until the call returns
 blake3-servil-st Interleaved: a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; Hasher::update_each per turn, then Hasher::finalize_each for the messages that ended in it, each buffer lent until the calls return
 blake3-servil-st Collection: hash_each_with(Mode::Hash, items, out), every item of the collection in one call, in memory

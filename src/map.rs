@@ -632,7 +632,7 @@ fn hashing(path: &Path) -> Section {
             ("batch", "a batch of short messages", "Many 64-byte messages hashed together, such as a Merkle tree's nodes; the axis counts the messages."),
             ("merkle", "a Merkle tree", "A Merkle tree over 256-byte leaves the program has just written into place, leaves and parents hashed apart, every layer kept, as a zero-knowledge prover commits to its Reed-Solomon codeword (WHIR); the axis counts the leaves."),
             ("many", "many messages at once, in pieces", "256 messages in progress at once, their pieces arriving 64 at a time, as a server's uploads arrive."),
-            ("coll", "a collection of items", "A collection of items of every size, such as a repository's objects or a store's files, hashed together."),
+            ("coll", "a collection of messages", "A collection of messages of every size, such as a repository's objects or a store's files, hashed together."),
             ("outb", "a message with its outboard, for verified streaming", "A message's hash and its outboard: the hash tree's nodes, kept beside the message so that any part of it can be verified when it is sent (Bao, iroh-blobs)."),
             ("recv", "a message received, verified as it arrives", "A message received with its hash tree's nodes, each part verified as it arrives (iroh-blobs)."),
         ],
