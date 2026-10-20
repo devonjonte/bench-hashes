@@ -24,3 +24,9 @@ With 4 pairs (`--pairs 4`), the same changes:
 | check9 | the pool's split path 6% slower | 22 of its 28 cells slower | 6 min |
 
 So 4 pairs became the default: every plant found, the A/A clean, half the time.
+
+With the regression check's visits after a gap at 12 instead of 24 (4 pairs,
+the `hash()` plant, on candidate/minimalism-0.8): a pair 32 s against 57,
+but the cells after a gap caught far less often (after other work 3 cells
+against 10, after a pause 4 against 9; nonstop the same). The gap cells are
+the class the five fixed cells missed, so 24 stays (`check-g12-hash.*`).
