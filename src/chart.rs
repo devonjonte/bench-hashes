@@ -1,6 +1,6 @@
 //! Two charts drawn from a run's samples files, as bars in GB/s, for the
 //! READMEs: `bench-hashes.chart.svg`, one 128 MiB message after a pause,
-//! BLAKE3 servil on every core and on one beside the fastest of each other
+//! BLAKE3 servil multi-core and on one core beside the fastest of each other
 //! family; and `b3sum.chart.svg`, the mixed tree of files in the page
 //! cache, `b3sum` beside the system's `sha256sum`, `sha1sum` and `md5sum`.
 //! A full run draws its chart; `bench-hashes chart SAMPLES.tsv` draws one
@@ -44,7 +44,7 @@ pub fn from_samples(path: &str) -> Option<String> {
     let centi = |key: &str| rate(&file, &format!("{key}|{CELL}"));
     let mut bars = vec![
         Bar {
-            name: "BLAKE3, every core".into(),
+            name: "BLAKE3, multi-core".into(),
             centi: centi("blake3-servil-mt")?,
             color: BLAKE3_COLOR,
             ours: true,
@@ -129,13 +129,11 @@ fn draw(file: &SamplesFile, title: &str, mut bars: Vec<Bar>) -> String {
         .next()
         .unwrap_or("?")
         .to_owned();
-    let subtitle = format!(
-        "{}, {} CPUs · GB/s, faster to the right",
-        header("cpu type"),
-        header("cpu count")
-    );
+    let subtitle = "GB/s, faster to the right".to_owned();
     let footer = format!(
-        "bench-hashes {} on {date}",
+        "{}, {} CPUs · bench-hashes {} on {date}",
+        header("cpu type"),
+        header("cpu count"),
         header("bench-hashes version")
             .split('+')
             .next()
@@ -245,13 +243,16 @@ mod tests {
         let svg = super::from_samples(path.to_str().unwrap()).expect("a chart");
         std::fs::remove_file(&path).unwrap();
         assert!(
-            svg.contains(">BLAKE3, every core</text>") && svg.contains(">13</text>"),
+            svg.contains(">BLAKE3, multi-core</text>") && svg.contains(">13</text>"),
             "{svg}"
         );
         assert!(
             svg.contains(">3.36</text>") && svg.contains(">1.68</text>"),
             "{svg}"
         );
-        assert!(svg.contains("Test CPU, 4 CPUs"), "{svg}");
+        assert!(
+            svg.contains("Test CPU, 4 CPUs · bench-hashes 0.13.0 on 2026-10-02"),
+            "{svg}"
+        );
     }
 }
