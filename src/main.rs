@@ -45,11 +45,10 @@ const TARGET_SAMPLE_NS: u128 = 1_000_000;
 /*
  * Every cell samples in a share of the rounds, spread over the run at an
  * offset of its own, so drift and other programs' load reach every cell
- * alike: the use case's visits (UseCase::visits), rounded up to whole
- * Williams cycles.
+ * alike: the use case's visits (UseCase::visits).
  * Every participating contender at a point samples the same visits.
  * Thinning long contenders separately aliased their orders and compared
- * different moments. Complete cycles cost more time for long hashes.
+ * different moments.
  *
  * Measured on the VM (September 26, 2026), full default runs old / new /
  * new / old / old / new, cell medians' |log ratio| between runs, solo:
@@ -91,27 +90,45 @@ const GAP_SAMPLE_NS: u128 = 2_000;
 /// Calls timed after the gap to size a synchronous cell's sample.
 const CALIBRATION_GAPS: u64 = 4;
 /*
- * Visits a cell takes in a run, by how the cell calls (UseCase::visits):
- * each visit one solo sample and, where the use case is measured shared,
- * two shared samples beside it. Tuned on October 19, 2026 from eight pairs
- * of A/A runs on an i7-12700K (identical code, fresh link layouts; the
- * data branch of devonjonte/bench-hashes, 2026-10-19/stat41/aa; the
- * derivation bench-hashes-validation/bench-design/tune-samples.py): the
- * spread of a cell's figure between runs, by samples taken, against its
- * spread at 24 samples. Cells after a gap keep narrowing to 24 samples (at
- * 12, 1.29x the spread at 24); nonstop solo cells stop narrowing at 6
- * (1.04x); nonstop shared cells at 12 (1.29x), which 6 visits give. On the
- * planted slowdowns kept beside the A/A runs, these counts caught the rare
- * slow mode 88 times of 138 against 52 at a flat 12 and 93 at a flat 24,
- * with false alarms 0, 0 and 2. Measured on two runs each of eight
- * contenders (i7-12700K): the nonstop phase 144 s from 104, the gap phases
- * 342 s from 213 (a full run 465 s from 378); between the two runs the
- * cells after a gap agreed to 2.2% at the median from 3.4%, nonstop solo
- * cells to 1.1% from 1.2% on fewer samples. Re-derive with new A/A runs,
- * another machine's included, before changing them.
+ * Visits a cell takes in a run, by how the cell calls (each visit one solo
+ * sample and, where the use case is measured shared, two shared samples
+ * beside it), and by what the run is for. A run that measures speed (the
+ * map, the report) and a run inside a check for performance regressions
+ * (`regress`, which the fork's perf_regress drives) spend their time
+ * differently, and the two counts sit side by side so that a change to
+ * one is made looking at the other (Zooko, October 19, 2026: the two had
+ * drifted into one constant, tuned for the wrong one).
+ *
+ * Tuned from eight pairs of A/A runs on an i7-12700K (identical code,
+ * fresh link layouts; the data branch of devonjonte/bench-hashes,
+ * 2026-10-19/stat41/aa; bench-hashes-validation/bench-design/
+ * tune-samples.py): a cell's spread between runs, by samples taken,
+ * against its spread at 24 samples. Cells after a gap keep narrowing to
+ * 24 (at 12, 1.29x the spread at 24; at 6, 1.75x); nonstop solo cells stop
+ * narrowing at 6 (1.04x); nonstop shared cells at 12 samples (1.29x),
+ * which 6 visits give.
  */
-const GAP_VISITS: usize = 24;
-const NONSTOP_VISITS: usize = 6;
+struct Visits {
+    /// Visits of a cell that calls after a gap (after other work, after a pause).
+    gap: usize,
+    /// Visits of a cell that calls nonstop.
+    nonstop: usize,
+}
+
+/// To measure speed: the map and the report, for a reader comparing
+/// contenders' levels, who takes them as good to about 10%. Between two
+/// runs the cells agree to 1-3% at the median and within 10% at the 90th
+/// percentile (i7-12700K, eight contenders, about 4 minutes). More visits
+/// buy agreement this reader does not need.
+const TO_MEASURE_SPEED: Visits = Visits { gap: 12, nonstop: 6 };
+
+/// To check for performance regressions: `regress`'s runs, for a reader
+/// who must see a 3% change between two builds and be spared false alarms.
+/// The cells after a gap, where the noise is, take every sample that still
+/// narrows them. On the planted slowdowns kept beside the A/A runs, 24 gap
+/// visits caught the rare slow mode 88 times of 138 against 52 at 12,
+/// false alarms 0.
+const TO_CHECK_FOR_REGRESSIONS: Visits = Visits { gap: 24, nonstop: 6 };
 
 /// Points on the one-message axis, and on each many-messages axis.
 const INPUT_COUNT: usize = 27;
@@ -589,10 +606,9 @@ impl UseCase {
         }
     }
 
-    /// Visits a cell of this use case takes in a run (GAP_VISITS and
-    /// NONSTOP_VISITS, tuned there).
-    fn visits(self) -> usize {
-        if self.after_gap() { GAP_VISITS } else { NONSTOP_VISITS }
+    /// Visits a cell of this use case takes in a run (TO_MEASURE_SPEED, or TO_CHECK_FOR_REGRESSIONS).
+    fn visits(self, visits: &Visits) -> usize {
+        if self.after_gap() { visits.gap } else { visits.nonstop }
     }
 
     /// Whether a call hashes a batch of messages.
@@ -1187,10 +1203,10 @@ struct Roster {
     points: Vec<usize>,
     /// Sample rounds.
     rounds: usize,
-    /// Every cell samples in every round (`--rounds`: a fixed design, as
-    /// the fork's regression check needs); otherwise each samples in its
-    /// share of the rounds (cell_wants_sample).
-    every_round: bool,
+    /// The run's visits: TO_MEASURE_SPEED, or TO_CHECK_FOR_REGRESSIONS in a
+    /// run `regress` starts (--for-regression-check); each cell samples in
+    /// its visits of the rounds (cell_wants_sample).
+    visits: &'static Visits,
 }
 
 impl Roster {
@@ -1201,7 +1217,7 @@ impl Roster {
      * (positive), every cell sampled in each, else FULL_ROUNDS or
      * QUICK_ROUNDS with each cell sampled in its share of them.
      */
-    fn new(algorithms: Vec<Algorithm>, quick: bool, points: Option<Vec<usize>>, rounds: Option<usize>) -> Self {
+    fn new(algorithms: Vec<Algorithm>, quick: bool, points: Option<Vec<usize>>, rounds: Option<usize>, visits: &'static Visits) -> Self {
         assert!(
             (2..=Algorithm::ALL.len()).contains(&algorithms.len()),
             "a run compares two contenders or more, up to every one there is; {} were selected",
@@ -1219,10 +1235,9 @@ impl Roster {
         }
         let points = points.unwrap_or_else(|| (0..POINT_COUNT).filter(|&index| !quick || POINTS[index].quick()).collect());
         assert!(!points.is_empty() && points.windows(2).all(|w| w[0] < w[1]), "points ascend, without repeats");
-        let every_round = rounds.is_some();
         let rounds = rounds.unwrap_or(if quick { QUICK_ROUNDS } else { FULL_ROUNDS });
         assert!(rounds > 0, "--rounds must be positive");
-        Self { algorithms, points, rounds, every_round }
+        Self { algorithms, points, rounds, visits }
     }
 
     /// Whether every point of each use case measured runs from the axis's
@@ -1364,7 +1379,11 @@ cell sampled in a share of them.
                                    \"interleaved 256\", \"continuous 64 KiB\",
                                    \"continuous batch 1024\"); with
                                    --contenders only
-  --rounds N                       exactly N sample rounds, every cell sampled in each
+  --rounds N                       N sample rounds (default 96; --quick 24)
+  --for-regression-check           the visits a regression check's run takes
+                                   (regress passes it): a cell after a gap in
+                                   24 rounds, a nonstop cell in 6 (default:
+                                   12 and 6, to measure speed)
   --threads N                      BLAKE3 servil mt on N threads in all, its
                                    caller among them (default: one a CPU); the
                                    results name the count
@@ -1399,6 +1418,9 @@ struct Options {
     sizes: Sizes,
     /// BLAKE3 servil mt's threads (--threads N; None: one a CPU).
     threads: Option<std::num::NonZeroUsize>,
+    /// The run's visits: TO_CHECK_FOR_REGRESSIONS with --for-regression-check
+    /// (regress passes it to the runs it starts), else TO_MEASURE_SPEED.
+    visits: &'static Visits,
 }
 
 /// How a run sizes each cell's samples. A comparison's runs share one set
@@ -1458,6 +1480,7 @@ fn parse_arguments() -> Options {
             .is_some()
     };
     let quick = take_flag("--quick");
+    let for_check = take_flag("--for-regression-check");
 
     /* --trace-clocks PATH may accompany any selection. */
     let trace_path = arguments
@@ -1489,6 +1512,7 @@ fn parse_arguments() -> Options {
         indices
     });
     let rounds = take_value("--rounds").map(|n| n.parse::<usize>().expect("--rounds takes a whole number"));
+    let visits: &'static Visits = if for_check { &TO_CHECK_FOR_REGRESSIONS } else { &TO_MEASURE_SPEED };
     /* --threads N: BLAKE3 servil mt's pool, N threads in all (its caller among them). */
     let threads = take_value("--threads").map(|n| n.parse::<std::num::NonZeroUsize>().expect("--threads takes a whole number above 0"));
     /* --calibrate-only PATH or --sizes PATH may accompany any selection. */
@@ -1504,7 +1528,7 @@ fn parse_arguments() -> Options {
         (points.is_none() && rounds.is_none()) || selection == Selection::Explicit,
         "--points and --rounds narrow a --contenders run\n\n{USAGE}"
     );
-    Options { selection, explicit, points, rounds, trace_path, quick, sizes, threads }
+    Options { selection, explicit, points, rounds, trace_path, quick, sizes, threads, visits }
 }
 
 /*
@@ -1590,7 +1614,7 @@ fn main() {
     if arguments.first().map(String::as_str) == Some("map") {
         return map::command(&arguments[1..]);
     }
-    let Options { selection, explicit, points, rounds, trace_path, quick, sizes, threads } = parse_arguments();
+    let Options { selection, explicit, points, rounds, trace_path, quick, sizes, threads, visits } = parse_arguments();
     let mut trace = trace_path.map(ClockTrace::new);
     let mut machine = machine_metadata();
 
@@ -1617,7 +1641,7 @@ fn main() {
     if algorithms.contains(&Algorithm::Blake3ServilMt) {
         blake3_servil::initialize_multithreaded(threads);
     }
-    let roster = Roster::new(algorithms, quick, points, rounds);
+    let roster = Roster::new(algorithms, quick, points, rounds, visits);
     let (results, samples, load) = measure_all(&roster, trace.as_mut(), &sizes);
     machine.load = load;
     machine.power[1] = Power::read();
@@ -1870,7 +1894,7 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
                 let point = POINTS[size_index];
                 let orders = &point_orders[size_index];
                 if point.use_case.pattern_key() != pattern || orders.is_empty()
-                    || (!roster.every_round && !cell_wants_sample(round + size_index, roster.rounds, orders.len(), point.use_case.visits())) {
+                    || !cell_wants_sample(round + size_index, roster.rounds, point.use_case.visits(roster.visits)) {
                     continue;
                 }
                 let algorithm_order = &orders[visits[size_index] % orders.len()];
@@ -3750,13 +3774,17 @@ impl MachineMetadata {
     }
 }
 
-/// Spread complete cycles of `orders` over `rounds`, at a point's offset,
-/// for `visits` of the point a run (UseCase::visits). Requires positive
-/// counts. Defaults have room for the whole design; explicit --rounds
-/// bypasses thinning and accepts partial designs.
-fn cell_wants_sample(slot: usize, rounds: usize, orders: usize, visits: usize) -> bool {
-    assert!(rounds > 0 && orders > 0);
-    let target = visits.next_multiple_of(orders).min(rounds);
+/// Spread `visits` of a point over `rounds`, at the point's offset
+/// (UseCase::visits). The visits walk the Williams orders in turn; a count
+/// that is no multiple of the order count leaves some orders one visit
+/// ahead, a position effect of a fraction of a visit per contender, which
+/// is accepted (Zooko, October 19, 2026) for the time it saves: rounding
+/// up to whole cycles cost the nonstop phase a third with eight
+/// contenders. Requires positive counts; explicit --rounds bypasses
+/// thinning.
+fn cell_wants_sample(slot: usize, rounds: usize, visits: usize) -> bool {
+    assert!(rounds > 0);
+    let target = visits.min(rounds);
     (slot % rounds) * target % rounds < target
 }
 
@@ -4123,9 +4151,8 @@ impl RegressScope {
     /// The run's arguments, `rounds` rounds (0: a default run, its own).
     fn arguments(&self, rounds: usize) -> Vec<String> {
         let count = rounds;
-        let rounds = || vec!["--rounds".to_string(), count.to_string()];
+        let rounds = || vec!["--for-regression-check".to_string(), "--rounds".to_string(), count.to_string()];
         match self {
-            RegressScope::Full if count == 0 => Vec::new(),
             RegressScope::Full => {
                 let contenders: Vec<&str> = DEFAULT_CONTENDERS.iter().map(|a| a.key()).collect();
                 [vec!["--contenders".into(), contenders.join(",")], rounds()].concat()
@@ -4258,8 +4285,8 @@ fn regress_command(arguments: &[String]) -> i32 {
     let split = arguments.iter().position(|a| a == "--").expect(usage);
     let (old_exes, new_exes) = (&arguments[..split], &arguments[split + 1..]);
     assert!(!old_exes.is_empty() && !new_exes.is_empty(), "{usage}");
-    // The caller's rounds; else a default run's own, or REGRESS_ROUNDS.
-    let rounds = chosen_rounds.unwrap_or(if full { 0 } else { REGRESS_ROUNDS });
+    // The caller's rounds; else a full run's count, or REGRESS_ROUNDS.
+    let rounds = chosen_rounds.unwrap_or(if full { FULL_ROUNDS } else { REGRESS_ROUNDS });
     eprintln!("regress: {} new builds against {} old, {pairs} pairs over {}{}", new_exes.len(), old_exes.len(), scope.describe(),
               chosen_rounds.map_or(String::new(), |k| format!(", {k} rounds a run")));
     let mut run_index = 0;
@@ -5003,11 +5030,11 @@ mod correctness_tests {
     #[test]
     fn sparse_regression_runs_write_samples_without_a_graph() {
         let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt, Algorithm::Sha256],
-            true, Some(vec![point("64 B", UseCase::ContinuousMessages)]), Some(24));
+            true, Some(vec![point("64 B", UseCase::ContinuousMessages)]), Some(24), &TO_CHECK_FOR_REGRESSIONS);
         assert!(!roster.whole_axes());
         // Commonware takes part in batches alone: no cells among these messages.
         let roster = Roster::new(vec![Algorithm::Blake3Commonware, Algorithm::Blake3ServilMt, Algorithm::Sha256],
-            true, Some(vec![point("64 B", UseCase::ContinuousMessages), point("256 B", UseCase::ContinuousMessages)]), Some(24));
+            true, Some(vec![point("64 B", UseCase::ContinuousMessages), point("256 B", UseCase::ContinuousMessages)]), Some(24), &TO_CHECK_FOR_REGRESSIONS);
         assert!(!roster.whole_axes(), "one selected contender has no cells here");
     }
 
@@ -5015,7 +5042,7 @@ mod correctness_tests {
     fn samples_file_places_each_sample_in_the_load_windows() {
         blake3_servil::initialize();
         let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], true,
-            Some(vec![point("64 B", UseCase::OneMessage), point("128 B", UseCase::OneMessage), point("64 B", UseCase::LentMessages), point("256 B", UseCase::LentMessages)]), Some(3));
+            Some(vec![point("64 B", UseCase::OneMessage), point("128 B", UseCase::OneMessage), point("64 B", UseCase::LentMessages), point("256 B", UseCase::LentMessages)]), Some(3), &TO_CHECK_FOR_REGRESSIONS);
         let (_, samples) = run(&roster, 3, |_, _, r| 10_000 + r as u64);
         let mut machine = machine_metadata();
         machine.load = vec![
@@ -5040,7 +5067,7 @@ mod correctness_tests {
     fn samples_file_reads_back_into_the_reports_figures() {
         blake3_servil::initialize();
         let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], true,
-            Some(vec![point("64 B", UseCase::OneMessage), point("64 B", UseCase::LentMessages), point("16", UseCase::LentBatches)]), Some(20));
+            Some(vec![point("64 B", UseCase::OneMessage), point("64 B", UseCase::LentMessages), point("16", UseCase::LentBatches)]), Some(20), &TO_CHECK_FOR_REGRESSIONS);
         // Contender 1's lent cells: 3 rounds in 10 twice as slow.
         let (_, samples) = run(&roster, 20, |a, p, r| if a == 1 && POINTS[p].use_case != UseCase::OneMessage && r % 10 < 3 { 20_000 + r as u64 } else { 10_000 + 7 * r as u64 });
         let tsv = generate_samples_tsv(&roster, &samples, &machine_metadata(), "test");
@@ -5081,7 +5108,7 @@ mod correctness_tests {
     #[test]
     fn graph_strings_escape_controls_and_guide_keeps_script_data_inside() {
         assert_eq!(json_string("a\n\r\t\0\"\\"), "\"a\\n\\r\\t\\u0000\\\"\\\\\"");
-        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], true, None, Some(24));
+        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], true, None, Some(24), &TO_CHECK_FOR_REGRESSIONS);
         let (results, _) = run(&roster, 24, |_, _, r| 10_000 + r as u64);
         let mut machine = machine_metadata();
         machine.cpu_type = "</script><b>".to_owned();
