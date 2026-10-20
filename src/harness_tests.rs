@@ -101,12 +101,7 @@ fn sample_schedule_handles_short_explicit_round_counts() {
 }
 
 #[test]
-fn regress_measures_the_nonstop_use_cases_by_their_points_names() {
-    for name in REGRESS_POINTS {
-        let point = POINTS[point_named(name)];
-        assert!(!point.use_case.after_gap(), "{name}: regress measures nonstop cells alone (layout luck after a gap)");
-    }
-    assert!(REGRESS_POINTS.iter().all(|name| matches!(POINTS[point_named(name)].use_case, UseCase::LentMessages | UseCase::Interleaved | UseCase::LentBatches)), "regress judges the lent cells alone");
+fn regress_judges_at_three_percent() {
     assert_eq!(REGRESS_MARGIN_PERMILLE, 30);
 }
 

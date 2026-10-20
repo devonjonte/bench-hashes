@@ -1599,6 +1599,9 @@ fn main() {
     if arguments.first().map(String::as_str) == Some("compare") {
         return compare_command(&arguments[1..]);
     }
+    if arguments.first().map(String::as_str) == Some("check") {
+        std::process::exit(check::command(&arguments[1..]));
+    }
     if arguments.first().map(String::as_str) == Some("regress") {
         std::process::exit(regress_command(&arguments[1..]));
     }
@@ -4103,31 +4106,22 @@ fn geometric_mean(values: impl Iterator<Item = u128>) -> u128 {
 }
 
 /*
- * `bench-hashes regress [--full | --contenders A,B [--points P,Q]] OLD... -- NEW...`: whether the new build is
- * slower than the old, measured on this machine (the fork's
- * tools/perf_regress.py builds them: each side relinked with a fresh
- * function order for every pair, since a binary's layout alone moves
- * cells, audit/variance-on-unchanged-code.md at aadeca9d). REGRESS_PAIRS pairs of
- * runs, pair i running the i-th executable of each side (round robin),
- * back to back in alternating order (A B, B A, ...), each over
- * REGRESS_POINTS (with --full, a default run's every cell; with
- * --contenders and --points, what a run with them measures, every cell
- * judged, as the run chose them), the lent
- * cells, where a program hands its buffer to a call and waits (the queue's
- * cells move 6-60% between processes of identical code, beyond what a 3%
- * check can judge), solo alone (the shared copies' 64 B cells switch
- * between states 20-30% apart per process). Each pair gives each cell one
- * ratio, new mean over old; the cells are judged all at once by
- * clocks::summary::discoveries (a false discovery rate of 5% over them,
- * a 3% margin). Calibrated on the Mac (fork
+ * `bench-hashes regress [--contenders A,B [--points P,Q]] OLD... -- NEW...`:
+ * whether the new build is slower than the old, measured on this machine.
+ * `bench-hashes check` builds the two sides and chooses the cells, then
+ * calls this (src/check.rs); it is also callable by hand with builds of
+ * one's own. REGRESS_PAIRS pairs of runs, pair i running the i-th
+ * executable of each side (round robin), back to back in alternating order
+ * (A B, B A, ...), each at the regression check's visits
+ * (TO_CHECK_FOR_REGRESSIONS) over every cell of the default contenders,
+ * or with --contenders (and --points) what a run with them measures, every
+ * cell judged. Each pair gives each cell one ratio, new mean over old; the
+ * cells are judged all at once by clocks::summary::discoveries (a false
+ * discovery rate of 5% over them, a 3% margin). Calibrated on the Mac (fork
  * NOTES, "The regression check, calibrated"). Exit 0: no cell slower; 1: a
  * cell slower; 2: no verdict, when a run's load was busy or unobserved
  * (clocks::load).
  */
-const REGRESS_SUBJECTS: [Algorithm; 2] = [Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt];
-/// The lent cells' code paths: one message short, in the pool's pieces,
-/// bulk on one thread; batches as members and as tasks of their own.
-const REGRESS_POINTS: [&str; 5] = ["lent 64 B", "lent 64 KiB", "lent 1 MiB", "lent batch 16", "lent batch 4096"];
 const REGRESS_ROUNDS: usize = 24;
 const REGRESS_PAIRS: usize = 8;
 /// How many times a pair runs again when one of its runs is no evidence.
@@ -4142,7 +4136,6 @@ const REGRESS_MARGIN_PERMILLE: u64 = 30;
 /// (--full); or the cells a run with the caller's --contenders (and
 /// --points) measures, every one judged.
 enum RegressScope {
-    Points,
     Full,
     Chosen { contenders: String, points: Option<String> },
 }
@@ -4157,10 +4150,6 @@ impl RegressScope {
                 let contenders: Vec<&str> = DEFAULT_CONTENDERS.iter().map(|a| a.key()).collect();
                 [vec!["--contenders".into(), contenders.join(",")], rounds()].concat()
             }
-            RegressScope::Points => {
-                let contenders: Vec<&str> = REGRESS_SUBJECTS.iter().map(|a| a.key()).collect();
-                [vec!["--contenders".into(), contenders.join(","), "--points".into(), REGRESS_POINTS.join(",")], rounds()].concat()
-            }
             RegressScope::Chosen { contenders, points } => {
                 let points = points.iter().flat_map(|p| ["--points".to_string(), p.clone()]).collect();
                 [vec!["--contenders".into(), contenders.clone()], points, rounds()].concat()
@@ -4168,13 +4157,9 @@ impl RegressScope {
         }
     }
 
-    fn judges(&self, key: &str) -> bool {
-        !matches!(self, RegressScope::Points) || key.split('|').nth(1) == Some("solo")
-    }
 
     fn describe(&self) -> String {
         match self {
-            RegressScope::Points => format!("{} points", REGRESS_POINTS.len()),
             RegressScope::Full => "every cell of a default run".to_string(),
             RegressScope::Chosen { contenders, points } => format!("--contenders {contenders}{}", points.as_ref().map_or(String::new(), |p| format!(" --points {p:?}"))),
         }
@@ -4249,15 +4234,10 @@ fn regress_load(start_ns: u64, end_ns: u64) -> String {
 }
 
 fn regress_command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes regress [--full | --contenders A,B [--points P,Q]] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE... (pair i runs the i-th of each, round robin)";
+    let usage = "usage: bench-hashes regress [--contenders A,B [--points P,Q]] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE... (pair i runs the i-th of each, round robin; bench-hashes check builds the sides and chooses the cells)";
     let mut arguments = arguments;
-    let (mut contenders, mut points, mut full, mut pairs, mut chosen_rounds, mut keep) = (None, None, false, REGRESS_PAIRS, None, None);
+    let (mut contenders, mut points, mut pairs, mut chosen_rounds, mut keep) = (None, None, REGRESS_PAIRS, None, None);
     while let Some(name) = arguments.first().filter(|a| a.starts_with("--") && *a != "--") {
-        if name == "--full" {
-            full = true;
-            arguments = &arguments[1..];
-            continue;
-        }
         assert!(arguments.len() > 1, "{name} needs a value\n{usage}");
         let value = arguments[1].clone();
         let count = || value.parse::<usize>().ok().filter(|&n| n > 0).unwrap_or_else(|| panic!("{name} takes a positive count\n{usage}"));
@@ -4276,17 +4256,14 @@ fn regress_command(arguments: &[String]) -> i32 {
         fs::create_dir_all(keep).unwrap_or_else(|error| panic!("cannot create {}: {error}", keep.display()));
     }
     assert!(points.is_none() || contenders.is_some(), "--points narrows a --contenders check\n{usage}");
-    assert!(!(full && contenders.is_some()), "--full and --contenders choose cells two ways; take one\n{usage}");
     let scope = match contenders {
         Some(contenders) => RegressScope::Chosen { contenders, points },
-        None if full => RegressScope::Full,
-        None => RegressScope::Points,
+        None => RegressScope::Full,
     };
     let split = arguments.iter().position(|a| a == "--").expect(usage);
     let (old_exes, new_exes) = (&arguments[..split], &arguments[split + 1..]);
     assert!(!old_exes.is_empty() && !new_exes.is_empty(), "{usage}");
-    // The caller's rounds; else a full run's count, or REGRESS_ROUNDS.
-    let rounds = chosen_rounds.unwrap_or(if full { FULL_ROUNDS } else { REGRESS_ROUNDS });
+    let rounds = chosen_rounds.unwrap_or(REGRESS_ROUNDS);
     eprintln!("regress: {} new builds against {} old, {pairs} pairs over {}{}", new_exes.len(), old_exes.len(), scope.describe(),
               chosen_rounds.map_or(String::new(), |k| format!(", {k} rounds a run")));
     let mut run_index = 0;
@@ -4375,7 +4352,7 @@ fn regress_command(arguments: &[String]) -> i32 {
     // The cells judged (the points' solo cells; with --full or a chosen
     // selection, every cell every pair measured), all at once
     // (clocks::summary::discoveries).
-    let judged: Vec<&String> = pairs_means.iter().filter(|(key, m)| m.len() == pairs && scope.judges(key)).map(|(k, _)| k).collect();
+    let judged: Vec<&String> = pairs_means.iter().filter(|(_, m)| m.len() == pairs).map(|(k, _)| k).collect();
     let tested: Vec<Vec<(u128, u128)>> = judged.iter().map(|k| pairs_means[*k].clone()).collect();
     let judgments = clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
     let mut slower = 0;
@@ -4870,6 +4847,7 @@ fn xml_escape(input: &str) -> String {
 #[cfg(test)]
 mod harness_tests;
 mod b3sum;
+mod check;
 mod leaves;
 mod chart;
 mod map;
