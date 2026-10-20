@@ -115,7 +115,7 @@ question has an "I'm not sure" answer that leads to a safe choice.
 
 ## How fast is b3sum?
 
-<img src="benchmark-results/AppleM4Max.darwin25/b3sum.chart.svg" alt="Hashing a tree of 1000 files on an Apple M4 Max: b3sum, multi-core and on one thread, beside sha256sum, sha1sum and md5sum, in GB/s" width="720">
+<img src="https://devonjonte.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/b3sum.chart.svg" alt="Hashing a tree of 1000 files on an Intel i7-12700K: b3sum, multi-core and on one thread, beside sha256sum, sha1sum and md5sum, in GB/s" width="720">
 
 `bench-hashes b3sum` times builds of `b3sum`, the BLAKE3 command-line
 tool, as you run it: each run a new process, from its start to its exit,

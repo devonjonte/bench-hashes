@@ -110,3 +110,11 @@ from a clean tree (two version commits and a lightweight tag; push the
 branch, `servil` in the fork or `main` here, then the tag by name).
 Never print the credential token (`ghtokenclassic.txt`). Only `/workspace`
 survives VM restarts. Commands for the user go on one line.
+
+- **b3sum's records on the M4** (October 20): the published b3sum results
+  were October 6's, in samples format v4, which the tools no longer read;
+  they are removed, and the README's b3sum chart is the i7's until a run on
+  the Mac. The runner has no b3sum job type (the earlier Mac records were
+  made by hand); add one, or record by hand: `tools/b3sum-contenders.sh`,
+  then `bench-hashes b3sum --files ~/b3sum-bench-files ...` in
+  `benchmark-results/AppleM4Max.darwin25/`.
