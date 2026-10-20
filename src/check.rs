@@ -48,7 +48,7 @@ use std::process::Command;
 /// `--pairs 8` sees more of its cells.
 const PAIRS: usize = 4;
 /// The two sides' contenders: the code a change to the fork changes.
-const SUBJECTS: &str = "blake3-servil-st,blake3-servil-mt";
+const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
 pub fn command(arguments: &[String]) -> i32 {
     let usage = "usage: bench-hashes check [--against REV] [--cells all] [--pairs N] [--keep DIR]";
@@ -101,22 +101,30 @@ pub fn command(arguments: &[String]) -> i32 {
     let old_exe = side(&fork, &bench, &cache, "old", &old);
     let new_exe = side(&fork, &bench, &cache, "new", &new);
     // The cells a change touches, from the new side's coverage.
-    let points = if all {
-        None
+    // The cells a change touches: (contender, point), from the new side's
+    // coverage; a run measures their contenders over their points.
+    let (contenders, points): (Vec<String>, Option<Vec<String>>) = if all {
+        (SUBJECTS.iter().map(|s| s.to_string()).collect(), None)
     } else {
-        Some(touched_points(&fork, &bench, &cache, &old, &new, &new_exe))
-    };
-    if let Some(points) = &points {
-        if points.is_empty() {
+        let cells = touched_cells(&fork, &bench, &cache, &old, &new, &new_exe);
+        if cells.is_empty() {
             println!("check: the change touches no line a cell executes; nothing to measure");
             return 0;
         }
+        let contenders: BTreeSet<String> = cells.iter().map(|(c, _)| c.clone()).collect();
+        let points: BTreeSet<String> = cells.iter().map(|(_, p)| p.clone()).collect();
         eprintln!(
-            "check: {} points execute a changed line: {}",
+            "check: {} cells execute a changed line: {} at {} points: {}",
+            cells.len(),
+            contenders.iter().cloned().collect::<Vec<_>>().join(" and "),
             points.len(),
-            points.join(", ")
+            points.iter().cloned().collect::<Vec<_>>().join(", ")
         );
-    }
+        (
+            contenders.into_iter().collect(),
+            Some(points.into_iter().collect()),
+        )
+    };
     let olds = layouts(&cache, "old", &old_exe, 0..pairs);
     let news = layouts(&cache, "new", &new_exe, pairs..2 * pairs);
     let mut regress: Vec<String> = vec![
@@ -124,7 +132,7 @@ pub fn command(arguments: &[String]) -> i32 {
         "--pairs".into(),
         pairs.to_string(),
         "--contenders".into(),
-        SUBJECTS.into(),
+        contenders.join(","),
     ];
     if let Some(points) = &points {
         regress.extend(["--points".to_string(), points.join(",")]);
@@ -523,16 +531,16 @@ fn shuffle(items: &mut [&str], seed: u64) {
 /// source and the fork's commit; the change's diff (old..new, `src/`)
 /// gives the touched lines. Assembly, the build script or a manifest
 /// changed: every point.
-fn touched_points(
+fn touched_cells(
     fork: &Path,
     bench: &Path,
     cache: &Path,
     old: &str,
     new: &str,
     new_exe: &Path,
-) -> Vec<String> {
+) -> Vec<(String, String)> {
     let changed_files = git(fork, &["diff", "--name-only", &format!("{old}..{new}")]);
-    let every = || all_points(new_exe, bench);
+    let every = || all_cells(new_exe, bench);
     if changed_files.lines().any(|f| {
         f.starts_with("c/")
             || f == "build.rs"
@@ -591,17 +599,19 @@ fn touched_points(
                 .iter()
                 .any(|(f, lines)| touched.get(f).is_some_and(|t| !t.is_disjoint(lines)))
         })
-        .map(|(label, _)| label)
+        .map(|(cell, _)| cell)
         .collect()
 }
 
-/// Every point's name as `--points` takes it, from a one-round run.
-fn all_points(exe: &Path, bench: &Path) -> Vec<String> {
+/// Every cell of the check's contenders, (contender, point as `--points`
+/// takes it), as a one-round run measures them (a contender takes part
+/// in its use cases alone).
+fn all_cells(exe: &Path, bench: &Path) -> Vec<(String, String)> {
     let dir = bench.join("target").join("check").join("points");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let out = Command::new(exe)
-        .args(["--contenders", SUBJECTS, "--rounds", "1"])
+        .args(["--contenders", &SUBJECTS.join(","), "--rounds", "1"])
         .current_dir(&dir)
         .output()
         .expect("the bench runs");
@@ -618,7 +628,7 @@ fn all_points(exe: &Path, bench: &Path) -> Vec<String> {
         .path();
     let samples = results.join("bench-hashes.samples.tsv");
     let text = std::fs::read_to_string(samples).unwrap();
-    let mut labels = BTreeSet::new();
+    let mut cells = BTreeSet::new();
     for line in text
         .lines()
         .filter(|l| !l.starts_with('#') && !l.starts_with("contender"))
@@ -628,10 +638,13 @@ fn all_points(exe: &Path, bench: &Path) -> Vec<String> {
             .into_iter()
             .find(|u| format!("{u:?}") == f[2])
         {
-            labels.insert(format!("{}{}", use_case.label_prefix(), f[3]));
+            cells.insert((
+                f[0].to_string(),
+                format!("{}{}", use_case.label_prefix(), f[3]),
+            ));
         }
     }
-    labels.into_iter().collect()
+    cells.into_iter().collect()
 }
 
 /// Each point's executed lines of the fork's `src/`, from a coverage build
@@ -642,7 +655,7 @@ fn coverage(
     cache: &Path,
     new: &str,
     new_exe: &Path,
-) -> BTreeMap<String, BTreeMap<String, BTreeSet<usize>>> {
+) -> BTreeMap<(String, String), BTreeMap<String, BTreeSet<usize>>> {
     let bench_source = {
         let mut h = blake3_servil::Hasher::new();
         for f in walk(&bench.join("src")) {
@@ -654,16 +667,19 @@ fn coverage(
         .join("coverage")
         .join(format!("{}-{}.tsv", &new[..12], &bench_source[..12]));
     if let Ok(text) = std::fs::read_to_string(&cached) {
-        let mut map: BTreeMap<String, BTreeMap<String, BTreeSet<usize>>> = BTreeMap::new();
+        let mut map: BTreeMap<(String, String), BTreeMap<String, BTreeSet<usize>>> =
+            BTreeMap::new();
         for line in text.lines() {
             let f: Vec<&str> = line.split('\t').collect();
-            map.entry(f[0].to_string()).or_default().insert(
-                f[1].to_string(),
-                f[2].split(',')
-                    .filter(|s| !s.is_empty())
-                    .map(|s| s.parse().unwrap())
-                    .collect(),
-            );
+            map.entry((f[0].to_string(), f[1].to_string()))
+                .or_default()
+                .insert(
+                    f[2].to_string(),
+                    f[3].split(',')
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.parse().unwrap())
+                        .collect(),
+                );
         }
         return map;
     }
@@ -696,15 +712,15 @@ fn coverage(
     let cov_exe = target.join("release").join("bench-hashes");
     let (profdata, llvm_cov) = (llvm_tool("llvm-profdata"), llvm_tool("llvm-cov"));
     let work = cache.join("coverage-work");
-    let mut map: BTreeMap<String, BTreeMap<String, BTreeSet<usize>>> = BTreeMap::new();
-    for label in all_points(new_exe, bench) {
+    let mut map: BTreeMap<(String, String), BTreeMap<String, BTreeSet<usize>>> = BTreeMap::new();
+    for (contender, label) in all_cells(new_exe, bench) {
         let _ = std::fs::remove_dir_all(&work);
         std::fs::create_dir_all(&work).unwrap();
         let raw = work.join("p.profraw");
         let out = Command::new(&cov_exe)
             .args([
                 "--contenders",
-                SUBJECTS,
+                &contender,
                 "--points",
                 &label,
                 "--rounds",
@@ -716,7 +732,7 @@ fn coverage(
             .expect("the bench runs");
         assert!(
             out.status.success(),
-            "check: coverage run of {label}: {}",
+            "check: coverage run of {contender} at {label}: {}",
             String::from_utf8_lossy(&out.stderr)
         );
         let merged = work.join("p.profdata");
@@ -762,13 +778,13 @@ fn coverage(
                 }
             }
         }
-        map.insert(label, files);
+        map.insert((contender, label), files);
     }
     let mut text = String::new();
-    for (label, files) in &map {
+    for ((contender, label), files) in &map {
         for (f, lines) in files {
             text += &format!(
-                "{label}\t{f}\t{}\n",
+                "{contender}\t{label}\t{f}\t{}\n",
                 lines
                     .iter()
                     .map(|n| n.to_string())

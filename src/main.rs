@@ -129,7 +129,10 @@ const TO_MEASURE_SPEED: Visits = Visits {
 /// The cells after a gap, where the noise is, take every sample that still
 /// narrows them. On the planted slowdowns kept beside the A/A runs, 24 gap
 /// visits caught the rare slow mode 88 times of 138 against 52 at 12,
-/// false alarms 0.
+/// false alarms 0. At 12, `bench-hashes check` (4 pairs) halved a pair's
+/// time but caught a hash() plant in 3 of 10 cells after other work and 4
+/// of 9 after a pause (October 20; the data branch, 2026-10-20/
+/// check-validation).
 const TO_CHECK_FOR_REGRESSIONS: Visits = Visits {
     gap: 24,
     nonstop: 6,
@@ -1480,7 +1483,8 @@ struct MachineMetadata {
  * The contenders selected for this run, in column order, with the
  * interleaving orders that balance them.
  *
- * Contract: two to six contenders, each available on this machine, no
+ * Contract: one contender or more (a check of one contender's change runs
+ * it alone), each available on this machine, no
  * duplicates.
  */
 struct Roster {
@@ -1512,8 +1516,8 @@ impl Roster {
         visits: &'static Visits,
     ) -> Self {
         assert!(
-            (2..=Algorithm::ALL.len()).contains(&algorithms.len()),
-            "a run compares two contenders or more, up to every one there is; {} were selected",
+            (1..=Algorithm::ALL.len()).contains(&algorithms.len()),
+            "a run measures one contender or more, up to every one there is; {} were selected",
             algorithms.len()
         );
         for (index, algorithm) in algorithms.iter().enumerate() {
