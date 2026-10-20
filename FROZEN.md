@@ -18,7 +18,7 @@ contenders and their versions, the summary rule (each run's mean, pairs
 of runs: `clocks::summary`), the load rule (`clocks::load`), the
 regression check (`bench-hashes regress`: its points, its pairs, its
 margin of 3%), and the
-presentation (the map, the guide, and the report, their layout and
+presentation (the map and the report, their layout and
 their words). A change to any of these, a bug fix included, is Zooko's
 decision, recorded here with its date and reason, and it starts a new
 release, so results of different benchmarks are never read as alike. The
@@ -33,6 +33,12 @@ the notes) may still change, to say it better.
   BLAKE3 official and BLAKE3 official mt. A comparison with code its
   authors chose not to ship serves no reader. The contender crate, its
   cells and its colour go; the batch charts open with three lines.
+- **The guide goes** (Zooko, October 20): `bench-hashes.guide.html`, its
+  compiled examples and its two Playwright checks. The servil crate's
+  documentation ("Which call to use") answers the same question where
+  programmers already are, and the map's rows show each call's measured
+  speed; two mechanisms for one decision were one too many. The README
+  points to the table.
 - **Many messages at once, a turn after a gap** (Zooko, October 19): two
   new use cases, InterleavedTurn and IdleInterleavedTurn, the map's two
   empty cells of the many-messages row. The 256 open messages of
