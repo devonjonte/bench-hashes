@@ -248,14 +248,7 @@ fn side(fork: &Path, bench: &Path, cache: &Path, name: &str, commit: &str) -> Pa
     let copy = checkout.join("bench-hashes");
     copy_bench(bench, &copy);
     let target = cache.join(name).join("target");
-    let patch_fork = format!(
-        "patch.\"https://github.com/johnservil/BLAKE3\".blake3-servil.path=\"{}\"",
-        checkout.display()
-    );
-    let patch_clocks = format!(
-        "patch.\"https://github.com/johnservil/BLAKE3\".clocks.path=\"{}\"",
-        checkout.join("clocks").display()
-    );
+    let [patch_fork, patch_clocks] = patches(&copy, &checkout);
     // The side's lock: the bench's, with the fork taken from the worktree.
     // Cargo patches at the locked version only, so a version change wants
     // `cargo update -p blake3-servil`.
@@ -302,6 +295,18 @@ fn side(fork: &Path, bench: &Path, cache: &Path, name: &str, commit: &str) -> Pa
         "check: {name}: building bench-hashes against the fork at {}:\n{}",
         &commit[..12],
         String::from_utf8_lossy(&out.stderr)
+    );
+    // The fork must come from the side's checkout, never the commit the
+    // bench's lock pins: Cargo names each package's source as it builds.
+    let lock = std::fs::read_to_string(copy.join("Cargo.lock")).expect("the side's lock");
+    let entry = lock
+        .split("[[package]]")
+        .find(|p| p.contains("name = \"blake3-servil\""))
+        .expect("the lock names blake3-servil");
+    assert!(
+        !entry.contains("source = "),
+        "check: {name}: the bench built blake3-servil from its pinned source, not the checkout {}:\n{entry}",
+        checkout.display()
     );
     target.join("release").join("bench-hashes")
 }
@@ -384,14 +389,7 @@ fn layouts(cache: &Path, name: &str, exe: &Path, seeds: std::ops::Range<usize>) 
     let side_dir = cache.join(name);
     let copy = side_dir.join("src").join("bench-hashes");
     let checkout = side_dir.join("src");
-    let patch_fork = format!(
-        "patch.\"https://github.com/johnservil/BLAKE3\".blake3-servil.path=\"{}\"",
-        checkout.display()
-    );
-    let patch_clocks = format!(
-        "patch.\"https://github.com/johnservil/BLAKE3\".clocks.path=\"{}\"",
-        checkout.join("clocks").display()
-    );
+    let [patch_fork, patch_clocks] = patches(&copy, &checkout);
     let mut exes = Vec::new();
     for seed in seeds {
         shuffle(&mut symbols, seed as u64);
@@ -644,14 +642,7 @@ fn coverage(
     let checkout = cache.join("new").join("src");
     let copy = checkout.join("bench-hashes");
     let target = cache.join("new").join("target-coverage");
-    let patch_fork = format!(
-        "patch.\"https://github.com/johnservil/BLAKE3\".blake3-servil.path=\"{}\"",
-        checkout.display()
-    );
-    let patch_clocks = format!(
-        "patch.\"https://github.com/johnservil/BLAKE3\".clocks.path=\"{}\"",
-        checkout.join("clocks").display()
-    );
+    let [patch_fork, patch_clocks] = patches(&copy, &checkout);
     let out = Command::new("cargo")
         .args([
             "--config",
@@ -782,4 +773,32 @@ fn llvm_tool(name: &str) -> PathBuf {
         .collect();
     candidates.sort();
     candidates.pop().unwrap_or_else(|| panic!("check: choosing cells by coverage needs {name} (apt install llvm); --cells all skips it"))
+}
+
+/// Cargo's `--config` patches that build a bench copy against a fork
+/// checkout: the fork's repository as the copy's Cargo.toml names it (a
+/// bench pinned to another fork patches that fork), its blake3-servil and
+/// clocks from `checkout`.
+fn patches(copy: &Path, checkout: &Path) -> [String; 2] {
+    let manifest =
+        std::fs::read_to_string(copy.join("Cargo.toml")).expect("the bench's Cargo.toml");
+    let section = manifest
+        .split("[dependencies.blake3-servil]")
+        .nth(1)
+        .expect("Cargo.toml names blake3-servil's dependency");
+    let git = section
+        .lines()
+        .find_map(|l| l.trim().strip_prefix("git = "))
+        .expect("blake3-servil comes by git")
+        .trim_matches('"');
+    [
+        format!(
+            "patch.\"{git}\".blake3-servil.path=\"{}\"",
+            checkout.display()
+        ),
+        format!(
+            "patch.\"{git}\".clocks.path=\"{}\"",
+            checkout.join("clocks").display()
+        ),
+    ]
 }
