@@ -310,7 +310,33 @@ fn side(fork: &Path, bench: &Path, cache: &Path, name: &str, commit: &str) -> Pa
         "check: {name}: the bench built blake3-servil from its pinned source, not the checkout {}:\n{entry}",
         checkout.display()
     );
-    target.join("release").join("bench-hashes")
+    let exe = target.join("release").join("bench-hashes");
+    require_sme2_kernel(&exe);
+    exe
+}
+
+/// On a CPU with SME2, the build must carry the SME2 kernel (the fork
+/// builds without it, with a warning, when the C compiler cannot assemble
+/// SME2): a check would measure NEON alone and miss every SME2 change. The
+/// kernel's own symbol in the executable says whether it is there.
+fn require_sme2_kernel(exe: &Path) {
+    let has_sme2 = if cfg!(target_os = "macos") {
+        Command::new("sysctl")
+            .args(["-n", "hw.optional.arm.FEAT_SME2"])
+            .output()
+            .is_ok_and(|o| o.stdout.trim_ascii() == b"1")
+    } else {
+        std::fs::read_to_string("/proc/cpuinfo").is_ok_and(|c| c.contains(" sme2"))
+    };
+    if !has_sme2 {
+        return;
+    }
+    let bytes = std::fs::read(exe).expect("the executable reads");
+    let symbol = b"blake3_sme2_hash16_chunks_512";
+    assert!(
+        bytes.windows(symbol.len()).any(|w| w == symbol),
+        "check: this CPU has SME2, and the fork was built without its SME2 kernel: point CC at a compiler that assembles SME2 (CC=clang-19 on Debian 12)"
+    );
 }
 
 /// This bench's sources, copied file by file where they differ (so Cargo
