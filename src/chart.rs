@@ -87,6 +87,14 @@ pub fn b3sum_from_samples(path: &str) -> Option<String> {
         color: BLAKE3_COLOR,
         ours: true,
     }];
+    if let Some(c) = centi("devon-1-thread") {
+        bars.push(Bar {
+            name: "b3sum, one thread".into(),
+            centi: c,
+            color: BLAKE3_COLOR,
+            ours: true,
+        });
+    }
     for (key, color) in OTHERS {
         if let Some(c) = centi(key) {
             bars.push(Bar {
