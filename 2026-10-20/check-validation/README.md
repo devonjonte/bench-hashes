@@ -30,3 +30,13 @@ the `hash()` plant, on candidate/minimalism-0.8): a pair 32 s against 57,
 but the cells after a gap caught far less often (after other work 3 cells
 against 10, after a pause 4 against 9; nonstop the same). The gap cells are
 the class the five fixed cells missed, so 24 stays (`check-g12-hash.*`).
+
+Cells chosen per contender (each contender's coverage recorded apart), on
+candidate/minimalism-0.8 with #99, 4 pairs:
+
+| run | change | cells chosen | verdict | a pair |
+|---|---|---|---|---|
+| check-percontender | `hash()` 6% slower | servil st at 73 points | 59 slower | 35 s (57 with both) |
+| check-percontender-split | the pool's split 6% slower | servil mt at 24 points | 23 slower | 11 s |
+
+Fewer cells judged at once caught more of each plant's cells.
