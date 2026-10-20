@@ -14,3 +14,13 @@ i7-12700K, quiet, each a change in the working tree against HEAD:
 check6 is the case the fixed five-cell list (`REGRESS_POINTS`) could not
 have seen in its cells after a gap, where #80's +18% was. A comment-only
 change chose no cell and measured nothing (2 min, the coverage recording).
+
+With 4 pairs (`--pairs 4`), the same changes:
+
+| run | change | verdict | time |
+|---|---|---|---|
+| check7 | `hash()` 6% slower | 48 slower, none of servil mt | 6 min |
+| check8 | A/A | no cell slower | 7 min |
+| check9 | the pool's split path 6% slower | 22 of its 28 cells slower | 6 min |
+
+So 4 pairs became the default: every plant found, the A/A clean, half the time.
