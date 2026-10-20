@@ -13,11 +13,7 @@ for each way a program hashes, and draws the answer as a map you open in
 a web browser. One 128 MiB message, hashed by a program that had paused,
 on an Apple M4 Max:
 
-<img src="benchmark-results/AppleM4Max.darwin25/bench-hashes.chart.svg" alt="Hashing one 128 MiB message after a pause on an Apple M4 Max: BLAKE3 on every core and on one core beside SHA-256, SHA3-256 and SHA-1, in GB/s" width="720">
-
-And `b3sum` against the system's sum programs on a tree of 1000 files:
-
-<img src="benchmark-results/AppleM4Max.darwin25/b3sum.chart.svg" alt="Hashing a tree of 1000 files on an Apple M4 Max: b3sum beside sha256sum, sha1sum and md5sum, in GB/s" width="720">
+<img src="benchmark-results/AppleM4Max.darwin25/bench-hashes.chart.svg" alt="Hashing one 128 MiB message after a pause on an Apple M4 Max: BLAKE3 multi-core and on one core beside SHA-256, SHA3-256 and SHA-1, in GB/s" width="720">
 
 Every size, on each machine measured so far:
 
@@ -123,6 +119,11 @@ a link to its chart on the map. Every
 question has an "I'm not sure" answer that leads to a safe choice.
 
 ## How fast is b3sum?
+
+`b3sum`, multi-core and on one thread, against the system's sum programs on a
+tree of 1000 files, on an Apple M4 Max:
+
+<img src="benchmark-results/AppleM4Max.darwin25/b3sum.chart.svg" alt="Hashing a tree of 1000 files on an Apple M4 Max: b3sum, multi-core and on one thread, beside sha256sum, sha1sum and md5sum, in GB/s" width="720">
 
 `bench-hashes b3sum` times builds of `b3sum`, the BLAKE3 command-line
 tool, as you run it: each run a new process, from its start to its exit,
