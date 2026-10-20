@@ -17,6 +17,8 @@ fn main() {
     );
 
     println!("cargo:rerun-if-changed=Cargo.toml");
+    // The fork's repository, for the map's links (Cargo.toml's one place).
+    println!("cargo:rustc-env=BENCH_SERVIL_GIT={}", servil_git());
     println!("cargo:rerun-if-changed=Cargo.lock");
     println!("cargo:rerun-if-changed=README.md");
     println!("cargo:rerun-if-changed=src");
@@ -160,8 +162,27 @@ fn git_text_allow_failure(repository: &Path, arguments: &[&str]) -> Option<Strin
 /// dependency: the enclosing checkout, the one layout the tools use.
 const SERVIL_CHECKOUT: &str = "..";
 
-/// The fork's repository, as Cargo.toml names it and Cargo.lock records it.
-const SERVIL_GIT: &str = "https://github.com/johnservil/BLAKE3";
+/// The fork's repository, as Cargo.toml names it (its one place: a bench
+/// pinned to another fork changes that line alone) and Cargo.lock records it.
+fn servil_git() -> String {
+    let manifest = std::fs::read_to_string(
+        PathBuf::from(
+            env::var_os("CARGO_MANIFEST_DIR").expect("Cargo provides CARGO_MANIFEST_DIR"),
+        )
+        .join("Cargo.toml"),
+    )
+    .expect("Cargo.toml reads");
+    let section = manifest
+        .split("[dependencies.blake3-servil]")
+        .nth(1)
+        .expect("Cargo.toml names blake3-servil's dependency");
+    section
+        .lines()
+        .find_map(|l| l.trim().strip_prefix("git = "))
+        .expect("blake3-servil comes by git")
+        .trim_matches('"')
+        .to_owned()
+}
 
 /// What `git` reports about a checkout: its origin URL, HEAD commit,
 /// nearest release tag, current branch, and whether the tree is clean.
@@ -347,7 +368,7 @@ fn only_servil_patched(repository: &Path, status: &[u8]) -> bool {
     }
     let without_servil_source = |lock: &str| -> String {
         lock.lines()
-            .filter(|line| !line.starts_with(&format!("source = \"git+{SERVIL_GIT}")))
+            .filter(|line| !line.starts_with(&format!("source = \"git+{}", servil_git())))
             .collect::<Vec<_>>()
             .join("\n")
     };
@@ -416,12 +437,15 @@ fn emit_servil_package(manifest_dir: &Path, lock: &str) {
     let description = match quoted_field(block, "source") {
         Some(source) => {
             let pinned = source
-                .strip_prefix(&format!("git+{SERVIL_GIT}?branch="))
-                .unwrap_or_else(|| panic!("blake3-servil must come from {SERVIL_GIT} or a local patch; Cargo.lock says {source}"));
+                .strip_prefix(&format!("git+{}?branch=", servil_git()))
+                .unwrap_or_else(|| panic!("blake3-servil must come from {} or a local patch; Cargo.lock says {source}", servil_git()));
             let (branch, commit) = pinned
                 .split_once('#')
                 .expect("a git source in Cargo.lock names its commit after '#'");
-            format!("blake3-servil {version}; source {SERVIL_GIT}; branch {branch}; commit {commit}; clean")
+            format!(
+                "blake3-servil {version}; source {}; branch {branch}; commit {commit}; clean",
+                servil_git()
+            )
         }
         None => {
             let repository = manifest_dir.join(SERVIL_CHECKOUT);

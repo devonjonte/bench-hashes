@@ -736,7 +736,7 @@ fn b3sum(path: &Path) -> Section {
                     sizes: points.iter().map(|p| p.to_string()).collect(),
                     unit: "GB/s",
                     call: "b3sum".to_owned(),
-                    doc: "https://github.com/johnservil/BLAKE3/tree/servil/b3sum".to_owned(),
+                    doc: format!("{}/tree/servil/b3sum", env!("BENCH_SERVIL_GIT")),
                     cases: row == "tree",
                     per: points
                         .iter()
