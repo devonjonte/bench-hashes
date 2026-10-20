@@ -105,8 +105,8 @@ named (`--list` shows the names).
 
 ## Which function to use
 
-Programmers who want this speed in their own program open
-`bench-hashes.guide.html`. It asks a few questions about how the program
+Programmers who want this speed in their own program open their run's
+`bench-hashes.guide.html` ([the i7-12700K's](https://devonjonte.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.guide.html)). It asks a few questions about how the program
 receives its data (one thread or several; one message, pieces, or a
 batch; whether the thread keeps up; whose buffer the data lands in) and
 answers with one call from the servil crate, a complete Rust example, how
