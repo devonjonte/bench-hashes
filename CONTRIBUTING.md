@@ -9,11 +9,10 @@ it measures, and keep your results comparable with ours.
 - `src/main.rs`: the benchmark (contenders, timing, statistics, the text
   report); `src/map.rs` and `src/map.html`, the map; `src/b3sum.rs`,
   `bench-hashes b3sum`.
-- `src/guide.html`: the offline API decision guide, generated with a full run.
 - `build.rs`: embeds the provenance (this repository's commit and state,
   and each contender crate's version and source).
-- `tools/graph-check/`: `map.js` drives the map in Chromium, and `guide.js`
-  the guide (its README says how).
+- `tools/graph-check/`: `map.js` drives the map in Chromium (its README
+  says how).
 - `bench-hashes compare OLD.tsv... -- NEW.tsv...`: compares runs'
   samples files in pairs (the i-th old with the i-th new), each cell
   judged by its pairs' ratios as `regress` judges.
@@ -24,7 +23,6 @@ it measures, and keep your results comparable with ours.
 cargo test --release
 cargo run --release -- --quick     # seconds; a full run takes minutes
 node tools/graph-check/map.js benchmark-results/FOLDER/bench-hashes.map.html
-node tools/graph-check/guide-summary.js # the guide's sentences (Playwright)
 ```
 
 ## Adding a contender
@@ -47,7 +45,7 @@ every place, and the compiler names any match you miss.
 Then `cargo test --release` and
 `cargo run --release -- --contenders yours,sha256-ring,blake3-servil-mt`.
 The harness does the rest: interleaving, the use cases and scenarios,
-statistics, the report, the map, and the guide.
+statistics, the report, and the map.
 
 ## Working on the fork alongside
 

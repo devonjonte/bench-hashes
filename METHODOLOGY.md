@@ -544,7 +544,7 @@ what it means while the pointer rests on it, or after a click or tap, and
 a hash's name in the legend hides or shows its lines in every chart.
 Each chart names the call BLAKE3 servil mt makes there, a link to that
 call's documentation. A link to `bench-hashes.map.html#solo|one|lent`
-opens that chart; the guide links its answers so. When the folder also
+opens that chart. When the folder also
 holds a b3sum run's samples, the map adds a section for it in the same
 form: a file or a tree of files, in the page cache or read from storage.
 Under each section's title one line says where and when the run ran and
@@ -637,8 +637,7 @@ report), `bench-hashes.map.html` (the map), `bench-hashes.chart.svg`
 (one 1 MiB message after other work as bars: BLAKE3 servil on every core
 and on one, and the fastest measured member of SHA-256, SHA3-256, and
 SHA-1, from each cell's mean; a quick run, which stops below 1 MiB, draws
-none), `bench-hashes.guide.html`
-(the guide for programmers), and `bench-hashes.samples.tsv` (every sample of every cell, every scenario,
+none), and `bench-hashes.samples.tsv` (every sample of every cell, every scenario,
 in the order taken, each as `ns/units`, and in a last column the
 millisecond each sample started, with the provenance, the CPU's identity,
 and the load windows as `# key: value` lines). `bench-hashes compare` and `bench-hashes regress` read it.
@@ -719,32 +718,6 @@ the samples file carry them, so a result
 names the exact code it measured. `Cargo.lock` is checked in, so every
 build of one commit measures the same code.
 
-
-## Choosing a call and reading its speed
-
-`bench-hashes.guide.html` asks how a program receives its data,
-recommends one servil call, shows a complete program that calls it (one
-of this crate's compiled examples, so it builds), and draws that call's
-measured cells from this run beside the fastest SHA-256 present. Each
-question ends with an "I'm not sure" answer: one thread, one buffer, a
-thread that keeps up, a borrowed buffer, time.
-
-The chart shows throughput on log scales, so every size gets the same
-room, and chips above it switch between the ways the benchmark called
-that function (after idling, after other work, nonstop; alone or beside
-another program, where measured). A sentence above the chart says from
-which size the call leads SHA-256, computed from the dots. Hovering a dot
-gives what a caller waits for, the time of one call or batch to three
-significant digits, with the rate; for the queue that
-time is the stream's average per input with many in flight.
-`Queue::messages` covers messages up to 64 KiB and `Queue::pieces` the
-longer ones. For a message arriving in pieces now and then, the guide
-shows `hash`'s cells, labelled by piece length: each piece costs about
-what `hash` costs on a buffer that long. A run that lacks the
-recommended cells says so. The chips keep the recommended call: on
-several threads, nonstop pieces show `update_multithreaded`, with
-`hash_multithreaded`'s cells standing in, and pieces now and then show
-`update`, with `hash`'s cells standing in.
 
 ## Produced leaves (`bench-hashes leaves`)
 
