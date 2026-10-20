@@ -14,7 +14,7 @@ const WIDTH: f64 = 720.0;
 const LEFT: f64 = 170.0;
 const BAR: f64 = 26.0;
 const GAP: f64 = 10.0;
-const PLOT: f64 = WIDTH - LEFT - 60.0;
+const PLOT: f64 = WIDTH - LEFT - 100.0;
 const FONT: &str = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
 
 /// One bar: its name, its rate in hundredths of GB/s, its colour, and
@@ -129,7 +129,7 @@ fn draw(file: &SamplesFile, title: &str, mut bars: Vec<Bar>) -> String {
         .next()
         .unwrap_or("?")
         .to_owned();
-    let subtitle = "GB/s, faster to the right".to_owned();
+    let subtitle = "faster to the right".to_owned();
     let footer = format!(
         "{}, {} CPUs · bench-hashes {} on {date}",
         header("cpu type"),
@@ -166,9 +166,9 @@ fn draw(file: &SamplesFile, title: &str, mut bars: Vec<Bar>) -> String {
         };
         let ty = y + BAR * 0.68;
         let shown = if bar.centi >= 1000 {
-            format!("{}", (bar.centi + 50) / 100)
+            format!("{} GB/s", (bar.centi + 50) / 100)
         } else {
-            format!("{}.{:02}", bar.centi / 100, bar.centi % 100)
+            format!("{}.{:02} GB/s", bar.centi / 100, bar.centi % 100)
         };
         writeln!(svg, r##"<text x="{}" y="{ty:.1}" font-size="13" fill="#111827" text-anchor="end"{weight}>{}</text>"##, LEFT - 10.0, super::xml_escape(&bar.name)).unwrap();
         writeln!(
@@ -243,11 +243,11 @@ mod tests {
         let svg = super::from_samples(path.to_str().unwrap()).expect("a chart");
         std::fs::remove_file(&path).unwrap();
         assert!(
-            svg.contains(">BLAKE3, multi-core</text>") && svg.contains(">13</text>"),
+            svg.contains(">BLAKE3, multi-core</text>") && svg.contains(">13 GB/s</text>"),
             "{svg}"
         );
         assert!(
-            svg.contains(">3.36</text>") && svg.contains(">1.68</text>"),
+            svg.contains(">3.36 GB/s</text>") && svg.contains(">1.68 GB/s</text>"),
             "{svg}"
         );
         assert!(
