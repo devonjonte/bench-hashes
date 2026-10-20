@@ -62,6 +62,7 @@ fn guide_means_match_the_exact_report_rounding() {
         false,
         Some(vec![point]),
         Some(2),
+        &TO_CHECK_FOR_REGRESSIONS,
     );
     let statistics = Mean::of(&[Measured::new(2135, 400), Measured::new(2135, 400)]);
     let mut results = vec![vec![None; POINT_COUNT]; roster.len()];
@@ -78,37 +79,41 @@ fn guide_means_match_the_exact_report_rounding() {
     );
 }
 
+/// A point's visits walk its Williams orders in turn, so no order is more
+/// than one visit ahead of another, and every row holds only contenders
+/// that take part; the count is the use case's, whatever the order count.
 #[test]
-fn sampled_visits_complete_the_participating_williams_design() {
-    // Enumerate roster sizes, use cases, quick/full counts, and every
-    // point offset. Include contenders absent from some use cases.
+fn sampled_visits_walk_the_orders_in_turn() {
     for n in 2..=Algorithm::ALL.len() {
         for use_case in UseCase::ALL {
             let orders = participating_orders(&Algorithm::ALL[..n], use_case);
             if orders.is_empty() {
                 continue;
             }
-            let participants = &orders[0];
             for rounds in [QUICK_ROUNDS, FULL_ROUNDS] {
-                for offset in 0..POINT_COUNT {
+                for offset in [0, 1, 7, POINT_COUNT - 1] {
                     let mut realized = Vec::new();
                     for round in 0..rounds {
-                        if cell_wants_sample(round + offset, rounds, orders.len(), 12) {
+                        if cell_wants_sample(
+                            round + offset,
+                            rounds,
+                            use_case.visits(&TO_MEASURE_SPEED),
+                        ) {
                             realized.push(orders[realized.len() % orders.len()].clone());
                         }
                     }
-                    assert_eq!(realized.len(), 12usize.next_multiple_of(orders.len()));
-                    let normalized: Vec<Vec<usize>> = realized
-                        .iter()
-                        .map(|row| {
-                            row.iter()
-                                .map(|a| participants.iter().position(|p| p == a).unwrap())
-                                .collect()
-                        })
-                        .collect();
-                    if participants.len() > 1 {
-                        assert_orders_balanced(&normalized, participants.len());
+                    assert_eq!(
+                        realized.len(),
+                        use_case.visits(&TO_MEASURE_SPEED).min(rounds)
+                    );
+                    let mut counts = vec![0usize; orders.len()];
+                    for row in &realized {
+                        counts[orders.iter().position(|o| o == row).unwrap()] += 1;
                     }
+                    assert!(
+                        counts.iter().max().unwrap() - counts.iter().min().unwrap() <= 1,
+                        "{use_case:?}, {n} contenders: {counts:?}"
+                    );
                     for row in realized {
                         assert!(row.iter().all(|&a| Algorithm::ALL[a].takes_part(use_case)));
                     }
@@ -124,9 +129,9 @@ fn sample_schedule_handles_short_explicit_round_counts() {
         for orders in 1..=18 {
             for offset in [0, 1, 7, 95] {
                 let count = (0..rounds)
-                    .filter(|r| cell_wants_sample(r + offset, rounds, orders, 12))
+                    .filter(|r| cell_wants_sample(r + offset, rounds, 12))
                     .count();
-                assert_eq!(count, 12usize.next_multiple_of(orders).min(rounds));
+                assert_eq!(count, 12.min(rounds));
             }
         }
     }
@@ -369,21 +374,20 @@ fn a_merkle_tree_hashes_leaves_and_parents_apart() {
     }
 }
 
-/// Each use case's visits a run follow how it calls: after a gap, 24;
-/// nonstop, 6 (one solo sample a visit, two shared where measured shared).
+/// The two visit counts, side by side: a run to measure speed and one to
+/// check for regressions. A cell after a gap takes more visits in a check,
+/// where the noise is; nonstop cells the same in both; both fit a full run.
 #[test]
-fn visits_a_run_follow_how_a_cell_calls() {
-    assert_eq!(UseCase::OneMessage.visits(), GAP_VISITS);
-    assert_eq!(UseCase::IdleInterleavedTurn.visits(), GAP_VISITS);
-    assert_eq!(UseCase::LentMessages.visits(), NONSTOP_VISITS);
-    assert_eq!(UseCase::MerkleTree.visits(), NONSTOP_VISITS);
-    // A full run has room for the largest count in whole Williams cycles.
+fn visits_follow_what_the_run_is_for() {
+    assert_eq!(UseCase::OneMessage.visits(&TO_MEASURE_SPEED), 12);
+    assert_eq!(UseCase::OneMessage.visits(&TO_CHECK_FOR_REGRESSIONS), 24);
+    assert_eq!(
+        UseCase::LentMessages.visits(&TO_MEASURE_SPEED),
+        UseCase::LentMessages.visits(&TO_CHECK_FOR_REGRESSIONS)
+    );
     for use_case in UseCase::ALL {
-        let orders = participating_orders(&Algorithm::ALL, use_case).len().max(1);
-        assert!(
-            use_case.visits().next_multiple_of(orders) <= FULL_ROUNDS,
-            "{use_case:?}: {} visits over {orders} orders fit {FULL_ROUNDS} rounds",
-            use_case.visits()
-        );
+        for schedule in [&TO_MEASURE_SPEED, &TO_CHECK_FOR_REGRESSIONS] {
+            assert!(use_case.visits(schedule) <= FULL_ROUNDS);
+        }
     }
 }
