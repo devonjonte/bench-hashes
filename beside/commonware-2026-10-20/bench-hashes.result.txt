@@ -1,0 +1,305 @@
+Hash speed on 12th Gen Intel(R) Core(TM) i7-12700K (linux7.0.0-38-generic, 20 CPUs), 2026-10-20 15:42:16 UTC
+Full run: 96 rounds. Each cell is the mean time per unit (total time over total work), lower is better.
+
+In “A message in one buffer, after other work”, “A batch of 64-byte messages, after other work”, and “Many messages at once, a turn of their pieces after other work”, the program hashes, runs other code and reads 128 MiB of memory (at least 1 ms), and hashes again, as a program hashes between its other tasks; the second call, with the write of its input, is timed.
+In “A message in one buffer, after idling”, “A batch of 64-byte messages, after idling”, and “Many messages at once, a turn of their pieces after idling”, the program hashes, sleeps 1 ms, and hashes again, as a server handles a request, waits, and handles the next; the second call, with the write of its input, is timed.
+In “Messages one after another, buffers owned”, “Batches one after another, buffers owned”, “Messages one after another, buffers lent”, “Many messages at once, each arriving in pieces, buffers lent”, “A collection's messages, each hashed once, in memory”, “Messages with their outboards, for verified streaming, buffers lent”, “Messages received in their encodings, verified as they arrive”, “Batches one after another, buffers lent”, “A collection's messages one after another, each read into a buffer, then hashed”, and “A Merkle tree over leaves just written into place, every layer kept”, the program hashes one input after another, as fast as it can, alone and with a second program doing the same at once.
+
+SOLO: one copy of each contender, on one thread.
+
+  A message in one buffer, after other work (ns/B)
+  size        B3 servil st    B3 servil mt     B3 official
+  64 B             11.920          12.232          12.501 
+  128 B             6.653           7.266           6.394 
+  256 B             3.785           3.958           3.787 
+  512 B             2.723           2.689           2.750 
+  1 KiB             1.699           1.796           1.750 
+  2 KiB             1.028           1.031           1.025 
+  2304 B            1.067           1.017           1.052 
+  3 KiB             1.090           1.004           1.011 
+  3839 B            0.935           0.885           0.987 
+  4 KiB             0.639           0.678           0.636 
+  4470 B            0.714           0.708           0.707 
+  7935 B            0.569           0.560           0.698 
+  8 KiB             0.445           0.439           0.449 
+  16 KiB            0.362           0.366           0.348 
+  32 KiB            0.336           0.328           0.328 
+  64 KiB            0.314           0.318           0.314 
+  128 KiB           0.311           0.312           0.313 
+  256 KiB           0.315           0.312           0.322 
+  512 KiB           0.305           0.235           0.300 
+  1 MiB             0.279           0.194           0.278 
+  2 MiB             0.260           0.135           0.262 
+  3 MiB             0.259           0.116           0.260 
+  4 MiB             0.267           0.106           0.264 
+  8 MiB             0.269           0.104           0.270 
+  32 MiB            0.258          0.0806           0.259 
+  64 MiB            0.258          0.0778           0.257 
+  128 MiB           0.257          0.0787           0.257 
+
+  A batch of 64-byte messages, after other work (ns/msg)
+  messages    B3 servil st    B3 servil mt     B3 official  BLAKE3 commonware
+  1               714.972         710.639        1043.861        1161.500 
+  2               387.542         378.264         522.938         650.521 
+  3               263.074         262.843         415.931         455.139 
+  4               208.500         209.910         262.021         310.021 
+  6               168.688         144.815         231.326         233.354 
+  8               120.276         118.451         151.698         184.594 
+  12               96.281         102.194         137.194         129.528 
+  16               70.521          66.401          93.161          97.146 
+  24               59.811          56.429          70.858          78.458 
+  32               50.077          48.305          57.949          63.221 
+  48               36.294          36.033          43.861          52.854 
+  64               32.663          30.400          39.922          45.186 
+  128              26.270          25.546          28.539          33.829 
+  256              22.135          22.604          24.127          27.598 
+  512              82.403          20.735          22.474          25.776 
+  1024             19.944          20.198          21.979          25.160 
+  2048             19.868          20.222          21.759          25.019 
+  4096             20.136          19.738          29.142          24.556 
+  8192             18.975          14.952          20.867          23.064 
+  16384            17.463          11.980          18.072          20.512 
+  32768            16.592           8.640          18.646          21.323 
+  65536            15.831           6.898          16.610          19.968 
+  131072           16.207           6.657          17.424          19.940 
+  262144           15.507           6.350          16.911          19.207 
+
+  A message in one buffer, after idling (ns/B)
+  size        B3 servil st    B3 servil mt     B3 official
+  64 B              4.830           5.511           6.030 
+  128 B             5.248           3.381           3.064 
+  256 B             2.332           1.719           1.835 
+  512 B             1.245           1.309           1.100 
+  1 KiB             0.950           0.948           1.082 
+  2 KiB             0.639           0.668           0.564 
+  2304 B            0.690           0.755           0.690 
+  3 KiB             0.740           0.684           0.608 
+  3839 B            0.566           0.879           0.662 
+  4 KiB             0.386           0.419           0.343 
+  4470 B            0.437           0.423           0.446 
+  7935 B            0.317           0.324           0.460 
+  8 KiB             0.272           0.305           0.291 
+  16 KiB            0.244           0.274           0.233 
+  32 KiB            0.228           0.217           0.221 
+  64 KiB            0.219           0.219           0.209 
+  128 KiB           0.204           0.206           0.208 
+  256 KiB           0.215           0.217           0.210 
+  512 KiB           0.213           0.174           0.209 
+  1 MiB             0.215           0.142           0.215 
+  2 MiB             0.216           0.103           0.219 
+  3 MiB             0.227          0.0931           0.228 
+  4 MiB             0.225          0.0861           0.223 
+  8 MiB             0.242          0.0816           0.237 
+  32 MiB            0.259          0.0807           0.259 
+  64 MiB            0.259          0.0808           0.257 
+  128 MiB           0.257          0.0784           0.258 
+
+  A batch of 64-byte messages, after idling (ns/msg)
+  messages    B3 servil st    B3 servil mt     B3 official  BLAKE3 commonware
+  1               374.667         394.646         591.097         452.639 
+  2               210.242         171.783         290.250         254.851 
+  3               126.311         132.900         229.204         177.963 
+  4                96.792          99.813         161.639         188.167 
+  6                67.419          71.205         104.782          89.563 
+  8                59.391          46.967          94.250          87.625 
+  12               48.719          36.090          40.238          64.824 
+  16               30.584          41.776          49.115          47.664 
+  24               25.885          26.863          31.969          30.528 
+  32               42.053          21.327          24.616          27.293 
+  48               19.618          19.531          30.601          30.701 
+  64               21.329          22.064          25.049          29.337 
+  128              16.134          15.150          17.754          23.114 
+  256              14.696          14.823          15.588          20.951 
+  512              13.706          14.165          16.781          19.166 
+  1024             13.133          13.885          14.905          18.112 
+  2048             13.719          13.829          30.656          18.172 
+  4096             13.021          13.447          16.988          18.035 
+  8192             13.874          11.045          14.364          18.264 
+  16384            14.415           8.973          15.182          18.576 
+  32768            14.057           6.664          15.082          19.449 
+  65536            14.702           5.451          15.260          18.947 
+  131072           15.686           5.695          16.315          19.233 
+  262144           15.850           6.125          17.681          20.078 
+
+  Messages one after another, buffers owned (ns/B)
+  size        B3 servil st    B3 servil mt     B3 official
+  64 B              0.803           0.378           0.727 
+  256 B             0.732           0.110           0.739 
+  1 KiB             0.762          0.0769           0.731 
+  4 KiB             0.280          0.0565           0.267 
+  16 KiB            0.192          0.0498           0.191 
+  64 KiB            0.197          0.0423           0.200 
+  256 KiB           0.201          0.0435           0.198 
+  1 MiB             0.293          0.0497           0.245 
+  4 MiB             0.216          0.0550           0.213 
+  16 MiB            0.227          0.0663           0.224 
+  64 MiB            0.228          0.0690           0.225 
+
+  Batches one after another, buffers owned (ns/msg)
+  messages    B3 servil st    B3 servil mt     B3 official  BLAKE3 commonware
+  16               13.285           4.670          16.118          21.155 
+  64               12.624           4.801          12.769          16.487 
+  256              12.978           4.071          13.260          16.363 
+  1024             13.587           4.140          13.546          17.803 
+  4096             13.706           4.313          13.719          17.108 
+  16384            19.644           4.687          18.377          24.527 
+  65536            15.997           5.333          15.812          19.560 
+
+  Messages one after another, buffers lent (ns/B)
+  size        B3 servil st    B3 servil mt     B3 official
+  64 B              0.812           0.819           0.808 
+  256 B             0.770           0.731           0.772 
+  1 KiB             0.721           0.724           0.724 
+  4 KiB             0.269           0.266           0.266 
+  16 KiB            0.193           0.193           0.193 
+  64 KiB            0.199           0.199           0.206 
+  256 KiB           0.206           0.197           0.198 
+  1 MiB             0.231          0.0808           0.220 
+  4 MiB             0.262          0.0851           0.256 
+  16 MiB            0.294          0.0858           0.273 
+  64 MiB            0.258          0.0784           0.257 
+
+  Many messages at once, each arriving in pieces, buffers lent (ns/B)
+  messages open    B3 servil st    B3 servil mt     B3 official
+  256               0.294           0.293           0.499 
+
+  A collection's messages, each hashed once, in memory (ns/B)
+  collection    B3 servil st    B3 servil mt     B3 official
+  git objects          0.223          0.0307           0.221 
+  Nix files          0.216          0.0364           0.238 
+
+  Messages with their outboards, for verified streaming, buffers lent (ns/B)
+  size        B3 servil st    B3 servil mt     B3 official
+  1 MiB             0.222          0.0811           0.245 
+  64 MiB            0.263          0.0879           0.287 
+
+  Messages received in their encodings, verified as they arrive (ns/B)
+  size        B3 servil st    B3 servil mt     B3 official
+  1 MiB             0.253           0.250           0.260 
+  64 MiB            0.317           0.316           0.322 
+
+  Batches one after another, buffers lent (ns/msg)
+  messages    B3 servil st    B3 servil mt     B3 official  BLAKE3 commonware
+  16               13.189          13.134          12.961          16.568 
+  64               12.529          12.538          12.485          16.417 
+  256              12.565          12.759          12.864          16.000 
+  1024             13.196          13.712          13.548          16.387 
+  4096             13.176          13.130          13.410          16.949 
+  16384            14.734           6.010          14.948          18.221 
+  65536            16.850           6.433          17.339          21.414 
+
+  A collection's messages one after another, each read into a buffer, then hashed (ns/B)
+  collection    B3 servil st    B3 servil mt     B3 official
+  git objects          0.243          0.0726           0.244 
+  Nix files          0.253          0.0774           0.262 
+
+  A Merkle tree over leaves just written into place, every layer kept (ns/B)
+  leaves      B3 servil st    B3 servil mt     B3 official
+  1024              0.242           0.240           0.240 
+  4096              0.270           0.166           0.274 
+  16384             0.319           0.145           0.326 
+  65536             0.324           0.128           0.325 
+  262144            0.320           0.122           0.321 
+
+  Many messages at once, a turn of their pieces after other work (ns/B)
+  messages open    B3 servil st    B3 servil mt     B3 official
+  256               0.409           0.409           0.671 
+
+  Many messages at once, a turn of their pieces after idling (ns/B)
+  messages open    B3 servil st    B3 servil mt     B3 official
+  256               0.300           0.322           0.510 
+
+SHARED: two copies of the contender at once, each hashing its own input on its own thread, inputs one after another; the time of each copy.
+
+  Messages one after another, buffers owned (ns/B)
+  size        B3 servil st    B3 servil mt     B3 official
+  64 B              0.748           0.344           0.735 
+  256 B             0.733           0.112           0.741 
+  1 KiB             0.729          0.0759           0.734 
+  4 KiB             0.269          0.0608           0.268 
+  16 KiB            0.190          0.0509           0.191 
+  64 KiB            0.202          0.0453           0.197 
+  256 KiB           0.246          0.0454           0.214 
+  1 MiB             0.205          0.0512           0.202 
+  4 MiB             0.212          0.0541           0.213 
+  16 MiB            0.226          0.0654           0.223 
+  64 MiB            0.233          0.0739           0.228 
+
+  Batches one after another, buffers owned (ns/msg)
+  messages    B3 servil st    B3 servil mt     B3 official  BLAKE3 commonware
+  16               13.154           5.021          13.483          19.847 
+  64               13.870           5.203          13.878          22.129 
+  256              12.969           4.209          12.919          21.266 
+  1024             13.499           4.319          13.711          21.625 
+  4096             15.422           4.420          13.834          21.368 
+  16384            15.238           4.651          16.064          23.001 
+  65536            17.726           6.829          17.018          25.569 
+
+  Messages one after another, buffers lent (ns/B)
+  size        B3 servil st    B3 servil mt     B3 official
+  64 B              0.736           0.738           0.784 
+  256 B             0.736           0.729           0.731 
+  1 KiB             0.726           0.729           0.730 
+  4 KiB             0.304           0.305           0.304 
+  16 KiB            0.206           0.195           0.213 
+  64 KiB            0.200           0.200           0.200 
+  256 KiB           0.201           0.200           0.200 
+  1 MiB             0.249          0.0771           0.273 
+  4 MiB             0.312          0.0870           0.302 
+  16 MiB            0.297           0.137           0.328 
+  64 MiB            0.307           0.140           0.307 
+
+  Many messages at once, each arriving in pieces, buffers lent (ns/B)
+  messages open    B3 servil st    B3 servil mt     B3 official
+  256               0.359           0.359           0.502 
+
+  A collection's messages, each hashed once, in memory (ns/B)
+  collection    B3 servil st    B3 servil mt     B3 official
+  git objects          0.214          0.0434           0.225 
+  Nix files          0.221          0.0472           0.240 
+
+  Messages with their outboards, for verified streaming, buffers lent (ns/B)
+  size        B3 servil st    B3 servil mt     B3 official
+  1 MiB             0.224          0.0814           0.244 
+  64 MiB            0.305           0.147           0.337 
+
+  Messages received in their encodings, verified as they arrive (ns/B)
+  size        B3 servil st    B3 servil mt     B3 official
+  1 MiB             0.267           0.255           0.260 
+  64 MiB            0.524           0.348           0.352 
+
+  Batches one after another, buffers lent (ns/msg)
+  messages    B3 servil st    B3 servil mt     B3 official  BLAKE3 commonware
+  16               13.234          13.129          13.412          19.568 
+  64               13.915          14.155          13.929          21.705 
+  256              12.622          12.626          12.631          20.148 
+  1024             13.350          13.284          13.460          20.896 
+  4096             13.304          13.454          13.575          20.871 
+  16384            16.820           6.053          15.096          22.959 
+  65536            18.438           7.237          17.296          27.088 
+
+  A collection's messages one after another, each read into a buffer, then hashed (ns/B)
+  collection    B3 servil st    B3 servil mt     B3 official
+  git objects          0.256          0.0802           0.245 
+  Nix files          0.258          0.0828           0.260 
+
+  A Merkle tree over leaves just written into place, every layer kept (ns/B)
+  leaves      B3 servil st    B3 servil mt     B3 official
+  1024              0.268           0.267           0.267 
+  4096              0.275           0.139           0.276 
+  16384             0.370           0.164           0.342 
+  65536             0.424           0.194           0.374 
+  262144            0.394           0.206           0.381 
+
+PROVENANCE
+  bench-hashes 0.16.1+90af10682bd18c798d480fe1fd1c9aeb2b632c4c, https://github.com/devonjonte/bench-hashes, commit 056782ae5bc7cc115c8f0b29469b3051e2a94816 (clean)
+  contenders: --contenders blake3-servil-st,blake3-servil-mt,blake3-official,blake3-commonware
+  BLAKE3 servil st: blake3-servil 0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5; source https://github.com/devonjonte/BLAKE3; branch servil; commit 76e8dc16db4a09d25cc6c7d1cea576d388f63195; clean; single-threaded; blake3_servil::hash for one message, blake3_servil::hash_many for a batch, Hasher::update per piece for many messages at once
+  BLAKE3 servil mt: blake3-servil 0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5; source https://github.com/devonjonte/BLAKE3; branch servil; commit 76e8dc16db4a09d25cc6c7d1cea576d388f63195; clean; multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: the fork chooses when to wake its worker threads
+  BLAKE3 official: blake3 1.8.7; crate archive SHA-256 6d9e454fc11f76977dc803893aff6304ed33d6a26efae8696573bea74baa27ae; source registry+https://github.com/rust-lang/crates.io-index; single-threaded; blake3::hash for one message, the crate's hidden batch function blake3::platform::Platform::hash_many::<N> for a batch, sixteen messages per call
+  BLAKE3 commonware: commonwarexyz/monorepo pull request #4982, commit 3aa183f0592d65e23b6f9435f938ca6659d64bd1: cryptography/src/blake3/simd, unchanged, in contenders/commonware-blake3; single-threaded; commonware-cryptography's Blake3::hash_many for a batch, one message per SIMD lane (NEON 4 on AArch64; AVX2 8, AVX-512 16 on x86-64), its digests in a new Vec each call
+  CPU: model name: 12th Gen Intel(R) Core(TM) i7-12700K · microcode: 0x3e · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l2 cdp_l2 ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdt_a rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize pconfig arch_lbr ibt flush_l1d arch_capabilities · machine: B748
+  rustc 1.98.1 (48a229cea 2026-09-01); target x86_64-unknown-linux-gnu; features fxsr,sse,sse2
+  clock: std::time::Instant → CLOCK_MONOTONIC (stops during suspend, NTP slew only)
+  load during the run: quiet: other programs kept 0.11 CPUs busy on average, 0.30 in the busiest window
+  power: mains power, no battery, CPU frequency governor powersave, energy-performance preference performance
