@@ -119,7 +119,10 @@ struct Visits {
 /// runs the cells agree to 1-3% at the median and within 10% at the 90th
 /// percentile (i7-12700K, eight contenders, about 4 minutes). More visits
 /// buy agreement this reader does not need.
-const TO_MEASURE_SPEED: Visits = Visits { gap: 12, nonstop: 6 };
+const TO_MEASURE_SPEED: Visits = Visits {
+    gap: 12,
+    nonstop: 6,
+};
 
 /// To check for performance regressions: `regress`'s runs, for a reader
 /// who must see a 3% change between two builds and be spared false alarms.
@@ -130,7 +133,10 @@ const TO_MEASURE_SPEED: Visits = Visits { gap: 12, nonstop: 6 };
 /// time but caught a hash() plant in 3 of 10 cells after other work and 4
 /// of 9 after a pause (October 20; the data branch, 2026-10-20/
 /// check-validation).
-const TO_CHECK_FOR_REGRESSIONS: Visits = Visits { gap: 24, nonstop: 6 };
+const TO_CHECK_FOR_REGRESSIONS: Visits = Visits {
+    gap: 24,
+    nonstop: 6,
+};
 
 /// Points on the one-message axis, and on each many-messages axis.
 const INPUT_COUNT: usize = 27;
@@ -241,9 +247,15 @@ const COLLECTIONS: [(&str, &[(usize, usize)]); COLLECTION_COUNT] = [
 
 /// A collection's messages as (offset, length) in one buffer, in the stride's order.
 fn collection_items(classes: &[(usize, usize)]) -> Vec<(usize, usize)> {
-    let lengths: Vec<usize> = classes.iter().flat_map(|&(n, len)| std::iter::repeat_n(len, n)).collect();
+    let lengths: Vec<usize> = classes
+        .iter()
+        .flat_map(|&(n, len)| std::iter::repeat_n(len, n))
+        .collect();
     let count = lengths.len();
-    assert!(count % 389 != 0 && count.is_power_of_two(), "a stride sharing no factor with the count takes every item once");
+    assert!(
+        count % 389 != 0 && count.is_power_of_two(),
+        "a stride sharing no factor with the count takes every item once"
+    );
     let mut offset = 0;
     (0..count)
         .map(|j| {
@@ -287,7 +299,15 @@ struct InterleavedSpec {
 const INTERLEAVED: InterleavedSpec = InterleavedSpec {
     open: 256,
     pieces: &[1448, 1448, 4096, 1448, 16 * 1024],
-    messages: &[64, 1000, 4470, 16 * 1024, 100_000, 1024 * 1024, 16 * 1024 * 1024],
+    messages: &[
+        64,
+        1000,
+        4470,
+        16 * 1024,
+        100_000,
+        1024 * 1024,
+        16 * 1024 * 1024,
+    ],
     chunk: 1024 * 1024,
     turn: 256 * 1024,
 };
@@ -649,7 +669,10 @@ impl UseCase {
     /// after other work, or after idling), or one follows another (the
     /// continuous ones).
     fn after_gap(self) -> bool {
-        matches!(self.call(), Self::OneMessage | Self::ManyMessages | Self::InterleavedTurn)
+        matches!(
+            self.call(),
+            Self::OneMessage | Self::ManyMessages | Self::InterleavedTurn
+        )
     }
 
     /// How the program calls, as the graph's chips name it.
@@ -665,7 +688,10 @@ impl UseCase {
 
     /// Whether the program idles before each call.
     fn idle(self) -> bool {
-        matches!(self, Self::IdleOneMessage | Self::IdleManyMessages | Self::IdleInterleavedTurn)
+        matches!(
+            self,
+            Self::IdleOneMessage | Self::IdleManyMessages | Self::IdleInterleavedTurn
+        )
     }
 
     /// The use case whose call this one makes: an idle use case makes its
@@ -690,13 +716,19 @@ impl UseCase {
 
     /// Whether a call hashes a batch of messages.
     fn batch(self) -> bool {
-        matches!(self.call(), Self::ManyMessages | Self::ContinuousBatches | Self::LentBatches)
+        matches!(
+            self.call(),
+            Self::ManyMessages | Self::ContinuousBatches | Self::LentBatches
+        )
     }
 
     /// Each message's length in a batch use case.
     fn message_len(self) -> usize {
         match self {
-            Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => MESSAGE_LEN,
+            Self::ManyMessages
+            | Self::IdleManyMessages
+            | Self::ContinuousBatches
+            | Self::LentBatches => MESSAGE_LEN,
             Self::OneMessage
             | Self::IdleOneMessage
             | Self::ContinuousMessages
@@ -714,9 +746,21 @@ impl UseCase {
 
     /// The contiguous run of POINTS on this use case's axis.
     fn points(self) -> std::ops::Range<usize> {
-        let start = POINTS.iter().position(|point| point.use_case == self).expect("each use case has points");
-        let end = POINTS.iter().rposition(|point| point.use_case == self).unwrap() + 1;
-        assert!(POINTS[start..end].iter().all(|point| point.use_case == self), "a use case's points are contiguous");
+        let start = POINTS
+            .iter()
+            .position(|point| point.use_case == self)
+            .expect("each use case has points");
+        let end = POINTS
+            .iter()
+            .rposition(|point| point.use_case == self)
+            .unwrap()
+            + 1;
+        assert!(
+            POINTS[start..end]
+                .iter()
+                .all(|point| point.use_case == self),
+            "a use case's points are contiguous"
+        );
         start..end
     }
 
@@ -730,26 +774,42 @@ impl UseCase {
             Self::ContinuousBatches => "Batches one after another, buffers owned",
             Self::LentMessages => "Messages one after another, buffers lent",
             Self::Interleaved => "Many messages at once, each arriving in pieces, buffers lent",
-            Self::InterleavedTurn => "Many messages at once, a turn of their pieces after other work",
-            Self::IdleInterleavedTurn => "Many messages at once, a turn of their pieces after idling",
+            Self::InterleavedTurn => {
+                "Many messages at once, a turn of their pieces after other work"
+            }
+            Self::IdleInterleavedTurn => {
+                "Many messages at once, a turn of their pieces after idling"
+            }
             Self::Collection => "A collection's messages, each hashed once, in memory",
             Self::Outboard => "Messages with their outboards, for verified streaming, buffers lent",
             Self::Verify => "Messages received in their encodings, verified as they arrive",
             Self::LentBatches => "Batches one after another, buffers lent",
-            Self::ContinuousCollection => "A collection's messages one after another, each read into a buffer, then hashed",
-            Self::MerkleTree => "A Merkle tree over leaves just written into place, every layer kept",
+            Self::ContinuousCollection => {
+                "A collection's messages one after another, each read into a buffer, then hashed"
+            }
+            Self::MerkleTree => {
+                "A Merkle tree over leaves just written into place, every layer kept"
+            }
         }
     }
 
     /// The x column's header in the text report.
     fn column(self) -> &'static str {
         match self {
-            Self::OneMessage | Self::IdleOneMessage | Self::ContinuousMessages | Self::LentMessages => "size",
-            Self::Interleaved | Self::InterleavedTurn | Self::IdleInterleavedTurn => "messages open",
+            Self::OneMessage
+            | Self::IdleOneMessage
+            | Self::ContinuousMessages
+            | Self::LentMessages => "size",
+            Self::Interleaved | Self::InterleavedTurn | Self::IdleInterleavedTurn => {
+                "messages open"
+            }
             Self::Collection | Self::ContinuousCollection => "collection",
             Self::Outboard | Self::Verify => "size",
             Self::MerkleTree => "leaves",
-            Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => "messages",
+            Self::ManyMessages
+            | Self::IdleManyMessages
+            | Self::ContinuousBatches
+            | Self::LentBatches => "messages",
         }
     }
 
@@ -773,7 +833,10 @@ impl UseCase {
             | Self::MerkleTree
             | Self::InterleavedTurn
             | Self::IdleInterleavedTurn => point.bytes as u64 * iterations as u64,
-            Self::ManyMessages | Self::IdleManyMessages | Self::ContinuousBatches | Self::LentBatches => point.messages as u64 * iterations as u64,
+            Self::ManyMessages
+            | Self::IdleManyMessages
+            | Self::ContinuousBatches
+            | Self::LentBatches => point.messages as u64 * iterations as u64,
         }
     }
 
@@ -841,7 +904,12 @@ struct Point {
 
 impl Point {
     const fn one(label: &'static str, bytes: usize) -> Self {
-        Self { label, bytes, messages: 1, use_case: UseCase::OneMessage }
+        Self {
+            label,
+            bytes,
+            messages: 1,
+            use_case: UseCase::OneMessage,
+        }
     }
 
     /// The same point, its call made after idling.
@@ -856,32 +924,67 @@ impl Point {
     }
 
     const fn continuous(label: &'static str, bytes: usize) -> Self {
-        Self { label, bytes, messages: 1, use_case: UseCase::ContinuousMessages }
+        Self {
+            label,
+            bytes,
+            messages: 1,
+            use_case: UseCase::ContinuousMessages,
+        }
     }
 
     const fn many(label: &'static str, messages: usize) -> Self {
-        Self { label, bytes: messages * MESSAGE_LEN, messages, use_case: UseCase::ManyMessages }
+        Self {
+            label,
+            bytes: messages * MESSAGE_LEN,
+            messages,
+            use_case: UseCase::ManyMessages,
+        }
     }
 
     const fn continuous_batch(label: &'static str, messages: usize) -> Self {
-        Self { label, bytes: messages * MESSAGE_LEN, messages, use_case: UseCase::ContinuousBatches }
+        Self {
+            label,
+            bytes: messages * MESSAGE_LEN,
+            messages,
+            use_case: UseCase::ContinuousBatches,
+        }
     }
 
     const fn lent(label: &'static str, bytes: usize) -> Self {
-        Self { label, bytes, messages: 1, use_case: UseCase::LentMessages }
+        Self {
+            label,
+            bytes,
+            messages: 1,
+            use_case: UseCase::LentMessages,
+        }
     }
 
     const fn outboard(label: &'static str, bytes: usize) -> Self {
-        Self { label, bytes, messages: 1, use_case: UseCase::Outboard }
+        Self {
+            label,
+            bytes,
+            messages: 1,
+            use_case: UseCase::Outboard,
+        }
     }
 
     const fn verify(label: &'static str, bytes: usize) -> Self {
-        Self { label, bytes, messages: 1, use_case: UseCase::Verify }
+        Self {
+            label,
+            bytes,
+            messages: 1,
+            use_case: UseCase::Verify,
+        }
     }
 
     const fn collection(index: usize) -> Self {
         let (label, classes) = COLLECTIONS[index];
-        Self { label, bytes: collection_bytes(classes), messages: collection_count(classes), use_case: UseCase::Collection }
+        Self {
+            label,
+            bytes: collection_bytes(classes),
+            messages: collection_count(classes),
+            use_case: UseCase::Collection,
+        }
     }
 
     const fn continuous_collection(index: usize) -> Self {
@@ -891,21 +994,41 @@ impl Point {
     }
 
     const fn interleaved(label: &'static str, bytes: usize) -> Self {
-        Self { label, bytes, messages: 1, use_case: UseCase::Interleaved }
+        Self {
+            label,
+            bytes,
+            messages: 1,
+            use_case: UseCase::Interleaved,
+        }
     }
 
     /// The same open messages, one turn of their pieces a call.
     const fn interleaved_turn(label: &'static str) -> Self {
-        Self { label, bytes: INTERLEAVED.turn, messages: 1, use_case: UseCase::InterleavedTurn }
+        Self {
+            label,
+            bytes: INTERLEAVED.turn,
+            messages: 1,
+            use_case: UseCase::InterleavedTurn,
+        }
     }
 
     /// A Merkle tree of `leaves` leaves of MERKLE.leaf_len bytes.
     const fn merkle(label: &'static str, leaves: usize) -> Self {
-        Self { label, bytes: leaves * MERKLE.leaf_len, messages: leaves, use_case: UseCase::MerkleTree }
+        Self {
+            label,
+            bytes: leaves * MERKLE.leaf_len,
+            messages: leaves,
+            use_case: UseCase::MerkleTree,
+        }
     }
 
     const fn lent_batch(label: &'static str, messages: usize) -> Self {
-        Self { label, bytes: messages * MESSAGE_LEN, messages, use_case: UseCase::LentBatches }
+        Self {
+            label,
+            bytes: messages * MESSAGE_LEN,
+            messages,
+            use_case: UseCase::LentBatches,
+        }
     }
 
     /// Whether a quick run measures this point: inputs below QUICK_BYTES,
@@ -998,7 +1121,9 @@ impl Algorithm {
     fn takes_part(self, use_case: UseCase) -> bool {
         let use_case = use_case.call();
         match use_case {
-            UseCase::ManyMessages | UseCase::IdleManyMessages | UseCase::LentBatches => !matches!(self, Self::Blake3Rayon),
+            UseCase::ManyMessages | UseCase::IdleManyMessages | UseCase::LentBatches => {
+                !matches!(self, Self::Blake3Rayon)
+            }
             UseCase::ContinuousBatches => !matches!(self, Self::Blake3Rayon),
             UseCase::ContinuousMessages => true,
             UseCase::OneMessage
@@ -1007,8 +1132,14 @@ impl Algorithm {
             | UseCase::Interleaved
             | UseCase::Collection
             | UseCase::ContinuousCollection => true,
-            UseCase::Outboard => matches!(self, Self::Blake3 | Self::Blake3ServilSt | Self::Blake3ServilMt),
-            UseCase::Verify => matches!(self, Self::Blake3 | Self::Blake3ServilSt | Self::Blake3ServilMt),
+            UseCase::Outboard => matches!(
+                self,
+                Self::Blake3 | Self::Blake3ServilSt | Self::Blake3ServilMt
+            ),
+            UseCase::Verify => matches!(
+                self,
+                Self::Blake3 | Self::Blake3ServilSt | Self::Blake3ServilMt
+            ),
             /* A tree's layers are batches: BLAKE3 official mt has no batch call. */
             UseCase::MerkleTree => !matches!(self, Self::Blake3Rayon),
             UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => true,
@@ -1125,8 +1256,14 @@ struct Measured {
 
 impl Measured {
     fn new(ns: u64, units: u64) -> Self {
-        assert!(ns > 0 && units > 0, "a sample covers some units in some time");
-        assert!(ns < 1 << 40, "a sample of {ns} ns exceeds 2^40 ns (18 minutes)");
+        assert!(
+            ns > 0 && units > 0,
+            "a sample covers some units in some time"
+        );
+        assert!(
+            ns < 1 << 40,
+            "a sample of {ns} ns exceeds 2^40 ns (18 minutes)"
+        );
         Measured { ns, units }
     }
 }
@@ -1146,7 +1283,10 @@ struct Mean {
 impl Mean {
     fn of(samples: &[Measured]) -> Self {
         assert!(!samples.is_empty(), "a mean needs samples");
-        Self { ns: samples.iter().map(|m| u128::from(m.ns)).sum(), units: samples.iter().map(|m| u128::from(m.units)).sum() }
+        Self {
+            ns: samples.iter().map(|m| u128::from(m.ns)).sum(),
+            units: samples.iter().map(|m| u128::from(m.units)).sum(),
+        }
     }
 
     fn fixed(self) -> PerUnit {
@@ -1159,7 +1299,12 @@ impl Mean {
     /// The mean times `factor` (ns per `factor` units), rounded once for the
     /// reader ([`format_ns`]).
     fn format_ns(self, factor: u64) -> String {
-        format_ns(self.ns.checked_mul(u128::from(factor)).expect("a scaled mean fits in u128"), self.units)
+        format_ns(
+            self.ns
+                .checked_mul(u128::from(factor))
+                .expect("a scaled mean fits in u128"),
+            self.units,
+        )
     }
 }
 
@@ -1175,8 +1320,17 @@ fn format_ns(numerator: u128, denominator: u128) -> String {
         decimals += 1;
     }
     let scale = 10u128.pow(decimals);
-    let rounded = numerator.checked_mul(scale).and_then(|n| n.checked_add(denominator / 2)).expect("a rounded figure fits in u128") / denominator;
-    format!("{}.{:0width$}", rounded / scale, rounded % scale, width = decimals as usize)
+    let rounded = numerator
+        .checked_mul(scale)
+        .and_then(|n| n.checked_add(denominator / 2))
+        .expect("a rounded figure fits in u128")
+        / denominator;
+    format!(
+        "{}.{:0width$}",
+        rounded / scale,
+        rounded % scale,
+        width = decimals as usize
+    )
 }
 
 /// A non-negative number in fixed point, 64 integer and 64 fractional bits
@@ -1192,14 +1346,22 @@ type PerUnit = Fixed;
 impl std::ops::Sub for Fixed {
     type Output = Fixed;
     fn sub(self, other: Fixed) -> Fixed {
-        Fixed(self.0.checked_sub(other.0).expect("a difference is never negative here"))
+        Fixed(
+            self.0
+                .checked_sub(other.0)
+                .expect("a difference is never negative here"),
+        )
     }
 }
 
 impl std::ops::Mul<u64> for Fixed {
     type Output = Fixed;
     fn mul(self, factor: u64) -> Fixed {
-        Fixed(self.0.checked_mul(u128::from(factor)).expect("a scaled value fits in u128"))
+        Fixed(
+            self.0
+                .checked_mul(u128::from(factor))
+                .expect("a scaled value fits in u128"),
+        )
     }
 }
 
@@ -1244,9 +1406,7 @@ impl Scenario {
     fn description(self) -> &'static str {
         match self {
             Self::Solo => "one copy of each contender, on one thread",
-            Self::Shared => {
-                "two copies of the contender at once, each hashing its own input on its own thread, inputs one after another; the time of each copy"
-            }
+            Self::Shared => "two copies of the contender at once, each hashing its own input on its own thread, inputs one after another; the time of each copy",
         }
     }
 
@@ -1273,7 +1433,9 @@ impl Cell {
     fn get(&self, scenario: Scenario) -> Mean {
         match scenario {
             Scenario::Solo => self.solo,
-            Scenario::Shared => self.shared.expect("a shared cell exists for the nonstop use cases alone"),
+            Scenario::Shared => self
+                .shared
+                .expect("a shared cell exists for the nonstop use cases alone"),
         }
     }
 }
@@ -1325,36 +1487,66 @@ impl Roster {
      * (positive), every cell sampled in each, else FULL_ROUNDS or
      * QUICK_ROUNDS with each cell sampled in its share of them.
      */
-    fn new(algorithms: Vec<Algorithm>, quick: bool, points: Option<Vec<usize>>, rounds: Option<usize>, visits: &'static Visits) -> Self {
+    fn new(
+        algorithms: Vec<Algorithm>,
+        quick: bool,
+        points: Option<Vec<usize>>,
+        rounds: Option<usize>,
+        visits: &'static Visits,
+    ) -> Self {
         assert!(
             (1..=Algorithm::ALL.len()).contains(&algorithms.len()),
             "a run measures one contender or more, up to every one there is; {} were selected",
             algorithms.len()
         );
         for (index, algorithm) in algorithms.iter().enumerate() {
-            assert!(!algorithms[..index].contains(algorithm), "{} was selected twice", algorithm.name());
+            assert!(
+                !algorithms[..index].contains(algorithm),
+                "{} was selected twice",
+                algorithm.name()
+            );
             if let Err(reason) = algorithm.availability() {
                 panic!("{} cannot run here: {reason}", algorithm.name());
             }
         }
-        let points = points.unwrap_or_else(|| (0..POINT_COUNT).filter(|&index| !quick || POINTS[index].quick()).collect());
-        assert!(!points.is_empty() && points.windows(2).all(|w| w[0] < w[1]), "points ascend, without repeats");
+        let points = points.unwrap_or_else(|| {
+            (0..POINT_COUNT)
+                .filter(|&index| !quick || POINTS[index].quick())
+                .collect()
+        });
+        assert!(
+            !points.is_empty() && points.windows(2).all(|w| w[0] < w[1]),
+            "points ascend, without repeats"
+        );
         let rounds = rounds.unwrap_or(if quick { QUICK_ROUNDS } else { FULL_ROUNDS });
         assert!(rounds > 0, "--rounds must be positive");
-        Self { algorithms, points, rounds, visits }
+        Self {
+            algorithms,
+            points,
+            rounds,
+            visits,
+        }
     }
 
     /// Whether every point of each use case measured runs from the axis's
     /// start to the run's limit for it (a quick run's shorter axes count):
     /// the graph needs axes without holes.
     fn whole_axes(&self) -> bool {
-        self.algorithms.iter().all(|algorithm| self.points.iter().any(|&index| algorithm.takes_part(POINTS[index].use_case)))
-            && UseCase::ALL.iter().all(|&use_case| {
-                let measured: Vec<usize> = use_case.points().filter(|&index| self.measures(index)).collect();
-                measured.is_empty()
-                    || (measured.len() >= use_case.points().len().min(2)
-                        && measured == (use_case.points().start..measured.last().unwrap() + 1).collect::<Vec<_>>())
-            })
+        self.algorithms.iter().all(|algorithm| {
+            self.points
+                .iter()
+                .any(|&index| algorithm.takes_part(POINTS[index].use_case))
+        }) && UseCase::ALL.iter().all(|&use_case| {
+            let measured: Vec<usize> = use_case
+                .points()
+                .filter(|&index| self.measures(index))
+                .collect();
+            measured.is_empty()
+                || (measured.len() >= use_case.points().len().min(2)
+                    && measured
+                        == (use_case.points().start..measured.last().unwrap() + 1)
+                            .collect::<Vec<_>>())
+        })
     }
 
     /// Whether this run measures POINTS[point_index].
@@ -1365,7 +1557,12 @@ impl Roster {
     /// The point the progress line follows: the largest one-message
     /// point measured, else the largest point.
     fn progress_point(&self) -> usize {
-        *self.points.iter().rev().find(|&&index| POINTS[index].use_case == UseCase::OneMessage).unwrap_or_else(|| self.points.last().unwrap())
+        *self
+            .points
+            .iter()
+            .rev()
+            .find(|&&index| POINTS[index].use_case == UseCase::OneMessage)
+            .unwrap_or_else(|| self.points.last().unwrap())
     }
 
     fn len(&self) -> usize {
@@ -1376,11 +1573,18 @@ impl Roster {
 /// Orders over the contenders actually called in a use case. Filtering a
 /// larger design afterward can unbalance both positions and predecessors.
 fn participating_orders(algorithms: &[Algorithm], use_case: UseCase) -> Vec<Vec<usize>> {
-    let participants: Vec<usize> = algorithms.iter().enumerate().filter_map(|(index, algorithm)| algorithm.takes_part(use_case).then_some(index)).collect();
+    let participants: Vec<usize> = algorithms
+        .iter()
+        .enumerate()
+        .filter_map(|(index, algorithm)| algorithm.takes_part(use_case).then_some(index))
+        .collect();
     match participants.len() {
         0 => Vec::new(),
         1 => vec![participants],
-        n => williams_orders(n).into_iter().map(|order| order.into_iter().map(|rank| participants[rank]).collect()).collect(),
+        n => williams_orders(n)
+            .into_iter()
+            .map(|order| order.into_iter().map(|rank| participants[rank]).collect())
+            .collect(),
     }
 }
 
@@ -1402,7 +1606,10 @@ fn williams_orders(n: usize) -> Vec<Vec<usize>> {
         })
         .collect();
     if n % 2 == 1 {
-        let reversed: Vec<Vec<usize>> = rows.iter().map(|row| row.iter().rev().copied().collect()).collect();
+        let reversed: Vec<Vec<usize>> = rows
+            .iter()
+            .map(|row| row.iter().rev().copied().collect())
+            .collect();
         rows.extend(reversed);
     }
     assert_orders_balanced(&rows, n);
@@ -1416,7 +1623,12 @@ fn williams_orders(n: usize) -> Vec<Vec<usize>> {
  * crate wins everywhere: sha2 is faster for one and two blocks (and so for
  * every batch of 64-byte messages), ring from 256 B up, so both run.
  */
-const DEFAULT_CONTENDERS: [Algorithm; 4] = [Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt, Algorithm::Sha256, Algorithm::Sha256Ring];
+const DEFAULT_CONTENDERS: [Algorithm; 4] = [
+    Algorithm::Blake3ServilSt,
+    Algorithm::Blake3ServilMt,
+    Algorithm::Sha256,
+    Algorithm::Sha256Ring,
+];
 
 /*
  * The contenders the graph shows when it opens; a click on a name shows
@@ -1427,7 +1639,11 @@ const DEFAULT_CONTENDERS: [Algorithm; 4] = [Algorithm::Blake3ServilSt, Algorithm
  * batches, is one click away), and the crates.io BLAKE3 most programs
  * use. A run with none of them opens with every contender shown.
  */
-const SHOWN_AT_FIRST: [Algorithm; 3] = [Algorithm::Blake3ServilMt, Algorithm::Sha256Ring, Algorithm::Blake3];
+const SHOWN_AT_FIRST: [Algorithm; 3] = [
+    Algorithm::Blake3ServilMt,
+    Algorithm::Sha256Ring,
+    Algorithm::Blake3,
+];
 
 /*
  * Contenders that run only when --contenders names them, left out of
@@ -1541,15 +1757,29 @@ const SIZES_VERSION: &str = "# bench-hashes sizes v1";
 
 impl Sizes {
     fn read(path: &str) -> Sizes {
-        let text = fs::read_to_string(path).unwrap_or_else(|error| panic!("--sizes: cannot read {path}: {error}"));
+        let text = fs::read_to_string(path)
+            .unwrap_or_else(|error| panic!("--sizes: cannot read {path}: {error}"));
         let mut lines = text.lines();
-        assert_eq!(lines.next(), Some(SIZES_VERSION), "--sizes: {path} begins with {SIZES_VERSION:?}");
+        assert_eq!(
+            lines.next(),
+            Some(SIZES_VERSION),
+            "--sizes: {path} begins with {SIZES_VERSION:?}"
+        );
         Sizes::From(
             lines
                 .map(|line| {
                     let fields: Vec<&str> = line.split('\t').collect();
-                    assert_eq!(fields.len(), 3, "--sizes: {path}: a row of contender, point, iterations: {line}");
-                    ((fields[0].to_owned(), point_named(fields[1])), fields[2].parse().expect("--sizes: iterations are a whole number"))
+                    assert_eq!(
+                        fields.len(),
+                        3,
+                        "--sizes: {path}: a row of contender, point, iterations: {line}"
+                    );
+                    (
+                        (fields[0].to_owned(), point_named(fields[1])),
+                        fields[2]
+                            .parse()
+                            .expect("--sizes: iterations are a whole number"),
+                    )
                 })
                 .collect(),
         )
@@ -1559,11 +1789,25 @@ impl Sizes {
     fn write(path: &std::path::Path, roster: &Roster, batch_iterations: &[Vec<usize>]) {
         let mut out = format!("{SIZES_VERSION}\n");
         for (a, algorithm) in roster.algorithms.iter().enumerate() {
-            for &p in roster.points.iter().filter(|&&p| algorithm.takes_part(POINTS[p].use_case)) {
-                writeln!(out, "{}\t{}{}\t{}", algorithm.key(), POINTS[p].use_case.label_prefix(), POINTS[p].label, batch_iterations[a][p]).unwrap();
+            for &p in roster
+                .points
+                .iter()
+                .filter(|&&p| algorithm.takes_part(POINTS[p].use_case))
+            {
+                writeln!(
+                    out,
+                    "{}\t{}{}\t{}",
+                    algorithm.key(),
+                    POINTS[p].use_case.label_prefix(),
+                    POINTS[p].label,
+                    batch_iterations[a][p]
+                )
+                .unwrap();
             }
         }
-        fs::write(path, out).unwrap_or_else(|error| panic!("--calibrate-only: cannot write {}: {error}", path.display()));
+        fs::write(path, out).unwrap_or_else(|error| {
+            panic!("--calibrate-only: cannot write {}: {error}", path.display())
+        });
     }
 }
 
@@ -1584,21 +1828,33 @@ fn parse_arguments() -> Options {
     let for_check = take_flag("--for-regression-check");
 
     /* --trace-clocks PATH may accompany any selection. */
-    let trace_path = arguments.iter().position(|argument| argument == "--trace-clocks").map(|index| {
-        assert!(index + 1 < arguments.len(), "--trace-clocks needs a file path\n\n{USAGE}");
-        let path = std::path::PathBuf::from(&arguments[index + 1]);
-        arguments.drain(index..=index + 1);
-        path
-    });
+    let trace_path = arguments
+        .iter()
+        .position(|argument| argument == "--trace-clocks")
+        .map(|index| {
+            assert!(
+                index + 1 < arguments.len(),
+                "--trace-clocks needs a file path\n\n{USAGE}"
+            );
+            let path = std::path::PathBuf::from(&arguments[index + 1]);
+            arguments.drain(index..=index + 1);
+            path
+        });
 
     /* --points LIST and --rounds N narrow a --contenders run. */
     let mut take_value = |flag: &str| {
-        arguments.iter().position(|argument| argument == flag).map(|index| {
-            assert!(index + 1 < arguments.len(), "{flag} needs a value\n\n{USAGE}");
-            let value = arguments[index + 1].clone();
-            arguments.drain(index..=index + 1);
-            value
-        })
+        arguments
+            .iter()
+            .position(|argument| argument == flag)
+            .map(|index| {
+                assert!(
+                    index + 1 < arguments.len(),
+                    "{flag} needs a value\n\n{USAGE}"
+                );
+                let value = arguments[index + 1].clone();
+                arguments.drain(index..=index + 1);
+                value
+            })
     };
     let points = take_value("--points").map(|list| {
         let mut indices: Vec<usize> = list.split(',').map(point_named).collect();
@@ -1606,10 +1862,18 @@ fn parse_arguments() -> Options {
         indices.dedup();
         indices
     });
-    let rounds = take_value("--rounds").map(|n| n.parse::<usize>().expect("--rounds takes a whole number"));
-    let visits: &'static Visits = if for_check { &TO_CHECK_FOR_REGRESSIONS } else { &TO_MEASURE_SPEED };
+    let rounds =
+        take_value("--rounds").map(|n| n.parse::<usize>().expect("--rounds takes a whole number"));
+    let visits: &'static Visits = if for_check {
+        &TO_CHECK_FOR_REGRESSIONS
+    } else {
+        &TO_MEASURE_SPEED
+    };
     /* --threads N: BLAKE3 servil mt's pool, N threads in all (its caller among them). */
-    let threads = take_value("--threads").map(|n| n.parse::<std::num::NonZeroUsize>().expect("--threads takes a whole number above 0"));
+    let threads = take_value("--threads").map(|n| {
+        n.parse::<std::num::NonZeroUsize>()
+            .expect("--threads takes a whole number above 0")
+    });
     /* --calibrate-only PATH or --sizes PATH may accompany any selection. */
     let sizes = match (take_value("--calibrate-only"), take_value("--sizes")) {
         (None, None) => Sizes::Calibrate,
@@ -1621,8 +1885,21 @@ fn parse_arguments() -> Options {
     };
 
     let (selection, explicit) = parse_selection(&arguments);
-    assert!((points.is_none() && rounds.is_none()) || selection == Selection::Explicit, "--points and --rounds narrow a --contenders run\n\n{USAGE}");
-    Options { selection, explicit, points, rounds, trace_path, quick, sizes, threads, visits }
+    assert!(
+        (points.is_none() && rounds.is_none()) || selection == Selection::Explicit,
+        "--points and --rounds narrow a --contenders run\n\n{USAGE}"
+    );
+    Options {
+        selection,
+        explicit,
+        points,
+        rounds,
+        trace_path,
+        quick,
+        sizes,
+        threads,
+        visits,
+    }
 }
 
 /*
@@ -1640,10 +1917,20 @@ fn point_named(name: &str) -> usize {
         .map(|prefix| (prefix, &name[prefix.len()..]))
         .expect("the plain prefix matches every label");
     let wanted = |point: &Point| point.use_case.label_prefix() == prefix;
-    POINTS.iter().position(|point| point.label == label && wanted(point)).unwrap_or_else(|| {
-        let labels: Vec<String> = POINTS.iter().filter(|point| wanted(point)).map(|point| format!("{prefix}{}", point.label)).collect();
-        panic!("--points: no point {name:?}; the points named so are {}", labels.join(", "))
-    })
+    POINTS
+        .iter()
+        .position(|point| point.label == label && wanted(point))
+        .unwrap_or_else(|| {
+            let labels: Vec<String> = POINTS
+                .iter()
+                .filter(|point| wanted(point))
+                .map(|point| format!("{prefix}{}", point.label))
+                .collect();
+            panic!(
+                "--points: no point {name:?}; the points named so are {}",
+                labels.join(", ")
+            )
+        })
 }
 
 fn parse_selection(arguments: &[String]) -> (Selection, Vec<Algorithm>) {
@@ -1656,7 +1943,11 @@ fn parse_selection(arguments: &[String]) -> (Selection, Vec<Algorithm>) {
                     Ok(()) => "available".to_owned(),
                     Err(reason) => format!("unavailable: {reason}"),
                 };
-                println!("  {:<20} {:<22} {status}", algorithm.key(), algorithm.name());
+                println!(
+                    "  {:<20} {:<22} {status}",
+                    algorithm.key(),
+                    algorithm.name()
+                );
             }
             std::process::exit(0);
         }
@@ -1664,10 +1955,13 @@ fn parse_selection(arguments: &[String]) -> (Selection, Vec<Algorithm>) {
             let algorithms = keys
                 .split(',')
                 .map(|key| {
-                    Algorithm::ALL.into_iter().find(|algorithm| algorithm.key() == key.trim()).unwrap_or_else(|| {
-                        eprintln!("unknown contender {key:?}\n\n{USAGE}");
-                        std::process::exit(2);
-                    })
+                    Algorithm::ALL
+                        .into_iter()
+                        .find(|algorithm| algorithm.key() == key.trim())
+                        .unwrap_or_else(|| {
+                            eprintln!("unknown contender {key:?}\n\n{USAGE}");
+                            std::process::exit(2);
+                        })
                 })
                 .collect();
             (Selection::Explicit, algorithms)
@@ -1711,23 +2005,42 @@ fn main() {
     if arguments.first().map(String::as_str) == Some("map") {
         return map::command(&arguments[1..]);
     }
-    let Options { selection, explicit, points, rounds, trace_path, quick, sizes, threads, visits } = parse_arguments();
+    let Options {
+        selection,
+        explicit,
+        points,
+        rounds,
+        trace_path,
+        quick,
+        sizes,
+        threads,
+        visits,
+    } = parse_arguments();
     let mut trace = trace_path.map(ClockTrace::new);
     let mut machine = machine_metadata();
 
     let (algorithms, selection_note) = match selection {
-        Selection::Default => (DEFAULT_CONTENDERS.to_vec(), String::from("the default contenders")),
+        Selection::Default => (
+            DEFAULT_CONTENDERS.to_vec(),
+            String::from("the default contenders"),
+        ),
         Selection::All => (
             /* SHA-1DC, the slowest by far, runs in quick runs only when named. */
             Algorithm::ALL
                 .into_iter()
-                .filter(|algorithm| algorithm.availability().is_ok() && !BY_REQUEST.contains(algorithm))
+                .filter(|algorithm| {
+                    algorithm.availability().is_ok() && !BY_REQUEST.contains(algorithm)
+                })
                 .filter(|&algorithm| !quick || algorithm != Algorithm::Sha1Dc)
                 .collect(),
             String::from("every contender available on this machine but those run on request"),
         ),
         Selection::Explicit => {
-            let keys = explicit.iter().map(|algorithm| algorithm.key()).collect::<Vec<_>>().join(",");
+            let keys = explicit
+                .iter()
+                .map(|algorithm| algorithm.key())
+                .collect::<Vec<_>>()
+                .join(",");
             (explicit, format!("--contenders {keys}"))
         }
     };
@@ -1758,19 +2071,27 @@ fn main() {
 
     let directory = output_directory(&machine);
 
-    fs::create_dir_all(&directory).unwrap_or_else(|error| panic!("failed to create output directory {}: {error}", directory.display(),));
+    fs::create_dir_all(&directory).unwrap_or_else(|error| {
+        panic!(
+            "failed to create output directory {}: {error}",
+            directory.display(),
+        )
+    });
 
     let stem = "bench-hashes";
     let text_path = directory.join(format!("{stem}.result.txt"));
     let samples_path = directory.join(format!("{stem}.samples.tsv"));
     let samples = generate_samples_tsv(&roster, &samples, &machine, &selection_note);
-    fs::write(&samples_path, &samples).unwrap_or_else(|error| panic!("failed to write {}: {error}", samples_path.display()));
+    fs::write(&samples_path, &samples)
+        .unwrap_or_else(|error| panic!("failed to write {}: {error}", samples_path.display()));
 
-    fs::write(&text_path, &text).unwrap_or_else(|error| panic!("failed to write {}: {error}", text_path.display()));
+    fs::write(&text_path, &text)
+        .unwrap_or_else(|error| panic!("failed to write {}: {error}", text_path.display()));
 
     if whole {
         let guide_path = directory.join(format!("{stem}.guide.html"));
-        fs::write(&guide_path, generate_guide(&roster, &results, &machine)).unwrap_or_else(|error| panic!("failed to write {}: {error}", guide_path.display()));
+        fs::write(&guide_path, generate_guide(&roster, &results, &machine))
+            .unwrap_or_else(|error| panic!("failed to write {}: {error}", guide_path.display()));
         println!("# API guide (HTML) is in \"{}\" .", guide_path.display());
     } else {
         remove_guide(&directory);
@@ -1782,13 +2103,17 @@ fn main() {
     let chart_path = directory.join(format!("{stem}.chart.svg"));
     match chart::from_samples(samples_path.to_str().expect("a path in UTF-8")) {
         Some(chart) => {
-            fs::write(&chart_path, chart).unwrap_or_else(|error| panic!("failed to write {}: {error}", chart_path.display()));
+            fs::write(&chart_path, chart).unwrap_or_else(|error| {
+                panic!("failed to write {}: {error}", chart_path.display())
+            });
             println!("# Speed chart (SVG) is in \"{}\" .", chart_path.display());
         }
         None => {
             // A quick run has no 128 MiB cells: no chart, and none left from an older run.
             if chart_path.exists() {
-                fs::remove_file(&chart_path).unwrap_or_else(|error| panic!("failed to remove stale {}: {error}", chart_path.display()));
+                fs::remove_file(&chart_path).unwrap_or_else(|error| {
+                    panic!("failed to remove stale {}: {error}", chart_path.display())
+                });
             }
         }
     }
@@ -1800,7 +2125,9 @@ fn remove_guide(directory: &std::path::Path) {
     for name in ["bench-hashes.guide.html"] {
         let path = directory.join(name);
         if path.exists() {
-            fs::remove_file(&path).unwrap_or_else(|error| panic!("failed to remove stale {}: {error}", path.display()));
+            fs::remove_file(&path).unwrap_or_else(|error| {
+                panic!("failed to remove stale {}: {error}", path.display())
+            });
         }
     }
 }
@@ -1811,7 +2138,11 @@ fn remove_guide(directory: &std::path::Path) {
  * handful of orders stand in for all permutations.
  */
 fn assert_orders_balanced(rows: &[Vec<usize>], n: usize) {
-    assert_eq!(rows.len() % n, 0, "the order count must be a multiple of the contender count");
+    assert_eq!(
+        rows.len() % n,
+        0,
+        "the order count must be a multiple of the contender count"
+    );
     let per_position = rows.len() / n;
     let per_adjacency = rows.len() / n;
 
@@ -1836,7 +2167,11 @@ fn assert_orders_balanced(rows: &[Vec<usize>], n: usize) {
             );
         }
         for follower in 0..n {
-            let expected = if follower == algorithm { 0 } else { per_adjacency };
+            let expected = if follower == algorithm {
+                0
+            } else {
+                per_adjacency
+            };
             assert_eq!(
                 adjacencies[algorithm][follower], expected,
                 "contender {follower} must run right after {algorithm} {expected} time(s) across the orders"
@@ -1847,10 +2182,16 @@ fn assert_orders_balanced(rows: &[Vec<usize>], n: usize) {
 
 /// The measured cell of a contender that takes part at this point.
 fn cell(results: &Results, algorithm_index: usize, point_index: usize) -> &Cell {
-    results[algorithm_index][point_index].as_ref().expect("the contender takes part in this point's use case")
+    results[algorithm_index][point_index]
+        .as_ref()
+        .expect("the contender takes part in this point's use case")
 }
 
-fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Sizes) -> (Results, RunSamples, Vec<clocks::load::Window>) {
+fn measure_all(
+    roster: &Roster,
+    mut trace: Option<&mut ClockTrace>,
+    sizes: &Sizes,
+) -> (Results, RunSamples, Vec<clocks::load::Window>) {
     /* Inputs for the points measured; an empty buffer stands in for the rest. */
     /*
      * The bytes are irrelevant to every contender's speed, so each point
@@ -1861,15 +2202,36 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
      * in a full run.)
      */
     let largest = |wanted: &dyn Fn(usize) -> bool| {
-        (0..POINT_COUNT).filter(|&index| roster.measures(index) && wanted(index)).map(|index| POINTS[index].bytes).max().unwrap_or(0)
+        (0..POINT_COUNT)
+            .filter(|&index| roster.measures(index) && wanted(index))
+            .map(|index| POINTS[index].bytes)
+            .max()
+            .unwrap_or(0)
     };
     let own = make_input_seeded(largest(&|_| true), 0);
-    let other = make_input_seeded(largest(&|index| Scenario::Shared.measures(POINTS[index].use_case)), 1);
+    let other = make_input_seeded(
+        largest(&|index| Scenario::Shared.measures(POINTS[index].use_case)),
+        1,
+    );
     let prefixes = |buffer: &[u8]| -> Vec<std::ops::Range<usize>> {
-        (0..POINT_COUNT).map(|index| if roster.measures(index) && POINTS[index].bytes <= buffer.len() { 0..POINTS[index].bytes } else { 0..0 }).collect()
+        (0..POINT_COUNT)
+            .map(|index| {
+                if roster.measures(index) && POINTS[index].bytes <= buffer.len() {
+                    0..POINTS[index].bytes
+                } else {
+                    0..0
+                }
+            })
+            .collect()
     };
-    let inputs: Vec<&[u8]> = prefixes(&own).into_iter().map(|range| &own[range]).collect();
-    let duo_inputs: Vec<&[u8]> = prefixes(&other).into_iter().map(|range| &other[range]).collect();
+    let inputs: Vec<&[u8]> = prefixes(&own)
+        .into_iter()
+        .map(|range| &own[range])
+        .collect();
+    let duo_inputs: Vec<&[u8]> = prefixes(&other)
+        .into_iter()
+        .map(|range| &other[range])
+        .collect();
     let mut progress = Progress::new(roster);
     let duo = Duo::new();
 
@@ -1879,7 +2241,15 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
      * The digest checks have already called each contender at every point.
      * Startup and calibration both happen before the timed samples.
      */
-    let empty = || -> Samples { (0..roster.len()).map(|_| (0..POINT_COUNT).map(|_| Vec::with_capacity(2 * roster.rounds)).collect()).collect() };
+    let empty = || -> Samples {
+        (0..roster.len())
+            .map(|_| {
+                (0..POINT_COUNT)
+                    .map(|_| Vec::with_capacity(2 * roster.rounds))
+                    .collect()
+            })
+            .collect()
+    };
     let mut samples = RunSamples {
         solo: empty(),
         shared: empty(),
@@ -1891,7 +2261,10 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
         shared_counts: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
     };
     let mut batch_iterations: Vec<Vec<usize>> = vec![vec![1usize; POINT_COUNT]; roster.len()];
-    let point_orders: Vec<_> = POINTS.iter().map(|point| participating_orders(&roster.algorithms, point.use_case)).collect();
+    let point_orders: Vec<_> = POINTS
+        .iter()
+        .map(|point| participating_orders(&roster.algorithms, point.use_case))
+        .collect();
     /* Other programs' load: clocks reads it between samples, by itself. */
     clocks::load::tick();
     let measuring_from_ns = clocks::load::now_ns();
@@ -1915,19 +2288,39 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
         for (point_index, point) in POINTS.iter().enumerate() {
             for algorithm_index in 0..roster.len() {
                 let algorithm = roster.algorithms[algorithm_index];
-                if algorithm.takes_part(point.use_case) && roster.measures(point_index) && point.use_case.pattern_key() == pattern {
+                if algorithm.takes_part(point.use_case)
+                    && roster.measures(point_index)
+                    && point.use_case.pattern_key() == pattern
+                {
                     if let Sizes::From(given) = sizes {
                         let iterations = *given
                             .get(&(algorithm.key().to_owned(), point_index))
-                            .unwrap_or_else(|| panic!("--sizes: no size for {} at {}{}", algorithm.key(), point.use_case.label_prefix(), point.label));
+                            .unwrap_or_else(|| {
+                                panic!(
+                                    "--sizes: no size for {} at {}{}",
+                                    algorithm.key(),
+                                    point.use_case.label_prefix(),
+                                    point.label
+                                )
+                            });
                         // One untimed sample warms the cell, as calibration did;
                         // for a cell after gaps, one call (its calls meet a cold
                         // machine by design, and each takes a gap).
-                        take_sample(algorithm, inputs[point_index], *point, if point.use_case.after_gap() { 1 } else { iterations });
+                        take_sample(
+                            algorithm,
+                            inputs[point_index],
+                            *point,
+                            if point.use_case.after_gap() {
+                                1
+                            } else {
+                                iterations
+                            },
+                        );
                         batch_iterations[algorithm_index][point_index] = iterations;
                         continue;
                     }
-                    let (iterations, per_iteration_ns) = calibrate_batch(algorithm, inputs[point_index], *point);
+                    let (iterations, per_iteration_ns) =
+                        calibrate_batch(algorithm, inputs[point_index], *point);
                     /*
                      * A synchronous cell's sample: calls after the gap summing
                      * about GAP_SAMPLE_NS (one at least), from calls timed
@@ -1937,8 +2330,10 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
                      */
                     batch_iterations[algorithm_index][point_index] = if point.use_case.after_gap() {
                         let input = inputs[point_index];
-                        let timed = take_sample(algorithm, input, *point, CALIBRATION_GAPS as usize);
-                        let per_call_ns = u128::from(timed.elapsed_ns) / u128::from(CALIBRATION_GAPS);
+                        let timed =
+                            take_sample(algorithm, input, *point, CALIBRATION_GAPS as usize);
+                        let per_call_ns =
+                            u128::from(timed.elapsed_ns) / u128::from(CALIBRATION_GAPS);
                         GAP_SAMPLE_NS.div_ceil(per_call_ns.max(per_iteration_ns).max(1)) as usize
                     } else {
                         iterations
@@ -1985,7 +2380,11 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
                 let orders = &point_orders[size_index];
                 if point.use_case.pattern_key() != pattern
                     || orders.is_empty()
-                    || !cell_wants_sample(round + size_index, roster.rounds, point.use_case.visits(roster.visits))
+                    || !cell_wants_sample(
+                        round + size_index,
+                        roster.rounds,
+                        point.use_case.visits(roster.visits),
+                    )
                 {
                     continue;
                 }
@@ -2000,14 +2399,23 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
 
                     /* The solo sample: this thread runs the batch, alone. */
                     clocks::load::tick();
-                    let DuoCopy { elapsed_ns, counts, preparation, started_ns, cpu_ns, energy_nj } = take_sample(algorithm, input, point, iterations);
+                    let DuoCopy {
+                        elapsed_ns,
+                        counts,
+                        preparation,
+                        started_ns,
+                        cpu_ns,
+                        energy_nj,
+                    } = take_sample(algorithm, input, point, iterations);
 
                     /*
                      * The shared sample, under the same conditions, for the
                      * nonstop use cases: two copies run a batch each at once,
                      * on two threads, and each copy's own time is a sample.
                      */
-                    let copies = Scenario::Shared.measures(point.use_case).then(|| duo.run(algorithm, input, duo_inputs[size_index], point, iterations));
+                    let copies = Scenario::Shared.measures(point.use_case).then(|| {
+                        duo.run(algorithm, input, duo_inputs[size_index], point, iterations)
+                    });
 
                     let total_units = point.use_case.units(point, iterations);
                     let per_unit = |ns: u64| Measured::new(ns, total_units);
@@ -2018,7 +2426,8 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
                     samples.solo_counts[algorithm_index][size_index].push(counts);
                     for copy in copies.iter().flatten() {
                         samples.shared[algorithm_index][size_index].push(per_unit(copy.elapsed_ns));
-                        samples.shared_started_ns[algorithm_index][size_index].push(copy.started_ns);
+                        samples.shared_started_ns[algorithm_index][size_index]
+                            .push(copy.started_ns);
                         samples.shared_counts[algorithm_index][size_index].push(copy.counts);
                     }
 
@@ -2026,12 +2435,27 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
                         /* A solo row leaves the shared columns empty. */
                         let (later, copy_fields) = match &copies {
                             Some(copies) => (
-                                copies.iter().map(|copy| copy.elapsed_ns).max().unwrap().to_string(),
-                                format!("{},{},{},{}", copies[0].elapsed_ns, counts_csv(copies[0].counts), copies[1].elapsed_ns, counts_csv(copies[1].counts)),
+                                copies
+                                    .iter()
+                                    .map(|copy| copy.elapsed_ns)
+                                    .max()
+                                    .unwrap()
+                                    .to_string(),
+                                format!(
+                                    "{},{},{},{}",
+                                    copies[0].elapsed_ns,
+                                    counts_csv(copies[0].counts),
+                                    copies[1].elapsed_ns,
+                                    counts_csv(copies[1].counts)
+                                ),
                             ),
                             None => (String::new(), format!(",{NO_COUNTS},,{NO_COUNTS}")),
                         };
-                        let scenario = if copies.is_some() { "solo and shared" } else { "solo" };
+                        let scenario = if copies.is_some() {
+                            "solo and shared"
+                        } else {
+                            "solo"
+                        };
                         trace.lines.push(format!(
                             "{round},{},{},{},{iterations},{elapsed_ns},{},{:?},{later},{copy_fields},{scenario}",
                             point_offset * algorithm_order.len() + position,
@@ -2041,15 +2465,14 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
                             point.use_case,
                         ));
                         if let Some(preparation) = preparation {
-                            assert!(copies.is_none(), "a use case with a preparation runs after a gap, alone");
+                            assert!(
+                                copies.is_none(),
+                                "a use case with a preparation runs after a gap, alone"
+                            );
                             trace.lines.push(format!(
                                 "{round},{},{},{},{iterations},{},{},{:?},,,{NO_COUNTS},,{NO_COUNTS},preparation solo",
-                                point_offset * algorithm_order.len() + position,
-                                algorithm.key(),
-                                input.len(),
-                                preparation.wall_ns,
-                                counts_csv(preparation.counts),
-                                point.use_case,
+                                point_offset * algorithm_order.len() + position, algorithm.key(), input.len(),
+                                preparation.wall_ns, counts_csv(preparation.counts), point.use_case,
                             ));
                         }
                     }
@@ -2059,21 +2482,40 @@ fn measure_all(roster: &Roster, mut trace: Option<&mut ClockTrace>, sizes: &Size
     }
 
     progress.finish(&samples.solo);
-    let load: Vec<clocks::load::Window> = clocks::load::windows().into_iter().filter(|window| window.end_ns > measuring_from_ns).collect();
+    let load: Vec<clocks::load::Window> = clocks::load::windows()
+        .into_iter()
+        .filter(|window| window.end_ns > measuring_from_ns)
+        .collect();
 
     let mut results: Results = vec![vec![None; POINT_COUNT]; roster.len()];
 
     for algorithm_index in 0..roster.len() {
         for (size_index, point) in POINTS.iter().enumerate() {
-            if !roster.algorithms[algorithm_index].takes_part(point.use_case) || !roster.measures(size_index) {
+            if !roster.algorithms[algorithm_index].takes_part(point.use_case)
+                || !roster.measures(size_index)
+            {
                 continue;
             }
             let solo = &samples.solo[algorithm_index][size_index];
             let shared = &samples.shared[algorithm_index][size_index];
-            let copies = if Scenario::Shared.measures(point.use_case) { 2 } else { 0 };
-            assert!(!solo.is_empty() && solo.len() <= roster.rounds, "one solo sample per round at most, and one at least");
-            assert_eq!(shared.len(), copies * solo.len(), "two shared samples, one per copy, beside every solo sample of a nonstop cell");
-            results[algorithm_index][size_index] = Some(Cell { solo: Mean::of(solo), shared: (copies > 0).then(|| Mean::of(shared)) });
+            let copies = if Scenario::Shared.measures(point.use_case) {
+                2
+            } else {
+                0
+            };
+            assert!(
+                !solo.is_empty() && solo.len() <= roster.rounds,
+                "one solo sample per round at most, and one at least"
+            );
+            assert_eq!(
+                shared.len(),
+                copies * solo.len(),
+                "two shared samples, one per copy, beside every solo sample of a nonstop cell"
+            );
+            results[algorithm_index][size_index] = Some(Cell {
+                solo: Mean::of(solo),
+                shared: (copies > 0).then(|| Mean::of(shared)),
+            });
         }
     }
 
@@ -2100,23 +2542,37 @@ impl<'a> Progress<'a> {
 
     fn new(roster: &'a Roster) -> Self {
         let interactive = std::io::stderr().is_terminal();
-        Self { roster, started: clocks::now(), measuring_started: None, interactive, last_width: 0 }
+        Self {
+            roster,
+            started: clocks::now(),
+            measuring_started: None,
+            interactive,
+            last_width: 0,
+        }
     }
 
     fn phase(&mut self, name: &str) {
         if name.starts_with("measuring") {
             self.measuring_started = Some(clocks::now());
         }
-        self.draw(&format!("[{:>5}s] {name}…", tenths_of_seconds(self.started.elapsed())));
+        self.draw(&format!(
+            "[{:>5}s] {name}…",
+            tenths_of_seconds(self.started.elapsed())
+        ));
     }
 
     /* Called at the start of each round; `samples` holds every round so far. */
     fn round(&mut self, round: usize, samples: &Samples) {
-        self.round_inner(round, &running_means(self.roster, samples, self.roster.progress_point()));
+        self.round_inner(
+            round,
+            &running_means(self.roster, samples, self.roster.progress_point()),
+        );
     }
 
     fn round_inner(&mut self, round: usize, medians: &str) {
-        let measuring_started = self.measuring_started.expect("round() runs inside the measuring phase");
+        let measuring_started = self
+            .measuring_started
+            .expect("round() runs inside the measuring phase");
 
         let rounds = self.roster.rounds;
         let filled = (round * Self::BAR_WIDTH + rounds / 2) / rounds;
@@ -2131,17 +2587,28 @@ impl<'a> Progress<'a> {
             " estimating".to_owned()
         };
 
-        self.draw(&format!("[{:>5}s] measuring {bar} {:>3}/{rounds} rounds · {remaining} · {medians}", tenths_of_seconds(self.started.elapsed()), round,));
+        self.draw(&format!(
+            "[{:>5}s] measuring {bar} {:>3}/{rounds} rounds · {remaining} · {medians}",
+            tenths_of_seconds(self.started.elapsed()),
+            round,
+        ));
     }
 
     fn finish(&mut self, samples: &Samples) {
-        self.finish_inner(&running_means(self.roster, samples, self.roster.progress_point()));
+        self.finish_inner(&running_means(
+            self.roster,
+            samples,
+            self.roster.progress_point(),
+        ));
     }
 
     fn finish_inner(&mut self, medians: &str) {
         let bar = "█".repeat(Self::BAR_WIDTH);
         let rounds = self.roster.rounds;
-        self.draw(&format!("[{:>5}s] measured  {bar} {rounds}/{rounds} rounds · {medians}", tenths_of_seconds(self.started.elapsed()),));
+        self.draw(&format!(
+            "[{:>5}s] measured  {bar} {rounds}/{rounds} rounds · {medians}",
+            tenths_of_seconds(self.started.elapsed()),
+        ));
         eprintln!();
     }
 
@@ -2170,14 +2637,23 @@ fn tenths_of_seconds(duration: std::time::Duration) -> String {
 }
 
 fn running_means(roster: &Roster, samples: &Samples, size_index: usize) -> String {
-    if samples.iter().all(|contender| contender[size_index].is_empty()) {
+    if samples
+        .iter()
+        .all(|contender| contender[size_index].is_empty())
+    {
         return format!("means at {} pending", POINTS[size_index].label);
     }
 
     /* Contenders that take no part in this point's use case have no samples there. */
     let parts: Vec<String> = (0..roster.len())
         .filter(|&algorithm_index| !samples[algorithm_index][size_index].is_empty())
-        .map(|algorithm_index| format!("{} {}", roster.algorithms[algorithm_index].name(), Mean::of(&samples[algorithm_index][size_index]).format_ns(1)))
+        .map(|algorithm_index| {
+            format!(
+                "{} {}",
+                roster.algorithms[algorithm_index].name(),
+                Mean::of(&samples[algorithm_index][size_index]).format_ns(1)
+            )
+        })
         .collect();
 
     format!("{} ns/B at {}", parts.join(" · "), POINTS[size_index].label)
@@ -2196,7 +2672,9 @@ fn make_input_seeded(size: usize, seed: u64) -> Vec<u8> {
      * contents. Hash speed does not depend on the bytes. Generated
      * outside timed intervals.
      */
-    let mut input: Vec<u8> = (0..size.div_ceil(8) as u64).flat_map(|index| (seed << 48 | index).to_le_bytes()).collect();
+    let mut input: Vec<u8> = (0..size.div_ceil(8) as u64)
+        .flat_map(|index| (seed << 48 | index).to_le_bytes())
+        .collect();
     input.truncate(size);
     input
 }
@@ -2234,7 +2712,11 @@ fn use_digest(digests: &[u8]) {
             return;
         }
         let (mut run, rest) = digests.as_chunks::<32>();
-        assert!(rest.is_empty(), "a run of 32-byte digests, {} bytes", digests.len());
+        assert!(
+            rest.is_empty(),
+            "a run of 32-byte digests, {} bytes",
+            digests.len()
+        );
         while !run.is_empty() {
             let at = *next % DIGEST_SLOTS;
             let n = run.len().min(DIGEST_SLOTS - at);
@@ -2271,14 +2753,20 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
                 let measured = take_prepared_sample(input, iterations, idle, |input| {
                     #[cfg(test)]
                     observe_call("hash_many");
-                    hash_many(black_box(input), MESSAGE_LEN, &mut digests[..point.messages]);
+                    hash_many(
+                        black_box(input),
+                        MESSAGE_LEN,
+                        &mut digests[..point.messages],
+                    );
                     black_box(digests[..point.messages].as_flattened());
                 });
                 keep_batch_digests(digests);
                 return measured;
             }
         }
-        return take_prepared_sample(input, iterations, idle, |input| run_batch(algorithm, input, point, 1));
+        return take_prepared_sample(input, iterations, idle, |input| {
+            run_batch(algorithm, input, point, 1)
+        });
     }
     let started_ns = clocks::load::now_ns();
     let cpu0 = clocks::process_cpu_ns();
@@ -2287,21 +2775,43 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
     let started = clocks::now();
     run_batch(algorithm, input, point, iterations);
     let elapsed_ns = clocks::since_ns(started);
-    let counts = counts0.zip(clocks::Counts::read()).map(|(before, after)| after.since(before));
-    let energy_nj = energy0.zip(clocks::energy::package_nj()).map(|(before, after)| after - before);
-    let cpu_ns = cpu0.zip(clocks::process_cpu_ns()).map(|(before, after)| after - before);
-    DuoCopy { elapsed_ns, counts, preparation: None, started_ns, cpu_ns, energy_nj }
+    let counts = counts0
+        .zip(clocks::Counts::read())
+        .map(|(before, after)| after.since(before));
+    let energy_nj = energy0
+        .zip(clocks::energy::package_nj())
+        .map(|(before, after)| after - before);
+    let cpu_ns = cpu0
+        .zip(clocks::process_cpu_ns())
+        .map(|(before, after)| after - before);
+    DuoCopy {
+        elapsed_ns,
+        counts,
+        preparation: None,
+        started_ns,
+        cpu_ns,
+        energy_nj,
+    }
 }
 
 /// Prepare and time an already-selected call, each after the program
 /// idled (`idle`) or after its other work. The producer and work buffers
 /// stay outside the API's interval, as does dispatch selection.
-fn take_prepared_sample(input: &[u8], iterations: usize, idle: bool, mut call: impl FnMut(&[u8])) -> DuoCopy {
+fn take_prepared_sample(
+    input: &[u8],
+    iterations: usize,
+    idle: bool,
+    mut call: impl FnMut(&[u8]),
+) -> DuoCopy {
     GAP_BUFFERS.with(|kept| {
         let mut buffers = kept.borrow_mut();
         let (work, produced) = &mut *buffers;
         produced.resize(input.len(), 0);
-        let gap = if idle { clocks::Gap::Idle } else { clocks::Gap::Busy(work) };
+        let gap = if idle {
+            clocks::Gap::Idle
+        } else {
+            clocks::Gap::Busy(work)
+        };
         let started_ns = clocks::load::now_ns();
         let measured = clocks::measure_after_gaps_prepared(
             iterations as u64,
@@ -2313,7 +2823,11 @@ fn take_prepared_sample(input: &[u8], iterations: usize, idle: bool, mut call: i
         );
         // The write and the call, both the program's work (FROZEN.md, Zooko,
         // October 3, 2026); the trace keeps the write's own share.
-        let counts = measured.calls.counts.zip(measured.preparation.counts).map(|(call, write)| call.plus(write));
+        let counts = measured
+            .calls
+            .counts
+            .zip(measured.preparation.counts)
+            .map(|(call, write)| call.plus(write));
         DuoCopy {
             elapsed_ns: measured.calls.wall_ns + measured.preparation.wall_ns,
             counts,
@@ -2345,13 +2859,24 @@ fn one_message_call(algorithm: Algorithm) -> fn(&[u8]) {
             observe_call("hash");
             use_digest(blake3_servil::hash(input).as_bytes());
         },
-        Algorithm::Blake3ServilMt => |input| use_digest(blake3_servil::hash_multithreaded(input).as_bytes()),
+        Algorithm::Blake3ServilMt => {
+            |input| use_digest(blake3_servil::hash_multithreaded(input).as_bytes())
+        }
         Algorithm::Sha256 => |input| use_digest(&Sha256::digest(input)),
-        Algorithm::Sha256Ring => |input| use_digest(ring::digest::digest(&ring::digest::SHA256, input).as_ref()),
+        Algorithm::Sha256Ring => {
+            |input| use_digest(ring::digest::digest(&ring::digest::SHA256, input).as_ref())
+        }
         Algorithm::Sha256CommonCrypto => |input| use_digest(&common_crypto::sha256(input)),
         Algorithm::Sha3_256 => |input| use_digest(&sha3::Sha3_256::digest(input)),
         Algorithm::Sha1Dc => |input| use_digest(sha1_checked::Sha1::try_digest(input).hash()),
-        Algorithm::Blake3Rayon => |input| use_digest(blake3::Hasher::new().update_rayon(input).finalize().as_bytes()),
+        Algorithm::Blake3Rayon => |input| {
+            use_digest(
+                blake3::Hasher::new()
+                    .update_rayon(input)
+                    .finalize()
+                    .as_bytes(),
+            )
+        },
     }
 }
 
@@ -2375,56 +2900,123 @@ thread_local! {
  * hashes the messages one call each through its plain entry point. The
  * contender must take part in the point's use case.
  */
-fn hash_batch(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, consume: impl FnMut(&[u8])) {
+fn hash_batch(
+    algorithm: Algorithm,
+    input: &[u8],
+    point: Point,
+    iterations: usize,
+    consume: impl FnMut(&[u8]),
+) {
     assert!(iterations > 0, "batch size must be positive");
     let messages = point.messages;
-    let message_len = if point.use_case.batch() { point.use_case.message_len() } else { input.len() };
+    let message_len = if point.use_case.batch() {
+        point.use_case.message_len()
+    } else {
+        input.len()
+    };
     assert!(
         messages == 1
-            || matches!(point.use_case, UseCase::Collection | UseCase::ContinuousCollection | UseCase::MerkleTree)
+            || matches!(
+                point.use_case,
+                UseCase::Collection | UseCase::ContinuousCollection | UseCase::MerkleTree
+            )
             || input.len() == messages * message_len,
         "a batch is {messages} messages of {message_len} bytes"
     );
-    assert!(algorithm.takes_part(point.use_case), "{} takes no part in {:?}", algorithm.key(), point.use_case);
+    assert!(
+        algorithm.takes_part(point.use_case),
+        "{} takes no part in {:?}",
+        algorithm.key(),
+        point.use_case
+    );
 
     match point.use_case {
         UseCase::Interleaved | UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => {
             return hash_interleaved(algorithm, input, point.bytes, iterations, consume)
         }
-        UseCase::Collection => return hash_collection(algorithm, input, point, iterations, consume),
-        UseCase::ContinuousCollection => return hash_continuous_collection(algorithm, input, point, iterations, consume),
+        UseCase::Collection => {
+            return hash_collection(algorithm, input, point, iterations, consume)
+        }
+        UseCase::ContinuousCollection => {
+            return hash_continuous_collection(algorithm, input, point, iterations, consume)
+        }
         UseCase::Outboard => return hash_outboard(algorithm, input, iterations, consume),
         UseCase::Verify => return hash_verify(algorithm, input, iterations, consume),
-        UseCase::ContinuousMessages => return hash_continuous_messages(algorithm, input, iterations, consume),
-        UseCase::ContinuousBatches => return hash_continuous_batches(algorithm, input, point, iterations, consume),
-        UseCase::LentMessages | UseCase::LentBatches => return hash_lent(algorithm, input, point, iterations, consume),
-        UseCase::MerkleTree => return hash_merkle(algorithm, input, point, iterations, consume),
-        UseCase::OneMessage | UseCase::IdleOneMessage | UseCase::ManyMessages | UseCase::IdleManyMessages => {
-            hash_in_memory(algorithm, input, point, iterations, consume)
+        UseCase::ContinuousMessages => {
+            return hash_continuous_messages(algorithm, input, iterations, consume)
         }
+        UseCase::ContinuousBatches => {
+            return hash_continuous_batches(algorithm, input, point, iterations, consume)
+        }
+        UseCase::LentMessages | UseCase::LentBatches => {
+            return hash_lent(algorithm, input, point, iterations, consume)
+        }
+        UseCase::MerkleTree => return hash_merkle(algorithm, input, point, iterations, consume),
+        UseCase::OneMessage
+        | UseCase::IdleOneMessage
+        | UseCase::ManyMessages
+        | UseCase::IdleManyMessages => hash_in_memory(algorithm, input, point, iterations, consume),
     }
 }
 
 /// hash_batch for the use cases whose input is in memory: one message, or
 /// a batch of them.
-fn hash_in_memory(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, consume: impl FnMut(&[u8])) {
-    let message_len = if point.use_case.batch() { point.use_case.message_len() } else { input.len() };
-    hash_messages(algorithm, input, point.messages, message_len, point.use_case.batch(), iterations, consume);
+fn hash_in_memory(
+    algorithm: Algorithm,
+    input: &[u8],
+    point: Point,
+    iterations: usize,
+    consume: impl FnMut(&[u8]),
+) {
+    let message_len = if point.use_case.batch() {
+        point.use_case.message_len()
+    } else {
+        input.len()
+    };
+    hash_messages(
+        algorithm,
+        input,
+        point.messages,
+        message_len,
+        point.use_case.batch(),
+        iterations,
+        consume,
+    );
 }
 
 /// `messages` messages of `message_len` bytes back to back in `input`,
 /// each contender's way: through its batch call where `batch` and it has
 /// one, else one call each; every digest into `consume`.
-fn hash_messages(algorithm: Algorithm, input: &[u8], messages: usize, message_len: usize, batch: bool, iterations: usize, consume: impl FnMut(&[u8])) {
+fn hash_messages(
+    algorithm: Algorithm,
+    input: &[u8],
+    messages: usize,
+    message_len: usize,
+    batch: bool,
+    iterations: usize,
+    consume: impl FnMut(&[u8]),
+) {
     match algorithm {
         Algorithm::Blake3 => {
             if !batch {
-                each_message(input, message_len, iterations, |m| *blake3::hash(m).as_bytes(), consume)
+                each_message(
+                    input,
+                    message_len,
+                    iterations,
+                    |m| *blake3::hash(m).as_bytes(),
+                    consume,
+                )
             } else {
                 blake3_batch(input, message_len, None, iterations, consume)
             }
         }
-        Algorithm::Sha256 => each_message(input, message_len, iterations, |m| Sha256::digest(m), consume),
+        Algorithm::Sha256 => each_message(
+            input,
+            message_len,
+            iterations,
+            |m| Sha256::digest(m),
+            consume,
+        ),
         Algorithm::Sha3_256 => each_message(
             input,
             message_len,
@@ -2449,22 +3041,69 @@ fn hash_messages(algorithm: Algorithm, input: &[u8], messages: usize, message_le
         ),
         Algorithm::Blake3ServilSt => {
             if !batch {
-                each_message(input, message_len, iterations, |m| *blake3_servil::hash(m).as_bytes(), consume)
+                each_message(
+                    input,
+                    message_len,
+                    iterations,
+                    |m| *blake3_servil::hash(m).as_bytes(),
+                    consume,
+                )
             } else {
-                servil_batch(input, messages, message_len, iterations, blake3_servil::hash_many, consume)
+                servil_batch(
+                    input,
+                    messages,
+                    message_len,
+                    iterations,
+                    blake3_servil::hash_many,
+                    consume,
+                )
             }
         }
-        Algorithm::Sha256CommonCrypto => each_message(input, message_len, iterations, |m| common_crypto::sha256(m), consume),
-        Algorithm::Sha256Ring => each_message(input, message_len, iterations, |m| ring::digest::digest(&ring::digest::SHA256, m), consume),
+        Algorithm::Sha256CommonCrypto => each_message(
+            input,
+            message_len,
+            iterations,
+            |m| common_crypto::sha256(m),
+            consume,
+        ),
+        Algorithm::Sha256Ring => each_message(
+            input,
+            message_len,
+            iterations,
+            |m| ring::digest::digest(&ring::digest::SHA256, m),
+            consume,
+        ),
         Algorithm::Blake3Rayon => {
-            assert_eq!(messages, 1, "BLAKE3 mt takes no part in the many-messages use case");
-            each_message(input, message_len, iterations, |m| *blake3::Hasher::new().update_rayon(m).finalize().as_bytes(), consume)
+            assert_eq!(
+                messages, 1,
+                "BLAKE3 mt takes no part in the many-messages use case"
+            );
+            each_message(
+                input,
+                message_len,
+                iterations,
+                |m| *blake3::Hasher::new().update_rayon(m).finalize().as_bytes(),
+                consume,
+            )
         }
         Algorithm::Blake3ServilMt => {
             if !batch {
-                each_message(input, message_len, iterations, |m| *blake3_servil::hash_multithreaded(m).as_bytes(), consume)
+                each_message(
+                    input,
+                    message_len,
+                    iterations,
+                    |m| *blake3_servil::hash_multithreaded(m).as_bytes(),
+                    consume,
+                )
             } else {
-                servil_batch(input, messages, message_len, iterations, blake3_servil::hash_many_multithreaded, consume)
+                servil_batch(
+                    input,
+                    messages,
+                    message_len,
+                    iterations,
+                    blake3_servil::hash_many_multithreaded,
+                    consume,
+                )
             }
         }
     }
@@ -2478,7 +3117,12 @@ fn hash_messages(algorithm: Algorithm, input: &[u8], messages: usize, message_le
  * with outboard_with (one thread) or outboard_multithreaded_with; all give
  * the same bytes.
  */
-fn hash_outboard(algorithm: Algorithm, input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8])) {
+fn hash_outboard(
+    algorithm: Algorithm,
+    input: &[u8],
+    iterations: usize,
+    mut consume: impl FnMut(&[u8]),
+) {
     let mut buffers = take_buffers(1, input.len());
     for _ in 0..iterations {
         let buffer = &mut buffers[0];
@@ -2486,12 +3130,19 @@ fn hash_outboard(algorithm: Algorithm, input: &[u8], iterations: usize, mut cons
         buffer.extend_from_slice(black_box(input));
         match algorithm {
             Algorithm::Blake3 => {
-                let outboard = bao_tree::io::outboard::PreOrderMemOutboard::create(&buffer[..], bao_tree::BlockSize::from_chunk_log(4));
+                let outboard = bao_tree::io::outboard::PreOrderMemOutboard::create(
+                    &buffer[..],
+                    bao_tree::BlockSize::from_chunk_log(4),
+                );
                 consume(outboard.root.as_bytes());
                 black_box(&outboard.data);
             }
             Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt => {
-                let build = if algorithm == Algorithm::Blake3ServilSt { blake3_servil::outboard_with } else { blake3_servil::outboard_multithreaded_with };
+                let build = if algorithm == Algorithm::Blake3ServilSt {
+                    blake3_servil::outboard_with
+                } else {
+                    blake3_servil::outboard_multithreaded_with
+                };
                 let (hash, outboard) = build(blake3_servil::Mode::Hash, &buffer[..]);
                 consume(hash.as_bytes());
                 black_box(&outboard);
@@ -2515,7 +3166,12 @@ fn hash_outboard(algorithm: Algorithm, input: &[u8], iterations: usize, mut cons
  * servil fork with a Verifier fed each piece. Both copy each received
  * byte in and each verified byte out once.
  */
-fn hash_verify(algorithm: Algorithm, input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8])) {
+fn hash_verify(
+    algorithm: Algorithm,
+    input: &[u8],
+    iterations: usize,
+    mut consume: impl FnMut(&[u8]),
+) {
     let (hash, encoded) = encoding(input);
     let mut buffers = take_buffers(1, input.len());
     let mut piece = STREAM_BUFFER.with(|kept| std::mem::take(&mut *kept.borrow_mut()));
@@ -2542,16 +3198,31 @@ fn hash_verify(algorithm: Algorithm, input: &[u8], iterations: usize, mut consum
                         Ok(n)
                     }
                 }
-                let tree = bao_tree::BaoTree::new(input.len() as u64, bao_tree::BlockSize::from_chunk_log(4));
+                let tree = bao_tree::BaoTree::new(
+                    input.len() as u64,
+                    bao_tree::BlockSize::from_chunk_log(4),
+                );
                 let root = bao_tree::blake3::Hash::from_bytes(hash);
                 let outboard = bao_tree::io::outboard::EmptyOutboard { tree, root };
                 let target: &mut [u8] = &mut message[..];
-                bao_tree::io::sync::decode_ranges(Received { rest: received, piece: &mut piece }, &bao_tree::ChunkRanges::all(), target, outboard)
-                    .unwrap_or_else(|e| panic!("bao-tree refused its own encoding: {e}"));
+                bao_tree::io::sync::decode_ranges(
+                    Received {
+                        rest: received,
+                        piece: &mut piece,
+                    },
+                    &bao_tree::ChunkRanges::all(),
+                    target,
+                    outboard,
+                )
+                .unwrap_or_else(|e| panic!("bao-tree refused its own encoding: {e}"));
             }
             // A Verifier has no multithreaded form: both servil contenders use it.
             Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt => {
-                let mut verifier = blake3_servil::Verifier::new(blake3_servil::Mode::Hash, &blake3_servil::Hash::from_bytes(hash), input.len() as u64);
+                let mut verifier = blake3_servil::Verifier::new(
+                    blake3_servil::Mode::Hash,
+                    &blake3_servil::Hash::from_bytes(hash),
+                    input.len() as u64,
+                );
                 let mut at = 0;
                 for part in received.chunks(PIECE_LEN) {
                     piece[..part.len()].copy_from_slice(part);
@@ -2574,15 +3245,28 @@ fn hash_verify(algorithm: Algorithm, input: &[u8], iterations: usize, mut consum
 /// `input`'s hash and whole encoding (bao-tree's pre-order, 16 KiB
 /// groups), made once for each input, for every thread.
 fn encoding(input: &[u8]) -> ([u8; 32], std::sync::Arc<Vec<u8>>) {
-    static MADE: std::sync::Mutex<Vec<((usize, [u8; 8]), [u8; 32], std::sync::Arc<Vec<u8>>)>> = std::sync::Mutex::new(Vec::new());
-    let id = (input.len(), input[..8].try_into().expect("a message of 8 bytes or more"));
+    static MADE: std::sync::Mutex<Vec<((usize, [u8; 8]), [u8; 32], std::sync::Arc<Vec<u8>>)>> =
+        std::sync::Mutex::new(Vec::new());
+    let id = (
+        input.len(),
+        input[..8].try_into().expect("a message of 8 bytes or more"),
+    );
     let mut made = MADE.lock().unwrap();
     if let Some((_, hash, encoded)) = made.iter().find(|(k, _, _)| *k == id) {
         return (*hash, encoded.clone());
     }
-    let outboard = bao_tree::io::outboard::PreOrderMemOutboard::create(input, bao_tree::BlockSize::from_chunk_log(4));
+    let outboard = bao_tree::io::outboard::PreOrderMemOutboard::create(
+        input,
+        bao_tree::BlockSize::from_chunk_log(4),
+    );
     let mut encoded = Vec::with_capacity(input.len() + outboard.data.len());
-    bao_tree::io::sync::encode_ranges_validated(input, &outboard, &bao_tree::ChunkRanges::all(), &mut encoded).expect("an encoding");
+    bao_tree::io::sync::encode_ranges_validated(
+        input,
+        &outboard,
+        &bao_tree::ChunkRanges::all(),
+        &mut encoded,
+    )
+    .expect("an encoding");
     let hash = *outboard.root.as_bytes();
     made.push((id, hash, std::sync::Arc::new(encoded)));
     (hash, made.last().unwrap().2.clone())
@@ -2595,9 +3279,17 @@ fn encoding(input: &[u8]) -> ([u8; 32], std::sync::Arc<Vec<u8>>) {
  */
 /// A collection point's items: each (offset, length) in its input, made once.
 fn items_of(point: Point, input: &[u8]) -> &'static [(usize, usize)] {
-    static ITEMS: [std::sync::OnceLock<Vec<(usize, usize)>>; COLLECTION_COUNT] = [const { std::sync::OnceLock::new() }; COLLECTION_COUNT];
-    let index = COLLECTIONS.iter().position(|(label, _)| *label == point.label).expect("a collection's point");
-    assert_eq!(input.len(), point.bytes, "the collection's messages fill its input");
+    static ITEMS: [std::sync::OnceLock<Vec<(usize, usize)>>; COLLECTION_COUNT] =
+        [const { std::sync::OnceLock::new() }; COLLECTION_COUNT];
+    let index = COLLECTIONS
+        .iter()
+        .position(|(label, _)| *label == point.label)
+        .expect("a collection's point");
+    assert_eq!(
+        input.len(),
+        point.bytes,
+        "the collection's messages fill its input"
+    );
     ITEMS[index].get_or_init(|| collection_items(COLLECTIONS[index].1))
 }
 
@@ -2609,7 +3301,13 @@ fn items_of(point: Point, input: &[u8]) -> &'static [(usize, usize)] {
  * workers while the next is read; every other hash, on the program's thread
  * after reading it, as it hashes one message in memory.
  */
-fn hash_continuous_collection(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
+fn hash_continuous_collection(
+    algorithm: Algorithm,
+    input: &[u8],
+    point: Point,
+    iterations: usize,
+    mut consume: impl FnMut(&[u8]),
+) {
     let items = items_of(point, input);
     if algorithm == Algorithm::Blake3ServilMt {
         let mut places = take_places(STREAM_PLACES_PER_MESSAGE);
@@ -2625,7 +3323,11 @@ fn hash_continuous_collection(algorithm: Algorithm, input: &[u8], point: Point, 
                     for &(offset, len) in items {
                         let item = black_box(&input[offset..offset + len]);
                         let place = free_place(&free, s);
-                        s.submit_with(len, |at, room| room.copy_from_slice(&item[at..][..room.len()]), &mut place[0]);
+                        s.submit_with(
+                            len,
+                            |at, room| room.copy_from_slice(&item[at..][..room.len()]),
+                            &mut place[0],
+                        );
                     }
                 }
                 s.finish();
@@ -2647,12 +3349,28 @@ fn hash_continuous_collection(algorithm: Algorithm, input: &[u8], point: Point, 
     keep_buffers(1, longest, buffers);
 }
 
-fn hash_collection(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
+fn hash_collection(
+    algorithm: Algorithm,
+    input: &[u8],
+    point: Point,
+    iterations: usize,
+    mut consume: impl FnMut(&[u8]),
+) {
     let items = items_of(point, input);
-    if matches!(algorithm, Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt) {
+    if matches!(
+        algorithm,
+        Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt
+    ) {
         // The fork's call for a collection: every item in one call.
-        let each = if algorithm == Algorithm::Blake3ServilSt { blake3_servil::hash_each_with } else { blake3_servil::hash_each_multithreaded_with };
-        let slices: Vec<&[u8]> = items.iter().map(|&(offset, len)| &input[offset..offset + len]).collect();
+        let each = if algorithm == Algorithm::Blake3ServilSt {
+            blake3_servil::hash_each_with
+        } else {
+            blake3_servil::hash_each_multithreaded_with
+        };
+        let slices: Vec<&[u8]> = items
+            .iter()
+            .map(|&(offset, len)| &input[offset..offset + len])
+            .collect();
         let mut digests = vec![[0u8; 32]; slices.len()];
         for _ in 0..iterations {
             each(blake3_servil::Mode::Hash, black_box(&slices), &mut digests);
@@ -2664,7 +3382,13 @@ fn hash_collection(algorithm: Algorithm, input: &[u8], point: Point, iterations:
     }
     for _ in 0..iterations {
         for &(offset, len) in items {
-            hash_in_memory(algorithm, &input[offset..offset + len], Point::one("", len), 1, &mut consume);
+            hash_in_memory(
+                algorithm,
+                &input[offset..offset + len],
+                Point::one("", len),
+                1,
+                &mut consume,
+            );
         }
     }
 }
@@ -2752,7 +3476,12 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             },
             consume,
         ),
-        Algorithm::Sha256CommonCrypto => each_stream(input, iterations, |pieces| common_crypto::sha256_pieces(pieces), consume),
+        Algorithm::Sha256CommonCrypto => each_stream(
+            input,
+            iterations,
+            |pieces| common_crypto::sha256_pieces(pieces),
+            consume,
+        ),
         Algorithm::Sha1Dc => each_stream(
             input,
             iterations,
@@ -2786,7 +3515,13 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
  * message's incremental API; each message's hash, when it ends, goes to
  * `consume`.
  */
-fn hash_interleaved(algorithm: Algorithm, input: &[u8], budget: usize, iterations: usize, consume: impl FnMut(&[u8])) {
+fn hash_interleaved(
+    algorithm: Algorithm,
+    input: &[u8],
+    budget: usize,
+    iterations: usize,
+    consume: impl FnMut(&[u8]),
+) {
     use sha1_checked::digest::Update as _;
     use sha2::Digest as _;
     let key = algorithm.key();
@@ -2816,8 +3551,11 @@ fn hash_interleaved(algorithm: Algorithm, input: &[u8], budget: usize, iteration
             consume,
         ),
         Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt => {
-            let update =
-                if algorithm == Algorithm::Blake3ServilSt { blake3_servil::Hasher::update_each } else { blake3_servil::Hasher::update_each_multithreaded };
+            let update = if algorithm == Algorithm::Blake3ServilSt {
+                blake3_servil::Hasher::update_each
+            } else {
+                blake3_servil::Hasher::update_each_multithreaded
+            };
             let mut digests = Vec::new();
             each_interleaved(
                 key,
@@ -2826,7 +3564,9 @@ fn hash_interleaved(algorithm: Algorithm, input: &[u8], budget: usize, iteration
                 iterations,
                 blake3_servil::Hasher::new,
                 update,
-                move |hashers: &mut [blake3_servil::Hasher], ended: &[usize], consume: &mut dyn FnMut(&[u8])| {
+                move |hashers: &mut [blake3_servil::Hasher],
+                      ended: &[usize],
+                      consume: &mut dyn FnMut(&[u8])| {
                     digests.resize(ended.len(), [0u8; 32]);
                     blake3_servil::Hasher::finalize_each(hashers, ended, &mut digests);
                     for (&i, digest) in ended.iter().zip(&digests) {
@@ -2912,7 +3652,10 @@ fn per_piece<S>(update: impl Fn(&mut S, &[u8])) -> impl Fn(&mut [S], &[(usize, &
 
 /// The messages that ended in a turn finished one at a time, each slot
 /// left with a fresh state.
-fn per_message<S, D: AsRef<[u8]>>(new: impl Fn() -> S, finish: impl Fn(S) -> D) -> impl FnMut(&mut [S], &[usize], &mut dyn FnMut(&[u8])) {
+fn per_message<S, D: AsRef<[u8]>>(
+    new: impl Fn() -> S,
+    finish: impl Fn(S) -> D,
+) -> impl FnMut(&mut [S], &[usize], &mut dyn FnMut(&[u8])) {
     move |states, ended, consume| {
         for &i in ended {
             consume(finish(std::mem::replace(&mut states[i], new())).as_ref());
@@ -2952,17 +3695,27 @@ fn each_interleaved<S: 'static>(
 ) {
     let spec = &INTERLEAVED;
     let longest = spec.pieces.iter().copied().max().unwrap();
-    assert!(input.len() >= budget && input.len() > longest, "the pieces come from a source of a call's budget, longer than a piece");
-    assert!(TURN <= spec.open, "a turn holds at most one piece of each open message");
+    assert!(
+        input.len() >= budget && input.len() > longest,
+        "the pieces come from a source of a call's budget, longer than a piece"
+    );
+    assert!(
+        TURN <= spec.open,
+        "a turn holds at most one piece of each open message"
+    );
     let kept = SCHEDULES.with(|all| {
         let mut all = all.borrow_mut();
-        all.iter().position(|(k, _)| *k == key).map(|i| all.swap_remove(i).1)
+        all.iter()
+            .position(|(k, _)| *k == key)
+            .map(|i| all.swap_remove(i).1)
     });
     let mut schedule: Schedule<S> = match kept {
         Some(any) => *any.downcast().expect("one schedule type per contender"),
         None => Schedule {
             states: (0..spec.open).map(|_| new()).collect(),
-            left: (0..spec.open).map(|n| spec.messages[n % spec.messages.len()]).collect(),
+            left: (0..spec.open)
+                .map(|n| spec.messages[n % spec.messages.len()])
+                .collect(),
             piece: 0,
             opened: spec.open,
             source: 0,
@@ -2983,12 +3736,15 @@ fn each_interleaved<S: 'static>(
             let mut at = 0;
             while turn.len() < TURN && budget > 0 {
                 let slot = schedule.piece % spec.open;
-                let len = spec.pieces[schedule.piece % spec.pieces.len()].min(schedule.left[slot]).min(budget);
+                let len = spec.pieces[schedule.piece % spec.pieces.len()]
+                    .min(schedule.left[slot])
+                    .min(budget);
                 schedule.piece += 1;
                 if schedule.source + len > input.len() {
                     schedule.source = 0;
                 }
-                buffer[at..at + len].copy_from_slice(&black_box(input)[schedule.source..schedule.source + len]);
+                buffer[at..at + len]
+                    .copy_from_slice(&black_box(input)[schedule.source..schedule.source + len]);
                 schedule.source += len;
                 turn.push((slot, at, len));
                 at += len;
@@ -3000,7 +3756,10 @@ fn each_interleaved<S: 'static>(
                     schedule.opened += 1;
                 }
             }
-            let pieces: Vec<(usize, &[u8])> = turn.iter().map(|&(slot, at, len)| (slot, &buffer[at..at + len])).collect();
+            let pieces: Vec<(usize, &[u8])> = turn
+                .iter()
+                .map(|&(slot, at, len)| (slot, &buffer[at..at + len]))
+                .collect();
             update(&mut schedule.states, black_box(&pieces));
             finish(&mut schedule.states, &ended, &mut consume);
         }
@@ -3020,7 +3779,9 @@ thread_local! {
 }
 
 fn take_places(n: usize) -> Vec<blake3_servil::Hash> {
-    STREAM_PLACES.with(|kept| kept.borrow_mut().remove(&n)).unwrap_or_else(|| vec![blake3_servil::Hash::from_bytes([0; 32]); n])
+    STREAM_PLACES
+        .with(|kept| kept.borrow_mut().remove(&n))
+        .unwrap_or_else(|| vec![blake3_servil::Hash::from_bytes([0; 32]); n])
 }
 
 fn keep_places(places: Vec<blake3_servil::Hash>) {
@@ -3050,7 +3811,12 @@ fn free_place<'a, D: FnMut(&'a mut [blake3_servil::Hash])>(
  * and hashing take turns; the fork's queue takes the program's buffers
  * and hashes while the next are read.
  */
-fn hash_continuous_messages(algorithm: Algorithm, input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8])) {
+fn hash_continuous_messages(
+    algorithm: Algorithm,
+    input: &[u8],
+    iterations: usize,
+    mut consume: impl FnMut(&[u8]),
+) {
     if algorithm == Algorithm::Blake3ServilMt {
         // Each message read straight into the stream's ring (submit_with),
         // its digest into a kept place, used as the place comes back and
@@ -3067,7 +3833,11 @@ fn hash_continuous_messages(algorithm: Algorithm, input: &[u8], iterations: usiz
                 for _ in 0..iterations {
                     let message = black_box(input);
                     let place = free_place(&free, s);
-                    s.submit_with(message.len(), |at, room| room.copy_from_slice(&message[at..][..room.len()]), &mut place[0]);
+                    s.submit_with(
+                        message.len(),
+                        |at, room| room.copy_from_slice(&message[at..][..room.len()]),
+                        &mut place[0],
+                    );
                 }
                 s.finish();
             },
@@ -3078,7 +3848,12 @@ fn hash_continuous_messages(algorithm: Algorithm, input: &[u8], iterations: usiz
     if input.len() > PIECE_LEN {
         return hash_stream(algorithm, input, iterations, consume);
     }
-    let one = Point { label: "", bytes: input.len(), messages: 1, use_case: UseCase::OneMessage };
+    let one = Point {
+        label: "",
+        bytes: input.len(),
+        messages: 1,
+        use_case: UseCase::OneMessage,
+    };
     let mut buffers = take_buffers(1, input.len());
     for _ in 0..iterations {
         let buffer = &mut buffers[0];
@@ -3097,7 +3872,13 @@ fn hash_continuous_messages(algorithm: Algorithm, input: &[u8], iterations: usiz
  * batch in memory (hash_batch); the fork's queue of fixed-length messages
  * takes the program's buffers and hashes while the next are read.
  */
-fn hash_continuous_batches(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
+fn hash_continuous_batches(
+    algorithm: Algorithm,
+    input: &[u8],
+    point: Point,
+    iterations: usize,
+    mut consume: impl FnMut(&[u8]),
+) {
     if algorithm == Algorithm::Blake3ServilMt {
         // Each batch read straight into the stream's ring (submit_batch_with),
         // its digests into a kept place of the batch's size, handed to
@@ -3106,18 +3887,25 @@ fn hash_continuous_batches(algorithm: Algorithm, input: &[u8], point: Point, ite
         // (repr(transparent)).
         let batches = ((8 << 20) / input.len().max(1)).clamp(2, 1024);
         let mut places = take_places(batches * point.messages);
-        let free = std::cell::RefCell::new(places.chunks_mut(point.messages.max(1)).collect::<Vec<_>>());
+        let free =
+            std::cell::RefCell::new(places.chunks_mut(point.messages.max(1)).collect::<Vec<_>>());
         blake3_servil::stream(
             blake3_servil::Mode::Hash,
             |place: &mut [blake3_servil::Hash]| {
-                consume(unsafe { core::slice::from_raw_parts(place.as_ptr().cast::<u8>(), place.len() * 32) });
+                consume(unsafe {
+                    core::slice::from_raw_parts(place.as_ptr().cast::<u8>(), place.len() * 32)
+                });
                 free.borrow_mut().push(place);
             },
             |s| {
                 for _ in 0..iterations {
                     let batch = black_box(input);
                     let place = free_place(&free, s);
-                    s.submit_batch_with(MESSAGE_LEN, |at, room| room.copy_from_slice(&batch[at..][..room.len()]), &mut place[..point.messages]);
+                    s.submit_batch_with(
+                        MESSAGE_LEN,
+                        |at, room| room.copy_from_slice(&batch[at..][..room.len()]),
+                        &mut place[..point.messages],
+                    );
                 }
                 s.finish();
             },
@@ -3125,7 +3913,10 @@ fn hash_continuous_batches(algorithm: Algorithm, input: &[u8], point: Point, ite
         drop(free);
         return keep_places(places);
     }
-    let batch = Point { use_case: UseCase::ManyMessages, ..point };
+    let batch = Point {
+        use_case: UseCase::ManyMessages,
+        ..point
+    };
     let mut buffers = take_buffers(1, input.len());
     for _ in 0..iterations {
         let buffer = &mut buffers[0];
@@ -3139,8 +3930,21 @@ fn hash_continuous_batches(algorithm: Algorithm, input: &[u8], point: Point, ite
 /// The producer lends a whole message or batch for one synchronous call.
 /// Each read is timed; the kept buffer and digest space avoid allocation
 /// after calibration, just as the queue's producer does.
-fn hash_lent(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
-    let in_memory = Point { use_case: if point.use_case.batch() { UseCase::ManyMessages } else { UseCase::OneMessage }, ..point };
+fn hash_lent(
+    algorithm: Algorithm,
+    input: &[u8],
+    point: Point,
+    iterations: usize,
+    mut consume: impl FnMut(&[u8]),
+) {
+    let in_memory = Point {
+        use_case: if point.use_case.batch() {
+            UseCase::ManyMessages
+        } else {
+            UseCase::OneMessage
+        },
+        ..point
+    };
     let mut buffers = take_buffers(1, input.len());
     for _ in 0..iterations {
         let buffer = &mut buffers[0];
@@ -3178,7 +3982,10 @@ enum Node {
 impl Node {
     fn key(self) -> &'static [u8; 32] {
         static KEYS: std::sync::LazyLock<[[u8; 32]; 2]> = std::sync::LazyLock::new(|| {
-            [blake3::derive_key("bench-hashes 2026-10-19 Merkle tree leaf", b""), blake3::derive_key("bench-hashes 2026-10-19 Merkle tree parent", b"")]
+            [
+                blake3::derive_key("bench-hashes 2026-10-19 Merkle tree leaf", b""),
+                blake3::derive_key("bench-hashes 2026-10-19 Merkle tree parent", b""),
+            ]
         });
         &KEYS[self as usize]
     }
@@ -3190,30 +3997,70 @@ impl Node {
 
 /// One layer of a tree: `input`'s messages of `message_len` bytes hashed as
 /// `node`s, each contender's way (Node), every digest into `consume`.
-fn hash_tree_layer(algorithm: Algorithm, input: &[u8], message_len: usize, node: Node, consume: impl FnMut(&[u8])) {
+fn hash_tree_layer(
+    algorithm: Algorithm,
+    input: &[u8],
+    message_len: usize,
+    node: Node,
+    consume: impl FnMut(&[u8]),
+) {
     use sha1_checked::digest::Update as _;
     use sha2::Digest as _;
     let messages = input.len() / message_len;
     let prefix = [node.prefix()];
     match algorithm {
         Algorithm::Blake3 => blake3_batch(input, message_len, Some(node.key()), 1, consume),
-        Algorithm::Blake3ServilSt => {
-            servil_batch(input, messages, message_len, 1, |i, l, o| blake3_servil::hash_many_with(blake3_servil::Mode::Keyed(node.key()), i, l, o), consume)
-        }
+        Algorithm::Blake3ServilSt => servil_batch(
+            input,
+            messages,
+            message_len,
+            1,
+            |i, l, o| {
+                blake3_servil::hash_many_with(blake3_servil::Mode::Keyed(node.key()), i, l, o)
+            },
+            consume,
+        ),
         Algorithm::Blake3ServilMt => servil_batch(
             input,
             messages,
             message_len,
             1,
-            |i, l, o| blake3_servil::hash_many_multithreaded_with(blake3_servil::Mode::Keyed(node.key()), i, l, o),
+            |i, l, o| {
+                blake3_servil::hash_many_multithreaded_with(
+                    blake3_servil::Mode::Keyed(node.key()),
+                    i,
+                    l,
+                    o,
+                )
+            },
             consume,
         ),
-        Algorithm::Sha256 => {
-            each_message(input, message_len, 1, |m| -> [u8; 32] { Sha256::new().chain_update(prefix).chain_update(m).finalize().into() }, consume)
-        }
-        Algorithm::Sha3_256 => {
-            each_message(input, message_len, 1, |m| -> [u8; 32] { sha3::Sha3_256::new().chain_update(prefix).chain_update(m).finalize().into() }, consume)
-        }
+        Algorithm::Sha256 => each_message(
+            input,
+            message_len,
+            1,
+            |m| -> [u8; 32] {
+                Sha256::new()
+                    .chain_update(prefix)
+                    .chain_update(m)
+                    .finalize()
+                    .into()
+            },
+            consume,
+        ),
+        Algorithm::Sha3_256 => each_message(
+            input,
+            message_len,
+            1,
+            |m| -> [u8; 32] {
+                sha3::Sha3_256::new()
+                    .chain_update(prefix)
+                    .chain_update(m)
+                    .finalize()
+                    .into()
+            },
+            consume,
+        ),
         Algorithm::Sha256Ring => each_message(
             input,
             message_len,
@@ -3258,8 +4105,17 @@ fn hash_tree_layer(algorithm: Algorithm, input: &[u8], message_len: usize, node:
     }
 }
 
-fn hash_merkle(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, mut consume: impl FnMut(&[u8])) {
-    assert!(point.messages.is_power_of_two() && input.len() == point.messages * MERKLE.leaf_len, "a tree's leaves are a power of two of MERKLE.leaf_len bytes");
+fn hash_merkle(
+    algorithm: Algorithm,
+    input: &[u8],
+    point: Point,
+    iterations: usize,
+    mut consume: impl FnMut(&[u8]),
+) {
+    assert!(
+        point.messages.is_power_of_two() && input.len() == point.messages * MERKLE.leaf_len,
+        "a tree's leaves are a power of two of MERKLE.leaf_len bytes"
+    );
     let depth = point.messages.trailing_zeros() as usize;
     /* The leaves, then each layer's digests: a buffer each, of its size. */
     let size = |k: usize| {
@@ -3269,7 +4125,9 @@ fn hash_merkle(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
             (point.messages >> (k - 1)) * algorithm.digest_len()
         }
     };
-    let mut buffers: Vec<Vec<u8>> = (0..depth + 2).map(|k| take_buffers(1, size(k)).pop().unwrap()).collect();
+    let mut buffers: Vec<Vec<u8>> = (0..depth + 2)
+        .map(|k| take_buffers(1, size(k)).pop().unwrap())
+        .collect();
     for _ in 0..iterations {
         buffers[0].clear();
         buffers[0].extend_from_slice(black_box(input));
@@ -3279,7 +4137,9 @@ fn hash_merkle(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
             let (from, to) = (&done[layer], &mut rest[0]);
             to.clear();
             let node = if layer == 0 { Node::Leaf } else { Node::Parent };
-            hash_tree_layer(algorithm, from, message_len, node, |digest| to.extend_from_slice(digest));
+            hash_tree_layer(algorithm, from, message_len, node, |digest| {
+                to.extend_from_slice(digest)
+            });
             message_len = 2 * algorithm.digest_len();
         }
         consume(&buffers[depth + 1]);
@@ -3305,8 +4165,13 @@ thread_local! {
 /// `count` empty buffers with room for `len` bytes, this thread's kept set
 /// for the pair (made on first use); give them back with keep_buffers.
 fn take_buffers(count: usize, len: usize) -> Vec<Vec<u8>> {
-    let mut kept = INPUT_BUFFERS.with(|kept| kept.borrow_mut().remove(&(count, len))).unwrap_or_default();
-    assert!(kept.len() <= count, "a kept set holds the buffers taken for it");
+    let mut kept = INPUT_BUFFERS
+        .with(|kept| kept.borrow_mut().remove(&(count, len)))
+        .unwrap_or_default();
+    assert!(
+        kept.len() <= count,
+        "a kept set holds the buffers taken for it"
+    );
     kept.resize_with(count, || {
         let mut buffer = written(len, 1u8);
         buffer.clear();
@@ -3353,7 +4218,12 @@ type Pieces<'a> = &'a mut dyn FnMut(&mut dyn FnMut(&[u8]));
 /// `iterations` streams of `input` through `hash`, which receives the
 /// pieces, copied, in order; the digest of each goes to `consume`.
 #[inline(always)]
-fn each_stream<D: AsRef<[u8]>>(input: &[u8], iterations: usize, hash: impl Fn(Pieces) -> D, mut consume: impl FnMut(&[u8])) {
+fn each_stream<D: AsRef<[u8]>>(
+    input: &[u8],
+    iterations: usize,
+    hash: impl Fn(Pieces) -> D,
+    mut consume: impl FnMut(&[u8]),
+) {
     /* The program's read buffer, kept from call to call (a fresh one per
      * message would put its allocation and zeroing, microseconds after the
      * gap, inside every short stream's time). */
@@ -3427,16 +4297,33 @@ const SERVIL_CALLS: [(Algorithm, UseCase, &str); 32] = [
 fn frozen_contract() -> String {
     let mut text = String::new();
     for use_case in UseCase::ALL {
-        let labels: Vec<&str> = POINTS.iter().filter(|point| point.use_case == use_case).map(|point| point.label).collect();
+        let labels: Vec<&str> = POINTS
+            .iter()
+            .filter(|point| point.use_case == use_case)
+            .map(|point| point.label)
+            .collect();
         text += &format!("use case {use_case:?}: {}\n", labels.join(", "));
     }
-    let keys = |scenarios: &[Scenario]| scenarios.iter().map(|scenario| scenario.key()).collect::<Vec<_>>().join(", ");
+    let keys = |scenarios: &[Scenario]| {
+        scenarios
+            .iter()
+            .map(|scenario| scenario.key())
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
     text += &format!("scenarios: {}\n", keys(&Scenario::ALL));
-    let shared: Vec<String> =
-        UseCase::ALL.into_iter().filter(|&use_case| Scenario::Shared.measures(use_case)).map(|use_case| format!("{use_case:?}")).collect();
+    let shared: Vec<String> = UseCase::ALL
+        .into_iter()
+        .filter(|&use_case| Scenario::Shared.measures(use_case))
+        .map(|use_case| format!("{use_case:?}"))
+        .collect();
     text += &format!("shared measures: {}\n", shared.join(", "));
     for (algorithm, use_case, call) in SERVIL_CALLS {
-        assert!(algorithm.takes_part(use_case), "{} takes part in {use_case:?}", algorithm.key());
+        assert!(
+            algorithm.takes_part(use_case),
+            "{} takes part in {use_case:?}",
+            algorithm.key()
+        );
         text += &format!("{} {use_case:?}: {call}\n", algorithm.key());
     }
     text
@@ -3493,7 +4380,13 @@ fn keep_batch_digests(digests: Vec<[u8; 32]>) {
 /// (WHIR's Merkle trees call it this way). The whole batch's digests go to
 /// `consume` per pass.
 #[inline(always)]
-fn blake3_batch(input: &[u8], message_len: usize, key: Option<&[u8; 32]>, iterations: usize, consume: impl FnMut(&[u8])) {
+fn blake3_batch(
+    input: &[u8],
+    message_len: usize,
+    key: Option<&[u8; 32]>,
+    iterations: usize,
+    consume: impl FnMut(&[u8]),
+) {
     match message_len {
         MESSAGE_LEN => blake3_batch_of::<MESSAGE_LEN>(input, key, iterations, consume),
         256 => blake3_batch_of::<256>(input, key, iterations, consume),
@@ -3502,16 +4395,27 @@ fn blake3_batch(input: &[u8], message_len: usize, key: Option<&[u8; 32]>, iterat
 }
 
 #[inline(always)]
-fn blake3_batch_of<const N: usize>(input: &[u8], key: Option<&[u8; 32]>, iterations: usize, mut consume: impl FnMut(&[u8])) {
+fn blake3_batch_of<const N: usize>(
+    input: &[u8],
+    key: Option<&[u8; 32]>,
+    iterations: usize,
+    mut consume: impl FnMut(&[u8]),
+) {
     /* BLAKE3's IV and flags, private in the crate. */
-    const IV: [u32; 8] = [0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19];
+    const IV: [u32; 8] = [
+        0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB,
+        0x5BE0CD19,
+    ];
     const CHUNK_START: u8 = 1 << 0;
     const CHUNK_END: u8 = 1 << 1;
     const ROOT: u8 = 1 << 3;
     const KEYED_HASH: u8 = 1 << 4;
     /* A keyed hash's key words, little-endian, in place of the IV. */
     let (words, keyed) = match key {
-        Some(k) => (core::array::from_fn(|i| u32::from_le_bytes(k[4 * i..4 * i + 4].try_into().unwrap())), KEYED_HASH),
+        Some(k) => (
+            core::array::from_fn(|i| u32::from_le_bytes(k[4 * i..4 * i + 4].try_into().unwrap())),
+            KEYED_HASH,
+        ),
         None => (IV, 0),
     };
     let (messages, rest) = input.as_chunks::<N>();
@@ -3519,7 +4423,10 @@ fn blake3_batch_of<const N: usize>(input: &[u8], key: Option<&[u8; 32]>, iterati
     let platform = blake3::platform::Platform::detect();
     let mut digests = take_batch_digests(messages.len());
     for _ in 0..iterations {
-        for (group, out) in black_box(messages).chunks(16).zip(digests[..messages.len()].chunks_mut(16)) {
+        for (group, out) in black_box(messages)
+            .chunks(16)
+            .zip(digests[..messages.len()].chunks_mut(16))
+        {
             let mut table = [&group[0]; 16];
             for (slot, message) in table.iter_mut().zip(group) {
                 *slot = message;
@@ -3543,7 +4450,13 @@ fn blake3_batch_of<const N: usize>(input: &[u8], key: Option<&[u8; 32]>, iterati
 /// `iterations` passes over the input, each hashing every message with one
 /// call of `hash`, digest by digest into `consume`.
 #[inline(always)]
-fn each_message<D: AsRef<[u8]>>(input: &[u8], message_len: usize, iterations: usize, hash: impl Fn(&[u8]) -> D, mut consume: impl FnMut(&[u8])) {
+fn each_message<D: AsRef<[u8]>>(
+    input: &[u8],
+    message_len: usize,
+    iterations: usize,
+    hash: impl Fn(&[u8]) -> D,
+    mut consume: impl FnMut(&[u8]),
+) {
     for _ in 0..iterations {
         if message_len == input.len() {
             consume(hash(black_box(input)).as_ref());
@@ -3653,7 +4566,10 @@ impl Duo {
             done: std::sync::Condvar::new(),
         }));
         for copy in 0..2 {
-            std::thread::Builder::new().name(format!("duo-copy-{copy}")).spawn(move || duo.worker(copy)).expect("spawning a duo copy thread");
+            std::thread::Builder::new()
+                .name(format!("duo-copy-{copy}"))
+                .spawn(move || duo.worker(copy))
+                .expect("spawning a duo copy thread");
         }
         duo
     }
@@ -3661,13 +4577,30 @@ impl Duo {
     /// Run `iterations` of `algorithm` on both threads at once, copy 0 over
     /// `input` and copy 1 over `other`; returns each copy's time from its
     /// own start and its counts. The sample is the later finish.
-    fn run(&self, algorithm: Algorithm, input: &[u8], other: &[u8], point: Point, iterations: usize) -> [DuoCopy; 2] {
+    fn run(
+        &self,
+        algorithm: Algorithm,
+        input: &[u8],
+        other: &[u8],
+        point: Point,
+        iterations: usize,
+    ) -> [DuoCopy; 2] {
         use std::sync::atomic::Ordering;
-        assert_eq!(input.len(), other.len(), "the two copies hash inputs of one size");
+        assert_eq!(
+            input.len(),
+            other.len(),
+            "the two copies hash inputs of one size"
+        );
         {
             let mut job = self.job.lock().unwrap();
             assert!(job.is_none(), "one duo job at a time");
-            *job = Some(DuoJob { algorithm, inputs: [input, other], point, iterations, taken: 0 });
+            *job = Some(DuoJob {
+                algorithm,
+                inputs: [input, other],
+                point,
+                iterations,
+                taken: 0,
+            });
             self.posted.notify_all();
         }
         /*
@@ -3727,7 +4660,12 @@ impl Duo {
             }
             seen = self.generation.load(Ordering::Acquire);
             // Sound: run() holds the borrows until both finishes are read.
-            let sample = take_sample(job.algorithm, unsafe { &*job.inputs[copy] }, job.point, job.iterations);
+            let sample = take_sample(
+                job.algorithm,
+                unsafe { &*job.inputs[copy] },
+                job.point,
+                job.iterations,
+            );
             let mut finished = self.finished.lock().unwrap();
             finished[copy] = Some(sample);
             self.done.notify_all();
@@ -3773,29 +4711,49 @@ mod common_crypto {
 
     impl Sha256State {
         pub fn new() -> Self {
-            let mut context = Context { count: [0; 2], hash: [0; 8], wbuf: [0; 16] };
+            let mut context = Context {
+                count: [0; 2],
+                hash: [0; 8],
+                wbuf: [0; 16],
+            };
             // Safe: `context` is a valid CC_SHA256_CTX.
-            assert_eq!(unsafe { CC_SHA256_Init(&mut context) }, 1, "CC_SHA256_Init failed");
+            assert_eq!(
+                unsafe { CC_SHA256_Init(&mut context) },
+                1,
+                "CC_SHA256_Init failed"
+            );
             Sha256State(context)
         }
 
         pub fn update(&mut self, piece: &[u8]) {
             let len = u32::try_from(piece.len()).expect("CC_SHA256_Update takes a 32-bit length");
             // Safe: the context is valid and `piece` holds `len` bytes.
-            assert_eq!(unsafe { CC_SHA256_Update(&mut self.0, piece.as_ptr(), len) }, 1, "CC_SHA256_Update failed");
+            assert_eq!(
+                unsafe { CC_SHA256_Update(&mut self.0, piece.as_ptr(), len) },
+                1,
+                "CC_SHA256_Update failed"
+            );
         }
 
         pub fn finish(mut self) -> [u8; DIGEST_LEN] {
             let mut digest = [0u8; DIGEST_LEN];
             // Safe: Final writes exactly 32 bytes to `digest`.
-            assert_eq!(unsafe { CC_SHA256_Final(digest.as_mut_ptr(), &mut self.0) }, 1, "CC_SHA256_Final failed");
+            assert_eq!(
+                unsafe { CC_SHA256_Final(digest.as_mut_ptr(), &mut self.0) },
+                1,
+                "CC_SHA256_Final failed"
+            );
             digest
         }
     }
 
     /// One Update per piece, in order.
     pub fn sha256_pieces(pieces: super::Pieces) -> [u8; DIGEST_LEN] {
-        let mut context = Context { count: [0; 2], hash: [0; 8], wbuf: [0; 16] };
+        let mut context = Context {
+            count: [0; 2],
+            hash: [0; 8],
+            wbuf: [0; 16],
+        };
         let mut digest = [0u8; DIGEST_LEN];
         // Safe: `context` is a valid CC_SHA256_CTX for every call, each
         // piece is valid for its `len` bytes, and Final writes exactly 32
@@ -3803,10 +4761,19 @@ mod common_crypto {
         unsafe {
             assert_eq!(CC_SHA256_Init(&mut context), 1, "CC_SHA256_Init failed");
             pieces(&mut |piece| {
-                let len = u32::try_from(piece.len()).expect("CC_SHA256_Update takes a 32-bit length");
-                assert_eq!(CC_SHA256_Update(&mut context, piece.as_ptr(), len), 1, "CC_SHA256_Update failed");
+                let len =
+                    u32::try_from(piece.len()).expect("CC_SHA256_Update takes a 32-bit length");
+                assert_eq!(
+                    CC_SHA256_Update(&mut context, piece.as_ptr(), len),
+                    1,
+                    "CC_SHA256_Update failed"
+                );
             });
-            assert_eq!(CC_SHA256_Final(digest.as_mut_ptr(), &mut context), 1, "CC_SHA256_Final failed");
+            assert_eq!(
+                CC_SHA256_Final(digest.as_mut_ptr(), &mut context),
+                1,
+                "CC_SHA256_Final failed"
+            );
         }
         digest
     }
@@ -3855,11 +4822,17 @@ struct ClockTrace {
 impl ClockTrace {
     fn new(path: std::path::PathBuf) -> Self {
         let mut lines = Vec::with_capacity(8192);
-        let mut header =
-            "round,position,contender,size_bytes,iterations,wall_ns,p_cycles,p_instructions,p_time_ns,e_cycles,e_instructions,e_time_ns,use_case,duo_ns"
-                .to_owned();
+        let mut header = "round,position,contender,size_bytes,iterations,wall_ns,p_cycles,p_instructions,p_time_ns,e_cycles,e_instructions,e_time_ns,use_case,duo_ns".to_owned();
         for copy in 0..2 {
-            for field in ["ns", "p_cycles", "p_instructions", "p_time_ns", "e_cycles", "e_instructions", "e_time_ns"] {
+            for field in [
+                "ns",
+                "p_cycles",
+                "p_instructions",
+                "p_time_ns",
+                "e_cycles",
+                "e_instructions",
+                "e_time_ns",
+            ] {
                 header += &format!(",copy{copy}_{field}");
             }
         }
@@ -3871,8 +4844,13 @@ impl ClockTrace {
 
     fn write(&self) {
         let body = self.lines.join("\n") + "\n";
-        fs::write(&self.path, body).unwrap_or_else(|error| panic!("failed to write {}: {error}", self.path.display()));
-        eprintln!("clock trace: {} samples in {}", self.lines.len() - 1, self.path.display());
+        fs::write(&self.path, body)
+            .unwrap_or_else(|error| panic!("failed to write {}: {error}", self.path.display()));
+        eprintln!(
+            "clock trace: {} samples in {}",
+            self.lines.len() - 1,
+            self.path.display()
+        );
     }
 }
 
@@ -3885,7 +4863,10 @@ fn counts_csv(counts: Option<clocks::Counts>) -> String {
     let Some(c) = counts else {
         return NO_COUNTS.to_owned();
     };
-    format!("{},{},{},{},{},{}", c.p.cycles, c.p.instructions, c.p.time_ns, c.e.cycles, c.e.instructions, c.e.time_ns)
+    format!(
+        "{},{},{},{},{},{}",
+        c.p.cycles, c.p.instructions, c.p.time_ns, c.e.cycles, c.e.instructions, c.e.time_ns
+    )
 }
 
 /*
@@ -3922,21 +4903,36 @@ impl Power {
 
     fn read_macos() -> Option<Power> {
         let pmset = |args: &[&str]| {
-            let out = std::process::Command::new("pmset").args(args).output().ok()?;
-            out.status.success().then(|| String::from_utf8_lossy(&out.stdout).into_owned())
+            let out = std::process::Command::new("pmset")
+                .args(args)
+                .output()
+                .ok()?;
+            out.status
+                .success()
+                .then(|| String::from_utf8_lossy(&out.stdout).into_owned())
         };
-        Self::parse_pmset(&pmset(&["-g", "batt"])?, &pmset(&["-g"]).unwrap_or_default())
+        Self::parse_pmset(
+            &pmset(&["-g", "batt"])?,
+            &pmset(&["-g"]).unwrap_or_default(),
+        )
     }
 
     /// The state from `pmset -g batt` and `pmset -g` (the settings in use).
     fn parse_pmset(batt: &str, settings: &str) -> Option<Power> {
         let source = batt.lines().next()?.split('\'').nth(1)?.to_owned();
-        let battery_percent = batt.split_whitespace().find_map(|word| word.strip_suffix("%;").or_else(|| word.strip_suffix('%'))?.parse().ok());
+        let battery_percent = batt.split_whitespace().find_map(|word| {
+            word.strip_suffix("%;")
+                .or_else(|| word.strip_suffix('%'))?
+                .parse()
+                .ok()
+        });
         /* The settings in use: "lowpowermode 1", or on Macs with a High Power mode "powermode 0|1|2". */
         let setting = |key: &str| {
             settings.lines().find_map(|line| {
                 let mut words = line.split_whitespace();
-                (words.next() == Some(key)).then(|| words.next()?.parse::<u64>().ok()).flatten()
+                (words.next() == Some(key))
+                    .then(|| words.next()?.parse::<u64>().ok())
+                    .flatten()
             })
         };
         let (mode, low_power) = match (setting("powermode"), setting("lowpowermode")) {
@@ -3945,24 +4941,42 @@ impl Power {
             (Some(0), _) => (Some("automatic power mode".to_owned()), false),
             _ => (None, false),
         };
-        Some(Power { on_battery: source == "Battery Power", battery_percent, mode, low_power })
+        Some(Power {
+            on_battery: source == "Battery Power",
+            battery_percent,
+            mode,
+            low_power,
+        })
     }
 
     fn read_linux() -> Option<Power> {
-        let read = |path: std::path::PathBuf| fs::read_to_string(path).ok().map(|text| text.trim().to_owned());
-        let supplies: Vec<(String, Option<String>, Option<u64>)> = fs::read_dir("/sys/class/power_supply")
-            .into_iter()
-            .flatten()
-            .flatten()
-            .filter_map(|entry| {
-                let path = entry.path();
-                Some((read(path.join("type"))?, read(path.join("status")), read(path.join("capacity")).and_then(|c| c.parse().ok())))
-            })
-            .collect();
+        let read = |path: std::path::PathBuf| {
+            fs::read_to_string(path)
+                .ok()
+                .map(|text| text.trim().to_owned())
+        };
+        let supplies: Vec<(String, Option<String>, Option<u64>)> =
+            fs::read_dir("/sys/class/power_supply")
+                .into_iter()
+                .flatten()
+                .flatten()
+                .filter_map(|entry| {
+                    let path = entry.path();
+                    Some((
+                        read(path.join("type"))?,
+                        read(path.join("status")),
+                        read(path.join("capacity")).and_then(|c| c.parse().ok()),
+                    ))
+                })
+                .collect();
         // Every CPU's frequency policy, as each names it.
         let every_cpu = |file: &str| -> Vec<String> {
-            let mut values: Vec<String> =
-                fs::read_dir("/sys/devices/system/cpu/cpufreq").into_iter().flatten().flatten().filter_map(|e| read(e.path().join(file))).collect();
+            let mut values: Vec<String> = fs::read_dir("/sys/devices/system/cpu/cpufreq")
+                .into_iter()
+                .flatten()
+                .flatten()
+                .filter_map(|e| read(e.path().join(file)))
+                .collect();
             values.sort();
             values.dedup();
             values
@@ -3979,12 +4993,26 @@ impl Power {
     /// ACPI platform profile, and its CPU frequency governors and
     /// energy-performance preferences (each distinct value once): None
     /// where it reports none of them.
-    fn parse_linux(supplies: &[(String, Option<String>, Option<u64>)], profile: Option<&str>, governors: &[String], preferences: &[String]) -> Option<Power> {
-        let batteries: Vec<_> = supplies.iter().filter(|(kind, _, _)| kind == "Battery").collect();
-        if supplies.is_empty() && profile.is_none() && governors.is_empty() && preferences.is_empty() {
+    fn parse_linux(
+        supplies: &[(String, Option<String>, Option<u64>)],
+        profile: Option<&str>,
+        governors: &[String],
+        preferences: &[String],
+    ) -> Option<Power> {
+        let batteries: Vec<_> = supplies
+            .iter()
+            .filter(|(kind, _, _)| kind == "Battery")
+            .collect();
+        if supplies.is_empty()
+            && profile.is_none()
+            && governors.is_empty()
+            && preferences.is_empty()
+        {
             return None;
         }
-        let on_battery = batteries.iter().any(|(_, status, _)| status.as_deref() == Some("Discharging"));
+        let on_battery = batteries
+            .iter()
+            .any(|(_, status, _)| status.as_deref() == Some("Discharging"));
         let battery_percent = batteries.iter().find_map(|(_, _, capacity)| *capacity);
         let mut mode = Vec::new();
         if batteries.is_empty() {
@@ -3997,10 +5025,20 @@ impl Power {
             mode.push(format!("CPU frequency governor {}", governors.join("/")));
         }
         if !preferences.is_empty() {
-            mode.push(format!("energy-performance preference {}", preferences.join("/")));
+            mode.push(format!(
+                "energy-performance preference {}",
+                preferences.join("/")
+            ));
         }
-        let low_power = profile.is_some_and(|p| p.starts_with("low-power") || p == "quiet" || p == "cool") || preferences.iter().any(|p| p == "power");
-        Some(Power { on_battery, battery_percent, mode: Some(mode.join(", ")), low_power })
+        let low_power = profile
+            .is_some_and(|p| p.starts_with("low-power") || p == "quiet" || p == "cool")
+            || preferences.iter().any(|p| p == "power");
+        Some(Power {
+            on_battery,
+            battery_percent,
+            mode: Some(mode.join(", ")),
+            low_power,
+        })
     }
 
     /// Whether this state can make results read slower than the machine
@@ -4011,7 +5049,11 @@ impl Power {
 
     /// "mains power, High Power mode", "battery power (47% charged), Low Power Mode".
     fn describe(&self) -> String {
-        let mut line = if self.on_battery { "battery power".to_owned() } else { "mains power".to_owned() };
+        let mut line = if self.on_battery {
+            "battery power".to_owned()
+        } else {
+            "mains power".to_owned()
+        };
         if let (true, Some(percent)) = (self.on_battery, self.battery_percent) {
             write!(line, " ({percent}% charged)").unwrap();
         }
@@ -4036,7 +5078,11 @@ impl MachineMetadata {
         let line = match (start, end) {
             (None, None) => return "not reported by this OS".to_owned(),
             (Some(start), Some(end)) if start.describe() != end.describe() => {
-                format!("{} at the start, {} at the end", start.describe(), end.describe())
+                format!(
+                    "{} at the start, {} at the end",
+                    start.describe(),
+                    end.describe()
+                )
             }
             (Some(one), _) | (None, Some(one)) => one.describe(),
         };
@@ -4135,7 +5181,9 @@ fn calibrate_batch(algorithm: Algorithm, input: &[u8], point: Point) -> (usize, 
          * effective resolution. Increase the batch until it is measurable.
          */
         if elapsed_ns == 0 {
-            iterations = iterations.checked_mul(2).expect("calibration iteration count overflowed");
+            iterations = iterations
+                .checked_mul(2)
+                .expect("calibration iteration count overflowed");
 
             continue;
         }
@@ -4145,17 +5193,25 @@ fn calibrate_batch(algorithm: Algorithm, input: &[u8], point: Point) -> (usize, 
 
             let scaled = scaled.max(fewest as u128);
 
-            assert!(scaled <= usize::MAX as u128, "calibrated iteration count must fit in usize");
+            assert!(
+                scaled <= usize::MAX as u128,
+                "calibrated iteration count must fit in usize"
+            );
 
             return (scaled as usize, elapsed_ns / iterations as u128);
         }
 
         let growth = (CALIBRATION_PROBE_NS + elapsed_ns - 1) / elapsed_ns;
 
-        assert!(growth >= 2, "a sub-probe measurement must require a larger batch");
+        assert!(
+            growth >= 2,
+            "a sub-probe measurement must require a larger batch"
+        );
 
         iterations = iterations
-            .checked_mul(usize::try_from(growth).expect("calibration growth factor must fit in usize"))
+            .checked_mul(
+                usize::try_from(growth).expect("calibration growth factor must fit in usize"),
+            )
             .expect("calibration iteration count overflowed");
     }
 }
@@ -4183,8 +5239,21 @@ const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/un
 /// core kind, `P time ns:P cycles:E time ns:E cycles`, or `-` where a
 /// cell's samples carry none (a platform without per-thread counts).
 fn counts_field(counts: &[Option<clocks::Counts>]) -> String {
-    match counts.iter().copied().collect::<Option<Vec<clocks::Counts>>>() {
-        Some(c) if !c.is_empty() => c.iter().map(|c| format!("{}:{}:{}:{}", c.p.time_ns, c.p.cycles, c.e.time_ns, c.e.cycles)).collect::<Vec<_>>().join(","),
+    match counts
+        .iter()
+        .copied()
+        .collect::<Option<Vec<clocks::Counts>>>()
+    {
+        Some(c) if !c.is_empty() => c
+            .iter()
+            .map(|c| {
+                format!(
+                    "{}:{}:{}:{}",
+                    c.p.time_ns, c.p.cycles, c.e.time_ns, c.e.cycles
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(","),
         _ => "-".to_string(),
     }
 }
@@ -4220,9 +5289,14 @@ struct SamplesFile {
 }
 
 fn read_samples(path: &str) -> SamplesFile {
-    let text = fs::read_to_string(path).unwrap_or_else(|error| panic!("failed to read {path}: {error}"));
+    let text =
+        fs::read_to_string(path).unwrap_or_else(|error| panic!("failed to read {path}: {error}"));
     let mut lines = text.lines();
-    assert_eq!(lines.next(), Some(SAMPLES_VERSION), "{path}: a samples file of this version begins with {SAMPLES_VERSION:?}");
+    assert_eq!(
+        lines.next(),
+        Some(SAMPLES_VERSION),
+        "{path}: a samples file of this version begins with {SAMPLES_VERSION:?}"
+    );
     let mut load = None;
     let mut power = None;
     let mut headers = Vec::new();
@@ -4237,7 +5311,10 @@ fn read_samples(path: &str) -> SamplesFile {
         } else if let Some(rest) = line.strip_prefix("# power: ") {
             power = Some(rest.to_owned());
         } else if line.starts_with('#') || line.is_empty() {
-            if let Some((key, value)) = line.strip_prefix("# ").and_then(|rest| rest.split_once(": ")) {
+            if let Some((key, value)) = line
+                .strip_prefix("# ")
+                .and_then(|rest| rest.split_once(": "))
+            {
                 headers.push((key.to_owned(), value.to_owned()));
             }
         } else if !columns {
@@ -4254,26 +5331,50 @@ fn read_samples(path: &str) -> SamplesFile {
                 })
                 .collect();
             let key = fields[..4].join("|");
-            assert!(cells.iter().all(|(k, _)| *k != key), "{path}: a samples file holds each cell once: {key} twice");
+            assert!(
+                cells.iter().all(|(k, _)| *k != key),
+                "{path}: a samples file holds each cell once: {key} twice"
+            );
             if fields[7] != "-" {
-                let ns: Vec<u64> = fields[7].split(',').map(|ns| ns.parse().expect("cpu ns")).collect();
-                assert_eq!(ns.len(), samples.len(), "{path}: a CPU time for every sample of {key}");
+                let ns: Vec<u64> = fields[7]
+                    .split(',')
+                    .map(|ns| ns.parse().expect("cpu ns"))
+                    .collect();
+                assert_eq!(
+                    ns.len(),
+                    samples.len(),
+                    "{path}: a CPU time for every sample of {key}"
+                );
                 cpu.push((key.clone(), ns));
             }
             if fields[8] != "-" {
-                let nj: Vec<u64> = fields[8].split(',').map(|nj| nj.parse().expect("energy nJ")).collect();
-                assert_eq!(nj.len(), samples.len(), "{path}: an energy for every sample of {key}");
+                let nj: Vec<u64> = fields[8]
+                    .split(',')
+                    .map(|nj| nj.parse().expect("energy nJ"))
+                    .collect();
+                assert_eq!(
+                    nj.len(),
+                    samples.len(),
+                    "{path}: an energy for every sample of {key}"
+                );
                 energy.push((key.clone(), nj));
             }
             if fields[9] != "-" {
                 let c: Vec<[u64; 4]> = fields[9]
                     .split(',')
                     .map(|sample| {
-                        let v: Vec<u64> = sample.split(':').map(|x| x.parse().expect("a count")).collect();
+                        let v: Vec<u64> = sample
+                            .split(':')
+                            .map(|x| x.parse().expect("a count"))
+                            .collect();
                         v.try_into().expect("P time, P cycles, E time, E cycles")
                     })
                     .collect();
-                assert_eq!(c.len(), samples.len(), "{path}: counts for every sample of {key}");
+                assert_eq!(
+                    c.len(),
+                    samples.len(),
+                    "{path}: counts for every sample of {key}"
+                );
                 cores.push((key.clone(), c));
             }
             cells.push((key, samples));
@@ -4310,16 +5411,25 @@ const COMPARE_Q_PERMILLE: u64 = 50;
 
 fn compare_command(arguments: &[String]) {
     let usage = "usage: bench-hashes compare OLD.tsv... -- NEW.tsv... (one new run for each old run, in the order they ran)";
-    let split = arguments.iter().position(|argument| argument == "--").expect(usage);
+    let split = arguments
+        .iter()
+        .position(|argument| argument == "--")
+        .expect(usage);
     let (old, new) = (&arguments[..split], &arguments[split + 1..]);
-    assert!(old.len() >= 3 && old.len() == new.len(), "{usage}; at least three pairs");
+    assert!(
+        old.len() >= 3 && old.len() == new.len(),
+        "{usage}; at least three pairs"
+    );
     // Each cell's mean wall time per unit, and (where its samples carry
     // them) its CPU time and energy per unit: all the samples' CPU time, or
     // energy, over their units, in the same fixed point.
     let means = |path: &String| {
         let file = read_samples(path);
         if !file.load.starts_with("quiet") {
-            println!("{path}: {}: its samples are no evidence of speed", file.load);
+            println!(
+                "{path}: {}: its samples are no evidence of speed",
+                file.load
+            );
         }
         let cpu: std::collections::HashMap<String, Vec<u64>> = file.cpu.into_iter().collect();
         let energy: std::collections::HashMap<String, Vec<u64>> = file.energy.into_iter().collect();
@@ -4328,7 +5438,12 @@ fn compare_command(arguments: &[String]) {
             .map(|(key, samples)| {
                 let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
                 let per_unit = |column: &std::collections::HashMap<String, Vec<u64>>| {
-                    column.get(&key).map(|v| (v.iter().map(|&n| u128::from(n)).sum::<u128>() << 64) / units.max(1)).filter(|&v| v > 0)
+                    column
+                        .get(&key)
+                        .map(|v| {
+                            (v.iter().map(|&n| u128::from(n)).sum::<u128>() << 64) / units.max(1)
+                        })
+                        .filter(|&v| v > 0)
                 };
                 let (c, e) = (per_unit(&cpu), per_unit(&energy));
                 (key.clone(), Mean::of(&samples).fixed().0, c, e)
@@ -4339,10 +5454,14 @@ fn compare_command(arguments: &[String]) {
     // CPU time, in the first old run's order.
     type Pairs = Vec<(u128, u128)>;
     let mut order: Vec<String> = Vec::new();
-    let mut cells: std::collections::HashMap<String, (Pairs, Pairs, Pairs)> = std::collections::HashMap::new();
+    let mut cells: std::collections::HashMap<String, (Pairs, Pairs, Pairs)> =
+        std::collections::HashMap::new();
     for (old_path, new_path) in old.iter().zip(new) {
         let new_means: std::collections::HashMap<String, (u128, Option<u128>, Option<u128>)> =
-            means(new_path).into_iter().map(|(k, m, c, e)| (k, (m, c, e))).collect();
+            means(new_path)
+                .into_iter()
+                .map(|(k, m, c, e)| (k, (m, c, e)))
+                .collect();
         for (key, old_mean, old_cpu, old_energy) in means(old_path) {
             let Some(&(new_mean, new_cpu, new_energy)) = new_means.get(&key) else {
                 continue;
@@ -4377,13 +5496,19 @@ fn compare_command(arguments: &[String]) {
         // rule judges wall time), where every pair has it.
         let beside = |name: &str, pairs: &Pairs| {
             if pairs.len() == wall.len() {
-                format!("; {name} {}", times(clocks::summary::geometric_mean_permille(pairs)))
+                format!(
+                    "; {name} {}",
+                    times(clocks::summary::geometric_mean_permille(pairs))
+                )
             } else {
                 String::new()
             }
         };
         let cpu = beside("CPU time", cpu) + &beside("energy", energy);
-        let (a, b) = (geometric_mean(wall.iter().map(|p| p.0)), geometric_mean(wall.iter().map(|p| p.1)));
+        let (a, b) = (
+            geometric_mean(wall.iter().map(|p| p.0)),
+            geometric_mean(wall.iter().map(|p| p.1)),
+        );
         println!(
             "{key}: {} -> {} ns/unit  {} {verdict}, {faster} of {} pairs faster{cpu}",
             Fixed(a).format_ns(),
@@ -4433,22 +5558,39 @@ const REGRESS_MARGIN_PERMILLE: u64 = 30;
 /// --points) measures, every one judged.
 enum RegressScope {
     Full,
-    Chosen { contenders: String, points: Option<String> },
+    Chosen {
+        contenders: String,
+        points: Option<String>,
+    },
 }
 
 impl RegressScope {
     /// The run's arguments, `rounds` rounds (0: a default run, its own).
     fn arguments(&self, rounds: usize) -> Vec<String> {
         let count = rounds;
-        let rounds = || vec!["--for-regression-check".to_string(), "--rounds".to_string(), count.to_string()];
+        let rounds = || {
+            vec![
+                "--for-regression-check".to_string(),
+                "--rounds".to_string(),
+                count.to_string(),
+            ]
+        };
         match self {
             RegressScope::Full => {
                 let contenders: Vec<&str> = DEFAULT_CONTENDERS.iter().map(|a| a.key()).collect();
                 [vec!["--contenders".into(), contenders.join(",")], rounds()].concat()
             }
             RegressScope::Chosen { contenders, points } => {
-                let points = points.iter().flat_map(|p| ["--points".to_string(), p.clone()]).collect();
-                [vec!["--contenders".into(), contenders.clone()], points, rounds()].concat()
+                let points = points
+                    .iter()
+                    .flat_map(|p| ["--points".to_string(), p.clone()])
+                    .collect();
+                [
+                    vec!["--contenders".into(), contenders.clone()],
+                    points,
+                    rounds(),
+                ]
+                .concat()
             }
         }
     }
@@ -4456,9 +5598,12 @@ impl RegressScope {
     fn describe(&self) -> String {
         match self {
             RegressScope::Full => "every cell of a default run".to_string(),
-            RegressScope::Chosen { contenders, points } => {
-                format!("--contenders {contenders}{}", points.as_ref().map_or(String::new(), |p| format!(" --points {p:?}")))
-            }
+            RegressScope::Chosen { contenders, points } => format!(
+                "--contenders {contenders}{}",
+                points
+                    .as_ref()
+                    .map_or(String::new(), |p| format!(" --points {p:?}"))
+            ),
         }
     }
 }
@@ -4466,9 +5611,20 @@ impl RegressScope {
 /// Two sizes files as one: every cell of `old`, with its size, and the cells
 /// only `new` has, with theirs.
 fn merge_sizes(old: &str, new: &str) -> String {
-    let cell = |line: &str| line.rsplit_once('\t').map(|(cell, _)| cell.to_owned()).unwrap_or_default();
+    let cell = |line: &str| {
+        line.rsplit_once('\t')
+            .map(|(cell, _)| cell.to_owned())
+            .unwrap_or_default()
+    };
     let old_cells: std::collections::HashSet<String> = old.lines().skip(1).map(cell).collect();
-    old.lines().chain(new.lines().skip(1).filter(|line| !old_cells.contains(&cell(line)))).map(|line| format!("{line}\n")).collect()
+    old.lines()
+        .chain(
+            new.lines()
+                .skip(1)
+                .filter(|line| !old_cells.contains(&cell(line))),
+        )
+        .map(|line| format!("{line}\n"))
+        .collect()
 }
 
 /// One run of `exe` over `scope`, `rounds` rounds (0: a default run's
@@ -4478,8 +5634,18 @@ fn merge_sizes(old: &str, new: &str) -> String {
 /// child (clocks::child::run), so its CPU time is this process's own and
 /// the windows around it stay a second long: a run needs no least length,
 /// and its own load line (of windows inside it) goes unread.
-fn regress_run(exe: &str, rounds: usize, scope: &RegressScope, sizes: &std::path::Path, keep: Option<&std::path::Path>) -> (SamplesFile, String) {
-    let directory = std::env::temp_dir().join(format!("bench-hashes-regress-{}-{}", std::process::id(), clocks::load::now_ns()));
+fn regress_run(
+    exe: &str,
+    rounds: usize,
+    scope: &RegressScope,
+    sizes: &std::path::Path,
+    keep: Option<&std::path::Path>,
+) -> (SamplesFile, String) {
+    let directory = std::env::temp_dir().join(format!(
+        "bench-hashes-regress-{}-{}",
+        std::process::id(),
+        clocks::load::now_ns()
+    ));
     fs::create_dir_all(&directory).unwrap();
     let stderr_path = directory.join("stderr.txt");
     let stderr = fs::File::create(&stderr_path).unwrap();
@@ -4493,9 +5659,17 @@ fn regress_run(exe: &str, rounds: usize, scope: &RegressScope, sizes: &std::path
             .stdout(std::process::Stdio::null())
             .stderr(stderr),
     );
-    assert!(run.success, "{exe} failed\n{}", fs::read_to_string(&stderr_path).unwrap_or_default().trim_end());
-    let found: Vec<_> =
-        fs::read_dir(directory.join("benchmark-results")).unwrap().map(|entry| entry.unwrap().path().join("bench-hashes.samples.tsv")).collect();
+    assert!(
+        run.success,
+        "{exe} failed\n{}",
+        fs::read_to_string(&stderr_path)
+            .unwrap_or_default()
+            .trim_end()
+    );
+    let found: Vec<_> = fs::read_dir(directory.join("benchmark-results"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path().join("bench-hashes.samples.tsv"))
+        .collect();
     assert_eq!(found.len(), 1, "one samples file");
     let file = read_samples(found[0].to_str().unwrap());
     let load = regress_load(run.started_ns, run.started_ns + run.wall_ns);
@@ -4504,14 +5678,12 @@ fn regress_run(exe: &str, rounds: usize, scope: &RegressScope, sizes: &std::path
         // the windows around the run, which compare reads in turn (the
         // windows listed stay the run's own, on its samples' clock).
         let text = fs::read_to_string(&found[0]).unwrap();
-        let kept: String = text
-            .lines()
-            .map(|line| match line.strip_prefix("# load: ") {
-                Some(_) => format!("# load: {load}\n# load measured by: bench-hashes regress, around the run (the windows below are the run's own)\n"),
-                None => format!("{line}\n"),
-            })
-            .collect();
-        fs::write(keep, kept).unwrap_or_else(|error| panic!("cannot keep {}: {error}", keep.display()));
+        let kept: String = text.lines().map(|line| match line.strip_prefix("# load: ") {
+            Some(_) => format!("# load: {load}\n# load measured by: bench-hashes regress, around the run (the windows below are the run's own)\n"),
+            None => format!("{line}\n"),
+        }).collect();
+        fs::write(keep, kept)
+            .unwrap_or_else(|error| panic!("cannot keep {}: {error}", keep.display()));
     }
     fs::remove_dir_all(&directory).unwrap();
     (file, load)
@@ -4527,8 +5699,14 @@ fn regress_load(start_ns: u64, end_ns: u64) -> String {
         // Where the OS counts CPU time, a window covers the end within half
         // a window; elsewhere none ever closes (describe says so).
         let counted = cfg!(any(target_os = "linux", target_vendor = "apple"));
-        if windows.last().map_or(!counted, |last| last.end_ns >= end_ns) {
-            let overlapping: Vec<clocks::load::Window> = windows.into_iter().filter(|w| w.end_ns > start_ns && w.start_ns < end_ns).collect();
+        if windows
+            .last()
+            .map_or(!counted, |last| last.end_ns >= end_ns)
+        {
+            let overlapping: Vec<clocks::load::Window> = windows
+                .into_iter()
+                .filter(|w| w.end_ns > start_ns && w.start_ns < end_ns)
+                .collect();
             return clocks::load::describe(&overlapping);
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
@@ -4538,11 +5716,21 @@ fn regress_load(start_ns: u64, end_ns: u64) -> String {
 fn regress_command(arguments: &[String]) -> i32 {
     let usage = "usage: bench-hashes regress [--contenders A,B [--points P,Q]] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE... (pair i runs the i-th of each, round robin; bench-hashes check builds the sides and chooses the cells)";
     let mut arguments = arguments;
-    let (mut contenders, mut points, mut pairs, mut chosen_rounds, mut keep) = (None, None, REGRESS_PAIRS, None, None);
-    while let Some(name) = arguments.first().filter(|a| a.starts_with("--") && *a != "--") {
+    let (mut contenders, mut points, mut pairs, mut chosen_rounds, mut keep) =
+        (None, None, REGRESS_PAIRS, None, None);
+    while let Some(name) = arguments
+        .first()
+        .filter(|a| a.starts_with("--") && *a != "--")
+    {
         assert!(arguments.len() > 1, "{name} needs a value\n{usage}");
         let value = arguments[1].clone();
-        let count = || value.parse::<usize>().ok().filter(|&n| n > 0).unwrap_or_else(|| panic!("{name} takes a positive count\n{usage}"));
+        let count = || {
+            value
+                .parse::<usize>()
+                .ok()
+                .filter(|&n| n > 0)
+                .unwrap_or_else(|| panic!("{name} takes a positive count\n{usage}"))
+        };
         match name.as_str() {
             "--contenders" => contenders = Some(value.clone()),
             "--points" => points = Some(value.clone()),
@@ -4553,11 +5741,18 @@ fn regress_command(arguments: &[String]) -> i32 {
         }
         arguments = &arguments[2..];
     }
-    assert!(pairs >= 3, "--pairs: the rule needs at least three pairs\n{usage}");
+    assert!(
+        pairs >= 3,
+        "--pairs: the rule needs at least three pairs\n{usage}"
+    );
     if let Some(keep) = &keep {
-        fs::create_dir_all(keep).unwrap_or_else(|error| panic!("cannot create {}: {error}", keep.display()));
+        fs::create_dir_all(keep)
+            .unwrap_or_else(|error| panic!("cannot create {}: {error}", keep.display()));
     }
-    assert!(points.is_none() || contenders.is_some(), "--points narrows a --contenders check\n{usage}");
+    assert!(
+        points.is_none() || contenders.is_some(),
+        "--points narrows a --contenders check\n{usage}"
+    );
     let scope = match contenders {
         Some(contenders) => RegressScope::Chosen { contenders, points },
         None => RegressScope::Full,
@@ -4578,9 +5773,15 @@ fn regress_command(arguments: &[String]) -> i32 {
     // run takes the sizes (Sizes). A cell both sides measure takes the old
     // side's size, so both do the same work a sample; a cell only one side
     // measures (a --bench comparison whose cells changed), its own side's.
-    let sizes = std::env::temp_dir().join(format!("bench-hashes-regress-sizes-{}.tsv", std::process::id()));
+    let sizes = std::env::temp_dir().join(format!(
+        "bench-hashes-regress-sizes-{}.tsv",
+        std::process::id()
+    ));
     let calibrate = |exe: &str, side: &str| -> String {
-        let path = std::env::temp_dir().join(format!("bench-hashes-regress-sizes-{}-{side}.tsv", std::process::id()));
+        let path = std::env::temp_dir().join(format!(
+            "bench-hashes-regress-sizes-{}-{side}.tsv",
+            std::process::id()
+        ));
         let calibration = std::process::Command::new(exe)
             .args(scope.arguments(rounds))
             .arg("--calibrate-only")
@@ -4588,32 +5789,52 @@ fn regress_command(arguments: &[String]) -> i32 {
             .stdout(std::process::Stdio::null())
             .output()
             .unwrap_or_else(|error| panic!("failed to run {exe}: {error}"));
-        assert!(calibration.status.success(), "{exe} --calibrate-only failed\n{}", String::from_utf8_lossy(&calibration.stderr).trim_end());
+        assert!(
+            calibration.status.success(),
+            "{exe} --calibrate-only failed\n{}",
+            String::from_utf8_lossy(&calibration.stderr).trim_end()
+        );
         let text = fs::read_to_string(&path).unwrap();
         fs::remove_file(&path).unwrap();
         text
     };
-    let merged = merge_sizes(&calibrate(&old_exes[0], "old"), &calibrate(&new_exes[0], "new"));
-    fs::write(&sizes, merged).unwrap_or_else(|error| panic!("cannot write {}: {error}", sizes.display()));
+    let merged = merge_sizes(
+        &calibrate(&old_exes[0], "old"),
+        &calibrate(&new_exes[0], "new"),
+    );
+    fs::write(&sizes, merged)
+        .unwrap_or_else(|error| panic!("cannot write {}: {error}", sizes.display()));
     if let Some(keep) = &keep {
-        fs::copy(&sizes, keep.join("sizes.tsv")).unwrap_or_else(|error| panic!("cannot keep the sizes: {error}"));
+        fs::copy(&sizes, keep.join("sizes.tsv"))
+            .unwrap_or_else(|error| panic!("cannot keep the sizes: {error}"));
     }
     let mut unreliable = Vec::new();
     let mut powers: Vec<String> = Vec::new();
-    let mut ratios: std::collections::BTreeMap<String, Vec<u64>> = std::collections::BTreeMap::new();
-    let mut pairs_means: std::collections::BTreeMap<String, Vec<(u128, u128)>> = std::collections::BTreeMap::new();
+    let mut ratios: std::collections::BTreeMap<String, Vec<u64>> =
+        std::collections::BTreeMap::new();
+    let mut pairs_means: std::collections::BTreeMap<String, Vec<(u128, u128)>> =
+        std::collections::BTreeMap::new();
     // A run's means, and its load line when clocks found it no evidence
     // (other programs busy, or no load window).
-    let mut means = |exe: &str, side: &str| -> (std::collections::HashMap<String, u128>, Option<String>) {
-        run_index += 1;
-        let kept = keep.as_ref().map(|dir| dir.join(format!("run-{run_index:03}-{side}.tsv")));
-        let (file, load) = regress_run(exe, rounds, &scope, &sizes, kept.as_deref());
-        if !powers.contains(&file.power) {
-            powers.push(file.power.clone());
-        }
-        let busy = (!load.starts_with("quiet")).then_some(load);
-        (file.cells.into_iter().map(|(key, samples)| (key, Mean::of(&samples).fixed().0)).collect(), busy)
-    };
+    let mut means =
+        |exe: &str, side: &str| -> (std::collections::HashMap<String, u128>, Option<String>) {
+            run_index += 1;
+            let kept = keep
+                .as_ref()
+                .map(|dir| dir.join(format!("run-{run_index:03}-{side}.tsv")));
+            let (file, load) = regress_run(exe, rounds, &scope, &sizes, kept.as_deref());
+            if !powers.contains(&file.power) {
+                powers.push(file.power.clone());
+            }
+            let busy = (!load.starts_with("quiet")).then_some(load);
+            (
+                file.cells
+                    .into_iter()
+                    .map(|(key, samples)| (key, Mean::of(&samples).fixed().0))
+                    .collect(),
+                busy,
+            )
+        };
     for pair in 0..pairs {
         let began = clocks::now();
         // A pair with a run that is no evidence runs again, in the same
@@ -4621,7 +5842,10 @@ fn regress_command(arguments: &[String]) -> i32 {
         // now and then costs other programs about 1.7 CPU-seconds inside
         // a run's window: fork runner jobs 1304-1305, October 5, 2026).
         let mut attempt = 0;
-        let (old_exe, new_exe) = (&old_exes[pair % old_exes.len()], &new_exes[pair % new_exes.len()]);
+        let (old_exe, new_exe) = (
+            &old_exes[pair % old_exes.len()],
+            &new_exes[pair % new_exes.len()],
+        );
         let (old, new) = loop {
             let ((old, a), (new, b)) = if pair % 2 == 0 {
                 let o = means(old_exe, "old");
@@ -4645,11 +5869,22 @@ fn regress_command(arguments: &[String]) -> i32 {
             let Some(&new_mean) = new.get(key) else {
                 continue;
             };
-            ratios.entry(key.clone()).or_default().push(clocks::summary::ratio_permille(new_mean, *old_mean));
-            pairs_means.entry(key.clone()).or_default().push((*old_mean, new_mean));
+            ratios
+                .entry(key.clone())
+                .or_default()
+                .push(clocks::summary::ratio_permille(new_mean, *old_mean));
+            pairs_means
+                .entry(key.clone())
+                .or_default()
+                .push((*old_mean, new_mean));
         }
         let tenths = (clocks::since_ns(began) + 50_000_000) / 100_000_000;
-        eprintln!("regress: pair {} of {pairs} in {}.{} s", pair + 1, tenths / 10, tenths % 10);
+        eprintln!(
+            "regress: pair {} of {pairs} in {}.{} s",
+            pair + 1,
+            tenths / 10,
+            tenths % 10
+        );
     }
     let power = format!("regress: power during the check: {}", powers.join("; "));
     if !unreliable.is_empty() {
@@ -4662,14 +5897,24 @@ fn regress_command(arguments: &[String]) -> i32 {
     }
     let percent = |permille: u64| {
         let d = permille as i64 - 1000;
-        format!("{}{}.{}%", if d < 0 { "-" } else { "+" }, d.abs() / 10, d.abs() % 10)
+        format!(
+            "{}{}.{}%",
+            if d < 0 { "-" } else { "+" },
+            d.abs() / 10,
+            d.abs() % 10
+        )
     };
     // The cells judged (the points' solo cells; with --full or a chosen
     // selection, every cell every pair measured), all at once
     // (clocks::summary::discoveries).
-    let judged: Vec<&String> = pairs_means.iter().filter(|(_, m)| m.len() == pairs).map(|(k, _)| k).collect();
+    let judged: Vec<&String> = pairs_means
+        .iter()
+        .filter(|(_, m)| m.len() == pairs)
+        .map(|(k, _)| k)
+        .collect();
     let tested: Vec<Vec<(u128, u128)>> = judged.iter().map(|k| pairs_means[*k].clone()).collect();
-    let judgments = clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
+    let judgments =
+        clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
     let mut slower = 0;
     for (key, judgment) in judged.into_iter().zip(judgments) {
         if judgment.verdict == clocks::summary::Verdict::Level {
@@ -4682,7 +5927,12 @@ fn regress_command(arguments: &[String]) -> i32 {
             "faster"
         };
         let pairs: Vec<String> = ratios[key].iter().map(|&r| percent(r)).collect();
-        println!("  {word} {key}: {} (the pairs' geometric mean; {} pairs: {})", percent(judgment.ratio_permille), pairs.len(), pairs.join(" "));
+        println!(
+            "  {word} {key}: {} (the pairs' geometric mean; {} pairs: {})",
+            percent(judgment.ratio_permille),
+            pairs.len(),
+            pairs.join(" ")
+        );
     }
     if slower > 0 {
         println!("regress: REGRESSION: {slower} cells slower");
@@ -4722,26 +5972,61 @@ fn samples_header(machine: &MachineMetadata, run: &[(String, String)]) -> String
         ("cpu identity", machine.cpu_identity.as_str()),
     ]
     .into_iter()
-    .chain(run.iter().map(|(key, value)| (key.as_str(), value.as_str())))
-    {
+    .chain(
+        run.iter()
+            .map(|(key, value)| (key.as_str(), value.as_str())),
+    ) {
         writeln!(out, "# {key}: {value}").unwrap();
     }
     writeln!(out, "# power: {}", machine.describe_power()).unwrap();
     writeln!(out, "# load: {}", clocks::load::describe(&machine.load)).unwrap();
-    let windows: Vec<String> =
-        machine.load.iter().map(|w| format!("{}-{}:{}:{}", w.start_ns / 1_000_000, w.end_ns / 1_000_000, w.other_milli_cpus, w.steal_milli_cpus)).collect();
-    writeln!(out, "# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): {}", windows.join(",")).unwrap();
+    let windows: Vec<String> = machine
+        .load
+        .iter()
+        .map(|w| {
+            format!(
+                "{}-{}:{}:{}",
+                w.start_ns / 1_000_000,
+                w.end_ns / 1_000_000,
+                w.other_milli_cpus,
+                w.steal_milli_cpus
+            )
+        })
+        .collect();
+    writeln!(
+        out,
+        "# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): {}",
+        windows.join(",")
+    )
+    .unwrap();
     out
 }
 
-fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &MachineMetadata, selection_note: &str) -> String {
+fn generate_samples_tsv(
+    roster: &Roster,
+    samples: &RunSamples,
+    machine: &MachineMetadata,
+    selection_note: &str,
+) -> String {
     // Each contender's source, every one the run measured (a contender added
     // later has its line without anyone remembering to add it).
-    let mut run: Vec<(String, String)> = roster.algorithms.iter().map(|a| (format!("source {}", a.key()), a.source().to_owned())).collect();
+    let mut run: Vec<(String, String)> = roster
+        .algorithms
+        .iter()
+        .map(|a| (format!("source {}", a.key()), a.source().to_owned()))
+        .collect();
     run.extend([
         ("contenders".to_owned(), selection_note.to_owned()),
         ("rounds".to_owned(), roster.rounds.to_string()),
-        ("points".to_owned(), roster.points.iter().map(|&index| POINTS[index].label).collect::<Vec<_>>().join(",")),
+        (
+            "points".to_owned(),
+            roster
+                .points
+                .iter()
+                .map(|&index| POINTS[index].label)
+                .collect::<Vec<_>>()
+                .join(","),
+        ),
     ]);
     let mut out = samples_header(machine, &run);
     writeln!(out, "{SAMPLES_COLUMNS}").unwrap();
@@ -4756,21 +6041,35 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
                 if cell_samples.is_empty() {
                     continue;
                 }
-                let values: Vec<String> = cell_samples.iter().map(|m| format!("{}/{}", m.ns, m.units)).collect();
+                let values: Vec<String> = cell_samples
+                    .iter()
+                    .map(|m| format!("{}/{}", m.ns, m.units))
+                    .collect();
                 let timestamps = match scenario {
                     Scenario::Solo => &samples.solo_started_ns,
                     Scenario::Shared => &samples.shared_started_ns,
                 };
                 let cell_starts = &timestamps[algorithm_index][point_index];
-                assert_eq!(cell_starts.len(), cell_samples.len(), "each sample has its own load timestamp");
-                let starts: Vec<String> = cell_starts.iter().map(|ns| (ns / 1_000_000).to_string()).collect();
+                assert_eq!(
+                    cell_starts.len(),
+                    cell_samples.len(),
+                    "each sample has its own load timestamp"
+                );
+                let starts: Vec<String> = cell_starts
+                    .iter()
+                    .map(|ns| (ns / 1_000_000).to_string())
+                    .collect();
                 let (cpu, energy, counts) = match scenario {
                     Scenario::Solo => (
                         cpu_field(&samples.solo_cpu_ns[algorithm_index][point_index]),
                         cpu_field(&samples.solo_energy_nj[algorithm_index][point_index]),
                         counts_field(&samples.solo_counts[algorithm_index][point_index]),
                     ),
-                    Scenario::Shared => ("-".to_string(), "-".to_string(), counts_field(&samples.shared_counts[algorithm_index][point_index])),
+                    Scenario::Shared => (
+                        "-".to_string(),
+                        "-".to_string(),
+                        counts_field(&samples.shared_counts[algorithm_index][point_index]),
+                    ),
                 };
                 writeln!(
                     out,
@@ -4798,10 +6097,20 @@ fn generate_samples_tsv(roster: &Roster, samples: &RunSamples, machine: &Machine
  * each cell's mean; then where the numbers came from, for whoever needs
  * to trust or reproduce them.
  */
-fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, selection_note: &str) -> String {
+fn generate_text(
+    roster: &Roster,
+    results: &Results,
+    machine: &MachineMetadata,
+    selection_note: &str,
+) -> String {
     let mut output = String::new();
 
-    writeln!(output, "Hash speed on {} ({}, {} CPUs), {}", machine.cpu_type, machine.os_type, machine.cpu_count, machine.timestamp).unwrap();
+    writeln!(
+        output,
+        "Hash speed on {} ({}, {} CPUs), {}",
+        machine.cpu_type, machine.os_type, machine.cpu_count, machine.timestamp
+    )
+    .unwrap();
     writeln!(
         output,
         "{} run: {} rounds{}. Each cell is the mean time per unit (total time over total work), lower is better.",
@@ -4816,10 +6125,20 @@ fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, 
     for key in ["busy", "idle", "nonstop"] {
         let names: Vec<String> = UseCase::ALL
             .into_iter()
-            .filter(|&use_case| use_case.pattern_key() == key && roster.points.iter().any(|&index| POINTS[index].use_case == use_case))
+            .filter(|&use_case| {
+                use_case.pattern_key() == key
+                    && roster
+                        .points
+                        .iter()
+                        .any(|&index| POINTS[index].use_case == use_case)
+            })
             .map(|use_case| format!("\u{201c}{}\u{201d}", use_case.heading()))
             .collect();
-        let Some(pattern) = UseCase::ALL.into_iter().find(|use_case| use_case.pattern_key() == key).map(UseCase::pattern) else {
+        let Some(pattern) = UseCase::ALL
+            .into_iter()
+            .find(|use_case| use_case.pattern_key() == key)
+            .map(UseCase::pattern)
+        else {
             continue;
         };
         let list = match names.as_slice() {
@@ -4833,39 +6152,90 @@ fn generate_text(roster: &Roster, results: &Results, machine: &MachineMetadata, 
     writeln!(output).unwrap();
 
     for scenario in Scenario::ALL {
-        writeln!(output, "{}: {}.", scenario.heading().to_uppercase(), scenario.description()).unwrap();
+        writeln!(
+            output,
+            "{}: {}.",
+            scenario.heading().to_uppercase(),
+            scenario.description()
+        )
+        .unwrap();
         writeln!(output).unwrap();
-        for use_case in UseCase::ALL.into_iter().filter(|&use_case| scenario.measures(use_case)) {
+        for use_case in UseCase::ALL
+            .into_iter()
+            .filter(|&use_case| scenario.measures(use_case))
+        {
             append_table(&mut output, roster, results, scenario, use_case);
         }
     }
 
     writeln!(output, "PROVENANCE").unwrap();
-    writeln!(output, "  bench-hashes {BENCH_VERSION}, {GIT_SOURCE}, commit {GIT_COMMIT} ({GIT_CLEAN_STATUS})").unwrap();
+    writeln!(
+        output,
+        "  bench-hashes {BENCH_VERSION}, {GIT_SOURCE}, commit {GIT_COMMIT} ({GIT_CLEAN_STATUS})"
+    )
+    .unwrap();
     writeln!(output, "  contenders: {selection_note}").unwrap();
     for algorithm in &roster.algorithms {
-        writeln!(output, "  {}: {}; {}", algorithm.name(), algorithm.source(), algorithm.mode()).unwrap();
+        writeln!(
+            output,
+            "  {}: {}; {}",
+            algorithm.name(),
+            algorithm.source(),
+            algorithm.mode()
+        )
+        .unwrap();
     }
     writeln!(output, "  CPU: {}", machine.cpu_identity).unwrap();
-    writeln!(output, "  {RUSTC_VERSION}; target {BUILD_TARGET}; features {TARGET_FEATURES}").unwrap();
+    writeln!(
+        output,
+        "  {RUSTC_VERSION}; target {BUILD_TARGET}; features {TARGET_FEATURES}"
+    )
+    .unwrap();
     writeln!(output, "  clock: {}", clocks::WALL_CLOCK).unwrap();
-    writeln!(output, "  load during the run: {}", clocks::load::describe(&machine.load)).unwrap();
+    writeln!(
+        output,
+        "  load during the run: {}",
+        clocks::load::describe(&machine.load)
+    )
+    .unwrap();
     writeln!(output, "  power: {}", machine.describe_power()).unwrap();
 
     output
 }
 
 /// One results table: a row per point, a column per contender taking part.
-fn append_table(output: &mut String, roster: &Roster, results: &Results, scenario: Scenario, use_case: UseCase) {
-    let contenders: Vec<usize> = (0..roster.len()).filter(|&index| roster.algorithms[index].takes_part(use_case)).collect();
-    let points: Vec<usize> = use_case.points().filter(|&index| roster.measures(index)).collect();
+fn append_table(
+    output: &mut String,
+    roster: &Roster,
+    results: &Results,
+    scenario: Scenario,
+    use_case: UseCase,
+) {
+    let contenders: Vec<usize> = (0..roster.len())
+        .filter(|&index| roster.algorithms[index].takes_part(use_case))
+        .collect();
+    let points: Vec<usize> = use_case
+        .points()
+        .filter(|&index| roster.measures(index))
+        .collect();
     if points.is_empty() {
         return;
     }
-    writeln!(output, "  {} ({})", use_case.heading(), use_case.time_unit()).unwrap();
+    writeln!(
+        output,
+        "  {} ({})",
+        use_case.heading(),
+        use_case.time_unit()
+    )
+    .unwrap();
     write!(output, "  {:<8}", use_case.column()).unwrap();
     for &algorithm_index in &contenders {
-        write!(output, "  {:>14}", column_heading(roster.algorithms[algorithm_index])).unwrap();
+        write!(
+            output,
+            "  {:>14}",
+            column_heading(roster.algorithms[algorithm_index])
+        )
+        .unwrap();
     }
     writeln!(output).unwrap();
     for &point_index in &points {
@@ -4898,14 +6268,25 @@ fn machine_metadata() -> MachineMetadata {
 
     let cpus = system.cpus();
 
-    assert!(!cpus.is_empty(), "the operating system must report at least one logical CPU");
+    assert!(
+        !cpus.is_empty(),
+        "the operating system must report at least one logical CPU"
+    );
 
-    let cpu_type = cpus.iter().map(|cpu| cpu.brand().trim()).find(|brand| !brand.is_empty()).unwrap_or(std::env::consts::ARCH).to_owned();
+    let cpu_type = cpus
+        .iter()
+        .map(|cpu| cpu.brand().trim())
+        .find(|brand| !brand.is_empty())
+        .unwrap_or(std::env::consts::ARCH)
+        .to_owned();
 
     let kernel = System::kernel_version().unwrap_or_else(|| "unreported".to_owned());
 
     let os_type = if std::env::consts::OS == "macos" {
-        let kernel_major = kernel.split('.').next().expect("kernel version must have a first component");
+        let kernel_major = kernel
+            .split('.')
+            .next()
+            .expect("kernel version must have a first component");
 
         format!("darwin{kernel_major}")
     } else {
@@ -4935,14 +6316,32 @@ fn cpu_identity() -> String {
     let mut parts: Vec<String> = Vec::new();
     if let Ok(cpuinfo) = fs::read_to_string("/proc/cpuinfo") {
         let first = cpuinfo.split("\n\n").next().unwrap_or("");
-        for key in ["CPU implementer", "CPU variant", "CPU part", "CPU revision", "model name", "microcode", "Features", "flags"] {
-            if let Some(line) = first.lines().find(|line| line.split(':').next().is_some_and(|k| k.trim() == key)) {
+        for key in [
+            "CPU implementer",
+            "CPU variant",
+            "CPU part",
+            "CPU revision",
+            "model name",
+            "microcode",
+            "Features",
+            "flags",
+        ] {
+            if let Some(line) = first
+                .lines()
+                .find(|line| line.split(':').next().is_some_and(|k| k.trim() == key))
+            {
                 parts.push(format!("{key}: {}", line.split_once(':').unwrap().1.trim()));
             }
         }
-        for path in ["/sys/firmware/devicetree/base/compatible", "/sys/class/dmi/id/product_name"] {
+        for path in [
+            "/sys/firmware/devicetree/base/compatible",
+            "/sys/class/dmi/id/product_name",
+        ] {
             if let Ok(model) = fs::read(path) {
-                let model = String::from_utf8_lossy(&model).replace('\0', " ").trim().to_owned();
+                let model = String::from_utf8_lossy(&model)
+                    .replace('\0', " ")
+                    .trim()
+                    .to_owned();
                 if !model.is_empty() {
                     parts.push(format!("machine: {model}"));
                 }
@@ -4950,8 +6349,15 @@ fn cpu_identity() -> String {
         }
     }
     if cfg!(target_os = "macos") {
-        for key in ["machdep.cpu.brand_string", "hw.perflevel0.physicalcpu", "hw.perflevel1.physicalcpu"] {
-            if let Ok(out) = std::process::Command::new("sysctl").args(["-n", key]).output() {
+        for key in [
+            "machdep.cpu.brand_string",
+            "hw.perflevel0.physicalcpu",
+            "hw.perflevel1.physicalcpu",
+        ] {
+            if let Ok(out) = std::process::Command::new("sysctl")
+                .args(["-n", key])
+                .output()
+            {
                 let value = String::from_utf8_lossy(&out.stdout).trim().to_owned();
                 if out.status.success() && !value.is_empty() {
                     parts.push(format!("{key}: {value}"));
@@ -4963,9 +6369,14 @@ fn cpu_identity() -> String {
 }
 
 fn utc_timestamp() -> String {
-    let duration = SystemTime::now().duration_since(UNIX_EPOCH).expect("system clock must be after the Unix epoch");
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock must be after the Unix epoch");
 
-    assert!(duration.as_secs() <= i64::MAX as u64, "system time must fit in the Gregorian conversion");
+    assert!(
+        duration.as_secs() <= i64::MAX as u64,
+        "system time must fit in the Gregorian conversion"
+    );
 
     let total_seconds = duration.as_secs() as i64;
     let days = total_seconds.div_euclid(86_400);
@@ -4986,11 +6397,16 @@ fn utc_timestamp() -> String {
 fn civil_date_from_unix_days(unix_days: i64) -> (i64, i64, i64) {
     let shifted = unix_days + 719_468;
 
-    let era = if shifted >= 0 { shifted } else { shifted - 146_096 } / 146_097;
+    let era = if shifted >= 0 {
+        shifted
+    } else {
+        shifted - 146_096
+    } / 146_097;
 
     let day_of_era = shifted - era * 146_097;
 
-    let year_of_era = (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let year_of_era =
+        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
 
     let mut year = year_of_era + era * 400;
 
@@ -5011,7 +6427,10 @@ fn civil_date_from_unix_days(unix_days: i64) -> (i64, i64, i64) {
 fn sanitize_alphanumeric(input: &str) -> String {
     let sanitized: String = input.chars().filter(char::is_ascii_alphanumeric).collect();
 
-    assert!(!sanitized.is_empty(), "sanitized identifier must not be empty; input was {input:?}");
+    assert!(
+        !sanitized.is_empty(),
+        "sanitized identifier must not be empty; input was {input:?}"
+    );
 
     sanitized
 }
@@ -5033,14 +6452,32 @@ fn generate_guide(roster: &Roster, results: &Results, machine: &MachineMetadata)
         if index > 0 {
             data.push(',');
         }
-        write!(data, "{{\"key\":{},\"name\":{},\"color\":\"{}\"}}", json_string(algorithm.key()), json_string(algorithm.name()), algorithm.color()).unwrap();
-    }
-    write!(data, "],\"machine\":{},\"date\":{},\"plots\":[", json_string(&machine.cpu_type), json_string(machine.timestamp.split(' ').next().unwrap_or("")))
+        write!(
+            data,
+            "{{\"key\":{},\"name\":{},\"color\":\"{}\"}}",
+            json_string(algorithm.key()),
+            json_string(algorithm.name()),
+            algorithm.color()
+        )
         .unwrap();
+    }
+    write!(
+        data,
+        "],\"machine\":{},\"date\":{},\"plots\":[",
+        json_string(&machine.cpu_type),
+        json_string(machine.timestamp.split(' ').next().unwrap_or(""))
+    )
+    .unwrap();
     let mut first = true;
     for scenario in Scenario::ALL {
-        for use_case in UseCase::ALL.into_iter().filter(|&use_case| scenario.measures(use_case)) {
-            let points: Vec<usize> = use_case.points().filter(|&index| roster.measures(index)).collect();
+        for use_case in UseCase::ALL
+            .into_iter()
+            .filter(|&use_case| scenario.measures(use_case))
+        {
+            let points: Vec<usize> = use_case
+                .points()
+                .filter(|&index| roster.measures(index))
+                .collect();
             if points.is_empty() {
                 continue;
             }
@@ -5057,11 +6494,29 @@ fn generate_guide(roster: &Roster, results: &Results, machine: &MachineMetadata)
                 json_string(&map::cell_key(scenario.key(), use_case))
             )
             .unwrap();
-            data.push_str(&points.iter().map(|&index| json_string(POINTS[index].label)).collect::<Vec<_>>().join(","));
+            data.push_str(
+                &points
+                    .iter()
+                    .map(|&index| json_string(POINTS[index].label))
+                    .collect::<Vec<_>>()
+                    .join(","),
+            );
             data.push_str("],\"units\":[");
-            data.push_str(&points.iter().map(|&index| use_case.units(POINTS[index], 1).to_string()).collect::<Vec<_>>().join(","));
+            data.push_str(
+                &points
+                    .iter()
+                    .map(|&index| use_case.units(POINTS[index], 1).to_string())
+                    .collect::<Vec<_>>()
+                    .join(","),
+            );
             data.push_str("],\"bytes\":[");
-            data.push_str(&points.iter().map(|&index| POINTS[index].bytes.to_string()).collect::<Vec<_>>().join(","));
+            data.push_str(
+                &points
+                    .iter()
+                    .map(|&index| POINTS[index].bytes.to_string())
+                    .collect::<Vec<_>>()
+                    .join(","),
+            );
             data.push_str("],\"series\":{");
             let mut first_series = true;
             for (algorithm_index, algorithm) in roster.algorithms.iter().enumerate() {
@@ -5074,7 +6529,14 @@ fn generate_guide(roster: &Roster, results: &Results, machine: &MachineMetadata)
                 first_series = false;
                 write!(data, "{}:{{", json_string(algorithm.key())).unwrap();
                 /* Per point: the mean (ns per unit). */
-                let means: Vec<String> = points.iter().map(|&index| cell(results, algorithm_index, index).get(scenario).format_ns(1)).collect();
+                let means: Vec<String> = points
+                    .iter()
+                    .map(|&index| {
+                        cell(results, algorithm_index, index)
+                            .get(scenario)
+                            .format_ns(1)
+                    })
+                    .collect();
                 write!(data, "\"mean\":[{}]", means.join(",")).unwrap();
                 data.push('}');
             }
@@ -5091,21 +6553,41 @@ fn generate_guide(roster: &Roster, results: &Results, machine: &MachineMetadata)
     }
     examples.push('}');
     let escape = |text: String| text.replace('<', "\\u003c");
-    include_str!("guide.html").replace("@DATA@", &escape(data)).replace("@EXAMPLES@", &escape(examples))
+    include_str!("guide.html")
+        .replace("@DATA@", &escape(data))
+        .replace("@EXAMPLES@", &escape(examples))
 }
 
 /// Each recommended call's complete program, compiled as an example of
 /// this crate (`cargo build --examples`), so what the guide shows builds.
 const GUIDE_EXAMPLES: [(&str, &str); 9] = [
     ("hash", include_str!("../examples/guide_hash.rs")),
-    ("hash_multithreaded", include_str!("../examples/guide_hash_multithreaded.rs")),
+    (
+        "hash_multithreaded",
+        include_str!("../examples/guide_hash_multithreaded.rs"),
+    ),
     ("hash_many", include_str!("../examples/guide_hash_many.rs")),
-    ("hash_many_multithreaded", include_str!("../examples/guide_hash_many_multithreaded.rs")),
+    (
+        "hash_many_multithreaded",
+        include_str!("../examples/guide_hash_many_multithreaded.rs"),
+    ),
     ("update", include_str!("../examples/guide_update.rs")),
-    ("update_multithreaded", include_str!("../examples/guide_update_multithreaded.rs")),
-    ("Stream::submit_with", include_str!("../examples/guide_stream_messages.rs")),
-    ("Stream::submit_reader", include_str!("../examples/guide_stream_pieces.rs")),
-    ("Stream::submit_batch_with", include_str!("../examples/guide_stream_batches.rs")),
+    (
+        "update_multithreaded",
+        include_str!("../examples/guide_update_multithreaded.rs"),
+    ),
+    (
+        "Stream::submit_with",
+        include_str!("../examples/guide_stream_messages.rs"),
+    ),
+    (
+        "Stream::submit_reader",
+        include_str!("../examples/guide_stream_pieces.rs"),
+    ),
+    (
+        "Stream::submit_batch_with",
+        include_str!("../examples/guide_stream_batches.rs"),
+    ),
 ];
 
 fn json_string(text: &str) -> String {
@@ -5117,7 +6599,9 @@ fn json_string(text: &str) -> String {
             '\n' => quoted.push_str("\\n"),
             '\r' => quoted.push_str("\\r"),
             '\t' => quoted.push_str("\\t"),
-            c if c < ' ' || matches!(c, '\u{2028}' | '\u{2029}') => write!(quoted, "\\u{:04x}", c as u32).unwrap(),
+            c if c < ' ' || matches!(c, '\u{2028}' | '\u{2029}') => {
+                write!(quoted, "\\u{:04x}", c as u32).unwrap()
+            }
             c => quoted.push(c),
         }
     }
@@ -5166,9 +6650,16 @@ mod correctness_tests {
         let battery = "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=35389539)\t47%; discharging; 2:36 remaining present: true\n";
         let power = Power::parse_pmset(battery, settings).unwrap();
         assert!(power.on_battery && power.slowing());
-        assert_eq!(power.describe(), "battery power (47% charged), High Power mode");
+        assert_eq!(
+            power.describe(),
+            "battery power (47% charged), High Power mode"
+        );
         let mains = "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35389539)\t48%; charging; 1:10 remaining present: true\n";
-        let power = Power::parse_pmset(mains, &settings.replace("powermode            2", "lowpowermode         1")).unwrap();
+        let power = Power::parse_pmset(
+            mains,
+            &settings.replace("powermode            2", "lowpowermode         1"),
+        )
+        .unwrap();
         assert!(!power.on_battery && power.low_power);
         assert_eq!(power.describe(), "mains power, Low Power Mode");
         // Linux: a desktop with no battery and no platform profile reports
@@ -5178,7 +6669,14 @@ mod correctness_tests {
         assert_eq!(linux.describe(), "mains power, no battery, CPU frequency governor powersave, energy-performance preference performance");
         assert!(!linux.slowing());
         let laptop = Power::parse_linux(
-            &[("Battery".to_owned(), Some("Discharging".to_owned()), Some(61)), ("Mains".to_owned(), None, None)],
+            &[
+                (
+                    "Battery".to_owned(),
+                    Some("Discharging".to_owned()),
+                    Some(61),
+                ),
+                ("Mains".to_owned(), None, None),
+            ],
             Some("balanced"),
             &[],
             &["power".to_owned()],
@@ -5218,14 +6716,21 @@ mod correctness_tests {
     }
 
     fn point(label: &str, use_case: UseCase) -> usize {
-        POINTS.iter().position(|point| point.label == label && point.use_case == use_case).unwrap()
+        POINTS
+            .iter()
+            .position(|point| point.label == label && point.use_case == use_case)
+            .unwrap()
     }
 
     /// Results and samples for two contenders over `rounds` rounds: each
     /// cell's sample in round r is `value(contender, point, r)` ns over one
     /// unit, solo and both shared copies alike (the shared ones for the
     /// nonstop use cases alone), summarised as measure_all does.
-    fn run(roster: &Roster, rounds: usize, value: impl Fn(usize, usize, usize) -> u64) -> (Results, RunSamples) {
+    fn run(
+        roster: &Roster,
+        rounds: usize,
+        value: impl Fn(usize, usize, usize) -> u64,
+    ) -> (Results, RunSamples) {
         let empty = || -> Samples { vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
         let mut samples = RunSamples {
             solo: empty(),
@@ -5247,17 +6752,29 @@ mod correctness_tests {
                         samples.shared[a][p].extend([v, v]);
                         // Separate starts cross load-window boundaries, and
                         // distinguish the two copies from one another.
-                        samples.shared_started_ns[a][p].extend([10_000_000 + r as u64 * 1_000_000, 11_000_000 + r as u64 * 1_000_000]);
+                        samples.shared_started_ns[a][p].extend([
+                            10_000_000 + r as u64 * 1_000_000,
+                            11_000_000 + r as u64 * 1_000_000,
+                        ]);
                     }
                     samples.solo_started_ns[a][p].push(r as u64 * 1_000_000);
                     samples.solo_cpu_ns[a][p].push(Some(2 * value(a, p, r)));
                     samples.solo_energy_nj[a][p].push(Some(3 * value(a, p, r)));
-                    let level = |cycles, time_ns| clocks::Level { cycles, instructions: 0, time_ns };
-                    samples.solo_counts[a][p].push(Some(clocks::Counts { p: level(4 * value(a, p, r), value(a, p, r)), e: level(0, 0) }));
+                    let level = |cycles, time_ns| clocks::Level {
+                        cycles,
+                        instructions: 0,
+                        time_ns,
+                    };
+                    samples.solo_counts[a][p].push(Some(clocks::Counts {
+                        p: level(4 * value(a, p, r), value(a, p, r)),
+                        e: level(0, 0),
+                    }));
                 }
                 results[a][p] = Some(Cell {
                     solo: Mean::of(&samples.solo[a][p]),
-                    shared: Scenario::Shared.measures(POINTS[p].use_case).then(|| Mean::of(&samples.shared[a][p])),
+                    shared: Scenario::Shared
+                        .measures(POINTS[p].use_case)
+                        .then(|| Mean::of(&samples.shared[a][p])),
                 });
             }
         }
@@ -5266,12 +6783,10 @@ mod correctness_tests {
 
     #[test]
     fn regress_merges_the_sides_sizes() {
-        let old = format!("{SIZES_VERSION}\nsha256\t64 B\t40\nblake3-servil-mt\tcontinuous 64 B\t9\n");
+        let old =
+            format!("{SIZES_VERSION}\nsha256\t64 B\t40\nblake3-servil-mt\tcontinuous 64 B\t9\n");
         let new = format!("{SIZES_VERSION}\nsha256\t64 B\t44\nblake3-servil-mt\tcontinuous 64 B\t7\nblake3-servil-mt\tcontinuous batch 16\t3\n");
-        assert_eq!(
-            merge_sizes(&old, &new),
-            format!("{SIZES_VERSION}\nsha256\t64 B\t40\nblake3-servil-mt\tcontinuous 64 B\t9\nblake3-servil-mt\tcontinuous batch 16\t3\n")
-        );
+        assert_eq!(merge_sizes(&old, &new), format!("{SIZES_VERSION}\nsha256\t64 B\t40\nblake3-servil-mt\tcontinuous 64 B\t9\nblake3-servil-mt\tcontinuous batch 16\t3\n"));
     }
 
     /// Every point hashes a prefix of one buffer: the input of each size is
@@ -5280,7 +6795,11 @@ mod correctness_tests {
     fn inputs_are_prefixes_of_the_largest() {
         let largest = make_input_seeded(1 << 20, 1);
         for bytes in [0, 1, 63, 64, 4096, 4470, 1 << 20] {
-            assert_eq!(make_input_seeded(bytes, 1), largest[..bytes], "{bytes} bytes");
+            assert_eq!(
+                make_input_seeded(bytes, 1),
+                largest[..bytes],
+                "{bytes} bytes"
+            );
         }
     }
 
@@ -5288,8 +6807,14 @@ mod correctness_tests {
     #[test]
     fn frozen_contract_matches_frozen_md() {
         let manifest = include_str!("../FROZEN.md");
-        let start = manifest.find("```frozen\n").expect("FROZEN.md has a frozen block") + "```frozen\n".len();
-        let end = start + manifest[start..].find("```").expect("the frozen block ends");
+        let start = manifest
+            .find("```frozen\n")
+            .expect("FROZEN.md has a frozen block")
+            + "```frozen\n".len();
+        let end = start
+            + manifest[start..]
+                .find("```")
+                .expect("the frozen block ends");
         assert_eq!(
             &manifest[start..end],
             frozen_contract(),
@@ -5309,7 +6834,10 @@ mod correctness_tests {
         }
         // A mean is total time over total work: 3000 ns over 400 and 1000
         // over 400 make 4000 over 800, 5 ns a unit.
-        assert_eq!(Mean::of(&[Measured::new(3000, 400), Measured::new(1000, 400)]).format_ns(1), "5.000");
+        assert_eq!(
+            Mean::of(&[Measured::new(3000, 400), Measured::new(1000, 400)]).format_ns(1),
+            "5.000"
+        );
     }
 
     #[test]
@@ -5317,16 +6845,36 @@ mod correctness_tests {
         blake3_servil::initialize();
         CALLS.with(|calls| calls.borrow_mut().clear());
         let input = make_input(MESSAGE_LEN);
-        take_sample(Algorithm::Blake3ServilSt, &input, Point::one("", MESSAGE_LEN), 2);
+        take_sample(
+            Algorithm::Blake3ServilSt,
+            &input,
+            Point::one("", MESSAGE_LEN),
+            2,
+        );
         take_sample(Algorithm::Blake3ServilSt, &input, Point::many("", 1), 3);
         /* One untimed call before each sample's timed ones (clocks: each timed call follows the same call). */
-        assert_eq!(CALLS.with(|calls| calls.borrow().clone()), ["hash", "hash", "hash", "hash_many", "hash_many", "hash_many", "hash_many"]);
+        assert_eq!(
+            CALLS.with(|calls| calls.borrow().clone()),
+            [
+                "hash",
+                "hash",
+                "hash",
+                "hash_many",
+                "hash_many",
+                "hash_many",
+                "hash_many"
+            ]
+        );
     }
 
     #[test]
     fn sparse_regression_runs_write_samples_without_a_graph() {
         let roster = Roster::new(
-            vec![Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt, Algorithm::Sha256],
+            vec![
+                Algorithm::Blake3ServilSt,
+                Algorithm::Blake3ServilMt,
+                Algorithm::Sha256,
+            ],
             true,
             Some(vec![point("64 B", UseCase::ContinuousMessages)]),
             Some(24),
@@ -5353,22 +6901,36 @@ mod correctness_tests {
         let (_, samples) = run(&roster, 3, |_, _, r| 10_000 + r as u64);
         let mut machine = machine_metadata();
         machine.load = vec![
-            clocks::load::Window { start_ns: 0, end_ns: 1_500_000, other_milli_cpus: 1200, steal_milli_cpus: 0 },
-            clocks::load::Window { start_ns: 1_500_000, end_ns: 3_000_000, other_milli_cpus: 100, steal_milli_cpus: 7 },
+            clocks::load::Window {
+                start_ns: 0,
+                end_ns: 1_500_000,
+                other_milli_cpus: 1200,
+                steal_milli_cpus: 0,
+            },
+            clocks::load::Window {
+                start_ns: 1_500_000,
+                end_ns: 3_000_000,
+                other_milli_cpus: 100,
+                steal_milli_cpus: 7,
+            },
         ];
         let tsv = generate_samples_tsv(&roster, &samples, &machine, "test");
         assert!(tsv.starts_with("# bench-hashes samples v6\n"));
         // The main run's own file carries the shared provenance first.
-        assert_eq!(&harness_tests::header_keys(&tsv)[..harness_tests::PROVENANCE.len()], harness_tests::PROVENANCE, "{tsv}");
+        assert_eq!(
+            &harness_tests::header_keys(&tsv)[..harness_tests::PROVENANCE.len()],
+            harness_tests::PROVENANCE,
+            "{tsv}"
+        );
         assert!(tsv.contains("\n# load: busy: "), "{tsv}");
         assert!(tsv.contains("\n# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1:1200:0,1-3:100:7\n"), "{tsv}");
         assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\n"));
         assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\t30000,30003,30006\t10000:40000:0:0,10001:40004:0:0,10002:40008:0:0\n"), "{tsv}");
+        assert!(tsv.contains("\nblake3-servil-st\tshared\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\t-\t-\t-\n"), "{tsv}");
         assert!(
-            tsv.contains("\nblake3-servil-st\tshared\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\t-\t-\t-\n"),
-            "{tsv}"
+            !tsv.contains("\tshared\tOneMessage\t"),
+            "calls after a gap run alone: {tsv}"
         );
-        assert!(!tsv.contains("\tshared\tOneMessage\t"), "calls after a gap run alone: {tsv}");
     }
 
     /// The samples file reads back into the figures the report prints:
@@ -5379,25 +6941,25 @@ mod correctness_tests {
         let roster = Roster::new(
             vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring],
             true,
-            Some(vec![point("64 B", UseCase::OneMessage), point("64 B", UseCase::LentMessages), point("16", UseCase::LentBatches)]),
+            Some(vec![
+                point("64 B", UseCase::OneMessage),
+                point("64 B", UseCase::LentMessages),
+                point("16", UseCase::LentBatches),
+            ]),
             Some(20),
             &TO_CHECK_FOR_REGRESSIONS,
         );
         // Contender 1's lent cells: 3 rounds in 10 twice as slow.
-        let (_, samples) =
-            run(
-                &roster,
-                20,
-                |a, p, r| {
-                    if a == 1 && POINTS[p].use_case != UseCase::OneMessage && r % 10 < 3 {
-                        20_000 + r as u64
-                    } else {
-                        10_000 + 7 * r as u64
-                    }
-                },
-            );
+        let (_, samples) = run(&roster, 20, |a, p, r| {
+            if a == 1 && POINTS[p].use_case != UseCase::OneMessage && r % 10 < 3 {
+                20_000 + r as u64
+            } else {
+                10_000 + 7 * r as u64
+            }
+        });
         let tsv = generate_samples_tsv(&roster, &samples, &machine_metadata(), "test");
-        let path = std::env::temp_dir().join(format!("bench-hashes-readback-{}.tsv", std::process::id()));
+        let path =
+            std::env::temp_dir().join(format!("bench-hashes-readback-{}.tsv", std::process::id()));
         fs::write(&path, &tsv).unwrap();
         let read = read_samples(path.to_str().unwrap());
         fs::remove_file(&path).unwrap();
@@ -5405,23 +6967,57 @@ mod correctness_tests {
         let mut checked = 0;
         for (a, algorithm) in roster.algorithms.iter().enumerate() {
             for &p in &roster.points {
-                for (scenario, cell) in [("solo", &samples.solo[a][p]), ("shared", &samples.shared[a][p])] {
+                for (scenario, cell) in [
+                    ("solo", &samples.solo[a][p]),
+                    ("shared", &samples.shared[a][p]),
+                ] {
                     if cell.is_empty() {
                         continue;
                     }
-                    let key = format!("{}|{scenario}|{:?}|{}", algorithm.key(), POINTS[p].use_case, POINTS[p].label);
-                    let (_, back) = read.cells.iter().find(|(k, _)| *k == key).unwrap_or_else(|| panic!("{key} read back"));
+                    let key = format!(
+                        "{}|{scenario}|{:?}|{}",
+                        algorithm.key(),
+                        POINTS[p].use_case,
+                        POINTS[p].label
+                    );
+                    let (_, back) = read
+                        .cells
+                        .iter()
+                        .find(|(k, _)| *k == key)
+                        .unwrap_or_else(|| panic!("{key} read back"));
                     assert_eq!(figures(back), figures(cell), "{key}");
                     // CPU time: each solo sample's, none for shared ones.
-                    let cpu = read.cpu.iter().find(|(k, _)| *k == key).map(|(_, ns)| ns.clone());
-                    let wanted = (scenario == "solo").then(|| samples.solo_cpu_ns[a][p].iter().map(|ns| ns.unwrap()).collect::<Vec<u64>>());
+                    let cpu = read
+                        .cpu
+                        .iter()
+                        .find(|(k, _)| *k == key)
+                        .map(|(_, ns)| ns.clone());
+                    let wanted = (scenario == "solo").then(|| {
+                        samples.solo_cpu_ns[a][p]
+                            .iter()
+                            .map(|ns| ns.unwrap())
+                            .collect::<Vec<u64>>()
+                    });
                     assert_eq!(cpu, wanted, "{key}'s CPU time");
                     // Energy alike.
-                    let energy = read.energy.iter().find(|(k, _)| *k == key).map(|(_, nj)| nj.clone());
-                    let wanted = (scenario == "solo").then(|| samples.solo_energy_nj[a][p].iter().map(|nj| nj.unwrap()).collect::<Vec<u64>>());
+                    let energy = read
+                        .energy
+                        .iter()
+                        .find(|(k, _)| *k == key)
+                        .map(|(_, nj)| nj.clone());
+                    let wanted = (scenario == "solo").then(|| {
+                        samples.solo_energy_nj[a][p]
+                            .iter()
+                            .map(|nj| nj.unwrap())
+                            .collect::<Vec<u64>>()
+                    });
                     assert_eq!(energy, wanted, "{key}'s energy");
                     // Core counts alike (the helper gives solo samples counts, shared none).
-                    let cores = read.cores.iter().find(|(k, _)| *k == key).map(|(_, c)| c.clone());
+                    let cores = read
+                        .cores
+                        .iter()
+                        .find(|(k, _)| *k == key)
+                        .map(|(_, c)| c.clone());
                     let wanted = (scenario == "solo").then(|| {
                         samples.solo_counts[a][p]
                             .iter()
@@ -5441,65 +7037,136 @@ mod correctness_tests {
 
     #[test]
     fn graph_strings_escape_controls_and_guide_keeps_script_data_inside() {
-        assert_eq!(json_string("a\n\r\t\0\"\\"), "\"a\\n\\r\\t\\u0000\\\"\\\\\"");
-        let roster = Roster::new(vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring], true, None, Some(24), &TO_CHECK_FOR_REGRESSIONS);
+        assert_eq!(
+            json_string("a\n\r\t\0\"\\"),
+            "\"a\\n\\r\\t\\u0000\\\"\\\\\""
+        );
+        let roster = Roster::new(
+            vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring],
+            true,
+            None,
+            Some(24),
+            &TO_CHECK_FOR_REGRESSIONS,
+        );
         let (results, _) = run(&roster, 24, |_, _, r| 10_000 + r as u64);
         let mut machine = machine_metadata();
         machine.cpu_type = "</script><b>".to_owned();
         let guide = generate_guide(&roster, &results, &machine);
         assert!(guide.contains("\\u003c/script>\\u003cb>"));
-        assert_eq!(guide.matches("</script>").count(), 1, "only the template closes the outer script");
+        assert_eq!(
+            guide.matches("</script>").count(),
+            1,
+            "only the template closes the outer script"
+        );
         assert!(!guide.contains("@DATA@") && !guide.contains("@EXAMPLES@"));
-        assert!(guide.contains("\"map\":\"solo|"), "each plot names its chart on the map");
+        assert!(
+            guide.contains("\"map\":\"solo|"),
+            "each plot names its chart on the map"
+        );
     }
 
     #[test]
     fn use_case_axes_are_contiguous_and_cover_every_point() {
         assert_eq!(UseCase::OneMessage.points(), 0..INPUT_COUNT);
-        assert_eq!(UseCase::ManyMessages.points(), INPUT_COUNT..INPUT_COUNT + BATCH_COUNT);
+        assert_eq!(
+            UseCase::ManyMessages.points(),
+            INPUT_COUNT..INPUT_COUNT + BATCH_COUNT
+        );
         let idle = INPUT_COUNT + BATCH_COUNT;
         for use_case in [UseCase::IdleOneMessage, UseCase::IdleManyMessages] {
             let (twin, mine) = (use_case.call().points(), use_case.points());
-            assert_eq!(mine, twin.start + idle..twin.end + idle, "each idle axis follows its twin's pattern");
+            assert_eq!(
+                mine,
+                twin.start + idle..twin.end + idle,
+                "each idle axis follows its twin's pattern"
+            );
             for (a, b) in POINTS[twin].iter().zip(&POINTS[mine]) {
-                assert_eq!((a.label, a.bytes, a.messages), (b.label, b.bytes, b.messages), "an idle axis repeats its twin's points");
+                assert_eq!(
+                    (a.label, a.bytes, a.messages),
+                    (b.label, b.bytes, b.messages),
+                    "an idle axis repeats its twin's points"
+                );
             }
         }
         let continuous = 2 * idle;
-        assert_eq!(UseCase::ContinuousMessages.points(), continuous..continuous + CONTINUOUS_MESSAGE_COUNT);
-        assert_eq!(UseCase::ContinuousBatches.points(), continuous + CONTINUOUS_MESSAGE_COUNT..continuous + CONTINUOUS_MESSAGE_COUNT + CONTINUOUS_BATCH_COUNT);
+        assert_eq!(
+            UseCase::ContinuousMessages.points(),
+            continuous..continuous + CONTINUOUS_MESSAGE_COUNT
+        );
+        assert_eq!(
+            UseCase::ContinuousBatches.points(),
+            continuous + CONTINUOUS_MESSAGE_COUNT
+                ..continuous + CONTINUOUS_MESSAGE_COUNT + CONTINUOUS_BATCH_COUNT
+        );
         let lent = continuous + CONTINUOUS_MESSAGE_COUNT + CONTINUOUS_BATCH_COUNT;
-        assert_eq!(UseCase::LentMessages.points(), lent..lent + CONTINUOUS_MESSAGE_COUNT);
+        assert_eq!(
+            UseCase::LentMessages.points(),
+            lent..lent + CONTINUOUS_MESSAGE_COUNT
+        );
         let interleaved = lent + CONTINUOUS_MESSAGE_COUNT;
-        assert_eq!(UseCase::Interleaved.points(), interleaved..interleaved + INTERLEAVED_COUNT);
+        assert_eq!(
+            UseCase::Interleaved.points(),
+            interleaved..interleaved + INTERLEAVED_COUNT
+        );
         let collection = interleaved + INTERLEAVED_COUNT;
-        assert_eq!(UseCase::Collection.points(), collection..collection + COLLECTION_COUNT);
+        assert_eq!(
+            UseCase::Collection.points(),
+            collection..collection + COLLECTION_COUNT
+        );
         let outboard = collection + COLLECTION_COUNT;
-        assert_eq!(UseCase::Outboard.points(), outboard..outboard + OUTBOARD_COUNT);
+        assert_eq!(
+            UseCase::Outboard.points(),
+            outboard..outboard + OUTBOARD_COUNT
+        );
         let verify = outboard + OUTBOARD_COUNT;
         assert_eq!(UseCase::Verify.points(), verify..verify + VERIFY_COUNT);
         let lent_batches = verify + VERIFY_COUNT;
-        assert_eq!(UseCase::LentBatches.points(), lent_batches..lent_batches + CONTINUOUS_BATCH_COUNT);
+        assert_eq!(
+            UseCase::LentBatches.points(),
+            lent_batches..lent_batches + CONTINUOUS_BATCH_COUNT
+        );
         let continuous_collection = lent_batches + CONTINUOUS_BATCH_COUNT;
-        assert_eq!(UseCase::ContinuousCollection.points(), continuous_collection..continuous_collection + COLLECTION_COUNT);
+        assert_eq!(
+            UseCase::ContinuousCollection.points(),
+            continuous_collection..continuous_collection + COLLECTION_COUNT
+        );
         let merkle = continuous_collection + COLLECTION_COUNT;
         assert_eq!(UseCase::MerkleTree.points(), merkle..merkle + MERKLE_COUNT);
         let turn = merkle + MERKLE_COUNT;
-        assert_eq!(UseCase::InterleavedTurn.points(), turn..turn + INTERLEAVED_COUNT);
-        assert_eq!(UseCase::IdleInterleavedTurn.points(), turn + INTERLEAVED_COUNT..POINT_COUNT);
-        for (k, point) in POINTS[UseCase::ContinuousCollection.points()].iter().enumerate() {
+        assert_eq!(
+            UseCase::InterleavedTurn.points(),
+            turn..turn + INTERLEAVED_COUNT
+        );
+        assert_eq!(
+            UseCase::IdleInterleavedTurn.points(),
+            turn + INTERLEAVED_COUNT..POINT_COUNT
+        );
+        for (k, point) in POINTS[UseCase::ContinuousCollection.points()]
+            .iter()
+            .enumerate()
+        {
             assert_eq!(
                 (point.label, point.bytes),
-                (POINTS[UseCase::Collection.points()][k].label, POINTS[UseCase::Collection.points()][k].bytes),
+                (
+                    POINTS[UseCase::Collection.points()][k].label,
+                    POINTS[UseCase::Collection.points()][k].bytes
+                ),
                 "the pipelined collections are the collections"
             );
         }
         for (k, point) in POINTS[UseCase::Collection.points()].iter().enumerate() {
-            assert_eq!((point.label, point.messages), (COLLECTIONS[k].0, 2048), "each collection is 2048 items");
+            assert_eq!(
+                (point.label, point.messages),
+                (COLLECTIONS[k].0, 2048),
+                "each collection is 2048 items"
+            );
         }
         let covered: Vec<_> = UseCase::ALL.into_iter().flat_map(UseCase::points).collect();
         assert_eq!(covered, (0..POINT_COUNT).collect::<Vec<_>>());
-        for (owned, lent) in POINTS[UseCase::ContinuousMessages.points()].iter().zip(&POINTS[UseCase::LentMessages.points()]) {
+        for (owned, lent) in POINTS[UseCase::ContinuousMessages.points()]
+            .iter()
+            .zip(&POINTS[UseCase::LentMessages.points()])
+        {
             assert_eq!((owned.label, owned.bytes), (lent.label, lent.bytes));
         }
         let many = POINTS[UseCase::Interleaved.points()][0];
@@ -5507,24 +7174,52 @@ mod correctness_tests {
             many.bytes == INTERLEAVED.chunk && many.label == "256" && INTERLEAVED.open == 256,
             "many messages at once: 256 messages open, a unit of INTERLEAVED.chunk bytes"
         );
-        for (k, point) in POINTS[UseCase::ContinuousMessages.points()].iter().enumerate() {
-            assert_eq!(point.bytes, 64 << (2 * k), "the continuous messages go up by factors of four from 64 B");
+        for (k, point) in POINTS[UseCase::ContinuousMessages.points()]
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(
+                point.bytes,
+                64 << (2 * k),
+                "the continuous messages go up by factors of four from 64 B"
+            );
         }
-        for (k, point) in POINTS[UseCase::ContinuousBatches.points()].iter().enumerate() {
-            assert_eq!(point.messages, 16 << (2 * k), "the continuous batches go up by factors of four from 16");
+        for (k, point) in POINTS[UseCase::ContinuousBatches.points()]
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(
+                point.messages,
+                16 << (2 * k),
+                "the continuous batches go up by factors of four from 16"
+            );
         }
         for use_case in [UseCase::ManyMessages, UseCase::ContinuousBatches] {
-            assert!(POINTS[use_case.points()].iter().all(|p| p.bytes == p.messages * MESSAGE_LEN));
+            assert!(POINTS[use_case.points()]
+                .iter()
+                .all(|p| p.bytes == p.messages * MESSAGE_LEN));
         }
     }
 
     #[test]
     fn batch_observes_every_digest_and_matches_empty_vectors() {
         for (algorithm, expected) in [
-            (Algorithm::Blake3, "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"),
-            (Algorithm::Sha256, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
-            (Algorithm::Sha1Dc, "da39a3ee5e6b4b0d3255bfef95601890afd80709"),
-            (Algorithm::Sha3_256, "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a"),
+            (
+                Algorithm::Blake3,
+                "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
+            ),
+            (
+                Algorithm::Sha256,
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            ),
+            (
+                Algorithm::Sha1Dc,
+                "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+            ),
+            (
+                Algorithm::Sha3_256,
+                "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a",
+            ),
         ] {
             let mut calls = 0;
             hash_batch(algorithm, &[], Point::one("", 0), 3, |digest| {
@@ -5555,7 +7250,10 @@ mod correctness_tests {
             (Point::continuous("", long.len()), long),
             (Point::continuous_batch("", 16), batch),
         ];
-        for algorithm in Algorithm::ALL.into_iter().filter(|algorithm| algorithm.availability().is_ok()) {
+        for algorithm in Algorithm::ALL
+            .into_iter()
+            .filter(|algorithm| algorithm.availability().is_ok())
+        {
             for (point, input) in &cases {
                 if !algorithm.takes_part(point.use_case) {
                     continue;
@@ -5563,11 +7261,21 @@ mod correctness_tests {
                 let mut once = 0;
                 hash_batch(algorithm, input, *point, 1, |_| once += 1);
                 assert!(once >= 1, "{} {:?}", algorithm.key(), point.use_case);
-                let count = in_flight(if point.use_case.batch() { input.len() } else { input.len().min(PIECE_LEN) });
+                let count = in_flight(if point.use_case.batch() {
+                    input.len()
+                } else {
+                    input.len().min(PIECE_LEN)
+                });
                 for iterations in [1, count, 3 * count + 1] {
                     let mut seen = 0;
                     hash_batch(algorithm, input, *point, iterations, |_| seen += 1);
-                    assert_eq!(seen, iterations * once, "{} {:?}", algorithm.key(), point.use_case);
+                    assert_eq!(
+                        seen,
+                        iterations * once,
+                        "{} {:?}",
+                        algorithm.key(),
+                        point.use_case
+                    );
                 }
             }
         }

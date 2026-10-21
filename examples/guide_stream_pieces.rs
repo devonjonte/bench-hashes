@@ -12,7 +12,9 @@ fn main() {
         Mode::Hash,
         |_: &mut [Hash]| {},
         |s| {
-            let len = s.submit_reader(&message[..], Some(message.len() as u64), &mut digest).expect("the read");
+            let len = s
+                .submit_reader(&message[..], Some(message.len() as u64), &mut digest)
+                .expect("the read");
             assert_eq!(len, message.len() as u64);
             s.finish();
         },
