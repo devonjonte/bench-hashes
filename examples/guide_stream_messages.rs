@@ -28,11 +28,7 @@ fn main() {
                     s.collect();
                 };
                 let message = message_number.to_le_bytes(); // your read goes here
-                s.submit_with(
-                    message.len(),
-                    |at, room| room.copy_from_slice(&message[at..][..room.len()]),
-                    place,
-                );
+                s.submit_with(message.len(), |at, room| room.copy_from_slice(&message[at..][..room.len()]), place);
             }
             // Every place comes back before the stream ends.
             s.finish();

@@ -52,37 +52,20 @@ const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
 pub fn command(arguments: &[String]) -> i32 {
     let usage = "usage: bench-hashes check [--against REV] [--cells all] [--pairs N] [--keep DIR]";
-    let (mut against, mut all, mut pairs, mut keep) =
-        ("HEAD".to_string(), false, PAIRS, None::<PathBuf>);
+    let (mut against, mut all, mut pairs, mut keep) = ("HEAD".to_string(), false, PAIRS, None::<PathBuf>);
     let mut it = arguments.iter();
     while let Some(name) = it.next() {
         match name.as_str() {
-            "--against" => {
-                against = it
-                    .next()
-                    .unwrap_or_else(|| panic!("--against needs a revision\n{usage}"))
-                    .clone()
-            }
+            "--against" => against = it.next().unwrap_or_else(|| panic!("--against needs a revision\n{usage}")).clone(),
             "--cells" => {
-                let value = it
-                    .next()
-                    .unwrap_or_else(|| panic!("--cells takes `all`\n{usage}"));
+                let value = it.next().unwrap_or_else(|| panic!("--cells takes `all`\n{usage}"));
                 assert_eq!(value, "all", "--cells takes `all`\n{usage}");
                 all = true;
             }
             "--pairs" => {
-                pairs = it
-                    .next()
-                    .and_then(|v| v.parse().ok())
-                    .filter(|&n| n >= 3)
-                    .unwrap_or_else(|| panic!("--pairs takes a count of 3 or more\n{usage}"))
+                pairs = it.next().and_then(|v| v.parse().ok()).filter(|&n| n >= 3).unwrap_or_else(|| panic!("--pairs takes a count of 3 or more\n{usage}"))
             }
-            "--keep" => {
-                keep =
-                    Some(PathBuf::from(it.next().unwrap_or_else(|| {
-                        panic!("--keep needs a directory\n{usage}")
-                    })))
-            }
+            "--keep" => keep = Some(PathBuf::from(it.next().unwrap_or_else(|| panic!("--keep needs a directory\n{usage}")))),
             other => panic!("unknown option {other}\n{usage}"),
         }
     }
@@ -90,12 +73,7 @@ pub fn command(arguments: &[String]) -> i32 {
     let fork = fork_root(&bench);
     let old = git(&fork, &["rev-parse", &format!("{against}^{{commit}}")]);
     let new = working_tree_commit(&fork);
-    eprintln!(
-        "check: the fork's working tree ({}) against {} ({})",
-        &new[..12],
-        against,
-        &old[..12]
-    );
+    eprintln!("check: the fork's working tree ({}) against {} ({})", &new[..12], against, &old[..12]);
     let cache = fork.join("target").join("check");
     std::fs::create_dir_all(&cache).expect("the check's cache directory");
     let old_exe = side(&fork, &bench, &cache, "old", &old);
@@ -120,20 +98,11 @@ pub fn command(arguments: &[String]) -> i32 {
             points.len(),
             points.iter().cloned().collect::<Vec<_>>().join(", ")
         );
-        (
-            contenders.into_iter().collect(),
-            Some(points.into_iter().collect()),
-        )
+        (contenders.into_iter().collect(), Some(points.into_iter().collect()))
     };
     let olds = layouts(&cache, "old", &old_exe, 0..pairs);
     let news = layouts(&cache, "new", &new_exe, pairs..2 * pairs);
-    let mut regress: Vec<String> = vec![
-        "regress".into(),
-        "--pairs".into(),
-        pairs.to_string(),
-        "--contenders".into(),
-        contenders.join(","),
-    ];
+    let mut regress: Vec<String> = vec!["regress".into(), "--pairs".into(), pairs.to_string(), "--contenders".into(), contenders.join(",")];
     if let Some(points) = &points {
         regress.extend(["--points".to_string(), points.join(",")]);
     }
@@ -143,48 +112,24 @@ pub fn command(arguments: &[String]) -> i32 {
     regress.extend(olds);
     regress.push("--".into());
     regress.extend(news);
-    let status = Command::new(&new_exe)
-        .args(&regress)
-        .current_dir(&bench)
-        .status()
-        .expect("regress runs");
+    let status = Command::new(&new_exe).args(&regress).current_dir(&bench).status().expect("regress runs");
     status.code().unwrap_or(2)
 }
 
 /// The fork checkout this bench sits in: `..` from the bench, a git
 /// repository holding `Cargo.toml` with `name = "blake3-servil"`.
 fn fork_root(bench: &Path) -> PathBuf {
-    let fork = bench
-        .parent()
-        .expect("the bench sits inside a checkout of the fork")
-        .to_path_buf();
-    let manifest = std::fs::read_to_string(fork.join("Cargo.toml")).unwrap_or_else(|e| panic!("check: {} holds no Cargo.toml: {e}; run from a bench-hashes checkout inside the fork's", fork.display()));
-    assert!(
-        manifest.contains("name = \"blake3-servil\""),
-        "check: {} is not the fork",
-        fork.display()
-    );
+    let fork = bench.parent().expect("the bench sits inside a checkout of the fork").to_path_buf();
+    let manifest = std::fs::read_to_string(fork.join("Cargo.toml"))
+        .unwrap_or_else(|e| panic!("check: {} holds no Cargo.toml: {e}; run from a bench-hashes checkout inside the fork's", fork.display()));
+    assert!(manifest.contains("name = \"blake3-servil\""), "check: {} is not the fork", fork.display());
     fork
 }
 
 fn git(cwd: &Path, args: &[&str]) -> String {
-    let out = Command::new("git")
-        .args(args)
-        .current_dir(cwd)
-        .env_remove("GIT_INDEX_FILE")
-        .output()
-        .expect("git runs");
-    assert!(
-        out.status.success(),
-        "git {} in {} failed: {}",
-        args.join(" "),
-        cwd.display(),
-        String::from_utf8_lossy(&out.stderr)
-    );
-    String::from_utf8(out.stdout)
-        .expect("utf-8")
-        .trim()
-        .to_string()
+    let out = Command::new("git").args(args).current_dir(cwd).env_remove("GIT_INDEX_FILE").output().expect("git runs");
+    assert!(out.status.success(), "git {} in {} failed: {}", args.join(" "), cwd.display(), String::from_utf8_lossy(&out.stderr));
+    String::from_utf8(out.stdout).expect("utf-8").trim().to_string()
 }
 
 /// A commit of the working tree as `git add -A` would stage it, HEAD its
@@ -192,11 +137,7 @@ fn git(cwd: &Path, args: &[&str]) -> String {
 /// always gives one commit and nothing of the user's changes.
 fn working_tree_commit(fork: &Path) -> String {
     let real = git(fork, &["rev-parse", "--git-path", "index"]);
-    let real = if Path::new(&real).is_absolute() {
-        PathBuf::from(real)
-    } else {
-        fork.join(real)
-    };
+    let real = if Path::new(&real).is_absolute() { PathBuf::from(real) } else { fork.join(real) };
     let copy = fork.join("target").join("check-index");
     std::fs::create_dir_all(copy.parent().unwrap()).unwrap();
     std::fs::copy(&real, &copy).expect("the index copies");
@@ -209,24 +150,12 @@ fn working_tree_commit(fork: &Path) -> String {
             .env("GIT_COMMITTER_DATE", "2000-01-01T00:00:00Z")
             .output()
             .expect("git runs");
-        assert!(
-            out.status.success(),
-            "git {}: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&out.stderr)
-        );
+        assert!(out.status.success(), "git {}: {}", args.join(" "), String::from_utf8_lossy(&out.stderr));
         String::from_utf8(out.stdout).unwrap().trim().to_string()
     };
     with(&["add", "-A"]);
     let tree = with(&["write-tree"]);
-    with(&[
-        "commit-tree",
-        &tree,
-        "-p",
-        "HEAD",
-        "-m",
-        "check: the working tree",
-    ])
+    with(&["commit-tree", &tree, "-p", "HEAD", "-m", "check: the working tree"])
 }
 
 /// One side's bench-hashes executable, built against the fork at `commit`:
@@ -239,21 +168,9 @@ fn side(fork: &Path, bench: &Path, cache: &Path, name: &str, commit: &str) -> Pa
     if !checkout.exists() {
         git(fork, &["worktree", "prune"]);
         std::fs::create_dir_all(checkout.parent().unwrap()).unwrap();
-        git(
-            fork,
-            &[
-                "worktree",
-                "add",
-                "--detach",
-                checkout.to_str().unwrap(),
-                commit,
-            ],
-        );
+        git(fork, &["worktree", "add", "--detach", checkout.to_str().unwrap(), commit]);
     } else if git(&checkout, &["rev-parse", "HEAD"]) != commit {
-        git(
-            &checkout,
-            &["checkout", "--quiet", "--force", "--detach", commit],
-        );
+        git(&checkout, &["checkout", "--quiet", "--force", "--detach", commit]);
     }
     build_against(&checkout, bench, &cache.join(name).join("target"), name)
 }
@@ -266,23 +183,13 @@ pub fn build_against_command(arguments: &[String]) -> i32 {
     let usage = "usage: bench-hashes build-against DIR    (DIR: a checkout of the fork)";
     let [dir] = arguments else { panic!("{usage}") };
     let checkout = std::fs::canonicalize(dir).unwrap_or_else(|e| panic!("{dir}: {e}\n{usage}"));
-    assert!(
-        checkout.join("Cargo.toml").exists() && checkout.join("c").is_dir(),
-        "{dir} is no checkout of the fork\n{usage}"
-    );
+    assert!(checkout.join("Cargo.toml").exists() && checkout.join("c").is_dir(), "{dir} is no checkout of the fork\n{usage}");
     let bench = std::env::current_dir().expect("the current directory");
     // Where Cargo would build (CARGO_TARGET_DIR where set: the VM builds on
     // a tmpfs, since its shared mount runs no executable), else the
     // checkout's target/.
-    let target = std::env::var_os("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| checkout.join("target"));
-    let exe = build_against(
-        &checkout,
-        &bench,
-        &target.join("build-against"),
-        "build-against",
-    );
+    let target = std::env::var_os("CARGO_TARGET_DIR").map(PathBuf::from).unwrap_or_else(|| checkout.join("target"));
+    let exe = build_against(&checkout, &bench, &target.join("build-against"), "build-against");
     println!("{}", exe.display());
     0
 }
@@ -304,56 +211,25 @@ pub fn build_against(checkout: &Path, bench: &Path, target: &Path, name: &str) -
     // Cargo patches at the locked version only, so a version change wants
     // `cargo update -p blake3-servil`.
     let out = Command::new("cargo")
-        .args([
-            "--config",
-            &patch_fork,
-            "--config",
-            &patch_clocks,
-            "update",
-            "--quiet",
-            "-p",
-            "blake3-servil",
-            "-p",
-            "clocks",
-        ])
+        .args(["--config", &patch_fork, "--config", &patch_clocks, "update", "--quiet", "-p", "blake3-servil", "-p", "clocks"])
         .current_dir(&copy)
         .env("CARGO_TARGET_DIR", &target)
         .env("BENCH_HASHES_CHECKOUT", bench)
         .output()
         .expect("cargo runs");
-    assert!(
-        out.status.success(),
-        "check: {name}: cargo update: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
+    assert!(out.status.success(), "check: {name}: cargo update: {}", String::from_utf8_lossy(&out.stderr));
     let out = Command::new("cargo")
-        .args([
-            "--config",
-            &patch_fork,
-            "--config",
-            &patch_clocks,
-            "build",
-            "--release",
-            "--quiet",
-        ])
+        .args(["--config", &patch_fork, "--config", &patch_clocks, "build", "--release", "--quiet"])
         .current_dir(&copy)
         .env("CARGO_TARGET_DIR", &target)
         .env("BENCH_HASHES_CHECKOUT", bench)
         .output()
         .expect("cargo runs");
-    assert!(
-        out.status.success(),
-        "check: {name}: building bench-hashes against the fork at {}:\n{}",
-        &commit[..12],
-        String::from_utf8_lossy(&out.stderr)
-    );
+    assert!(out.status.success(), "check: {name}: building bench-hashes against the fork at {}:\n{}", &commit[..12], String::from_utf8_lossy(&out.stderr));
     // The fork must come from the side's checkout, never the commit the
     // bench's lock pins: Cargo names each package's source as it builds.
     let lock = std::fs::read_to_string(copy.join("Cargo.lock")).expect("the side's lock");
-    let entry = lock
-        .split("[[package]]")
-        .find(|p| p.contains("name = \"blake3-servil\""))
-        .expect("the lock names blake3-servil");
+    let entry = lock.split("[[package]]").find(|p| p.contains("name = \"blake3-servil\"")).expect("the lock names blake3-servil");
     assert!(
         !entry.contains("source = "),
         "check: {name}: the bench built blake3-servil from its pinned source, not the checkout {}:\n{entry}",
@@ -370,10 +246,7 @@ pub fn build_against(checkout: &Path, bench: &Path, target: &Path, name: &str) -
 /// kernel's own symbol in the executable says whether it is there.
 fn require_sme2_kernel(exe: &Path) {
     let has_sme2 = if cfg!(target_os = "macos") {
-        Command::new("sysctl")
-            .args(["-n", "hw.optional.arm.FEAT_SME2"])
-            .output()
-            .is_ok_and(|o| o.stdout.trim_ascii() == b"1")
+        Command::new("sysctl").args(["-n", "hw.optional.arm.FEAT_SME2"]).output().is_ok_and(|o| o.stdout.trim_ascii() == b"1")
     } else {
         std::fs::read_to_string("/proc/cpuinfo").is_ok_and(|c| c.contains(" sme2"))
     };
@@ -391,14 +264,7 @@ fn require_sme2_kernel(exe: &Path) {
 /// This bench's sources, copied file by file where they differ (so Cargo
 /// sees only real changes); `target`, results and the lock stay the copy's.
 fn copy_bench(from: &Path, to: &Path) {
-    let skip = |p: &Path| {
-        p.components().any(|c| {
-            matches!(
-                c.as_os_str().to_str(),
-                Some("target" | "benchmark-results" | ".git" | "tmp")
-            )
-        })
-    };
+    let skip = |p: &Path| p.components().any(|c| matches!(c.as_os_str().to_str(), Some("target" | "benchmark-results" | ".git" | "tmp")));
     let mut wanted = BTreeSet::new();
     for entry in walk(from) {
         let relative = entry.strip_prefix(from).unwrap().to_path_buf();
@@ -430,12 +296,7 @@ fn walk(dir: &Path) -> Vec<PathBuf> {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                if path.file_name().is_some_and(|n| {
-                    matches!(
-                        n.to_str(),
-                        Some(".git" | "target" | "tmp" | "benchmark-results")
-                    )
-                }) {
+                if path.file_name().is_some_and(|n| matches!(n.to_str(), Some(".git" | "target" | "tmp" | "benchmark-results"))) {
                     continue;
                 }
                 files.extend(walk(&path));
@@ -484,34 +345,15 @@ fn layouts(cache: &Path, name: &str, exe: &Path, seeds: std::ops::Range<usize>) 
             ]
         };
         let out = Command::new("cargo")
-            .args([
-                "--config",
-                &patch_fork,
-                "--config",
-                &patch_clocks,
-                "rustc",
-                "--release",
-                "--quiet",
-                "--bin",
-                "bench-hashes",
-                "--",
-            ])
+            .args(["--config", &patch_fork, "--config", &patch_clocks, "rustc", "--release", "--quiet", "--bin", "bench-hashes", "--"])
             .args(&flags)
             .current_dir(&copy)
             .env("CARGO_TARGET_DIR", side_dir.join("target"))
             .output()
             .expect("cargo runs");
-        assert!(
-            out.status.success(),
-            "check: relinking {name} with seed {seed}:\n{}",
-            String::from_utf8_lossy(&out.stderr)
-        );
+        assert!(out.status.success(), "check: relinking {name} with seed {seed}:\n{}", String::from_utf8_lossy(&out.stderr));
         let kept = side_dir.join(format!("bench-hashes-{seed}"));
-        std::fs::copy(
-            side_dir.join("target").join("release").join("bench-hashes"),
-            &kept,
-        )
-        .unwrap();
+        std::fs::copy(side_dir.join("target").join("release").join("bench-hashes"), &kept).unwrap();
         exes.push(kept.display().to_string());
     }
     exes
@@ -525,21 +367,13 @@ fn lld_dir(cache: &Path) -> PathBuf {
         return link.parent().unwrap().to_path_buf();
     }
     let found = std::env::var_os("PATH")
-        .and_then(|p| {
-            std::env::split_paths(&p)
-                .map(|d| d.join("ld.lld"))
-                .find(|p| p.exists())
-        })
+        .and_then(|p| std::env::split_paths(&p).map(|d| d.join("ld.lld")).find(|p| p.exists()))
         .or_else(|| {
             let mut v: Vec<PathBuf> = std::fs::read_dir("/usr/bin")
                 .ok()?
                 .flatten()
                 .map(|e| e.path())
-                .filter(|p| {
-                    p.file_name()
-                        .and_then(|n| n.to_str())
-                        .is_some_and(|n| n.starts_with("ld.lld-"))
-                })
+                .filter(|p| p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("ld.lld-")))
                 .collect();
             v.sort();
             v.pop()
@@ -572,14 +406,7 @@ fn shuffle(items: &mut [&str], seed: u64) {
 /// source and the fork's commit; the change's diff (old..new, `src/`)
 /// gives the touched lines. Assembly, the build script or a manifest
 /// changed: every point.
-fn touched_cells(
-    fork: &Path,
-    bench: &Path,
-    cache: &Path,
-    old: &str,
-    new: &str,
-    new_exe: &Path,
-) -> Vec<(String, String)> {
+fn touched_cells(fork: &Path, bench: &Path, cache: &Path, old: &str, new: &str, new_exe: &Path) -> Vec<(String, String)> {
     let changed_files = git(fork, &["diff", "--name-only", &format!("{old}..{new}")]);
     let every = || all_cells(new_exe, bench);
     if changed_files.lines().any(|f| {
@@ -587,45 +414,25 @@ fn touched_cells(
             || f == "build.rs"
             || f.ends_with(".S")
             || f.ends_with(".asm")
-            || (matches!(f, "Cargo.toml" | "clocks/Cargo.toml")
-                && manifest_builds_differently(fork, old, new, f))
+            || (matches!(f, "Cargo.toml" | "clocks/Cargo.toml") && manifest_builds_differently(fork, old, new, f))
     }) {
         eprintln!("check: assembly, the build script or the build's manifest changed: every point");
         return every();
     }
     let mut touched: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
     let mut current = None;
-    for line in git(
-        fork,
-        &[
-            "diff",
-            "--unified=0",
-            &format!("{old}..{new}"),
-            "--",
-            "src",
-            "capi/src",
-        ],
-    )
-    .lines()
-    {
+    for line in git(fork, &["diff", "--unified=0", &format!("{old}..{new}"), "--", "src", "capi/src"]).lines() {
         if let Some(f) = line.strip_prefix("+++ b/") {
             current = Some(f.to_string());
         } else if line.starts_with("@@") {
             if let Some(f) = &current {
                 // "@@ -a,b +c,d @@ context": the new side's range is c,d.
-                let range = line
-                    .split_whitespace()
-                    .nth(2)
-                    .unwrap()
-                    .trim_start_matches('+');
+                let range = line.split_whitespace().nth(2).unwrap().trim_start_matches('+');
                 let (start, count) = range
                     .split_once(',')
                     .map(|(s, c)| (s.parse::<usize>().unwrap(), c.parse::<usize>().unwrap()))
                     .unwrap_or_else(|| (range.parse().unwrap(), 1));
-                touched
-                    .entry(f.clone())
-                    .or_default()
-                    .extend(start..start + count);
+                touched.entry(f.clone()).or_default().extend(start..start + count);
             }
         }
     }
@@ -635,11 +442,7 @@ fn touched_cells(
     let reached = coverage(bench, cache, new, new_exe);
     reached
         .into_iter()
-        .filter(|(_, files)| {
-            files
-                .iter()
-                .any(|(f, lines)| touched.get(f).is_some_and(|t| !t.is_disjoint(lines)))
-        })
+        .filter(|(_, files)| files.iter().any(|(f, lines)| touched.get(f).is_some_and(|t| !t.is_disjoint(lines))))
         .map(|(cell, _)| cell)
         .collect()
 }
@@ -651,38 +454,16 @@ fn all_cells(exe: &Path, bench: &Path) -> Vec<(String, String)> {
     let dir = bench.join("target").join("check").join("points");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let out = Command::new(exe)
-        .args(["--contenders", &SUBJECTS.join(","), "--rounds", "1"])
-        .current_dir(&dir)
-        .output()
-        .expect("the bench runs");
-    assert!(
-        out.status.success(),
-        "check: a one-round run failed: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let results = std::fs::read_dir(dir.join("benchmark-results"))
-        .expect("the run's results")
-        .flatten()
-        .next()
-        .expect("one machine's results")
-        .path();
+    let out = Command::new(exe).args(["--contenders", &SUBJECTS.join(","), "--rounds", "1"]).current_dir(&dir).output().expect("the bench runs");
+    assert!(out.status.success(), "check: a one-round run failed: {}", String::from_utf8_lossy(&out.stderr));
+    let results = std::fs::read_dir(dir.join("benchmark-results")).expect("the run's results").flatten().next().expect("one machine's results").path();
     let samples = results.join("bench-hashes.samples.tsv");
     let text = std::fs::read_to_string(samples).unwrap();
     let mut cells = BTreeSet::new();
-    for line in text
-        .lines()
-        .filter(|l| !l.starts_with('#') && !l.starts_with("contender"))
-    {
+    for line in text.lines().filter(|l| !l.starts_with('#') && !l.starts_with("contender")) {
         let f: Vec<&str> = line.split('\t').collect();
-        if let Some(use_case) = super::UseCase::ALL
-            .into_iter()
-            .find(|u| format!("{u:?}") == f[2])
-        {
-            cells.insert((
-                f[0].to_string(),
-                format!("{}{}", use_case.label_prefix(), f[3]),
-            ));
+        if let Some(use_case) = super::UseCase::ALL.into_iter().find(|u| format!("{u:?}") == f[2]) {
+            cells.insert((f[0].to_string(), format!("{}{}", use_case.label_prefix(), f[3])));
         }
     }
     cells.into_iter().collect()
@@ -691,12 +472,7 @@ fn all_cells(exe: &Path, bench: &Path) -> Vec<(String, String)> {
 /// Each point's executed lines of the fork's `src/`, from a coverage build
 /// of the new side run one point at a time; cached as JSON-free TSV under
 /// the cache, keyed by the bench's source and the fork's commit.
-fn coverage(
-    bench: &Path,
-    cache: &Path,
-    new: &str,
-    new_exe: &Path,
-) -> BTreeMap<(String, String), BTreeMap<String, BTreeSet<usize>>> {
+fn coverage(bench: &Path, cache: &Path, new: &str, new_exe: &Path) -> BTreeMap<(String, String), BTreeMap<String, BTreeSet<usize>>> {
     let bench_source = {
         let mut h = blake3_servil::Hasher::new();
         for f in walk(&bench.join("src")) {
@@ -704,23 +480,14 @@ fn coverage(
         }
         h.finalize().to_hex().to_string()
     };
-    let cached = cache
-        .join("coverage")
-        .join(format!("{}-{}.tsv", &new[..12], &bench_source[..12]));
+    let cached = cache.join("coverage").join(format!("{}-{}.tsv", &new[..12], &bench_source[..12]));
     if let Ok(text) = std::fs::read_to_string(&cached) {
-        let mut map: BTreeMap<(String, String), BTreeMap<String, BTreeSet<usize>>> =
-            BTreeMap::new();
+        let mut map: BTreeMap<(String, String), BTreeMap<String, BTreeSet<usize>>> = BTreeMap::new();
         for line in text.lines() {
             let f: Vec<&str> = line.split('\t').collect();
             map.entry((f[0].to_string(), f[1].to_string()))
                 .or_default()
-                .insert(
-                    f[2].to_string(),
-                    f[3].split(',')
-                        .filter(|s| !s.is_empty())
-                        .map(|s| s.parse().unwrap())
-                        .collect(),
-                );
+                .insert(f[2].to_string(), f[3].split(',').filter(|s| !s.is_empty()).map(|s| s.parse().unwrap()).collect());
         }
         return map;
     }
@@ -730,26 +497,14 @@ fn coverage(
     let target = cache.join("new").join("target-coverage");
     let [patch_fork, patch_clocks] = patches(&copy, &checkout);
     let out = Command::new("cargo")
-        .args([
-            "--config",
-            &patch_fork,
-            "--config",
-            &patch_clocks,
-            "build",
-            "--release",
-            "--quiet",
-        ])
+        .args(["--config", &patch_fork, "--config", &patch_clocks, "build", "--release", "--quiet"])
         .current_dir(&copy)
         .env("CARGO_TARGET_DIR", &target)
         .env("RUSTFLAGS", "-C instrument-coverage")
         .env("BENCH_HASHES_CHECKOUT", bench)
         .output()
         .expect("cargo runs");
-    assert!(
-        out.status.success(),
-        "check: the coverage build:\n{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
+    assert!(out.status.success(), "check: the coverage build:\n{}", String::from_utf8_lossy(&out.stderr));
     let cov_exe = target.join("release").join("bench-hashes");
     let (profdata, llvm_cov) = (llvm_tool("llvm-profdata"), llvm_tool("llvm-cov"));
     let work = cache.join("coverage-work");
@@ -759,61 +514,26 @@ fn coverage(
         std::fs::create_dir_all(&work).unwrap();
         let raw = work.join("p.profraw");
         let out = Command::new(&cov_exe)
-            .args([
-                "--contenders",
-                &contender,
-                "--points",
-                &label,
-                "--rounds",
-                "1",
-            ])
+            .args(["--contenders", &contender, "--points", &label, "--rounds", "1"])
             .current_dir(&work)
             .env("LLVM_PROFILE_FILE", &raw)
             .output()
             .expect("the bench runs");
-        assert!(
-            out.status.success(),
-            "check: coverage run of {contender} at {label}: {}",
-            String::from_utf8_lossy(&out.stderr)
-        );
+        assert!(out.status.success(), "check: coverage run of {contender} at {label}: {}", String::from_utf8_lossy(&out.stderr));
         let merged = work.join("p.profdata");
-        let out = Command::new(&profdata)
-            .args(["merge", "-sparse", "-o"])
-            .arg(&merged)
-            .arg(&raw)
-            .output()
-            .expect("llvm-profdata runs");
-        assert!(
-            out.status.success(),
-            "llvm-profdata: {}",
-            String::from_utf8_lossy(&out.stderr)
-        );
-        let out = Command::new(&llvm_cov)
-            .args(["export", "--format=lcov", "--instr-profile"])
-            .arg(&merged)
-            .arg(&cov_exe)
-            .output()
-            .expect("llvm-cov runs");
-        assert!(
-            out.status.success(),
-            "llvm-cov: {}",
-            String::from_utf8_lossy(&out.stderr)
-        );
+        let out = Command::new(&profdata).args(["merge", "-sparse", "-o"]).arg(&merged).arg(&raw).output().expect("llvm-profdata runs");
+        assert!(out.status.success(), "llvm-profdata: {}", String::from_utf8_lossy(&out.stderr));
+        let out = Command::new(&llvm_cov).args(["export", "--format=lcov", "--instr-profile"]).arg(&merged).arg(&cov_exe).output().expect("llvm-cov runs");
+        assert!(out.status.success(), "llvm-cov: {}", String::from_utf8_lossy(&out.stderr));
         let mut files: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
         let mut current: Option<String> = None;
         for line in String::from_utf8_lossy(&out.stdout).lines() {
             if let Some(path) = line.strip_prefix("SF:") {
-                current = Path::new(path)
-                    .strip_prefix(&checkout)
-                    .ok()
-                    .filter(|r| r.starts_with("src") || r.starts_with("capi"))
-                    .map(|r| r.display().to_string());
+                current =
+                    Path::new(path).strip_prefix(&checkout).ok().filter(|r| r.starts_with("src") || r.starts_with("capi")).map(|r| r.display().to_string());
             } else if let (Some(f), Some(rest)) = (&current, line.strip_prefix("DA:")) {
                 let mut parts = rest.split(',');
-                let (number, count) = (
-                    parts.next().unwrap().parse::<usize>().unwrap(),
-                    parts.next().unwrap().parse::<u64>().unwrap(),
-                );
+                let (number, count) = (parts.next().unwrap().parse::<usize>().unwrap(), parts.next().unwrap().parse::<u64>().unwrap());
                 if count > 0 {
                     files.entry(f.clone()).or_default().insert(number);
                 }
@@ -824,14 +544,7 @@ fn coverage(
     let mut text = String::new();
     for ((contender, label), files) in &map {
         for (f, lines) in files {
-            text += &format!(
-                "{contender}\t{label}\t{f}\t{}\n",
-                lines
-                    .iter()
-                    .map(|n| n.to_string())
-                    .collect::<Vec<_>>()
-                    .join(",")
-            );
+            text += &format!("{contender}\t{label}\t{f}\t{}\n", lines.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(","));
         }
     }
     std::fs::create_dir_all(cached.parent().unwrap()).unwrap();
@@ -839,26 +552,24 @@ fn coverage(
     map
 }
 
-/// llvm-profdata or llvm-cov: on PATH, in the nightly sysroot's llvm-tools,
-/// or in /usr/lib/llvm-*/bin.
+/// llvm-profdata or llvm-cov: on PATH, else the toolchain's own llvm-tools
+/// (`rustup component add llvm-tools`: its coverage format is the
+/// compiler's), else the newest in /usr/lib/llvm-*/bin.
 fn llvm_tool(name: &str) -> PathBuf {
-    if let Some(p) = std::env::var_os("PATH").and_then(|p| {
-        std::env::split_paths(&p)
-            .map(|d| d.join(name))
-            .find(|p| p.exists())
-    }) {
+    if let Some(p) = std::env::var_os("PATH").and_then(|p| std::env::split_paths(&p).map(|d| d.join(name)).find(|p| p.exists())) {
         return p;
     }
-    let mut candidates: Vec<PathBuf> = std::fs::read_dir("/usr/lib")
-        .ok()
-        .into_iter()
-        .flatten()
-        .flatten()
-        .map(|e| e.path().join("bin").join(name))
-        .filter(|p| p.exists())
-        .collect();
-    candidates.sort();
-    candidates.pop().unwrap_or_else(|| panic!("check: choosing cells by coverage needs {name} (apt install llvm); --cells all skips it"))
+    let sysroot = Command::new("rustc").args(["--print", "sysroot"]).output().expect("rustc runs");
+    let rustlib = Path::new(String::from_utf8_lossy(&sysroot.stdout).trim()).join("lib/rustlib");
+    let in_bins = |dir: &Path| -> Vec<PathBuf> {
+        let mut found: Vec<PathBuf> =
+            std::fs::read_dir(dir).into_iter().flatten().flatten().map(|e| e.path().join("bin").join(name)).filter(|p| p.exists()).collect();
+        found.sort();
+        found
+    };
+    in_bins(&rustlib).pop().or_else(|| in_bins(Path::new("/usr/lib")).pop()).unwrap_or_else(|| {
+        panic!("check: choosing cells by coverage needs {name}: `rustup component add llvm-tools` (or, on Linux, apt install llvm); --cells all skips it")
+    })
 }
 
 /// Cargo's `--config` patches that build a bench copy against a fork
@@ -866,27 +577,10 @@ fn llvm_tool(name: &str) -> PathBuf {
 /// bench pinned to another fork patches that fork), its blake3-servil and
 /// clocks from `checkout`.
 fn patches(copy: &Path, checkout: &Path) -> [String; 2] {
-    let manifest =
-        std::fs::read_to_string(copy.join("Cargo.toml")).expect("the bench's Cargo.toml");
-    let section = manifest
-        .split("[dependencies.blake3-servil]")
-        .nth(1)
-        .expect("Cargo.toml names blake3-servil's dependency");
-    let git = section
-        .lines()
-        .find_map(|l| l.trim().strip_prefix("git = "))
-        .expect("blake3-servil comes by git")
-        .trim_matches('"');
-    [
-        format!(
-            "patch.\"{git}\".blake3-servil.path=\"{}\"",
-            checkout.display()
-        ),
-        format!(
-            "patch.\"{git}\".clocks.path=\"{}\"",
-            checkout.join("clocks").display()
-        ),
-    ]
+    let manifest = std::fs::read_to_string(copy.join("Cargo.toml")).expect("the bench's Cargo.toml");
+    let section = manifest.split("[dependencies.blake3-servil]").nth(1).expect("Cargo.toml names blake3-servil's dependency");
+    let git = section.lines().find_map(|l| l.trim().strip_prefix("git = ")).expect("blake3-servil comes by git").trim_matches('"');
+    [format!("patch.\"{git}\".blake3-servil.path=\"{}\"", checkout.display()), format!("patch.\"{git}\".clocks.path=\"{}\"", checkout.join("clocks").display())]
 }
 
 /// Whether `manifest`'s change between `old` and `new` touches what the
@@ -894,12 +588,7 @@ fn patches(copy: &Path, checkout: &Path) -> [String; 2] {
 /// section but `[[test]]`, `[[example]]`, `[[bench]]` and
 /// `[dev-dependencies]` (a test's entry changes no cell).
 fn manifest_builds_differently(fork: &Path, old: &str, new: &str, manifest: &str) -> bool {
-    let unused = |section: &str| {
-        matches!(
-            section,
-            "[[test]]" | "[[example]]" | "[[bench]]" | "[dev-dependencies]"
-        )
-    };
+    let unused = |section: &str| matches!(section, "[[test]]" | "[[example]]" | "[[bench]]" | "[dev-dependencies]");
     // Each line's section, in one side's file.
     let sections = |rev: &str| -> Vec<String> {
         let text = Command::new("git")
@@ -920,26 +609,12 @@ fn manifest_builds_differently(fork: &Path, old: &str, new: &str, manifest: &str
             .collect()
     };
     let (before, after) = (sections(old), sections(new));
-    let diff = git(
-        fork,
-        &[
-            "diff",
-            "--unified=0",
-            &format!("{old}..{new}"),
-            "--",
-            manifest,
-        ],
-    );
+    let diff = git(fork, &["diff", "--unified=0", &format!("{old}..{new}"), "--", manifest]);
     for line in diff.lines().filter(|l| l.starts_with("@@")) {
         let fields: Vec<&str> = line.split_whitespace().collect();
-        for (field, side) in [
-            (fields[1].trim_start_matches('-'), &before),
-            (fields[2].trim_start_matches('+'), &after),
-        ] {
-            let (start, count) = field
-                .split_once(',')
-                .map(|(s, c)| (s.parse::<usize>().unwrap(), c.parse::<usize>().unwrap()))
-                .unwrap_or_else(|| (field.parse().unwrap(), 1));
+        for (field, side) in [(fields[1].trim_start_matches('-'), &before), (fields[2].trim_start_matches('+'), &after)] {
+            let (start, count) =
+                field.split_once(',').map(|(s, c)| (s.parse::<usize>().unwrap(), c.parse::<usize>().unwrap())).unwrap_or_else(|| (field.parse().unwrap(), 1));
             // A pure insertion or deletion names the line before it (count 0).
             for n in start.max(1)..=(start + count.max(1) - 1) {
                 if side.get(n - 1).is_none_or(|s| !unused(s)) {

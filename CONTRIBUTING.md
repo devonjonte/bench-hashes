@@ -65,7 +65,9 @@ cd BLAKE3/bench-hashes && cargo run --release -- check   # the fork's working tr
 
 `check` builds in directories of its own (the fork's `target/check/`), with a
 copy of this repository whose `Cargo.lock` points at the fork checkout,
-and leaves your checkouts' files as they were. Run the executable from a
+and leaves your checkouts' files as they were. It chooses the cells a
+change touches from coverage, with the toolchain's `llvm-profdata` and
+`llvm-cov` (`rustup component add llvm-tools`). Run the executable from a
 scratch directory (it writes `benchmark-results/` there); the report
 names the fork checkout's commit and whether its tree was clean. The fork's `CONTRIBUTING.md` covers the
 fork's own tests and its performance-regression check, which runs this
