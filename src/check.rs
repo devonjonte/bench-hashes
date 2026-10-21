@@ -546,7 +546,13 @@ fn lld_dir(cache: &Path) -> PathBuf {
         })
         .expect("check: relinking needs ld.lld (apt install lld)");
     std::fs::create_dir_all(link.parent().unwrap()).unwrap();
+    // The relinking runs on Linux (ld.lld) and macOS (its linker's order
+    // file); elsewhere check stops here.
+    #[cfg(unix)]
     std::os::unix::fs::symlink(found, &link).unwrap();
+    #[cfg(not(unix))]
+    panic!("check relinks each side with a function order, on Linux and macOS only; {} is the ld.lld found", found.display());
+    #[cfg(unix)]
     link.parent().unwrap().to_path_buf()
 }
 
