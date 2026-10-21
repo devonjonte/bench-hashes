@@ -19,8 +19,11 @@ it measures, and keep your results comparable with ours.
 
 ## Build and test
 
+The tests run under [cargo-nextest](https://nexte.st), each in its own
+process (`cargo test` stops at once and says so).
+
 ```sh
-cargo test --release
+cargo nextest run --release
 cargo run --release -- --quick     # seconds; a full run takes minutes
 node tools/graph-check/map.js benchmark-results/FOLDER/bench-hashes.map.html
 ```
@@ -42,7 +45,7 @@ every place, and the compiler names any match you miss.
    entry point), and its incremental API, for long messages read in
    pieces (`hash_stream`) and for many messages at once
    (`hash_interleaved`).
-Then `cargo test --release` and
+Then `cargo nextest run --release` and
 `cargo run --release -- --contenders yours,sha256-ring,blake3-servil-mt`.
 The harness does the rest: interleaving, the use cases and scenarios,
 statistics, the report, and the map.

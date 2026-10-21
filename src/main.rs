@@ -6278,6 +6278,10 @@ mod chart;
 mod check;
 #[cfg(test)]
 mod harness_tests;
+#[cfg(test)]
+mod require_nextest {
+    include!("../tools/require_nextest.rs");
+}
 mod leaves;
 mod map;
 
