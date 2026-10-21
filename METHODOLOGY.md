@@ -232,7 +232,12 @@ often it came. Longer calls meet the clock of a mostly idle core
 too: on an Apple M4 Max, a call of several milliseconds after idling ran
 15-50% slower than after other work (SHA-256 at 8 MiB 0.43-0.51 against
 0.29-0.34 ns/B), its core near 3.8-4.0 GHz where after other work it ran
-near 4.5, which is what a server that mostly waits gets.
+near 4.5, which is what a server that mostly waits gets. The rule
+behind it, measured on an M4 Max on mains (hash of 64 KiB after a sleep,
+median of 15): sleeps of 20-200 us cost nothing; after 0.5-20 ms macOS
+has lowered the core's clock to about a third (1.06 GHz against 3.2),
+and calls run that slow until about 85 us of work has raised it again;
+after 100 ms the calls stay near 1.9 GHz for at least 40 calls.
 A full run takes about a minute.
 
 A single-threaded hash costs about the same in both. A multithreaded one
