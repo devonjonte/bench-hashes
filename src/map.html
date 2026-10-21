@@ -273,7 +273,7 @@ function render() {
     if (m !== "wall" && !counted(m)) { b.disabled = true; b.classList.add("off"); b.title = `This run counted no ${m === "cpu" ? "CPU time" : "energy"}.`; }
     else {
       if (!MEASURES[m]) b.classList.add("off");
-      b.onclick = () => { MEASURES[m] = !MEASURES[m]; if (!MEASURES.wall && !MEASURES.cpu && !MEASURES.energy) MEASURES.wall = true; AXIS = null; render(); reopen(); };
+      b.onclick = () => { MEASURES[m] = !MEASURES[m]; AXIS = null; render(); reopen(); };
     }
     measures.appendChild(b);
   }
@@ -329,7 +329,7 @@ function render() {
           const cell = document.createElement("div"); cell.className = "cell";
           const key = `${layer}|${r}|${c}`, q = S.cells[key];
           if (q) {
-            const nothing = !MEASURES.wall && !(MEASURES.cpu && q.cpu.some(Boolean)) && !(MEASURES.energy && q.energy.some(Boolean));
+            const nothing = (MEASURES.wall || MEASURES.cpu || MEASURES.energy) && !MEASURES.wall && !(MEASURES.cpu && q.cpu.some(Boolean)) && !(MEASURES.energy && q.energy.some(Boolean));
             cell.innerHTML = draw(S, q, 208, 94, false).svg + (nothing ? `<span class="note">nothing selected is recorded for this way of calling</span>` : "") + `<span class="call"><a class="doc" href="${q.doc}" target="_blank" title="${q.call}: its documentation">${q.call}</a></span>`;
             cell.querySelector("a.doc").onclick = e => e.stopPropagation();
             cell.dataset.key = si + ":" + key;
