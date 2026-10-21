@@ -38,7 +38,6 @@ h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 17px; margin: 34px 0 6p
 .layer:hover, .layer.show { background: #ede9fe; }
 .grid { position: relative; display: grid; grid-template-columns: 170px 38px repeat(var(--cols), 210px); gap: 6px; width: max-content; }
 .axis-cell { position: relative; }
-.axis-unit { font-size: 10px; color: #4b5563; display: flex; align-items: center; justify-content: flex-end; padding-right: 2px; }
 .h { font-size: 12px; color: #4b5563; text-align: center; padding: 4px; border-radius: 6px; cursor: help; user-select: none; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
 .h:hover, .h.show, .h.lit { background: #ede9fe; color: #111827; }
 /* A header's meaning: under it while the pointer rests on it, or after a click or tap. */
@@ -317,7 +316,7 @@ function render() {
       const g = document.createElement("div"); g.className = "grid"; g.style.setProperty("--cols", S.cols.length); box.appendChild(g);
       GRIDS.push(g);
       g.appendChild(document.createElement("div"));
-      const unit = document.createElement("div"); unit.className = "axis-unit"; unit.textContent = SHOW.cost ? "ns/B" : "GB/s"; g.appendChild(unit);
+      g.appendChild(document.createElement("div"));
       for (const [c, cname, cmeans] of S.cols) {
         const h = document.createElement("div"); h.className = "h";
         h.innerHTML = glyph(c) + cname + `<span class="means">${cmeans}</span>`; h.dataset.key = "col:" + c; h.onclick = () => h.classList.toggle("show"); g.appendChild(h);
