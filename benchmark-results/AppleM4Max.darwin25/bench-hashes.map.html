@@ -36,7 +36,9 @@ h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 17px; margin: 34px 0 6p
 #tip .was { color: #9ca3af; }
 .layer { font-size: 13px; color: #374151; display: flex; align-items: center; gap: 6px; margin: 14px 0 4px; cursor: help; user-select: none; width: max-content; padding: 2px 6px; border-radius: 6px; position: relative; }
 .layer:hover, .layer.show { background: #ede9fe; }
-.grid { position: relative; display: grid; grid-template-columns: 170px repeat(var(--cols), 210px); gap: 6px; width: max-content; }
+.grid { position: relative; display: grid; grid-template-columns: 170px 38px repeat(var(--cols), 210px); gap: 6px; width: max-content; }
+.axis-cell { position: relative; }
+.axis-unit { font-size: 10px; color: #4b5563; display: flex; align-items: center; justify-content: flex-end; padding-right: 2px; }
 .h { font-size: 12px; color: #4b5563; text-align: center; padding: 4px; border-radius: 6px; cursor: help; user-select: none; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
 .h:hover, .h.show, .h.lit { background: #ede9fe; color: #111827; }
 /* A header's meaning: under it while the pointer rests on it, or after a click or tap. */
@@ -108,6 +110,18 @@ function axisOf() {
   }
   return AXIS;
 }
+/* A row's shared axis: the page's one scale at the cards' height, its
+   powers of ten named once for the row (each card's faint lines meet them). */
+function rowAxis() {
+  const [lo, hi] = axisOf(), h = 94, T = 8, B = 14;
+  const y = v => h - B - (Math.log(v) - lo) / (hi - lo) * (h - T - B);
+  let s = `<svg width="38" height="${h}">`;
+  for (let e = Math.ceil(lo / Math.LN10); e <= Math.floor(hi / Math.LN10); e++) {
+    s += `<line x1="32" x2="38" y1="${y(10 ** e)}" y2="${y(10 ** e)}" stroke="#d6d2cb"/>`;
+    s += `<text x="30" y="${y(10 ** e) + 3}" font-size="9.5" fill="#4b5563" text-anchor="end">${+(10 ** e).toPrecision(1)}</text>`;
+  }
+  return s + "</svg>";
+}
 /* One chart's lines, rates (bytes over each mean time) on the section's log scale; the opened one with axes. */
 function draw(S, c, w, h, axes) {
   const live = c.series.map((s, i) => s && S.shownNow[i] ? i : -1).filter(i => i >= 0);
@@ -125,19 +139,21 @@ function draw(S, c, w, h, axes) {
   /* Every chart shares the page's log scale: faint lines at each power of
      ten, labelled small, show it in equal steps per factor of ten. */
   if (!axes) for (let e = Math.ceil(lo / Math.LN10); e <= Math.floor(hi / Math.LN10); e++) {
-    s += `<line x1="${L}" x2="${w - R}" y1="${y(10 ** e)}" y2="${y(10 ** e)}" stroke="#eceae6"/>`;
-    s += `<text x="${L + 1}" y="${y(10 ** e) - 2}" font-size="8" fill="#b4aea8">${+(10 ** e).toPrecision(1)}</text>`;
+    s += `<line x1="0" x2="${w}" y1="${y(10 ** e)}" y2="${y(10 ** e)}" stroke="#e7e5e0"/>`;
   }
   if (axes) {
     for (let e = Math.floor(Math.log10(Math.exp(lo))) - 1; e <= Math.ceil(Math.log10(Math.exp(hi))); e++) for (const m of [1, 2, 5]) {
       const v = m * 10 ** e; if (Math.log(v) < lo || Math.log(v) > hi) continue;
-      s += `<line x1="${L}" x2="${w - R}" y1="${y(v)}" y2="${y(v)}" stroke="#f3f4f6"/><text x="${L - 6}" y="${y(v) + 4}" font-size="11" fill="#6b7280" text-anchor="end">${+v.toPrecision(2)}</text>`;
+      const onNow = ["wall", "cpu", "energy"].filter(m => MEASURES[m]);
+      const unit = onNow.length === 1 && onNow[0] === "wall" ? (SHOW.cost ? " ns/B" : " GB/s") : "";
+      s += `<line x1="${L}" x2="${w - R}" y1="${y(v)}" y2="${y(v)}" stroke="#f3f4f6"/><text x="${L - 6}" y="${y(v) + 4}" font-size="11" fill="#6b7280" text-anchor="end">${+v.toPrecision(2)}${unit}</text>`;
     }
     /* The title runs up the axis; its arrow, beside its end, points up, as faster lines lie. */
     /* The axis names every selected measure: solid, dotted, dashed. */
     /* The unit of every measure shown, in one short phrase (the chips say which line is which). */
     const M = MEASURES, on = ["wall", "cpu", "energy"].filter(m => M[m]);
-    const title0 = SHOW.cost ? on.map(m => ({ wall: "ns", cpu: "CPU ns", energy: "nJ" })[m]).join(" / ") + " per byte" : "GB per " + on.map(m => ({ wall: "second", cpu: "CPU second", energy: "joule" })[m]).join(" / ");
+    const title0 = on.length === 1 && on[0] === "wall" && !SHOW.cost ? "gigibytes per second"
+      : SHOW.cost ? on.map(m => ({ wall: "ns", cpu: "CPU ns", energy: "nJ" })[m]).join(" / ") + " per byte" : "GB per " + on.map(m => ({ wall: "second", cpu: "CPU second", energy: "joule" })[m]).join(" / ");
     const mid = (T + h - B) / 2, title = `${title0} (log scale), ${SHOW.cost ? "lower" : "higher"} is better`, half = title.length * 3.1;
     s += `<text x="14" y="${mid}" font-size="11" fill="#6b7280" transform="rotate(-90 14 ${mid})" text-anchor="middle">${title}</text>`;
     s += SHOW.cost
@@ -148,7 +164,7 @@ function draw(S, c, w, h, axes) {
     /* Case labels wrap to the width of their slot, so neighbours never overlap. */
     const slot = (w - L - R) / Math.max(n, 1), chars = Math.max(6, Math.floor(slot / 6.2));
     const wrap = lab => lab.split(" ").reduce((lines, word) => { const last = lines[lines.length - 1]; if (last && (last + " " + word).length <= chars) lines[lines.length - 1] = last + " " + word; else lines.push(word); return lines; }, []);
-    s += `<text x="${(L + w - R) / 2}" y="${h - 8}" font-size="11" fill="#6b7280" text-anchor="middle">${c.axis}</text>`;
+    s += `<text x="${(L + w - R) / 2}" y="${h - 8}" font-size="11" fill="#6b7280" text-anchor="middle">${c.axis} (log scale)</text>`;
     c.sizes.forEach((lab, k) => { if (c.cases || k % every === 0 || k === n - 1) s += `<text x="${x(k)}" y="${h - B + 16}" font-size="11" fill="#6b7280" text-anchor="middle">${(c.cases ? wrap(lab) : [lab]).map((t, j) => `<tspan x="${x(k)}" dy="${j ? 13 : 0}">${t}</tspan>`).join("")}</text>`; });
     s += `<line class="cursor" x1="0" x2="0" y1="${T}" y2="${h - B}" stroke="#9ca3af" stroke-dasharray="3 3" visibility="hidden"/>`;
   }
@@ -199,8 +215,8 @@ function draw(S, c, w, h, axes) {
       const vs = live.map(i => c.series[i][k]).filter(Boolean);
       if (vs.length < 2) continue;
       const best = Math.min(...vs), worst = Math.max(...vs), y1 = y(shown(best)), y2 = y(shown(worst));
-      const bx = x(k) + (axes ? 12 : 8), fs = axes ? 12 : 9;
-      if (worst / best >= 1.15) s += `<path d="M${bx - 3} ${y1} H${bx} V${y2} H${bx - 3}" fill="none" stroke="#6b7280" stroke-width="1"/><text x="${bx + 3}" y="${(y1 + y2) / 2 + fs / 3}" font-size="${fs}" fill="#374151">×${(worst / best).toPrecision(2)}</text>`;
+      const bx = x(k) + (axes ? 12 : 8), fs = axes ? 12 : 10;
+      if (worst / best >= 1.15) s += `<path d="M${bx - 3} ${y1} H${bx} V${y2} H${bx - 3}" fill="none" stroke="#6b7280" stroke-width="1"/><text x="${bx + 3}" y="${(y1 + y2) / 2 + fs / 3}" font-size="${fs}" font-weight="700" fill="#4c1d95">×${(worst / best).toPrecision(2)}</text>`;
     }
   }
   return { svg: s + "</svg>", x, n, L, R, w };
@@ -301,6 +317,7 @@ function render() {
       const g = document.createElement("div"); g.className = "grid"; g.style.setProperty("--cols", S.cols.length); box.appendChild(g);
       GRIDS.push(g);
       g.appendChild(document.createElement("div"));
+      const unit = document.createElement("div"); unit.className = "axis-unit"; unit.textContent = SHOW.cost ? "ns/B" : "GB/s"; g.appendChild(unit);
       for (const [c, cname, cmeans] of S.cols) {
         const h = document.createElement("div"); h.className = "h";
         h.innerHTML = glyph(c) + cname + `<span class="means">${cmeans}</span>`; h.dataset.key = "col:" + c; h.onclick = () => h.classList.toggle("show"); g.appendChild(h);
@@ -308,6 +325,7 @@ function render() {
       for (const [r, rname, rmeans] of S.rows) {
         const h = document.createElement("div"); h.className = "h row";
         h.innerHTML = glyph(r) + `<span>${rname}</span><span class="means">${rmeans}</span>`; h.dataset.key = "row:" + r; h.onclick = () => h.classList.toggle("show"); g.appendChild(h);
+        const ax = document.createElement("div"); ax.className = "axis-cell"; ax.innerHTML = rowAxis(); g.appendChild(ax);
         for (const [c] of S.cols) {
           const cell = document.createElement("div"); cell.className = "cell";
           const key = `${layer}|${r}|${c}`, q = S.cells[key];
@@ -337,7 +355,7 @@ function open(S, grid, cell, q, row, col, layer) {
      grid is scaled down); else over the grid's cells, the headers in view. */
   const bar = document.querySelector(".measures").getBoundingClientRect().bottom;
   const X0 = phone ? 6 : first.left - gr.left, Y0 = phone ? bar + 4 : first.top - gr.top;
-  const W = phone ? screenWidth() - 12 : Math.max(gr.width - X0, 640);
+  const W = phone ? screenWidth() - 12 : Math.max(Math.min(gr.width - X0, window.innerWidth - first.left - 6), 640);
   const H = phone ? Math.max(360, window.innerHeight - Y0 - 6) : Math.max(gr.height - Y0, 340);
   const z = document.createElement("div"); z.className = "zoom" + (phone ? " phone" : "");
   const start = phone ? { left: cr.left, top: cr.top, width: cr.width, height: cr.height } : { left: cr.left - gr.left, top: cr.top - gr.top, width: cr.width, height: cr.height };
