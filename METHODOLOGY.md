@@ -612,7 +612,7 @@ output of its name (its path under the files directory): the same files
 on every machine, and incompressible, so a filesystem or drive that
 compresses reads them in full.
 
-**Builds.** `tools/b3sum-contenders.sh` builds each `b3sum` as its own
+**Builds.** `tools/b3sum-contenders.py` builds each `b3sum` as its own
 project recommends: official BLAKE3's as `cargo install b3sum` builds it
 (dynamically linked), the fork's statically linked on Linux, as its
 README recommends. A static build skips the dynamic loader, which on an

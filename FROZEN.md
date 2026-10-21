@@ -122,7 +122,7 @@ the notes) may still change, to say it better.
   the process-per-file cells is its linking.
 - **Fresh link layouts for the b3sum suite** (Devon Jonte, #33; Zooko,
   October 17): a contender may be several builds of one program, one a
-  round (`tools/b3sum-contenders.sh` with `LAYOUTS=N`), as the library's
+  round (`tools/b3sum-contenders.py` with `LAYOUTS=N`), as the library's
   comparisons relink each side per pair.
 - **The b3sum suite's contenders run in a Williams design** (Devon Jonte,
   #35; Zooko, October 17), the main run's: with the rotation, each kept one

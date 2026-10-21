@@ -117,12 +117,12 @@ on fixed files from 4 KiB to 1 GiB and on two directory trees, with the
 files in the page cache (read moments before) and, on Linux and macOS,
 evicted from it before each run (read from storage):
 
-    sh tools/b3sum-contenders.sh /path/to/BLAKE3-fork /tmp/b3c
-    cargo run --release -- b3sum --files ~/b3sum-files official=/tmp/b3c/b3sum-official-1.8.2 fork=/tmp/b3c/b3sum-abc1234
+    pypy3 tools/b3sum-contenders.py /path/to/BLAKE3-fork /tmp/b3c |
+        tr '\n' '\0' | xargs -0 cargo run --release -- b3sum --files ~/b3sum-files
 
 A contender is `NAME=COMMAND`, a `b3sum` and its flags, or any program
 that hashes the files it is given (the files are appended);
-`tools/b3sum-contenders.sh` builds official BLAKE3's `b3sum` 1.8.2 and
+`tools/b3sum-contenders.py` builds official BLAKE3's `b3sum` 1.8.2 and
 the fork's at given commits, and adds the system's `sha256sum`, `sha1sum`
 and `md5sum`, the programs a user chooses between. The first contender
 is the one the others are compared with. `--files` chooses where the files live:

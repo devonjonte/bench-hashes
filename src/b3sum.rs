@@ -433,7 +433,7 @@ fn cold_possible(filesystem: &str) -> bool {
 struct Contender {
     name: String,
     /// Its builds, one or more: the same program linked with different
-    /// layouts (`tools/b3sum-contenders.sh` with LAYOUTS), round r running
+    /// layouts (`tools/b3sum-contenders.py` with LAYOUTS), round r running
     /// build r % builds.len(), so that no one layout's luck stands for the
     /// program (a binary's layout alone moves its times by several percent).
     builds: Vec<Build>,
