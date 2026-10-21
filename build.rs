@@ -423,7 +423,7 @@ fn git_output(repository: &Path, arguments: &[&str]) -> Output {
 /*
  * blake3-servil comes from the fork's repository at the commit Cargo.lock
  * pins, with a line such as
- *   source = "git+https://github.com/johnservil/BLAKE3?branch=servil#COMMIT"
+ *   source = "git+https://github.com/johnservil/BLAKE3?rev=COMMIT#COMMIT"
  * A `--config` patch replaces it with the enclosing checkout at `..`, and
  * Cargo.lock then records no source; the checkout's own git state
  * identifies the code: origin URL, branch, exact commit, and a clean flag
@@ -437,13 +437,13 @@ fn emit_servil_package(manifest_dir: &Path, lock: &str) {
     let description = match quoted_field(block, "source") {
         Some(source) => {
             let pinned = source
-                .strip_prefix(&format!("git+{}?branch=", servil_git()))
-                .unwrap_or_else(|| panic!("blake3-servil must come from {} or a local patch; Cargo.lock says {source}", servil_git()));
-            let (branch, commit) = pinned
+                .strip_prefix(&format!("git+{}?rev=", servil_git()))
+                .unwrap_or_else(|| panic!("blake3-servil must come from {} at a rev, or a local patch; Cargo.lock says {source}", servil_git()));
+            let (_rev, commit) = pinned
                 .split_once('#')
                 .expect("a git source in Cargo.lock names its commit after '#'");
             format!(
-                "blake3-servil {version}; source {}; branch {branch}; commit {commit}; clean",
+                "blake3-servil {version}; source {}; commit {commit}; clean",
                 servil_git()
             )
         }

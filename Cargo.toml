@@ -6,9 +6,6 @@ rust-version = "1.88"
 build = "build.rs"
 
 [dependencies]
-# The one place clocks are read (the fork's clocks/ crate): wall time, and
-# the thread's counts per core kind.
-clocks = { git = "https://github.com/johnservil/BLAKE3", branch = "servil" }
 # The `rayon` feature adds Hasher::update_rayon for the BLAKE3 mt contender;
 # blake3::hash and every other API stay single-threaded with it on.
 [dependencies.blake3]
@@ -44,16 +41,23 @@ default-features = false
 version = "0.17"
 default-features = false
 
-# BLAKE3 servil: the fork's servil branch, at the commit Cargo.lock pins.
+# BLAKE3 servil, and the one place clocks are read (the fork's clocks/
+# crate: wall time, and the thread's counts per core kind): the fork at one
+# commit, named by its full hash in both, so this file itself says exactly
+# which code it measures (a hash is self-authenticating; a branch is not).
 # To build against a local checkout of the fork instead, with this
 # repository inside it, add
 #   --config 'patch."https://github.com/johnservil/BLAKE3".blake3-servil.path=".."'
 # to the cargo command (CONTRIBUTING.md).
 [dependencies.blake3-servil]
 git = "https://github.com/johnservil/BLAKE3"
-branch = "servil"
+rev = "f891569438f2f98b17a7e6f63c43ad6fdb594560"
 default-features = false
 features = ["std"]
+
+[dependencies.clocks]
+git = "https://github.com/johnservil/BLAKE3"
+rev = "f891569438f2f98b17a7e6f63c43ad6fdb594560"
 
 # SHA-1 with collision detection (the SHA-1DC construction git uses), pure
 # Rust; there is no hardware path for the detection.
