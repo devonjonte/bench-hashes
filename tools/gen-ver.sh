@@ -24,7 +24,8 @@ if [ -n "$latest" ]; then
 fi
 full="$version+$(git rev-parse HEAD)"
 crate=$(sed -n 's/^name = "\(.*\)"/\1/p' Cargo.toml | head -1)
-sed -i.bak "0,/^version = \"[^\"]*\"/s//version = \"$full\"/" Cargo.toml && rm Cargo.toml.bak
+# The first version line alone (the package's), in POSIX sed: GNU and BSD.
+sed -i.bak -e '/^version = "[^"]*"/{' -e "s//version = \"$full\"/" -e ':a' -e 'n' -e 'ba' -e '}' Cargo.toml && rm Cargo.toml.bak
 files="Cargo.toml"
 if [ -f b3sum/Cargo.toml ]; then
     sed -i.bak "s/^\(blake3 = { version = \"\)[^\"]*\(\", path = \"\.\.\"\)/\1$version\2/" b3sum/Cargo.toml && rm b3sum/Cargo.toml.bak
