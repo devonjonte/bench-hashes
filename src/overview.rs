@@ -210,7 +210,12 @@ fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algo
     .filter_map(|a| cell(file, &key(a)).map(|s| (a, mean_q64(s), s)))
     .min_by_key(|(_, m, _)| *m);
     if let Some((a, _, theirs)) = sha {
-        bars.push(bar(a, theirs, ""));
+        bars.push(Bar {
+            name: format!("SHA-256, the fastest measured ({})", a.name()),
+            color: Algorithm::Sha256.color(),
+            gbps: gbps(theirs, per_unit),
+            note: "",
+        });
     }
     bars
 }
@@ -479,13 +484,23 @@ pub fn html(rows: &[Row]) -> String {
             .unwrap_or(usize::MAX)
     };
     drawn.sort_by_key(|(_, c)| rank(c));
+    let noted = rows
+        .iter()
+        .flat_map(|r| r.cells.iter().flatten())
+        .any(|b| !b.note.is_empty());
     let mut legend = String::new();
     for (name, color) in &drawn {
         let _ = write!(
             legend,
             "<button style=\"--c:{color}\" data-c=\"{color}\">{}</button>",
-            escape(name)
+            escape(name.split(" (").next().unwrap_or(name))
         );
+        if noted && *color == Algorithm::Blake3.color() {
+            let _ = write!(
+                legend,
+                "<button class=\"noted\" style=\"--c:{color}\" data-c=\"{color}\" data-noted=\"1\" title=\"That run has no multithreaded form of BLAKE3 official, so its one thread stands in where servil's cell uses threads.\">on one thread (that run lacks its threaded form)</button>"
+            );
+        }
     }
     let mut body = String::new();
     body.push_str("<div class=\"grid\"><table><thead><tr><th class=\"machine\"></th>");
@@ -539,7 +554,7 @@ pub fn html(rows: &[Row]) -> String {
                         format!("{}/bench-hashes.map.html#1:solo|tree|cached", row.link)
                     }
                 };
-                let Some((ours, _)) = bars.split_first() else {
+                let Some(_) = bars.first() else {
                     let _ = write!(
                         body,
                         "<div class=\"pick none\"><span class=\"pt\">{}</span>not in this run</div>",
@@ -548,22 +563,11 @@ pub fn html(rows: &[Row]) -> String {
                     continue;
                 };
                 let fastest = bars.iter().map(|b| b.gbps).fold(0.0f64, f64::max);
-                // The tooltip's lines: each hash's speed, and servil's over it.
+                // Colour, name, the note, and GB/s as a number (last: never empty):
+                // the script rounds and words it.
                 let tip: Vec<String> = bars
                     .iter()
-                    .map(|b| {
-                        let over = if std::ptr::eq(b, ours) {
-                            String::new()
-                        } else {
-                            format!(" · servil {} its speed", figure(ours.gbps / b.gbps))
-                        };
-                        let note = if b.note.is_empty() {
-                            String::new()
-                        } else {
-                            format!(" ({})", b.note)
-                        };
-                        format!("{}\t{}\t{}{over}{note}", b.color, b.name, speed(b.gbps))
-                    })
+                    .map(|b| format!("{}\t{}\t{}\t{}", b.color, b.name, b.note, b.gbps))
                     .collect();
                 let _ = write!(
                     body,
@@ -575,23 +579,22 @@ pub fn html(rows: &[Row]) -> String {
                     escape(&tip.join("\n")),
                     escape(&point)
                 );
-                for b in bars {
+                for (n, b) in bars.iter().enumerate() {
                     let _ = write!(
                         body,
-                        "<i data-c=\"{}\" style=\"width:{}%;background:{}\"{}></i>",
+                        "<span class=\"bar\"><i data-c=\"{}\" data-g=\"{}\" style=\"width:{}%;background:{}\"{}></i>{}</span>",
                         b.color,
+                        b.gbps,
                         (100.0 * b.gbps / fastest).round(),
                         b.color,
-                        if b.note.is_empty() {
-                            ""
-                        } else {
-                            " class=\"noted\""
-                        }
+                        if b.note.is_empty() { "" } else { " class=\"noted\"" },
+                        ""
                     );
+                    let _ = n;
                 }
                 let _ = write!(
                     body,
-                    "</span><span class=\"scale\">{}</span></span></a>",
+                    "</span><span class=\"under\"><em class=\"mult\"></em><span class=\"scale\">{}</span></span></span></a>",
                     escape(&speed(fastest))
                 );
             }
@@ -600,24 +603,6 @@ pub fn html(rows: &[Row]) -> String {
         body.push_str("</tr>\n");
     }
     body.push_str("</tbody></table></div>\n");
-    let notes: Vec<&str> = rows
-        .iter()
-        .flat_map(|r| r.cells.iter().flatten())
-        .filter(|b| !b.note.is_empty())
-        .map(|b| b.note)
-        .fold(Vec::new(), |mut v, n| {
-            if !v.contains(&n) {
-                v.push(n);
-            }
-            v
-        });
-    if !notes.is_empty() {
-        let _ = write!(
-            body,
-            "<p class=\"note\">Hatched: {}.</p>\n",
-            escape(&notes.join("; "))
-        );
-    }
     include_str!("overview.html")
         .replace("@LEGEND@", &legend)
         .replace("@BODY@", &body)
@@ -783,10 +768,13 @@ mod tests {
             "the fastest's speed is the scale"
         );
         assert!(
-            page.contains("12× its speed (official on one thread"),
-            "a figure against a missing baseline says so"
+            page.contains("class=\"noted\""),
+            "a bar against a missing baseline is hatched"
         );
-        assert!(page.contains("class=\"noted\""), "and its bar is hatched");
+        assert!(
+            page.contains("data-noted=\"1\""),
+            "and the legend shows the hatching beside official's button"
+        );
         assert!(
             page.contains("<tr class=\"vm\""),
             "a virtual machine's row is marked"
