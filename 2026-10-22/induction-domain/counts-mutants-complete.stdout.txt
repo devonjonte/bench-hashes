@@ -1,0 +1,46 @@
+START MUTANT output-stride
+START MUTANT input-stride
+  base: no full pass, every remainder
+  base: no full pass, every remainder
+  base paths proved; constructing the group invariant
+  base paths proved; constructing the group invariant
+  initial invariant checked; proving its step and tails
+  initial invariant checked; proving its step and tails
+  induction pass 1: 9 paths, 8 positions left unknown ["('v', 0, 0)", "('v', 0, 1)", "('v', 0, 2)", "('v', 0, 3)", "('v', 0, 4)", "('v', 0, 5)", "('v', 0, 6)", "('v', 0, 7)"]
+  induction pass 1: 9 paths, 8 positions left unknown ["('v', 0, 0)", "('v', 0, 1)", "('v', 0, 2)", "('v', 0, 3)", "('v', 0, 4)", "('v', 0, 5)", "('v', 0, 6)", "('v', 0, 7)"]
+  induction pass 2: 9 paths, 0 positions left unknown []
+  induction pass 2: 9 paths, 0 positions left unknown []
+REJECTED output-stride output 0 incomplete
+RESULT output-stride True rejected
+START MUTANT counter-direction
+REJECTED input-stride output 0, word 0, differs
+RESULT input-stride True rejected
+START MUTANT tail-output-stride
+  base: no full pass, every remainder
+  base: no full pass, every remainder
+REJECTED tail-output-stride output 3, word 0, differs
+RESULT tail-output-stride True rejected
+START MUTANT nonterminating
+  base: no full pass, every remainder
+  base paths proved; constructing the group invariant
+  initial invariant checked; proving its step and tails
+  base paths proved; constructing the group invariant
+  initial invariant checked; proving its step and tails
+  induction pass 1: 1 paths, 8 positions left unknown ["('v', 0, 0)", "('v', 0, 1)", "('v', 0, 2)", "('v', 0, 3)", "('v', 0, 4)", "('v', 0, 5)", "('v', 0, 6)", "('v', 0, 7)"]
+  induction pass 2: 1 paths, 0 positions left unknown []
+REJECTED nonterminating back edge leaves the next iteration's domain or wraps its count
+  base: no full pass, every remainder
+  base paths proved; constructing the group invariant
+  initial invariant checked; proving its step and tails
+  induction pass 1: 9 paths, 16 positions left unknown ["('v', 0, 0)", "('v', 0, 1)", "('v', 0, 2)", "('v', 0, 3)", "('v', 0, 4)", "('v', 0, 5)", "('v', 0, 6)", "('v', 0, 7)"]
+REJECTED counter-direction read of unwritten stack+65344 (at 0x17be: vpxor ymm12, ymm0, ymmword ptr [rsp + 0x240])
+RESULT counter-direction True rejected
+START MUTANT input-overread
+  base: no full pass, every remainder
+  induction pass 1: 1 paths, 8 positions left unknown ["('v', 0, 0)", "('v', 0, 1)", "('v', 0, 2)", "('v', 0, 3)", "('v', 0, 4)", "('v', 0, 5)", "('v', 0, 6)", "('v', 0, 7)"]
+  induction pass 2: 1 paths, 0 positions left unknown []
+PRIOR WALKER ACCEPTED NONTERMINATING MUTANT {'head': 1, 'return': 0}
+RESULT nonterminating True rejected
+  base paths proved; constructing the group invariant
+REJECTED input-overread read of 4 bytes at input@0+64 outside [0, 64) (at 0x14d5: vmovdqu xmm15, xmmword ptr [r8 + 0x40])
+RESULT input-overread True rejected
