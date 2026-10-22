@@ -74,8 +74,8 @@ The native instruction checker agreed on **176 register-only forms ×200
 reproducible states** for version 2. Version 3 uses exactly those forms,
 reordering two additions. Its 112 AVX-512-only forms were skipped on this CPU.
 The checker is from `35db939f00fbdbce18ef22d7bfac9e57352d5cb0`; imports and
-assembly use the candidate's `tools/verify`. Version 1's build matrix passes;
-the later assembly changes preserve its interfaces. Windows evidence here
+assembly use the candidate's `tools/verify`. Version 3's build matrix passes, including no-default, pure, warnings as
+errors, C API and generated-file checks. Windows evidence here
 is assembled proof, alongside native Linux execution.
 
 Run `prove-partials.py avx2_pair 0 16` from the candidate checkout, with its
