@@ -485,7 +485,9 @@ and cycles on P cores and on E cores; Apple, and Linux on x86-64 hybrids),
 in the `core counts` column, `P time:P cycles:E time:E cycles`, or `-`
 where the platform counts none. The map's tooltip names a point's E-core
 share and clocks, so a change in where a hash ran reads as that, not as
-a change in the hash. The pool's workers are not counted yet.
+a change in the hash. On Linux, cycles cover user space while running
+time also covers kernel work, so the clock estimate reads low across
+system calls. The pool's workers are not counted yet.
 
 **Threads.** BLAKE3 servil mt's pool holds one thread per CPU, its caller
 among them, unless a run says `--threads N`, which sets it for the whole
