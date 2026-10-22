@@ -1,3 +1,13 @@
+# Research checkout: generated x86 partial kernels, October 22, 2026
+
+This branch adds 1536 B and 2047 B for the comparison requested in
+[johnservil/BLAKE3: generated x86 kernels](https://github.com/johnservil/BLAKE3/issues/90#issuecomment-6331584084).
+Its `check --cells all` is restricted to seven one-message sizes, each
+after other work and after a pause, on servil st and mt. Results describe
+those 28 cells. Timing, sample sizing, load checks, fresh link layouts,
+alternating pairs and the comparison rule are unchanged. This research
+checkout stays separate from the published benchmark and its release gate.
+
 # What the benchmark asks of the servil fork (frozen)
 
 The servil team's contract with itself (Zooko and John Servil): bench-hashes
@@ -505,9 +515,9 @@ their users seldom make):
   checks in perf_regress.
 
 ```frozen
-use case OneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
+use case OneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2047 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case ManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
-use case IdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
+use case IdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2047 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case IdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
 use case ContinuousMessages: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case ContinuousBatches: 16, 64, 256, 1024, 4096, 16384, 65536

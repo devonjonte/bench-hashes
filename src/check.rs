@@ -104,7 +104,19 @@ pub fn command(arguments: &[String]) -> i32 {
     // The cells a change touches: (contender, point), from the new side's
     // coverage; a run measures their contenders over their points.
     let (contenders, points): (Vec<String>, Option<Vec<String>>) = if all {
-        (SUBJECTS.iter().map(|s| s.to_string()).collect(), None)
+        // Research checkout for BLAKE3 #90: the comparison machinery is
+        // unchanged; this probe asks only about these partial-chunk cells.
+        let labels = [
+            "1 KiB", "1536 B", "2047 B", "2304 B", "3839 B", "4470 B", "7935 B",
+        ];
+        let points = labels
+            .iter()
+            .flat_map(|p| [p.to_string(), format!("idle {p}")])
+            .collect();
+        (
+            SUBJECTS.iter().map(|s| s.to_string()).collect(),
+            Some(points),
+        )
     } else {
         let cells = touched_cells(&fork, &bench, &cache, &old, &new, &new_exe);
         if cells.is_empty() {

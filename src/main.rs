@@ -139,7 +139,7 @@ const TO_CHECK_FOR_REGRESSIONS: Visits = Visits {
 };
 
 /// Points on the one-message axis, and on each many-messages axis.
-const INPUT_COUNT: usize = 27;
+const INPUT_COUNT: usize = 29;
 const BATCH_COUNT: usize = 24;
 /// Points on the continuous axes: message lengths, and messages per batch.
 const CONTINUOUS_MESSAGE_COUNT: usize = 11;
@@ -401,6 +401,8 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::one("256 B", 256),
     Point::one("512 B", 512),
     Point::one("1 KiB", 1024),
+    Point::one("1536 B", 1536),
+    Point::one("2047 B", 2047),
     Point::one("2 KiB", 2 * 1024),
     Point::one("2304 B", 2304),
     Point::one("3 KiB", 3 * 1024),
@@ -452,6 +454,8 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::one("256 B", 256).idle(),
     Point::one("512 B", 512).idle(),
     Point::one("1 KiB", 1024).idle(),
+    Point::one("1536 B", 1536).idle(),
+    Point::one("2047 B", 2047).idle(),
     Point::one("2 KiB", 2 * 1024).idle(),
     Point::one("2304 B", 2304).idle(),
     Point::one("3 KiB", 3 * 1024).idle(),
