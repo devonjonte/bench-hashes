@@ -1,0 +1,14 @@
+base group correct over independent array bytes
+explicit counter invariant holds at entry
+  induction pass 1: 2 paths, 8 positions left unknown ["('word', 'stack', 65344)", "('word', 'stack', 65352)", "('word', 'stack', 65360)", "('word', 'stack', 65368)", "('word', 'stack', 65376)", "('word', 'stack', 65384)", "('word', 'stack', 65392)", "('word', 'stack', 65400)"]
+Traceback (most recent call last):
+  File "/home/agent/bench-hashes-validation/x86-kernels-20261022/ind4.py", line 95, in <module>
+    kinds = ind.loop_step(gen, s0, k, list(s0.assumptions) + [ULT(k, g), ULE(k, bound - 1)], head, check)
+  File "/home/agent/BLAKE3-x86-counts/tools/verify/induction.py", line 386, in loop_step
+    ends = paths(mk, head, {head})
+  File "/home/agent/BLAKE3-x86-counts/tools/verify/induction.py", line 67, in paths
+    nxt = m.step_at(pc) if hasattr(m, "step_at") else aarch64.step(m, pc, mnem, ops)
+          ~~~~~~~~~^^^^
+  File "/home/agent/BLAKE3-x86-counts/tools/verify/x86.py", line 206, in step_at
+    raise Unproved(f"{e} (at {pc:#x}: {mnem} {', '.join(ops)})") from None
+aarch64.Unproved: read of unwritten stack+65344 (at 0x17be: vpxor ymm12, ymm0, ymmword ptr [rsp + 0x240])
