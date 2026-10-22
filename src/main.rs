@@ -6469,6 +6469,16 @@ mod correctness_tests {
     }
 
     #[test]
+    fn mean_keeps_the_shared_slowest_hundredth_rule() {
+        // Exactly 100 samples: discard the one slow sample, leaving 1000.
+        let mut samples = vec![Measured::new(1000, 1); 99];
+        samples.push(Measured::new(1_000_000, 1));
+        assert_eq!(clocks::summary::mean(samples.iter().map(|m| (m.ns, m.units))), 1000u128 << 64);
+        assert_eq!(Mean::of(&samples).fixed().0, 1000u128 << 64);
+        assert_eq!(Mean::of(&samples).format_ns(1), "1000.000");
+    }
+
+    #[test]
     fn means_at_decimal_halfways_round_the_original_measurement_once() {
         // Independently established rational values: 2135/400 = 5.3375,
         // 20555/400 = 51.3875; half-up decimal rounding gives these anchors.
