@@ -1,0 +1,47 @@
+test_deadline_cleans_group (__main__.OwnershipTests.test_deadline_cleans_group) ... ok
+test_failure_keeps_status_and_cleans_descendant (__main__.OwnershipTests.test_failure_keeps_status_and_cleans_descendant) ... FAIL
+test_interrupt_cleans_group (__main__.OwnershipTests.test_interrupt_cleans_group) ... ok
+test_signaled_leader_keeps_status (__main__.OwnershipTests.test_signaled_leader_keeps_status) ... FAIL
+test_success_cleans_descendant (__main__.OwnershipTests.test_success_cleans_descendant) ... FAIL
+test_terminate_cleans_group (__main__.OwnershipTests.test_terminate_cleans_group) ... ok
+
+======================================================================
+FAIL: test_failure_keeps_status_and_cleans_descendant (__main__.OwnershipTests.test_failure_keeps_status_and_cleans_descendant)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/agent/bench-hashes-validation/x86-kernels-20261022/test-run-bounded.py", line 78, in test_failure_keeps_status_and_cleans_descendant
+    self.check_case('failure', 'raise SystemExit(7)', 7)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agent/bench-hashes-validation/x86-kernels-20261022/test-run-bounded.py", line 59, in check_case
+    self.assertTrue(clean, f'leader/descendant still running: {ids}')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : leader/descendant still running: [43306, 43307]
+
+======================================================================
+FAIL: test_signaled_leader_keeps_status (__main__.OwnershipTests.test_signaled_leader_keeps_status)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/agent/bench-hashes-validation/x86-kernels-20261022/test-run-bounded.py", line 81, in test_signaled_leader_keeps_status
+    self.check_case('signaled', 'os.kill(os.getpid(), signal.SIGTERM)', 143)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agent/bench-hashes-validation/x86-kernels-20261022/test-run-bounded.py", line 59, in check_case
+    self.assertTrue(clean, f'leader/descendant still running: {ids}')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : leader/descendant still running: [43312, 43313]
+
+======================================================================
+FAIL: test_success_cleans_descendant (__main__.OwnershipTests.test_success_cleans_descendant)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/agent/bench-hashes-validation/x86-kernels-20261022/test-run-bounded.py", line 75, in test_success_cleans_descendant
+    self.check_case('success', 'pass', 0)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agent/bench-hashes-validation/x86-kernels-20261022/test-run-bounded.py", line 59, in check_case
+    self.assertTrue(clean, f'leader/descendant still running: {ids}')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : leader/descendant still running: [43315, 43316]
+
+----------------------------------------------------------------------
+Ran 6 tests in 4.357s
+
+FAILED (failures=3)
