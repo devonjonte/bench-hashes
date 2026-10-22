@@ -26,6 +26,18 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **Restore the declared sample trim, for 0.17.0** (Zooko, October 22):
+  reports, comparisons and regression checks pass each cell's raw samples
+  to the shared `clocks::summary` selection. `Mean::of` had summed every
+  sample before calling it, leaving one aggregate and bypassing the trim.
+  Exact retained totals now serve decimal displays and fixed-point means
+  through one selection. The rule stays `ceil(n / 100)` slowest samples,
+  retaining at least one: one is removed at both 6 and 24 samples. Original
+  samples and plain-mean reports stay intact and retain their source scope.
+  Zooko approved the implementation repair through a new benchmark release
+  after reviewing the mismatch and corrected-rule results. Fresh controls
+  at the actual 6/24-sample budgets, with independent layouts and intermittent
+  slow modes, still govern reliance. General-reliance NO-GO stays in force.
 - **BLAKE3 commonware retires** (Zooko, October 20): its kernels were
   commonware's pull request #4982, which closed unmerged; commonware's
   shipped BLAKE3 is the official `blake3` crate (a thread-pool split of
