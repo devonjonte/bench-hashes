@@ -15,3 +15,5 @@ The figures are those runs' plain means (0.16.1's rule) and carry no
 verdict; they illustrate the page, not a comparison between releases.
 
 `f54f2908`: the page as bars (`index-f54f2908.html`, `shot-bars.png`), after Zooko asked for shapes in place of figures and the map's presentation.
+
+`e0017273`: toggles, one colour one name, scales in GB/s, the map's tooltip (`shot-looked-at.png`); `overview-run-e0017273.txt` adds Sam Shackleton's EPYC 9255 run (bench-hashes#63, `d1eb15f3`).
