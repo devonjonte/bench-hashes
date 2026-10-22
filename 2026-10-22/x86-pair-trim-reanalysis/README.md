@@ -89,3 +89,5 @@ The archived same-code control stays level in every cell. This is a
 post-hoc diagnostic for the new rule. Fresh predeclared controls on the
 repaired executable remain required for reliance. This reanalysis carries
 no GO decision or broad no-regression claim.
+
+Posted at [the generated-assembly discussion](https://github.com/johnservil/BLAKE3/issues/90#issuecomment-6340692380).
