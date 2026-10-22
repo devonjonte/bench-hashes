@@ -1270,7 +1270,7 @@ impl Measured {
 
 /*
  * A cell's figure: its mean, what a caller pays on average, the total time
- * of its samples over the total work they did (clocks::summary), kept
+ * of its retained samples over their total work (clocks::summary), kept
  * exactly as measured: Q64.64 is ample for arithmetic ([`Mean::fixed`]),
  * yet a half-way decimal can move one display tick if approximated first.
  */
@@ -1282,11 +1282,8 @@ struct Mean {
 
 impl Mean {
     fn of(samples: &[Measured]) -> Self {
-        assert!(!samples.is_empty(), "a mean needs samples");
-        Self {
-            ns: samples.iter().map(|m| u128::from(m.ns)).sum(),
-            units: samples.iter().map(|m| u128::from(m.units)).sum(),
-        }
+        let (ns, units) = clocks::summary::mean_totals(samples.iter().map(|m| (m.ns, m.units)));
+        Self { ns, units }
     }
 
     fn fixed(self) -> PerUnit {
@@ -6488,11 +6485,11 @@ mod correctness_tests {
             assert_eq!(statistics.format_ns(1), expected);
             assert_eq!(statistics.format_ns(400), format!("{ns}.000"));
         }
-        // A mean is total time over total work: 3000 ns over 400 and 1000
-        // over 400 make 4000 over 800, 5 ns a unit.
+        // The shared rule sets aside the slower sample: 1000 ns over
+        // 400 units remains, exactly 2.5 ns a unit.
         assert_eq!(
             Mean::of(&[Measured::new(3000, 400), Measured::new(1000, 400)]).format_ns(1),
-            "5.000"
+            "2.500"
         );
     }
 
@@ -6589,9 +6586,13 @@ mod correctness_tests {
             Some(20),
             &TO_CHECK_FOR_REGRESSIONS,
         );
-        // Contender 1's lent cells: 3 rounds in 10 twice as slow.
+        // Contender 0's one-message cell has one slow outlier; its retained
+        // samples are exactly 1000 ns/unit. Contender 1's lent cells have
+        // a slower mode: 3 rounds in 10 twice as slow.
         let (_, samples) = run(&roster, 20, |a, p, r| {
-            if a == 1 && POINTS[p].use_case != UseCase::OneMessage && r % 10 < 3 {
+            if a == 0 && POINTS[p].use_case == UseCase::OneMessage {
+                if r == 19 { 1_000_000 } else { 1000 }
+            } else if a == 1 && POINTS[p].use_case != UseCase::OneMessage && r % 10 < 3 {
                 20_000 + r as u64
             } else {
                 10_000 + 7 * r as u64
@@ -6626,6 +6627,9 @@ mod correctness_tests {
                         .find(|(k, _)| *k == key)
                         .unwrap_or_else(|| panic!("{key} read back"));
                     assert_eq!(figures(back), figures(cell), "{key}");
+                    if a == 0 && POINTS[p].use_case == UseCase::OneMessage {
+                        assert_eq!(figures(back), "1000.000", "{key}'s independent trim anchor");
+                    }
                     // CPU time: each solo sample's, none for shared ones.
                     let cpu = read
                         .cpu

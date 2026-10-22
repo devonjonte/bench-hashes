@@ -21,8 +21,8 @@
 //!    bench's source and the fork's commit); the change's diff names the
 //!    lines it touches; the points that execute one are checked, the rest
 //!    skipped, since nothing they run changed. A change to assembly, the
-//!    build script, or what a manifest builds (the fork's or clocks':
-//!    anything but its tests, examples, benches and dev-dependencies)
+//!    build script, or what the fork's manifest builds (anything but
+//!    its tests, examples, benches and dev-dependencies)
 //!    checks every point (coverage cannot see into assembly or the build).
 //!    `--cells all` checks every point regardless.
 //! 3. Runs `bench-hashes regress` over the pairs: servil st and servil mt
@@ -232,8 +232,8 @@ fn working_tree_commit(fork: &Path) -> String {
 /// One side's bench-hashes executable, built against the fork at `commit`:
 /// a worktree of the fork under the cache (moved only when the commit
 /// changes), this bench's sources copied beside it, Cargo pointed at the
-/// worktree for the fork and its clocks crate, and a target directory of
-/// the side's own, so an unchanged side rebuilds nothing.
+/// worktree for the fork, keeping the bench's pinned clocks, and a target
+/// directory of the side's own, so an unchanged side rebuilds nothing.
 fn side(fork: &Path, bench: &Path, cache: &Path, name: &str, commit: &str) -> PathBuf {
     let checkout = cache.join(name).join("src");
     if !checkout.exists() {
@@ -289,8 +289,8 @@ pub fn build_against_command(arguments: &[String]) -> i32 {
 
 /// This bench, built against the fork checkout at `checkout` as it is:
 /// its sources copied beside the fork (`checkout/bench-hashes`), Cargo
-/// pointed at the checkout for the fork and its clocks crate, a lock and a
-/// target directory of the build's own (the committed lock is never
+/// pointed at the checkout for the fork, keeping the bench's pinned clocks,
+/// a lock and a target directory of the build's own (the committed lock is never
 /// written); the executable's path. `check`'s two sides and the Mac
 /// runner's benchmark jobs build this way, and so does a maintainer
 /// measuring the working tree (`bench-hashes build-against ..`).
@@ -299,7 +299,7 @@ pub fn build_against(checkout: &Path, bench: &Path, target: &Path, name: &str) -
     let copy = checkout.join("bench-hashes");
     copy_bench(bench, &copy);
     let target = target.to_path_buf();
-    let [patch_fork, patch_clocks] = patches(&copy, &checkout);
+    let patch_fork = fork_patch(&copy, &checkout);
     // The side's lock: the bench's, with the fork taken from the worktree.
     // Cargo patches at the locked version only, so a version change wants
     // `cargo update -p blake3-servil`.
@@ -307,14 +307,10 @@ pub fn build_against(checkout: &Path, bench: &Path, target: &Path, name: &str) -
         .args([
             "--config",
             &patch_fork,
-            "--config",
-            &patch_clocks,
             "update",
             "--quiet",
             "-p",
             "blake3-servil",
-            "-p",
-            "clocks",
         ])
         .current_dir(&copy)
         .env("CARGO_TARGET_DIR", &target)
@@ -327,15 +323,7 @@ pub fn build_against(checkout: &Path, bench: &Path, target: &Path, name: &str) -
         String::from_utf8_lossy(&out.stderr)
     );
     let out = Command::new("cargo")
-        .args([
-            "--config",
-            &patch_fork,
-            "--config",
-            &patch_clocks,
-            "build",
-            "--release",
-            "--quiet",
-        ])
+        .args(["--config", &patch_fork, "build", "--release", "--quiet"])
         .current_dir(&copy)
         .env("CARGO_TARGET_DIR", &target)
         .env("BENCH_HASHES_CHECKOUT", bench)
@@ -466,7 +454,7 @@ fn layouts(cache: &Path, name: &str, exe: &Path, seeds: std::ops::Range<usize>) 
     let side_dir = cache.join(name);
     let copy = side_dir.join("src").join("bench-hashes");
     let checkout = side_dir.join("src");
-    let [patch_fork, patch_clocks] = patches(&copy, &checkout);
+    let patch_fork = fork_patch(&copy, &checkout);
     let mut exes = Vec::new();
     for seed in seeds {
         shuffle(&mut symbols, seed as u64);
@@ -487,8 +475,6 @@ fn layouts(cache: &Path, name: &str, exe: &Path, seeds: std::ops::Range<usize>) 
             .args([
                 "--config",
                 &patch_fork,
-                "--config",
-                &patch_clocks,
                 "rustc",
                 "--release",
                 "--quiet",
@@ -551,7 +537,10 @@ fn lld_dir(cache: &Path) -> PathBuf {
     #[cfg(unix)]
     std::os::unix::fs::symlink(found, &link).unwrap();
     #[cfg(not(unix))]
-    panic!("check relinks each side with a function order, on Linux and macOS only; {} is the ld.lld found", found.display());
+    panic!(
+        "check relinks each side with a function order, on Linux and macOS only; {} is the ld.lld found",
+        found.display()
+    );
     #[cfg(unix)]
     link.parent().unwrap().to_path_buf()
 }
@@ -593,8 +582,7 @@ fn touched_cells(
             || f == "build.rs"
             || f.ends_with(".S")
             || f.ends_with(".asm")
-            || (matches!(f, "Cargo.toml" | "clocks/Cargo.toml")
-                && manifest_builds_differently(fork, old, new, f))
+            || (f == "Cargo.toml" && manifest_builds_differently(fork, old, new, f))
     }) {
         eprintln!("check: assembly, the build script or the build's manifest changed: every point");
         return every();
@@ -730,21 +718,15 @@ fn coverage(
         }
         return map;
     }
-    eprintln!("check: recording which lines each point executes (once per change to the bench or the fork)");
+    eprintln!(
+        "check: recording which lines each point executes (once per change to the bench or the fork)"
+    );
     let checkout = cache.join("new").join("src");
     let copy = checkout.join("bench-hashes");
     let target = cache.join("new").join("target-coverage");
-    let [patch_fork, patch_clocks] = patches(&copy, &checkout);
+    let patch_fork = fork_patch(&copy, &checkout);
     let out = Command::new("cargo")
-        .args([
-            "--config",
-            &patch_fork,
-            "--config",
-            &patch_clocks,
-            "build",
-            "--release",
-            "--quiet",
-        ])
+        .args(["--config", &patch_fork, "build", "--release", "--quiet"])
         .current_dir(&copy)
         .env("CARGO_TARGET_DIR", &target)
         .env("RUSTFLAGS", "-C instrument-coverage")
@@ -882,11 +864,9 @@ fn llvm_tool(name: &str) -> PathBuf {
         })
 }
 
-/// Cargo's `--config` patches that build a bench copy against a fork
-/// checkout: the fork's repository as the copy's Cargo.toml names it (a
-/// bench pinned to another fork patches that fork), its blake3-servil and
-/// clocks from `checkout`.
-fn patches(copy: &Path, checkout: &Path) -> [String; 2] {
+/// Cargo's `--config` patch for a fork checkout. The bench keeps its pinned
+/// clocks on both sides, so their timing and summary rules stay the same.
+fn fork_patch(copy: &Path, checkout: &Path) -> String {
     let manifest =
         std::fs::read_to_string(copy.join("Cargo.toml")).expect("the bench's Cargo.toml");
     let section = manifest
@@ -898,16 +878,10 @@ fn patches(copy: &Path, checkout: &Path) -> [String; 2] {
         .find_map(|l| l.trim().strip_prefix("git = "))
         .expect("blake3-servil comes by git")
         .trim_matches('"');
-    [
-        format!(
-            "patch.\"{git}\".blake3-servil.path=\"{}\"",
-            checkout.display()
-        ),
-        format!(
-            "patch.\"{git}\".clocks.path=\"{}\"",
-            checkout.join("clocks").display()
-        ),
-    ]
+    format!(
+        "patch.\"{git}\".blake3-servil.path=\"{}\"",
+        checkout.display()
+    )
 }
 
 /// Whether `manifest`'s change between `old` and `new` touches what the

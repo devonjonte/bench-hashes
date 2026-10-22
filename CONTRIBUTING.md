@@ -55,8 +55,9 @@ statistics, the report, and the map.
 The BLAKE3 servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
 the crate `blake3-servil`, a git dependency on
 [github.com/johnservil/BLAKE3](https://github.com/johnservil/BLAKE3) at
-the commit whose full hash `Cargo.toml` names (`rev`, for it and for
-`clocks`). To measure your own checkout of the fork,
+the commit whose full hash `Cargo.toml` names (`rev`). The separate
+`clocks` pin names the instrument used on both sides of a comparison.
+To measure your own checkout of the fork,
 put this repository inside it and let the fork's tool build it there:
 
 ```sh
@@ -75,8 +76,9 @@ names the fork checkout's commit and whether its tree was clean. The fork's `CON
 fork's own tests and its performance-regression check, which runs this
 benchmark.
 
-To move the pin, set both `rev`s in `Cargo.toml` to the fork commit's
-full hash (they name one commit) and build: Cargo updates the lock.
+To move either pin, set its `rev` in `Cargo.toml` to the full commit
+hash and build: Cargo updates the lock. `build-against`, relinking and
+coverage replace the fork while keeping the benchmark's clocks pin.
 
 ## Rules that keep results comparable
 
