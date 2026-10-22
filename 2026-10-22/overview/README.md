@@ -17,3 +17,5 @@ verdict; they illustrate the page, not a comparison between releases.
 `f54f2908`: the page as bars (`index-f54f2908.html`, `shot-bars.png`), after Zooko asked for shapes in place of figures and the map's presentation.
 
 `e0017273`: toggles, one colour one name, scales in GB/s, the map's tooltip (`shot-looked-at.png`); `overview-run-e0017273.txt` adds Sam Shackleton's EPYC 9255 run (bench-hashes#63, `d1eb15f3`).
+
+`3ed7986b`: multipliers under the bars, one SHA-256 colour, official's hatched twin in the legend, tooltips following the toggles (`shot-3ed7986b.png`, `shot-3ed7986b-toggled-tooltip.png` with BLAKE3 official toggled off).
