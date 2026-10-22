@@ -13,3 +13,5 @@ upstream main `a23f994a`'s `benchmark-results/`.
 
 The figures are those runs' plain means (0.16.1's rule) and carry no
 verdict; they illustrate the page, not a comparison between releases.
+
+`f54f2908`: the page as bars (`index-f54f2908.html`, `shot-bars.png`), after Zooko asked for shapes in place of figures and the map's presentation.
