@@ -1,47 +1,43 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>How fast BLAKE3 servil runs, on each machine measured</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>How fast BLAKE3 servil runs, on each machine measured</title>
 <style>
-body { font: 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: #111827; margin: 32px auto; max-width: 1240px; padding: 0 16px; line-height: 1.45; background: #fdfdfc; }
-h1 { font-size: 24px; margin: 0 0 6px; }
-.sub { color: #4b5563; margin: 0 0 14px; }
-.headline { font-size: 18px; margin: 0 0 18px; }
-table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; vertical-align: top; padding: 7px 7px; border-top: 1px solid #e5e7eb; }
-th { font-weight: 600; font-size: 14px; color: #374151; border-top: none; cursor: help; }
-th.machine, td.machine { min-width: 205px; }
+body { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: #111827; margin: 24px; background: #fdfdfc; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+.sub { color: #6b7280; margin: 0 0 14px; max-width: 980px; }
+.legend { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; font-size: 12px; }
+.legend span { border: 1px solid #d1d5db; background: #fff; border-radius: 12px; padding: 3px 10px 3px 8px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
 .grid { overflow-x: auto; }
-td.machine a { color: #4c1d95; text-decoration: none; }
-td.machine b { font-size: 17px; }
-td.machine span { display: block; color: #6b7280; font-size: 12px; margin-top: 3px; line-height: 1.35; }
+table { border-collapse: collapse; }
+th, td { text-align: left; vertical-align: top; padding: 8px 8px; border-top: 1px solid #e5e7eb; }
+th { font-weight: 600; font-size: 12px; color: #6b7280; border-top: none; cursor: help; max-width: 140px; vertical-align: bottom; }
+th.machine, td.machine { min-width: 180px; }
+td.machine a { color: #4c1d95; text-decoration: none; } td.machine b { font-size: 15px; }
+td.machine span { display: block; color: #9ca3af; font-size: 12px; margin-top: 2px; }
 tr.yours td { background: #f5f3ff; }
 tr.vm { display: none; color: #6b7280; } body.show-vm tr.vm { display: table-row; }
-.pick { white-space: nowrap; margin: 2px 0; }
-.r { margin-bottom: 2px; }
-.pt { display: inline-block; min-width: 40px; margin-right: 2px; color: #6b7280; font-size: 12px; text-decoration: none; }
-a.pt:hover { color: #4c1d95; text-decoration: underline; }
-.r { display: inline-block; min-width: 44px; padding: 1px 5px; margin-right: 3px; border-radius: 6px; font-variant-numeric: tabular-nums; font-size: 13px; text-align: center; }
-.r.b3 { background: #dbeafe; } .r.sha2 { background: #ffedd5; } .r.other { background: #f3f4f6; }
-.r.slower { outline: 1px solid #b91c1c; }
-.none { color: #9ca3af; font-size: 12px; }
-.key { color: #4b5563; font-size: 13px; margin: 14px 0; }
-.key .r { min-width: 0; }
-.note, footer { color: #6b7280; font-size: 13px; margin-top: 10px; }
-label.vm { color: #6b7280; font-size: 13px; margin-left: 12px; }
+.pick { display: flex; align-items: center; gap: 6px; margin: 3px 0; text-decoration: none; color: inherit; }
+.pick .pt { width: 46px; color: #9ca3af; font-size: 11px; text-align: right; white-space: nowrap; }
+.pick.none { color: #d1d5db; font-size: 11px; }
+.bars { display: flex; flex-direction: column; gap: 2px; width: 96px; }
+.bars i { display: block; height: 7px; border-radius: 2px; }
+.bars i.noted { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 2px, transparent 2px 5px) !important; }
+.pick:hover .bars i { filter: brightness(.85); }
+.note { color: #9ca3af; font-size: 12px; margin: 8px 0; }
+footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
+label.vm { color: #9ca3af; font-size: 12px; margin-left: 14px; }
 </style></head><body>
 <h1>How fast BLAKE3 servil runs, on each machine measured</h1>
-<p class="sub">Each figure is how many times faster BLAKE3 servil ran than the hash named, in one representative measurement on that machine; above 1× servil was faster, below 1× (outlined) slower. Read across a row for one machine, down a column for one use. Point at a column's name for the situation it stands for; a figure's size opens its full chart on that machine's map, with every size and every hash.</p>
+<p class="sub">A row is one machine; a column is one way a program hashes. In each cell, the bars are the hashes' speeds, BLAKE3 servil's on top: the longer, the faster. Point at a bar for the figure, at a column's name for what it stands for; open a cell for its full chart on that machine's map.</p>
+<div class="legend"><span style="--c:#7c3aed">BLAKE3 servil</span><span style="--c:#3b82f6">BLAKE3 official</span><span style="--c:#e07a45">SHA-256, the fastest measured</span><span style="--c:#8a7a1e">sha1sum</span><span style="--c:#9ca3af">md5sum</span><label class="vm"><input type="checkbox" id="vm"> show virtual machines</label></div>
 @BODY@
-<p class="key">Key: <span class="r b3">×</span> against BLAKE3 official (the <code>blake3</code> crate; its own threads where servil's cell uses threads) &nbsp; <span class="r sha2">×</span> against the fastest SHA-256 measured on that machine &nbsp; <span class="r other">×</span> against sha1sum and md5sum, which many still run on files.
-<label class="vm"><input type="checkbox" id="vm"> show virtual machines</label></p>
-<footer>Every figure is computed from the run's own samples, by the same rule as its map (each cell's mean, <code>clocks::summary</code>); one run on one machine, with its load reading on its map, and no verdict: slower and faster across runs is the regression check's word. From <a href="https://github.com/johnservil/bench-hashes">johnservil/bench-hashes</a>, measuring <a href="https://github.com/johnservil/BLAKE3">johnservil/BLAKE3</a>. The representative measurements are FROZEN.md's "The overview".</footer>
+<footer>Each bar is one run's mean, by the same rule as the map (<code>clocks::summary</code>), on a machine whose load reading is on its map; no verdict is drawn across runs. From <a href="https://github.com/johnservil/bench-hashes">johnservil/bench-hashes</a>, measuring <a href="https://github.com/johnservil/BLAKE3">johnservil/BLAKE3</a>; the cells shown are FROZEN.md's "The overview".</footer>
 <script>
-// A guess at the reader's kind of machine, marked "yours?", nothing more.
+// A guess at the reader's kind of machine, lit and marked "yours?", nothing more.
 (function () {
-  const ua = navigator.userAgent, mac = /Macintosh/.test(ua), apple = mac || /iPhone|iPad/.test(ua);
-  const arch = apple ? "apple" : "x86";
-  const row = document.querySelector('tr[data-arch="' + arch + '"]:not(.vm)');
-  if (row) { row.classList.add("yours"); const b = row.querySelector("td.machine b"); if (b) b.insertAdjacentHTML("afterend", ' <span style="display:inline;color:#7c3aed;font-size:12px">yours?</span>'); }
+  const ua = navigator.userAgent, apple = /Macintosh|iPhone|iPad/.test(ua);
+  const row = document.querySelector('tr[data-arch="' + (apple ? "apple" : "x86") + '"]:not(.vm)');
+  if (row) { row.classList.add("yours"); const b = row.querySelector("td.machine b"); if (b) b.insertAdjacentHTML("afterend", ' <span style="display:inline;color:#7c3aed;font-size:11px">yours?</span>'); }
   const vm = document.getElementById("vm");
   vm.addEventListener("change", () => document.body.classList.toggle("show-vm", vm.checked));
 })();

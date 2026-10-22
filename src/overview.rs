@@ -110,16 +110,18 @@ pub fn frozen_lines() -> String {
 /// The b3sum names the fork's build goes by in a run, newest convention
 /// first (bench-hashes #55 settles on `b3sum`), and the competitors shown.
 const FORK_B3SUM: [&str; 3] = ["b3sum", "devon", "fork"];
-const B3SUM_COMPETITORS: [(&str, &str); 4] = [
-    ("official", "official b3sum"),
-    ("sha256sum", "sha256sum"),
-    ("sha1sum", "sha1sum"),
-    ("md5sum", "md5sum"),
+const B3SUM_COMPETITORS: [(&str, &str, &str); 4] = [
+    ("official", "official b3sum", "#3b82f6"),
+    ("sha256sum", "sha256sum", "#e07a45"),
+    ("sha1sum", "sha1sum", "#8a7a1e"),
+    ("md5sum", "md5sum", "#9ca3af"),
 ];
 
 /// A competitor's time over BLAKE3 servil's in one cell.
 pub struct Ratio {
     pub competitor: String,
+    /// The competitor's colour, the map's.
+    pub color: &'static str,
     /// Competitor ns per unit over servil's: above 1, servil is faster.
     pub ratio: f64,
     /// A note the figure carries, such as "official on one thread".
@@ -188,6 +190,7 @@ fn hashing_ratios(
     if let Some((a, theirs, note)) = official {
         ratios.push(Ratio {
             competitor: a.name().to_owned(),
+            color: a.color(),
             ratio: ratio_of(theirs, ours),
             note,
         });
@@ -204,6 +207,7 @@ fn hashing_ratios(
     if let Some((a, _, theirs)) = sha {
         ratios.push(Ratio {
             competitor: format!("{} (the fastest measured)", a.name()),
+            color: Algorithm::Sha256.color(),
             ratio: ratio_of(theirs, ours),
             note: "",
         });
@@ -218,9 +222,10 @@ fn b3sum_ratios(file: &SamplesFile, cache: &str, input: &str) -> Vec<Ratio> {
     };
     B3SUM_COMPETITORS
         .iter()
-        .filter_map(|(name, shown)| {
+        .filter_map(|(name, shown, color)| {
             cell(file, &key(name)).map(|theirs| Ratio {
                 competitor: (*shown).to_owned(),
+                color,
                 ratio: ratio_of(theirs, ours),
                 note: "",
             })
@@ -343,13 +348,14 @@ fn columns() -> Vec<(&'static str, Vec<usize>)> {
     columns
 }
 
-/// A ratio as the page prints it: two figures after the point below 10,
-/// one above, as "1.6×" or "12×".
+/// A ratio as the page says it, under the pointer: one figure after the
+/// point below 10 ("2.5×"), whole numbers above ("12×"). Two figures would
+/// claim a precision one run does not have.
 fn figure(ratio: f64) -> String {
     if ratio >= 10.0 {
         format!("{ratio:.0}×")
     } else {
-        format!("{ratio:.2}×")
+        format!("{ratio:.1}×")
     }
 }
 
@@ -460,16 +466,14 @@ pub fn text(rows: &[Row]) -> String {
     out
 }
 
-/// The page.
+/// The page: a row per machine, a column per situation, and in each cell
+/// a small bar chart in the map's colours, BLAKE3 servil's bar first and
+/// each competitor's under it, lengths in proportion to speed (the fastest
+/// in the cell fills the width). Figures appear under the pointer alone.
 pub fn html(rows: &[Row]) -> String {
     let columns = columns();
     let mut body = String::new();
-    let _ = write!(
-        body,
-        "<p class=\"headline\">{}</p>\n",
-        escape(&headline(rows))
-    );
-    body.push_str("<div class=\"grid\"><table><thead><tr><th class=\"machine\">machine</th>");
+    body.push_str("<div class=\"grid\"><table><thead><tr><th class=\"machine\"></th>");
     for (column, picks) in &columns {
         let situations: Vec<String> = picks.iter().map(|&i| escape(PICKS[i].situation)).collect();
         let _ = write!(
@@ -493,7 +497,7 @@ pub fn html(rows: &[Row]) -> String {
         };
         let _ = write!(
             body,
-            "<tr{class} data-arch=\"{arch}\"><td class=\"machine\"><a href=\"{}/bench-hashes.map.html\"><b>{}{}</b></a><span>{} CPUs, {} · {} · BLAKE3 servil {} · bench-hashes {}</span></td>",
+            "<tr{class} data-arch=\"{arch}\"><td class=\"machine\"><a href=\"{}/bench-hashes.map.html\"><b>{}{}</b></a><span>{} CPUs, {} · {}</span><span>BLAKE3 servil {} · bench-hashes {}</span></td>",
             escape(&row.link),
             if row.virtual_machine { "VM on " } else { "" },
             escape(&row.machine),
@@ -507,65 +511,68 @@ pub fn html(rows: &[Row]) -> String {
             body.push_str("<td>");
             for &i in picks {
                 let ratios = &row.cells[i];
-                let point = match &PICKS[i].cell {
-                    Cell::Hashing { point, .. } => (*point).to_owned(),
-                    Cell::B3sum { .. } => "tree".to_owned(),
-                };
-                let map = match &PICKS[i].cell {
-                    Cell::Hashing { use_case, .. } => {
+                let (point, servil, map) = match &PICKS[i].cell {
+                    Cell::Hashing {
+                        use_case,
+                        point,
+                        servil,
+                    } => (
+                        (*point).to_owned(),
+                        (servil.name(), servil.color()),
                         format!(
                             "{}/bench-hashes.map.html#{}",
                             row.link,
                             super::map::cell_key("solo", *use_case)
-                        )
-                    }
-                    Cell::B3sum { .. } => {
-                        format!("{}/bench-hashes.map.html#1:solo|tree|cached", row.link)
-                    }
+                        ),
+                    ),
+                    Cell::B3sum { .. } => (
+                        "1000 files".to_owned(),
+                        ("BLAKE3 servil's b3sum", Algorithm::Blake3ServilMt.color()),
+                        format!("{}/bench-hashes.map.html#1:solo|tree|cached", row.link),
+                    ),
                 };
                 if ratios.is_empty() {
-                    let _ = write!(body, "<div class=\"pick\"><span class=\"pt\">{}</span><span class=\"none\">not in this run</span></div>", escape(&point));
+                    let _ = write!(body, "<div class=\"pick none\"><span class=\"pt\">{}</span>not in this run</div>", escape(&point));
                     continue;
                 }
-                // Two figures a line: a cell of four (files) takes two lines.
+                // Lengths: servil's speed is 1, a competitor's 1/ratio; the
+                // longest fills the width.
+                let longest = ratios.iter().map(|r| 1.0 / r.ratio).fold(1.0f64, f64::max);
+                let width = |speed: f64| (100.0 * speed / longest).round();
                 let _ = write!(
                     body,
-                    "<div class=\"pick\"><a class=\"pt\" href=\"{}\">{}</a>",
+                    "<a class=\"pick\" href=\"{}\"><span class=\"pt\">{}</span><span class=\"bars\"><i style=\"width:{}%;background:{}\" title=\"{}\"></i>",
                     escape(&map),
-                    escape(&point)
+                    escape(&point),
+                    width(1.0),
+                    servil.1,
+                    escape(servil.0)
                 );
-                for (n, r) in ratios.iter().enumerate() {
-                    if n > 0 && n % 2 == 0 {
-                        body.push_str("</div><div class=\"pick\"><span class=\"pt\"></span>");
-                    }
-                    let side = if r.ratio >= 1.0 { "faster" } else { "slower" };
+                for r in ratios {
                     let title = format!(
-                        "BLAKE3 servil's speed over {}{}",
+                        "{}: BLAKE3 servil ran at {} its speed{}",
                         r.competitor,
+                        figure(r.ratio),
                         if r.note.is_empty() {
                             String::new()
                         } else {
-                            format!("; {}", r.note)
+                            format!(" ({})", r.note)
                         }
                     );
-                    let mark = if r.competitor.starts_with("BLAKE3 official")
-                        || r.competitor == "official b3sum"
-                    {
-                        "b3"
-                    } else if r.competitor.starts_with("SHA-256") || r.competitor == "sha256sum" {
-                        "sha2"
-                    } else {
-                        "other"
-                    };
                     let _ = write!(
                         body,
-                        "<span class=\"r {side} {mark}\" title=\"{}\">{}{}</span>",
+                        "<i style=\"width:{}%;background:{}\" title=\"{}\"{}></i>",
+                        width(1.0 / r.ratio),
+                        r.color,
                         escape(&title),
-                        figure(r.ratio),
-                        if r.note.is_empty() { "" } else { "*" }
+                        if r.note.is_empty() {
+                            ""
+                        } else {
+                            " class=\"noted\""
+                        }
                     );
                 }
-                body.push_str("</div>");
+                body.push_str("</span></a>");
             }
             body.push_str("</td>");
         }
@@ -586,7 +593,7 @@ pub fn html(rows: &[Row]) -> String {
     if !notes.is_empty() {
         let _ = write!(
             body,
-            "<p class=\"note\">* {}.</p>\n",
+            "<p class=\"note\">Hatched: {}.</p>\n",
             escape(&notes.join("; "))
         );
     }
@@ -656,9 +663,9 @@ mod tests {
 
     #[test]
     fn figures_read_as_the_page_prints_them() {
-        assert_eq!(figure(0.925), "0.93×");
-        assert_eq!(figure(1.0), "1.00×");
-        assert_eq!(figure(9.994), "9.99×");
+        assert_eq!(figure(0.925), "0.9×");
+        assert_eq!(figure(1.0), "1.0×");
+        assert_eq!(figure(9.96), "10.0×");
         assert_eq!(figure(12.4), "12×");
     }
 
@@ -694,8 +701,16 @@ mod tests {
     }
 
     fn r(competitor: &str, ratio: f64, note: &'static str) -> Ratio {
+        let color = if competitor.starts_with("BLAKE3 official") {
+            "#3b82f6"
+        } else if competitor.starts_with("SHA-256") {
+            "#e07a45"
+        } else {
+            "#000"
+        };
         Ratio {
             competitor: competitor.to_owned(),
+            color,
             ratio,
             note,
         }
@@ -732,22 +747,32 @@ mod tests {
         let rows = [row("A", false, cells), vm];
         assert_eq!(
             headline(&rows),
-            "On 1 machine, BLAKE3 servil runs at 0.90× to 3.00× the speed of BLAKE3 official (slower in 1 of the cells shown), and 1.20× to 8.00× the speed of SHA-256."
+            "On 1 machine, BLAKE3 servil runs at 0.9× to 3.0× the speed of BLAKE3 official (slower in 1 of the cells shown), and 1.2× to 8.0× the speed of SHA-256."
         );
         let page = html(&rows);
+        // Cell 0: servil at 0.9× official, so official's bar is the longest
+        // (100%) and servil's is 90%; SHA-256 at 1.2× is 75%.
         assert!(
-            page.contains("class=\"r slower b3\""),
-            "a figure below one is marked slower"
+            page.contains("width:90%;background:#7c3aed"),
+            "servil's bar is in proportion to the fastest"
         );
         assert!(
-            page.contains("12×*"),
-            "a figure against a missing baseline carries its star"
+            page.contains("width:100%;background:#3b82f6"),
+            "the fastest fills the width"
         );
+        assert!(page.contains("width:75%;background:#e07a45"));
+        assert!(
+            page.contains("at 12× its speed (official on one thread"),
+            "a figure against a missing baseline says so"
+        );
+        assert!(page.contains("class=\"noted\""), "and its bar is marked");
         assert!(
             page.contains("<tr class=\"vm\""),
             "a virtual machine's row is marked"
         );
-        assert!(text(&rows).contains("files, mixed tree, 1000 files, 74 MiB: 3.00× vs official b3sum; 8.00× vs sha256sum; 19× vs md5sum"));
+        assert!(text(&rows).contains(
+            "files, mixed tree, 1000 files, 74 MiB: 3.0× vs official b3sum; 8.0× vs sha256sum; 19× vs md5sum"
+        ));
     }
 
     #[test]
