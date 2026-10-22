@@ -54,13 +54,19 @@ your CPU and operating system:
   analysis.
 
 The map has a small chart for each way a program hashes. Its rows say
-what the program hashes: one message, a batch of 64-byte messages (a
-Merkle tree's nodes), many messages at once arriving in pieces (a
-server's uploads), a collection of messages of every size (a repository's
-objects, a store's files), a message with its outboard, for verified
-streaming, and a message received in that form, verified as it arrives. Its columns say how the program calls: now and then, *after
-other work* or *after a pause*, and nonstop, *waiting for each call* or
-*pipelined*; point at a row's or a column's name, or tap it, to see
+what the program hashes:
+
+- one message;
+- a batch of 64-byte messages (a Merkle tree's nodes);
+- many messages at once, arriving in pieces (a server's uploads);
+- a collection of messages of every size (a repository's objects, a
+  store's files);
+- a message with its outboard, for verified streaming, and a message
+  received in that form, verified as it arrives.
+
+Its columns say how the program calls: now and then, *after other work*
+or *after a pause*, and nonstop, *waiting for each call* or
+*pipelined*. Point at a row's or a column's name, or tap it, to see
 what it means. Open a chart to read its values under the pointer or
 where you tap; a hash's name hides or shows its lines; each call's name
 links to its documentation.
@@ -103,19 +109,19 @@ named (`--list` shows the names).
 ## Which function to use
 
 The servil crate's documentation has a table, "Which call to use", that
-leads from the shape of a program's data to one call:
+leads from what a program hashes to one call:
 https://johnservil.github.io/BLAKE3/blake3_servil/. The map's rows are
-those shapes, so each row's chart shows that call's measured speed here.
+the same cases, so each row's chart shows that call's measured speed here.
 
 ## How fast is b3sum?
 
 <img src="https://devonjonte.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/b3sum.chart.svg" alt="Hashing a tree of 1000 files on an Intel i7-12700K: b3sum, multi-core and on one thread, beside sha256sum, sha1sum and md5sum, in GB/s" width="720">
 
 `bench-hashes b3sum` times builds of `b3sum`, the BLAKE3 command-line
-tool, as you run it: each run a new process, from its start to its exit,
-on fixed files from 4 KiB to 1 GiB and on two directory trees, with the
-files in the page cache (read moments before) and, on Linux and macOS,
-evicted from it before each run (read from storage):
+tool, as you run it: each run a new process, from its start to its exit.
+It hashes fixed files from 4 KiB to 1 GiB and two directory trees, with
+the files in the page cache (read moments before) and, on Linux and
+macOS, evicted from it before each run (read from storage):
 
     pypy3 tools/b3sum-contenders.py /path/to/BLAKE3-fork /tmp/b3c |
         tr '\n' '\0' | xargs -0 cargo run --release -- b3sum --files ~/b3sum-files
@@ -148,7 +154,7 @@ fork's.
 
 Your map is one self-contained file. Post it and `bench-hashes.result.txt`
 anywhere people can download them: an issue, a gist, a forum. Anyone who
-opens the map in a browser sees it just as you do.
+opens the map in a browser sees it as you do.
 
 Or publish them on the web from your own copy of this repository, as the
 results above are:
