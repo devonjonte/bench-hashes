@@ -123,7 +123,7 @@ It hashes fixed files from 4 KiB to 1 GiB and two directory trees, with
 the files in the page cache (read moments before) and, on Linux and
 macOS, evicted from it before each run (read from storage):
 
-    pypy3 tools/b3sum-contenders.py /path/to/BLAKE3-fork /tmp/b3c |
+    python3 tools/b3sum-contenders.py /path/to/BLAKE3-fork /tmp/b3c |
         tr '\n' '\0' | xargs -0 cargo run --release -- b3sum --files ~/b3sum-files
 
 A contender is `NAME=COMMAND`, a `b3sum` and its flags, or any program
