@@ -117,16 +117,20 @@ const B3SUM_COMPETITORS: [(&str, &str, &str); 4] = [
     ("md5sum", "md5sum", "#9ca3af"),
 ];
 
-/// A competitor's time over BLAKE3 servil's in one cell.
-pub struct Ratio {
-    pub competitor: String,
-    /// The competitor's colour, the map's.
+/// One bar: a hash's speed in a cell.
+pub struct Bar {
+    pub name: String,
+    /// The map's colour for it.
     pub color: &'static str,
-    /// Competitor ns per unit over servil's: above 1, servil is faster.
-    pub ratio: f64,
-    /// A note the figure carries, such as "official on one thread".
+    /// Bytes hashed per second, in GB/s (the map's unit), from the cell's
+    /// mean through the shared rule.
+    pub gbps: f64,
+    /// A note the bar carries, such as "official on one thread".
     pub note: &'static str,
 }
+
+/// A cell's bars: BLAKE3 servil's first, then each competitor's.
+pub type Bars = Vec<Bar>;
 
 /// One machine's row.
 pub struct Row {
@@ -139,18 +143,18 @@ pub struct Row {
     pub virtual_machine: bool,
     /// The results directory, as the page links to its maps.
     pub link: String,
-    /// One entry per pick: its ratios, or none where the run lacks the cell.
-    pub cells: Vec<Vec<Ratio>>,
+    /// One entry per pick: its bars, or none where the run lacks the cell.
+    pub cells: Vec<Bars>,
 }
 
 fn mean_q64(samples: &[Measured]) -> u128 {
     clocks::summary::mean(samples.iter().map(|m| (m.ns, m.units)))
 }
 
-/// The ratio of two cells' means (competitor over servil), from the
-/// shared rule's Q64.64 figures; floating point at the last step.
-fn ratio_of(competitor: &[Measured], servil: &[Measured]) -> f64 {
-    mean_q64(competitor) as f64 / mean_q64(servil) as f64
+/// A cell's speed in GB/s: `bytes_per_unit` bytes over its mean ns per
+/// unit (the shared rule's Q64.64 figure; floating point at the last step).
+fn gbps(samples: &[Measured], bytes_per_unit: f64) -> f64 {
+    bytes_per_unit * 18_446_744_073_709_551_616.0 / mean_q64(samples) as f64
 }
 
 fn cell<'a>(file: &'a SamplesFile, key: &str) -> Option<&'a [Measured]> {
@@ -160,17 +164,23 @@ fn cell<'a>(file: &'a SamplesFile, key: &str) -> Option<&'a [Measured]> {
         .map(|(_, s)| s.as_slice())
 }
 
-fn hashing_ratios(
-    file: &SamplesFile,
-    use_case: UseCase,
-    point: &str,
-    servil: Algorithm,
-) -> Vec<Ratio> {
+fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algorithm) -> Bars {
     let key = |a: Algorithm| format!("{}|solo|{use_case:?}|{point}", a.key());
+    let per_unit = if use_case.batch() {
+        use_case.message_len() as f64
+    } else {
+        1.0
+    };
+    let bar = |a: Algorithm, samples: &[Measured], note| Bar {
+        name: a.name().to_owned(),
+        color: a.color(),
+        gbps: gbps(samples, per_unit),
+        note,
+    };
     let Some(ours) = cell(file, &key(servil)) else {
         return Vec::new();
     };
-    let mut ratios = Vec::new();
+    let mut bars = vec![bar(servil, ours, "")];
     // BLAKE3 official: its multithreaded form where servil's cell is
     // multithreaded and the run measured it; else its one thread, noted.
     let official = if servil == Algorithm::Blake3ServilMt {
@@ -188,12 +198,7 @@ fn hashing_ratios(
         cell(file, &key(Algorithm::Blake3)).map(|one| (Algorithm::Blake3, one, ""))
     };
     if let Some((a, theirs, note)) = official {
-        ratios.push(Ratio {
-            competitor: a.name().to_owned(),
-            color: a.color(),
-            ratio: ratio_of(theirs, ours),
-            note,
-        });
+        bars.push(bar(a, theirs, note));
     }
     // The fastest SHA-256 the run measured in this cell.
     let sha = [
@@ -205,32 +210,39 @@ fn hashing_ratios(
     .filter_map(|a| cell(file, &key(a)).map(|s| (a, mean_q64(s), s)))
     .min_by_key(|(_, m, _)| *m);
     if let Some((a, _, theirs)) = sha {
-        ratios.push(Ratio {
-            competitor: format!("{} (the fastest measured)", a.name()),
-            color: Algorithm::Sha256.color(),
-            ratio: ratio_of(theirs, ours),
-            note: "",
-        });
+        bars.push(bar(a, theirs, ""));
     }
-    ratios
+    bars
 }
 
-fn b3sum_ratios(file: &SamplesFile, cache: &str, input: &str) -> Vec<Ratio> {
+fn b3sum_bars(file: &SamplesFile, cache: &str, input: &str) -> Bars {
     let key = |name: &str| format!("{name}|{cache}|b3sum|{input}");
+    // b3sum's samples are ns over the input's bytes.
+    let bar = |name: &str, color, samples| Bar {
+        name: name.to_owned(),
+        color,
+        gbps: gbps(samples, 1.0),
+        note: "",
+    };
     let Some(ours) = FORK_B3SUM.iter().find_map(|n| cell(file, &key(n))) else {
         return Vec::new();
     };
-    B3SUM_COMPETITORS
+    let mut bars = vec![bar(
+        "BLAKE3 servil's b3sum",
+        Algorithm::Blake3ServilMt.color(),
+        ours,
+    )];
+    bars.extend(B3SUM_COMPETITORS.iter().filter_map(|(name, shown, color)| {
+        cell(file, &key(name)).map(|theirs| bar(shown, color, theirs))
+    }));
+    bars
+}
+
+fn header<'a>(headers: &'a [(String, String)], key: &str) -> &'a str {
+    headers
         .iter()
-        .filter_map(|(name, shown, color)| {
-            cell(file, &key(name)).map(|theirs| Ratio {
-                competitor: (*shown).to_owned(),
-                color,
-                ratio: ratio_of(theirs, ours),
-                note: "",
-            })
-        })
-        .collect()
+        .find(|(k, _)| k == key)
+        .map_or("", |(_, v)| v.as_str())
 }
 
 /// A CPU's name as the vendor's string gives it, less its trademarks and
@@ -257,13 +269,6 @@ fn short_name(cpu: &str) -> String {
         }
     }
     out.join(" ")
-}
-
-fn header<'a>(headers: &'a [(String, String)], key: &str) -> &'a str {
-    headers
-        .iter()
-        .find(|(k, _)| k == key)
-        .map_or("", |(_, v)| v.as_str())
 }
 
 /// Read one results directory into a row: its hashing run, and its b3sum
@@ -306,10 +311,10 @@ pub fn row(directory: &Path, link: String) -> Row {
                 servil,
             } => hashing
                 .as_ref()
-                .map_or(Vec::new(), |f| hashing_ratios(f, *use_case, point, *servil)),
+                .map_or(Vec::new(), |f| hashing_bars(f, *use_case, point, *servil)),
             Cell::B3sum { cache, input } => b3sum
                 .as_ref()
-                .map_or(Vec::new(), |f| b3sum_ratios(f, cache, input)),
+                .map_or(Vec::new(), |f| b3sum_bars(f, cache, input)),
         })
         .collect();
     let identity = header(headers, "cpu identity");
@@ -359,57 +364,20 @@ fn figure(ratio: f64) -> String {
     }
 }
 
-/// The sentence above the grid, from the grid: machines counted (virtual
-/// machines apart), and servil's range against each competitor family over
-/// the cells shown, leaving out a figure against a baseline the run lacks
-/// (the noted ones).
-pub fn headline(rows: &[Row]) -> String {
-    let shown: Vec<&Row> = rows.iter().filter(|r| !r.virtual_machine).collect();
-    let range = |family: &dyn Fn(&str) -> bool| {
-        let v: Vec<f64> = shown
-            .iter()
-            .flat_map(|r| r.cells.iter().flatten())
-            .filter(|x| family(&x.competitor) && x.note.is_empty())
-            .map(|x| x.ratio)
-            .collect();
-        (!v.is_empty()).then(|| {
-            let (lo, hi) = v.iter().fold((f64::INFINITY, 0.0f64), |(lo, hi), &x| {
-                (lo.min(x), hi.max(x))
-            });
-            (lo, hi, v.iter().filter(|&&x| x < 1.0).count())
-        })
+/// A speed as the page says it: three significant figures, as the map.
+fn speed(gbps: f64) -> String {
+    let digits = if gbps >= 100.0 {
+        0
+    } else if gbps >= 10.0 {
+        1
+    } else if gbps >= 1.0 {
+        2
+    } else if gbps >= 0.1 {
+        3
+    } else {
+        4
     };
-    let phrase = |name: &str, r: Option<(f64, f64, usize)>| {
-        r.map(|(lo, hi, slower)| {
-            let mut s = format!("{} to {} the speed of {name}", figure(lo), figure(hi));
-            if slower > 0 {
-                let _ = write!(s, " (slower in {slower} of the cells shown)");
-            }
-            s
-        })
-    };
-    let machines = shown.len();
-    let parts: Vec<String> = [
-        phrase(
-            "BLAKE3 official",
-            range(&|c| c.starts_with("BLAKE3 official") || c == "official b3sum"),
-        ),
-        phrase(
-            "SHA-256",
-            range(&|c| c.starts_with("SHA-256") || c == "sha256sum"),
-        ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-    if parts.is_empty() {
-        return format!("{machines} machines measured; no representative cell in their runs yet.");
-    }
-    format!(
-        "On {machines} machine{}, BLAKE3 servil runs at {}.",
-        if machines == 1 { "" } else { "s" },
-        parts.join(", and ")
-    )
+    format!("{gbps:.digits$} GB/s")
 }
 
 fn escape(text: &str) -> String {
@@ -419,14 +387,21 @@ fn escape(text: &str) -> String {
         .replace('"', "&quot;")
 }
 
-/// The grid as text, for the terminal and the tests.
+fn point_of(pick: &Pick) -> String {
+    match &pick.cell {
+        Cell::Hashing { point, .. } => (*point).to_owned(),
+        Cell::B3sum { .. } => "1000 files".to_owned(),
+    }
+}
+
+/// The grid as text, for the terminal and the tests: each cell's speeds,
+/// and servil's over each competitor's.
 pub fn text(rows: &[Row]) -> String {
-    let mut out = headline(rows);
-    out.push('\n');
+    let mut out = String::new();
     for row in rows {
         let _ = writeln!(
             out,
-            "\n{}{}, {} CPUs, {} · {} · bench-hashes {}, BLAKE3 servil {}",
+            "{}{}, {} CPUs, {} · {} · bench-hashes {}, BLAKE3 servil {}",
             if row.virtual_machine { "(VM) " } else { "" },
             row.machine,
             row.cpus,
@@ -435,33 +410,35 @@ pub fn text(rows: &[Row]) -> String {
             row.version,
             row.fork
         );
-        for (pick, ratios) in PICKS.iter().zip(&row.cells) {
-            let point = match &pick.cell {
-                Cell::Hashing { point, .. } => (*point).to_owned(),
-                Cell::B3sum { input, .. } => (*input).to_owned(),
+        for (pick, bars) in PICKS.iter().zip(&row.cells) {
+            let line = match bars.split_first() {
+                None => "not in this run".to_owned(),
+                Some((ours, others)) => {
+                    let mut line = format!("{} {}", speed(ours.gbps), ours.name);
+                    for b in others {
+                        let note = if b.note.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" [{}]", b.note)
+                        };
+                        let _ = write!(
+                            line,
+                            "; {} {} ({}){note}",
+                            speed(b.gbps),
+                            b.name,
+                            figure(ours.gbps / b.gbps)
+                        );
+                    }
+                    line
+                }
             };
-            let cells: Vec<String> = ratios
-                .iter()
-                .map(|r| {
-                    let note = if r.note.is_empty() {
-                        String::new()
-                    } else {
-                        format!(" [{}]", r.note)
-                    };
-                    format!("{} vs {}{note}", figure(r.ratio), r.competitor)
-                })
-                .collect();
             let _ = writeln!(
                 out,
-                "  {:34} {}",
-                format!("{}, {point}:", pick.column),
-                if cells.is_empty() {
-                    "not in this run".to_owned()
-                } else {
-                    cells.join("; ")
-                }
+                "  {:34} {line}",
+                format!("{}, {}:", pick.column, point_of(pick))
             );
         }
+        out.push('\n');
     }
     out
 }
@@ -469,9 +446,47 @@ pub fn text(rows: &[Row]) -> String {
 /// The page: a row per machine, a column per situation, and in each cell
 /// a small bar chart in the map's colours, BLAKE3 servil's bar first and
 /// each competitor's under it, lengths in proportion to speed (the fastest
-/// in the cell fills the width). Figures appear under the pointer alone.
+/// in the cell fills the width, its speed at the end as the scale). The
+/// legend's buttons are the hashes drawn, each in its bar's colour, and
+/// hide or show its bars; a pick under the pointer shows its figures in
+/// the map's tooltip.
 pub fn html(rows: &[Row]) -> String {
     let columns = columns();
+    // The legend: one button a colour, named for the hash first drawn in
+    // it (b3sum's bars share their library's colour; the tooltip names
+    // each bar exactly). A button hides or shows every bar of its colour.
+    let mut drawn: Vec<(&str, &str)> = Vec::new();
+    for b in rows.iter().flat_map(|r| r.cells.iter().flatten()) {
+        if !drawn.iter().any(|(_, c)| *c == b.color) {
+            drawn.push((&b.name, b.color));
+        }
+    }
+    // Servil's two first, then official's two, then the SHA-256s, then the
+    // rest as drawn (sha1sum, md5sum).
+    let order = [
+        Algorithm::Blake3ServilSt,
+        Algorithm::Blake3ServilMt,
+        Algorithm::Blake3,
+        Algorithm::Blake3Rayon,
+        Algorithm::Sha256,
+        Algorithm::Sha256Ring,
+        Algorithm::Sha256CommonCrypto,
+    ];
+    let rank = |color: &str| {
+        order
+            .iter()
+            .position(|a| a.color() == color)
+            .unwrap_or(usize::MAX)
+    };
+    drawn.sort_by_key(|(_, c)| rank(c));
+    let mut legend = String::new();
+    for (name, color) in &drawn {
+        let _ = write!(
+            legend,
+            "<button style=\"--c:{color}\" data-c=\"{color}\">{}</button>",
+            escape(name)
+        );
+    }
     let mut body = String::new();
     body.push_str("<div class=\"grid\"><table><thead><tr><th class=\"machine\"></th>");
     for (column, picks) in &columns {
@@ -507,83 +522,89 @@ pub fn html(rows: &[Row]) -> String {
             escape(&row.fork),
             escape(&row.version)
         );
-        for (_, picks) in &columns {
+        for (column, picks) in &columns {
             body.push_str("<td>");
             for &i in picks {
-                let ratios = &row.cells[i];
-                let (point, servil, map) = match &PICKS[i].cell {
-                    Cell::Hashing {
-                        use_case,
-                        point,
-                        servil,
-                    } => (
-                        (*point).to_owned(),
-                        (servil.name(), servil.color()),
+                let bars = &row.cells[i];
+                let point = point_of(&PICKS[i]);
+                let map = match &PICKS[i].cell {
+                    Cell::Hashing { use_case, .. } => {
                         format!(
                             "{}/bench-hashes.map.html#{}",
                             row.link,
                             super::map::cell_key("solo", *use_case)
-                        ),
-                    ),
-                    Cell::B3sum { .. } => (
-                        "1000 files".to_owned(),
-                        ("BLAKE3 servil's b3sum", Algorithm::Blake3ServilMt.color()),
-                        format!("{}/bench-hashes.map.html#1:solo|tree|cached", row.link),
-                    ),
+                        )
+                    }
+                    Cell::B3sum { .. } => {
+                        format!("{}/bench-hashes.map.html#1:solo|tree|cached", row.link)
+                    }
                 };
-                if ratios.is_empty() {
-                    let _ = write!(body, "<div class=\"pick none\"><span class=\"pt\">{}</span>not in this run</div>", escape(&point));
-                    continue;
-                }
-                // Lengths: servil's speed is 1, a competitor's 1/ratio; the
-                // longest fills the width.
-                let longest = ratios.iter().map(|r| 1.0 / r.ratio).fold(1.0f64, f64::max);
-                let width = |speed: f64| (100.0 * speed / longest).round();
-                let _ = write!(
-                    body,
-                    "<a class=\"pick\" href=\"{}\"><span class=\"pt\">{}</span><span class=\"bars\"><i style=\"width:{}%;background:{}\" title=\"{}\"></i>",
-                    escape(&map),
-                    escape(&point),
-                    width(1.0),
-                    servil.1,
-                    escape(servil.0)
-                );
-                for r in ratios {
-                    let title = format!(
-                        "{}: BLAKE3 servil ran at {} its speed{}",
-                        r.competitor,
-                        figure(r.ratio),
-                        if r.note.is_empty() {
-                            String::new()
-                        } else {
-                            format!(" ({})", r.note)
-                        }
-                    );
+                let Some((ours, _)) = bars.split_first() else {
                     let _ = write!(
                         body,
-                        "<i style=\"width:{}%;background:{}\" title=\"{}\"{}></i>",
-                        width(1.0 / r.ratio),
-                        r.color,
-                        escape(&title),
-                        if r.note.is_empty() {
+                        "<div class=\"pick none\"><span class=\"pt\">{}</span>not in this run</div>",
+                        escape(&point)
+                    );
+                    continue;
+                };
+                let fastest = bars.iter().map(|b| b.gbps).fold(0.0f64, f64::max);
+                // The tooltip's lines: each hash's speed, and servil's over it.
+                let tip: Vec<String> = bars
+                    .iter()
+                    .map(|b| {
+                        let over = if std::ptr::eq(b, ours) {
+                            String::new()
+                        } else {
+                            format!(" · servil {} its speed", figure(ours.gbps / b.gbps))
+                        };
+                        let note = if b.note.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" ({})", b.note)
+                        };
+                        format!("{}\t{}\t{}{over}{note}", b.color, b.name, speed(b.gbps))
+                    })
+                    .collect();
+                let _ = write!(
+                    body,
+                    "<a class=\"pick\" href=\"{}\" data-head=\"{} · {} · {}\" data-tip=\"{}\"><span class=\"pt\">{}</span><span class=\"chart\"><span class=\"bars\">",
+                    escape(&map),
+                    escape(&row.machine),
+                    escape(column),
+                    escape(&point),
+                    escape(&tip.join("\n")),
+                    escape(&point)
+                );
+                for b in bars {
+                    let _ = write!(
+                        body,
+                        "<i data-c=\"{}\" style=\"width:{}%;background:{}\"{}></i>",
+                        b.color,
+                        (100.0 * b.gbps / fastest).round(),
+                        b.color,
+                        if b.note.is_empty() {
                             ""
                         } else {
                             " class=\"noted\""
                         }
                     );
                 }
-                body.push_str("</span></a>");
+                let _ = write!(
+                    body,
+                    "</span><span class=\"scale\">{}</span></span></a>",
+                    escape(&speed(fastest))
+                );
             }
             body.push_str("</td>");
         }
         body.push_str("</tr>\n");
     }
     body.push_str("</tbody></table></div>\n");
-    let notes: Vec<String> = rows
+    let notes: Vec<&str> = rows
         .iter()
         .flat_map(|r| r.cells.iter().flatten())
-        .filter(|x| !x.note.is_empty())
-        .map(|x| x.note.to_owned())
+        .filter(|b| !b.note.is_empty())
+        .map(|b| b.note)
         .fold(Vec::new(), |mut v, n| {
             if !v.contains(&n) {
                 v.push(n);
@@ -597,7 +618,9 @@ pub fn html(rows: &[Row]) -> String {
             escape(&notes.join("; "))
         );
     }
-    include_str!("overview.html").replace("@BODY@", &body)
+    include_str!("overview.html")
+        .replace("@LEGEND@", &legend)
+        .replace("@BODY@", &body)
 }
 
 /// `bench-hashes overview OUT.html DIR...`: write the page from the results
@@ -642,7 +665,7 @@ pub fn command(args: &[String]) {
     std::fs::write(out, html(&rows))
         .unwrap_or_else(|e| panic!("cannot write {}: {e}", out.display()));
     print!("{}", text(&rows));
-    println!("\n# Overview (HTML) is in \"{}\" .", out.display());
+    println!("# Overview (HTML) is in \"{}\" .", out.display());
 }
 
 #[cfg(test)]
@@ -650,23 +673,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_ratio_is_the_competitor_mean_over_servil_s() {
-        // Each side's mean is the shared rule's (clocks::summary::mean), the
+    fn a_speed_is_bytes_over_the_shared_rule_s_mean() {
+        // Each cell's mean is the shared rule's (clocks::summary::mean), the
         // map's, so the figure follows its selection: at these counts the
-        // slowest sample of a cell goes. Theirs: 1500/500 = 3 ns a unit either
-        // way; ours: 400/500 = 0.8 once the 600 goes. Independently fixed.
+        // slowest sample of a cell goes. 1500 ns over 500 bytes is 3 ns/B,
+        // 0.333 GB/s; 600 and 400 over 500 each: the 600 goes, 0.8 ns/B,
+        // 1.25 GB/s. Independently fixed.
         let theirs = [Measured::new(1500, 500), Measured::new(1500, 500)];
         let ours = [Measured::new(600, 500), Measured::new(400, 500)];
-        assert_eq!(ratio_of(&theirs, &ours), 3.75);
-        assert_eq!(ratio_of(&theirs, &[Measured::new(1000, 1000)]), 3.0);
+        assert!((gbps(&theirs, 1.0) - 1.0 / 3.0).abs() < 1e-12);
+        assert_eq!(gbps(&ours, 1.0), 1.25);
+        // A batch's unit is a message of 64 bytes: 64 ns a message is 1 GB/s.
+        assert_eq!(gbps(&[Measured::new(6400, 100)], 64.0), 1.0);
     }
 
     #[test]
-    fn figures_read_as_the_page_prints_them() {
+    fn figures_read_as_the_page_says_them() {
         assert_eq!(figure(0.925), "0.9×");
         assert_eq!(figure(1.0), "1.0×");
         assert_eq!(figure(9.96), "10.0×");
         assert_eq!(figure(12.4), "12×");
+        assert_eq!(speed(0.1234), "0.123 GB/s");
+        assert_eq!(speed(0.06834), "0.0683 GB/s");
+        assert_eq!(speed(23.46), "23.5 GB/s");
+        assert_eq!(speed(159.4), "159 GB/s");
     }
 
     #[test]
@@ -679,6 +709,10 @@ mod tests {
             short_name("AMD EPYC 9654 96-Core Processor"),
             "AMD EPYC 9654"
         );
+        assert_eq!(
+            short_name("AMD EPYC 9255 24-Core Processor"),
+            "AMD EPYC 9255"
+        );
         assert_eq!(short_name("Apple M4 Max"), "Apple M4 Max");
         assert_eq!(
             short_name("Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz"),
@@ -686,7 +720,7 @@ mod tests {
         );
     }
 
-    fn row(machine: &str, vm: bool, cells: Vec<Vec<Ratio>>) -> Row {
+    fn row(machine: &str, vm: bool, cells: Vec<Bars>) -> Row {
         Row {
             machine: machine.to_owned(),
             cpus: "8".to_owned(),
@@ -700,61 +734,44 @@ mod tests {
         }
     }
 
-    fn r(competitor: &str, ratio: f64, note: &'static str) -> Ratio {
-        let color = if competitor.starts_with("BLAKE3 official") {
-            "#3b82f6"
-        } else if competitor.starts_with("SHA-256") {
-            "#e07a45"
-        } else {
-            "#000"
-        };
-        Ratio {
-            competitor: competitor.to_owned(),
+    fn bar(name: &str, color: &'static str, gbps: f64, note: &'static str) -> Bar {
+        Bar {
+            name: name.to_owned(),
             color,
-            ratio,
+            gbps,
             note,
         }
     }
 
     #[test]
-    fn the_headline_counts_machines_and_ranges_over_fair_cells() {
-        let mut cells: Vec<Vec<Ratio>> = PICKS.iter().map(|_| Vec::new()).collect();
+    fn the_page_draws_bars_in_proportion_and_a_legend_of_what_it_drew() {
+        let mut cells: Vec<Bars> = PICKS.iter().map(|_| Vec::new()).collect();
+        // Servil 0.9× official (official fills the width), 1.2× SHA-256.
         cells[0] = vec![
-            r("BLAKE3 official", 0.9, ""),
-            r("SHA-256 (the fastest measured)", 1.2, ""),
+            bar("BLAKE3 servil st", "#7c3aed", 0.9, ""),
+            bar("BLAKE3 official", "#3b82f6", 1.0, ""),
+            bar("SHA-256", "#e07a45", 0.75, ""),
         ];
         cells[3] = vec![
-            r(
+            bar("BLAKE3 servil mt", "#4c1d95", 12.0, ""),
+            bar(
                 "BLAKE3 official",
-                12.0,
+                "#3b82f6",
+                1.0,
                 "official on one thread: this run lacks its multithreaded form",
             ),
-            r("SHA-256 (the fastest measured)", 8.0, ""),
         ];
         cells[6] = vec![
-            r("official b3sum", 3.0, ""),
-            r("sha256sum", 8.0, ""),
-            r("md5sum", 19.0, ""),
+            bar("BLAKE3 servil's b3sum", "#4c1d95", 30.0, ""),
+            bar("official b3sum", "#3b82f6", 10.0, ""),
+            bar("md5sum", "#9ca3af", 1.5, ""),
         ];
-        let vm = row(
-            "virt",
-            true,
-            PICKS
-                .iter()
-                .map(|_| vec![r("BLAKE3 official", 100.0, "")])
-                .collect(),
-        );
+        let vm = row("virt", true, PICKS.iter().map(|_| Vec::new()).collect());
         let rows = [row("A", false, cells), vm];
-        assert_eq!(
-            headline(&rows),
-            "On 1 machine, BLAKE3 servil runs at 0.9× to 3.0× the speed of BLAKE3 official (slower in 1 of the cells shown), and 1.2× to 8.0× the speed of SHA-256."
-        );
         let page = html(&rows);
-        // Cell 0: servil at 0.9× official, so official's bar is the longest
-        // (100%) and servil's is 90%; SHA-256 at 1.2× is 75%.
         assert!(
             page.contains("width:90%;background:#7c3aed"),
-            "servil's bar is in proportion to the fastest"
+            "servil's bar in proportion to the fastest"
         );
         assert!(
             page.contains("width:100%;background:#3b82f6"),
@@ -762,16 +779,30 @@ mod tests {
         );
         assert!(page.contains("width:75%;background:#e07a45"));
         assert!(
-            page.contains("at 12× its speed (official on one thread"),
+            page.contains("<span class=\"scale\">1.00 GB/s</span>"),
+            "the fastest's speed is the scale"
+        );
+        assert!(
+            page.contains("12× its speed (official on one thread"),
             "a figure against a missing baseline says so"
         );
-        assert!(page.contains("class=\"noted\""), "and its bar is marked");
+        assert!(page.contains("class=\"noted\""), "and its bar is hatched");
         assert!(
             page.contains("<tr class=\"vm\""),
             "a virtual machine's row is marked"
         );
+        // The legend: one button a colour, servil first, b3sum's sharing.
+        let legend: Vec<&str> = page
+            .split("<button style=\"--c:")
+            .skip(1)
+            .map(|s| &s[..s.find('"').unwrap()])
+            .collect();
+        assert_eq!(
+            legend,
+            ["#7c3aed", "#4c1d95", "#3b82f6", "#e07a45", "#9ca3af"]
+        );
         assert!(text(&rows).contains(
-            "files, mixed tree, 1000 files, 74 MiB: 3.0× vs official b3sum; 8.0× vs sha256sum; 19× vs md5sum"
+            "files, 1000 files:                 30.0 GB/s BLAKE3 servil's b3sum; 10.0 GB/s official b3sum (3.0×); 1.50 GB/s md5sum (20×)"
         ));
     }
 

@@ -4,39 +4,66 @@
 body { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: #111827; margin: 24px; background: #fdfdfc; }
 h1 { font-size: 20px; margin: 0 0 4px; }
 .sub { color: #6b7280; margin: 0 0 14px; max-width: 980px; }
-.legend { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; font-size: 12px; }
-.legend span { border: 1px solid #d1d5db; background: #fff; border-radius: 12px; padding: 3px 10px 3px 8px; }
-.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
+.legend { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 14px; }
+.legend button { font: 12px inherit; border: 1px solid #d1d5db; background: #fff; border-radius: 12px; padding: 3px 10px 3px 8px; cursor: pointer; }
+.legend button::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
+.legend button.off { opacity: .35; }
+.legend label { color: #9ca3af; font-size: 12px; margin-left: 8px; }
 .grid { overflow-x: auto; }
 table { border-collapse: collapse; }
-th, td { text-align: left; vertical-align: top; padding: 8px 8px; border-top: 1px solid #e5e7eb; }
-th { font-weight: 600; font-size: 12px; color: #6b7280; border-top: none; cursor: help; max-width: 140px; vertical-align: bottom; }
+th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-top: 1px solid #e5e7eb; }
+th { font-weight: 600; font-size: 12px; color: #6b7280; border-top: none; cursor: help; max-width: 150px; vertical-align: bottom; }
 th.machine, td.machine { min-width: 180px; }
 td.machine a { color: #4c1d95; text-decoration: none; } td.machine b { font-size: 15px; }
 td.machine span { display: block; color: #9ca3af; font-size: 12px; margin-top: 2px; }
 tr.yours td { background: #f5f3ff; }
 tr.vm { display: none; color: #6b7280; } body.show-vm tr.vm { display: table-row; }
-.pick { display: flex; align-items: center; gap: 6px; margin: 3px 0; text-decoration: none; color: inherit; }
-.pick .pt { width: 46px; color: #9ca3af; font-size: 11px; text-align: right; white-space: nowrap; }
+/* A pick: its point, its bars, and the fastest's speed as the scale at the
+   bars' end; two picks in a cell sit apart, a hairline between. */
+.pick { display: flex; align-items: flex-start; gap: 6px; padding: 5px 0; text-decoration: none; color: inherit; }
+.pick + .pick { border-top: 1px dashed #e5e7eb; }
+.pick .pt { width: 46px; color: #6b7280; font-size: 11px; text-align: right; white-space: nowrap; padding-top: 1px; }
 .pick.none { color: #d1d5db; font-size: 11px; }
-.bars { display: flex; flex-direction: column; gap: 2px; width: 96px; }
-.bars i { display: block; height: 7px; border-radius: 2px; }
+.chart { display: flex; flex-direction: column; }
+.bars { display: flex; flex-direction: column; gap: 2px; width: 96px; border-left: 1px solid #d1d5db; padding-left: 1px; }
+.bars i { display: block; height: 7px; border-radius: 0 2px 2px 0; }
 .bars i.noted { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 2px, transparent 2px 5px) !important; }
+.bars i.off { display: none; }
+.scale { color: #9ca3af; font-size: 10px; white-space: nowrap; text-align: right; margin-top: 1px; }
 .pick:hover .bars i { filter: brightness(.85); }
-.note { color: #9ca3af; font-size: 12px; margin: 8px 0; }
-footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
-label.vm { color: #9ca3af; font-size: 12px; margin-left: 14px; }
+#tip { position: fixed; pointer-events: none; background: #111827; color: #fff; font-size: 12px; padding: 6px 8px; border-radius: 6px; display: none; z-index: 10; box-sizing: border-box; max-width: min(34em, calc(100vw - 8px)); }
+#tip .row { padding-left: 1.2em; text-indent: -1.2em; }
+#tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
+.note, footer { color: #9ca3af; font-size: 12px; margin-top: 10px; max-width: 980px; }
 </style></head><body>
 <h1>How fast BLAKE3 servil runs, on each machine measured</h1>
-<p class="sub">A row is one machine; a column is one way a program hashes. In each cell, the bars are the hashes' speeds, BLAKE3 servil's on top: the longer, the faster. Point at a bar for the figure, at a column's name for what it stands for; open a cell for its full chart on that machine's map.</p>
-<div class="legend"><span style="--c:#7c3aed">BLAKE3 servil</span><span style="--c:#3b82f6">BLAKE3 official</span><span style="--c:#e07a45">SHA-256, the fastest measured</span><span style="--c:#8a7a1e">sha1sum</span><span style="--c:#9ca3af">md5sum</span><label class="vm"><input type="checkbox" id="vm"> show virtual machines</label></div>
+<p class="sub">A row is one machine; a column is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster; the figure at their end is the fastest's speed, the bars' scale. Point at the bars for every figure, at a column's name for what it stands for; open a cell for its full chart on that machine's map.</p>
+<div class="legend">@LEGEND@<label><input type="checkbox" id="vm"> show virtual machines</label></div>
 @BODY@
+<div id="tip"></div>
 <footer>Each bar is one run's mean, by the same rule as the map (<code>clocks::summary</code>), on a machine whose load reading is on its map; no verdict is drawn across runs. From <a href="https://github.com/johnservil/bench-hashes">johnservil/bench-hashes</a>, measuring <a href="https://github.com/johnservil/BLAKE3">johnservil/BLAKE3</a>; the cells shown are FROZEN.md's "The overview".</footer>
 <script>
-// A guess at the reader's kind of machine, lit and marked "yours?", nothing more.
 (function () {
-  const ua = navigator.userAgent, apple = /Macintosh|iPhone|iPad/.test(ua);
-  const row = document.querySelector('tr[data-arch="' + (apple ? "apple" : "x86") + '"]:not(.vm)');
+  // The legend's buttons hide or show a hash's bars, as the map's do.
+  for (const b of document.querySelectorAll(".legend button")) b.addEventListener("click", () => {
+    const off = b.classList.toggle("off");
+    for (const i of document.querySelectorAll(`.bars i[data-c="${CSS.escape(b.dataset.c)}"]`)) i.classList.toggle("off", off);
+  });
+  // The tooltip: a pick's hashes, each with its speed and servil's over it.
+  const tip = document.getElementById("tip");
+  for (const p of document.querySelectorAll(".pick[data-tip]")) {
+    p.addEventListener("mousemove", e => {
+      const rows = p.dataset.tip.split("\n").map(l => { const [c, name, text] = l.split("\t"); return `<div class="row"><span class="sw" style="background:${c}"></span>${name}: ${text}</div>`; });
+      tip.innerHTML = `<b>${p.dataset.head}</b>` + rows.join("");
+      tip.style.display = "block"; tip.style.left = "0px";
+      tip.style.left = Math.max(4, Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 4)) + "px";
+      tip.style.top = Math.max(4, Math.min(e.clientY + 10, innerHeight - tip.offsetHeight - 4)) + "px";
+    });
+    p.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+  }
+  // A guess at the reader's kind of machine, lit and marked "yours?", nothing more.
+  const apple = /Macintosh|iPhone|iPad/.test(navigator.userAgent);
+  const row = document.querySelector(`tr[data-arch="${apple ? "apple" : "x86"}"]:not(.vm)`);
   if (row) { row.classList.add("yours"); const b = row.querySelector("td.machine b"); if (b) b.insertAdjacentHTML("afterend", ' <span style="display:inline;color:#7c3aed;font-size:11px">yours?</span>'); }
   const vm = document.getElementById("vm");
   vm.addEventListener("change", () => document.body.classList.toggle("show-vm", vm.checked));
