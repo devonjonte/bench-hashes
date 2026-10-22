@@ -14,7 +14,12 @@ a web browser.
 
 <img src="benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.chart.svg" alt="Hashing one 128 MiB message after a pause on an Intel i7-12700K: BLAKE3 multi-core and on one core beside SHA-256, SHA3-256 and SHA-1, in GB/s" width="720">
 
-Every size, on each machine measured so far:
+[The overview](https://devonjonte.github.io/bench-hashes/) is one page
+for every machine measured: a row per machine, a column per
+representative situation (small values, one message, every core, nonstop,
+many small messages, files), and in each cell how many times faster
+BLAKE3 servil ran than official BLAKE3 and than SHA-256 there, below 1×
+where it ran slower. Every size, on each machine measured so far:
 
 - [Intel i7-12700K, Linux](https://devonjonte.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html)
 - [Apple M4 Max, macOS](https://johnservil.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html)
@@ -137,7 +142,10 @@ to `benchmark-results/`, as `b3sum.result.txt` and `b3sum.samples.tsv`,
 and the map there gains a b3sum section: a file or a tree of files, in
 the page cache or read from storage. `bench-hashes compare` reads the
 samples as it reads the hashes'; `bench-hashes map FOLDER` draws a
-folder's map again from its samples files.
+folder's map again from its samples files; `bench-hashes overview
+index.html benchmark-results/*` draws the overview (the site's front page)
+from every folder's samples files, each figure by the same rule as the
+maps; FROZEN.md's "The overview" names its representative cells.
 
 To see two runs side by side (before and after a change, or two
 releases), `bench-hashes map NEW_FOLDER --beside OLD_FOLDER` writes

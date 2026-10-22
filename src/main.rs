@@ -1960,6 +1960,10 @@ fn main() {
     if arguments.first().map(String::as_str) == Some("chart") {
         return chart::command(&arguments[1..]);
     }
+    if arguments.first().map(String::as_str) == Some("overview") {
+        overview::command(&arguments[1..]);
+        return;
+    }
     if arguments.first().map(String::as_str) == Some("map") {
         return map::command(&arguments[1..]);
     }
@@ -4200,6 +4204,7 @@ fn frozen_contract() -> String {
         );
         text += &format!("{} {use_case:?}: {call}\n", algorithm.key());
     }
+    text += &overview::frozen_lines();
     text
 }
 
@@ -6280,6 +6285,7 @@ mod check;
 mod harness_tests;
 mod leaves;
 mod map;
+mod overview;
 
 #[cfg(test)]
 mod correctness_tests {
