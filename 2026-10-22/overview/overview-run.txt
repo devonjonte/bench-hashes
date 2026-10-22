@@ -1,0 +1,30 @@
+On 2 machines, BLAKE3 servil runs at 0.92× to 7.95× the speed of BLAKE3 official (slower in 3 of the cells shown), and 0.73× to 10× the speed of SHA-256 (slower in 3 of the cells shown).
+
+Intel Core i7-12700K, 20 CPUs, Linux · 2026-10-20 · bench-hashes 0.16.1, BLAKE3 servil f69d4ba
+  small values, 64 B:                0.97× vs BLAKE3 official; 1.09× vs SHA-256 (the fastest measured)
+  small values, 1 KiB:               0.92× vs BLAKE3 official; 0.80× vs SHA-256 (the fastest measured)
+  one message, one thread, 1 MiB:    0.96× vs BLAKE3 official; 1.75× vs SHA-256 ring (the fastest measured)
+  one big message, every core, 128 MiB: 1.02× vs BLAKE3 official mt; 6.07× vs SHA-256 (the fastest measured)
+  nonstop, from one calling thread, 64 KiB: 7.95× vs BLAKE3 official mt; 10× vs SHA-256 ring (the fastest measured)
+  many small messages at once, 1024: 1.03× vs BLAKE3 official; 4.01× vs SHA-256 (the fastest measured)
+  files, mixed tree, 1000 files, 74 MiB: 3.07× vs official b3sum; 8.09× vs sha256sum; 7.56× vs sha1sum; 19× vs md5sum
+
+Apple M4 Max, 16 CPUs, macOS · 2026-10-20 · bench-hashes 0.16.1, BLAKE3 servil f891569
+  small values, 64 B:                1.13× vs BLAKE3 official; 0.93× vs SHA-256 (the fastest measured)
+  small values, 1 KiB:               1.15× vs BLAKE3 official; 0.73× vs SHA-256 (the fastest measured)
+  one message, one thread, 1 MiB:    2.54× vs BLAKE3 official; 1.92× vs SHA-256 CommonCrypto (the fastest measured)
+  one big message, every core, 128 MiB: 12× vs BLAKE3 official [official on one thread: this run lacks its multithreaded form]; 8.51× vs SHA-256 CommonCrypto (the fastest measured)
+  nonstop, from one calling thread, 64 KiB: 12× vs BLAKE3 official [official on one thread: this run lacks its multithreaded form]; 9.13× vs SHA-256 CommonCrypto (the fastest measured)
+  many small messages at once, 1024: 1.99× vs BLAKE3 official; 2.58× vs SHA-256 (the fastest measured)
+  files, mixed tree, 1000 files, 74 MiB: not in this run
+
+(VM) aarch64, 16 CPUs, Linux · 2026-10-20 · bench-hashes 0.16.1, BLAKE3 servil f891569
+  small values, 64 B:                1.17× vs BLAKE3 official; 1.08× vs SHA-256 (the fastest measured)
+  small values, 1 KiB:               1.10× vs BLAKE3 official; 0.85× vs SHA-256 ring (the fastest measured)
+  one message, one thread, 1 MiB:    2.43× vs BLAKE3 official; 1.85× vs SHA-256 ring (the fastest measured)
+  one big message, every core, 128 MiB: 10× vs BLAKE3 official [official on one thread: this run lacks its multithreaded form]; 7.55× vs SHA-256 ring (the fastest measured)
+  nonstop, from one calling thread, 64 KiB: 8.97× vs BLAKE3 official [official on one thread: this run lacks its multithreaded form]; 6.65× vs SHA-256 ring (the fastest measured)
+  many small messages at once, 1024: 1.89× vs BLAKE3 official; 2.61× vs SHA-256 (the fastest measured)
+  files, mixed tree, 1000 files, 74 MiB: not in this run
+
+# Overview (HTML) is in "index.html" .
