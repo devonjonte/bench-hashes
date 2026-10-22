@@ -1,5 +1,10 @@
 # Generated two-input AVX2: a partial repair, with remaining costs
 
+> **Statistic audit, October 22:** the reports below preserve their as-run
+> plain-mean results. [Reanalysis under the declared trim](../x86-pair-trim-reanalysis/)
+> detects four slower baseline cells and three slower parent cells in version 3.
+> All original samples and comparison outputs remain unchanged.
+
 Can one whole chunk and a partial chunk use the generated,
 proved parameter-block family while recovering the release baseline's speed?
 The earlier [critical-size check](../x86-generated-critical/) found 45–65%
