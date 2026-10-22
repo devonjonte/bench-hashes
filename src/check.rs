@@ -137,8 +137,8 @@ pub fn command(arguments: &[String]) -> i32 {
             Some(points.into_iter().collect()),
         )
     };
-    let olds = layouts(&cache, "old", &old_exe, 0..pairs);
-    let news = layouts(&cache, "new", &new_exe, pairs..2 * pairs);
+    let olds = layouts(&bench, &cache, "old", &old_exe, 0..pairs);
+    let news = layouts(&bench, &cache, "new", &new_exe, pairs..2 * pairs);
     let mut regress: Vec<String> = vec![
         "regress".into(),
         "--pairs".into(),
@@ -463,7 +463,13 @@ fn walk(dir: &Path) -> Vec<PathBuf> {
 /// `exe` relinked once per seed, its functions in a fresh random order
 /// each (a linker order file: lld on Linux, ld's -order_file on macOS).
 /// The bench crate alone relinks; its dependencies stay built.
-fn layouts(cache: &Path, name: &str, exe: &Path, seeds: std::ops::Range<usize>) -> Vec<String> {
+fn layouts(
+    bench: &Path,
+    cache: &Path,
+    name: &str,
+    exe: &Path,
+    seeds: std::ops::Range<usize>,
+) -> Vec<String> {
     let nm = Command::new("nm").arg(exe).output().expect("nm runs");
     let text = String::from_utf8_lossy(&nm.stdout).into_owned();
     let mut symbols: Vec<&str> = text
@@ -511,6 +517,7 @@ fn layouts(cache: &Path, name: &str, exe: &Path, seeds: std::ops::Range<usize>) 
             .args(&flags)
             .current_dir(&copy)
             .env("CARGO_TARGET_DIR", side_dir.join("target"))
+            .env("BENCH_HASHES_CHECKOUT", bench)
             .output()
             .expect("cargo runs");
         assert!(
