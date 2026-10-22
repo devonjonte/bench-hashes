@@ -1,5 +1,5 @@
 """Build b3sum contenders for `bench-hashes b3sum` into DIR, each named for what it is:
-    pypy3 tools/b3sum-contenders.py FORK DIR [COMMIT...]
+    python3 tools/b3sum-contenders.py FORK DIR [COMMIT...]
 FORK is a checkout of github.com/johnservil/BLAKE3.
   DIR/b3sum-official-1.8.2  official BLAKE3's b3sum from crates.io
   DIR/b3sum-COMMIT          the fork's b3sum at each COMMIT (default: FORK's HEAD),
@@ -25,7 +25,7 @@ asked for. bench-hashes b3sum runs a contender named more than once one build a
 round.
 Prints the contenders for bench-hashes b3sum, one NAME=COMMAND a line, official
 first; pass each line as one argument (a command may hold flags):
-    pypy3 tools/b3sum-contenders.py FORK DIR | tr '\\n' '\\0' | xargs -0 cargo run --release -- b3sum --files FILES
+    python3 tools/b3sum-contenders.py FORK DIR | tr '\\n' '\\0' | xargs -0 cargo run --release -- b3sum --files FILES
 """
 
 import glob
