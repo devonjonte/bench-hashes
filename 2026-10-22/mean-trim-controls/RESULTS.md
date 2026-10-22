@@ -30,7 +30,10 @@ completion; its exit code is separate from its printed slower judgments.
 Plan committed before execution: `ddfed246f83b753f2306206153133f5b1d46f88d`.
 Use benchmark source`61afea44ac45fc94f0a91d5e150b56689891f074`, clocks
 `99d34d94db14eac01a9c652e0a4858055502b08f`. Our CLI SHA256:
-`3fafc7bf9e67f8bedcc2af6f2d9ba8fc79f4d5709c56c10fd65516e716cea640`.
+`3fafc7bf9e67f8bedcc2af6f2d9ba8fc79f4d5709c56c10fd65516e716cea640`;
+BLAKE3 `fe05d1d92b2c84722265334d04043d3406fca6e2a0b92c1875632565afb76a3a`.
+Both were checked against the CLI used. Its build and 31-test logs accompany
+the fixtures.
 
 ```sh
 python3 generate-fixtures.py

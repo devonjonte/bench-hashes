@@ -22,8 +22,9 @@ benchmark speed measurement.
 
 The current `/home/agent/bench-hashes-validation/run-bounded.py` is this
 folder's repaired `run-bounded.py`, SHA256
-`61b65d32e7440a6b516431b3c390a66f4094b640ce3150fcff0344ef7f7511fa`.
-Earlier evidence keeps its original supervisor snapshots.
+`61b65d32e7440a6b516431b3c390a66f4094b640ce3150fcff0344ef7f7511fa`;
+BLAKE3 `713949e30eb675b1c214fb07abe0313319d4c02eaf0acec842115a7d56204cc9`.
+Both were checked against the maintained file. Earlier evidence keeps its original supervisor snapshots.
 
 ## Separate proof-worker finding
 
@@ -31,8 +32,8 @@ Earlier evidence keeps its original supervisor snapshots.
 `af5b8684f648c3b1e524b4185b226345cbfb8313`, makes one worker fail and another
 sleep. The harness names the failed item, then Python's interpreter exit
 waits for the sibling. The external four-second deadline terminates the
-group (124). `workers.py` is unchanged at upstream0f55d26. This remains an
-open worker-harness issue; the supervisor repair establishes group cleanup
+group (124). `workers.py` is unchanged at upstream0f55d26. [Worker-harness issue](https://github.com/johnservil/BLAKE3/issues/131)
+remains open; the supervisor repair establishes group cleanup
 when the leader exits and preserves the independent deadline guard.
 
 ## Reproduce
