@@ -778,11 +778,15 @@ them over: produced into its own buffer and lent to
 ring (copy-ring); or produced straight into the ring by
 `submit_batch_with` (write-ring). A sample times whole jobs, from
 producing the first message to having read every digest, nothing
-subtracted. Each sample records, solo, the process's CPU time across it
-(all its threads), as the main run's samples do; `solo` is one program,
-`shared` two at once, each with its own samples (their CPU time is both
-programs', so none is recorded). It writes `leaves.samples.tsv` in the
-main run's samples format, which `bench-hashes compare` reads.
+subtracted. The shared `clocks::measure` sampler sizes and times whole
+jobs. Each sample records, solo, the process's CPU time across it (all its
+threads), as the main run's samples do; `solo` is one program, `shared`
+two at once, each with its own samples (their CPU time is both programs',
+so none is reported). Caller thread counts are retained where available;
+package energy is unrecorded for this subcommand. The wall report uses
+the shared mean selection, while CPU cost uses all raw CPU time over all
+raw work. It writes `leaves.samples.tsv` in the main run's samples format,
+which `bench-hashes compare` reads.
 
 ## Choices that stay settled, and why
 

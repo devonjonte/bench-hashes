@@ -26,6 +26,17 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **Produced leaves use the shared sampler** (Zooko, October 22, approval
+  to proceed with sampler consolidation): whole jobs, 5 ms sizing and
+  three samples per cell per round stay unchanged. `clocks::measure`
+  owns calibration, wall time, process CPU time and caller thread counts.
+  Shared rows keep process CPU time absent; solo rows retain it. The
+  existing v6 core-count field now records available caller counts, with
+  energy absent. The wall report uses the same shared mean selection as
+  compare and the map; it had its own plain sum. Hash calls, generated
+  input, checksum work and stored digests stay unchanged. This proposal
+  stays separate from 0.17.0's validation snapshot and carries no new
+  reliance claim.
 - **Restore the declared sample trim, for 0.17.0** (Zooko, October 22):
   reports, comparisons and regression checks pass each cell's raw samples
   to the shared `clocks::summary` selection. `Mean::of` had summed every
