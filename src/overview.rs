@@ -608,27 +608,32 @@ pub fn html(rows: &[Row]) -> String {
         .replace("@BODY@", &body)
 }
 
-/// `bench-hashes overview OUT.html DIR...`: write the page from the results
-/// directories, and print its text.
-pub fn command(args: &[String]) {
-    let usage =
-        "usage: bench-hashes overview OUT.html DIR... (results directories, one per machine)";
-    let [out, dirs @ ..] = args else {
-        panic!("{usage}")
-    };
-    assert!(!dirs.is_empty(), "{usage}");
-    let out = Path::new(out);
-    let base = out.parent().unwrap_or(Path::new(""));
+/// The rows of the results directories under `results`, in the order they
+/// are named (so the page is the same from any shell), linked from `base`'s
+/// directory. Refuses runs of different benchmark releases: one release's
+/// cells mean the same across machines.
+pub fn rows(results: &Path, base: &Path) -> Vec<Row> {
+    let mut dirs: Vec<_> = std::fs::read_dir(results)
+        .unwrap_or_else(|e| panic!("cannot read {}: {e}", results.display()))
+        .map(|entry| entry.expect("a directory entry").path())
+        .filter(|p| {
+            p.join("bench-hashes.samples.tsv").exists() || p.join("b3sum.samples.tsv").exists()
+        })
+        .collect();
+    assert!(
+        !dirs.is_empty(),
+        "{} holds no results directory with a samples file",
+        results.display()
+    );
+    dirs.sort();
     let rows: Vec<Row> = dirs
         .iter()
-        .map(|d| {
-            let dir = Path::new(d);
+        .map(|dir| {
             let link = dir
                 .strip_prefix(base)
                 .unwrap_or(dir)
                 .to_str()
                 .expect("a path in UTF-8")
-                .trim_end_matches('/')
                 .to_owned();
             row(dir, link)
         })
@@ -647,6 +652,22 @@ pub fn command(args: &[String]) {
         "the runs are of different benchmark releases ({}); the overview draws one release's runs, so their cells mean the same",
         versions.join(", ")
     );
+    rows
+}
+
+/// `bench-hashes overview OUT.html RESULTS`: write the page from every
+/// results directory under RESULTS (`benchmark-results`), and print its
+/// text. The test the_index_is_the_overview_of_the_published_runs keeps
+/// the repository's index.html equal to this command's output.
+pub fn command(args: &[String]) {
+    let usage =
+        "usage: bench-hashes overview OUT.html RESULTS (the directory of results directories)";
+    let [out, results] = args else {
+        panic!("{usage}")
+    };
+    let (out, results) = (Path::new(out), Path::new(results));
+    let base = out.parent().unwrap_or(Path::new(""));
+    let rows = rows(results, base);
     std::fs::write(out, html(&rows))
         .unwrap_or_else(|e| panic!("cannot write {}: {e}", out.display()));
     print!("{}", text(&rows));
@@ -792,6 +813,20 @@ mod tests {
         assert!(text(&rows).contains(
             "files, 1000 files:                 30.0 GB/s BLAKE3 servil's b3sum; 10.0 GB/s official b3sum (3.0×); 1.50 GB/s md5sum (20×)"
         ));
+    }
+
+    /// The front page is the command's output for the published runs, so it
+    /// cannot drift from the data: a new or redrawn run means
+    /// `bench-hashes overview index.html benchmark-results`.
+    #[test]
+    fn the_index_is_the_overview_of_the_published_runs() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let want = html(&rows(&root.join("benchmark-results"), root));
+        let have = std::fs::read_to_string(root.join("index.html")).expect("index.html");
+        assert!(
+            have == want,
+            "index.html is stale: run `bench-hashes overview index.html benchmark-results`"
+        );
     }
 
     #[test]
