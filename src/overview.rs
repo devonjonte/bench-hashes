@@ -7,7 +7,7 @@
 //! through the same reader and summary rule; every figure on the page is
 //! computed here, none typed.
 
-use super::{read_samples, Algorithm, Measured, SamplesFile, UseCase};
+use super::{read_samples, Algorithm, Measured, SamplesFile, UseCase, SAMPLES_VERSION};
 use std::fmt::Write as _;
 use std::path::Path;
 
@@ -145,6 +145,11 @@ pub struct Row {
     pub link: String,
     /// One entry per pick: its bars, or none where the run lacks the cell.
     pub cells: Vec<Bars>,
+    /// Set where the run is of another release of the benchmark: its
+    /// samples are not read (their rule is their own release's), the row
+    /// names the machine and links its map, and says a run under this
+    /// release is awaited.
+    pub stale: bool,
 }
 
 fn mean_q64(samples: &[Measured]) -> u128 {
@@ -292,32 +297,42 @@ fn short_name(cpu: &str) -> String {
 pub fn row(directory: &Path, link: String) -> Row {
     let hashing = directory.join("bench-hashes.samples.tsv");
     let b3sum = directory.join("b3sum.samples.tsv");
+    let first = [&hashing, &b3sum]
+        .into_iter()
+        .find(|p| p.exists())
+        .unwrap_or_else(|| {
+            panic!(
+                "{} holds no samples file (bench-hashes.samples.tsv, b3sum.samples.tsv)",
+                directory.display()
+            )
+        });
+    // Another release's samples: read the headers alone, for the row's
+    // name and its map's link; the cells wait for a run under this one.
+    let text = std::fs::read_to_string(first).expect("a samples file");
+    if text.lines().next() != Some(SAMPLES_VERSION) {
+        let headers: Vec<(String, String)> = text
+            .lines()
+            .take_while(|l| l.starts_with('#'))
+            .filter_map(|l| l[1..].trim().split_once(": "))
+            .map(|(k, v)| (k.to_owned(), v.to_owned()))
+            .collect();
+        return described(
+            &headers,
+            link,
+            PICKS.iter().map(|_| Vec::new()).collect(),
+            true,
+        );
+    }
     let hashing = hashing
         .exists()
         .then(|| read_samples(hashing.to_str().expect("a path in UTF-8")));
     let b3sum = b3sum
         .exists()
         .then(|| read_samples(b3sum.to_str().expect("a path in UTF-8")));
-    let about = hashing.as_ref().or(b3sum.as_ref()).unwrap_or_else(|| {
-        panic!(
-            "{} holds no samples file (bench-hashes.samples.tsv, b3sum.samples.tsv)",
-            directory.display()
-        )
-    });
-    let headers = &about.headers;
-    let os = header(headers, "os type");
-    let os = if os.starts_with("darwin") {
-        "macOS".to_owned()
-    } else if os.starts_with("linux") {
-        "Linux".to_owned()
-    } else {
-        os.to_owned()
-    };
-    let fork = headers
-        .iter()
-        .find(|(k, _)| k.starts_with("source blake3-servil"))
-        .and_then(|(_, v)| v.split("commit ").nth(1))
-        .map_or(String::new(), |c| c[..c.len().min(7)].to_owned());
+    let about = hashing
+        .as_ref()
+        .or(b3sum.as_ref())
+        .expect("a samples file read");
     let cells = PICKS
         .iter()
         .map(|pick| match &pick.cell {
@@ -333,6 +348,24 @@ pub fn row(directory: &Path, link: String) -> Row {
                 .map_or(Vec::new(), |f| b3sum_bars(f, cache, input)),
         })
         .collect();
+    described(&about.headers, link, cells, false)
+}
+
+/// A row from a run's headers and its cells.
+fn described(headers: &[(String, String)], link: String, cells: Vec<Bars>, stale: bool) -> Row {
+    let os = header(headers, "os type");
+    let os = if os.starts_with("darwin") {
+        "macOS".to_owned()
+    } else if os.starts_with("linux") {
+        "Linux".to_owned()
+    } else {
+        os.to_owned()
+    };
+    let fork = headers
+        .iter()
+        .find(|(k, _)| k.starts_with("source blake3-servil"))
+        .and_then(|(_, v)| v.split("commit ").nth(1))
+        .map_or(String::new(), |c| c[..c.len().min(7)].to_owned());
     let identity = header(headers, "cpu identity");
     Row {
         machine: short_name(header(headers, "cpu type")),
@@ -354,6 +387,7 @@ pub fn row(directory: &Path, link: String) -> Row {
             .to_owned(),
         link,
         cells,
+        stale,
     }
 }
 
@@ -420,6 +454,14 @@ pub fn text(rows: &[Row]) -> String {
             row.version,
             row.fork
         );
+        if row.stale {
+            let _ = writeln!(
+                out,
+                "  last measured under bench-hashes {}: a run under this release is awaited\n",
+                row.version
+            );
+            continue;
+        }
         for (pick, bars) in PICKS.iter().zip(&row.cells) {
             let line = match bars.split_first() {
                 None => "not in this run".to_owned(),
@@ -532,6 +574,17 @@ pub fn html(rows: &[Row]) -> String {
             escape(&row.fork),
             escape(&row.version)
         );
+        if row.stale {
+            let _ = write!(
+                body,
+                "<td class=\"stale\" colspan=\"{}\">last measured under bench-hashes {}, on {}: <a href=\"{}/bench-hashes.map.html\">its map</a>; a run under this release is awaited</td></tr>\n",
+                columns.len(),
+                escape(&row.version),
+                escape(&row.day),
+                escape(&row.link)
+            );
+            continue;
+        }
         for (column, picks) in &columns {
             let _ = write!(body, "<td data-col=\"{}\">", escape(column));
             for &i in picks {
@@ -605,8 +658,9 @@ pub fn html(rows: &[Row]) -> String {
 
 /// The rows of the results directories under `results`, in the order they
 /// are named (so the page is the same from any shell), linked from `base`'s
-/// directory. Refuses runs of different benchmark releases: one release's
-/// cells mean the same across machines.
+/// directory. A machine whose last run is another release's gets a row
+/// with no cells (its samples are its release's to read), so one page
+/// shows one release's cells and names every machine.
 pub fn rows(results: &Path, base: &Path) -> Vec<Row> {
     let dirs = results_dirs(results);
     assert!(
@@ -626,24 +680,7 @@ pub fn rows(results: &Path, base: &Path) -> Vec<Row> {
             row(dir, link)
         })
         .collect();
-    assert!(
-        releases(&rows).len() == 1,
-        "the runs are of different benchmark releases ({}); the overview draws one release's runs, so their cells mean the same",
-        releases(&rows).join(", ")
-    );
     rows
-}
-
-/// The benchmark releases among the rows, each once.
-fn releases(rows: &[Row]) -> Vec<&str> {
-    rows.iter()
-        .map(|r| r.version.as_str())
-        .fold(Vec::new(), |mut v, x| {
-            if !v.contains(&x) {
-                v.push(x);
-            }
-            v
-        })
 }
 
 /// The results directories under `results` that hold a samples file, in
@@ -662,9 +699,9 @@ fn results_dirs(results: &Path) -> Vec<std::path::PathBuf> {
 
 /// After a run into `directory` (`benchmark-results/<machine>`): redraw
 /// the overview beside it, `index.html` in the directory above the
-/// results, so a run keeps the front page current. Where the published
-/// runs are of another release than this one, the page is left as it is
-/// and says why: one release's runs make one page.
+/// results, so a run keeps the front page current. A machine whose last
+/// run is another release's keeps its row, with its map and a note that
+/// a run under this release is awaited, and no cells.
 pub fn refresh(directory: &Path) {
     let Some(results) = directory.parent().filter(|p| !p.as_os_str().is_empty()) else {
         return;
@@ -687,15 +724,6 @@ pub fn refresh(directory: &Path) {
             )
         })
         .collect();
-    let releases = releases(&rows);
-    if releases.len() != 1 {
-        println!(
-            "# The overview ({}) is not redrawn: the results are of different benchmark releases ({}); rerun the others, or draw it from one release's runs.",
-            index.display(),
-            releases.join(", ")
-        );
-        return;
-    }
     std::fs::write(&index, html(&rows))
         .unwrap_or_else(|e| panic!("cannot write {}: {e}", index.display()));
     println!("# Overview (HTML) is in \"{}\" .", index.display());
@@ -727,14 +755,13 @@ mod tests {
     #[test]
     fn a_speed_is_bytes_over_the_shared_rule_s_mean() {
         // Each cell's mean is the shared rule's (clocks::summary::mean), the
-        // map's, so the figure follows its selection: at these counts the
-        // slowest sample of a cell goes. 1500 ns over 500 bytes is 3 ns/B,
-        // 0.333 GB/s; 600 and 400 over 500 each: the 600 goes, 0.8 ns/B,
-        // 1.25 GB/s. Independently fixed.
+        // map's: total time over total work, every sample counted. 1500 ns
+        // over 500 bytes twice is 3 ns/B, 0.333 GB/s; 600 and 400 over 500
+        // each is 1 ns/B, 1 GB/s. Independently fixed.
         let theirs = [Measured::new(1500, 500), Measured::new(1500, 500)];
         let ours = [Measured::new(600, 500), Measured::new(400, 500)];
         assert!((gbps(&theirs, 1.0) - 1.0 / 3.0).abs() < 1e-12);
-        assert_eq!(gbps(&ours, 1.0), 1.25);
+        assert_eq!(gbps(&ours, 1.0), 1.0);
         // A batch's unit is a message of 64 bytes: 64 ns a message is 1 GB/s.
         assert_eq!(gbps(&[Measured::new(6400, 100)], 64.0), 1.0);
     }
@@ -784,6 +811,7 @@ mod tests {
             virtual_machine: vm,
             link: "benchmark-results/x".to_owned(),
             cells,
+            stale: false,
         }
     }
 
@@ -869,7 +897,7 @@ mod tests {
     }
 
     /// A run redraws the overview above its results directory, and leaves
-    /// it alone, saying why, when the results are of different releases.
+    /// a machine's row without cells where its run is another release's.
     #[test]
     fn a_run_refreshes_the_overview_above_its_results() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -895,17 +923,18 @@ mod tests {
             html(&rows(&results, &site)),
             "the page above the results is redrawn"
         );
-        // Another release among the results: the page stays.
+        // Another release among the results: its machine keeps a row
+        // that says so, with its map, and no cells.
         let samples = copied[0].join("bench-hashes.samples.tsv");
         let text = std::fs::read_to_string(&samples)
             .unwrap()
-            .replace("# bench-hashes version: 0.", "# bench-hashes version: 9.");
+            .replace(SAMPLES_VERSION, "# bench-hashes samples v0");
         std::fs::write(&samples, text).unwrap();
-        std::fs::write(site.join("index.html"), "kept").unwrap();
         refresh(&copied[0]);
-        assert_eq!(
-            std::fs::read_to_string(site.join("index.html")).unwrap(),
-            "kept"
+        let drawn = std::fs::read_to_string(site.join("index.html")).unwrap();
+        assert!(
+            drawn.contains("a run under this release is awaited"),
+            "the other release's machine is named, not drawn"
         );
         std::fs::remove_dir_all(&site).unwrap();
     }

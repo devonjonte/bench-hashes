@@ -30,6 +30,38 @@ the notes) may still change, to say it better.
   from every machine's published run; its representative cells and rules
   are the section "The overview" below, and the frozen block's
   `overview cell` lines.
+- **One mean, every sample counted, for 0.17.0** (Zooko, October 23,
+  deciding on bench-hashes #60): a cell's figure is its mean, total time
+  over total work, with no sample set aside. It replaces the
+  slowest-`ceil(n / 100)` rule of October 19 (bench #41), which the code
+  had declared and `Mean::of` had bypassed (#59: it summed every sample
+  before the shared selection saw them). Why the rule goes rather than
+  the bypass: at the budgets the benchmark runs on, 6 samples nonstop and
+  24 after a gap, setting one sample aside erased a slow state that came
+  once in ten samples (the data branch, `2026-10-22/mean-trim-controls`:
+  ten deterministic phases, each read as level, 10% of the raw cost
+  gone), where the plain mean shows it, and a stall that the trim would
+  have softened is what the pairs of runs and the load readings catch.
+  The rule lives in `clocks::summary::mean` (the fork's line, 7f9f1f7),
+  with the fixture as its test; every reader here passes raw samples to
+  it through one `mean_totals`, so the report, the comparison, the
+  regression check and the maps draw one figure. Reports of 0.16 and
+  before were plain means too, read with their own tools; the
+  October 22 corrected-rule reanalysis (`2026-10-22/x86-pair-trim-reanalysis`)
+  is the trimmed reading of the pair kernels' data, kept as what it is.
+  **Samples v7** (Zooko, October 23): the samples file's first line says
+  `v7` from this release on, its columns v6's, so that the release and
+  rule a file was collected under show in the file itself; a v6 file is
+  read with the tools of the commit that wrote it, as before.
+  Reliance stays as METHODOLOGY states it: fresh controls at these
+  budgets, with independent layouts and intermittent slow modes, govern
+  it, and the general-reliance NO-GO stays in force until they pass.
+- **One message of 1536 B** (Zooko, October 23, for 0.17.0; Sam
+  Shackleton's finding on bench #63): a point between 1 KiB and 2 KiB in
+  OneMessage and IdleOneMessage, one whole chunk and half of another, the
+  shape on which a generated x86 kernel ran 34.6% slower (1,152 to 1,984
+  bytes) while no single-message cell could show it: the points went from
+  1 KiB to 2 KiB. Every run now carries it.
 - **BLAKE3 commonware retires** (Zooko, October 20): its kernels were
   commonware's pull request #4982, which closed unmerged; commonware's
   shipped BLAKE3 is the official `blake3` crate (a thread-pool split of
@@ -126,7 +158,7 @@ the notes) may still change, to say it better.
   the process-per-file cells is its linking.
 - **Fresh link layouts for the b3sum suite** (Devon Jonte, #33; Zooko,
   October 17): a contender may be several builds of one program, one a
-  round (`tools/b3sum-contenders.sh` with `LAYOUTS=N`), as the library's
+  round (`tools/b3sum-contenders.py` with `LAYOUTS=N`), as the library's
   comparisons relink each side per pair.
 - **The b3sum suite's contenders run in a Williams design** (Devon Jonte,
   #35; Zooko, October 17), the main run's: with the rotation, each kept one
@@ -565,10 +597,13 @@ does it do for my use, across machines?" down one column.
   number on the page is typed by hand.
 - **One pipeline, no copies.** The overview reads the same
   `bench-hashes.samples.tsv` and `b3sum.samples.tsv` files the maps are
-  drawn from, through the same Rust reader and the same summary rule, and
-  is built in CI from the published runs; it refuses runs of mixed
-  benchmark releases rather than averaging them. Each dot links to its
-  map cell. The map keeps every cell it has; it becomes the second page.
+  drawn from, through the same Rust reader and the same summary rule; a
+  run redraws it, and a test fails while it is stale. A machine whose
+  last run is another release's keeps a row that names it and links its
+  map, with no cells (its samples are that release's to read), until a
+  run under this release replaces it: one page shows one release's cells
+  and never averages two. Each cell links to its map chart. The map
+  keeps every cell it has; it is the second page.
 - **What the page cannot say.** A ratio from one run on one machine is
   that run's figure; it carries the run's load reading and the same
   qualification line the map shows, and no verdict (slower/faster is the
@@ -577,9 +612,9 @@ does it do for my use, across machines?" down one column.
   whatever the release's rule is, named in its footer.
 
 ```frozen
-use case OneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
+use case OneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case ManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
-use case IdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
+use case IdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case IdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
 use case ContinuousMessages: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case ContinuousBatches: 16, 64, 256, 1024, 4096, 16384, 65536
