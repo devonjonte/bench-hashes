@@ -846,14 +846,29 @@ fn beside(new: &mut Section, old: &Section) {
     }
 }
 
+/// Whether a samples file is this release's to read (its first line);
+/// another release's is left to its own tools, with a line saying so.
+fn this_release(path: &Path) -> bool {
+    let first = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+    let first = first.lines().next().unwrap_or("");
+    if first != super::SAMPLES_VERSION {
+        println!(
+            "# {} is another release's ({first}): read with the tools of the commit that wrote it; its section is left out of the map until a run under this release.",
+            path.display()
+        );
+    }
+    first == super::SAMPLES_VERSION
+}
+
 fn sections(directory: &Path) -> Vec<Section> {
     let mut sections = Vec::new();
     let hashing_path = directory.join("bench-hashes.samples.tsv");
-    if hashing_path.exists() {
+    if hashing_path.exists() && this_release(&hashing_path) {
         sections.push(hashing(&hashing_path));
     }
     let b3sum_path = directory.join("b3sum.samples.tsv");
-    if b3sum_path.exists() {
+    if b3sum_path.exists() && this_release(&b3sum_path) {
         sections.push(b3sum(&b3sum_path));
     }
     sections

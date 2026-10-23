@@ -297,19 +297,28 @@ fn short_name(cpu: &str) -> String {
 pub fn row(directory: &Path, link: String) -> Row {
     let hashing = directory.join("bench-hashes.samples.tsv");
     let b3sum = directory.join("b3sum.samples.tsv");
-    let first = [&hashing, &b3sum]
+    let present: Vec<&Path> = [&hashing, &b3sum]
         .into_iter()
-        .find(|p| p.exists())
-        .unwrap_or_else(|| {
-            panic!(
-                "{} holds no samples file (bench-hashes.samples.tsv, b3sum.samples.tsv)",
-                directory.display()
-            )
-        });
-    // Another release's samples: read the headers alone, for the row's
-    // name and its map's link; the cells wait for a run under this one.
-    let text = std::fs::read_to_string(first).expect("a samples file");
-    if text.lines().next() != Some(SAMPLES_VERSION) {
+        .filter(|p| p.exists())
+        .map(|p| p.as_path())
+        .collect();
+    assert!(
+        !present.is_empty(),
+        "{} holds no samples file (bench-hashes.samples.tsv, b3sum.samples.tsv)",
+        directory.display()
+    );
+    // A file of another release is left to its own tools: a folder with
+    // none of this release's gets a row that names the machine and links
+    // its map, its cells awaiting a run under this release.
+    let current = |p: &Path| {
+        std::fs::read_to_string(p)
+            .expect("a samples file")
+            .lines()
+            .next()
+            == Some(SAMPLES_VERSION)
+    };
+    if !present.iter().any(|p| current(p)) {
+        let text = std::fs::read_to_string(present[0]).expect("a samples file");
         let headers: Vec<(String, String)> = text
             .lines()
             .take_while(|l| l.starts_with('#'))
@@ -323,11 +332,9 @@ pub fn row(directory: &Path, link: String) -> Row {
             true,
         );
     }
-    let hashing = hashing
-        .exists()
+    let hashing = (hashing.exists() && current(&hashing))
         .then(|| read_samples(hashing.to_str().expect("a path in UTF-8")));
-    let b3sum = b3sum
-        .exists()
+    let b3sum = (b3sum.exists() && current(&b3sum))
         .then(|| read_samples(b3sum.to_str().expect("a path in UTF-8")));
     let about = hashing
         .as_ref()
