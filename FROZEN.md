@@ -26,23 +26,38 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
-- **Restore the declared sample trim, for 0.17.0** (Zooko, October 22):
-  reports, comparisons and regression checks pass each cell's raw samples
-  to the shared `clocks::summary` selection. `Mean::of` had summed every
-  sample before calling it, leaving one aggregate and bypassing the trim.
-  Exact retained totals now serve decimal displays and fixed-point means
-  through one selection. The rule stays `ceil(n / 100)` slowest samples,
-  retaining at least one: one is removed at both 6 and 24 samples. Original
-  samples and plain-mean reports stay intact and retain their source scope.
+- **One mean, every sample counted, for 0.17.0** (Zooko, October 23,
+  deciding on bench-hashes #60): a cell's figure is its mean, total time
+  over total work, with no sample set aside. It replaces the
+  slowest-`ceil(n / 100)` rule of October 19 (bench #41), which the code
+  had declared and `Mean::of` had bypassed (#59: it summed every sample
+  before the shared selection saw them). Why the rule goes rather than
+  the bypass: at the budgets the benchmark runs on, 6 samples nonstop and
+  24 after a gap, setting one sample aside erased a slow state that came
+  once in ten samples (the data branch, `2026-10-22/mean-trim-controls`:
+  ten deterministic phases, each read as level, 10% of the raw cost
+  gone), where the plain mean shows it, and a stall that the trim would
+  have softened is what the pairs of runs and the load readings catch.
+  The rule lives in `clocks::summary::mean` (the fork's line, 7f9f1f7),
+  with the fixture as its test; every reader here passes raw samples to
+  it through one `mean_totals`, so the report, the comparison, the
+  regression check and the maps draw one figure. Reports of 0.16 and
+  before were plain means too, read with their own tools; the
+  October 22 corrected-rule reanalysis (`2026-10-22/x86-pair-trim-reanalysis`)
+  is the trimmed reading of the pair kernels' data, kept as what it is.
   **Samples v7** (Zooko, October 23): the samples file's first line says
-  `v7` from this release on, its columns v6's, so that the rule a file was
-  collected under and is read with shows in the file itself, and a
-  comparison across files can rely on that line; v6 files are read with
-  the tools of the commit that wrote them, as before.
-  Zooko approved the implementation repair through a new benchmark release
-  after reviewing the mismatch and corrected-rule results. Fresh controls
-  at the actual 6/24-sample budgets, with independent layouts and intermittent
-  slow modes, still govern reliance. General-reliance NO-GO stays in force.
+  `v7` from this release on, its columns v6's, so that the release and
+  rule a file was collected under show in the file itself; a v6 file is
+  read with the tools of the commit that wrote it, as before.
+  Reliance stays as METHODOLOGY states it: fresh controls at these
+  budgets, with independent layouts and intermittent slow modes, govern
+  it, and the general-reliance NO-GO stays in force until they pass.
+- **One message of 1536 B** (Zooko, October 23, for 0.17.0; Sam
+  Shackleton's finding on bench #63): a point between 1 KiB and 2 KiB in
+  OneMessage and IdleOneMessage, one whole chunk and half of another, the
+  shape on which a generated x86 kernel ran 34.6% slower (1,152 to 1,984
+  bytes) while no single-message cell could show it: the points went from
+  1 KiB to 2 KiB. Every run now carries it.
 - **BLAKE3 commonware retires** (Zooko, October 20): its kernels were
   commonware's pull request #4982, which closed unmerged; commonware's
   shipped BLAKE3 is the official `blake3` crate (a thread-pool split of
@@ -522,9 +537,9 @@ their users seldom make):
   checks in perf_regress.
 
 ```frozen
-use case OneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
+use case OneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case ManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
-use case IdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
+use case IdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case IdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
 use case ContinuousMessages: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case ContinuousBatches: 16, 64, 256, 1024, 4096, 16384, 65536

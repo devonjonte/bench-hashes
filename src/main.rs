@@ -139,7 +139,7 @@ const TO_CHECK_FOR_REGRESSIONS: Visits = Visits {
 };
 
 /// Points on the one-message axis, and on each many-messages axis.
-const INPUT_COUNT: usize = 27;
+const INPUT_COUNT: usize = 28;
 const BATCH_COUNT: usize = 24;
 /// Points on the continuous axes: message lengths, and messages per batch.
 const CONTINUOUS_MESSAGE_COUNT: usize = 11;
@@ -401,6 +401,7 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::one("256 B", 256),
     Point::one("512 B", 512),
     Point::one("1 KiB", 1024),
+    Point::one("1536 B", 1536),
     Point::one("2 KiB", 2 * 1024),
     Point::one("2304 B", 2304),
     Point::one("3 KiB", 3 * 1024),
@@ -452,6 +453,7 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::one("256 B", 256).idle(),
     Point::one("512 B", 512).idle(),
     Point::one("1 KiB", 1024).idle(),
+    Point::one("1536 B", 1536).idle(),
     Point::one("2 KiB", 2 * 1024).idle(),
     Point::one("2304 B", 2304).idle(),
     Point::one("3 KiB", 3 * 1024).idle(),
@@ -6470,13 +6472,15 @@ mod correctness_tests {
     }
 
     #[test]
-    fn mean_keeps_the_shared_slowest_hundredth_rule() {
-        // Exactly 100 samples: discard the one slow sample, leaving 1000.
+    fn mean_is_the_shared_rule_every_sample_counted() {
+        // 99 samples of 1000 ns and one of 1,000,000 over one unit each: the
+        // slow one counts in full, 10,990 ns a unit, as clocks::summary says
+        // (a rule that set it aside would read 1000: bench #60, October 23).
         let mut samples = vec![Measured::new(1000, 1); 99];
         samples.push(Measured::new(1_000_000, 1));
-        assert_eq!(clocks::summary::mean(samples.iter().map(|m| (m.ns, m.units))), 1000u128 << 64);
-        assert_eq!(Mean::of(&samples).fixed().0, 1000u128 << 64);
-        assert_eq!(Mean::of(&samples).format_ns(1), "1000.000");
+        assert_eq!(clocks::summary::mean(samples.iter().map(|m| (m.ns, m.units))), 10_990u128 << 64);
+        assert_eq!(Mean::of(&samples).fixed().0, 10_990u128 << 64);
+        assert_eq!(Mean::of(&samples).format_ns(1), "10990.000");
     }
 
     #[test]
@@ -6489,11 +6493,10 @@ mod correctness_tests {
             assert_eq!(statistics.format_ns(1), expected);
             assert_eq!(statistics.format_ns(400), format!("{ns}.000"));
         }
-        // The shared rule sets aside the slower sample: 1000 ns over
-        // 400 units remains, exactly 2.5 ns a unit.
+        // Total time over total work: 4000 ns over 800 units, 5 ns a unit.
         assert_eq!(
             Mean::of(&[Measured::new(3000, 400), Measured::new(1000, 400)]).format_ns(1),
-            "2.500"
+            "5.000"
         );
     }
 
@@ -6590,9 +6593,11 @@ mod correctness_tests {
             Some(20),
             &TO_CHECK_FOR_REGRESSIONS,
         );
-        // Contender 0's one-message cell has one slow outlier; its retained
-        // samples are exactly 1000 ns/unit. Contender 1's lent cells have
-        // a slower mode: 3 rounds in 10 twice as slow.
+        // Contender 0's one-message cell has one slow outlier among 20
+        // samples of 1000 ns a unit, which the mean counts in full
+        // (independently fixed: (19 * 1000 + 1_000_000) / 20 = 50,950).
+        // Contender 1's lent cells have a slower mode: 3 rounds in 10 twice
+        // as slow.
         let (_, samples) = run(&roster, 20, |a, p, r| {
             if a == 0 && POINTS[p].use_case == UseCase::OneMessage {
                 if r == 19 { 1_000_000 } else { 1000 }
@@ -6632,7 +6637,7 @@ mod correctness_tests {
                         .unwrap_or_else(|| panic!("{key} read back"));
                     assert_eq!(figures(back), figures(cell), "{key}");
                     if a == 0 && POINTS[p].use_case == UseCase::OneMessage {
-                        assert_eq!(figures(back), "1000.000", "{key}'s independent trim anchor");
+                        assert_eq!(figures(back), "50950.000", "{key}'s independent anchor: every sample counted");
                     }
                     // CPU time: each solo sample's, none for shared ones.
                     let cpu = read

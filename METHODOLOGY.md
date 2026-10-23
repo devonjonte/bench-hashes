@@ -85,8 +85,8 @@ ramp: a tree that is no power of two (a 2 MiB left subtree beside a
 its threads unequal work there.
 
 The report gives each cell's mean time per unit in nanoseconds (the
-total time of its retained samples over the total work they did, after
-the shared sample trim described below), to
+total time of its samples over the total work they did, every sample
+counted, the shared rule below), to
 three decimals or three significant digits, whichever shows more; lower
 is better. Each sample is kept as measured, the clock's nanoseconds over
 the units they covered, and the statistics work on it in fixed point with
@@ -539,7 +539,7 @@ Change any of these on evidence of the same kind, and record it in
 
 | choice | evidence | what it gives up |
 |---|---|---|
-| A run's cell is its **mean**, the slowest `ceil(n / 100)` samples set aside, retaining at least one (`clocks::summary::mean`; Zooko, October 2 and 19) | Planted slowdowns on the Mac (jobs 1164-1167): at +6% a fast speed never caught 1 MiB, the mean caught every cell nearly every time. The trim (bench #41, `data` branch `2026-10-19/stat41`): against the plain mean it kept most of a planted one-in-ten slow mode (x1.113 against x1.149), halved false alarms under contamination and halved the spread; harder trims hid the slow mode. | One sample at both 6 and 24 samples: 1/6 and 1/24 of those samples. The effect on intermittent slow modes needs controls at those budgets. |
+| A run's cell is its **mean**, total time over total work, every sample counted (`clocks::summary::mean`; Zooko, October 2, and October 23 on bench #60, replacing October 19's trim) | Planted slowdowns on the Mac (jobs 1164-1167): at +6% a fast speed never caught 1 MiB, the mean caught every cell nearly every time. The trim of October 19 (bench #41, `data` branch `2026-10-19/stat41`) halved a stall's false flags against the plain mean (7 to 3 of 708 cells) but at the budgets a run has, 6 and 24 samples a cell, it erased a slow state coming once in ten samples: ten fixed phases each read as level with 10% of the raw cost gone (`2026-10-22/mean-trim-controls`); the plain mean shows that state, and the stall is the pairs' and the load reading's to catch. | A stall moves a cell's figure in full; a run whose load reading is busy carries no verdict. |
 | **Pairs of runs**, alternating, a **fresh link layout** on each side per pair (October 2 and 16) | Most uncertainty lies between processes (placement, the speed a cell settles into): one binary's run means varied 1.49 times what its samples predict; 12 samples or 24 gave the same between-run spread. A layout moves the cells of calls made now and then by several percent, fixed for every run of that binary, so alternation cannot cancel it: two links of one source gave 27 false verdicts in 700 cells. | A second side's runs and a relink per pair. |
 | **4 pairs** by default, each run with **the regression check's visits** (24 after a gap, 6 nonstop; October 20) | Calibrated on the i7-12700K (`data` branch `2026-10-20/check-validation`) and the M4 Max (the fork's Mac jobs 1636, 1637, 1642): on both, an A/A over every cell found no cell slower (the Mac at 8 pairs, 16 min; the i7 over 146 cells), and the two planted 6% slowdowns were caught at 4 pairs: `hash()`'s in servil st's cells (the Mac: +5% to +28% in the continuous cells, 11 min; the i7: 48 cells), the pool split's in servil mt's cells from 512 KiB, the cells after a gap among them (the Mac: +7% to +25%, 7 min; the i7: 22 of 28), in half the time of 8 pairs. At 12 visits after a gap instead of 24, the cells after a gap caught a plant 3 times in 10. Of the budget, pairs buy more than samples: 18 pairs of 4 samples judged 40% more narrowly than 8 of 12 in the same minutes. | A check takes 2 to 6 minutes. |
 | **All cells judged at once**: a paired t-test per cell on the log ratios, Benjamini-Hochberg at a 5% false discovery rate (Zooko, October 16) | A per-cell test over 700 cells flags 15-27 cells of unchanged code; a sign test cannot go stricter with few pairs. With the rule: 0 of 700 in three unchanged-code controls, and the code's real changes found. | Floating point inside the t-test. |
@@ -548,14 +548,15 @@ Change any of these on evidence of the same kind, and record it in
 | **Cells chosen by what the change touches** (October 20) | Coverage names the lines each cell executes; a change to `hash()` chose 73 points, a stream change 13, a comment none. The fixed five-cell list this replaced was blind to the cells after a gap, where #80's +18% sat, and to the stream. | A coverage build once per contender (cached); a change to assembly or the build checks every cell. |
 | **No intervals as verdicts** (October 1) | 95% median bands held for a quarter of the cells across runs of identical code. | A printed range is a reading aid only. |
 
-**Calibration scope after the trim repair.** Before the October 22 repair,
-`Mean::of` combined samples before calling the shared mean, so reports and
-comparisons bypassed its trim. Earlier end-to-end acceptance controls in
-this table describe that plain-mean implementation. Their original records
-remain intact. Restoring the declared rule starts benchmark 0.17.0; fresh
-controls at 6/24 samples per cell, including intermittent slow modes, are
-required before a reliance claim. The rule's selection evidence and those
-end-to-end controls answer separate questions.
+**The rule's history, and what the controls above measured.** From
+October 19 to 23 the declared rule set the slowest `ceil(n / 100)`
+samples aside, and `Mean::of` bypassed it (#59), so every report and
+comparison of that span, and the controls in this table, are plain
+means: the rule 0.17 declares. 0.17 starts with the plain mean declared
+and read through one `mean_totals` (#60), and samples v7 says so in each
+file. Fresh controls at 6 and 24 samples a cell, with independent
+layouts and intermittent slow modes, are still what a reliance claim
+rests on; the general-reliance NO-GO holds until they pass.
 
 **What the SHA-256 cells can tell.** SHA-256's code is identical on both
 sides of a servil comparison, so its cells show the instrument's noise, and
