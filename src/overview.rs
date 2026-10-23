@@ -7,7 +7,7 @@
 //! through the same reader and summary rule; every figure on the page is
 //! computed here, none typed.
 
-use super::{read_samples, Algorithm, Measured, SamplesFile, UseCase, SAMPLES_VERSION};
+use super::{read_samples, Algorithm, Measured, SamplesFile, UseCase, POINTS, SAMPLES_VERSION};
 use std::fmt::Write as _;
 use std::path::Path;
 
@@ -148,6 +148,11 @@ pub struct Row {
     pub link: String,
     /// One entry per pick: its bars, or none where the run lacks the cell.
     pub cells: Vec<Bars>,
+    /// For the ribbons: each family's speed at each message size across
+    /// this run's message cells (one message now and then or after a
+    /// pause, nonstop lent, nonstop pipelined; single- and multi-threaded):
+    /// (family, bytes, GB/s, the cell it came from).
+    pub curves: Vec<(&'static str, usize, f64, String)>,
     /// Set where the run is of another release of the benchmark: its
     /// samples are not read (their rule is their own release's), the row
     /// names the machine and links its map, and says a run under this
@@ -343,6 +348,7 @@ pub fn row(directory: &Path, link: String) -> Row {
         .as_ref()
         .or(b3sum.as_ref())
         .expect("a samples file read");
+    let curves = hashing.as_ref().map_or(Vec::new(), curves_of);
     let cells = PICKS
         .iter()
         .map(|pick| match &pick.cell {
@@ -358,7 +364,67 @@ pub fn row(directory: &Path, link: String) -> Row {
                 .map_or(Vec::new(), |f| b3sum_bars(f, cache, input)),
         })
         .collect();
-    described(&about.headers, link, cells, false)
+    let mut row = described(&about.headers, link, cells, false);
+    row.curves = curves;
+    row
+}
+
+/// The message use cases the ribbons span: a message hashed now and then
+/// (after other work, after a pause), nonstop waiting for each call, and
+/// nonstop pipelined; solo.
+const RIBBON_CASES: [UseCase; 4] = [
+    UseCase::OneMessage,
+    UseCase::IdleOneMessage,
+    UseCase::LentMessages,
+    UseCase::ContinuousMessages,
+];
+
+/// The three families the ribbons draw, each over its contenders.
+const FAMILIES: [(&str, &[Algorithm]); 3] = [
+    (
+        "BLAKE3 servil",
+        &[Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt],
+    ),
+    (
+        "BLAKE3 official",
+        &[Algorithm::Blake3, Algorithm::Blake3Rayon],
+    ),
+    (
+        "SHA-256",
+        &[
+            Algorithm::Sha256,
+            Algorithm::Sha256Ring,
+            Algorithm::Sha256CommonCrypto,
+        ],
+    ),
+];
+
+/// Every (family, bytes, GB/s, cell) of a run's message cells.
+fn curves_of(file: &SamplesFile) -> Vec<(&'static str, usize, f64, String)> {
+    let mut out = Vec::new();
+    for (family, algorithms) in FAMILIES {
+        for use_case in RIBBON_CASES {
+            for point in &POINTS[use_case.points()] {
+                for a in algorithms.iter() {
+                    let key = format!("{}|solo|{use_case:?}|{}", a.key(), point.label);
+                    if let Some(samples) = cell(file, &key) {
+                        out.push((
+                            family,
+                            point.bytes,
+                            gbps(samples, 1.0),
+                            format!(
+                                "{}, {}, {}",
+                                plain_name(*a),
+                                use_case.heading(),
+                                point.label
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    out
 }
 
 /// A row from a run's headers and its cells.
@@ -397,6 +463,7 @@ fn described(headers: &[(String, String)], link: String, cells: Vec<Bars>, stale
             .to_owned(),
         link,
         cells,
+        curves: Vec::new(),
         stale,
     }
 }
@@ -503,6 +570,158 @@ pub fn text(rows: &[Row]) -> String {
         out.push('\n');
     }
     out
+}
+
+/// The ribbons: one chart over message size, a filled band per family
+/// from its slowest to its fastest cell at each size, over every machine
+/// of this release and every message use case, single- and multi-
+/// threaded. It hides every figure but the edges (the band's bottom is a
+/// message between other work on one thread; its top is every core
+/// nonstop) and shows the families' order at a glance. Points at a size
+/// are shown in the tooltip with the cells that set each edge.
+fn ribbons(rows: &[Row]) -> String {
+    let rows: Vec<&Row> = rows
+        .iter()
+        .filter(|r| !r.stale && !r.virtual_machine)
+        .collect();
+    // The sizes every ribbon use case measures (the nonstop ones' points:
+    // 64 B to 64 MiB by fours), so each edge is the same kind of cell at
+    // every size and the bands run smooth; the odd sizes a single use case
+    // adds stay on the map.
+    let mut sizes: Vec<usize> = POINTS[UseCase::ContinuousMessages.points()]
+        .iter()
+        .map(|p| p.bytes)
+        .collect();
+    sizes.retain(|b| rows.iter().any(|r| r.curves.iter().any(|c| c.1 == *b)));
+    sizes.sort_unstable();
+    sizes.dedup();
+    if sizes.len() < 2 {
+        return String::new();
+    }
+    // Each family's edges at each size: (min, who, max, who).
+    let mut bands: Vec<(&str, &str, Vec<(usize, f64, String, f64, String)>)> = Vec::new();
+    for (family, algorithms) in FAMILIES {
+        let color = algorithms[0].color();
+        let mut edges = Vec::new();
+        for &size in &sizes {
+            let mut lo: Option<(f64, String)> = None;
+            let mut hi: Option<(f64, String)> = None;
+            for r in &rows {
+                for (f, b, g, who) in &r.curves {
+                    if *f != family || *b != size {
+                        continue;
+                    }
+                    let who = format!("{} ({})", who, r.machine);
+                    if lo.as_ref().is_none_or(|(l, _)| *g < *l) {
+                        lo = Some((*g, who.clone()));
+                    }
+                    if hi.as_ref().is_none_or(|(h, _)| *g > *h) {
+                        hi = Some((*g, who));
+                    }
+                }
+            }
+            if let (Some((l, lw)), Some((h, hw))) = (lo, hi) {
+                edges.push((size, l, lw, h, hw));
+            }
+        }
+        if !edges.is_empty() {
+            bands.push((family, color, edges));
+        }
+    }
+    let (w, h, left, right, top, bottom) = (980.0, 300.0, 56.0, 150.0, 16.0, 36.0);
+    let (lo_b, hi_b) = (
+        *sizes.first().unwrap() as f64,
+        *sizes.last().unwrap() as f64,
+    );
+    let all: Vec<f64> = bands
+        .iter()
+        .flat_map(|(_, _, e)| e.iter().flat_map(|x| [x.1, x.3]))
+        .collect();
+    let (lo_g, hi_g) = (
+        all.iter().cloned().fold(f64::INFINITY, f64::min),
+        all.iter().cloned().fold(0.0, f64::max),
+    );
+    let (lo_g, hi_g) = (
+        10f64.powf(lo_g.log10().floor()),
+        10f64.powf(hi_g.log10().ceil()),
+    );
+    let x =
+        |b: f64| left + (b.log2() - lo_b.log2()) / (hi_b.log2() - lo_b.log2()) * (w - left - right);
+    let y = |g: f64| {
+        top + (hi_g.log10() - g.log10()) / (hi_g.log10() - lo_g.log10()) * (h - top - bottom)
+    };
+    let mut svg =
+        format!("<svg class=\"ribbons\" viewBox=\"0 0 {w} {h}\" width=\"{w}\" height=\"{h}\">");
+    // Gridlines: a line per factor of ten, labelled in GB/s.
+    let mut e = lo_g.log10() as i32;
+    while 10f64.powi(e) <= hi_g {
+        let g = 10f64.powi(e);
+        let _ = write!(svg, "<line x1=\"{left}\" x2=\"{}\" y1=\"{:.1}\" y2=\"{:.1}\" stroke=\"#eceae6\"/><text x=\"{}\" y=\"{:.1}\" font-size=\"10\" fill=\"#9ca3af\" text-anchor=\"end\">{}</text>", w - right, y(g), y(g), left - 6.0, y(g) + 3.5, speed(g));
+        e += 1;
+    }
+    // Size ticks, a few.
+    for &size in &sizes {
+        if size.is_power_of_two() && size.trailing_zeros() % 4 == 0 {
+            let label = if size >= 1 << 20 {
+                format!("{} MiB", size >> 20)
+            } else if size >= 1 << 10 {
+                format!("{} KiB", size >> 10)
+            } else {
+                format!("{size} B")
+            };
+            let _ = write!(svg, "<text x=\"{:.1}\" y=\"{}\" font-size=\"10\" fill=\"#9ca3af\" text-anchor=\"middle\">{label}</text>", x(size as f64), h - bottom + 16.0);
+        }
+    }
+    let _ = write!(svg, "<text x=\"{:.1}\" y=\"{}\" font-size=\"10\" fill=\"#9ca3af\" text-anchor=\"middle\">message size</text>", (left + w - right) / 2.0, h - 2.0);
+    let mut label_ys: Vec<f64> = Vec::new();
+    for (family, color, edges) in &bands {
+        let upper: Vec<String> = edges
+            .iter()
+            .map(|(b, _, _, hi, _)| format!("{:.1},{:.1}", x(*b as f64), y(*hi)))
+            .collect();
+        let lower: Vec<String> = edges
+            .iter()
+            .rev()
+            .map(|(b, lo, _, _, _)| format!("{:.1},{:.1}", x(*b as f64), y(*lo)))
+            .collect();
+        let _ = write!(svg, "<path d=\"M{} L{} Z\" fill=\"{color}\" fill-opacity=\"0.28\" stroke=\"{color}\" stroke-opacity=\"0.9\" stroke-width=\"1\"><title>{}</title></path>", upper.join(" L"), lower.join(" L"), escape(family));
+        let last = edges.last().unwrap();
+        let mut ly = (y(last.3) + y(last.1)) / 2.0 + 4.0;
+        while label_ys.iter().any(|&other| (other - ly).abs() < 13.0) {
+            ly += 13.0;
+        }
+        label_ys.push(ly);
+        let _ = write!(svg, "<text x=\"{:.1}\" y=\"{:.1}\" font-size=\"11\" fill=\"{color}\" font-weight=\"600\">{}</text>", x(last.0 as f64) + 6.0, ly, escape(family));
+    }
+    // One invisible column per size carries the tooltip's text.
+    for (i, &size) in sizes.iter().enumerate() {
+        let x0 = if i == 0 {
+            left
+        } else {
+            (x(size as f64) + x(sizes[i - 1] as f64)) / 2.0
+        };
+        let x1 = if i + 1 == sizes.len() {
+            w - right
+        } else {
+            (x(size as f64) + x(sizes[i + 1] as f64)) / 2.0
+        };
+        let mut lines = Vec::new();
+        for (family, color, edges) in &bands {
+            if let Some((_, lo, lw, hi, hw)) = edges.iter().find(|e| e.0 == size) {
+                lines.push(format!("{color}\t{family}\t{}\t{}\t{}\t{}", hi, hw, lo, lw));
+            }
+        }
+        let label = if size >= 1 << 20 {
+            format!("{} MiB", size >> 20)
+        } else if size >= 1 << 10 && size % 1024 == 0 {
+            format!("{} KiB", size >> 10)
+        } else {
+            format!("{size} B")
+        };
+        let _ = write!(svg, "<rect class=\"col\" x=\"{x0:.1}\" y=\"{top}\" width=\"{:.1}\" height=\"{:.1}\" fill=\"transparent\" data-size=\"{}\" data-tip=\"{}\"/>", x1 - x0, h - top - bottom, escape(&label), escape(&lines.join("\n")));
+    }
+    svg.push_str("</svg>");
+    svg
 }
 
 /// The page: a row per machine, a column per situation, and in each cell
@@ -662,6 +881,7 @@ pub fn html(rows: &[Row]) -> String {
     }
     body.push_str("</tbody></table></div>\n");
     include_str!("overview.html")
+        .replace("@RIBBONS@", &ribbons(rows))
         .replace("@LEGEND@", &legend)
         .replace("@BODY@", &body)
 }
@@ -821,6 +1041,7 @@ mod tests {
             virtual_machine: vm,
             link: "benchmark-results/x".to_owned(),
             cells,
+            curves: Vec::new(),
             stale: false,
         }
     }

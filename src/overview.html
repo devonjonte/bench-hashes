@@ -43,6 +43,9 @@ tr.vm { display: none; color: #6b7280; } body.show-vm tr.vm { display: table-row
 #tip .cmp { font-weight: 600; }
 footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
 .door { color: #6b7280; font-size: 12px; margin-top: 16px; max-width: 980px; } .door summary { cursor: pointer; width: max-content; } .door p { margin: 6px 0 0 14px; }
+.grid-door { color: inherit; font-size: inherit; max-width: none; margin-top: 18px; } .grid-door > summary { font-size: 17px; font-weight: 600; color: #111827; margin-bottom: 6px; } .grid-door > .sub { margin-left: 0; }
+.ribbon-box { max-width: 980px; overflow-x: auto; } .ribbons { display: block; max-width: 100%; height: auto; } .ribbons .col:hover { fill: rgba(124, 58, 237, .06); }
+#tip .edge { color: #d1d5db; }
 /* A phone: one machine at a time, its columns as rows, each named. */
 @media (max-width: 700px) {
   body { margin: 12px; }
@@ -57,10 +60,14 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
   #tip { pointer-events: auto; }
 }
 </style></head><body>
-<h1>How fast BLAKE3 servil runs, on each machine measured</h1>
-<p class="sub">A row is one machine; a column is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster; under them, how many times faster servil ran than the best of the others (the two bars drawn full), and the fastest's speed, the bars' scale. Point at the bars (tap, on a phone) for every figure, at a column's name for what it stands for; open a cell for its full chart on that machine's map.</p>
+<h1>How fast BLAKE3 servil runs</h1>
+<p class="sub">Each band is one hash family across every machine measured and every way a program hashes a message: its lower edge is the slowest cell at that size (one message between other work, on one thread), its upper edge the fastest (every core, nonstop). Higher is faster. Point at a size for the figures and the cells that set each edge.</p>
+<div class="ribbon-box">@RIBBONS@</div>
+<details class="door grid-door" open><summary>By machine and by situation</summary>
+<p class="sub">A row is one machine; a column is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster; under them, how many times faster servil ran than the best of the others (the two bars drawn full), and the fastest's speed, the bars' scale. Point at the bars (tap, on a phone) for every figure, at a column's name for what it stands for; open a cell for its full chart on that machine's map, every cell the benchmark has.</p>
 <div class="legend">@LEGEND@<label><input type="checkbox" id="vm"> show virtual machines</label></div>
 @BODY@
+</details>
 <div id="tip"></div>
 <details class="door"><summary>About the hashes compared</summary><p>BLAKE3 official is the <code>blake3</code> crate, the reference implementation; BLAKE3 servil is this fork of it, with the same digests. SHA-256 is the fastest implementation measured on each machine (the <code>sha2</code> crate, <code>ring</code>, or the operating system's). <b>sha1sum and md5sum</b>, drawn in grey, compute SHA-1 and MD5: both are broken as cryptographic hashes (collisions are cheap to make), and they appear here only because many people still run them as checksums; a comparison with them is a comparison with the tool in hand, not with a safe alternative.</p></details>
 <footer>Each bar is one run's mean, by the same rule as the map (<code>clocks::summary</code>), on a machine whose load reading is on its map; no verdict is drawn across runs. From <a href="https://github.com/johnservil/bench-hashes">johnservil/bench-hashes</a>, measuring <a href="https://github.com/devonjonte/BLAKE3">Devon Jonte's line of BLAKE3 servil</a>; the cells shown are FROZEN.md's "The overview".</footer>
@@ -113,6 +120,18 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
     });
   }
   document.addEventListener("click", e => { if (!e.target.closest(".pick")) { tip.style.display = "none"; tapped = null; } });
+  // The ribbons' tooltip: at a size, each family's fastest and slowest
+  // cell, with what set them.
+  for (const c of document.querySelectorAll(".ribbons .col")) {
+    c.addEventListener("mousemove", e => {
+      const rows = c.dataset.tip.split("\n").filter(Boolean).map(l => { const [color, family, hi, hw, lo, lw] = l.split("\t"); return `<div class="row"><span class="sw" style="background:${color}"></span><b>${family}</b>: ${fmt(+hi)} to ${fmt(+lo)}<br><span class="edge">fastest: ${hw}<br>slowest: ${lw}</span></div>`; });
+      tip.innerHTML = `<b>${c.dataset.size}</b>` + rows.join("");
+      tip.style.display = "block"; tip.style.left = "0px";
+      tip.style.left = Math.max(4, Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 4)) + "px";
+      tip.style.top = Math.max(4, Math.min(e.clientY + 10, innerHeight - tip.offsetHeight - 4)) + "px";
+    });
+    c.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+  }
   // A guess at the reader's kind of machine, lit and marked "yours?", nothing more.
   const apple = /Macintosh|iPhone|iPad/.test(navigator.userAgent);
   const row = document.querySelector(`tr[data-arch="${apple ? "apple" : "x86"}"]:not(.vm)`);
