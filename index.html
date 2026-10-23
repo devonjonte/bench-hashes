@@ -42,6 +42,7 @@ tr.vm { display: none; color: #6b7280; } body.show-vm tr.vm { display: table-row
 #tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
 #tip .cmp { font-weight: 600; }
 footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
+.door { color: #6b7280; font-size: 12px; margin-top: 16px; max-width: 980px; } .door summary { cursor: pointer; width: max-content; } .door p { margin: 6px 0 0 14px; }
 /* A phone: one machine at a time, its columns as rows, each named. */
 @media (max-width: 700px) {
   body { margin: 12px; }
@@ -67,6 +68,7 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
 </tbody></table></div>
 
 <div id="tip"></div>
+<details class="door"><summary>About the hashes compared</summary><p>BLAKE3 official is the <code>blake3</code> crate, the reference implementation; BLAKE3 servil is this fork of it, with the same digests. SHA-256 is the fastest implementation measured on each machine (the <code>sha2</code> crate, <code>ring</code>, or the operating system's). <b>sha1sum and md5sum</b>, drawn in grey, compute SHA-1 and MD5: both are broken as cryptographic hashes (collisions are cheap to make), and they appear here only because many people still run them as checksums; a comparison with them is a comparison with the tool in hand, not with a safe alternative.</p></details>
 <footer>Each bar is one run's mean, by the same rule as the map (<code>clocks::summary</code>), on a machine whose load reading is on its map; no verdict is drawn across runs. From <a href="https://github.com/johnservil/bench-hashes">johnservil/bench-hashes</a>, measuring <a href="https://github.com/devonjonte/BLAKE3">Devon Jonte's line of BLAKE3 servil</a>; the cells shown are FROZEN.md's "The overview".</footer>
 <script>
 (function () {

@@ -113,8 +113,11 @@ const FORK_B3SUM: [&str; 3] = ["b3sum", "devon", "fork"];
 const B3SUM_COMPETITORS: [(&str, &str, &str); 4] = [
     ("official", "b3sum, official BLAKE3's", "#3b82f6"),
     ("sha256sum", "sha256sum", "#e07a45"),
-    ("sha1sum", "sha1sum", "#8a7a1e"),
-    ("md5sum", "md5sum", "#9ca3af"),
+    // Drab greys: SHA-1 and MD5 are broken as cryptographic hashes
+    // (collisions are cheap to make) and kept only as checksums people
+    // still run; the page's door says so.
+    ("sha1sum", "sha1sum", "#b4b0a8"),
+    ("md5sum", "md5sum", "#cfcbc3"),
 ];
 
 /// One bar: a hash's speed in a cell.
@@ -852,7 +855,7 @@ mod tests {
         cells[6] = vec![
             bar("b3sum, BLAKE3 servil's", "#4c1d95", 30.0, ""),
             bar("b3sum, official BLAKE3's", "#3b82f6", 10.0, ""),
-            bar("md5sum", "#9ca3af", 1.5, ""),
+            bar("md5sum", "#cfcbc3", 1.5, ""),
         ];
         let vm = row("virt", true, PICKS.iter().map(|_| Vec::new()).collect());
         let rows = [row("A", false, cells), vm];
@@ -882,7 +885,7 @@ mod tests {
             .collect();
         assert_eq!(
             legend,
-            ["#7c3aed", "#4c1d95", "#3b82f6", "#e07a45", "#9ca3af"]
+            ["#7c3aed", "#4c1d95", "#3b82f6", "#e07a45", "#cfcbc3"]
         );
         assert!(text(&rows).contains(
             "files, 1000 files:                 30 GB/s b3sum, BLAKE3 servil's; 10 GB/s b3sum, official BLAKE3's (3.0×); 1.5 GB/s md5sum (20×)"
