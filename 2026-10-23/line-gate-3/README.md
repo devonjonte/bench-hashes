@@ -34,3 +34,16 @@ narrow). `replay-select.sh` is the replay.
 - `gate8-mutants.stdout.txt`: finish.rs not yet on a `files:` line: the Source::finished/wait rows gone with the code.
 - `gate9-mutants.stdout.txt`: `--write` with the Loom pass (18 of finish.rs's mutants, 13 caught, 5 missed) and the suite.
 - `gate10-mutants.stdout.txt`: the suite and Loom combined: 660 survive each explained; finish.rs's two Loom-passing mutants are the suite's time-outs, moved there with reasons after the run (exit 2 on that placement alone).
+
+## Each mutant's tests alone (check.py --reach, line e95e92f)
+
+- `gate11-reach.stdout.txt`: the first narrowed run: shards 14-20 min
+  against 20-33, and 15 false survivors: the map lacked the tests behind
+  the serde and zeroize features, which the mutation run builds with.
+- `gate12-reach.stdout.txt`: with the map made with those features on:
+  every row agrees with the whole suite's run (gate10) but finish.rs's
+  two Loom-passing mutants (the whole suite hangs on them; the narrowed
+  tests pass them) and take_task -> None (the alternating row, #140).
+  Shards 14, 16, 16, 17, 20 and 53 min; the last holds the pool's
+  time-outs at 30 s each. Narrowing is now the default; --whole-suite
+  restores the old run.
