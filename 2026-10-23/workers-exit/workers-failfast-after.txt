@@ -1,0 +1,19 @@
+Process Process-1:
+Traceback (most recent call last):
+  File "/usr/lib/python3.14/multiprocessing/process.py", line 320, in _bootstrap
+    self.run()
+    ~~~~~~~~^^
+  File "/usr/lib/python3.14/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agent/BLAKE3-workers-exit/tools/verify/workers.py", line 18, in _run
+    conn.send(fn(item))
+              ~~^^^^^^
+  File "/home/agent/bench-hashes-validation/x86-kernels-20261022/workers-failfast-repro.py", line 10, in job
+    raise RuntimeError('deliberate worker failure')
+RuntimeError: deliberate worker failure
+the worker for 'fail' ended without a result, exit status 1 (-9 is a kill, most often the kernel's out-of-memory killer: run fewer at once)
+
+real	0m0.065s
+user	0m0.043s
+sys	0m0.006s
