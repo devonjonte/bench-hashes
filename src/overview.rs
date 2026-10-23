@@ -111,7 +111,7 @@ pub fn frozen_lines() -> String {
 /// first (bench-hashes #55 settles on `b3sum`), and the competitors shown.
 const FORK_B3SUM: [&str; 3] = ["b3sum", "devon", "fork"];
 const B3SUM_COMPETITORS: [(&str, &str, &str); 4] = [
-    ("official", "official b3sum", "#3b82f6"),
+    ("official", "b3sum, official BLAKE3's", "#3b82f6"),
     ("sha256sum", "sha256sum", "#e07a45"),
     ("sha1sum", "sha1sum", "#8a7a1e"),
     ("md5sum", "md5sum", "#9ca3af"),
@@ -172,7 +172,7 @@ fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algo
         1.0
     };
     let bar = |a: Algorithm, samples: &[Measured], note| Bar {
-        name: a.name().to_owned(),
+        name: plain_name(a).to_owned(),
         color: a.color(),
         gbps: gbps(samples, per_unit),
         note,
@@ -190,7 +190,7 @@ fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algo
                 (
                     Algorithm::Blake3,
                     one,
-                    "official on one thread: this run lacks its multithreaded form",
+                    "this run has no multi-threaded BLAKE3 official, so its single-threaded form stands beside servil's multi-threaded",
                 )
             }),
         }
@@ -233,7 +233,7 @@ fn b3sum_bars(file: &SamplesFile, cache: &str, input: &str) -> Bars {
         return Vec::new();
     };
     let mut bars = vec![bar(
-        "BLAKE3 servil's b3sum",
+        "b3sum, BLAKE3 servil's",
         Algorithm::Blake3ServilMt.color(),
         ours,
     )];
@@ -241,6 +241,17 @@ fn b3sum_bars(file: &SamplesFile, cache: &str, input: &str) -> Bars {
         cell(file, &key(name)).map(|theirs| bar(shown, color, theirs))
     }));
     bars
+}
+
+/// A contender's name in plain words: the map's "st" and "mt" spelled out.
+fn plain_name(a: Algorithm) -> &'static str {
+    match a {
+        Algorithm::Blake3ServilSt => "BLAKE3 servil, single-threaded",
+        Algorithm::Blake3ServilMt => "BLAKE3 servil, multi-threaded",
+        Algorithm::Blake3 => "BLAKE3 official, single-threaded",
+        Algorithm::Blake3Rayon => "BLAKE3 official, multi-threaded",
+        other => other.name(),
+    }
 }
 
 fn header<'a>(headers: &'a [(String, String)], key: &str) -> &'a str {
@@ -369,19 +380,13 @@ fn figure(ratio: f64) -> String {
     }
 }
 
-/// A speed as the page says it: three significant figures, as the map.
+/// A speed as the page says it: two significant figures, the precision one
+/// run on one machine has.
 fn speed(gbps: f64) -> String {
-    let digits = if gbps >= 100.0 {
-        0
-    } else if gbps >= 10.0 {
-        1
-    } else if gbps >= 1.0 {
-        2
-    } else if gbps >= 0.1 {
-        3
-    } else {
-        4
-    };
+    if gbps <= 0.0 {
+        return "0 GB/s".to_owned();
+    }
+    let digits = (1 - gbps.log10().floor() as i32).max(0) as usize;
     format!("{gbps:.digits$} GB/s")
 }
 
@@ -484,10 +489,6 @@ pub fn html(rows: &[Row]) -> String {
             .unwrap_or(usize::MAX)
     };
     drawn.sort_by_key(|(_, c)| rank(c));
-    let noted = rows
-        .iter()
-        .flat_map(|r| r.cells.iter().flatten())
-        .any(|b| !b.note.is_empty());
     let mut legend = String::new();
     for (name, color) in &drawn {
         let _ = write!(
@@ -495,12 +496,6 @@ pub fn html(rows: &[Row]) -> String {
             "<button style=\"--c:{color}\" data-c=\"{color}\">{}</button>",
             escape(name.split(" (").next().unwrap_or(name))
         );
-        if noted && *color == Algorithm::Blake3.color() {
-            let _ = write!(
-                legend,
-                "<button class=\"noted\" style=\"--c:{color}\" data-c=\"{color}\" data-noted=\"1\" title=\"That run has no multithreaded form of BLAKE3 official, so its one thread stands in where servil's cell uses threads.\">on one thread (that run lacks its threaded form)</button>"
-            );
-        }
     }
     let mut body = String::new();
     body.push_str("<div class=\"grid\"><table><thead><tr><th class=\"machine\"></th>");
@@ -538,7 +533,7 @@ pub fn html(rows: &[Row]) -> String {
             escape(&row.version)
         );
         for (column, picks) in &columns {
-            body.push_str("<td>");
+            let _ = write!(body, "<td data-col=\"{}\">", escape(column));
             for &i in picks {
                 let bars = &row.cells[i];
                 let point = point_of(&PICKS[i]);
@@ -587,7 +582,7 @@ pub fn html(rows: &[Row]) -> String {
                         b.gbps,
                         (100.0 * b.gbps / fastest).round(),
                         b.color,
-                        if b.note.is_empty() { "" } else { " class=\"noted\"" },
+                        "",
                         ""
                     );
                     let _ = n;
@@ -750,9 +745,10 @@ mod tests {
         assert_eq!(figure(1.0), "1.0×");
         assert_eq!(figure(9.96), "10.0×");
         assert_eq!(figure(12.4), "12×");
-        assert_eq!(speed(0.1234), "0.123 GB/s");
-        assert_eq!(speed(0.06834), "0.0683 GB/s");
-        assert_eq!(speed(23.46), "23.5 GB/s");
+        assert_eq!(speed(0.1234), "0.12 GB/s");
+        assert_eq!(speed(0.06834), "0.068 GB/s");
+        assert_eq!(speed(3.61), "3.6 GB/s");
+        assert_eq!(speed(23.46), "23 GB/s");
         assert_eq!(speed(159.4), "159 GB/s");
     }
 
@@ -819,8 +815,8 @@ mod tests {
             ),
         ];
         cells[6] = vec![
-            bar("BLAKE3 servil's b3sum", "#4c1d95", 30.0, ""),
-            bar("official b3sum", "#3b82f6", 10.0, ""),
+            bar("b3sum, BLAKE3 servil's", "#4c1d95", 30.0, ""),
+            bar("b3sum, official BLAKE3's", "#3b82f6", 10.0, ""),
             bar("md5sum", "#9ca3af", 1.5, ""),
         ];
         let vm = row("virt", true, PICKS.iter().map(|_| Vec::new()).collect());
@@ -836,16 +832,8 @@ mod tests {
         );
         assert!(page.contains("width:75%;background:#e07a45"));
         assert!(
-            page.contains("<span class=\"scale\">1.00 GB/s</span>"),
+            page.contains("<span class=\"scale\">1.0 GB/s</span>"),
             "the fastest's speed is the scale"
-        );
-        assert!(
-            page.contains("class=\"noted\""),
-            "a bar against a missing baseline is hatched"
-        );
-        assert!(
-            page.contains("data-noted=\"1\""),
-            "and the legend shows the hatching beside official's button"
         );
         assert!(
             page.contains("<tr class=\"vm\""),
@@ -862,7 +850,7 @@ mod tests {
             ["#7c3aed", "#4c1d95", "#3b82f6", "#e07a45", "#9ca3af"]
         );
         assert!(text(&rows).contains(
-            "files, 1000 files:                 30.0 GB/s BLAKE3 servil's b3sum; 10.0 GB/s official b3sum (3.0×); 1.50 GB/s md5sum (20×)"
+            "files, 1000 files:                 30 GB/s b3sum, BLAKE3 servil's; 10 GB/s b3sum, official BLAKE3's (3.0×); 1.5 GB/s md5sum (20×)"
         ));
     }
 

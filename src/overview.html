@@ -8,8 +8,6 @@ h1 { font-size: 20px; margin: 0 0 4px; }
 .legend button { font: 12px inherit; border: 1px solid #d1d5db; background: #fff; border-radius: 12px; padding: 3px 10px 3px 8px; cursor: pointer; }
 .legend button::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
 .legend button.off { opacity: .35; }
-.legend button.noted::before { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 2px, transparent 2px 5px); margin-left: -6px; border-radius: 0 2px 2px 0; }
-.legend button.noted { margin-left: -4px; border-left: none; border-radius: 0 12px 12px 0; }
 .legend label { color: #9ca3af; font-size: 12px; margin-left: 8px; }
 .grid { overflow-x: auto; }
 table { border-collapse: collapse; }
@@ -21,49 +19,66 @@ td.machine a { color: #4c1d95; text-decoration: none; } td.machine b { font-size
 td.machine span { display: block; color: #9ca3af; font-size: 12px; margin-top: 2px; }
 tr.yours td { background: #f5f3ff; }
 tr.vm { display: none; color: #6b7280; } body.show-vm tr.vm { display: table-row; }
-/* A pick: its point, its bars, and the fastest's speed as the scale at the
-   bars' end; two picks in a cell sit apart, a hairline between. */
+/* A pick: its point, its bars, and under them servil's speed over the
+   best of the others shown (the two bars compared are the ones drawn
+   full; the rest fade) and the fastest's speed as the bars' scale. */
 .pick { display: flex; align-items: flex-start; gap: 6px; padding: 5px 0; text-decoration: none; color: inherit; }
 .pick + .pick { border-top: 1px dashed #e5e7eb; }
 .pick .pt { width: 46px; color: #6b7280; font-size: 11px; text-align: right; white-space: nowrap; padding-top: 1px; }
 .pick.none { color: #d1d5db; font-size: 11px; }
 .chart { display: flex; flex-direction: column; }
 .bars { display: flex; flex-direction: column; gap: 2px; width: 96px; border-left: 1px solid #d1d5db; padding-left: 1px; }
-.bar { display: flex; align-items: center; gap: 4px; }
-.bars i { display: block; height: 7px; border-radius: 0 2px 2px 0; flex-shrink: 0; }
+.bar { display: flex; align-items: center; }
+.bars i { display: block; height: 7px; border-radius: 0 2px 2px 0; flex-shrink: 0; opacity: .45; }
+.bars i.cmp { opacity: 1; }
+.bar.off { display: none; }
 .under { display: flex; justify-content: space-between; margin-top: 1px; }
 .mult { font-style: normal; font-size: 10px; font-weight: 600; color: #4c1d95; white-space: nowrap; }
 .mult.slower { color: #b91c1c; }
-.bars i.noted { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 2px, transparent 2px 5px) !important; }
-.bar.off { display: none; }
 .scale { color: #9ca3af; font-size: 10px; white-space: nowrap; }
-.pick:hover .bars i { filter: brightness(.85); }
+.pick:hover .bars i.cmp { filter: brightness(.85); }
 #tip { position: fixed; pointer-events: none; background: #111827; color: #fff; font-size: 12px; padding: 6px 8px; border-radius: 6px; display: none; z-index: 10; box-sizing: border-box; max-width: min(34em, calc(100vw - 8px)); }
 #tip .row { padding-left: 1.2em; text-indent: -1.2em; }
 #tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
-.note, footer { color: #9ca3af; font-size: 12px; margin-top: 10px; max-width: 980px; }
+#tip .cmp { font-weight: 600; }
+footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
+/* A phone: one machine at a time, its columns as rows, each named. */
+@media (max-width: 700px) {
+  body { margin: 12px; }
+  table, tbody, tr, td { display: block; }
+  thead { display: none; }
+  tr { border-top: 2px solid #e5e7eb; margin-top: 10px; }
+  td { border-top: none; padding: 4px 0; }
+  td.machine { min-width: 0; padding-bottom: 6px; }
+  td[data-col]::before { content: attr(data-col); display: block; font-size: 12px; font-weight: 600; color: #6b7280; margin: 6px 0 2px; }
+  .bars { width: min(60vw, 240px); }
+  .pick .pt { width: 60px; }
+  #tip { pointer-events: auto; }
+}
 </style></head><body>
 <h1>How fast BLAKE3 servil runs, on each machine measured</h1>
-<p class="sub">A row is one machine; a column is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster; under them, servil's speed over the best of the others shown (×), and the fastest's speed, the bars' scale. Point at the bars for every figure, at a column's name for what it stands for; open a cell for its full chart on that machine's map.</p>
+<p class="sub">A row is one machine; a column is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster; under them, how many times faster servil ran than the best of the others (the two bars drawn full), and the fastest's speed, the bars' scale. Point at the bars (tap, on a phone) for every figure, at a column's name for what it stands for; open a cell for its full chart on that machine's map.</p>
 <div class="legend">@LEGEND@<label><input type="checkbox" id="vm"> show virtual machines</label></div>
 @BODY@
 <div id="tip"></div>
-<footer>Each bar is one run's mean, by the same rule as the map (<code>clocks::summary</code>), on a machine whose load reading is on its map; no verdict is drawn across runs. From <a href="https://github.com/johnservil/bench-hashes">johnservil/bench-hashes</a>, measuring <a href="https://github.com/johnservil/BLAKE3">johnservil/BLAKE3</a>; the cells shown are FROZEN.md's "The overview".</footer>
+<footer>Each bar is one run's mean, by the same rule as the map (<code>clocks::summary</code>), on a machine whose load reading is on its map; no verdict is drawn across runs. From <a href="https://github.com/johnservil/bench-hashes">johnservil/bench-hashes</a>, measuring <a href="https://github.com/devonjonte/BLAKE3">Devon Jonte's line of BLAKE3 servil</a>; the cells shown are FROZEN.md's "The overview".</footer>
 <script>
 (function () {
-  // The legend's buttons hide or show a hash's bars, as the map's do.
-  // Official's hatched twin governs the hatched (noted) bars alone, and
-  // official's own button the plain ones.
-  const sel = b => `.bars i[data-c="${CSS.escape(b.dataset.c)}"]` + (b.dataset.noted ? ".noted" : ":not(.noted)");
+  const sel = b => `.bars i[data-c="${CSS.escape(b.dataset.c)}"]`;
   const hidden = i => i.closest(".bar").classList.contains("off");
-  // The multiplier: servil's speed over the best competitor still shown.
+  const fmt = g => { if (g <= 0) return "0 GB/s"; const d = Math.max(0, 1 - Math.floor(Math.log10(g))); return g.toFixed(d) + " GB/s"; };
+  const times = m => "×" + (m >= 10 ? m.toFixed(0) : m.toFixed(1));
+  // The multiplier: servil's speed over the best competitor still shown;
+  // those two bars are drawn full, the others faded.
   const multipliers = () => {
     for (const bars of document.querySelectorAll(".bars")) {
-      const is = [...bars.querySelectorAll("i")].filter(i => !hidden(i)), ours = bars.querySelector("i");
-      const best = Math.max(...is.filter(i => i !== ours).map(i => +i.dataset.g));
-      const m = +ours.dataset.g / best, em = bars.parentElement.querySelector(".mult");
-      em.textContent = isFinite(m) && !hidden(ours) ? "×" + (m >= 10 ? m.toFixed(0) : m.toFixed(1)) : "";
-      em.classList.toggle("slower", isFinite(m) && m < 0.95);
+      const is = [...bars.querySelectorAll("i")], ours = is[0], shown = is.filter(i => !hidden(i));
+      const others = shown.filter(i => i !== ours);
+      const best = others.reduce((b, i) => (!b || +i.dataset.g > +b.dataset.g ? i : b), null);
+      for (const i of is) i.classList.toggle("cmp", i === ours && best !== null || i === best);
+      const em = bars.parentElement.querySelector(".mult"), m = best ? +ours.dataset.g / +best.dataset.g : NaN;
+      em.textContent = best && !hidden(ours) ? times(m) : "";
+      em.classList.toggle("slower", best !== null && m < 0.95);
     }
   };
   multipliers();
@@ -72,22 +87,30 @@ tr.vm { display: none; color: #6b7280; } body.show-vm tr.vm { display: table-row
     for (const i of document.querySelectorAll(sel(b))) i.closest(".bar").classList.toggle("off", off);
     multipliers();
   });
-  // The tooltip: a pick's hashes, each with its speed and servil's over it.
+  // The tooltip: each hash shown, its speed, and servil's over it; the two
+  // compared in bold. Follows the pointer; on a touch screen a tap shows
+  // it and a second tap on the same cell opens the map.
   const tip = document.getElementById("tip");
+  let tapped = null;
+  const show = (p, x, y) => {
+    const is = [...p.querySelectorAll(".bars i")], lines = p.dataset.tip.split("\n").map(l => l.split("\t"));
+    const ours = +lines[0][3];
+    const rows = lines.map(([c, name, note, g], k) => hidden(is[k]) ? "" : `<div class="row${is[k].classList.contains("cmp") ? " cmp" : ""}"><span class="sw" style="background:${c}"></span>${name}: ${fmt(+g)}${k ? ` · servil ${times(ours / g)}` : ""}${note ? ` (${note})` : ""}</div>`);
+    tip.innerHTML = `<b>${p.dataset.head}</b>` + rows.join("");
+    tip.style.display = "block"; tip.style.left = "0px";
+    tip.style.left = Math.max(4, Math.min(x + 14, innerWidth - tip.offsetWidth - 4)) + "px";
+    tip.style.top = Math.max(4, Math.min(y + 10, innerHeight - tip.offsetHeight - 4)) + "px";
+  };
   for (const p of document.querySelectorAll(".pick[data-tip]")) {
-    p.addEventListener("mousemove", e => {
-      // Each hash shown, its speed, and servil's over it; hidden ones left out.
-      const is = [...p.querySelectorAll(".bars i")], lines = p.dataset.tip.split("\n").map(l => l.split("\t"));
-      const fmt = g => (g >= 100 ? g.toFixed(0) : g >= 10 ? g.toFixed(1) : g >= 1 ? g.toFixed(2) : g >= 0.1 ? g.toFixed(3) : g.toFixed(4)) + " GB/s";
-      const ours = +lines[0][3];
-      const rows = lines.map(([c, name, note, g], k) => hidden(is[k]) ? "" : `<div class="row"><span class="sw" style="background:${c}"></span>${name}: ${fmt(+g)}${k ? ` · servil ${(ours / g) >= 10 ? (ours / g).toFixed(0) : (ours / g).toFixed(1)}× its speed` : ""}${note ? ` (${note})` : ""}</div>`);
-      tip.innerHTML = `<b>${p.dataset.head}</b>` + rows.join("");
-      tip.style.display = "block"; tip.style.left = "0px";
-      tip.style.left = Math.max(4, Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 4)) + "px";
-      tip.style.top = Math.max(4, Math.min(e.clientY + 10, innerHeight - tip.offsetHeight - 4)) + "px";
-    });
+    p.addEventListener("mousemove", e => show(p, e.clientX, e.clientY));
     p.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+    p.addEventListener("click", e => {
+      if (!matchMedia("(hover: none)").matches) return;
+      if (tapped === p) return;
+      e.preventDefault(); tapped = p; show(p, e.clientX, e.clientY);
+    });
   }
+  document.addEventListener("click", e => { if (!e.target.closest(".pick")) { tip.style.display = "none"; tapped = null; } });
   // A guess at the reader's kind of machine, lit and marked "yours?", nothing more.
   const apple = /Macintosh|iPhone|iPad/.test(navigator.userAgent);
   const row = document.querySelector(`tr[data-arch="${apple ? "apple" : "x86"}"]:not(.vm)`);
