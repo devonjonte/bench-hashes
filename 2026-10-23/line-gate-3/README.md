@@ -26,3 +26,11 @@ inserted outside any function: the cases a compiled fingerprint would
 narrow). `replay-select.sh` is the replay.
 
 `replay-select-5-names.stdout.txt`: with names (a changed use/const/type selects the tests that ran a line naming it): the same 10 everything, since the two `use` cases are a glob (`use super::*`) and a file not compiled on x86; the latter is skipped as of 38a65b1+1.
+
+## The finish handshake under Loom (line 35229f1)
+
+- `gate7-suites.stdout.txt`: every suite and the Loom test on `baf19be`.
+- `gate7-check.*`: `bench-hashes check --against 1232ed8`: 308 cells, no cell slower (one pair rerun for a busy window).
+- `gate8-mutants.stdout.txt`: finish.rs not yet on a `files:` line: the Source::finished/wait rows gone with the code.
+- `gate9-mutants.stdout.txt`: `--write` with the Loom pass (18 of finish.rs's mutants, 13 caught, 5 missed) and the suite.
+- `gate10-mutants.stdout.txt`: the suite and Loom combined: 660 survive each explained; finish.rs's two Loom-passing mutants are the suite's time-outs, moved there with reasons after the run (exit 2 on that placement alone).
