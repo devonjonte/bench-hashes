@@ -1,7 +1,7 @@
 # Devon's line: the mutation-test landing (October 23, 2026)
 
-devonjonte/BLAKE3 `servil` from `9963ce09` to `0b2c4a7`-ish (see the
-line): reach.py, hangs.txt folded into the time-outs list, six time-outs
+devonjonte/BLAKE3 `servil` from `9963ce09` to `a112b48`: John's servil `8e968d5` plus the
+landings there: reach.py, hangs.txt folded into the time-outs list, six time-outs
 made failures, one new test, lists.
 
 - `gate3-mutants.*`: `check.py --write` on HEAD `9963ce09` with the skip
