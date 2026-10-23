@@ -1,0 +1,240 @@
+Found 357 mutants to test
+Found 357 mutants to test
+Found 357 mutants to test
+Found 353 mutants to test
+Found 357 mutants to test
+Found 357 mutants to test
+FAILED   Unmutated baseline in 20s build
+
+*** baseline
+
+*** /home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo nextest run --no-run --cargo-profile=mutants --verbose --package=blake3-servil@0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5 --features=serde,zeroize
+    Updating crates.io index
+    Blocking waiting for file lock on package cache
+     Locking 53 packages to latest Rust 1.98.1 compatible versions
+      Adding constant_time_eq v0.4.2 (available: v0.6.1)
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.27
+   Compiling quote v1.0.47
+   Compiling cfg-if v1.0.5
+   Compiling serde_core v1.0.229
+   Compiling libc v0.2.191
+   Compiling typenum v1.20.1
+   Compiling zerocopy v0.8.63
+   Compiling rand_core v0.10.1
+   Compiling find-msvc-tools v0.1.15
+   Compiling serde v1.0.229
+   Compiling shlex v2.0.1
+   Compiling getrandom v0.4.3
+   Compiling rustix v1.1.5
+   Compiling zmij v1.0.23
+   Compiling cmov v0.5.4
+   Compiling serde_json v1.0.154
+   Compiling bitflags v2.13.2
+   Compiling linux-raw-sys v0.12.1
+   Compiling zeroize v1.9.1
+   Compiling cpufeatures v0.3.1
+   Compiling ciborium-io v0.2.2
+   Compiling memchr v2.8.3
+   Compiling constant_time_eq v0.4.2
+   Compiling chacha20 v0.10.2
+   Compiling fastrand v2.5.0
+   Compiling cc v1.9.0
+   Compiling arrayvec v0.7.8
+   Compiling itoa v1.0.18
+   Compiling once_cell v1.21.4
+   Compiling clocks v0.1.0 (/tmp/mutants-9k4bz8sq/clocks)
+   Compiling hex v0.4.3
+   Compiling reference_impl v0.0.0 (/tmp/mutants-9k4bz8sq/reference_impl)
+   Compiling ctutils v0.4.4
+   Compiling syn v2.0.119
+   Compiling syn v3.0.9
+   Compiling hybrid-array v0.4.15
+   Compiling block-buffer v0.12.1
+   Compiling crypto-common v0.2.2
+   Compiling blake3-servil v0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5 (/tmp/mutants-9k4bz8sq)
+   Compiling rand v0.10.3
+   Compiling digest v0.11.3
+   Compiling hmac v0.13.0
+   Compiling serde_derive v1.0.229
+   Compiling tempfile v3.27.0
+   Compiling zerocopy-derive v0.8.63
+error: linking with `cc` failed: exit status: 1
+  |
+  = note:  "cc" "-Wl,--version-script=/tmp/mutants-9k4bz8sq/target/mutants/deps/rustc0A8hyj/list" "-Wl,--no-undefined-version" "-m64" "/tmp/mutants-9k4bz8sq/target/mutants/deps/rustc0A8hyj/symbols.o" "<16 object files omitted>" "/tmp/mutants-9k4bz8sq/target/mutants/deps/rustc0A8hyj/rmeta.o" "<1 object files omitted>" "-Wl,--as-needed" "-Wl,-Bstatic" "/tmp/mutants-9k4bz8sq/target/mutants/deps/{libsyn-fe783ebd201c1ee8,libquote-4ed3fa57487a4f6b,libproc_macro2-be08e8c4ffecbcfa,libunicode_ident-0f7f34ee84026add}.rlib" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib/{libproc_macro-*,librustc_literal_escaper-*,libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-Wl,-Bdynamic" "-lgcc_s" "-lutil" "-lrt" "-lpthread" "-lm" "-ldl" "-lc" "-L" "/tmp/mutants-9k4bz8sq/target/mutants/deps/rustc0A8hyj/raw-dylibs" "-B<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/bin/gcc-ld" "-fuse-ld=lld" "-Wl,--eh-frame-hdr" "-Wl,-z,noexecstack" "-L" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib" "-o" "/tmp/mutants-9k4bz8sq/target/mutants/deps/libzerocopy_derive-c44abd6ad913830a.so" "-Wl,--gc-sections" "-shared" "-Wl,-z,relro,-z,now" "-Wl,--strip-debug" "-nodefaultlibs"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: terminate called after throwing an instance of 'std::system_error'
+            what():  Resource temporarily unavailable
+          PLEASE submit a bug report to https://github.com/llvm/llvm-project/issues/ and include the crash backtrace and instructions to reproduce the bug.
+          Stack dump without symbol names (ensure you have llvm-symbolizer in your PATH or set the environment var `LLVM_SYMBOLIZER_PATH` to point to it):
+          0  libLLVM.so.22.1-rust-1.98.1-stable 0x00007cb701f42337 llvm::sys::PrintStackTrace(llvm::raw_ostream&, int) + 39
+          1  libLLVM.so.22.1-rust-1.98.1-stable 0x00007cb701f42c2d
+          2  libc.so.6                          0x00007cb6fbc45cb0
+          3  libc.so.6                          0x00007cb6fbca61ac pthread_kill + 284
+          4  libc.so.6                          0x00007cb6fbc45b7e gsignal + 30
+          5  libc.so.6                          0x00007cb6fbc288ec abort + 39
+          6  libLLVM.so.22.1-rust-1.98.1-stable 0x00007cb701dd0ca5 __gnu_cxx::__verbose_terminate_handler() + 245
+          7  libLLVM.so.22.1-rust-1.98.1-stable 0x00007cb701dd0406 __cxxabiv1::__terminate(void (*)()) + 6
+          8  libLLVM.so.22.1-rust-1.98.1-stable 0x00007cb701dd0471
+          9  libLLVM.so.22.1-rust-1.98.1-stable 0x00007cb701dd05c5
+          10 libLLVM.so.22.1-rust-1.98.1-stable 0x00007cb701bb9bc5 std::__throw_system_error(int) + 129
+          11 libLLVM.so.22.1-rust-1.98.1-stable 0x00007cb701e4f849
+          12 libLLVM.so.22.1-rust-1.98.1-stable 0x00007cb701eea26c
+          13 libLLVM.so.22.1-rust-1.98.1-stable 0x00007cb701ee9cdf
+          14 libLLVM.so.22.1-rust-1.98.1-stable 0x00007cb701e4f5b0
+          15 libc.so.6                          0x00007cb6fbca3dfa
+          16 libc.so.6                          0x00007cb6fbd375cc
+          collect2: fatal error: ld terminated with signal 6 [Aborted]
+          compilation terminated.
+          
+
+error: could not compile `zerocopy-derive` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: command `/home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo '--color=auto' test --no-run --message-format json-render-diagnostics --package blake3-servil@0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5 --features serde,zeroize --profile mutants` exited with code 101
+
+*** result: Failure(101)
+
+FAILED   Unmutated baseline in 27s build
+
+*** baseline
+
+*** /home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo nextest run --no-run --cargo-profile=mutants --verbose --package=blake3-servil@0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5 --features=serde,zeroize
+    Blocking waiting for file lock on package cache
+    Updating crates.io index
+    Blocking waiting for file lock on package cache
+     Locking 53 packages to latest Rust 1.98.1 compatible versions
+      Adding constant_time_eq v0.4.2 (available: v0.6.1)
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.27
+   Compiling quote v1.0.47
+   Compiling cfg-if v1.0.5
+   Compiling serde_core v1.0.229
+   Compiling libc v0.2.191
+   Compiling typenum v1.20.1
+   Compiling zerocopy v0.8.63
+   Compiling serde v1.0.229
+   Compiling shlex v2.0.1
+   Compiling rand_core v0.10.1
+   Compiling getrandom v0.4.3
+   Compiling find-msvc-tools v0.1.15
+   Compiling zmij v1.0.23
+   Compiling rustix v1.1.5
+   Compiling cmov v0.5.4
+   Compiling serde_json v1.0.154
+   Compiling zeroize v1.9.1
+   Compiling cpufeatures v0.3.1
+   Compiling ciborium-io v0.2.2
+   Compiling linux-raw-sys v0.12.1
+   Compiling bitflags v2.13.2
+   Compiling fastrand v2.5.0
+   Compiling once_cell v1.21.4
+   Compiling constant_time_eq v0.4.2
+   Compiling itoa v1.0.18
+   Compiling arrayvec v0.7.8
+   Compiling memchr v2.8.3
+   Compiling chacha20 v0.10.2
+   Compiling hex v0.4.3
+   Compiling cc v1.9.0
+   Compiling clocks v0.1.0 (/tmp/mutants-tka6je7_/clocks)
+   Compiling reference_impl v0.0.0 (/tmp/mutants-tka6je7_/reference_impl)
+   Compiling ctutils v0.4.4
+   Compiling hybrid-array v0.4.15
+   Compiling syn v2.0.119
+   Compiling syn v3.0.9
+   Compiling blake3-servil v0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5 (/tmp/mutants-tka6je7_)
+   Compiling crypto-common v0.2.2
+   Compiling block-buffer v0.12.1
+   Compiling rand v0.10.3
+   Compiling zerocopy-derive v0.8.63
+   Compiling digest v0.11.3
+   Compiling hmac v0.13.0
+   Compiling serde_derive v1.0.229
+   Compiling tempfile v3.27.0
+   Compiling half v2.7.1
+   Compiling ciborium-ll v0.2.2
+   Compiling ciborium v0.2.2
+error: linking with `cc` failed: exit status: 1
+  |
+  = note:  "cc" "-m64" "/tmp/mutants-tka6je7_/target/mutants/deps/rustcman6Uz/symbols.o" "<6 object files omitted>" "-Wl,--as-needed" "-Wl,-Bstatic" "/tmp/mutants-tka6je7_/target/mutants/deps/{libblake3_servil-9b095df24543c6cc,libconstant_time_eq-f35217fb16770689,libserde-38a8c1ffe4ffe0f2,libserde_core-a063b13d9cb9a5b1,libcfg_if-7b8f778351493918,libarrayvec-a4562dc28b64c916,libzeroize-026a71c82e450446}.rlib" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib/{libtest-*,libgetopts-*,librustc_std_workspace_std-*,libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-Wl,-Bdynamic" "-lgcc_s" "-lutil" "-lrt" "-lpthread" "-lm" "-ldl" "-lc" "-L" "/tmp/mutants-tka6je7_/target/mutants/deps/rustcman6Uz/raw-dylibs" "-B<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/bin/gcc-ld" "-fuse-ld=lld" "-Wl,--eh-frame-hdr" "-Wl,-z,noexecstack" "-L" "/tmp/mutants-tka6je7_/target/mutants/build/blake3-servil-1847104f26fc953b/out" "-L" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib" "-o" "/tmp/mutants-tka6je7_/target/mutants/deps/initialize_multithreaded_contract-d7a32674678e7665" "-Wl,--gc-sections" "-pie" "-Wl,-z,relro,-z,now" "-Wl,-O1" "-Wl,--strip-debug" "-nodefaultlibs"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: terminate called after throwing an instance of 'std::system_error'
+            what():  Resource temporarily unavailable
+          PLEASE submit a bug report to https://github.com/llvm/llvm-project/issues/ and include the crash backtrace and instructions to reproduce the bug.
+          Stack dump without symbol names (ensure you have llvm-symbolizer in your PATH or set the environment var `LLVM_SYMBOLIZER_PATH` to point to it):
+          0  libLLVM.so.22.1-rust-1.98.1-stable 0x000070f89af42337 llvm::sys::PrintStackTrace(llvm::raw_ostream&, int) + 39
+          1  libLLVM.so.22.1-rust-1.98.1-stable 0x000070f89af42c2d
+          2  libc.so.6                          0x000070f894c45cb0
+          3  libc.so.6                          0x000070f894ca61ac pthread_kill + 284
+          4  libc.so.6                          0x000070f894c45b7e gsignal + 30
+          5  libc.so.6                          0x000070f894c288ec abort + 39
+          6  libLLVM.so.22.1-rust-1.98.1-stable 0x000070f89add0ca5 __gnu_cxx::__verbose_terminate_handler() + 245
+          7  libLLVM.so.22.1-rust-1.98.1-stable 0x000070f89add0406 __cxxabiv1::__terminate(void (*)()) + 6
+          8  libLLVM.so.22.1-rust-1.98.1-stable 0x000070f89add0471
+          9  libLLVM.so.22.1-rust-1.98.1-stable 0x000070f89add05c5
+          10 libLLVM.so.22.1-rust-1.98.1-stable 0x000070f89abb9bc5 std::__throw_system_error(int) + 129
+          11 libLLVM.so.22.1-rust-1.98.1-stable 0x000070f89ae4f849
+          12 libLLVM.so.22.1-rust-1.98.1-stable 0x000070f89aeea26c
+          13 libLLVM.so.22.1-rust-1.98.1-stable 0x000070f89aee9cdf
+          14 libLLVM.so.22.1-rust-1.98.1-stable 0x000070f89ae4f5b0
+          15 libc.so.6                          0x000070f894ca3dfa
+          16 libc.so.6                          0x000070f894d375cc
+          collect2: fatal error: ld terminated with signal 6 [Aborted]
+          compilation terminated.
+          
+
+error: could not compile `blake3-servil` (test "initialize_multithreaded_contract") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: linking with `cc` failed: exit status: 1
+  |
+  = note:  "cc" "-m64" "/tmp/mutants-tka6je7_/target/mutants/deps/rustcIMKAAw/symbols.o" "<36 object files omitted>" "-Wl,--as-needed" "-Wl,-Bstatic" "/tmp/mutants-tka6je7_/target/mutants/deps/libreference_impl-1da7850142c793d7.rlib" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib/{libtest-*,libgetopts-*,librustc_std_workspace_std-*}.rlib" "/tmp/mutants-tka6je7_/target/mutants/deps/{libblake3_servil-9b095df24543c6cc,libconstant_time_eq-f35217fb16770689,libserde-38a8c1ffe4ffe0f2,libserde_core-a063b13d9cb9a5b1,libcfg_if-7b8f778351493918,libarrayvec-a4562dc28b64c916,libzeroize-026a71c82e450446}.rlib" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-Wl,-Bdynamic" "-lgcc_s" "-lutil" "-lrt" "-lpthread" "-lm" "-ldl" "-lc" "-L" "/tmp/mutants-tka6je7_/target/mutants/deps/rustcIMKAAw/raw-dylibs" "-B<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/bin/gcc-ld" "-fuse-ld=lld" "-Wl,--eh-frame-hdr" "-Wl,-z,noexecstack" "-L" "/tmp/mutants-tka6je7_/target/mutants/build/blake3-servil-1847104f26fc953b/out" "-L" "<sysroot>/lib/rustlib/x86_64-unknown-linux-gnu/lib" "-o" "/tmp/mutants-tka6je7_/target/mutants/deps/stream_collect_one_worker-e2d4e779660911a6" "-Wl,--gc-sections" "-pie" "-Wl,-z,relro,-z,now" "-Wl,-O1" "-Wl,--strip-debug" "-nodefaultlibs"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: terminate called after throwing an instance of 'std::system_error'
+            what():  Resource temporarily unavailable
+          PLEASE submit a bug report to https://github.com/llvm/llvm-project/issues/ and include the crash backtrace and instructions to reproduce the bug.
+          Stack dump without symbol names (ensure you have llvm-symbolizer in your PATH or set the environment var `LLVM_SYMBOLIZER_PATH` to point to it):
+          0  libLLVM.so.22.1-rust-1.98.1-stable 0x00007a0155342337 llvm::sys::PrintStackTrace(llvm::raw_ostream&, int) + 39
+          1  libLLVM.so.22.1-rust-1.98.1-stable 0x00007a0155342c2d
+          2  libc.so.6                          0x00007a014f045cb0
+          3  libc.so.6                          0x00007a014f0a61ac pthread_kill + 284
+          4  libc.so.6                          0x00007a014f045b7e gsignal + 30
+          5  libc.so.6                          0x00007a014f0288ec abort + 39
+          6  libLLVM.so.22.1-rust-1.98.1-stable 0x00007a01551d0ca5 __gnu_cxx::__verbose_terminate_handler() + 245
+          7  libLLVM.so.22.1-rust-1.98.1-stable 0x00007a01551d0406 __cxxabiv1::__terminate(void (*)()) + 6
+          8  libLLVM.so.22.1-rust-1.98.1-stable 0x00007a01551d0471
+          9  libLLVM.so.22.1-rust-1.98.1-stable 0x00007a01551d05c5
+          10 libLLVM.so.22.1-rust-1.98.1-stable 0x00007a0154fb9bc5 std::__throw_system_error(int) + 129
+          11 libLLVM.so.22.1-rust-1.98.1-stable 0x00007a015524f849
+          12 libLLVM.so.22.1-rust-1.98.1-stable 0x00007a01552ea26c
+          13 libLLVM.so.22.1-rust-1.98.1-stable 0x00007a01552e9cdf
+          14 libLLVM.so.22.1-rust-1.98.1-stable 0x00007a015524f5b0
+          15 libc.so.6                          0x00007a014f0a3dfa
+          16 libc.so.6                          0x00007a014f1375cc
+          collect2: fatal error: ld terminated with signal 6 [Aborted]
+          compilation terminated.
+          
+
+error: could not compile `blake3-servil` (test "stream_collect_one_worker") due to 1 previous error
+error: command `/home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo '--color=auto' test --no-run --message-format json-render-diagnostics --package blake3-servil@0.3.0+2e4fa821f9db07b945dbb2b0d02eb76cb19617b5 --features serde,zeroize --profile mutants` exited with code 101
+
+*** result: Failure(101)
+
+ok       Unmutated baseline in 29s build + 1s test
+ok       Unmutated baseline in 29s build + 1s test
+ok       Unmutated baseline in 29s build + 1s test
+ok       Unmutated baseline in 29s build + 1s test
+MISSED   src/lanes.rs:278:43: replace < with == in hash_each in 0s build + 1s test
+MISSED   src/many.rs:136:5: replace sme2_chunked_min -> usize with 1 in 0s build + 1s test
+MISSED   src/many.rs:143:5: replace chunked -> bool with false in 1s build + 1s test
+MISSED   src/lanes.rs:747:21: replace > with == in Pool::wake_for in 1s build + 1s test
+357 mutants tested in 7m: 2 missed, 355 unviable
+353 mutants tested in 8m: 353 unviable
+357 mutants tested in 9m: 357 unviable
