@@ -5038,7 +5038,11 @@ fn calibrate_batch(algorithm: Algorithm, input: &[u8], point: Point) -> (usize, 
 /// The samples file's first line and its column row, which the reader
 /// (read_samples) requires: a file in another format is read with the
 /// tools of the commit that wrote it.
-const SAMPLES_VERSION: &str = "# bench-hashes samples v6";
+/// The samples format, and with it the rule the samples were taken under:
+/// v7 marks samples that 0.17's summary reads with the declared trim, so a
+/// comparison between files can tell the rule each was collected and read
+/// under by this line alone (Zooko, October 23). The columns are v6's.
+const SAMPLES_VERSION: &str = "# bench-hashes samples v7";
 const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts";
 
 /// A row's `core counts` field: each sample's calling-thread counts per
@@ -6552,7 +6556,7 @@ mod correctness_tests {
             },
         ];
         let tsv = generate_samples_tsv(&roster, &samples, &machine, "test");
-        assert!(tsv.starts_with("# bench-hashes samples v6\n"));
+        assert!(tsv.starts_with("# bench-hashes samples v7\n"));
         // The main run's own file carries the shared provenance first.
         assert_eq!(
             &harness_tests::header_keys(&tsv)[..harness_tests::PROVENANCE.len()],
