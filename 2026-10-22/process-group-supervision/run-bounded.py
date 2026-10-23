@@ -2,16 +2,25 @@
 """Bound a Unix process group, retain logs, and capture timeout stacks.
 
 This supervises process liveness; benchmark timing remains in clocks.
-Usage: run-bounded.py SECONDS LOG_PREFIX COMMAND [ARG...]
+Usage: run-bounded.py [--beside] SECONDS LOG_PREFIX COMMAND [ARG...]
 Run with CPython on a Unix exposing waitid/WNOWAIT (PyPy lacks waitid).
 Keep the leader unreaped until its group is killed,
 so its PID/group ID stays reserved throughout cleanup.
+
+One heavy job at a time: the machine has 14 GiB, and two jobs that each
+fit alone (a six-shard mutation check and the z3 proof helpers, October
+22, 23:03) took the whole sandbox down together. A run holds LOCK while
+it lives; a second run refuses to start, naming the first, unless given
+--beside, a deliberate choice for a job known to be light.
 """
+import fcntl
 import os
 from pathlib import Path
 import signal
 import subprocess
 import sys
+
+LOCK = Path('/home/agent/bench-hashes-validation/.run-bounded.lock')
 
 
 def stop_group(child):
@@ -24,12 +33,27 @@ def stop_group(child):
 
 
 assert hasattr(os, 'waitid') and hasattr(os, 'WNOWAIT'), 'run with CPython python3 on a Unix with waitid/WNOWAIT'
-seconds = int(sys.argv[1])
+beside = sys.argv[1] == '--beside'
+arguments = sys.argv[2:] if beside else sys.argv[1:]
+seconds = int(arguments[0])
 assert seconds > 0, 'the process-group deadline must be positive'
-prefix = Path(sys.argv[2])
+prefix = Path(arguments[1])
+command = arguments[2:]
 prefix.parent.mkdir(parents=True, exist_ok=True)
+lock = LOCK.open('a+')
+if not beside:
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock.seek(0)
+        sys.exit(f'another bounded job is running ({lock.read().strip()}); one heavy job at a time on this machine. '
+                 'Wait for it, or pass --beside for a job known to be light.')
+    lock.seek(0)
+    lock.truncate()
+    lock.write(f'pid {os.getpid()}, logs {prefix}, started {__import__("time").strftime("%H:%M:%S UTC", __import__("time").gmtime())}')
+    lock.flush()
 with prefix.with_suffix('.stdout.txt').open('w') as stdout, prefix.with_suffix('.stderr.txt').open('w') as stderr:
-    child = subprocess.Popen(sys.argv[3:], stdout=stdout, stderr=stderr, start_new_session=True)
+    child = subprocess.Popen(command, stdout=stdout, stderr=stderr, start_new_session=True)
     try:
         def interrupted(number, _frame):
             print(f'Signal {number}; terminating the owned process group.', flush=True)

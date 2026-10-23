@@ -48,3 +48,14 @@ python3 test-run-bounded.py ./run-bounded-before-unreaped.py ./repro-original
 The first exits0 and the second exits1. Each fixture checks both leader and
 descendant; supervisor signals are tested independently of leader signals.
 The timeout test allows the existing separately bounded gdb stack capture.
+
+## October 23: one heavy job at a time
+
+At 23:03 on October 22 the sandbox was killed for memory: a six-shard
+mutation check (BLAKE3 #133 on the i7) ran beside the z3 proof helpers,
+each of which fits the 14 GiB machine alone. `run-bounded.py` now holds a
+lock file while a job runs and refuses a second job, naming the first;
+`--beside` starts one anyway, for a job known to be light. The six
+ownership checks here are rerun with the locking supervisor (same names,
+regenerated); `run-bounded.py` is the current file. SHA-256 and BLAKE3 of
+it are in the manifests.
