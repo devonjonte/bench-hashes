@@ -613,19 +613,12 @@ pub fn html(rows: &[Row]) -> String {
 /// directory. Refuses runs of different benchmark releases: one release's
 /// cells mean the same across machines.
 pub fn rows(results: &Path, base: &Path) -> Vec<Row> {
-    let mut dirs: Vec<_> = std::fs::read_dir(results)
-        .unwrap_or_else(|e| panic!("cannot read {}: {e}", results.display()))
-        .map(|entry| entry.expect("a directory entry").path())
-        .filter(|p| {
-            p.join("bench-hashes.samples.tsv").exists() || p.join("b3sum.samples.tsv").exists()
-        })
-        .collect();
+    let dirs = results_dirs(results);
     assert!(
         !dirs.is_empty(),
         "{} holds no results directory with a samples file",
         results.display()
     );
-    dirs.sort();
     let rows: Vec<Row> = dirs
         .iter()
         .map(|dir| {
@@ -638,21 +631,79 @@ pub fn rows(results: &Path, base: &Path) -> Vec<Row> {
             row(dir, link)
         })
         .collect();
-    let versions: Vec<&str> =
-        rows.iter()
-            .map(|r| r.version.as_str())
-            .fold(Vec::new(), |mut v, x| {
-                if !v.contains(&x) {
-                    v.push(x);
-                }
-                v
-            });
     assert!(
-        versions.len() == 1,
+        releases(&rows).len() == 1,
         "the runs are of different benchmark releases ({}); the overview draws one release's runs, so their cells mean the same",
-        versions.join(", ")
+        releases(&rows).join(", ")
     );
     rows
+}
+
+/// The benchmark releases among the rows, each once.
+fn releases(rows: &[Row]) -> Vec<&str> {
+    rows.iter()
+        .map(|r| r.version.as_str())
+        .fold(Vec::new(), |mut v, x| {
+            if !v.contains(&x) {
+                v.push(x);
+            }
+            v
+        })
+}
+
+/// The results directories under `results` that hold a samples file, in
+/// name order.
+fn results_dirs(results: &Path) -> Vec<std::path::PathBuf> {
+    let mut dirs: Vec<_> = std::fs::read_dir(results)
+        .unwrap_or_else(|e| panic!("cannot read {}: {e}", results.display()))
+        .map(|entry| entry.expect("a directory entry").path())
+        .filter(|p| {
+            p.join("bench-hashes.samples.tsv").exists() || p.join("b3sum.samples.tsv").exists()
+        })
+        .collect();
+    dirs.sort();
+    dirs
+}
+
+/// After a run into `directory` (`benchmark-results/<machine>`): redraw
+/// the overview beside it, `index.html` in the directory above the
+/// results, so a run keeps the front page current. Where the published
+/// runs are of another release than this one, the page is left as it is
+/// and says why: one release's runs make one page.
+pub fn refresh(directory: &Path) {
+    let Some(results) = directory.parent().filter(|p| !p.as_os_str().is_empty()) else {
+        return;
+    };
+    let base = results.parent().unwrap_or(Path::new(""));
+    let index = base.join("index.html");
+    if !index.exists() {
+        return;
+    }
+    let rows: Vec<Row> = results_dirs(results)
+        .iter()
+        .map(|dir| {
+            row(
+                dir,
+                dir.strip_prefix(base)
+                    .unwrap_or(dir)
+                    .to_str()
+                    .expect("a path in UTF-8")
+                    .to_owned(),
+            )
+        })
+        .collect();
+    let releases = releases(&rows);
+    if releases.len() != 1 {
+        println!(
+            "# The overview ({}) is not redrawn: the results are of different benchmark releases ({}); rerun the others, or draw it from one release's runs.",
+            index.display(),
+            releases.join(", ")
+        );
+        return;
+    }
+    std::fs::write(&index, html(&rows))
+        .unwrap_or_else(|e| panic!("cannot write {}: {e}", index.display()));
+    println!("# Overview (HTML) is in \"{}\" .", index.display());
 }
 
 /// `bench-hashes overview OUT.html RESULTS`: write the page from every
@@ -827,6 +878,48 @@ mod tests {
             have == want,
             "index.html is stale: run `bench-hashes overview index.html benchmark-results`"
         );
+    }
+
+    /// A run redraws the overview above its results directory, and leaves
+    /// it alone, saying why, when the results are of different releases.
+    #[test]
+    fn a_run_refreshes_the_overview_above_its_results() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let site = std::env::temp_dir().join(format!("overview-refresh-{}", std::process::id()));
+        let results = site.join("benchmark-results");
+        std::fs::create_dir_all(&results).unwrap();
+        let mut copied = Vec::new();
+        for dir in results_dirs(&root.join("benchmark-results")) {
+            let to = results.join(dir.file_name().unwrap());
+            std::fs::create_dir(&to).unwrap();
+            for file in ["bench-hashes.samples.tsv", "b3sum.samples.tsv"] {
+                if dir.join(file).exists() {
+                    std::fs::copy(dir.join(file), to.join(file)).unwrap();
+                }
+            }
+            copied.push(to);
+        }
+        std::fs::write(site.join("index.html"), "stale").unwrap();
+        refresh(&copied[0]);
+        let drawn = std::fs::read_to_string(site.join("index.html")).unwrap();
+        assert_eq!(
+            drawn,
+            html(&rows(&results, &site)),
+            "the page above the results is redrawn"
+        );
+        // Another release among the results: the page stays.
+        let samples = copied[0].join("bench-hashes.samples.tsv");
+        let text = std::fs::read_to_string(&samples)
+            .unwrap()
+            .replace("# bench-hashes version: 0.", "# bench-hashes version: 9.");
+        std::fs::write(&samples, text).unwrap();
+        std::fs::write(site.join("index.html"), "kept").unwrap();
+        refresh(&copied[0]);
+        assert_eq!(
+            std::fs::read_to_string(site.join("index.html")).unwrap(),
+            "kept"
+        );
+        std::fs::remove_dir_all(&site).unwrap();
     }
 
     #[test]

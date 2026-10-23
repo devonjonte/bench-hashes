@@ -145,8 +145,9 @@ samples as it reads the hashes'; `bench-hashes map FOLDER` draws a
 folder's map again from its samples files; `bench-hashes overview
 index.html benchmark-results` draws the overview (the site's front page)
 from every folder's samples files, each figure by the same rule as the
-maps, and a test fails while index.html is stale; FROZEN.md's "The
-overview" names its representative cells.
+maps; a run redraws it too, beside its own map, and a test fails while
+index.html is stale. FROZEN.md's "The overview" names its representative
+cells.
 
 To see two runs side by side (before and after a change, or two
 releases), `bench-hashes map NEW_FOLDER --beside OLD_FOLDER` writes

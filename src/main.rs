@@ -2044,6 +2044,7 @@ fn main() {
     println!("# Data results (text) are in \"{}\" .", text_path.display(),);
     println!("# Samples (TSV) are in \"{}\" .", samples_path.display());
     map::write(&directory, None);
+    overview::refresh(&directory);
     let chart_path = directory.join(format!("{stem}.chart.svg"));
     match chart::from_samples(samples_path.to_str().expect("a path in UTF-8")) {
         Some(chart) => {
