@@ -24,3 +24,5 @@ selects the function's tests), over the same 24 commits: 8 ran nothing,
 nextest-config change, 5 for a `use`, an attribute on a module, or code
 inserted outside any function: the cases a compiled fingerprint would
 narrow). `replay-select.sh` is the replay.
+
+`replay-select-5-names.stdout.txt`: with names (a changed use/const/type selects the tests that ran a line naming it): the same 10 everything, since the two `use` cases are a glob (`use super::*`) and a file not compiled on x86; the latter is skipped as of 38a65b1+1.
