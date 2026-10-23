@@ -17,3 +17,10 @@ made failures, one new test, lists.
 - `replay-select-1/2.stdout.txt`, `replay-select.stdout.txt`: reach.py's
   selection replayed over 24 servil commits, three versions of the rule;
   `select-map.stdout.txt`: the first map, 100 tests under coverage.
+
+`replay-select-4-final.stdout.txt`: the rule as landed (cfg on a function
+selects the function's tests), over the same 24 commits: 8 ran nothing,
+5 ran one or two tests, 1 ran 84, 10 ran everything (5 for a manifest or
+nextest-config change, 5 for a `use`, an attribute on a module, or code
+inserted outside any function: the cases a compiled fingerprint would
+narrow). `replay-select.sh` is the replay.
