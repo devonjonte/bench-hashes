@@ -912,6 +912,10 @@ pub fn command(args: &[String]) {
     let [out, results] = args else {
         panic!("{usage}")
     };
+    // The page is HTML, and its text is printed on every run: a first
+    // argument that is no .html file (\"--text\", say) is a mistake, which
+    // once wrote the page into a file named after it.
+    assert!(out.ends_with(".html"), "{usage}: {out:?} is no .html file");
     let (out, results) = (Path::new(out), Path::new(results));
     let base = out.parent().unwrap_or(Path::new(""));
     let rows = rows(results, base);
@@ -924,6 +928,12 @@ pub fn command(args: &[String]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[should_panic(expected = "is no .html file")]
+    fn the_command_takes_an_html_file_to_write() {
+        command(&["--text".to_owned(), "benchmark-results".to_owned()]);
+    }
 
     #[test]
     fn a_speed_is_bytes_over_the_shared_rule_s_mean() {
