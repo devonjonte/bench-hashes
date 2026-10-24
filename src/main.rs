@@ -148,15 +148,10 @@ const CONTINUOUS_BATCH_COUNT: usize = 7;
 const INTERLEAVED_COUNT: usize = 1;
 /// Collections: git's objects, and the files of Nix store paths (FROZEN.md).
 const COLLECTION_COUNT: usize = 2;
-/// A message's outboard, at two lengths (FROZEN.md).
-const OUTBOARD_COUNT: usize = 2;
-const VERIFY_COUNT: usize = 2;
 const POINT_COUNT: usize = 2 * (INPUT_COUNT + BATCH_COUNT)
     + 2 * CONTINUOUS_MESSAGE_COUNT
     + INTERLEAVED_COUNT
     + 2 * COLLECTION_COUNT
-    + OUTBOARD_COUNT
-    + VERIFY_COUNT
     + 2 * CONTINUOUS_BATCH_COUNT
     + MERKLE_COUNT
     + 2 * INTERLEAVED_COUNT;
@@ -176,7 +171,7 @@ const PIECE_LEN: usize = 64 * 1024;
  * messages: many short, a few long. The pieces arrive in turns of TURN,
  * as one wait of a server's event loop delivers them, each read into its
  * own buffer; a contender with calls for many messages at once (the
- * servil fork's update_each and finalize_each) makes one of each per
+ * servil fork's performance::update_each and finalize_each) makes one of each per
  * turn, every other one update per piece and one finish per message. The
  * schedule carries over from sample to sample, so samples see the steady
  * state. A sample's unit of work is `chunk` bytes of pieces.
@@ -545,10 +540,6 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::interleaved("256", INTERLEAVED.chunk),
     Point::collection(0),
     Point::collection(1),
-    Point::outboard("1 MiB", 1024 * 1024),
-    Point::outboard("64 MiB", 64 * 1024 * 1024),
-    Point::verify("1 MiB", 1024 * 1024),
-    Point::verify("64 MiB", 64 * 1024 * 1024),
     Point::lent_batch("16", 16),
     Point::lent_batch("64", 64),
     Point::lent_batch("256", 256),
@@ -633,15 +624,6 @@ enum UseCase {
     /// A collection's messages, each hashed once, one after another, in
     /// memory (COLLECTIONS).
     Collection,
-    /// Messages one after another, each written into a kept buffer, then
-    /// hashed with its outboard (the tree's parent nodes above 16 KiB
-    /// groups), as a server adds a file for verified streaming.
-    Outboard,
-    /// Messages one after another, each received as its encoding (its
-    /// groups and parent nodes, as iroh-blobs sends them) in pieces read
-    /// into a kept buffer, verified as they arrive, each verified group
-    /// written into the message's buffer.
-    Verify,
     LentBatches,
     /// A collection's messages one after another, each read into the
     /// program's buffer, then hashed (COLLECTIONS): the collection
@@ -661,7 +643,7 @@ enum UseCase {
 }
 
 impl UseCase {
-    const ALL: [UseCase; 16] = [
+    const ALL: [UseCase; 14] = [
         UseCase::OneMessage,
         UseCase::ManyMessages,
         UseCase::IdleOneMessage,
@@ -671,8 +653,6 @@ impl UseCase {
         UseCase::LentMessages,
         UseCase::Interleaved,
         UseCase::Collection,
-        UseCase::Outboard,
-        UseCase::Verify,
         UseCase::LentBatches,
         UseCase::ContinuousCollection,
         UseCase::MerkleTree,
@@ -770,8 +750,6 @@ impl UseCase {
             | Self::Interleaved
             | Self::Collection
             | Self::ContinuousCollection
-            | Self::Outboard
-            | Self::Verify
             | Self::MerkleTree
             | Self::InterleavedTurn
             | Self::IdleInterleavedTurn => panic!("{self:?} hashes messages of their own lengths"),
@@ -815,8 +793,6 @@ impl UseCase {
                 "Many messages at once, a turn of their pieces after idling"
             }
             Self::Collection => "A collection's messages, each hashed once, in memory",
-            Self::Outboard => "Messages with their outboards, for verified streaming, buffers lent",
-            Self::Verify => "Messages received in their encodings, verified as they arrive",
             Self::LentBatches => "Batches one after another, buffers lent",
             Self::ContinuousCollection => {
                 "A collection's messages one after another, each read into a buffer, then hashed"
@@ -838,7 +814,6 @@ impl UseCase {
                 "messages open"
             }
             Self::Collection | Self::ContinuousCollection => "collection",
-            Self::Outboard | Self::Verify => "size",
             Self::MerkleTree => "leaves",
             Self::ManyMessages
             | Self::IdleManyMessages
@@ -862,8 +837,6 @@ impl UseCase {
             | Self::Interleaved
             | Self::Collection
             | Self::ContinuousCollection
-            | Self::Outboard
-            | Self::Verify
             | Self::MerkleTree
             | Self::InterleavedTurn
             | Self::IdleInterleavedTurn => point.bytes as u64 * iterations as u64,
@@ -917,8 +890,6 @@ impl UseCase {
             Self::InterleavedTurn => "turn ",
             Self::IdleInterleavedTurn => "idle turn ",
             Self::Collection => "collection ",
-            Self::Outboard => "outboard ",
-            Self::Verify => "verify ",
             Self::LentBatches => "lent batch ",
             Self::ContinuousCollection => "continuous collection ",
             Self::MerkleTree => "merkle ",
@@ -990,24 +961,6 @@ impl Point {
             bytes,
             messages: 1,
             use_case: UseCase::LentMessages,
-        }
-    }
-
-    const fn outboard(label: &'static str, bytes: usize) -> Self {
-        Self {
-            label,
-            bytes,
-            messages: 1,
-            use_case: UseCase::Outboard,
-        }
-    }
-
-    const fn verify(label: &'static str, bytes: usize) -> Self {
-        Self {
-            label,
-            bytes,
-            messages: 1,
-            use_case: UseCase::Verify,
         }
     }
 
@@ -1166,14 +1119,6 @@ impl Algorithm {
             | UseCase::Interleaved
             | UseCase::Collection
             | UseCase::ContinuousCollection => true,
-            UseCase::Outboard => matches!(
-                self,
-                Self::Blake3 | Self::Blake3ServilSt | Self::Blake3ServilMt
-            ),
-            UseCase::Verify => matches!(
-                self,
-                Self::Blake3 | Self::Blake3ServilSt | Self::Blake3ServilMt
-            ),
             /* A tree's layers are batches: BLAKE3 official mt has no batch call. */
             UseCase::MerkleTree => !matches!(self, Self::Blake3Rayon),
             UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => true,
@@ -1269,9 +1214,9 @@ impl Algorithm {
             | Self::Sha256CommonCrypto
             | Self::Sha256Ring
             | Self::Sha3_256 => "single-threaded",
-            Self::Blake3ServilSt => "single-threaded; blake3_servil::hash for one message, blake3_servil::hash_many for a batch, Hasher::update per piece for many messages at once",
+            Self::Blake3ServilSt => "single-threaded; convenience::hash for one message, performance::hash_many for a batch, performance::Hasher::update per piece for many messages at once",
             Self::Blake3Rayon => "multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread",
-            Self::Blake3ServilMt => "multithreaded; blake3_servil::hash_multithreaded for one message, hash_many_multithreaded for a batch, Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: the fork chooses when to wake its worker threads",
+            Self::Blake3ServilMt => "multithreaded; performance::hash_multithreaded for one message, performance::hash_many_multithreaded for a batch, performance::Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: the fork chooses when to wake its worker threads",
         }
     }
 }
@@ -2701,13 +2646,27 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
             return take_prepared_sample(input, true, iterations, idle, |input| {
                 // The door, for every contender alike (UseCase::in_blocks).
                 assert_blocks_aligned(input);
-                call(input)
+                call(input, point.bytes)
             });
         }
         if point.use_case.call() == UseCase::ManyMessages {
             let hash_many: Option<fn(&[u8], usize, &mut [[u8; 32]])> = match algorithm {
-                Algorithm::Blake3ServilSt => Some(blake3_servil::hash_many),
-                Algorithm::Blake3ServilMt => Some(blake3_servil::hash_many_multithreaded),
+                Algorithm::Blake3ServilSt => Some(|i, l, o| {
+                    blake3_servil::performance::hash_many(
+                        blake3_servil::Mode::Hash,
+                        servil_blocks(i),
+                        l,
+                        o,
+                    )
+                }),
+                Algorithm::Blake3ServilMt => Some(|i, l, o| {
+                    blake3_servil::performance::hash_many_multithreaded(
+                        blake3_servil::Mode::Hash,
+                        servil_blocks(i),
+                        l,
+                        o,
+                    )
+                }),
                 _ => None,
             };
             if let Some(hash_many) = hash_many {
@@ -2795,8 +2754,9 @@ fn take_prepared_sample(
             iterations as u64,
             gap,
             GAP_NS,
-            &mut produced[at..at + input.len()],
-            |produced| produced.copy_from_slice(black_box(input)),
+            // An input in blocks reaches the call with its whole blocks.
+            &mut produced[at..],
+            |produced| produced[..input.len()].copy_from_slice(black_box(input)),
             |produced| call(black_box(produced)),
         );
         // The write and the call, both the program's work (FROZEN.md, Zooko,
@@ -2826,27 +2786,42 @@ fn observe_call(call: &'static str) {
     CALLS.with(|calls| calls.borrow_mut().push(call));
 }
 
-/// One whole message through the contender's plain API. Selection happens
+/// One whole message through the contender's plain API: the message's
+/// `len` bytes, from the whole blocks it comes in (UseCase::in_blocks), which
+/// servil's performance call takes as they are. Selection happens
 /// once, before the gap; every result remains observable to the optimizer.
-fn one_message_call(algorithm: Algorithm) -> fn(&[u8]) {
+fn one_message_call(algorithm: Algorithm) -> fn(&[u8], usize) {
     match algorithm {
-        Algorithm::Blake3 => |input| use_digest(blake3::hash(input).as_bytes()),
-        Algorithm::Blake3ServilSt => |input| {
+        Algorithm::Blake3 => |blocks, len| use_digest(blake3::hash(&blocks[..len]).as_bytes()),
+        Algorithm::Blake3ServilSt => |blocks, len| {
+            let input = &blocks[..len];
             #[cfg(test)]
             observe_call("hash");
-            use_digest(blake3_servil::hash(input).as_bytes());
+            use_digest(blake3_servil::convenience::hash(input).as_bytes());
         },
-        Algorithm::Blake3ServilMt => {
-            |input| use_digest(blake3_servil::hash_multithreaded(input).as_bytes())
+        Algorithm::Blake3ServilMt => |blocks, len| {
+            use_digest(
+                blake3_servil::performance::hash_multithreaded(
+                    blake3_servil::Mode::Hash,
+                    servil_blocks(blocks),
+                    len,
+                )
+                .as_bytes(),
+            )
+        },
+        Algorithm::Sha256 => |blocks, len| use_digest(&Sha256::digest(&blocks[..len])),
+        Algorithm::Sha256Ring => |blocks, len| {
+            use_digest(ring::digest::digest(&ring::digest::SHA256, &blocks[..len]).as_ref())
+        },
+        Algorithm::Sha256CommonCrypto => {
+            |blocks, len| use_digest(&common_crypto::sha256(&blocks[..len]))
         }
-        Algorithm::Sha256 => |input| use_digest(&Sha256::digest(input)),
-        Algorithm::Sha256Ring => {
-            |input| use_digest(ring::digest::digest(&ring::digest::SHA256, input).as_ref())
+        Algorithm::Sha3_256 => |blocks, len| use_digest(&sha3::Sha3_256::digest(&blocks[..len])),
+        Algorithm::Sha1Dc => {
+            |blocks, len| use_digest(sha1_checked::Sha1::try_digest(&blocks[..len]).hash())
         }
-        Algorithm::Sha256CommonCrypto => |input| use_digest(&common_crypto::sha256(input)),
-        Algorithm::Sha3_256 => |input| use_digest(&sha3::Sha3_256::digest(input)),
-        Algorithm::Sha1Dc => |input| use_digest(sha1_checked::Sha1::try_digest(input).hash()),
-        Algorithm::Blake3Rayon => |input| {
+        Algorithm::Blake3Rayon => |blocks, len| {
+            let input = &blocks[..len];
             use_digest(
                 blake3::Hasher::new()
                     .update_rayon(input)
@@ -2917,10 +2892,8 @@ fn hash_batch(
         UseCase::ContinuousCollection => {
             return hash_continuous_collection(algorithm, input, point, iterations, consume)
         }
-        UseCase::Outboard => return hash_outboard(algorithm, input, iterations, consume),
-        UseCase::Verify => return hash_verify(algorithm, input, iterations, consume),
         UseCase::ContinuousMessages => {
-            return hash_continuous_messages(algorithm, input, iterations, consume)
+            return hash_continuous_messages(algorithm, input, point.bytes, iterations, consume)
         }
         UseCase::ContinuousBatches => {
             return hash_continuous_batches(algorithm, input, point, iterations, consume)
@@ -2952,7 +2925,7 @@ fn hash_in_memory(
     let message_len = if point.use_case.batch() {
         point.use_case.message_len()
     } else {
-        input.len()
+        point.bytes
     };
     hash_messages(
         algorithm,
@@ -2975,8 +2948,24 @@ fn hash_messages(
     message_len: usize,
     batch: bool,
     iterations: usize,
-    consume: impl FnMut(&[u8]),
+    mut consume: impl FnMut(&[u8]),
 ) {
+    // A single message comes in its whole blocks (UseCase::in_blocks):
+    // servil mt's performance call takes them as they are, every other
+    // contender the message's bytes.
+    if !batch && algorithm == Algorithm::Blake3ServilMt {
+        let blocks = servil_blocks(input);
+        for _ in 0..iterations {
+            let hash = blake3_servil::performance::hash_multithreaded(
+                blake3_servil::Mode::Hash,
+                black_box(blocks),
+                message_len,
+            );
+            consume(hash.as_bytes());
+        }
+        return;
+    }
+    let input = if batch { input } else { &input[..message_len] };
     match algorithm {
         Algorithm::Blake3 => {
             if !batch {
@@ -3026,7 +3015,7 @@ fn hash_messages(
                     input,
                     message_len,
                     iterations,
-                    |m| *blake3_servil::hash(m).as_bytes(),
+                    |m| *blake3_servil::convenience::hash(m).as_bytes(),
                     consume,
                 )
             } else {
@@ -3035,7 +3024,14 @@ fn hash_messages(
                     messages,
                     message_len,
                     iterations,
-                    blake3_servil::hash_many,
+                    |i, l, o| {
+                        blake3_servil::performance::hash_many(
+                            blake3_servil::Mode::Hash,
+                            servil_blocks(i),
+                            l,
+                            o,
+                        )
+                    },
                     consume,
                 )
             }
@@ -3067,190 +3063,22 @@ fn hash_messages(
                 consume,
             )
         }
-        Algorithm::Blake3ServilMt => {
-            if !batch {
-                each_message(
-                    input,
-                    message_len,
-                    iterations,
-                    |m| *blake3_servil::hash_multithreaded(m).as_bytes(),
-                    consume,
-                )
-            } else {
-                servil_batch(
-                    input,
-                    messages,
-                    message_len,
-                    iterations,
-                    blake3_servil::hash_many_multithreaded,
-                    consume,
-                )
-            }
-        }
-    }
-}
-
-/*
- * Messages with their outboards: `iterations` messages, each a copy of
- * `input` written into a kept buffer, then hashed with its outboard (the
- * parent nodes above 16 KiB groups, pre-order, as iroh-blobs stores them);
- * each hash to `consume`. BLAKE3 builds it with bao-tree, the servil fork
- * with outboard_with (one thread) or outboard_multithreaded_with; all give
- * the same bytes.
- */
-fn hash_outboard(
-    algorithm: Algorithm,
-    input: &[u8],
-    iterations: usize,
-    mut consume: impl FnMut(&[u8]),
-) {
-    let mut buffers = take_buffers(1, input.len());
-    for _ in 0..iterations {
-        let buffer = &mut buffers[0];
-        buffer.clear();
-        buffer.extend_from_slice(black_box(input));
-        match algorithm {
-            Algorithm::Blake3 => {
-                let outboard = bao_tree::io::outboard::PreOrderMemOutboard::create(
-                    &buffer[..],
-                    bao_tree::BlockSize::from_chunk_log(4),
-                );
-                consume(outboard.root.as_bytes());
-                black_box(&outboard.data);
-            }
-            Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt => {
-                let build = if algorithm == Algorithm::Blake3ServilSt {
-                    blake3_servil::outboard_with
-                } else {
-                    blake3_servil::outboard_multithreaded_with
-                };
-                let (hash, outboard) = build(blake3_servil::Mode::Hash, &buffer[..]);
-                consume(hash.as_bytes());
-                black_box(&outboard);
-            }
-            other => unreachable!("{} takes no part in outboards", other.key()),
-        }
-    }
-    keep_buffers(1, input.len(), buffers);
-}
-
-/*
- * Messages received in their encodings (UseCase::Verify): `iterations`
- * messages, each `input`'s encoding as iroh-blobs sends a whole blob (its
- * 16 KiB groups and the parent nodes above them, in pre-order; bao-tree's
- * encode_ranges, made once per input outside the timed calls, the
- * sender's work), received in pieces of up to PIECE_LEN read into a kept
- * buffer, verified as they arrive against the message's hash, each
- * verified group written into the message's kept buffer; then the hash
- * to `consume`. BLAKE3 decodes with bao-tree's decode_ranges (its reads
- * from the received bytes, its writes into the message's buffer), the
- * servil fork with a Verifier fed each piece. Both copy each received
- * byte in and each verified byte out once.
- */
-fn hash_verify(
-    algorithm: Algorithm,
-    input: &[u8],
-    iterations: usize,
-    mut consume: impl FnMut(&[u8]),
-) {
-    let (hash, encoded) = encoding(input);
-    let mut buffers = take_buffers(1, input.len());
-    let mut piece = STREAM_BUFFER.with(|kept| std::mem::take(&mut *kept.borrow_mut()));
-    if piece.len() < PIECE_LEN {
-        piece = written(PIECE_LEN, 1u8);
-    }
-    for _ in 0..iterations {
-        let message = &mut buffers[0];
-        message.resize(input.len(), 0);
-        let received = black_box(&encoded[..]);
-        match algorithm {
-            Algorithm::Blake3 => {
-                // The received bytes, read PIECE_LEN at most at a time through the kept buffer.
-                struct Received<'a> {
-                    rest: &'a [u8],
-                    piece: &'a mut [u8],
-                }
-                impl std::io::Read for Received<'_> {
-                    fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
-                        let n = out.len().min(self.rest.len()).min(self.piece.len());
-                        self.piece[..n].copy_from_slice(&self.rest[..n]);
-                        out[..n].copy_from_slice(&self.piece[..n]);
-                        self.rest = &self.rest[n..];
-                        Ok(n)
-                    }
-                }
-                let tree = bao_tree::BaoTree::new(
-                    input.len() as u64,
-                    bao_tree::BlockSize::from_chunk_log(4),
-                );
-                let root = bao_tree::blake3::Hash::from_bytes(hash);
-                let outboard = bao_tree::io::outboard::EmptyOutboard { tree, root };
-                let target: &mut [u8] = &mut message[..];
-                bao_tree::io::sync::decode_ranges(
-                    Received {
-                        rest: received,
-                        piece: &mut piece,
-                    },
-                    &bao_tree::ChunkRanges::all(),
-                    target,
-                    outboard,
-                )
-                .unwrap_or_else(|e| panic!("bao-tree refused its own encoding: {e}"));
-            }
-            // A Verifier has no multithreaded form: both servil contenders use it.
-            Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt => {
-                let mut verifier = blake3_servil::Verifier::new(
+        Algorithm::Blake3ServilMt => servil_batch(
+            input,
+            messages,
+            message_len,
+            iterations,
+            |i, l, o| {
+                blake3_servil::performance::hash_many_multithreaded(
                     blake3_servil::Mode::Hash,
-                    &blake3_servil::Hash::from_bytes(hash),
-                    input.len() as u64,
-                );
-                let mut at = 0;
-                for part in received.chunks(PIECE_LEN) {
-                    piece[..part.len()].copy_from_slice(part);
-                    let ok = verifier.update(&piece[..part.len()], |group| {
-                        message[at..at + group.len()].copy_from_slice(group);
-                        at += group.len();
-                    });
-                    black_box(ok);
-                }
-            }
-            other => unreachable!("{} takes no part in verifying", other.key()),
-        }
-        consume(black_box(&hash));
-        black_box(&message[..]);
+                    servil_blocks(i),
+                    l,
+                    o,
+                )
+            },
+            consume,
+        ),
     }
-    keep_buffers(1, input.len(), buffers);
-    STREAM_BUFFER.with(|kept| *kept.borrow_mut() = piece);
-}
-
-/// `input`'s hash and whole encoding (bao-tree's pre-order, 16 KiB
-/// groups), made once for each input, for every thread.
-fn encoding(input: &[u8]) -> ([u8; 32], std::sync::Arc<Vec<u8>>) {
-    static MADE: std::sync::Mutex<Vec<((usize, [u8; 8]), [u8; 32], std::sync::Arc<Vec<u8>>)>> =
-        std::sync::Mutex::new(Vec::new());
-    let id = (
-        input.len(),
-        input[..8].try_into().expect("a message of 8 bytes or more"),
-    );
-    let mut made = MADE.lock().unwrap();
-    if let Some((_, hash, encoded)) = made.iter().find(|(k, _, _)| *k == id) {
-        return (*hash, encoded.clone());
-    }
-    let outboard = bao_tree::io::outboard::PreOrderMemOutboard::create(
-        input,
-        bao_tree::BlockSize::from_chunk_log(4),
-    );
-    let mut encoded = Vec::with_capacity(input.len() + outboard.data.len());
-    bao_tree::io::sync::encode_ranges_validated(
-        input,
-        &outboard,
-        &bao_tree::ChunkRanges::all(),
-        &mut encoded,
-    )
-    .expect("an encoding");
-    let hash = *outboard.root.as_bytes();
-    made.push((id, hash, std::sync::Arc::new(encoded)));
-    (hash, made.last().unwrap().2.clone())
 }
 
 /*
@@ -3287,6 +3115,8 @@ fn input_len(point: Point) -> usize {
         UseCase::Collection | UseCase::ContinuousCollection => {
             collection_layout_bytes(COLLECTIONS[collection_index(point)].1)
         }
+        // A message in blocks comes with its whole blocks.
+        use_case if use_case.in_blocks() => point.bytes.next_multiple_of(BLOCK_LEN),
         _ => point.bytes,
     }
 }
@@ -3310,7 +3140,7 @@ fn hash_continuous_collection(
     if algorithm == Algorithm::Blake3ServilMt {
         let mut places = take_places(STREAM_PLACES_PER_MESSAGE);
         let free = std::cell::RefCell::new(places.chunks_mut(1).collect::<Vec<_>>());
-        blake3_servil::stream(
+        blake3_servil::performance::stream(
             blake3_servil::Mode::Hash,
             |place: &mut [blake3_servil::Hash]| {
                 consume(place[0].as_bytes());
@@ -3342,7 +3172,7 @@ fn hash_continuous_collection(
             let at = block_message(buffer, black_box(&input[offset..offset + len]));
             hash_in_memory(
                 algorithm,
-                &buffer[at..][..len],
+                &buffer[at..][..len.next_multiple_of(BLOCK_LEN)],
                 Point::one("", len),
                 1,
                 &mut consume,
@@ -3366,13 +3196,20 @@ fn hash_collection(
     ) {
         // The fork's call for a collection: every item in one call.
         let each = if algorithm == Algorithm::Blake3ServilSt {
-            blake3_servil::hash_each_with
+            blake3_servil::performance::hash_each
         } else {
-            blake3_servil::hash_each_multithreaded_with
+            blake3_servil::performance::hash_each_multithreaded
         };
-        let slices: Vec<&[u8]> = items
+        // Each item in its whole blocks (the collection's layout).
+        assert_blocks_aligned(input);
+        let slices: Vec<(&[blake3_servil::performance::Block], usize)> = items
             .iter()
-            .map(|&(offset, len)| &input[offset..offset + len])
+            .map(|&(offset, len)| {
+                (
+                    servil_blocks(&input[offset..offset + len.next_multiple_of(BLOCK_LEN)]),
+                    len,
+                )
+            })
             .collect();
         let mut digests = vec![[0u8; 32]; slices.len()];
         for _ in 0..iterations {
@@ -3387,7 +3224,7 @@ fn hash_collection(
         for &(offset, len) in items {
             hash_in_memory(
                 algorithm,
-                &input[offset..offset + len],
+                &input[offset..offset + len.next_multiple_of(BLOCK_LEN)],
                 Point::one("", len),
                 1,
                 &mut consume,
@@ -3436,7 +3273,7 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             input,
             iterations,
             |pieces| {
-                let mut hasher = blake3_servil::Hasher::new();
+                let mut hasher = blake3_servil::performance::Hasher::new();
                 pieces(&mut |piece| {
                     hasher.update(piece);
                 });
@@ -3448,7 +3285,7 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             input,
             iterations,
             |pieces| {
-                let mut hasher = blake3_servil::Hasher::new();
+                let mut hasher = blake3_servil::performance::Hasher::new();
                 pieces(&mut |piece| {
                     hasher.update_multithreaded(piece);
                 });
@@ -3555,9 +3392,9 @@ fn hash_interleaved(
         ),
         Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt => {
             let update = if algorithm == Algorithm::Blake3ServilSt {
-                blake3_servil::Hasher::update_each
+                blake3_servil::performance::update_each
             } else {
-                blake3_servil::Hasher::update_each_multithreaded
+                blake3_servil::performance::update_each_multithreaded
             };
             let mut digests = Vec::new();
             each_interleaved(
@@ -3565,13 +3402,13 @@ fn hash_interleaved(
                 input,
                 budget,
                 iterations,
-                blake3_servil::Hasher::new,
+                blake3_servil::performance::Hasher::new,
                 update,
-                move |hashers: &mut [blake3_servil::Hasher],
+                move |hashers: &mut [blake3_servil::performance::Hasher],
                       ended: &[usize],
                       consume: &mut dyn FnMut(&[u8])| {
                     digests.resize(ended.len(), [0u8; 32]);
-                    blake3_servil::Hasher::finalize_each(hashers, ended, &mut digests);
+                    blake3_servil::performance::finalize_each(hashers, ended, &mut digests);
                     for (&i, digest) in ended.iter().zip(&digests) {
                         consume(digest);
                         hashers[i].reset();
@@ -3794,7 +3631,7 @@ fn keep_places(places: Vec<blake3_servil::Hash>) {
 /// A free place from `free`, handing places back (collect) until one is.
 fn free_place<'a, D: FnMut(&'a mut [blake3_servil::Hash])>(
     free: &std::cell::RefCell<Vec<&'a mut [blake3_servil::Hash]>>,
-    s: &mut blake3_servil::Stream<'a, D>,
+    s: &mut blake3_servil::performance::Stream<'a, D>,
 ) -> &'a mut [blake3_servil::Hash] {
     loop {
         if let Some(place) = free.borrow_mut().pop() {
@@ -3816,17 +3653,20 @@ fn free_place<'a, D: FnMut(&'a mut [blake3_servil::Hash])>(
  */
 fn hash_continuous_messages(
     algorithm: Algorithm,
-    input: &[u8],
+    blocks: &[u8],
+    len: usize,
     iterations: usize,
     mut consume: impl FnMut(&[u8]),
 ) {
+    // The message's `len` bytes; `blocks`, its whole blocks (UseCase::in_blocks).
+    let input = &blocks[..len];
     if algorithm == Algorithm::Blake3ServilMt {
         // Each message read straight into the stream's ring (submit_with),
         // its digest into a kept place, used as the place comes back and
         // the place used again.
         let mut places = take_places(STREAM_PLACES_PER_MESSAGE);
         let free = std::cell::RefCell::new(places.chunks_mut(1).collect::<Vec<_>>());
-        blake3_servil::stream(
+        blake3_servil::performance::stream(
             blake3_servil::Mode::Hash,
             |place: &mut [blake3_servil::Hash]| {
                 consume(place[0].as_bytes());
@@ -3853,23 +3693,23 @@ fn hash_continuous_messages(
     }
     let one = Point {
         label: "",
-        bytes: input.len(),
+        bytes: len,
         messages: 1,
         use_case: UseCase::OneMessage,
     };
-    let mut buffers = take_buffers(1, input.len() + BLOCK_SPARE);
+    let mut buffers = take_buffers(1, len + BLOCK_SPARE);
     for _ in 0..iterations {
         let buffer = &mut buffers[0];
         let at = block_message(buffer, black_box(input));
         hash_in_memory(
             algorithm,
-            &buffer[at..][..input.len()],
+            &buffer[at..][..len.next_multiple_of(BLOCK_LEN)],
             one,
             1,
             &mut consume,
         );
     }
-    keep_buffers(1, input.len() + BLOCK_SPARE, buffers);
+    keep_buffers(1, len + BLOCK_SPARE, buffers);
 }
 
 /*
@@ -3897,7 +3737,7 @@ fn hash_continuous_batches(
         let mut places = take_places(batches * point.messages);
         let free =
             std::cell::RefCell::new(places.chunks_mut(point.messages.max(1)).collect::<Vec<_>>());
-        blake3_servil::stream(
+        blake3_servil::performance::stream(
             blake3_servil::Mode::Hash,
             |place: &mut [blake3_servil::Hash]| {
                 consume(unsafe {
@@ -3931,7 +3771,7 @@ fn hash_continuous_batches(
         let at = block_message(buffer, black_box(input));
         hash_in_memory(
             algorithm,
-            &buffer[at..][..input.len()],
+            &buffer[at..][..input.len().next_multiple_of(BLOCK_LEN)],
             batch,
             1,
             &mut consume,
@@ -3965,7 +3805,7 @@ fn hash_lent(
         let at = block_message(buffer, black_box(input));
         hash_in_memory(
             algorithm,
-            &buffer[at..][..input.len()],
+            &buffer[at..][..input.len().next_multiple_of(BLOCK_LEN)],
             in_memory,
             1,
             &mut consume,
@@ -4036,7 +3876,12 @@ fn hash_tree_layer(
             message_len,
             1,
             |i, l, o| {
-                blake3_servil::hash_many_with(blake3_servil::Mode::Keyed(node.key()), i, l, o)
+                blake3_servil::performance::hash_many(
+                    blake3_servil::Mode::Keyed(node.key()),
+                    servil_blocks(i),
+                    l,
+                    o,
+                )
             },
             consume,
         ),
@@ -4046,9 +3891,9 @@ fn hash_tree_layer(
             message_len,
             1,
             |i, l, o| {
-                blake3_servil::hash_many_multithreaded_with(
+                blake3_servil::performance::hash_many_multithreaded(
                     blake3_servil::Mode::Keyed(node.key()),
-                    i,
+                    servil_blocks(i),
                     l,
                     o,
                 )
@@ -4272,6 +4117,25 @@ fn assert_blocks_aligned(input: &[u8]) {
     );
 }
 
+/// An input in blocks (a batch, or a message with its whole blocks) as
+/// servil's performance calls take it, Blocks: the door
+/// (assert_blocks_aligned) has checked its placement for every contender
+/// alike, so servil's calls carry no check of their own.
+fn servil_blocks(blocks: &[u8]) -> &[blake3_servil::performance::Block] {
+    debug_assert!(
+        blake3_servil::performance::Block::from_bytes(blocks).is_some(),
+        "an input in whole aligned blocks"
+    );
+    if blocks.is_empty() {
+        // An empty slice's pointer is no Block's.
+        return &[];
+    }
+    // Sound: at a 64-byte boundary (the door) and whole blocks (the slice
+    // covers them: input_len, block_message, the collection's layout); a
+    // Block is 64 bytes, no padding.
+    unsafe { core::slice::from_raw_parts(blocks.as_ptr().cast(), blocks.len() / BLOCK_LEN) }
+}
+
 fn keep_buffers(count: usize, len: usize, buffers: Vec<Vec<u8>>) {
     INPUT_BUFFERS.with(|kept| kept.borrow_mut().insert((count, len), buffers));
 }
@@ -4334,39 +4198,35 @@ thread_local! {
  * these.
  */
 #[cfg(test)]
-const SERVIL_CALLS: [(Algorithm, UseCase, &str); 32] = [
-    (Algorithm::Blake3ServilSt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: Hasher::update_each, then Hasher::finalize_each for the messages that ended in it"),
-    (Algorithm::Blake3ServilSt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: Hasher::update_each, then Hasher::finalize_each for the messages that ended in it"),
-    (Algorithm::Blake3ServilMt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: Hasher::update_each_multithreaded, then Hasher::finalize_each for the messages that ended in it"),
-    (Algorithm::Blake3ServilMt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: Hasher::update_each_multithreaded, then Hasher::finalize_each for the messages that ended in it"),
-    (Algorithm::Blake3ServilSt, UseCase::MerkleTree, "hash_many_with(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root"),
-    (Algorithm::Blake3ServilMt, UseCase::MerkleTree, "hash_many_multithreaded_with(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root"),
-    (Algorithm::Blake3ServilSt, UseCase::OneMessage, "hash(input), each call after other work"),
-    (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "hash_many(batch, 64, out), the padded batch contract, each call after other work"),
-    (Algorithm::Blake3ServilMt, UseCase::OneMessage, "hash_multithreaded(input), each call after other work"),
-    (Algorithm::Blake3ServilMt, UseCase::ManyMessages, "hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after other work"),
-    (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "stream(Mode::Hash, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
-    (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "stream(Mode::Hash, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again"),
-    (Algorithm::Blake3ServilSt, UseCase::ContinuousMessages, "hash(input), one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)"),
-    (Algorithm::Blake3ServilSt, UseCase::ContinuousBatches, "hash_many(batch, 64, out), the padded batch contract, one batch after another, each read into a kept buffer of the program's and hashed on its thread"),
-    (Algorithm::Blake3ServilMt, UseCase::ContinuousCollection, "stream(Mode::Hash, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
-    (Algorithm::Blake3ServilSt, UseCase::ContinuousCollection, "hash(input), the collection's messages one after another, each read into a kept buffer of the program's and hashed on its thread"),
-    (Algorithm::Blake3ServilSt, UseCase::LentMessages, "hash(input), one message after another, each read into a kept buffer and lent until the call returns"),
-    (Algorithm::Blake3ServilSt, UseCase::Interleaved, "a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; Hasher::update_each per turn, then Hasher::finalize_each for the messages that ended in it, each buffer lent until the calls return"),
-    (Algorithm::Blake3ServilSt, UseCase::Collection, "hash_each_with(Mode::Hash, items, out), every item of the collection in one call, in memory"),
-    (Algorithm::Blake3ServilSt, UseCase::Outboard, "outboard_with(Mode::Hash, message), messages one after another, each written into a kept buffer and lent until the call returns"),
-    (Algorithm::Blake3ServilSt, UseCase::Verify, "Verifier::new(Mode::Hash, hash, len), then Verifier::update per piece, messages one after another, each received as its encoding (bao-tree's pre-order, 16 KiB groups) in pieces of up to 64 KiB read into a kept buffer, each verified group copied into the message's kept buffer"),
-    (Algorithm::Blake3ServilSt, UseCase::LentBatches, "hash_many(batch, 64, out), the padded batch contract, batches one after another, each read into a kept buffer and lent with kept digests until the call returns"),
-    (Algorithm::Blake3ServilMt, UseCase::LentMessages, "hash_multithreaded(input), one message after another, each read into a kept buffer and lent until the call returns"),
-    (Algorithm::Blake3ServilMt, UseCase::Interleaved, "a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; Hasher::update_each_multithreaded per turn, then Hasher::finalize_each for the messages that ended in it, each buffer lent until the calls return"),
-    (Algorithm::Blake3ServilMt, UseCase::Collection, "hash_each_multithreaded_with(Mode::Hash, items, out), every item of the collection in one call, in memory"),
-    (Algorithm::Blake3ServilMt, UseCase::Outboard, "outboard_multithreaded_with(Mode::Hash, message), messages one after another, each written into a kept buffer and lent until the call returns"),
-    (Algorithm::Blake3ServilMt, UseCase::Verify, "Verifier::new(Mode::Hash, hash, len), then Verifier::update per piece (it has no multithreaded form), messages one after another, each received as its encoding (bao-tree's pre-order, 16 KiB groups) in pieces of up to 64 KiB read into a kept buffer, each verified group copied into the message's kept buffer"),
-    (Algorithm::Blake3ServilMt, UseCase::LentBatches, "hash_many_multithreaded(batch, 64, out), the padded batch contract, batches one after another, each read into a kept buffer and lent with kept digests until the call returns"),
-    (Algorithm::Blake3ServilSt, UseCase::IdleOneMessage, "hash(input), each call after idling"),
-    (Algorithm::Blake3ServilSt, UseCase::IdleManyMessages, "hash_many(batch, 64, out), the padded batch contract, each call after idling"),
-    (Algorithm::Blake3ServilMt, UseCase::IdleOneMessage, "hash_multithreaded(input), each call after idling"),
-    (Algorithm::Blake3ServilMt, UseCase::IdleManyMessages, "hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after idling"),
+const SERVIL_CALLS: [(Algorithm, UseCase, &str); 28] = [
+    (Algorithm::Blake3ServilSt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each, then performance::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilSt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: performance::update_each, then performance::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilMt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each_multithreaded, then performance::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilMt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: performance::update_each_multithreaded, then performance::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilSt, UseCase::MerkleTree, "performance::hash_many(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root"),
+    (Algorithm::Blake3ServilMt, UseCase::MerkleTree, "performance::hash_many_multithreaded(Mode::Keyed(key), layer, len, out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root"),
+    (Algorithm::Blake3ServilSt, UseCase::OneMessage, "convenience::hash(input), each call after other work"),
+    (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "performance::hash_many(Mode::Hash, blocks, 64, out), the padded batch contract, each call after other work"),
+    (Algorithm::Blake3ServilMt, UseCase::OneMessage, "performance::hash_multithreaded(Mode::Hash, blocks, len), each call after other work"),
+    (Algorithm::Blake3ServilMt, UseCase::ManyMessages, "performance::hash_many_multithreaded(Mode::Hash, blocks, 64, out), the padded batch contract, each call after other work"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "performance::stream(Mode::Hash, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "performance::stream(Mode::Hash, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again"),
+    (Algorithm::Blake3ServilSt, UseCase::ContinuousMessages, "convenience::hash(input), one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)"),
+    (Algorithm::Blake3ServilSt, UseCase::ContinuousBatches, "performance::hash_many(Mode::Hash, blocks, 64, out), the padded batch contract, one batch after another, each read into a kept buffer of the program's and hashed on its thread"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousCollection, "performance::stream(Mode::Hash, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
+    (Algorithm::Blake3ServilSt, UseCase::ContinuousCollection, "convenience::hash(input), the collection's messages one after another, each read into a kept buffer of the program's and hashed on its thread"),
+    (Algorithm::Blake3ServilSt, UseCase::LentMessages, "convenience::hash(input), one message after another, each read into a kept buffer and lent until the call returns"),
+    (Algorithm::Blake3ServilSt, UseCase::Interleaved, "a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; performance::update_each per turn, then performance::finalize_each for the messages that ended in it, each buffer lent until the calls return"),
+    (Algorithm::Blake3ServilSt, UseCase::Collection, "performance::hash_each(Mode::Hash, items, out), every item of the collection in one call, in memory"),
+    (Algorithm::Blake3ServilSt, UseCase::LentBatches, "performance::hash_many(Mode::Hash, blocks, 64, out), the padded batch contract, batches one after another, each read into a kept buffer and lent with kept digests until the call returns"),
+    (Algorithm::Blake3ServilMt, UseCase::LentMessages, "performance::hash_multithreaded(Mode::Hash, blocks, len), one message after another, each read into a kept buffer and lent until the call returns"),
+    (Algorithm::Blake3ServilMt, UseCase::Interleaved, "a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; performance::update_each_multithreaded per turn, then performance::finalize_each for the messages that ended in it, each buffer lent until the calls return"),
+    (Algorithm::Blake3ServilMt, UseCase::Collection, "performance::hash_each_multithreaded(Mode::Hash, items, out), every item of the collection in one call, in memory"),
+    (Algorithm::Blake3ServilMt, UseCase::LentBatches, "performance::hash_many_multithreaded(Mode::Hash, blocks, 64, out), the padded batch contract, batches one after another, each read into a kept buffer and lent with kept digests until the call returns"),
+    (Algorithm::Blake3ServilSt, UseCase::IdleOneMessage, "convenience::hash(input), each call after idling"),
+    (Algorithm::Blake3ServilSt, UseCase::IdleManyMessages, "performance::hash_many(Mode::Hash, blocks, 64, out), the padded batch contract, each call after idling"),
+    (Algorithm::Blake3ServilMt, UseCase::IdleOneMessage, "performance::hash_multithreaded(Mode::Hash, blocks, len), each call after idling"),
+    (Algorithm::Blake3ServilMt, UseCase::IdleManyMessages, "performance::hash_many_multithreaded(Mode::Hash, blocks, 64, out), the padded batch contract, each call after idling"),
 ];
 
 /// The frozen contract as text, from the code's own tables: FROZEN.md's
@@ -5146,8 +5006,6 @@ fn continuous_min_inputs(input: &[u8], point: Point) -> usize {
         | UseCase::LentMessages
         | UseCase::Interleaved
         | UseCase::Collection
-        | UseCase::Outboard
-        | UseCase::Verify
         | UseCase::LentBatches
         | UseCase::MerkleTree
         | UseCase::InterleavedTurn
@@ -7014,14 +6872,7 @@ mod correctness_tests {
             UseCase::Collection.points(),
             collection..collection + COLLECTION_COUNT
         );
-        let outboard = collection + COLLECTION_COUNT;
-        assert_eq!(
-            UseCase::Outboard.points(),
-            outboard..outboard + OUTBOARD_COUNT
-        );
-        let verify = outboard + OUTBOARD_COUNT;
-        assert_eq!(UseCase::Verify.points(), verify..verify + VERIFY_COUNT);
-        let lent_batches = verify + VERIFY_COUNT;
+        let lent_batches = collection + COLLECTION_COUNT;
         assert_eq!(
             UseCase::LentBatches.points(),
             lent_batches..lent_batches + CONTINUOUS_BATCH_COUNT
@@ -7166,7 +7017,7 @@ mod correctness_tests {
         {
             for point in cases {
                 if algorithm.takes_part(point.use_case) {
-                    take_sample(algorithm, source(point.bytes), point, 2);
+                    take_sample(algorithm, source(input_len(point)), point, 2);
                 }
             }
         }

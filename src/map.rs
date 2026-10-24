@@ -94,23 +94,11 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
             "Stream::submit_with",
             "struct.Stream.html#method.submit_with",
         ),
-        UseCase::Outboard => (
-            "outb",
-            "lent",
-            "outboard_multithreaded_with",
-            "fn.outboard_multithreaded_with.html",
-        ),
         UseCase::MerkleTree => (
             "merkle",
             "lent",
             "hash_many_multithreaded",
             "fn.hash_many_multithreaded.html",
-        ),
-        UseCase::Verify => (
-            "recv",
-            "lent",
-            "Verifier::update",
-            "struct.Verifier.html#method.update",
         ),
     }
 }
@@ -357,9 +345,6 @@ impl Section {
     }
 }
 
-/// The name of the outboards' line the BLAKE3 contender draws with bao-tree.
-const BAO_TREE: &str = "bao-tree (iroh-blobs)";
-
 fn header<'a>(headers: &'a [(String, String)], key: &str) -> &'a str {
     headers
         .iter()
@@ -563,39 +548,23 @@ fn hashing(path: &Path) -> Section {
             if measured.is_empty() {
                 continue;
             }
-            let mut series: Vec<Option<Vec<f64>>> = algorithms
+            let series: Vec<Option<Vec<f64>>> = algorithms
                 .iter()
                 .map(|a| measured.iter().map(|p| mean(a, p.label)).collect())
                 .collect();
-            // The BLAKE3 contender builds and verifies outboards with bao-tree
-            // (iroh-blobs' crate), so its line there carries bao-tree's name, as its own contender.
-            let official = algorithms.iter().position(|a| *a == Algorithm::Blake3);
-            let bao_tree = if matches!(use_case, UseCase::Outboard | UseCase::Verify) {
-                official.and_then(|i| series[i].take())
-            } else {
-                None
-            };
-            series.push(bao_tree);
-            // A line of `col` for each contender (and bao-tree's, as above).
+            // A line of `col` for each contender.
             let lines = |col: &[(String, Vec<u64>)]| -> Vec<Option<Vec<Option<f64>>>> {
-                let mut lines: Vec<Option<Vec<Option<f64>>>> = algorithms
+                algorithms
                     .iter()
                     .map(|a| {
                         let line: Vec<Option<f64>> =
                             measured.iter().map(|p| column(col, a, p.label)).collect();
                         line.iter().any(Option::is_some).then_some(line)
                     })
-                    .collect();
-                let bao = if matches!(use_case, UseCase::Outboard | UseCase::Verify) {
-                    official.and_then(|i| lines[i].take())
-                } else {
-                    None
-                };
-                lines.push(bao);
-                lines
+                    .collect()
             };
             let (cpu_lines, energy_lines) = (lines(&file.cpu), lines(&file.energy));
-            let mut cores: Vec<Option<Vec<Option<[f64; 3]>>>> = algorithms
+            let cores: Vec<Option<Vec<Option<[f64; 3]>>>> = algorithms
                 .iter()
                 .map(|a| {
                     let line: Vec<Option<[f64; 3]>> = measured
@@ -610,12 +579,6 @@ fn hashing(path: &Path) -> Section {
                     line.iter().any(Option::is_some).then_some(line)
                 })
                 .collect();
-            let bao_cores = if matches!(use_case, UseCase::Outboard | UseCase::Verify) {
-                official.and_then(|i| cores[i].take())
-            } else {
-                None
-            };
-            cores.push(bao_cores);
             cells.push((
                 cell_key(scenario, use_case),
                 Chart {
@@ -651,8 +614,6 @@ fn hashing(path: &Path) -> Section {
             ("merkle", "a Merkle tree", "A Merkle tree over 256-byte leaves the program has just written into place, leaves and parents hashed apart, every layer kept, as a zero-knowledge prover commits to its Reed-Solomon codeword (WHIR); the axis counts the leaves."),
             ("many", "many messages at once, in pieces", "256 messages in progress at once, their pieces arriving 64 at a time, as a server's uploads arrive."),
             ("coll", "a collection of messages", "A collection of messages of every size, such as a repository's objects or a store's files, hashed together."),
-            ("outb", "a message with its outboard, for verified streaming", "A message's hash and its outboard: the hash tree's nodes, kept beside the message so that any part of it can be verified when it is sent (Bao, iroh-blobs)."),
-            ("recv", "a message received, verified as it arrives", "A message received with its hash tree's nodes, each part verified as it arrives (iroh-blobs)."),
         ],
         cols: vec![
             ("busy", "now and then, after other work", "The program hashes now and then and does other work in between, which pushes the hash's code and data out of the CPU's caches."),
@@ -670,12 +631,12 @@ fn hashing(path: &Path) -> Section {
             algorithms.iter().map(|a| match (&threads, a) {
                 (Some(n), Algorithm::Blake3ServilMt) => format!("{}, {n} threads", a.name()),
                 _ => a.name().to_owned(),
-            }).chain([BAO_TREE.to_owned()]).collect()
+            }).collect()
         },
-        colors: algorithms.iter().map(|a| a.color()).chain(["#15803d"]).map(str::to_owned).collect(),
-        striped: algorithms.iter().map(|a| a.striped()).chain([false]).collect(),
-        ours: algorithms.iter().map(|a| matches!(a, Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt)).chain([false]).collect(),
-        shown: algorithms.iter().map(|a| SHOWN_AT_FIRST.contains(a)).chain([true]).collect(),
+        colors: algorithms.iter().map(|a| a.color()).map(str::to_owned).collect(),
+        striped: algorithms.iter().map(|a| a.striped()).collect(),
+        ours: algorithms.iter().map(|a| matches!(a, Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt)).collect(),
+        shown: algorithms.iter().map(|a| SHOWN_AT_FIRST.contains(a)).collect(),
         cells,
         about: about(&file.headers, &file.load),
         details: details(&file.headers, &file.load, &file.power, "bench-hashes.samples.tsv"),

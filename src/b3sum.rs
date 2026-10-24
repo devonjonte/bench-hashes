@@ -180,7 +180,7 @@ fn size_label(len: u64) -> String {
 /// alike on every machine and incompressible (a filesystem or a drive that
 /// compresses would read zeros from storage almost for free).
 fn contents(name: &str) -> blake3_servil::OutputReader {
-    blake3_servil::Hasher::new()
+    blake3_servil::performance::Hasher::new()
         .update(name.as_bytes())
         .finalize_xof()
 }
@@ -513,7 +513,9 @@ fn contender(spec: &str) -> Contender {
         name: name.to_owned(),
         builds: vec![Build {
             program,
-            digest: blake3_servil::hash(&bytes).to_hex().to_string(),
+            digest: blake3_servil::convenience::hash(&bytes)
+                .to_hex()
+                .to_string(),
         }],
         args: words.collect(),
         // The first line: GNU tools follow theirs with copyright lines.

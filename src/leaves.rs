@@ -48,7 +48,9 @@ fn produce(first: usize, out: &mut [u8]) {
 
 /// One program's buffers, kept from job to job as a prover keeps its own.
 struct Program {
-    buffer: Vec<u8>,
+    /// The messages, in blocks: the batch calls' input (64 bytes on a
+    /// 64-byte boundary; MESSAGE_LEN messages leave no padding).
+    buffer: Vec<blake3_servil::performance::Block>,
     digests: Vec<[u8; 32]>,
     /// The stream variants' places for the digests (kept, as `digests`).
     places: Vec<blake3_servil::Hash>,
@@ -57,7 +59,7 @@ struct Program {
 impl Program {
     fn new(count: usize) -> Program {
         Program {
-            buffer: vec![0u8; count * MESSAGE_LEN],
+            buffer: vec![blake3_servil::performance::Block::ZERO; count * MESSAGE_LEN / 64],
             digests: vec![[0u8; 32]; count],
             places: vec![blake3_servil::Hash::from_bytes([0; 32]); count],
         }
@@ -73,12 +75,17 @@ impl Program {
                 }
             }
         };
-        let buffer = &mut self.buffer[..count * MESSAGE_LEN];
+        let blocks = &mut self.buffer[..count * MESSAGE_LEN / 64];
         match variant {
             "lend-oneshot" => {
-                produce(0, buffer);
+                produce(0, blake3_servil::performance::Block::bytes_mut(blocks));
                 let digests = &mut self.digests[..count];
-                blake3_servil::hash_many_multithreaded(buffer, MESSAGE_LEN, digests);
+                blake3_servil::performance::hash_many_multithreaded(
+                    blake3_servil::Mode::Hash,
+                    blocks,
+                    MESSAGE_LEN,
+                    digests,
+                );
                 // Sound: a Hash is its 32 bytes.
                 fold(unsafe {
                     core::slice::from_raw_parts(
@@ -90,10 +97,10 @@ impl Program {
             // The stream's variants write the digests into the same kept
             // space as lend-oneshot, then fold them as it does.
             "lend-stream" => {
-                produce(0, buffer);
-                let buffer = &*buffer;
+                produce(0, blake3_servil::performance::Block::bytes_mut(blocks));
+                let buffer = &*blocks;
                 let places = &mut self.places[..count];
-                blake3_servil::stream(
+                blake3_servil::performance::stream(
                     blake3_servil::Mode::Hash,
                     |_| {},
                     |s| {
@@ -104,10 +111,10 @@ impl Program {
                 fold(&self.places[..count]);
             }
             "copy-ring" => {
-                produce(0, buffer);
-                let buffer = &*buffer;
+                produce(0, blake3_servil::performance::Block::bytes_mut(blocks));
+                let buffer = blake3_servil::performance::Block::bytes(blocks);
                 let places = &mut self.places[..count];
-                blake3_servil::stream(
+                blake3_servil::performance::stream(
                     blake3_servil::Mode::Hash,
                     |_| {},
                     |s| {
@@ -123,7 +130,7 @@ impl Program {
             }
             "write-ring" => {
                 let places = &mut self.places[..count];
-                blake3_servil::stream(
+                blake3_servil::performance::stream(
                     blake3_servil::Mode::Hash,
                     |_| {},
                     |s| {
@@ -149,7 +156,10 @@ fn expected(count: usize) -> [u8; 32] {
     produce(0, &mut buffer);
     let mut sum = [0u8; 32];
     for m in buffer.chunks_exact(MESSAGE_LEN) {
-        for (s, b) in sum.iter_mut().zip(blake3_servil::hash(m).as_bytes()) {
+        for (s, b) in sum
+            .iter_mut()
+            .zip(blake3_servil::convenience::hash(m).as_bytes())
+        {
             *s ^= b;
         }
     }
