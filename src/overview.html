@@ -22,7 +22,7 @@ th.vm, td.vm { display: none; } body.show-vm th.vm, body.show-vm td.vm { display
 th.yours { background: #f5f3ff; }
 .pick { display: block; text-decoration: none; color: inherit; }
 .pick.none { color: #d1d5db; font-size: 11px; }
-.bars { position: relative; display: flex; flex-direction: column; gap: 2px; width: 260px; border-left: 1px solid #d1d5db; padding-left: 1px; }
+.bars { position: relative; display: flex; flex-direction: column; gap: 2px; width: 260px; border-left: 1px solid #d1d5db; padding-left: 1px; margin-right: 44px; }
 /* The span, as on the map: a bracket from the shortest bar shown to the
    longest, and how many times faster the longest is. */
 .span { position: absolute; width: 3px; border: 1px solid #6b7280; border-left: none; pointer-events: none; } .fam-bars .span { pointer-events: auto; cursor: help; }
@@ -32,8 +32,6 @@ th.yours { background: #f5f3ff; }
 .bars i { display: block; height: 7px; border-radius: 0 2px 2px 0; flex-shrink: 0; }
 .bar.off { display: none; }
 .pick:hover .bars i { filter: brightness(.85); }
-.axis { position: relative; width: 260px; height: 12px; } .axis span { position: absolute; top: 0; transform: translateX(-50%); color: #9ca3af; font-size: 9px; white-space: nowrap; }
-tr.axis-row td { border-top: none; padding-top: 0; }
 #tip { position: fixed; pointer-events: none; background: #111827; color: #fff; font-size: 12px; padding: 6px 8px; border-radius: 6px; display: none; z-index: 10; box-sizing: border-box; max-width: min(34em, calc(100vw - 8px)); }
 #tip .row { padding-left: 1.2em; text-indent: -1.2em; }
 #tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
@@ -56,7 +54,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 /* A phone: one machine at a time, its columns as rows, each named. */
 @media (max-width: 700px) {
   body { margin: 12px; }
-  .bars, .axis { width: 150px; }
+  .bars { width: 150px; }
   #tip { pointer-events: auto; }
 }
 </style></head><body>
@@ -66,7 +64,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 <div class="fam-legend"><span><i class="lo"></i> one message of 1 MiB, one thread, between other work</span><span><i class="hi"></i> messages nonstop, every core</span></div>
 @FAMILIES@
 <h2>By machine and by use case</h2>
-<p class="sub">A column is a machine, a row a use case; one scale throughout (the faint lines are factors of ten). Point at bars for figures; open a cell for its chart on the machine's map.</p>
+<p class="sub">A column is a machine, a row a use case. Bar length is speed, each row on its own scale (the row's fastest fills the width). Point at bars for figures; open a cell for its chart on the machine's map.</p>
 @BODY@
 
 <div id="tip"></div>

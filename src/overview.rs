@@ -657,67 +657,23 @@ pub fn html(rows: &[Row]) -> String {
             }
         }
     }
-    // One log scale for every cell of the grid, so bars compare across
-    // situations as well as across hashes; the small-values cells are
-    // short on it and legible (Zooko, October 23). Decade lines in each
-    // cell, the axis once under each machine.
-    let all: Vec<f64> = rows
-        .iter()
-        .filter(|r| !r.stale && !r.virtual_machine)
-        .flat_map(|r| r.cells.iter().flatten().map(|b| b.gbps))
-        .filter(|g| *g > 0.0)
+    // One linear scale a row: the row's fastest bar, over every machine,
+    // fills the width, so a bar's length is its speed in proportion (×19
+    // looks like ×19) and machines in a row compare directly; the row's
+    // full-width speed is written at its right (Zooko, October 24: a log
+    // scale made ×19 look like a little more). Columns compare by the
+    // brackets and the labels.
+    let row_max: Vec<f64> = (0..PICKS.len())
+        .map(|i| {
+            rows.iter()
+                .filter(|r| !r.stale && !r.virtual_machine)
+                .flat_map(|r| r.cells[i].iter().map(|b| b.gbps))
+                .fold(0.0, f64::max)
+        })
         .collect();
-    let (lo_g, hi_g) = if all.is_empty() {
-        (0.01, 100.0)
-    } else {
-        (
-            10f64.powf(
-                all.iter()
-                    .cloned()
-                    .fold(f64::INFINITY, f64::min)
-                    .log10()
-                    .floor(),
-            ),
-            10f64.powf(all.iter().cloned().fold(0.0, f64::max).log10().ceil()),
-        )
-    };
-    let width = |g: f64| {
-        if g <= 0.0 {
-            0.0
-        } else {
-            100.0 * (g.log10() - lo_g.log10()) / (hi_g.log10() - lo_g.log10())
-        }
-    };
-    let mut decades = Vec::new();
-    let mut e = lo_g.log10() as i32 + 1;
-    while 10f64.powi(e) < hi_g {
-        decades.push(width(10f64.powi(e)));
-        e += 1;
-    }
-    let grid_lines: String = decades.iter().map(|w| format!("linear-gradient(90deg, transparent {w:.1}%, #d6d2cb {w:.1}%, #d6d2cb calc({w:.1}% + 1px), transparent calc({w:.1}% + 1px))")).collect::<Vec<_>>().join(", ");
-    // The axis: a tick a decade, labelled every other one (the bars are
-    // narrow, and three labels read where six collide).
-    let mut axis = String::from("<div class=\"axis\">");
-    let first = lo_g.log10() as i32;
-    let mut e = first;
-    while 10f64.powi(e) <= hi_g {
-        let g = 10f64.powi(e);
-        if (e - first) % 2 == 0 {
-            let _ = write!(
-                axis,
-                "<span style=\"left:{:.1}%\">{}</span>",
-                width(g),
-                speed(g)
-            );
-        }
-        e += 1;
-    }
-    axis.push_str("</div>");
-    // The grid, turned: a column per machine, a row per situation (its
-    // picks), so every bar in a column stands over the same axis and a
-    // glance down it compares situations; a glance across compares
-    // machines (one scale for the page). Machines of another release get a
-    // column that names their last run and links its map.
+    // The grid, turned: a column per machine, a row per use case, so a
+    // glance across a row compares machines. Machines of another release
+    // get a column that names their last run and links its map.
     let mut body = String::new();
     body.push_str("<div class=\"grid\"><table><thead><tr><th class=\"situation\"></th>");
     for row in rows {
@@ -749,11 +705,19 @@ pub fn html(rows: &[Row]) -> String {
     for (i, pick) in PICKS.iter().enumerate() {
         {
             let column = pick.column;
+            let width = |g: f64| {
+                if row_max[i] > 0.0 {
+                    100.0 * g / row_max[i]
+                } else {
+                    0.0
+                }
+            };
             let _ = write!(
                 body,
-                "<tr><td class=\"situation\" title=\"{}\">{}</td>",
+                "<tr><td class=\"situation\" title=\"{}\">{}<span class=\"pt\">full width {}</span></td>",
                 escape(pick.situation),
-                escape(column)
+                escape(column),
+                speed(row_max[i])
             );
             for row in rows {
                 let class = if row.virtual_machine {
@@ -789,7 +753,7 @@ pub fn html(rows: &[Row]) -> String {
                     .collect();
                 let _ = write!(
                     body,
-                    "<td{class}><a class=\"pick\" href=\"{}\" data-head=\"{} · {}\" data-tip=\"{}\"><span class=\"bars\" style=\"background-image:{grid_lines}\">",
+                    "<td{class}><a class=\"pick\" href=\"{}\" data-head=\"{} · {}\" data-tip=\"{}\"><span class=\"bars\">",
                     escape(&map),
                     escape(&row.machine),
                     escape(column),
@@ -811,21 +775,7 @@ pub fn html(rows: &[Row]) -> String {
             body.push_str("</tr>\n");
         }
     }
-    // The axis once, at the foot of every machine's column.
-    body.push_str("<tr class=\"axis-row\"><td class=\"situation\"></td>");
-    for row in rows {
-        let class = if row.virtual_machine {
-            " class=\"vm\""
-        } else {
-            ""
-        };
-        let _ = write!(
-            body,
-            "<td{class}>{}</td>",
-            if row.stale { "" } else { &axis }
-        );
-    }
-    body.push_str("</tr></tbody></table></div>\n");
+    body.push_str("</tbody></table></div>\n");
     include_str!("overview.html")
         .replace("@FAMILIES@", &families_by_machine(rows))
         .replace("@LEGEND@", &legend)
@@ -1026,22 +976,23 @@ mod tests {
         let vm = row("virt", true, PICKS.iter().map(|_| Vec::new()).collect());
         let rows = [row("A", false, cells), vm];
         let page = html(&rows);
-        // One log scale for every cell: the speeds span 0.75 to 30 GB/s, so
-        // the scale runs 0.1 to 100 GB/s (three decades) and a bar's width
-        // is its log position: 30 GB/s at 82.6%, 1.0 at 33.3%, 0.75 at 29.2%.
+        // Each row on its own linear scale: its fastest bar fills the width
+        // (official's 1.0 GB/s in the first row; servil's b3sum in the
+        // last), the others in proportion, and the row names its full width.
         assert!(
-            page.contains("width:82.6%;background:#4c1d95"),
-            "the fastest bar on the page sits at its log position"
+            page.contains("width:90.0%;background:#7c3aed"),
+            "servil's bar in proportion to the row's fastest"
         );
         assert!(
-            page.contains("width:33.3%;background:#3b82f6"),
-            "1 GB/s is one third of the three-decade scale"
+            page.contains("width:100.0%;background:#3b82f6"),
+            "the row's fastest fills the width"
         );
-        assert!(page.contains("width:29.2%;background:#e07a45"));
+        assert!(page.contains("width:75.0%;background:#e07a45"));
         assert!(
-            page.contains("<div class=\"axis\"><span style=\"left:0.0%\">0.10 GB/s</span>"),
-            "the axis is drawn once under the machine, from the scale's bottom"
+            page.contains("<span class=\"pt\">full width 1.0 GB/s</span>"),
+            "the row names the speed that fills its width"
         );
+        assert!(page.contains("width:5.0%;background:#cfcbc3"), "md5sum's 1.5 of b3sum's 30");
         assert!(
             page.contains("<th class=\"vm\""),
             "a virtual machine's column is marked"
