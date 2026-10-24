@@ -642,6 +642,62 @@ pub fn html(rows: &[Row]) -> String {
             escape(name.split(" (").next().unwrap_or(name))
         );
     }
+    // One log scale for every cell of the grid, so bars compare across
+    // situations as well as across hashes; the small-values cells are
+    // short on it and legible (Zooko, October 23). Decade lines in each
+    // cell, the axis once under each machine.
+    let all: Vec<f64> = rows
+        .iter()
+        .filter(|r| !r.stale && !r.virtual_machine)
+        .flat_map(|r| r.cells.iter().flatten().map(|b| b.gbps))
+        .filter(|g| *g > 0.0)
+        .collect();
+    let (lo_g, hi_g) = if all.is_empty() {
+        (0.01, 100.0)
+    } else {
+        (
+            10f64.powf(
+                all.iter()
+                    .cloned()
+                    .fold(f64::INFINITY, f64::min)
+                    .log10()
+                    .floor(),
+            ),
+            10f64.powf(all.iter().cloned().fold(0.0, f64::max).log10().ceil()),
+        )
+    };
+    let width = |g: f64| {
+        if g <= 0.0 {
+            0.0
+        } else {
+            100.0 * (g.log10() - lo_g.log10()) / (hi_g.log10() - lo_g.log10())
+        }
+    };
+    let mut decades = Vec::new();
+    let mut e = lo_g.log10() as i32 + 1;
+    while 10f64.powi(e) < hi_g {
+        decades.push(width(10f64.powi(e)));
+        e += 1;
+    }
+    let grid_lines: String = decades.iter().map(|w| format!("linear-gradient(90deg, transparent {w:.1}%, #d6d2cb {w:.1}%, #d6d2cb calc({w:.1}% + 1px), transparent calc({w:.1}% + 1px))")).collect::<Vec<_>>().join(", ");
+    // The axis: a tick a decade, labelled every other one (the bars are
+    // narrow, and three labels read where six collide).
+    let mut axis = String::from("<div class=\"axis\">");
+    let first = lo_g.log10() as i32;
+    let mut e = first;
+    while 10f64.powi(e) <= hi_g {
+        let g = 10f64.powi(e);
+        if (e - first) % 2 == 0 {
+            let _ = write!(
+                axis,
+                "<span style=\"left:{:.1}%\">{}</span>",
+                width(g),
+                speed(g)
+            );
+        }
+        e += 1;
+    }
+    axis.push_str("</div>");
     let mut body = String::new();
     body.push_str("<div class=\"grid\"><table><thead><tr><th class=\"machine\"></th>");
     for (column, picks) in &columns {
@@ -713,7 +769,6 @@ pub fn html(rows: &[Row]) -> String {
                     );
                     continue;
                 };
-                let fastest = bars.iter().map(|b| b.gbps).fold(0.0f64, f64::max);
                 // Colour, name, the note, and GB/s as a number (last: never empty):
                 // the script rounds and words it.
                 let tip: Vec<String> = bars
@@ -722,7 +777,7 @@ pub fn html(rows: &[Row]) -> String {
                     .collect();
                 let _ = write!(
                     body,
-                    "<a class=\"pick\" href=\"{}\" data-head=\"{} · {} · {}\" data-tip=\"{}\"><span class=\"pt\">{}</span><span class=\"chart\"><span class=\"bars\">",
+                    "<a class=\"pick\" href=\"{}\" data-head=\"{} · {} · {}\" data-tip=\"{}\"><span class=\"pt\">{}</span><span class=\"chart\"><span class=\"bars\" style=\"background-image:{grid_lines}\">",
                     escape(&map),
                     escape(&row.machine),
                     escape(column),
@@ -733,25 +788,35 @@ pub fn html(rows: &[Row]) -> String {
                 for (n, b) in bars.iter().enumerate() {
                     let _ = write!(
                         body,
-                        "<span class=\"bar\"><i data-c=\"{}\" data-g=\"{}\" style=\"width:{}%;background:{}\"{}></i>{}</span>",
+                        "<span class=\"bar\"><i data-c=\"{}\" data-g=\"{}\" style=\"width:{:.1}%;background:{}\"{}></i>{}</span>",
                         b.color,
                         b.gbps,
-                        (100.0 * b.gbps / fastest).round(),
+                        width(b.gbps),
                         b.color,
                         "",
                         ""
                     );
                     let _ = n;
                 }
-                let _ = write!(
-                    body,
-                    "</span><span class=\"under\"><span class=\"scale\">{}</span></span></span></a>",
-                    escape(&speed(fastest))
-                );
+                body.push_str("</span></span></a>");
             }
             body.push_str("</td>");
         }
         body.push_str("</tr>\n");
+        if !row.stale {
+            let _ = write!(
+                body,
+                "<tr class=\"axis-row{}\"><td class=\"machine\"></td>",
+                if row.virtual_machine { " vm" } else { "" }
+            );
+            for _ in &columns {
+                let _ = write!(
+                    body,
+                    "<td><div class=\"pick\"><span class=\"pt\"></span>{axis}</div></td>"
+                );
+            }
+            body.push_str("</tr>\n");
+        }
     }
     body.push_str("</tbody></table></div>\n");
     include_str!("overview.html")
@@ -954,18 +1019,21 @@ mod tests {
         let vm = row("virt", true, PICKS.iter().map(|_| Vec::new()).collect());
         let rows = [row("A", false, cells), vm];
         let page = html(&rows);
+        // One log scale for every cell: the speeds span 0.75 to 30 GB/s, so
+        // the scale runs 0.1 to 100 GB/s (three decades) and a bar's width
+        // is its log position: 30 GB/s at 82.6%, 1.0 at 33.3%, 0.75 at 29.2%.
         assert!(
-            page.contains("width:90%;background:#7c3aed"),
-            "servil's bar in proportion to the fastest"
+            page.contains("width:82.6%;background:#4c1d95"),
+            "the fastest bar on the page sits at its log position"
         );
         assert!(
-            page.contains("width:100%;background:#3b82f6"),
-            "the fastest fills the width"
+            page.contains("width:33.3%;background:#3b82f6"),
+            "1 GB/s is one third of the three-decade scale"
         );
-        assert!(page.contains("width:75%;background:#e07a45"));
+        assert!(page.contains("width:29.2%;background:#e07a45"));
         assert!(
-            page.contains("<span class=\"scale\">1.0 GB/s</span>"),
-            "the fastest's speed is the scale"
+            page.contains("<div class=\"axis\"><span style=\"left:0.0%\">0.10 GB/s</span>"),
+            "the axis is drawn once under the machine, from the scale's bottom"
         );
         assert!(
             page.contains("<tr class=\"vm\""),

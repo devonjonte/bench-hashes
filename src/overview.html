@@ -11,10 +11,10 @@ h1 { font-size: 20px; margin: 0 0 4px; }
 .legend label { color: #9ca3af; font-size: 12px; margin-left: 8px; }
 .grid { overflow-x: auto; }
 table { border-collapse: collapse; }
-th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-top: 1px solid #e5e7eb; }
+th, td { text-align: left; vertical-align: top; padding: 6px 6px; border-top: 1px solid #e5e7eb; }
 /* A column's name starts where its bars start: past the points' column. */
 th { font-weight: 600; font-size: 12px; color: #6b7280; border-top: none; cursor: help; max-width: 150px; vertical-align: bottom; padding-left: 60px; }
-th.machine, td.machine { min-width: 180px; } th.machine { padding-left: 8px; }
+th.machine, td.machine { min-width: 150px; max-width: 170px; } th.machine { padding-left: 8px; }
 td.machine a { color: #4c1d95; text-decoration: none; } td.machine b { font-size: 15px; }
 td.machine span { display: block; color: #9ca3af; font-size: 12px; margin-top: 2px; }
 tr.yours td { background: #f5f3ff; }
@@ -27,14 +27,15 @@ tr.vm { display: none; color: #6b7280; } body.show-vm tr.vm { display: table-row
 .pick .pt { width: 46px; color: #6b7280; font-size: 11px; text-align: right; white-space: nowrap; padding-top: 1px; }
 .pick.none { color: #d1d5db; font-size: 11px; }
 .chart { display: flex; flex-direction: column; }
-.bars { display: flex; flex-direction: column; gap: 2px; width: 96px; border-left: 1px solid #d1d5db; padding-left: 1px; }
+.bars { display: flex; flex-direction: column; gap: 2px; width: 118px; border-left: 1px solid #d1d5db; padding-left: 1px; }
 .bar { display: flex; align-items: center; }
 .bars i { display: block; height: 7px; border-radius: 0 2px 2px 0; flex-shrink: 0; }
 .bar.off { display: none; }
 .under { display: flex; justify-content: flex-end; margin-top: 1px; }
 .mult { font-style: normal; font-size: 10px; font-weight: 600; color: #4c1d95; white-space: nowrap; display: flex; gap: 6px; }
 .mult .m.slower { color: #b91c1c; } .mult .sw { display: inline-block; width: 7px; height: 7px; border-radius: 2px; margin-right: 2px; vertical-align: 0; }
-.scale { color: #9ca3af; font-size: 10px; white-space: nowrap; }
+.axis { position: relative; width: 118px; height: 12px; } .axis span { position: absolute; top: 0; transform: translateX(-50%); color: #9ca3af; font-size: 9px; white-space: nowrap; }
+tr.axis-row td { border-top: none; padding-top: 0; } tr.axis-row .pick { padding: 0; }
 .pick:hover .bars i.cmp { filter: brightness(.85); }
 #tip { position: fixed; pointer-events: none; background: #111827; color: #fff; font-size: 12px; padding: 6px 8px; border-radius: 6px; display: none; z-index: 10; box-sizing: border-box; max-width: min(34em, calc(100vw - 8px)); }
 #tip .row { padding-left: 1.2em; text-indent: -1.2em; }
@@ -75,7 +76,7 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
 <div class="fam-legend"><span><i class="lo"></i> one message of 1 MiB, one thread, between other work</span><span><i class="hi"></i> messages nonstop, every core</span></div>
 @FAMILIES@
 <details class="door grid-door"><summary>By machine and by situation</summary>
-<p class="sub">A row is one machine; a column is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster; under them, the fastest's speed, the bars' scale. Point at the bars (tap, on a phone) for every figure, at a column's name for what it stands for; open a cell for its full chart on that machine's map, every cell the benchmark has.</p>
+<p class="sub">A row is one machine; a column is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster; every cell on one scale (the faint lines are factors of ten), so a bar compares across the columns too. Point at the bars (tap, on a phone) for every figure, at a column's name for what it stands for; open a cell for its full chart on that machine's map, every cell the benchmark has.</p>
 @BODY@
 </details>
 <div id="tip"></div>
