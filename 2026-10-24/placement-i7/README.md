@@ -46,4 +46,8 @@ No slow offset at any placement (worst 1.07x, isolated, solo); about 4%
 faster at 64 B and 2.5% at 256 B everywhere. On the EPYC the same kernel
 costs 24-31% at 16 and 48 (Sam, #141).
 
+**E cores** (`sweep-ecores.tsv`, OFFSET_SWEEP_CORES=16-19, base builds):
+flat at every placement and offset, worst 1.01x; 64 B medians 1.17-1.19,
+256 B 0.97-0.99. On the i7 the windows are the P cores' alone.
+
 **Posted.** johnservil/bench-hashes #65; johnservil/BLAKE3 #141.

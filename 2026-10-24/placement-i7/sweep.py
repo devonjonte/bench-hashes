@@ -19,13 +19,16 @@ here = pathlib.Path(__file__).resolve().parent
 BUILDS = sys.argv[1:] or ["default", "diag-align64", "line16", "line32", "line48"]
 OFFSETS = range(448, 4545, 16)
 SLOW = 1.08
+# P cores (0-15) unless OFFSET_SWEEP_CORES names others (E cores: 16-19).
+import os  # noqa: E402
+CORES = os.environ.get("OFFSET_SWEEP_CORES", "0-15")
 
 
 def run(build, tls, label):
-    out = here / "runs" / build / label / str(tls)
+    out = here / "runs" / CORES / build / label / str(tls)
     out.mkdir(parents=True, exist_ok=True)
     env = {"PATH": "/usr/bin:/bin", "HOME": "/home/agent", "GLIBC_TUNABLES": f"glibc.rtld.optional_static_tls={tls}"}
-    subprocess.run(["taskset", "-c", "0-15", str(here / f"bench-{build}"), "--contenders", "blake3-servil-st",
+    subprocess.run(["taskset", "-c", CORES, str(here / f"bench-{build}"), "--contenders", "blake3-servil-st",
                     "--points", "lent 64 B,lent 256 B", "--for-regression-check", "--rounds", "96"],
                    cwd=out, env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     report = next(out.glob("benchmark-results/*/bench-hashes.result.txt"))
