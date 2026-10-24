@@ -26,6 +26,21 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **Batches start at a 64-byte boundary** (Zooko, October 24, deciding on
+  BLAKE3 #141): the fork's padded batch contract (`hash_many*`,
+  `b3_hash_many*`) is to require a batch buffer that starts at a 64-byte
+  boundary, so every batch the benchmark hands any contender starts at
+  one: the in-memory batch's copy, the producer's buffer of the after-gap
+  batch cells, the kept buffers of the continuous and lent batch cells,
+  and each Merkle layer (`BATCH_SPARE`, `batch_start`). A single
+  message's buffer starts where the allocator puts it (glibc places a
+  large one 16 bytes into a line), as a real program's does: the message cells keep showing
+  what an unaligned caller meets (bench-hashes #65). The check
+  `assert_batch_aligned` stops a run whose batch is placed otherwise, and
+  the test `every_batch_reaches_the_contenders_on_a_64_byte_boundary`
+  holds each kind of batch cell to it. 0.17's batch cells measured
+  batches at the allocator's placement: compare them with 0.18's only
+  with that difference stated.
 - **The overview** (Zooko, October 22): one page above the maps, built
   from every machine's published run; its representative cells and rules
   are the section "The overview" below, and the frozen block's
