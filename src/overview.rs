@@ -41,37 +41,37 @@ pub enum Cell {
 /// block the same.
 pub const PICKS: [Pick; 7] = [
     Pick {
-        column: "small values",
+        column: "64 B",
         situation: "a key, an identifier, a small record, hashed between a program's other work",
         cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "64 B", servil: Algorithm::Blake3ServilSt },
     },
     Pick {
-        column: "small values",
+        column: "1 KiB",
         situation: "a small record, hashed between a program's other work",
         cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "1 KiB", servil: Algorithm::Blake3ServilSt },
     },
     Pick {
-        column: "one message, one thread",
+        column: "1 MiB, one thread",
         situation: "a buffer the size of a file, on the calling thread",
         cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "1 MiB", servil: Algorithm::Blake3ServilSt },
     },
     Pick {
-        column: "one big message, every core",
+        column: "128 MiB, every core",
         situation: "a download or a disk image, the library's threads at work",
         cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "128 MiB", servil: Algorithm::Blake3ServilMt },
     },
     Pick {
-        column: "nonstop, from one calling thread",
+        column: "64 KiB messages, one after another",
         situation: "messages arriving one after another, as fast as the program can feed them; BLAKE3 servil's stream hashes them on its threads, the others on the calling thread",
         cell: Cell::Hashing { use_case: UseCase::ContinuousMessages, point: "64 KiB", servil: Algorithm::Blake3ServilMt },
     },
     Pick {
-        column: "many small messages at once",
+        column: "1024 messages of 64 B, in one call",
         situation: "a Merkle layer, a content-addressed store, a database's keys: 1024 messages of 64 bytes in one call",
         cell: Cell::Hashing { use_case: UseCase::ManyMessages, point: "1024", servil: Algorithm::Blake3ServilSt },
     },
     Pick {
-        column: "files",
+        column: "1000 files, b3sum",
         situation: "b3sum over a directory of 1000 files of assorted sizes, 74 MiB, in the page cache: the command itself, start to exit",
         cell: Cell::B3sum { cache: "warm", input: "mixed tree, 1000 files, 74 MiB" },
     },
@@ -407,18 +407,6 @@ fn described(headers: &[(String, String)], link: String, cells: Vec<Bars>, stale
     }
 }
 
-/// The columns, each with the indexes of its picks (two picks may share one).
-fn columns() -> Vec<(&'static str, Vec<usize>)> {
-    let mut columns: Vec<(&'static str, Vec<usize>)> = Vec::new();
-    for (i, pick) in PICKS.iter().enumerate() {
-        match columns.iter_mut().find(|(c, _)| *c == pick.column) {
-            Some((_, picks)) => picks.push(i),
-            None => columns.push((pick.column, vec![i])),
-        }
-    }
-    columns
-}
-
 /// A ratio as the page says it, under the pointer: one figure after the
 /// point below 10 ("2.5×"), whole numbers above ("12×"). Two figures would
 /// claim a precision one run does not have.
@@ -445,13 +433,6 @@ fn escape(text: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
-}
-
-fn point_of(pick: &Pick) -> String {
-    match &pick.cell {
-        Cell::Hashing { point, .. } => (*point).to_owned(),
-        Cell::B3sum { .. } => "1000 files".to_owned(),
-    }
 }
 
 /// The grid as text, for the terminal and the tests: each cell's speeds,
@@ -500,11 +481,7 @@ pub fn text(rows: &[Row]) -> String {
                     line
                 }
             };
-            let _ = writeln!(
-                out,
-                "  {:34} {line}",
-                format!("{}, {}:", pick.column, point_of(pick))
-            );
+            let _ = writeln!(out, "  {:36} {line}", format!("{}:", pick.column));
         }
         out.push('\n');
     }
@@ -573,7 +550,7 @@ fn families_by_machine(rows: &[Row]) -> String {
             let color = inner.color;
             let _ = write!(
                 out,
-                "<div class=\"fam-bar\" data-c=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}: {}\t{}\t{}: {}\"><i class=\"hi\" style=\"width:{:.1}%;background:{color}\"></i><i class=\"lo\" style=\"width:{:.1}%;background:{color}\"></i></div>",
+                "<div class=\"fam-bar\" data-c=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}: {}\t{}\t{}: {}\"><i class=\"hi\" data-g=\"{}\" style=\"width:{:.1}%;background:{color}\"></i><i class=\"lo\" data-g=\"{}\" style=\"width:{:.1}%;background:{color}\"></i></div>",
                 escape(&r.machine),
                 escape(family),
                 top.gbps,
@@ -582,7 +559,9 @@ fn families_by_machine(rows: &[Row]) -> String {
                 inner.gbps,
                 escape(&inner.name),
                 escape(PICKS[EVERYDAY].situation),
+                top.gbps,
                 width(top.gbps),
+                inner.gbps,
                 width(inner.gbps)
             );
         }
@@ -612,7 +591,6 @@ fn families_by_machine(rows: &[Row]) -> String {
 /// hide or show its bars; a pick under the pointer shows its figures in
 /// the map's tooltip.
 pub fn html(rows: &[Row]) -> String {
-    let columns = columns();
     // The legend: one button a colour, named for the hash first drawn in
     // it (b3sum's bars share their library's colour; the tooltip names
     // each bar exactly). A button hides or shows every bar of its colour.
@@ -640,13 +618,44 @@ pub fn html(rows: &[Row]) -> String {
             .unwrap_or(usize::MAX)
     };
     drawn.sort_by_key(|(_, c)| rank(c));
-    let mut legend = String::new();
-    for (name, color) in &drawn {
-        let _ = write!(
-            legend,
+    // A library's two forms, single- and multi-threaded, stand one above
+    // the other: they are one contender in two forms, which SHA-256 is
+    // related to in neither (Zooko, October 23).
+    let pairs = [
+        (Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt),
+        (Algorithm::Blake3, Algorithm::Blake3Rayon),
+    ];
+    let button = |name: &str, color: &str| {
+        format!(
             "<button style=\"--c:{color}\" data-c=\"{color}\">{}</button>",
             escape(name.split(" (").next().unwrap_or(name))
-        );
+        )
+    };
+    let mut legend = String::new();
+    let mut done: Vec<&str> = Vec::new();
+    for (name, color) in &drawn {
+        if done.contains(color) {
+            continue;
+        }
+        match pairs
+            .iter()
+            .find(|(a, b)| a.color() == *color || b.color() == *color)
+        {
+            Some((a, b)) => {
+                legend.push_str("<span class=\"pair\">");
+                for form in [a, b] {
+                    if let Some((n, c)) = drawn.iter().find(|(_, c)| *c == form.color()) {
+                        legend.push_str(&button(n, c));
+                        done.push(c);
+                    }
+                }
+                legend.push_str("</span>");
+            }
+            None => {
+                legend.push_str(&button(name, color));
+                done.push(color);
+            }
+        }
     }
     // One log scale for every cell of the grid, so bars compare across
     // situations as well as across hashes; the small-values cells are
@@ -737,19 +746,14 @@ pub fn html(rows: &[Row]) -> String {
         );
     }
     body.push_str("</tr></thead><tbody>\n");
-    for (column, picks) in &columns {
-        for (n, &i) in picks.iter().enumerate() {
-            let point = point_of(&PICKS[i]);
+    for (i, pick) in PICKS.iter().enumerate() {
+        {
+            let column = pick.column;
             let _ = write!(
                 body,
-                "<tr><td class=\"situation\" title=\"{}\">{}<span class=\"pt\">{}</span></td>",
-                escape(PICKS[i].situation),
-                if n == 0 {
-                    escape(column)
-                } else {
-                    String::new()
-                },
-                escape(&point)
+                "<tr><td class=\"situation\" title=\"{}\">{}</td>",
+                escape(pick.situation),
+                escape(column)
             );
             for row in rows {
                 let class = if row.virtual_machine {
@@ -785,11 +789,11 @@ pub fn html(rows: &[Row]) -> String {
                     .collect();
                 let _ = write!(
                     body,
-                    "<td{class}><a class=\"pick\" href=\"{}\" data-head=\"{} · {} · {}\" data-tip=\"{}\"><span class=\"bars\" style=\"background-image:{grid_lines}\">",
+                    "<td{class}><a class=\"pick\" href=\"{}\" data-head=\"{} · {}\" data-tip=\"{}\"><span class=\"bars\" style=\"background-image:{grid_lines}\">",
                     escape(&map),
                     escape(&row.machine),
                     escape(column),
-                    escape(&point),
+
                     escape(&tip.join("\n"))
                 );
                 for b in bars {
@@ -1053,7 +1057,7 @@ mod tests {
             ["#7c3aed", "#4c1d95", "#3b82f6", "#e07a45", "#cfcbc3"]
         );
         assert!(text(&rows).contains(
-            "files, 1000 files:                 30 GB/s b3sum, BLAKE3 servil's; 10 GB/s b3sum, official BLAKE3's (3.0×); 1.5 GB/s md5sum (20×)"
+            "1000 files, b3sum:                   30 GB/s b3sum, BLAKE3 servil's; 10 GB/s b3sum, official BLAKE3's (3.0×); 1.5 GB/s md5sum (20×)"
         ));
     }
 
@@ -1115,14 +1119,10 @@ mod tests {
     }
 
     #[test]
-    fn the_columns_group_picks_that_share_a_heading() {
-        let columns = columns();
-        assert_eq!(columns.len(), 6);
-        assert_eq!(columns[0], ("small values", vec![0, 1]));
-        assert_eq!(
-            PICKS.len(),
-            7,
-            "the budget: six columns, at most eight cells"
-        );
+    fn the_picks_keep_to_the_budget() {
+        assert_eq!(PICKS.len(), 7, "the budget: at most eight cells");
+        let mut labels: Vec<&str> = PICKS.iter().map(|p| p.column).collect();
+        labels.dedup();
+        assert_eq!(labels.len(), PICKS.len(), "each row its own label");
     }
 }
