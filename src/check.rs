@@ -28,6 +28,11 @@
 //! 3. Runs `bench-hashes regress` over the pairs: servil st and servil mt
 //!    (the code that changes) at the regression check's visits
 //!    (TO_CHECK_FOR_REGRESSIONS), judged all at once (clocks::summary).
+//! 4. When no cell is slower, runs the cells `regress` names as suspects
+//!    (level, the pairs' mean beyond the margin; at most 8) again on
+//!    SECOND_PAIRS fresh pairs, each side relinked anew, judged among
+//!    themselves: judged among every cell, a slowdown at one point is
+//!    level unless it is many times its pairs' spread (bench-hashes #66).
 //!
 //! It replaces the fork's `tools/perf_regress.py` (October 19, 2026,
 //! Zooko: one tool that does everything a change needs, at no cost to the
@@ -47,6 +52,15 @@ use std::process::Command;
 /// chooses 73 points 6 minutes against 14. Every plant is still found;
 /// `--pairs 8` sees more of its cells.
 const PAIRS: usize = 4;
+/// Pairs of the second stage: when the first finds no cell slower, the
+/// cells it names as suspects (level, beyond the margin) run again on
+/// fresh layouts and are judged among themselves. Judged among the 75
+/// cells a hash() change reaches, a lone cell's paired t on 4 pairs must
+/// pass about 15, and a slowdown planted at one point (+20% of calls,
+/// its cell +23% to +77% in every pair) was judged level; among 8 cells
+/// on 16 pairs the bar is about 3 (bench-hashes #66; the data branch,
+/// 2026-10-24/check-one-point).
+const SECOND_PAIRS: usize = 16;
 /// The two sides' contenders: the code a change to the fork changes.
 const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
@@ -143,12 +157,83 @@ pub fn command(arguments: &[String]) -> i32 {
     regress.extend(olds);
     regress.push("--".into());
     regress.extend(news);
-    let status = Command::new(&new_exe)
-        .args(&regress)
-        .current_dir(&bench)
-        .status()
+    let (code, out) = run_regress(&new_exe, &bench, &regress);
+    let suspects: Vec<String> = out
+        .lines()
+        .find_map(|l| l.strip_prefix("regress: suspects: "))
+        .map(|s| s.split(';').map(str::to_string).collect())
+        .unwrap_or_default();
+    if code != 0 || suspects.is_empty() {
+        return code;
+    }
+    // The second stage: the suspects on fresh layouts (seeds past both
+    // sides' first ones), judged among themselves.
+    eprintln!(
+        "check: a second stage for {} suspects on {SECOND_PAIRS} fresh pairs: {}",
+        suspects.len(),
+        suspects.join(", ")
+    );
+    let field = |k: &String, i: usize| k.split('|').nth(i).expect("a cell key").to_string();
+    let contenders: BTreeSet<String> = suspects.iter().map(|k| field(k, 0)).collect();
+    let points: BTreeSet<String> = suspects
+        .iter()
+        .map(|k| {
+            point_label(&field(k, 2), &field(k, 3)).expect("a suspect's use case is this bench's")
+        })
+        .collect();
+    let first = 2 * pairs;
+    let olds = layouts(&bench, &cache, "old", &old_exe, first..first + SECOND_PAIRS);
+    let news = layouts(
+        &bench,
+        &cache,
+        "new",
+        &new_exe,
+        first + SECOND_PAIRS..first + 2 * SECOND_PAIRS,
+    );
+    let mut second: Vec<String> = vec![
+        "regress".into(),
+        "--pairs".into(),
+        SECOND_PAIRS.to_string(),
+        "--contenders".into(),
+        contenders.into_iter().collect::<Vec<_>>().join(","),
+        "--points".into(),
+        points.into_iter().collect::<Vec<_>>().join(","),
+        "--judge".into(),
+        suspects.join(";"),
+    ];
+    if let Some(keep) = &keep {
+        second.extend([
+            "--keep".to_string(),
+            keep.join("second").display().to_string(),
+        ]);
+    }
+    second.extend(olds);
+    second.push("--".into());
+    second.extend(news);
+    run_regress(&new_exe, &bench, &second).0
+}
+
+/// The `--points` label of a cell's point, from the use case's name and the
+/// point as a cell key spells them ("IdleOneMessage", "256 B": "idle 256
+/// B"); None for a use case of another bench version.
+fn point_label(use_case: &str, point: &str) -> Option<String> {
+    super::UseCase::ALL
+        .into_iter()
+        .find(|u| format!("{u:?}") == use_case)
+        .map(|u| format!("{}{point}", u.label_prefix()))
+}
+
+/// `regress` with these arguments, its output passed through and kept.
+fn run_regress(exe: &Path, bench: &Path, arguments: &[String]) -> (i32, String) {
+    let out = Command::new(exe)
+        .args(arguments)
+        .current_dir(bench)
+        .stderr(std::process::Stdio::inherit())
+        .output()
         .expect("regress runs");
-    status.code().unwrap_or(2)
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    print!("{text}");
+    (out.status.code().unwrap_or(2), text)
 }
 
 /// The fork checkout this bench sits in: `..` from the bench, a git
@@ -676,14 +761,8 @@ fn all_cells(exe: &Path, bench: &Path) -> Vec<(String, String)> {
         .filter(|l| !l.starts_with('#') && !l.starts_with("contender"))
     {
         let f: Vec<&str> = line.split('\t').collect();
-        if let Some(use_case) = super::UseCase::ALL
-            .into_iter()
-            .find(|u| format!("{u:?}") == f[2])
-        {
-            cells.insert((
-                f[0].to_string(),
-                format!("{}{}", use_case.label_prefix(), f[3]),
-            ));
+        if let Some(label) = point_label(f[2], f[3]) {
+            cells.insert((f[0].to_string(), label));
         }
     }
     cells.into_iter().collect()
@@ -951,4 +1030,21 @@ fn manifest_builds_differently(fork: &Path, old: &str, new: &str, manifest: &str
         }
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    /// Every point the bench measures survives the trip through a cell key
+    /// and back to the label that selects it: a second stage's suspects
+    /// are cell keys, and "256 B" alone selects the call after other work,
+    /// not the one after a pause (an IdleOneMessage suspect once went
+    /// unmeasured so).
+    #[test]
+    fn every_cell_key_names_the_point_that_measures_it() {
+        for (index, point) in super::super::POINTS.iter().enumerate() {
+            let label = super::point_label(&format!("{:?}", point.use_case), point.label)
+                .expect("this bench's use case");
+            assert_eq!(super::super::point_named(&label), index, "{label}");
+        }
+    }
 }
