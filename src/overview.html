@@ -21,7 +21,11 @@ th.vm, td.vm { display: none; } body.show-vm th.vm, body.show-vm td.vm { display
 th.yours { background: #f5f3ff; }
 .pick { display: block; text-decoration: none; color: inherit; }
 .pick.none { color: #d1d5db; font-size: 11px; }
-.bars { display: flex; flex-direction: column; gap: 2px; width: 260px; border-left: 1px solid #d1d5db; padding-left: 1px; }
+.bars { position: relative; display: flex; flex-direction: column; gap: 2px; width: 260px; border-left: 1px solid #d1d5db; padding: 0 0 6px 1px; }
+/* The span, as on the map: a bracket from the shortest bar shown to the
+   longest, and how many times faster the longest is. */
+.span { position: absolute; bottom: -1px; height: 4px; border: 1px solid #6b7280; border-top: none; pointer-events: none; }
+.span b { position: absolute; left: 100%; bottom: -1px; transform: translateX(4px); font-size: 11px; color: #4c1d95; white-space: nowrap; }
 .bar { display: flex; align-items: center; }
 .bars i { display: block; height: 7px; border-radius: 0 2px 2px 0; flex-shrink: 0; }
 .bar.off { display: none; }
@@ -60,7 +64,7 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
 <div class="fam-legend"><span><i class="lo"></i> one message of 1 MiB, one thread, between other work</span><span><i class="hi"></i> messages nonstop, every core</span></div>
 @FAMILIES@
 <details class="door grid-door"><summary>By machine and by situation</summary>
-<p class="sub">A column is one machine; a row is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster, every cell on one scale (the faint lines are factors of ten, the axis at the foot of each column), so a glance down a column compares situations and a glance across compares machines. Point at the bars (tap, on a phone) for every figure, at a row's name for what it stands for; open a cell for its full chart on that machine's map, every cell the benchmark has.</p>
+<p class="sub">A column is one machine; a row is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster, every cell on one scale (the faint lines are factors of ten, the axis at the foot of each column), so a glance down a column compares situations and a glance across compares machines; the bracket spans the shortest bar shown to the longest, with how many times faster the longest is. Point at the bars (tap, on a phone) for every figure, at a row's name for what it stands for; open a cell for its full chart on that machine's map, every cell the benchmark has.</p>
 @BODY@
 </details>
 <div id="tip"></div>
@@ -75,11 +79,24 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
   // The multipliers: servil's speed over each competitor still shown, each
   // with the competitor's colour, in the bars' order.
   // A legend button hides or shows a hash's bars in both views.
+  const spans = () => {
+    for (const bars of document.querySelectorAll(".bars")) {
+      bars.querySelector(".span")?.remove();
+      const shown = [...bars.querySelectorAll("i")].filter(i => !hidden(i));
+      if (shown.length < 2) continue;
+      const ws = shown.map(i => parseFloat(i.style.width)), gs = shown.map(i => +i.dataset.g);
+      const m = Math.max(...gs) / Math.min(...gs);
+      if (m < 1.15) continue;
+      bars.insertAdjacentHTML("beforeend", `<span class="span" style="left:${Math.min(...ws)}%;width:${Math.max(...ws) - Math.min(...ws)}%"><b>${times(m)}</b></span>`);
+    }
+  };
   const apply = (b, off) => {
     b.classList.toggle("off", off);
     for (const i of document.querySelectorAll(sel(b))) i.closest(".bar").classList.toggle("off", off);
     for (const f of document.querySelectorAll(`.fam-bar[data-c="${CSS.escape(b.dataset.c)}"]`)) f.classList.toggle("off", off);
+    spans();
   };
+  spans();
   for (const b of document.querySelectorAll(".legend button")) b.addEventListener("click", () => apply(b, !b.classList.contains("off")));
   // BLAKE3 official is off until asked for (Zooko, October 23): the page
   // opens on servil beside SHA-256.
@@ -92,7 +109,7 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
   const show = (p, x, y) => {
     const is = [...p.querySelectorAll(".bars i")], lines = p.dataset.tip.split("\n").map(l => l.split("\t"));
     const ours = +lines[0][3];
-    const rows = lines.map(([c, name, note, g], k) => hidden(is[k]) ? "" : `<div class="row"><span class="sw" style="background:${c}"></span>${name}: ${fmt(+g)}${k ? ` · servil ${times(ours / g)}` : ""}${note ? ` (${note})` : ""}</div>`);
+    const rows = lines.map(([c, name, note, g], k) => hidden(is[k]) ? "" : `<div class="row"><span class="sw" style="background:${c}"></span>${name}: ${fmt(+g)}${note ? ` (${note})` : ""}</div>`);
     tip.innerHTML = `<b>${p.dataset.head}</b>` + rows.join("");
     tip.style.display = "block"; tip.style.left = "0px";
     tip.style.left = Math.max(4, Math.min(x + 14, innerWidth - tip.offsetWidth - 4)) + "px";
