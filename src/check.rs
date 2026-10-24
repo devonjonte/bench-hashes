@@ -1,4 +1,4 @@
-//! `bench-hashes check [--against REV] [--cells all] [--pairs N] [--keep DIR]`:
+//! `bench-hashes check [--against REV] [--old-bench REV] [--cells all] [--pairs N] [--keep DIR]`:
 //! did a change to the fork hurt its speed anywhere? Run from a checkout of
 //! bench-hashes inside a checkout of the fork (the fork at `..`), it
 //! compares the fork's working tree with a commit (`--against`, HEAD by
@@ -34,6 +34,12 @@
 //!    themselves: judged among every cell, a slowdown at one point is
 //!    level unless it is many times its pairs' spread (bench-hashes #66).
 //!
+//! A change to the fork's API changes the bench with it, so one bench builds
+//! against one side alone: `--old-bench REV` builds the old side with this
+//! bench at REV (a commit of this bench's repository, in a worktree under
+//! `target/check/`), the new side with the bench as it is. The cells are
+//! keyed by use case and point, not by call, so the two sides' cells meet.
+//!
 //! It replaces the fork's `tools/perf_regress.py` (October 19, 2026,
 //! Zooko: one tool that does everything a change needs, at no cost to the
 //! one who made it) and `REGRESS_POINTS`, a fixed list of five cells that
@@ -65,9 +71,10 @@ const SECOND_PAIRS: usize = 16;
 const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
 pub fn command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes check [--against REV] [--cells all] [--pairs N] [--keep DIR]";
+    let usage = "usage: bench-hashes check [--against REV] [--old-bench REV] [--cells all] [--pairs N] [--keep DIR]";
     let (mut against, mut all, mut pairs, mut keep) =
         ("HEAD".to_string(), false, PAIRS, None::<PathBuf>);
+    let mut old_bench_rev = None::<String>;
     let mut it = arguments.iter();
     while let Some(name) = it.next() {
         match name.as_str() {
@@ -76,6 +83,13 @@ pub fn command(arguments: &[String]) -> i32 {
                     .next()
                     .unwrap_or_else(|| panic!("--against needs a revision\n{usage}"))
                     .clone()
+            }
+            "--old-bench" => {
+                old_bench_rev = Some(
+                    it.next()
+                        .unwrap_or_else(|| panic!("--old-bench needs a revision\n{usage}"))
+                        .clone(),
+                )
             }
             "--cells" => {
                 let value = it
@@ -112,7 +126,38 @@ pub fn command(arguments: &[String]) -> i32 {
     );
     let cache = fork.join("target").join("check");
     std::fs::create_dir_all(&cache).expect("the check's cache directory");
-    let old_exe = side(&fork, &bench, &cache, "old", &old);
+    // The old side's bench: this one, or this repository at --old-bench.
+    let old_bench = match &old_bench_rev {
+        None => bench.clone(),
+        Some(rev) => {
+            let commit = git(&bench, &["rev-parse", &format!("{rev}^{{commit}}")]);
+            let dir = cache.join("old-bench");
+            if !dir.exists() {
+                git(&bench, &["worktree", "prune"]);
+                git(
+                    &bench,
+                    &[
+                        "worktree",
+                        "add",
+                        "--detach",
+                        dir.to_str().unwrap(),
+                        &commit,
+                    ],
+                );
+            } else if git(&dir, &["rev-parse", "HEAD"]) != commit {
+                git(
+                    &dir,
+                    &["checkout", "--quiet", "--force", "--detach", &commit],
+                );
+            }
+            eprintln!(
+                "check: the old side with the bench at {rev} ({})",
+                &commit[..12]
+            );
+            dir
+        }
+    };
+    let old_exe = side(&fork, &old_bench, &cache, "old", &old);
     let new_exe = side(&fork, &bench, &cache, "new", &new);
     // The cells a change touches, from the new side's coverage.
     // The cells a change touches: (contender, point), from the new side's
@@ -139,7 +184,7 @@ pub fn command(arguments: &[String]) -> i32 {
             Some(points.into_iter().collect()),
         )
     };
-    let olds = layouts(&bench, &cache, "old", &old_exe, 0..pairs);
+    let olds = layouts(&old_bench, &cache, "old", &old_exe, 0..pairs);
     let news = layouts(&bench, &cache, "new", &new_exe, pairs..2 * pairs);
     let mut regress: Vec<String> = vec![
         "regress".into(),
@@ -182,7 +227,13 @@ pub fn command(arguments: &[String]) -> i32 {
         })
         .collect();
     let first = 2 * pairs;
-    let olds = layouts(&bench, &cache, "old", &old_exe, first..first + SECOND_PAIRS);
+    let olds = layouts(
+        &old_bench,
+        &cache,
+        "old",
+        &old_exe,
+        first..first + SECOND_PAIRS,
+    );
     let news = layouts(
         &bench,
         &cache,
