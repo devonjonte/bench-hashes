@@ -667,6 +667,6 @@ overview cell: solo OneMessage 1 KiB, blake3-servil-st (1 KiB)
 overview cell: solo OneMessage 1 MiB, blake3-servil-st (1 MiB, one thread)
 overview cell: solo OneMessage 128 MiB, blake3-servil-mt (128 MiB, every core)
 overview cell: solo ContinuousMessages 64 KiB, blake3-servil-mt (64 KiB messages, one after another)
-overview cell: solo ManyMessages 1024, blake3-servil-st (1024 messages of 64 B, in one call)
+overview cell: solo ManyMessages 1024, blake3-servil-st (1024 messages of 64 B, batched)
 overview cell: b3sum warm mixed tree, 1000 files, 74 MiB (1000 files, b3sum)
 ```

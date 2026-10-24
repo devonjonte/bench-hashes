@@ -66,7 +66,7 @@ pub const PICKS: [Pick; 7] = [
         cell: Cell::Hashing { use_case: UseCase::ContinuousMessages, point: "64 KiB", servil: Algorithm::Blake3ServilMt },
     },
     Pick {
-        column: "1024 messages of 64 B, in one call",
+        column: "1024 messages of 64 B, batched",
         situation: "a Merkle layer, a content-addressed store, a database's keys: 1024 messages of 64 bytes in one call",
         cell: Cell::Hashing { use_case: UseCase::ManyMessages, point: "1024", servil: Algorithm::Blake3ServilSt },
     },

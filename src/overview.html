@@ -40,7 +40,7 @@ tr.axis-row td { border-top: none; padding-top: 0; }
 #tip .cmp { font-weight: 600; }
 footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
 .door { color: #6b7280; font-size: 12px; margin-top: 16px; max-width: 980px; } .door summary { cursor: pointer; width: max-content; } .door p { margin: 6px 0 0 14px; }
-.grid-door { color: inherit; font-size: inherit; max-width: none; margin-top: 18px; } .grid-door > summary { font-size: 17px; font-weight: 600; color: #111827; margin-bottom: 6px; } .grid-door > .sub { margin-left: 0; }
+h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 .families { max-width: 980px; margin: 8px 0 8px; }
 .fam-legend { display: flex; gap: 18px; color: #6b7280; font-size: 12px; margin-top: 14px; } .fam-legend i { display: inline-block; width: 22px; height: 10px; border-radius: 0 3px 3px 0; background: #6b7280; vertical-align: -1px; margin-right: 5px; } .fam-legend i.hi { opacity: .4; }
 .fam-row { display: flex; align-items: center; gap: 14px; padding: 8px 0; border-top: 1px solid #e5e7eb; }
@@ -61,14 +61,14 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
 }
 </style></head><body>
 <h1>How fast BLAKE3 servil runs</h1>
-<p class="sub">On each machine measured, BLAKE3 servil beside the fastest SHA-256 on that machine (and, with its button, BLAKE3 official). A bar's full length is the hash hashing messages nonstop with every core; the darker part inside it is one message of 1 MiB on one thread, between other work, the everyday case. Longer is faster, on one scale for every machine; the bracket past the bars gives how many times faster the longest is than the shortest. Point at a bar for the figures; the door below opens the view by situation, and each of its cells the machine's full map.</p>
+<p class="sub">Longer is faster, on one scale for every machine. The full bar hashes nonstop on every core; the darker part is one message of 1 MiB on one thread. The bracket: how many times faster the fastest ran. Point at a bar for figures.</p>
 <div class="legend">@LEGEND@<label><input type="checkbox" id="vm"> show virtual machines</label></div>
 <div class="fam-legend"><span><i class="lo"></i> one message of 1 MiB, one thread, between other work</span><span><i class="hi"></i> messages nonstop, every core</span></div>
 @FAMILIES@
-<details class="door grid-door"><summary>By machine and by situation</summary>
-<p class="sub">A column is one machine; a row is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster, every cell on one scale (the faint lines are factors of ten, the axis at the foot of each column), so a glance down a column compares situations and a glance across compares machines; the bracket past the bars gives how many times faster the longest shown is than the shortest. Point at the bars (tap, on a phone) for every figure, at a row's name for what it stands for; open a cell for its full chart on that machine's map, every cell the benchmark has.</p>
+<h2>By machine and by use case</h2>
+<p class="sub">A column is a machine, a row a use case; one scale throughout (the faint lines are factors of ten). Point at bars for figures; open a cell for its chart on the machine's map.</p>
 @BODY@
-</details>
+
 <div id="tip"></div>
 <details class="door"><summary>About the hashes compared</summary><p>BLAKE3 official is the <code>blake3</code> crate, the reference implementation; BLAKE3 servil is this fork of it, with the same digests. SHA-256 is the fastest implementation measured on each machine (the <code>sha2</code> crate, <code>ring</code>, or the operating system's CommonCrypto); the tooltip names which. <b>sha1sum and md5sum</b>, drawn in grey, compute SHA-1 and MD5: both are broken as cryptographic hashes (collisions are cheap to make), and they appear here only because many people still run them as checksums; a comparison with them is a comparison with the tool in hand, not with a safe alternative.</p></details>
 <footer>Each bar is one run's mean, by the same rule as the map (<code>clocks::summary</code>), on a machine whose load reading is on its map; no verdict is drawn across runs. From <a href="https://github.com/johnservil/bench-hashes">johnservil/bench-hashes</a>, measuring <a href="https://github.com/devonjonte/BLAKE3">Devon Jonte's line of BLAKE3 servil</a>; the cells shown are FROZEN.md's "The overview".</footer>
@@ -92,12 +92,11 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
       // times faster the fastest is: least to greatest across the two.
       const ratio = cls => { const gs = shown.map(f => +f.querySelector("i." + cls).dataset.g); return Math.max(...gs) / Math.min(...gs); };
       const hi = ratio("hi"), lo = ratio("lo"), [a, b] = [Math.min(hi, lo), Math.max(hi, lo)];
-      if (b < 1.15) continue;
+      if (b < 1.05) continue;
       const longest = Math.max(...shown.map(f => parseFloat(f.querySelector("i.hi").style.width)));
       const top = shown[0].offsetTop, bottom = shown.at(-1).offsetTop + shown.at(-1).offsetHeight;
-      const names = shown.map(f => f.dataset.tip.split("\t")[1]);
       const label = a.toFixed(1) === b.toFixed(1) ? times(b) : `${times(a)}–${times(b).slice(1)}`;
-      const title = `How many times faster the fastest of these ran than the slowest: ${times(lo)} on one message of 1 MiB on one thread, ${times(hi)} hashing nonstop on every core (${names.join(", ")}).`;
+      const title = `the fastest over the slowest: ${times(lo)} on one thread, ${times(hi)} nonstop on every core`;
       bars.insertAdjacentHTML("beforeend", `<span class="span" title="${title}" style="left:calc(${longest}% + 4px);top:${top}px;height:${bottom - top}px"><b>${label}</b></span>`);
     }
     for (const bars of document.querySelectorAll(".bars")) {
@@ -105,12 +104,12 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
       const shown = [...bars.querySelectorAll("i")].filter(i => !hidden(i));
       if (shown.length < 2) continue;
       const gs = shown.map(i => +i.dataset.g), m = Math.max(...gs) / Math.min(...gs);
-      if (m < 1.15) continue;
+      if (m < 1.05) continue;
       // Just past the longest bar, from the top of the first bar shown to
       // the bottom of the last (as on the map, to the right of the lines).
       const longest = Math.max(...shown.map(i => parseFloat(i.style.width)));
       const top = shown[0].parentElement.offsetTop, bottom = shown.at(-1).parentElement.offsetTop + shown.at(-1).parentElement.offsetHeight;
-      bars.insertAdjacentHTML("beforeend", `<span class="span" title="How many times faster the longest bar's hash ran than the shortest's" style="left:calc(${longest}% + 3px);top:${top}px;height:${bottom - top}px"><b>${times(m)}</b></span>`);
+      bars.insertAdjacentHTML("beforeend", `<span class="span" title="the fastest over the slowest" style="left:calc(${longest}% + 3px);top:${top}px;height:${bottom - top}px"><b>${times(m)}</b></span>`);
     }
   };
   const apply = (b, off) => {
