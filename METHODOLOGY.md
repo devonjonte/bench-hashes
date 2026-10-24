@@ -537,9 +537,9 @@ Change any of these on evidence of the same kind, and record it in
 
 | choice | evidence | what it gives up |
 |---|---|---|
-| A run's cell is its **mean**, the slowest hundredth of its samples set aside (`clocks::summary::mean`; Zooko, October 2 and 19) | Planted slowdowns on the Mac (jobs 1164-1167): at +6% a fast speed never caught 1 MiB, the mean caught every cell nearly every time. The trim (bench #41, `data` branch `2026-10-19/stat41`): against the plain mean it kept most of a planted one-in-ten slow mode (x1.113 against x1.149), halved false alarms under contamination and halved the spread; harder trims hid the slow mode. | Up to a hundredth of a run's slowest time; a cell slow in more than a hundredth of its samples shows it almost in full. |
+| A run's cell is its **mean**, the slowest hundredth of its samples set aside (`clocks::summary::mean`; Zooko, October 2 and 19) | Planted slowdowns on the Mac: at +6% a fast speed never caught 1 MiB, the mean caught every cell nearly every time. The trim (bench #41, `data` branch `2026-10-19/stat41`): against the plain mean it kept most of a planted one-in-ten slow mode (x1.113 against x1.149), halved false alarms under contamination and halved the spread; harder trims hid the slow mode. | Up to a hundredth of a run's slowest time; a cell slow in more than a hundredth of its samples shows it almost in full. |
 | **Pairs of runs**, alternating, a **fresh link layout** on each side per pair (October 2 and 16) | Most uncertainty lies between processes (placement, the speed a cell settles into): one binary's run means varied 1.49 times what its samples predict; 12 samples or 24 gave the same between-run spread. A layout moves the cells of calls made now and then by several percent, fixed for every run of that binary, so alternation cannot cancel it: two links of one source gave 27 false verdicts in 700 cells. | A second side's runs and a relink per pair. |
-| **4 pairs** by default, each run with **the regression check's visits** (24 after a gap, 6 nonstop; October 20) | Calibrated on the i7-12700K (`data` branch `2026-10-20/check-validation`) and the M4 Max (the fork's Mac jobs 1636, 1637, 1642): on both, an A/A over every cell found no cell slower (the Mac at 8 pairs, 16 min; the i7 over 146 cells), and the two planted 6% slowdowns were caught at 4 pairs: `hash()`'s in servil st's cells (the Mac: +5% to +28% in the continuous cells, 11 min; the i7: 48 cells), the pool split's in servil mt's cells from 512 KiB, the cells after a gap among them (the Mac: +7% to +25%, 7 min; the i7: 22 of 28), in half the time of 8 pairs. At 12 visits after a gap instead of 24, the cells after a gap caught a plant 3 times in 10. Of the budget, pairs buy more than samples: 18 pairs of 4 samples judged 40% more narrowly than 8 of 12 in the same minutes. | A check takes 2 to 6 minutes. |
+| **4 pairs** by default, each run with **the regression check's visits** (24 after a gap, 6 nonstop; October 20) | Calibrated on the i7-12700K (`data` branch `2026-10-20/check-validation`) and the M4 Max: on both, an A/A over every cell found no cell slower (the Mac at 8 pairs, 16 min; the i7 over 146 cells), and the two planted 6% slowdowns were caught at 4 pairs: `hash()`'s in servil st's cells (the Mac: +5% to +28% in the continuous cells, 11 min; the i7: 48 cells), the pool split's in servil mt's cells from 512 KiB, the cells after a gap among them (the Mac: +7% to +25%, 7 min; the i7: 22 of 28), in half the time of 8 pairs. At 12 visits after a gap instead of 24, the cells after a gap caught a plant 3 times in 10. Of the budget, pairs buy more than samples: 18 pairs of 4 samples judged 40% more narrowly than 8 of 12 in the same minutes. | A check takes 2 to 6 minutes. |
 | **All cells judged at once**: a paired t-test per cell on the log ratios, Benjamini-Hochberg at a 5% false discovery rate (Zooko, October 16) | A per-cell test over 700 cells flags 15-27 cells of unchanged code; a sign test cannot go stricter with few pairs. With the rule: 0 of 700 in three unchanged-code controls, and the code's real changes found. | Floating point inside the t-test. |
 | **A 3% margin** (October 2) | +3% planted was caught about half the time, +6% nearly always; one layout-only change in eight sat near 3% at lent 64 B. | Changes under 3% pass one commit at a time; the release check (`--against` the last release) sees their sum. |
 | **One calibration a side a check** (October 17) | Each run calibrating its own sizes cost 18 s of a 41-s run; shared sizes judged every group of cells more narrowly in less time (about 2.2 times the information per minute), and both sides do the same work a sample. | Sizes chosen on the old side's build. |
@@ -647,7 +647,7 @@ rotating, each kept one predecessor, and that alone moved cells: run
 right after sha256sum, a b3sum took about 10% longer on 1 MiB and 16 MiB
 files in the page cache, and run right after another b3sum, 7-9% longer
 on a 1 MiB file from storage, whichever build it was (i7-12700K, two runs
-with the order swapped, October 18). The balance is exact in whole cycles
+with the order swapped). The balance is exact in whole cycles
 of the design, a multiple of n rounds for n contenders when n is even and
 of 2n when odd (18 rounds for three contenders); other round counts leave
 a few rounds' remainder, a fraction of a percent at that effect's size.
@@ -657,7 +657,7 @@ contender is the ratio `compare` judges, each round a pair: the geometric
 mean of the rounds' ratios, marked slower or faster where every cell
 judged at once says so, beyond 3%. (A median of the rounds' ratios flips
 with the share of rounds in each mode where a cell runs at two speeds: a
-1 GiB file read ×0.62 or ×0.98 by that alone, October 17.)
+1 GiB file read ×0.62 or ×0.98 by that alone.)
 
 The run writes `b3sum.result.txt` (the report) and `b3sum.samples.tsv`
 (each run's time, and its counts as `# counts` lines), and draws the
