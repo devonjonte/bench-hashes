@@ -10,7 +10,7 @@ work** runs after the program has executed a fixed other program and read
 128 MiB of data, as a program hashes between its other tasks. **After
 idling** runs after the program has slept 1 ms, as a server waits for its
 next request. Each kind measures **a message in one buffer** at
-twenty-seven sizes from 64 B to 128 MiB (reported per byte) and **a
+twenty-eight sizes from 64 B to 128 MiB (reported per byte) and **a
 batch** of 64-byte messages at twenty-four counts from 1 to 262144
 (reported per message).
 
@@ -59,7 +59,7 @@ only when named. `--list` shows every key.
 ## Input sizes
 
 The one-message axis tests every power-of-two input size from 64 B to
-128 MiB except 16 MiB, plus 3 KiB and 3 MiB. It also tests four sizes of
+128 MiB except 16 MiB, plus 1536 B, 3 KiB, and 3 MiB. It also tests four sizes of
 real data between 2 and 8 KiB: 2304 B (an 802.11 frame body), 3839 and
 7935 B (802.11n A-MSDU maxima), and 4470 B (Packet over SONET/SDH MTU). Real inputs are
 seldom multiples of BLAKE3's 1 KiB chunk, and those four sizes test
@@ -78,8 +78,8 @@ tree that is not a power of two (a 2 MiB left subtree beside a 1 MiB
 right one).
 
 The report gives each cell's mean time per unit in nanoseconds (the
-total time of its samples over the total work they did, every sample
-counted, the shared rule below), to
+total time of its samples over the total work they did, what a caller
+pays on average), to
 three decimals or three significant digits, whichever shows more; lower
 is better. Each sample is kept as measured, the clock's nanoseconds over
 the units they covered, and the statistics work on it in fixed point with
@@ -477,16 +477,6 @@ placement, which alone can move calls after a gap by several percent.
 | **One calibration a side a check** (October 17) | Each run calibrating its own sizes cost 18 s of a 41-s run; shared sizes judged every group of cells more narrowly in less time (about 2.2 times the information per minute), and both sides do the same work a sample. | Sizes chosen on the old side's build. |
 | **Cells chosen by what the change touches** (October 20) | Coverage names the lines each cell executes; a change to `hash()` chose 73 points, a stream change 13, a comment none. The fixed five-cell list this replaced was blind to the cells after a gap, where #80's +18% sat, and to the stream. | A coverage build once per contender (cached); a change to assembly or the build checks every cell. |
 | **No intervals as verdicts** (October 1) | 95% median bands held for a quarter of the cells across runs of identical code. | A printed range is a reading aid only. |
-
-**The rule's history, and what the controls above measured.** From
-October 19 to 23 the declared rule set the slowest `ceil(n / 100)`
-samples aside, and `Mean::of` bypassed it (#59), so every report and
-comparison of that span, and the controls in this table, are plain
-means: the rule 0.17 declares. 0.17 starts with the plain mean declared
-and read through one `mean_totals` (#60), and samples v7 says so in each
-file. Fresh controls at 6 and 24 samples a cell, with independent
-layouts and intermittent slow modes, are still what a reliance claim
-rests on; the general-reliance NO-GO holds until they pass.
 
 **What the SHA-256 cells can tell.** SHA-256's code is identical on both
 sides of a servil comparison, so its cells show the instrument's noise, and

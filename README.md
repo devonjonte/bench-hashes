@@ -1,9 +1,5 @@
 # bench-hashes
 
-> Devon Jonte's fork of [John Servil's bench-hashes](https://github.com/johnservil/bench-hashes),
-> measuring [Devon Jonte's line of BLAKE3 servil](https://github.com/devonjonte/BLAKE3).
-> Latest results: https://devonjonte.github.io/bench-hashes/
-
 Written by AI at Zooko's request and to his specifications.
 
 ## Is BLAKE3 faster than SHA-256?
@@ -12,17 +8,17 @@ It depends. Try it! bench-hashes measures the hashes on your computer,
 for each way a program hashes, and draws the answer as a map you open in
 a web browser.
 
-<img src="benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.chart.svg" alt="Hashing one 128 MiB message after a pause on an Intel i7-12700K: BLAKE3 multi-core and on one core beside SHA-256, SHA3-256 and SHA-1, in GB/s" width="720">
+<img src="benchmark-results/AppleM4Max.darwin25/bench-hashes.chart.svg" alt="Hashing one 128 MiB message after a pause on an Apple M4 Max: BLAKE3 multi-core and on one core beside SHA-256, SHA3-256 and SHA-1, in GB/s" width="720">
 
-[The overview](https://devonjonte.github.io/bench-hashes/) is one page
+[The overview](https://johnservil.github.io/bench-hashes/) is one page
 for every machine measured: a column per machine, a row per way a program
 hashes, and in each row the hashes' speeds as bars, with how many times
 faster the fastest ran. Every size, on each machine measured so far:
 
-- [Intel i7-12700K, Linux](https://devonjonte.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html)
-- [AMD EPYC 9255, Linux](https://devonjonte.github.io/bench-hashes/benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html)
-- [Apple M4 Max, macOS](https://devonjonte.github.io/bench-hashes/benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html)
-- [A Linux VM on that Mac](https://devonjonte.github.io/bench-hashes/benchmark-results/aarch64.linux618520virt/bench-hashes.map.html)
+- [Apple M4 Max, macOS](https://johnservil.github.io/bench-hashes/benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html)
+- [AMD EPYC 9255, Linux](https://johnservil.github.io/bench-hashes/benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html)
+- [Intel i7-12700K, Linux](https://johnservil.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html)
+- [A Linux VM on that Mac](https://johnservil.github.io/bench-hashes/benchmark-results/aarch64.linux618520virt/bench-hashes.map.html)
 
 ## Run it on your computer
 
@@ -51,7 +47,7 @@ The run writes these files to `benchmark-results/`, in a folder named after
 your CPU and operating system:
 
 - `bench-hashes.map.html`: the map. Open it in a web browser.
-- `bench-hashes.chart.svg` and `b3sum.chart.svg`: the two bar charts above, pictures to share
+- `bench-hashes.chart.svg`: one 1 MiB message as bars, a picture to share
   (a full run draws it; `bench-hashes chart` draws it again from a
   samples file).
 - `bench-hashes.result.txt`: the same numbers as text tables.
@@ -106,11 +102,7 @@ The contenders:
   computers.
 
 `cargo run --release -- --all` adds the official BLAKE3 crate, SHA3-256,
-SHA-1DC, Apple's CommonCrypto SHA-256, and **BLAKE3 commonware**: the
-batch kernels of
-[commonware](https://github.com/commonwarexyz/monorepo/pull/4982)'s
-cryptography crate, measured on batches of 64-byte messages; it takes
-longer. `--contenders` picks any set by name, among them the official
+SHA-1DC, and Apple's CommonCrypto SHA-256; it takes longer. `--contenders` picks any set by name, among them the official
 crate on its thread pool (`blake3-official-mt`), which runs only when
 named (`--list` shows the names).
 
@@ -123,7 +115,7 @@ the same cases, so each row's chart shows that call's measured speed here.
 
 ## How fast is b3sum?
 
-<img src="benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/b3sum.chart.svg" alt="Hashing a tree of 1000 files on an i7-12700K: b3sum, multi-core and on one thread, beside sha256sum, sha1sum and md5sum, in GB/s" width="720">
+<img src="https://devonjonte.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/b3sum.chart.svg" alt="Hashing a tree of 1000 files on an Intel i7-12700K: b3sum, multi-core and on one thread, beside sha256sum, sha1sum and md5sum, in GB/s" width="720">
 
 `bench-hashes b3sum` times builds of `b3sum`, the BLAKE3 command-line
 tool, as you run it: each run a new process, from its start to its exit.
@@ -146,12 +138,7 @@ to `benchmark-results/`, as `b3sum.result.txt` and `b3sum.samples.tsv`,
 and the map there gains a b3sum section: a file or a tree of files, in
 the page cache or read from storage. `bench-hashes compare` reads the
 samples as it reads the hashes'; `bench-hashes map FOLDER` draws a
-folder's map again from its samples files; `bench-hashes overview
-index.html benchmark-results` draws the overview (the site's front page)
-from every folder's samples files, each figure by the same rule as the
-maps; a run redraws it too, beside its own map, and a test fails while
-index.html is stale. FROZEN.md's "The overview" names its representative
-cells.
+folder's map again from its samples files.
 
 `bench-hashes map NEW_FOLDER --beside OLD_FOLDER` compares two runs side
 by side in `bench-hashes.beside.map.html`. Each chart draws the older
