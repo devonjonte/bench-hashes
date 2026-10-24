@@ -1,0 +1,14 @@
+scanned 256 offsets x 32 cells, rescanned 115 twice; confirming 8: thread-stack+3120 (1.40x the median at its lowest) against thread-stack+592, thread-stack+1760 (1.12x the median at its lowest) against thread-stack+448, thread-stack+2384 (1.10x the median at its lowest) against thread-stack+2528, thread-stack+1824 (1.10x the median at its lowest) against thread-stack+32, thread-stack+3088 (1.06x the median at its lowest) against thread-stack+352, thread-stack+2752 (1.05x the median at its lowest) against thread-stack+1168, thread-stack+3728 (1.04x the median at its lowest) against thread-stack+592, thread-stack+2400 (1.03x the median at its lowest) against thread-stack+1296
+confirm thread-stack+3120 against thread-stack+592: regress exit 1; slower: blake3-official|shared|LentMessages|256 B, blake3-official|shared|LentMessages|64 B
+confirm thread-stack+1760 against thread-stack+448: regress exit 1; slower: blake3-official|shared|ContinuousMessages|64 B
+confirm thread-stack+2384 against thread-stack+2528: regress exit 0; slower: none
+confirm thread-stack+1824 against thread-stack+32: regress exit 0; slower: none
+confirm thread-stack+3088 against thread-stack+352: regress exit 1; slower: blake3-official|shared|LentMessages|64 B
+confirm thread-stack+2752 against thread-stack+1168: regress exit 0; slower: none
+confirm thread-stack+3728 against thread-stack+592: regress exit 1; slower: blake3-official|shared|LentMessages|64 B, blake3-servil-st|shared|LentMessages|64 B
+confirm thread-stack+2400 against thread-stack+1296: regress exit 0; slower: none
+offset-sensitive: blake3-official|shared|ContinuousMessages|64 B (slower at thread-stack+1760 vs thread-stack+448)
+offset-sensitive: blake3-official|shared|LentMessages|256 B (slower at thread-stack+3120 vs thread-stack+592)
+offset-sensitive: blake3-official|shared|LentMessages|64 B (slower at thread-stack+3120 vs thread-stack+592, thread-stack+3088 vs thread-stack+352, thread-stack+3728 vs thread-stack+592)
+offset-sensitive: blake3-servil-st|shared|LentMessages|64 B (slower at thread-stack+3728 vs thread-stack+592)
+FAIL: cells our APIs keep immune turned offset-sensitive: blake3-servil-st|shared|LentMessages|64 B

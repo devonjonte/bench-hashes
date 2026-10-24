@@ -68,3 +68,10 @@ shared lent 64 B found at +3472..+3520 in 7 runs, shared continuous 64 B
 at +912..+960 in 6.
 
 **Posted.** johnservil/bench-hashes #65.
+
+**Sam's offset_check at BLAKE3 #141's head** (ad29ede, `pr141/`, the
+tool built its own bench): exit 1. The control works on Intel: the
+upstream crate's shared lent 64 B +39.2% and +39.7% (thread stack +3120
+and +3088 against the fastest), +12.1% at +3728; continuous 64 B +11.9%;
+lent 256 B +3.9%. But servil st's shared lent 64 B, on the immune list
+with this PR, was judged +5.8% at +3728 against +592 (8 of 8 pairs).
