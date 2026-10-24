@@ -124,6 +124,12 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
       bars.querySelector(".span")?.remove();
       const all = [...bars.querySelectorAll("i")];
       const shown = all.filter(i => !hidden(i));
+      // The fastest bar shown fills the width: each cell's bars are drawn
+      // against the fastest of those shown, so hiding a cell's winner
+      // (BLAKE3 official, off at first) leaves no cell narrower than the
+      // rest (Zooko, October 24).
+      const fastest = Math.max(...shown.map(i => +i.dataset.g));
+      if (fastest > 0) for (const i of all) i.style.width = `${Math.min(100, (100 * +i.dataset.g) / fastest).toFixed(1)}%`;
       if (shown.length < 2 || shown[0] !== all[0]) continue;
       const [m, w, r] = duel(shown.map(i => +i.dataset.g));
       // Just past the longer of the two, from servil's bar to its rival's.

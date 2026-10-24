@@ -7,3 +7,9 @@ documentation; a link to one chart opens it.
 
     npm install playwright
     node tools/graph-check/map.js benchmark-results/<machine>/bench-hashes.map.html /usr/bin/chromium
+
+`overview.js` drives the overview (`index.html`): no script error, and in
+every cell of the grid the fastest bar shown fills the width, as the page
+opens and after each legend button turns its contender off and back on.
+
+    node tools/graph-check/overview.js index.html /usr/bin/chromium
