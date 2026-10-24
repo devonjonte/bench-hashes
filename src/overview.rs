@@ -567,7 +567,7 @@ fn families_by_machine(rows: &[Row]) -> String {
             let color = inner.color;
             let _ = write!(
                 out,
-                "<div class=\"fam-bar\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}: {}\t{}\t{}: {}\"><i class=\"hi\" style=\"width:{:.1}%;background:{color}\"></i><i class=\"lo\" style=\"width:{:.1}%;background:{color}\"></i></div>",
+                "<div class=\"fam-bar\" data-c=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}: {}\t{}\t{}: {}\"><i class=\"hi\" style=\"width:{:.1}%;background:{color}\"></i><i class=\"lo\" style=\"width:{:.1}%;background:{color}\"></i></div>",
                 escape(&r.machine),
                 escape(family),
                 top.gbps,
@@ -745,7 +745,7 @@ pub fn html(rows: &[Row]) -> String {
                 }
                 let _ = write!(
                     body,
-                    "</span><span class=\"under\"><em class=\"mult\"></em><span class=\"scale\">{}</span></span></span></a>",
+                    "</span><span class=\"under\"><span class=\"scale\">{}</span></span></span></a>",
                     escape(&speed(fastest))
                 );
             }

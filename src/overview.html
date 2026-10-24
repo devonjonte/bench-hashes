@@ -31,7 +31,7 @@ tr.vm { display: none; color: #6b7280; } body.show-vm tr.vm { display: table-row
 .bar { display: flex; align-items: center; }
 .bars i { display: block; height: 7px; border-radius: 0 2px 2px 0; flex-shrink: 0; }
 .bar.off { display: none; }
-.under { display: flex; justify-content: space-between; margin-top: 1px; }
+.under { display: flex; justify-content: flex-end; margin-top: 1px; }
 .mult { font-style: normal; font-size: 10px; font-weight: 600; color: #4c1d95; white-space: nowrap; display: flex; gap: 6px; }
 .mult .m.slower { color: #b91c1c; } .mult .sw { display: inline-block; width: 7px; height: 7px; border-radius: 2px; margin-right: 2px; vertical-align: 0; }
 .scale { color: #9ca3af; font-size: 10px; white-space: nowrap; }
@@ -48,11 +48,11 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
 .fam-row { display: flex; align-items: center; gap: 14px; padding: 8px 0; border-top: 1px solid #e5e7eb; }
 .fam-machine { width: 190px; flex-shrink: 0; } .fam-machine a { color: #4c1d95; text-decoration: none; } .fam-machine b { font-size: 15px; } .fam-machine span { display: block; color: #9ca3af; font-size: 12px; }
 .fam-bars { flex: 1; display: flex; flex-direction: column; gap: 5px; position: relative; }
-.fam-bar { position: relative; height: 14px; }
+.fam-bar { position: relative; height: 14px; } .fam-bar.off { display: none; }
 .fam-bar i { position: absolute; left: 0; top: 0; height: 14px; border-radius: 0 3px 3px 0; display: block; }
 .fam-bar i.hi { opacity: .45; } .fam-bar i.lo { opacity: 1; }
 .fam-bar:hover i.hi { opacity: .6; }
-.fam-scale { border-top: none; padding-top: 0; } .fam-scale .fam-bars { height: 14px; } .fam-scale span { position: absolute; top: 0; transform: translateX(-50%); color: #9ca3af; font-size: 10px; }
+.fam-scale { border-top: none; padding-top: 0; } .fam-scale .fam-bars { height: 14px; } .fam-scale span { position: absolute; top: 0; transform: translateX(-50%); color: #9ca3af; font-size: 10px; white-space: nowrap; }
 @media (max-width: 700px) { .fam-row { flex-direction: column; align-items: stretch; gap: 6px; } .fam-machine { width: auto; } }
 #tip .edge { color: #d1d5db; }
 /* A phone: one machine at a time, its columns as rows, each named. */
@@ -70,12 +70,12 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
 }
 </style></head><body>
 <h1>How fast BLAKE3 servil runs</h1>
-<p class="sub">On each machine measured, three hashes: BLAKE3 servil, BLAKE3 official, and the fastest SHA-256 on that machine. A bar's full length is the hash hashing messages nonstop with every core; the darker part inside it is one message of 1 MiB on one thread, between other work, the everyday case. Longer is faster, on one scale for every machine. Point at a bar for the figures; the door below opens the view by situation, and each of its cells the machine's full map.</p>
+<p class="sub">On each machine measured, BLAKE3 servil beside the fastest SHA-256 on that machine (and, with its button, BLAKE3 official). A bar's full length is the hash hashing messages nonstop with every core; the darker part inside it is one message of 1 MiB on one thread, between other work, the everyday case. Longer is faster, on one scale for every machine. Point at a bar for the figures; the door below opens the view by situation, and each of its cells the machine's full map.</p>
+<div class="legend">@LEGEND@<label><input type="checkbox" id="vm"> show virtual machines</label></div>
 <div class="fam-legend"><span><i class="lo"></i> one message of 1 MiB, one thread, between other work</span><span><i class="hi"></i> messages nonstop, every core</span></div>
 @FAMILIES@
 <details class="door grid-door"><summary>By machine and by situation</summary>
-<p class="sub">A row is one machine; a column is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster; under them, how many times faster servil ran than each of the others (its colour beside the figure), and the fastest's speed, the bars' scale. Point at the bars (tap, on a phone) for every figure, at a column's name for what it stands for; open a cell for its full chart on that machine's map, every cell the benchmark has.</p>
-<div class="legend">@LEGEND@<label><input type="checkbox" id="vm"> show virtual machines</label></div>
+<p class="sub">A row is one machine; a column is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster; under them, the fastest's speed, the bars' scale. Point at the bars (tap, on a phone) for every figure, at a column's name for what it stands for; open a cell for its full chart on that machine's map, every cell the benchmark has.</p>
 @BODY@
 </details>
 <div id="tip"></div>
@@ -89,20 +89,16 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
   const times = m => "×" + (m >= 10 ? m.toFixed(0) : m.toFixed(1));
   // The multipliers: servil's speed over each competitor still shown, each
   // with the competitor's colour, in the bars' order.
-  const multipliers = () => {
-    for (const bars of document.querySelectorAll(".bars")) {
-      const is = [...bars.querySelectorAll("i")], ours = is[0], shown = is.filter(i => !hidden(i));
-      for (const i of is) i.classList.toggle("cmp", shown.includes(i));
-      const em = bars.parentElement.querySelector(".mult");
-      em.innerHTML = hidden(ours) ? "" : shown.filter(i => i !== ours).map(i => { const m = +ours.dataset.g / +i.dataset.g; return `<span class="m${m < 0.95 ? " slower" : ""}"><span class="sw" style="background:${i.dataset.c}"></span>${times(m)}</span>`; }).join("");
-    }
-  };
-  multipliers();
-  for (const b of document.querySelectorAll(".legend button")) b.addEventListener("click", () => {
-    const off = b.classList.toggle("off");
+  // A legend button hides or shows a hash's bars in both views.
+  const apply = (b, off) => {
+    b.classList.toggle("off", off);
     for (const i of document.querySelectorAll(sel(b))) i.closest(".bar").classList.toggle("off", off);
-    multipliers();
-  });
+    for (const f of document.querySelectorAll(`.fam-bar[data-c="${CSS.escape(b.dataset.c)}"]`)) f.classList.toggle("off", off);
+  };
+  for (const b of document.querySelectorAll(".legend button")) b.addEventListener("click", () => apply(b, !b.classList.contains("off")));
+  // BLAKE3 official is off until asked for (Zooko, October 23): the page
+  // opens on servil beside SHA-256.
+  for (const b of document.querySelectorAll(".legend button")) if (b.textContent.startsWith("BLAKE3 official")) apply(b, true);
   // The tooltip: each hash shown, its speed, and servil's over it; the two
   // compared in bold. Follows the pointer; on a touch screen a tap shows
   // it and a second tap on the same cell opens the map.
