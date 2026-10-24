@@ -11,32 +11,23 @@ h1 { font-size: 20px; margin: 0 0 4px; }
 .legend label { color: #9ca3af; font-size: 12px; margin-left: 8px; }
 .grid { overflow-x: auto; }
 table { border-collapse: collapse; }
-th, td { text-align: left; vertical-align: top; padding: 6px 6px; border-top: 1px solid #e5e7eb; }
-/* A column's name starts where its bars start: past the points' column. */
-th { font-weight: 600; font-size: 12px; color: #6b7280; border-top: none; cursor: help; max-width: 150px; vertical-align: bottom; padding-left: 60px; }
-th.machine, td.machine { min-width: 150px; max-width: 170px; } th.machine { padding-left: 8px; }
-td.machine a { color: #4c1d95; text-decoration: none; } td.machine b { font-size: 15px; }
-td.machine span { display: block; color: #9ca3af; font-size: 12px; margin-top: 2px; }
-tr.yours td { background: #f5f3ff; }
-tr.vm { display: none; color: #6b7280; } body.show-vm tr.vm { display: table-row; }
-/* A pick: its point, its bars, and under them servil's speed over the
-   best of the others shown (the two bars compared are the ones drawn
-   full; the rest fade) and the fastest's speed as the bars' scale. */
-.pick { display: flex; align-items: flex-start; gap: 6px; padding: 5px 0; text-decoration: none; color: inherit; }
-.pick + .pick { border-top: 1px dashed #e5e7eb; }
-.pick .pt { width: 46px; color: #6b7280; font-size: 11px; text-align: right; white-space: nowrap; padding-top: 1px; }
+th, td { text-align: left; vertical-align: middle; padding: 5px 10px; border-top: 1px solid #e5e7eb; }
+th { border-top: none; vertical-align: bottom; } th.stale { max-width: 180px; }
+th a { color: #4c1d95; text-decoration: none; } th b { font-size: 15px; } th span { display: block; color: #9ca3af; font-size: 12px; font-weight: normal; margin-top: 2px; }
+th span.stale { color: #6b7280; }
+th.situation, td.situation { min-width: 150px; max-width: 170px; font-size: 12px; font-weight: 600; color: #6b7280; cursor: help; }
+td.situation .pt { display: block; color: #9ca3af; font-size: 11px; font-weight: normal; }
+th.vm, td.vm { display: none; } body.show-vm th.vm, body.show-vm td.vm { display: table-cell; }
+th.yours { background: #f5f3ff; }
+.pick { display: block; text-decoration: none; color: inherit; }
 .pick.none { color: #d1d5db; font-size: 11px; }
-.chart { display: flex; flex-direction: column; }
-.bars { display: flex; flex-direction: column; gap: 2px; width: 118px; border-left: 1px solid #d1d5db; padding-left: 1px; }
+.bars { display: flex; flex-direction: column; gap: 2px; width: 260px; border-left: 1px solid #d1d5db; padding-left: 1px; }
 .bar { display: flex; align-items: center; }
 .bars i { display: block; height: 7px; border-radius: 0 2px 2px 0; flex-shrink: 0; }
 .bar.off { display: none; }
-.under { display: flex; justify-content: flex-end; margin-top: 1px; }
-.mult { font-style: normal; font-size: 10px; font-weight: 600; color: #4c1d95; white-space: nowrap; display: flex; gap: 6px; }
-.mult .m.slower { color: #b91c1c; } .mult .sw { display: inline-block; width: 7px; height: 7px; border-radius: 2px; margin-right: 2px; vertical-align: 0; }
-.axis { position: relative; width: 118px; height: 12px; } .axis span { position: absolute; top: 0; transform: translateX(-50%); color: #9ca3af; font-size: 9px; white-space: nowrap; }
-tr.axis-row td { border-top: none; padding-top: 0; } tr.axis-row .pick { padding: 0; }
-.pick:hover .bars i.cmp { filter: brightness(.85); }
+.pick:hover .bars i { filter: brightness(.85); }
+.axis { position: relative; width: 260px; height: 12px; } .axis span { position: absolute; top: 0; transform: translateX(-50%); color: #9ca3af; font-size: 9px; white-space: nowrap; }
+tr.axis-row td { border-top: none; padding-top: 0; }
 #tip { position: fixed; pointer-events: none; background: #111827; color: #fff; font-size: 12px; padding: 6px 8px; border-radius: 6px; display: none; z-index: 10; box-sizing: border-box; max-width: min(34em, calc(100vw - 8px)); }
 #tip .row { padding-left: 1.2em; text-indent: -1.2em; }
 #tip .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
@@ -59,14 +50,7 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
 /* A phone: one machine at a time, its columns as rows, each named. */
 @media (max-width: 700px) {
   body { margin: 12px; }
-  table, tbody, tr, td { display: block; }
-  thead { display: none; }
-  tr { border-top: 2px solid #e5e7eb; margin-top: 10px; }
-  td { border-top: none; padding: 4px 0; }
-  td.machine { min-width: 0; padding-bottom: 6px; }
-  td[data-col]::before { content: attr(data-col); display: block; font-size: 12px; font-weight: 600; color: #6b7280; margin: 6px 0 2px; }
-  .bars { width: min(60vw, 240px); }
-  .pick .pt { width: 60px; }
+  .bars, .axis { width: 150px; }
   #tip { pointer-events: auto; }
 }
 </style></head><body>
@@ -76,11 +60,11 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
 <div class="fam-legend"><span><i class="lo"></i> one message of 1 MiB, one thread, between other work</span><span><i class="hi"></i> messages nonstop, every core</span></div>
 @FAMILIES@
 <details class="door grid-door"><summary>By machine and by situation</summary>
-<p class="sub">A row is one machine; a column is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster; every cell on one scale (the faint lines are factors of ten), so a bar compares across the columns too. Point at the bars (tap, on a phone) for every figure, at a column's name for what it stands for; open a cell for its full chart on that machine's map, every cell the benchmark has.</p>
+<p class="sub">A column is one machine; a row is one way a program hashes. In each cell the bars are the hashes' speeds, BLAKE3 servil's on top, the longer the faster, every cell on one scale (the faint lines are factors of ten, the axis at the foot of each column), so a glance down a column compares situations and a glance across compares machines. Point at the bars (tap, on a phone) for every figure, at a row's name for what it stands for; open a cell for its full chart on that machine's map, every cell the benchmark has.</p>
 @BODY@
 </details>
 <div id="tip"></div>
-<details class="door"><summary>About the hashes compared</summary><p>BLAKE3 official is the <code>blake3</code> crate, the reference implementation; BLAKE3 servil is this fork of it, with the same digests. SHA-256 is the fastest implementation measured on each machine (the <code>sha2</code> crate, <code>ring</code>, or the operating system's). <b>sha1sum and md5sum</b>, drawn in grey, compute SHA-1 and MD5: both are broken as cryptographic hashes (collisions are cheap to make), and they appear here only because many people still run them as checksums; a comparison with them is a comparison with the tool in hand, not with a safe alternative.</p></details>
+<details class="door"><summary>About the hashes compared</summary><p>BLAKE3 official is the <code>blake3</code> crate, the reference implementation; BLAKE3 servil is this fork of it, with the same digests. SHA-256 is the fastest implementation measured on each machine (the <code>sha2</code> crate, <code>ring</code>, or the operating system's CommonCrypto); the tooltip names which. <b>sha1sum and md5sum</b>, drawn in grey, compute SHA-1 and MD5: both are broken as cryptographic hashes (collisions are cheap to make), and they appear here only because many people still run them as checksums; a comparison with them is a comparison with the tool in hand, not with a safe alternative.</p></details>
 <footer>Each bar is one run's mean, by the same rule as the map (<code>clocks::summary</code>), on a machine whose load reading is on its map; no verdict is drawn across runs. From <a href="https://github.com/johnservil/bench-hashes">johnservil/bench-hashes</a>, measuring <a href="https://github.com/devonjonte/BLAKE3">Devon Jonte's line of BLAKE3 servil</a>; the cells shown are FROZEN.md's "The overview".</footer>
 <script>
 (function () {
@@ -139,8 +123,8 @@ footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
   }
   // A guess at the reader's kind of machine, lit and marked "yours?", nothing more.
   const apple = /Macintosh|iPhone|iPad/.test(navigator.userAgent);
-  const row = document.querySelector(`tr[data-arch="${apple ? "apple" : "x86"}"]:not(.vm)`);
-  if (row) { row.classList.add("yours"); const b = row.querySelector("td.machine b"); if (b) b.insertAdjacentHTML("afterend", ' <span style="display:inline;color:#7c3aed;font-size:11px">yours?</span>'); }
+  const col = document.querySelector(`th[data-arch="${apple ? "apple" : "x86"}"]:not(.vm)`);
+  if (col) { col.classList.add("yours"); const b = col.querySelector("b"); if (b) b.insertAdjacentHTML("afterend", ' <span style="display:inline;color:#7c3aed;font-size:11px;font-weight:normal">yours?</span>'); }
   const vm = document.getElementById("vm");
   vm.addEventListener("change", () => document.body.classList.toggle("show-vm", vm.checked));
 })();

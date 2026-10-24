@@ -218,11 +218,17 @@ fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algo
     .filter_map(|a| cell(file, &key(a)).map(|s| (a, mean_q64(s), s)))
     .min_by_key(|(_, m, _)| *m);
     if let Some((a, _, theirs)) = sha {
+        // Named plainly; which implementation it was is the tooltip's
+        // (the page's door says it is the fastest measured on the machine).
         bars.push(Bar {
-            name: format!("SHA-256, the fastest measured ({})", a.name()),
+            name: "SHA-256".to_owned(),
             color: Algorithm::Sha256.color(),
             gbps: gbps(theirs, per_unit),
-            note: "",
+            note: match a {
+                Algorithm::Sha256 => "the sha2 crate",
+                Algorithm::Sha256Ring => "ring's",
+                _ => "CommonCrypto's",
+            },
         });
     }
     bars
@@ -698,18 +704,13 @@ pub fn html(rows: &[Row]) -> String {
         e += 1;
     }
     axis.push_str("</div>");
+    // The grid, turned: a column per machine, a row per situation (its
+    // picks), so every bar in a column stands over the same axis and a
+    // glance down it compares situations; a glance across compares
+    // machines (one scale for the page). Machines of another release get a
+    // column that names their last run and links its map.
     let mut body = String::new();
-    body.push_str("<div class=\"grid\"><table><thead><tr><th class=\"machine\"></th>");
-    for (column, picks) in &columns {
-        let situations: Vec<String> = picks.iter().map(|&i| escape(PICKS[i].situation)).collect();
-        let _ = write!(
-            body,
-            "<th title=\"{}\">{}</th>",
-            situations.join(" · "),
-            escape(column)
-        );
-    }
-    body.push_str("</tr></thead><tbody>\n");
+    body.push_str("<div class=\"grid\"><table><thead><tr><th class=\"situation\"></th>");
     for row in rows {
         let class = if row.virtual_machine {
             " class=\"vm\""
@@ -723,7 +724,7 @@ pub fn html(rows: &[Row]) -> String {
         };
         let _ = write!(
             body,
-            "<tr{class} data-arch=\"{arch}\"><td class=\"machine\"><a href=\"{}/bench-hashes.map.html\"><b>{}{}</b></a><span>{} CPUs, {} · {}</span><span>BLAKE3 servil {} · bench-hashes {}</span></td>",
+            "<th{class} data-arch=\"{arch}\"><a href=\"{}/bench-hashes.map.html\"><b>{}{}</b></a><span>{} CPUs, {} · {}</span><span>BLAKE3 servil {} · bench-hashes {}</span>{}</th>",
             escape(&row.link),
             if row.virtual_machine { "VM on " } else { "" },
             escape(&row.machine),
@@ -731,94 +732,96 @@ pub fn html(rows: &[Row]) -> String {
             escape(&row.os),
             escape(&row.day),
             escape(&row.fork),
-            escape(&row.version)
+            escape(&row.version),
+            if row.stale { "<span class=\"stale\">that release's run is on its map; a run under this release is awaited</span>" } else { "" }
         );
-        if row.stale {
+    }
+    body.push_str("</tr></thead><tbody>\n");
+    for (column, picks) in &columns {
+        for (n, &i) in picks.iter().enumerate() {
+            let point = point_of(&PICKS[i]);
             let _ = write!(
                 body,
-                "<td class=\"stale\" colspan=\"{}\">last measured under bench-hashes {}, on {}: <a href=\"{}/bench-hashes.map.html\">its map</a>; a run under this release is awaited</td></tr>\n",
-                columns.len(),
-                escape(&row.version),
-                escape(&row.day),
-                escape(&row.link)
+                "<tr><td class=\"situation\" title=\"{}\">{}<span class=\"pt\">{}</span></td>",
+                escape(PICKS[i].situation),
+                if n == 0 {
+                    escape(column)
+                } else {
+                    String::new()
+                },
+                escape(&point)
             );
-            continue;
-        }
-        for (column, picks) in &columns {
-            let _ = write!(body, "<td data-col=\"{}\">", escape(column));
-            for &i in picks {
+            for row in rows {
+                let class = if row.virtual_machine {
+                    " class=\"vm\""
+                } else {
+                    ""
+                };
+                if row.stale {
+                    let _ = write!(body, "<td{class}></td>");
+                    continue;
+                }
                 let bars = &row.cells[i];
-                let point = point_of(&PICKS[i]);
                 let map = match &PICKS[i].cell {
-                    Cell::Hashing { use_case, .. } => {
-                        format!(
-                            "{}/bench-hashes.map.html#{}",
-                            row.link,
-                            super::map::cell_key("solo", *use_case)
-                        )
-                    }
+                    Cell::Hashing { use_case, .. } => format!(
+                        "{}/bench-hashes.map.html#{}",
+                        row.link,
+                        super::map::cell_key("solo", *use_case)
+                    ),
                     Cell::B3sum { .. } => {
                         format!("{}/bench-hashes.map.html#1:solo|tree|cached", row.link)
                     }
                 };
-                let Some(_) = bars.first() else {
+                if bars.is_empty() {
                     let _ = write!(
                         body,
-                        "<div class=\"pick none\"><span class=\"pt\">{}</span>not in this run</div>",
-                        escape(&point)
+                        "<td{class}><div class=\"pick none\">not in this run</div></td>"
                     );
                     continue;
-                };
-                // Colour, name, the note, and GB/s as a number (last: never empty):
-                // the script rounds and words it.
+                }
                 let tip: Vec<String> = bars
                     .iter()
                     .map(|b| format!("{}\t{}\t{}\t{}", b.color, b.name, b.note, b.gbps))
                     .collect();
                 let _ = write!(
                     body,
-                    "<a class=\"pick\" href=\"{}\" data-head=\"{} · {} · {}\" data-tip=\"{}\"><span class=\"pt\">{}</span><span class=\"chart\"><span class=\"bars\" style=\"background-image:{grid_lines}\">",
+                    "<td{class}><a class=\"pick\" href=\"{}\" data-head=\"{} · {} · {}\" data-tip=\"{}\"><span class=\"bars\" style=\"background-image:{grid_lines}\">",
                     escape(&map),
                     escape(&row.machine),
                     escape(column),
                     escape(&point),
-                    escape(&tip.join("\n")),
-                    escape(&point)
+                    escape(&tip.join("\n"))
                 );
-                for (n, b) in bars.iter().enumerate() {
+                for b in bars {
                     let _ = write!(
                         body,
-                        "<span class=\"bar\"><i data-c=\"{}\" data-g=\"{}\" style=\"width:{:.1}%;background:{}\"{}></i>{}</span>",
+                        "<span class=\"bar\"><i data-c=\"{}\" data-g=\"{}\" style=\"width:{:.1}%;background:{}\"></i></span>",
                         b.color,
                         b.gbps,
                         width(b.gbps),
-                        b.color,
-                        "",
-                        ""
+                        b.color
                     );
-                    let _ = n;
                 }
-                body.push_str("</span></span></a>");
-            }
-            body.push_str("</td>");
-        }
-        body.push_str("</tr>\n");
-        if !row.stale {
-            let _ = write!(
-                body,
-                "<tr class=\"axis-row{}\"><td class=\"machine\"></td>",
-                if row.virtual_machine { " vm" } else { "" }
-            );
-            for _ in &columns {
-                let _ = write!(
-                    body,
-                    "<td><div class=\"pick\"><span class=\"pt\"></span>{axis}</div></td>"
-                );
+                body.push_str("</span></a></td>");
             }
             body.push_str("</tr>\n");
         }
     }
-    body.push_str("</tbody></table></div>\n");
+    // The axis once, at the foot of every machine's column.
+    body.push_str("<tr class=\"axis-row\"><td class=\"situation\"></td>");
+    for row in rows {
+        let class = if row.virtual_machine {
+            " class=\"vm\""
+        } else {
+            ""
+        };
+        let _ = write!(
+            body,
+            "<td{class}>{}</td>",
+            if row.stale { "" } else { &axis }
+        );
+    }
+    body.push_str("</tr></tbody></table></div>\n");
     include_str!("overview.html")
         .replace("@FAMILIES@", &families_by_machine(rows))
         .replace("@LEGEND@", &legend)
@@ -1036,8 +1039,8 @@ mod tests {
             "the axis is drawn once under the machine, from the scale's bottom"
         );
         assert!(
-            page.contains("<tr class=\"vm\""),
-            "a virtual machine's row is marked"
+            page.contains("<th class=\"vm\""),
+            "a virtual machine's column is marked"
         );
         // The legend: one button a colour, servil first, b3sum's sharing.
         let legend: Vec<&str> = page
