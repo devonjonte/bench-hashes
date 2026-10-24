@@ -1,0 +1,307 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 4ec862e5..747c2f40 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -34,6 +34,7 @@ dependencies = [
+  "sha1-checked",
+  "sha2",
+  "sha3",
++ "smmalloc",
+  "sysinfo",
+  "wyhash",
+ ]
+@@ -44,6 +45,12 @@ version = "0.1.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "597bb81c80a54b6a4381b23faba8d7774b144c94cbd1d6fe3f1329bd776554ab"
+ 
++[[package]]
++name = "bitflags"
++version = "2.13.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
++
+ [[package]]
+ name = "blake3"
+ version = "1.8.7"
+@@ -216,6 +223,22 @@ dependencies = [
+  "crypto-common 0.2.2",
+ ]
+ 
++[[package]]
++name = "errno"
++version = "0.3.14"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
++dependencies = [
++ "libc",
++ "windows-sys 0.52.0",
++]
++
++[[package]]
++name = "fastrand"
++version = "2.5.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
++
+ [[package]]
+ name = "find-msvc-tools"
+ version = "0.1.11"
+@@ -277,6 +300,21 @@ version = "0.2.189"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
+ 
++[[package]]
++name = "linux-raw-sys"
++version = "0.12.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
++
++[[package]]
++name = "mach-sys"
++version = "0.5.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "48460c2e82a3a0de197152fdf8d2c2d5e43adc501501553e439bf2156e6f87c7"
++dependencies = [
++ "fastrand",
++]
++
+ [[package]]
+ name = "ntapi"
+ version = "0.4.3"
+@@ -379,7 +417,20 @@ dependencies = [
+  "getrandom",
+  "libc",
+  "untrusted",
+- "windows-sys",
++ "windows-sys 0.52.0",
++]
++
++[[package]]
++name = "rustix"
++version = "1.1.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "891efababe418670775f199f0d233d84843c227a0949a883ce15b37c78d6629d"
++dependencies = [
++ "bitflags",
++ "errno",
++ "libc",
++ "linux-raw-sys",
++ "windows-sys 0.52.0",
+ ]
+ 
+ [[package]]
+@@ -442,6 +493,17 @@ version = "1.16.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "f9395f0f0eee849a9b707b2f06bb92a6a422090e2123bb2ef8e87a0e61892a8e"
+ 
++[[package]]
++name = "smmalloc"
++version = "7.6.13+59fa8012bfa1f62b849e83515f1be695230c3fd3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "aacde5607ba73f0f6094d1e9acf3723e113db43d11bbfad00f7f395eefc818c8"
++dependencies = [
++ "mach-sys",
++ "rustix",
++ "windows-sys 0.61.2",
++]
++
+ [[package]]
+ name = "syn"
+ version = "3.0.6"
+@@ -538,6 +600,12 @@ dependencies = [
+  "windows-targets",
+ ]
+ 
++[[package]]
++name = "windows-link"
++version = "0.2.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
++
+ [[package]]
+ name = "windows-sys"
+ version = "0.52.0"
+@@ -547,6 +615,15 @@ dependencies = [
+  "windows-targets",
+ ]
+ 
++[[package]]
++name = "windows-sys"
++version = "0.61.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
++dependencies = [
++ "windows-link",
++]
++
+ [[package]]
+ name = "windows-targets"
+ version = "0.52.6"
+diff --git a/Cargo.toml b/Cargo.toml
+index 3058bb6f..f3edf68a 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -19,6 +19,14 @@ features = ["std", "rayon"]
+ version = "=0.16.1"
+ default-features = false
+ 
++# With `--features smalloc`, smalloc (crates.io's smmalloc) is the global
++# allocator: an allocator programs may run under, and one whose slots sit at
++# page offsets that follow only their own size class's allocations.
++[dependencies.smalloc]
++package = "smmalloc"
++version = "7.6"
++optional = true
++
+ # Seeded hashing for every map (crate::Map): runs lay out alike.
+ [dependencies.wyhash]
+ version = "0.6"
+@@ -81,3 +89,14 @@ lto = "fat"
+ codegen-units = 1
+ panic = "abort"
+ incremental = false
++
++[features]
++smalloc = ["dep:smalloc"]
++# Diagnostic only: the system allocator with every allocation of 64 bytes
++# or more aligned to 64 (a cache line), to test whether placement within a
++# line decides #65's states. Never a measurement configuration.
++diag-align64 = []
++# Diagnostic only: the system allocator with every allocation of 64 bytes or
++# more (alignment 16 or less) placed BENCH_DIAG_LINE_OFFSET bytes (build
++# time) into a cache line. The converse of diag-align64.
++diag-line-offset = []
+diff --git a/src/main.rs b/src/main.rs
+index 81932ed0..3bc16466 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -1953,6 +1953,109 @@ impl std::hash::BuildHasher for Seeded {
+     }
+ }
+ 
++/// Diagnostic (`--features diag-align64`): the system allocator, each
++/// allocation of 64 bytes or more aligned to 64. Not for measurements.
++#[cfg(feature = "diag-align64")]
++struct Align64;
++#[cfg(feature = "diag-align64")]
++unsafe impl std::alloc::GlobalAlloc for Align64 {
++    unsafe fn alloc(&self, l: std::alloc::Layout) -> *mut u8 {
++        unsafe { std::alloc::System.alloc(Self::up(l)) }
++    }
++    unsafe fn dealloc(&self, p: *mut u8, l: std::alloc::Layout) {
++        unsafe { std::alloc::System.dealloc(p, Self::up(l)) }
++    }
++    unsafe fn alloc_zeroed(&self, l: std::alloc::Layout) -> *mut u8 {
++        unsafe { std::alloc::System.alloc_zeroed(Self::up(l)) }
++    }
++}
++#[cfg(feature = "diag-align64")]
++impl Align64 {
++    fn up(l: std::alloc::Layout) -> std::alloc::Layout {
++        if l.size() >= 64 {
++            l.align_to(64).unwrap()
++        } else {
++            l
++        }
++    }
++}
++#[cfg(feature = "diag-align64")]
++#[global_allocator]
++static DIAG_ALLOC: Align64 = Align64;
++
++/// Diagnostic (`--features diag-line-offset`): the system allocator, each
++/// allocation of 64 bytes or more with alignment 16 or less placed
++/// `BENCH_DIAG_LINE_OFFSET` (16, 32 or 48; set at build time) bytes into a
++/// cache line. Not for measurements.
++#[cfg(feature = "diag-line-offset")]
++struct LineOffset;
++#[cfg(feature = "diag-line-offset")]
++const LINE_OFFSET: usize = {
++    let digits = match option_env!("BENCH_DIAG_LINE_OFFSET") {
++        Some(digits) => digits.as_bytes(),
++        None => panic!("diag-line-offset needs BENCH_DIAG_LINE_OFFSET"),
++    };
++    let mut value = 0;
++    let mut i = 0;
++    while i < digits.len() {
++        value = value * 10 + (digits[i] - b'0') as usize;
++        i += 1;
++    }
++    assert!(value % 16 == 0 && value < 64);
++    value
++};
++#[cfg(feature = "diag-line-offset")]
++impl LineOffset {
++    fn moved(l: std::alloc::Layout) -> Option<std::alloc::Layout> {
++        (l.size() >= 64 && l.align() <= 16)
++            .then(|| std::alloc::Layout::from_size_align(l.size() + 64, 64).unwrap())
++    }
++}
++#[cfg(feature = "diag-line-offset")]
++unsafe impl std::alloc::GlobalAlloc for LineOffset {
++    unsafe fn alloc(&self, l: std::alloc::Layout) -> *mut u8 {
++        match Self::moved(l) {
++            Some(m) => unsafe {
++                let p = std::alloc::System.alloc(m);
++                if p.is_null() {
++                    p
++                } else {
++                    p.add(LINE_OFFSET)
++                }
++            },
++            None => unsafe { std::alloc::System.alloc(l) },
++        }
++    }
++    unsafe fn alloc_zeroed(&self, l: std::alloc::Layout) -> *mut u8 {
++        match Self::moved(l) {
++            Some(m) => unsafe {
++                let p = std::alloc::System.alloc_zeroed(m);
++                if p.is_null() {
++                    p
++                } else {
++                    p.add(LINE_OFFSET)
++                }
++            },
++            None => unsafe { std::alloc::System.alloc_zeroed(l) },
++        }
++    }
++    unsafe fn dealloc(&self, p: *mut u8, l: std::alloc::Layout) {
++        match Self::moved(l) {
++            Some(m) => unsafe { std::alloc::System.dealloc(p.sub(LINE_OFFSET), m) },
++            None => unsafe { std::alloc::System.dealloc(p, l) },
++        }
++    }
++}
++#[cfg(feature = "diag-line-offset")]
++#[global_allocator]
++static DIAG_LINE_ALLOC: LineOffset = LineOffset;
++
++/// With `--features smalloc`, smalloc is the global allocator (Cargo.toml):
++/// samples and report then say so; without it, nothing changes.
++#[cfg(feature = "smalloc")]
++#[global_allocator]
++static ALLOC: smalloc::Smalloc = smalloc::Smalloc::new();
++
+ fn main() {
+     // Once per process, before any other call: blake3-servil's contract.
+     blake3_servil::initialize();
+@@ -5842,6 +5945,9 @@ fn samples_header(machine: &MachineMetadata, run: &[(String, String)]) -> String
+         run.iter()
+             .map(|(key, value)| (key.as_str(), value.as_str())),
+     ) {
++    if cfg!(feature = "smalloc") {
++        writeln!(out, "# global allocator: smalloc").unwrap();
++    }
+         writeln!(out, "# {key}: {value}").unwrap();
+     }
+     writeln!(out, "# power: {}", machine.describe_power()).unwrap();
+@@ -6052,6 +6158,9 @@ fn generate_text(
+         .unwrap();
+     }
+     writeln!(output, "  CPU: {}", machine.cpu_identity).unwrap();
++    if cfg!(feature = "smalloc") {
++        writeln!(output, "  global allocator: smalloc").unwrap();
++    }
+     writeln!(
+         output,
+         "  {RUSTC_VERSION}; target {BUILD_TARGET}; features {TARGET_FEATURES}"
