@@ -1,9 +1,5 @@
 # bench-hashes
 
-> **History** is behind a door: `git log`, and the maintainers' notes, audits and
-> shared results the tree held until October 18, at commit `aadeca9d`
-> (`git show aadeca9d:NOTES.md`).
-
 Written by AI at Zooko's request and to his specifications.
 
 ## Is BLAKE3 faster than SHA-256?
@@ -17,6 +13,7 @@ a web browser.
 Every size, on each machine measured so far:
 
 - [Apple M4 Max, macOS](https://johnservil.github.io/bench-hashes/benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html)
+- [AMD EPYC 9255, Linux](https://johnservil.github.io/bench-hashes/benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html)
 - [A Linux VM on that Mac](https://johnservil.github.io/bench-hashes/benchmark-results/aarch64.linux618520virt/bench-hashes.map.html)
 
 ## Run it on your computer
@@ -90,11 +87,10 @@ slow the results, and battery power changes which cores run them.
 
 The contenders:
 
-- **BLAKE3 servil mt**: [a fork](https://github.com/johnservil/BLAKE3) of
-  the official BLAKE3 Rust crate, faster on 64-bit Arm, above all on
-  Apple M4-class chips, and on x86-64, with its own threads to spread
-  large inputs over your CPU cores and a stream for inputs that come one
-  after another.
+- **BLAKE3 servil mt**: [`blake3-servil`](https://github.com/johnservil/BLAKE3),
+  faster than official BLAKE3 on 64-bit Arm (above all on Apple M4-class
+  chips) and on x86-64, with its own threads to spread large inputs over
+  your CPU cores and a stream for inputs that come one after another.
 - **BLAKE3 servil st**: the same on one thread.
 - **SHA-256** (the `sha2` crate) and **SHA-256 ring** (the `ring`
   crate): SHA-256 with the CPU's SHA-256 instructions where it has them;
@@ -140,10 +136,9 @@ the page cache or read from storage. `bench-hashes compare` reads the
 samples as it reads the hashes'; `bench-hashes map FOLDER` draws a
 folder's map again from its samples files.
 
-To see two runs side by side (before and after a change, or two
-releases), `bench-hashes map NEW_FOLDER --beside OLD_FOLDER` writes
-`bench-hashes.beside.map.html` in the new folder: each chart draws the
-older run's lines dashed under the newer run's, and the values under the
+`bench-hashes map NEW_FOLDER --beside OLD_FOLDER` compares two runs side
+by side in `bench-hashes.beside.map.html`. Each chart draws the older
+run's lines dashed under the newer run's, and the values under the
 pointer say how many times faster each hash runs now. The releases'
 comparisons are in [`beside/`](beside/).
 
