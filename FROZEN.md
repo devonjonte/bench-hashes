@@ -648,11 +648,11 @@ blake3-servil-mt OneMessage: hash_multithreaded(input), each call after other wo
 blake3-servil-mt ManyMessages: hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after other work
 blake3-servil-mt ContinuousMessages: stream(Mode::Hash, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
 blake3-servil-mt ContinuousBatches: stream(Mode::Hash, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again
-blake3-servil-st ContinuousMessages: hash(input), one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)
+blake3-servil-st ContinuousMessages: hash_with(Mode::Hash, input, &mut kept), into one kept place, one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)
 blake3-servil-st ContinuousBatches: hash_many(batch, 64, out), the padded batch contract, one batch after another, each read into a kept buffer of the program's and hashed on its thread
 blake3-servil-mt ContinuousCollection: stream(Mode::Hash, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
-blake3-servil-st ContinuousCollection: hash(input), the collection's messages one after another, each read into a kept buffer of the program's and hashed on its thread
-blake3-servil-st LentMessages: hash(input), one message after another, each read into a kept buffer and lent until the call returns
+blake3-servil-st ContinuousCollection: hash_with(Mode::Hash, input, &mut kept), into one kept place, the collection's messages one after another, each read into a kept buffer of the program's and hashed on its thread
+blake3-servil-st LentMessages: hash_with(Mode::Hash, input, &mut kept), into one kept place, one message after another, each read into a kept buffer and lent until the call returns
 blake3-servil-st Interleaved: a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; Hasher::update_each per turn, then Hasher::finalize_each for the messages that ended in it, each buffer lent until the calls return
 blake3-servil-st Collection: hash_each_with(Mode::Hash, items, out), every item of the collection in one call, in memory
 blake3-servil-st Outboard: outboard_with(Mode::Hash, message), messages one after another, each written into a kept buffer and lent until the call returns

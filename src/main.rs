@@ -2945,13 +2945,7 @@ fn hash_messages(
         ),
         Algorithm::Blake3ServilSt => {
             if !batch {
-                each_message(
-                    input,
-                    message_len,
-                    iterations,
-                    |m| *blake3_servil::hash(m).as_bytes(),
-                    consume,
-                )
+                each_message_into_kept(input, message_len, iterations, consume)
             } else {
                 servil_batch(
                     input,
@@ -4173,11 +4167,11 @@ const SERVIL_CALLS: [(Algorithm, UseCase, &str); 32] = [
     (Algorithm::Blake3ServilMt, UseCase::ManyMessages, "hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after other work"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "stream(Mode::Hash, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "stream(Mode::Hash, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again"),
-    (Algorithm::Blake3ServilSt, UseCase::ContinuousMessages, "hash(input), one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)"),
+    (Algorithm::Blake3ServilSt, UseCase::ContinuousMessages, "hash_with(Mode::Hash, input, &mut kept), into one kept place, one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)"),
     (Algorithm::Blake3ServilSt, UseCase::ContinuousBatches, "hash_many(batch, 64, out), the padded batch contract, one batch after another, each read into a kept buffer of the program's and hashed on its thread"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousCollection, "stream(Mode::Hash, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
-    (Algorithm::Blake3ServilSt, UseCase::ContinuousCollection, "hash(input), the collection's messages one after another, each read into a kept buffer of the program's and hashed on its thread"),
-    (Algorithm::Blake3ServilSt, UseCase::LentMessages, "hash(input), one message after another, each read into a kept buffer and lent until the call returns"),
+    (Algorithm::Blake3ServilSt, UseCase::ContinuousCollection, "hash_with(Mode::Hash, input, &mut kept), into one kept place, the collection's messages one after another, each read into a kept buffer of the program's and hashed on its thread"),
+    (Algorithm::Blake3ServilSt, UseCase::LentMessages, "hash_with(Mode::Hash, input, &mut kept), into one kept place, one message after another, each read into a kept buffer and lent until the call returns"),
     (Algorithm::Blake3ServilSt, UseCase::Interleaved, "a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; Hasher::update_each per turn, then Hasher::finalize_each for the messages that ended in it, each buffer lent until the calls return"),
     (Algorithm::Blake3ServilSt, UseCase::Collection, "hash_each_with(Mode::Hash, items, out), every item of the collection in one call, in memory"),
     (Algorithm::Blake3ServilSt, UseCase::Outboard, "outboard_with(Mode::Hash, message), messages one after another, each written into a kept buffer and lent until the call returns"),
@@ -4368,6 +4362,31 @@ fn each_message<D: AsRef<[u8]>>(
         } else {
             for message in black_box(input).chunks_exact(message_len) {
                 consume(hash(message).as_ref());
+            }
+        }
+    }
+}
+
+/// [`each_message`] for servil st, its digests written by
+/// `hash_with(Mode::Hash, m, &mut kept)` into one place the program keeps
+/// (on the heap, reused for every message), as a program that keeps its
+/// digests does: no temporary on the stack between the kernel's store and
+/// `consume`'s load (BLAKE3 #141, exp/hash-with-out; an experiment).
+fn each_message_into_kept(
+    input: &[u8],
+    message_len: usize,
+    iterations: usize,
+    mut consume: impl FnMut(&[u8]),
+) {
+    let mut kept = Box::new(blake3_servil::Hash::from([0; 32]));
+    for _ in 0..iterations {
+        if message_len == input.len() {
+            blake3_servil::hash_with(blake3_servil::Mode::Hash, black_box(input), &mut kept);
+            consume(kept.as_bytes());
+        } else {
+            for message in black_box(input).chunks_exact(message_len) {
+                blake3_servil::hash_with(blake3_servil::Mode::Hash, message, &mut kept);
+                consume(kept.as_bytes());
             }
         }
     }
