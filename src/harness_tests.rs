@@ -301,14 +301,15 @@ fn a_merkle_tree_hashes_leaves_and_parents_apart() {
     blake3_servil::initialize_multithreaded(None);
     /* Two child digests side by side, hashed as a parent and as a leaf:
      * were they equal, the pair would pass for a leaf. */
-    let pair = make_input(64);
+    let (pair, at) = batch_copy(&make_input(64));
+    let pair = &pair[at..];
     for algorithm in Algorithm::ALL
         .into_iter()
         .filter(|a| a.availability().is_ok() && a.takes_part(UseCase::MerkleTree))
     {
         let digest = |node| {
             let mut out = Vec::new();
-            hash_tree_layer(algorithm, &pair, 64, node, |d| out.extend_from_slice(d));
+            hash_tree_layer(algorithm, pair, 64, node, |d| out.extend_from_slice(d));
             out
         };
         assert_ne!(
