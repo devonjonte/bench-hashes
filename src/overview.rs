@@ -109,7 +109,7 @@ pub fn frozen_lines() -> String {
 
 /// The b3sum names the fork's build goes by in a run, newest convention
 /// first (bench-hashes #55 settles on `b3sum`), and the competitors shown.
-const FORK_B3SUM: [&str; 3] = ["b3sum", "devon", "fork"];
+pub const FORK_B3SUM: [&str; 3] = ["b3sum", "devon", "fork"];
 /// (run key, name shown, identity, colour, striped): b3sum's bars join
 /// their library's multi-threaded form in the legend (b3sum hashes on
 /// every core).
@@ -585,19 +585,16 @@ fn families_by_machine(rows: &[Row]) -> String {
                 continue;
             };
             let color = inner.color;
-            // Either form's button hides the family's bar (it shows both).
-            let id = if inner.id == top.id {
-                inner.id.to_owned()
-            } else {
-                format!("{} {}", inner.id, top.id)
-            };
+            // Each part answers to its own form's button: the full bar to
+            // the every-core form's, the inner part to the one-thread form's.
+            let (hi_id, lo_id) = (top.id, inner.id);
             let (hi_paint, lo_paint) = (
                 paint(top.color, top.striped),
                 paint(inner.color, inner.striped),
             );
             let _ = write!(
                 out,
-                "<div class=\"fam-bar\" data-k=\"{id}\" data-color=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}: {}\t{}\t{}: {}\"><i class=\"hi\" data-g=\"{}\" style=\"width:{:.1}%;background:{hi_paint}\"></i><i class=\"lo\" data-g=\"{}\" style=\"width:{:.1}%;background:{lo_paint}\"></i></div>",
+                "<div class=\"fam-bar\" data-color=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}: {}\t{}\t{}: {}\"><i class=\"hi\" data-k=\"{hi_id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{hi_paint}\"></i><i class=\"lo\" data-k=\"{lo_id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{lo_paint}\"></i></div>",
                 escape(&r.machine),
                 escape(family),
                 top.gbps,
