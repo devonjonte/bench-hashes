@@ -5849,6 +5849,9 @@ fn samples_header(machine: &MachineMetadata, run: &[(String, String)]) -> String
         writeln!(out, "# {key}: {value}").unwrap();
     }
     writeln!(out, "# power: {}", machine.describe_power()).unwrap();
+    if let Some(allocator) = diag_alloc::DESCRIPTION {
+        writeln!(out, "# global allocator: {allocator}").unwrap();
+    }
     writeln!(out, "# load: {}", clocks::load::describe(&machine.load)).unwrap();
     let windows: Vec<String> = machine
         .load
@@ -6061,6 +6064,9 @@ fn generate_text(
         "  {RUSTC_VERSION}; target {BUILD_TARGET}; features {TARGET_FEATURES}"
     )
     .unwrap();
+    if let Some(allocator) = diag_alloc::DESCRIPTION {
+        writeln!(output, "  global allocator: {allocator}").unwrap();
+    }
     writeln!(output, "  clock: {}", clocks::WALL_CLOCK).unwrap();
     writeln!(
         output,
@@ -6340,6 +6346,7 @@ fn xml_escape(input: &str) -> String {
 mod b3sum;
 mod chart;
 mod check;
+mod diag_alloc;
 #[cfg(test)]
 mod harness_tests;
 #[cfg(test)]

@@ -68,6 +68,13 @@ rev = "7f9f1f7f79f4b239bf9b3089afdde83d2333febb"
 [dependencies.sha1-checked]
 version = "0.10"
 
+[features]
+# Diagnostics only, never measurement configurations (src/diag_alloc.rs):
+# global allocators that place the bench's buffers within a cache line.
+diag-align64 = []
+# Needs BENCH_DIAG_LINE_OFFSET=16, 32 or 48 at build time.
+diag-line-offset = []
+
 [build-dependencies]
 # Used to fingerprint a dirty benchmark working tree.
 [build-dependencies.blake3]
