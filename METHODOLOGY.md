@@ -1,17 +1,18 @@
 # How bench-hashes measures
 
-This file explains what a run measures, how it keeps the numbers honest,
-and what each contender runs. [README.md](README.md) says how to run it.
+This file explains what a run measures, how it controls measurement
+noise, and what each contender runs. [README.md](README.md) says how to
+run it.
 
 Every run measures each contender in twelve use cases. Four are calls
-made now and then, each after a gap of one of two kinds: **after other
-work**, after the program has run a fixed other program and read 128 MiB
-of data, as a program hashes between its other tasks; and **after
-idling**, after the program has slept 1 ms, as a server waits for its
-next request. Each kind measures **a message in one buffer**, at
-twenty-seven sizes from 64 B to 128 MiB, reported per byte, and **a
-batch** of 64-byte messages, at twenty-four counts from 1 to 262144,
-reported per message.
+made now and then, each after a gap of one of two kinds. **After other
+work** runs after the program has executed a fixed other program and read
+128 MiB of data, as a program hashes between its other tasks. **After
+idling** runs after the program has slept 1 ms, as a server waits for its
+next request. Each kind measures **a message in one buffer** at
+twenty-seven sizes from 64 B to 128 MiB (reported per byte) and **a
+batch** of 64-byte messages at twenty-four counts from 1 to 262144
+(reported per message).
 
 Eight hash one input after another, as fast as the program can, each
 input first read or written into a buffer (timed with the hashing):
@@ -45,44 +46,36 @@ map shows both.
 ## Contenders
 
 A default run measures BLAKE3 servil, multithreaded (servil mt) and
-single-threaded (servil st),
-and SHA-256 from two crates, sha2 and ring, since each is the faster
-SHA-256 at some sizes. `--all` adds every other contender the machine can
-run: the crates.io BLAKE3 crate (BLAKE3 official), SHA3-256 (the `sha3`
-crate, with the CPU's SHA-3 instructions where it has them), SHA-1DC
-(`sha1dc`, SHA-1 with the collision detection git uses, far slower than
-every other contender at every size; left out of `--quick --all`), and
-CommonCrypto's SHA-256 on Apple platforms (`sha256-cc`), which the ring
-and sha2 crates each beat at every size on Apple silicon. `--contenders`
-names any set, including one that runs only when named: the crates.io
-crate on its Rayon pool (`blake3-official-mt`), which BLAKE3 servil mt
-beats at every point. `--list` shows every key.
+single-threaded (servil st), and SHA-256 from two crates, sha2 and ring,
+since each is the faster SHA-256 at some sizes. `--all` adds every other
+contender the machine can run: the crates.io BLAKE3 crate (BLAKE3
+official), SHA3-256 (the `sha3` crate, with the CPU's SHA-3 instructions
+where it has them), SHA-1DC (`sha1dc`, SHA-1 with the collision detection
+git uses, left out of `--quick --all`), and CommonCrypto's SHA-256 on
+Apple platforms (`sha256-cc`). `--contenders` names any set, including
+the crates.io crate on its Rayon pool (`blake3-official-mt`), which runs
+only when named. `--list` shows every key.
 
 ## Input sizes
 
 The one-message axis tests every power-of-two input size from 64 B to
-128 MiB but 16 MiB, plus 3 KiB and 3 MiB, plus four sizes of real data
-between 2 and 8 KiB: 2304 B (an 802.11 frame body at its maximum),
-3839 and 7935 B (the 802.11n A-MSDU maxima), and 4470 B (the Packet over
-SONET/SDH MTU). None of those four is a multiple of BLAKE3's 1 KiB
-chunk, as real inputs seldom are. 16 MiB is left out: its neighbours
-predict it closely.
+128 MiB except 16 MiB, plus 3 KiB and 3 MiB. It also tests four sizes of
+real data between 2 and 8 KiB: 2304 B (an 802.11 frame body), 3839 and
+7935 B (802.11n A-MSDU maxima), and 4470 B (Packet over SONET/SDH MTU). Real inputs are
+seldom multiples of BLAKE3's 1 KiB chunk, and those four sizes test
+non-chunk lengths.
 
-Below 1 KiB a BLAKE3 input is one chunk; from 2 KiB to 16 KiB
-its SIMD paths fill (4-way NEON at 4 KiB, a sixteen-lane SME2 group at
-16 KiB); above that the bulk rate settles. 3 KiB is where the SME2 fork's
-integer + NEON hybrid kernels first overtake hardware SHA-256. The sizes
-past 1 MiB show the plateau: a contender whose 32, 64, and 128 MiB
-means agree has levelled out. The multithreaded contenders take
-longest to get there, since a pool hand-off or a subtree merge amortises
-more slowly than one kernel call (the fork's was still climbing at
-8 MiB, and Rayon's still is at 128 MiB in a Linux VM); from 8 MiB up an
-input passes most machines' last-level cache (some hold 32 MiB or
-more, and some server chips far more), and where it does, the rate is
-the memory's. 3 MiB is to the plateau what 3 KiB is to the SIMD
-ramp: a tree that is no power of two (a 2 MiB left subtree beside a
-1 MiB right one), so a splitter that cuts at subtree boundaries hands
-its threads unequal work there.
+Below 1 KiB a BLAKE3 input is one chunk. From 2 KiB to 16 KiB its SIMD
+paths fill (4-way NEON at 4 KiB, a sixteen-lane SME2 group at 16 KiB),
+and above 16 KiB the single-thread bulk rate settles. 3 KiB is where
+`blake3-servil`'s integer + NEON hybrid kernels first overtake hardware
+SHA-256. The sizes past 1 MiB show the plateau: a contender whose 32, 64,
+and 128 MiB means agree has levelled out. Multithreaded contenders reach that plateau later because thread
+hand-offs and subtree merges amortise over larger inputs. From 8 MiB up
+an input exceeds most machines' last-level cache, so memory bandwidth
+governs the rate. 3 MiB tests a
+tree that is not a power of two (a 2 MiB left subtree beside a 1 MiB
+right one).
 
 The report gives each cell's mean time per unit in nanoseconds (the
 total time of its samples over the total work they did, every sample
@@ -165,12 +158,11 @@ the batch entry point where a contender has one, else of its plain one.
 
 The axis counts messages per batch: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32,
 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536,
-131072, 262144 (16 MiB of input at the end). Powers of two up to 16 show a SIMD batch filling (the blake3
-crate's `hash_many` takes four blocks at a time on NEON, sixteen with
-AVX-512); 3, 6, 12, 24, and 48 leave a group partly filled or leave a
-remainder past sixteen-message groups; from 64 up
-the per-batch overhead amortises and the rate settles. Results read in
-nanoseconds per message and million messages per second.
+131072, 262144 (16 MiB of input at the end). Powers of two up to 16 show a SIMD batch filling (four blocks at a time
+on NEON, sixteen with AVX-512 or SME2). Counts of 3, 6, 12, 24, and 48
+leave a group partly filled or leave a remainder past sixteen-message
+groups. From 64 up the per-batch overhead amortises and the rate settles.
+Results read in nanoseconds per message and million messages per second.
 
 BLAKE3 official mt takes no part in this use case: a 64-byte message is
 a call to `update_rayon` that no program would make, and the
@@ -193,52 +185,29 @@ interval takes two samples of the same batch:
   itself.
 - **Shared**, for the tasks that hash one input after another: two
   independent copies at once, each on its own thread over its own input,
-  released together; each copy's own time is a sample. What each of two
-  users of the same code gets. They compete for every resource the code
-  uses: cores and memory bandwidth, and for the SME2 fork an SME unit,
-  which serves a whole cluster of cores. The calls after a gap run
-  alone: there a copy met the code its twin had just run in a cache the
-  gap left warm, and read faster than one program alone.
+  released together; each copy's own time is a sample. They compete for
+  cores, memory bandwidth, and any shared execution unit (such as Apple
+  M4's SME unit). The calls after a gap run solo, since a second copy
+  would warm the cache the gap was meant to cool.
 
-The synchronous use cases' samples are calls after the gap: one call, or
-as many as fill 2 µs where a call is shorter (the clock ticks every 41.7
-ns, so a single short call cannot be timed), each after its own 1 ms
-of other work, timed alone, and summed. After other work, each thread runs a fixed other program (1024 generated
-functions, about 1.1 MiB of distinct machine code, run once), walks its
-own kept 128 MiB working buffer at 64-byte intervals, then spends any
-remaining millisecond on integer arithmetic. The whole program runs even
-past 1 ms, so the gap can last longer on slower machines. The other
-code matters: a data walk alone would leave the hash's own code in
-the core's instruction cache. After idling, the thread sleeps 1 ms.
-Each timed call follows the same call: before a sample's first, one
-untimed call, gap and all. A gap leaves some of what ran before it in
-the caches, so without that call the benchmark's own schedule (another
-contender, another size) would decide what the first found. Either way
-the thread then writes the input, as a read or producer would, before the hash call.
-That write is part of the sample, as it is in every nonstop use case: a
-program's data has to arrive before it is hashed. Every use case uses each
-hash the same way, storing it in the program's slot for its message.
-The working buffer's pages are written when it is made, so operating
-systems that share untouched zero pages give it real physical memory.
-Each thread keeps one work buffer and one producer buffer across samples.
-In both, a pool's workers have
-fallen asleep. After other work the caller's core is busy and its caches
-hold the other program's code and data. After idling the core may have
-slowed or powered down, or the thread may wake on another core: an
-Apple M4 Max meets full clock, its lowest, or a step between, for each
-call and every contender alike, and in a VM two speeds about 3.5 times
-apart, so these cells mix speeds, and their means weigh each by how
-often it came. Longer calls meet the clock of a mostly idle core
-too: on an Apple M4 Max, a call of several milliseconds after idling ran
-15-50% slower than after other work (SHA-256 at 8 MiB 0.43-0.51 against
-0.29-0.34 ns/B), its core near 3.8-4.0 GHz where after other work it ran
-near 4.5, which is what a server that mostly waits gets. The rule
-behind it, measured on an M4 Max on mains (hash of 64 KiB after a sleep,
-median of 15): sleeps of 20-200 us cost nothing; after 0.5-20 ms macOS
-has lowered the core's clock to about a third (1.06 GHz against 3.2),
-and calls run that slow until about 85 us of work has raised it again;
-after 100 ms the calls stay near 1.9 GHz for at least 40 calls.
-A full run takes about a minute.
+In the calls after a gap, each sample is one call (or enough calls to
+fill 2 µs when a single call is shorter than the clock tick), each
+preceded by its own 1 ms gap and timed outside the gap. Before a sample's
+first timed call, one untimed call with its own gap runs so the sample
+starts from that cell's own state. After other work, the thread executes
+1024 generated functions (about 1.1 MiB of machine code) to evict the
+instruction cache, walks a 128 MiB working buffer at 64-byte intervals,
+and spends any remaining millisecond on integer arithmetic. After idling,
+the thread sleeps 1 ms. In both cases the thread then writes the input
+into its buffer and hashes it, storing the digest in its output slot.
+
+In both gap kinds, any worker pool's threads have gone to sleep. After
+other work, the calling core is at full clock with its caches holding the
+other program's code and data. After idling, the operating system has often lowered the core's clock or
+moved the thread. On an Apple M4 Max, 1 ms of sleep lowers the clock
+until roughly 85 µs of work raises it again, and multi-millisecond calls
+run near 3.8–4.0 GHz after idling against 4.5 GHz after other work. The cell's mean weighs these
+states by how often they occur.
 
 A single-threaded hash costs about the same in both. A multithreaded one
 shows in the shared scenario what its threads cost when the machine is
@@ -283,7 +252,7 @@ On x86-64 it runs the crates.io crate's assembly kernels (SSE4.1, AVX2,
 AVX-512) and kernels of its own: passes that hash whole chunks and a
 partial one together, and batches of messages of two to fifteen chunks
 hashed across the messages. Its provenance line gives the repository,
-branch, and commit instead of a registry checksum. For a batch the fork's `hash_many`
+branch, and commit. For a batch the fork's `hash_many`
 hashes messages of one to sixteen blocks many lanes at a time (sixteen
 per group on SME2, NEON below a group).
 
@@ -307,25 +276,21 @@ many threads a call uses is the fork's decision from the input and the
 machine, and concurrent callers in one process share the workers
 fairly: two callers at once each get about half the machine. Across
 processes the operating system's scheduler shares the workers' CPUs.
-The fork also offers `hash_multithreaded_with_budget(input,
-max_threads)` to cap one call's threads; the contender measures the
-uncapped call.
 
-The benchmark touches each implementation in two ways only: it lists
-it; it calls the entry points its users call, with no cap, pool, or
-wrapper of its own: its one-message call (`hash`, `hash_multithreaded`,
-`Hasher::update_rayon`, `digest`), its batch call where it has one
-(`hash_many`, `hash_many_multithreaded`, the crates.io crate's hidden
-`Platform::hash_many`), its incremental API (`update`,
-`update_multithreaded`), and for servil mt its stream. It asks for no machine capacity, sets no
-environment, and checks no digests: each crate's own tests do.
+The benchmark touches each implementation only by listing it and calling
+the entry points its users call, with no cap, pool, or wrapper of its
+own. Those entry points are the one-message call (`hash`,
+`hash_multithreaded`, `Hasher::update_rayon`, `digest`), the batch call
+where one exists (`hash_many`, `hash_many_multithreaded`, `Platform::hash_many`),
+the incremental API (`update`, `update_multithreaded`), and for servil mt
+its `stream`. It asks for no machine capacity, sets no environment, and
+checks no digests.
 
 SHA-256 CommonCrypto, on Apple platforms only, calls the system's
 libSystem through FFI using `CC_SHA256_Init`, `CC_SHA256_Update`, and
 `CC_SHA256_Final`. This is the implementation most Apple software
 reaches for, so it anchors the sha2 crate's number against the
-platform's own. Its provenance is the running OS rather than a crate
-version.
+platform's own. Its provenance is the running OS.
 
 The three-call form is the fastest route into corecrypto. Measured on
 an M4 Max, a 64-byte digest takes 51 ns through Init/Update/Final and
@@ -337,7 +302,7 @@ streaming calls.
 SHA-1DC is provided by RustCrypto's sha1-checked crate: SHA-1 with the
 collision-detection pass that git applies to every object hash. The
 detection is pure Rust and has no hardware path, so this contender shows
-what git pays today rather than what raw SHA-1 costs.
+what git pays today.
 
 SHA3-256 is provided by RustCrypto's sha3 crate, whose keccak backend
 uses the ARMv8 SHA-3 instructions (EOR3, RAX1, XAR, BCAX) when the CPU
@@ -352,20 +317,18 @@ Each contender may switch implementation as the input grows. BLAKE3
 divides input into 1024-byte chunks; the crates.io crate runs a single
 chunk through its one-chunk compressor and batches whole chunks into
 the widest SIMD `hash_many` it can fill (four-way NEON on AArch64, so
-four chunks at 4 KiB; AVX-512, AVX2, SSE4.1, or SSE2 on x86). The SME2
-fork runs an input of one chunk or less through one call of its scalar
-kernel (every block including the root compression, with the state in
-registers throughout), two to fifteen chunks on integer + NEON hybrid
-kernels, and groups of sixteen on the SME2 kernel (16 KiB and above).
-BLAKE3 official mt leaves the caller's thread above one SIMD width of chunks;
-BLAKE3 servil mt can split over threads from 512 KiB. SHA-256, SHA3-256, and SHA-1DC run one path at every size.
+four chunks at 4 KiB; AVX-512, AVX2, SSE4.1, or SSE2 on x86). On AArch64, `blake3-servil` runs an input of one chunk or less through
+one call of its scalar kernel, two to fifteen chunks on integer + NEON
+hybrid kernels, and groups of sixteen chunks on the SME2 kernel (16 KiB
+and above). BLAKE3 official mt leaves the caller's thread above one SIMD
+width of chunks; BLAKE3 servil mt splits across threads from 512 KiB.
+SHA-256, SHA3-256, and SHA-1DC run one path at every size.
 
-In the many-messages use cases a contender looping one message per call
-runs the kernel for its message length at every batch size; the
-crates.io crate's batch function changes path at the platform's SIMD
-degree (four on NEON); BLAKE3 servil's at two (the NEON hybrid parent
-kernels) and at sixteen (the SME2 group kernel), and servil mt's again
-where a batch may leave the calling thread.
+In the batch use cases, a contender without a batch call runs its
+single-message kernel at every batch size. The crates.io crate's batch
+call switches path at the platform's SIMD degree (four on NEON, sixteen
+on AVX-512). `blake3-servil`'s batch call switches at two messages and at
+sixteen, and servil mt splits larger batches across threads.
 
 These paths explain a line's bends; the benchmark measures them and
 reports none of them (Zooko, October 19: the paths of a stream or a
@@ -377,32 +340,26 @@ fork's `src/ffi_sme2.rs` and `src/ffi_neon_hybrid.rs`.
 ## Inputs, and what the benchmark leaves to others
 
 The benchmark times hashes and checks no digests: each implementation's
-own tests establish that it is correct. An input of `n` bytes for seed
-`s` is the little-endian 64-bit words `s << 48 | 0, s << 48 | 1, ...` cut
-to `n` bytes, so every block of every input differs, and seed 1 gives the
-second shared copy different bytes; hash speed does not depend on the
+own tests establish that it is correct. An input of `n` bytes for seed `s` consists of the little-endian 64-bit
+words `s << 48 | 0, s << 48 | 1, ...` cut to `n` bytes. Every block of
+every input differs, and seed 1 gives the second shared copy distinct
 bytes. The timed loop hands every digest to `black_box`, so no hash can
 be optimized away, and the two shared copies hash separate buffers, as
 two programs would.
 
 ## Interleaving
 
-The participating contenders in each use case run in a Williams design:
-a set of orders that together place every contender in every position
-equally often and realise every "Y right after X" adjacency equally
-often (n orders for an even count of contenders, 2n for odd), built over
-the contenders that take part in the use case. Point order rotates
-independently. The run measures in three phases, each
-with its own calibration and rounds: the nonstop use cases, then the
-calls after other work, then the calls after idling. The operating
-system sets a core's clock from the program's recent use of it, so each
-way of calling is measured among its own kind: a program that hashes one
-input after another never sleeps, and one that idles between requests
-mostly sleeps. Mixed, the neighbours moved each other's clocks: nonstop
-samples ran near 3.0 GHz on an Apple M4 Max beside the sleeps, alone near
-4.4 GHz (SHA-256's 1 KiB messages 0.51 against 0.36 ns/B); calls after
-idling ran near full clock beside the busy calls, and near 3.8-4.0 GHz
-among other idle calls. Each contender/point combination is
+The participating contenders in each use case run in a Williams design.
+That schedule places every contender in every position equally often and
+realises every "Y right after X" adjacency equally often (n orders for an
+even count of contenders, 2n for odd). Point order rotates independently.
+The run measures in three phases, each with its own calibration and
+rounds: the nonstop use cases, then the calls after other work, then the
+calls after idling. Because the operating system sets a core's clock from
+the program's recent activity, each calling pattern runs among its own
+kind. When nonstop and sleeping calls were mixed on an Apple M4 Max, nonstop
+samples ran near 3.0 GHz (against 4.4 GHz alone) and sleeping calls ran
+near full clock (against 3.8–4.0 GHz among other sleeping calls). Each contender/point combination is
 calibrated separately: a continuous cell's timed samples last about 1 ms
 each (and hold at least twice the buffers its program keeps in flight), a
 synchronous cell's sum about 2 µs of calls after the gap.
@@ -442,17 +399,16 @@ established by repeating them.
 
 ## Comparing runs
 
-`bench-hashes compare OLD.tsv... -- NEW.tsv...` takes the runs in pairs,
-the i-th old with the i-th new (run them back to back in alternating
-order, at least three pairs), and judges all their cells at once: per
-cell a paired t-test on the logarithm of each pair's ratio, new mean over
-old, and over all the cells the Benjamini-Hochberg procedure at a 5%
-false discovery rate; a cell that passes is slower or faster beyond a 3%
-margin, the rest level. Beside each cell: each side's figure (the
-geometric mean of its runs' means), the ratio judged (the geometric mean
-of the pairs' ratios, which is the two figures' ratio), and how many
-pairs ran faster. It says so beside any run whose load was busy or
-unmeasured.
+`bench-hashes compare OLD.tsv... -- NEW.tsv...` takes the runs in pairs
+(the i-th old with the i-th new, run back to back in alternating order,
+at least three pairs) and judges all their cells at once. Each cell uses
+a paired t-test on the logarithm of each pair's ratio (new mean over
+old), with the Benjamini-Hochberg procedure controlling the false
+discovery rate at 5% across all cells; a cell that passes is marked
+slower or faster beyond a 3% margin, and the rest are level. Beside each
+cell it prints each side's geometric mean of run means, the ratio of the
+two, and how many pairs ran faster. Any run whose load was busy or
+unmeasured is noted beside the result.
 Where both sides' samples carry CPU time, it adds each cell's CPU-time
 ratio by the same rule (per pair, new CPU time per unit over old, all of
 a run's samples' CPU time over their units), with no verdict.
@@ -479,15 +435,14 @@ either way, so a cell's energy, all its samples' over all their units, is
 not biased by it. `compare` prints its ratio beside CPU time's, with no
 verdict.
 
-**Where each sample ran.** Every sample, solo and shared, records the
-calling thread's counts per core kind across it (`clocks::Counts`: time
-and cycles on P cores and on E cores; Apple, and Linux on x86-64 hybrids),
-in the `core counts` column, `P time:P cycles:E time:E cycles`, or `-`
-where the platform counts none. The map's tooltip names a point's E-core
-share and clocks, so a change in where a hash ran reads as that, not as
-a change in the hash. On Linux, cycles cover user space while running
-time also covers kernel work, so the clock estimate reads low across
-system calls. The pool's workers are not counted yet.
+**Where each sample ran.** Every sample records the calling thread's
+counts per core kind across it (`clocks::Counts`) in the `core counts`
+column as `P time:P cycles:E time:E cycles`, or `-` where the platform
+counts none. On Apple silicon and Linux x86-64 CPUs with performance
+counters, the map's tooltip shows each point's core share and clock rate.
+On Linux, cycles cover user space while running time also covers kernel
+work, so the clock rate reads low across system calls. The pool's workers
+are not counted yet.
 
 **Threads.** BLAKE3 servil mt's pool holds one thread per CPU, its caller
 among them, unless a run says `--threads N`, which sets it for the whole
@@ -495,53 +450,28 @@ run (the pool is the process's): the samples' `contenders` line records it,
 and the map names the contender "BLAKE3 servil mt, N threads". `--threads 2`
 measures the smallest pipeline, one worker beside the program's thread.
 
-`bench-hashes check [--against REV]`, run from a bench-hashes checkout
-inside a checkout of the fork, answers whether a change to the fork hurt
-its speed anywhere: it builds the two sides itself (the fork's working
-tree and the commit checked against, each relinked with a fresh function
-order per pair), records once which lines of the fork each cell executes
-(a coverage build, cached), checks the cells that execute a line the
-change touches (`--cells all` for every cell), and judges them as below.
-A change to assembly or the build checks every cell. It replaces the
-fork's `tools/perf_regress.py` and the fixed list of five cells the check
-once ran, which was blind to the cells after a gap and to the stream.
+`bench-hashes check [--against REV]` checks whether a change to
+`blake3-servil` slowed any cell. It builds the working tree and the
+target commit, relinks each side with a fresh random function order for
+each pair of runs, and runs the cells whose code the change touches
+(`--cells all` runs every cell). A change to assembly or to the build
+runs every cell.
 
-Underneath, `bench-hashes regress [--contenders A,B [--points P,Q]] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE...`
-judges two builds: eight pairs of runs (`--pairs`), pair i running the
-i-th executable of each side, back to back in alternating order, over the
-default contenders' every cell or the cells named; each run takes the
-regression check's visits (a cell after a gap in 24 rounds, a nonstop
-cell in 6: `TO_CHECK_FOR_REGRESSIONS`); `--keep DIR` keeps every run's
-samples file. Before its pairs, `regress` calibrates once a side (`--calibrate-only`,
-by each side's first build), and every run of either side takes those
-sample sizes (`--sizes`) instead of calibrating its own: a cell both sides
-measure takes the old side's size, so both do the same work a sample; a
-cell only one side measures (two benchmarks' cells, `--bench`), its own
-side's. No run pays a calibration. Each run is `regress`'s child, and `regress` checks the load around
-it (below, "Load from other programs"), so a run may be as short as its
-measurement needs. `check` gives each side a fresh
-link layout per pair (a random function order): a binary's layout alone moves the
-cells of calls made now and then by several percent, and the same
-binary's runs differ with the address layout each process gets
-(`audit/variance-on-unchanged-code.md` at commit `aadeca9d`).
-On an i7-12700K, unchanged code read level in all 700 cells this way,
-where a sign test per cell had flagged 15-27. The queue's cells and the
-shared scenario stay out of the default check: on identical code the
-queue's means move 6-60% between processes, and two copies' 64 B cells
-switch between states 20-30% apart. The check's first calibration, on an
-Apple M4 Max with planted slowdowns and builds of identical code, is in
-the fork's NOTES ("The regression check, calibrated").
+Underneath, `bench-hashes regress` runs the pairs back to back in
+alternating order (four pairs by default in `check`, eight in `regress`),
+with 24 visits per run for cells after a gap and 6 for nonstop cells.
+Before the pairs start, `regress` calibrates sample sizes once per side
+so both sides perform the same work per sample and no timed run pays for
+calibration. Giving each pair a fresh link layout averages out code
+placement, which alone can move calls after a gap by several percent.
 
 ### Each part of the rule, and its evidence
 
-Change any of these on evidence of the same kind, and record it in
-`FROZEN.md`; the rule changed many times while its reasons were scattered.
-
 | choice | evidence | what it gives up |
 |---|---|---|
-| A run's cell is its **mean**, total time over total work, every sample counted (`clocks::summary::mean`; Zooko, October 2, and October 23 on bench #60, replacing October 19's trim) | Planted slowdowns on the Mac (jobs 1164-1167): at +6% a fast speed never caught 1 MiB, the mean caught every cell nearly every time. The trim of October 19 (bench #41, `data` branch `2026-10-19/stat41`) halved a stall's false flags against the plain mean (7 to 3 of 708 cells) but at the budgets a run has, 6 and 24 samples a cell, it erased a slow state coming once in ten samples: ten fixed phases each read as level with 10% of the raw cost gone (`2026-10-22/mean-trim-controls`); the plain mean shows that state, and the stall is the pairs' and the load reading's to catch. | A stall moves a cell's figure in full; a run whose load reading is busy carries no verdict. |
+| A run's cell is its **mean**, total time over total work, every sample counted (`clocks::summary::mean`; Zooko, October 2 and 23) | Planted slowdowns on the Mac: at +6% a fast speed never caught 1 MiB, while the mean caught every cell nearly every time. At the check's budgets (6 and 24 samples per cell), setting the slowest sample aside erased a slow state occurring once in ten samples (`2026-10-22/mean-trim-controls`), whereas the untrimmed mean shows it in full. | A stall moves a cell's figure in full; a run whose load reading is busy carries no verdict. |
 | **Pairs of runs**, alternating, a **fresh link layout** on each side per pair (October 2 and 16) | Most uncertainty lies between processes (placement, the speed a cell settles into): one binary's run means varied 1.49 times what its samples predict; 12 samples or 24 gave the same between-run spread. A layout moves the cells of calls made now and then by several percent, fixed for every run of that binary, so alternation cannot cancel it: two links of one source gave 27 false verdicts in 700 cells. | A second side's runs and a relink per pair. |
-| **4 pairs** by default, each run with **the regression check's visits** (24 after a gap, 6 nonstop; October 20) | Calibrated on the i7-12700K (`data` branch `2026-10-20/check-validation`) and the M4 Max (the fork's Mac jobs 1636, 1637, 1642): on both, an A/A over every cell found no cell slower (the Mac at 8 pairs, 16 min; the i7 over 146 cells), and the two planted 6% slowdowns were caught at 4 pairs: `hash()`'s in servil st's cells (the Mac: +5% to +28% in the continuous cells, 11 min; the i7: 48 cells), the pool split's in servil mt's cells from 512 KiB, the cells after a gap among them (the Mac: +7% to +25%, 7 min; the i7: 22 of 28), in half the time of 8 pairs. At 12 visits after a gap instead of 24, the cells after a gap caught a plant 3 times in 10. Of the budget, pairs buy more than samples: 18 pairs of 4 samples judged 40% more narrowly than 8 of 12 in the same minutes. | A check takes 2 to 6 minutes. |
+| **4 pairs** by default, each run with **the regression check's visits** (24 after a gap, 6 nonstop; October 20) | Calibrated on the i7-12700K (`data` branch `2026-10-20/check-validation`) and the M4 Max: on both, an A/A over every cell found no cell slower (the Mac at 8 pairs, 16 min; the i7 over 146 cells), and the two planted 6% slowdowns were caught at 4 pairs: `hash()`'s in servil st's cells (the Mac: +5% to +28% in the continuous cells, 11 min; the i7: 48 cells), the pool split's in servil mt's cells from 512 KiB, the cells after a gap among them (the Mac: +7% to +25%, 7 min; the i7: 22 of 28), in half the time of 8 pairs. At 12 visits after a gap instead of 24, the cells after a gap caught a plant 3 times in 10. Of the budget, pairs buy more than samples: 18 pairs of 4 samples judged 40% more narrowly than 8 of 12 in the same minutes. | A check takes 2 to 6 minutes. |
 | **All cells judged at once**: a paired t-test per cell on the log ratios, Benjamini-Hochberg at a 5% false discovery rate (Zooko, October 16) | A per-cell test over 700 cells flags 15-27 cells of unchanged code; a sign test cannot go stricter with few pairs. With the rule: 0 of 700 in three unchanged-code controls, and the code's real changes found. | Floating point inside the t-test. |
 | **A 3% margin** (October 2) | +3% planted was caught about half the time, +6% nearly always; one layout-only change in eight sat near 3% at lent 64 B. | Changes under 3% pass one commit at a time; the release check (`--against` the last release) sees their sum. |
 | **One calibration a side a check** (October 17) | Each run calibrating its own sizes cost 18 s of a 41-s run; shared sizes judged every group of cells more narrowly in less time (about 2.2 times the information per minute), and both sides do the same work a sample. | Sizes chosen on the old side's build. |
@@ -561,13 +491,11 @@ rests on; the general-reliance NO-GO holds until they pass.
 **What the SHA-256 cells can tell.** SHA-256's code is identical on both
 sides of a servil comparison, so its cells show the instrument's noise, and
 a SHA-256 verdict usually means the comparison misread something. One real
-effect moves them too: the package's clock. A change to how BLAKE3's pool
-wakes or parks its workers changes how many cores are active, which sets
-the clock every P core shares (an i7-12700K: 4.9 GHz with one or two
-active, 4.7 with all), and SHA-256's samples, taken beside BLAKE3's, inherit
-it: a worker spinning 5 us put SHA-256's nonstop cells at +1.5-3% (#59);
-waking the pool for batches of 64-512 KiB put its lent batches at +3.3-3.6%
-(#49). A SHA-256 shift beside a change to the pool's waking is a finding
+effect moves them too: the package's clock. A change to how BLAKE3's pool wakes or parks its workers changes how
+many cores are active, which sets the clock every P core shares (on an
+i7-12700K, 4.9 GHz with one or two active and 4.7 GHz with all). Because
+SHA-256's samples are taken beside BLAKE3's, they inherit that clock
+shift. A SHA-256 shift beside a change to the pool's waking is a finding
 about that change, which programs pay too. A second interaction is
 placement: after the pool's stream cells, Linux sometimes leaves the
 caller on an E core, which costs BLAKE3 st (AVX2 at half width there) and
@@ -577,13 +505,12 @@ spares SHA-256 (as fast on either kind): bench #25.
 
 `bench-hashes.map.html` draws every cell the run's samples file holds as
 a small chart, its lines through each contender's means on log scales,
-higher faster. The charts sit in a grid: its rows are what the program
-hashes (one message; a batch of 64-byte messages; many messages at once,
-in pieces; a collection of messages; a message with its outboard; a message
-received, verified as it arrives), its
-columns how the program calls (now and then, after other work or after a
-pause; nonstop, waiting for each call or pipelined), first for one
-program and then for two at once. A cell the run did not measure stays
+higher faster. The charts sit in a grid, first for one program (solo) and then for two
+at once (shared). Its rows are what the program hashes: one message, a
+batch of 64-byte messages, many messages at once in pieces, a collection
+of messages, a message with its outboard, and a message verified as it
+arrives. Its columns are how the program calls: after other work, after
+a pause, waiting for each call, or pipelined. A cell the run did not measure stays
 empty, in its place. Clicking a chart opens it over the cells, its row's
 and column's headers lit, with its axes and, under the pointer, each
 contender's rate and time per message (or batch, or run) at that point;
@@ -595,52 +522,42 @@ call's documentation. A link to `bench-hashes.map.html#solo|one|lent`
 opens that chart. When the folder also
 holds a b3sum run's samples, the map adds a section for it in the same
 form: a file or a tree of files, in the page cache or read from storage.
-Under each section's title one line says where and when the run ran and
-whether other programs kept the machine busy; its door, "About this run",
-holds the provenance: the time, the machine, the power and the load in
-full, bench-hashes's release and commit, BLAKE3 servil's commit, the
-crates' versions, the compiler and target, and the samples file, each
-linked where a link exists.
+Under each section's title one line says where and when the run was made
+and whether other programs kept the machine busy. Opening "About this
+run" shows the full provenance: the time, machine, power, load, versions,
+commits, compiler, target, and samples file.
 The map comes from the samples files alone (`bench-hashes map FOLDER`
 draws it again), so a stored record draws the same map its run did.
 
 ## b3sum
 
 `bench-hashes b3sum NAME=COMMAND...` measures builds of `b3sum` as a
-person runs them. Each run is a new process, timed from just before its
-start to its exit (`clocks::child`), with the counts the operating
-system keeps for it: CPU time, peak memory, bytes read from storage, and
-major page faults (Linux and macOS), and on macOS its cycles and
-instructions on each core kind. The samples file keeps them as comment
+person runs them. Each run is a new process, timed from start to exit (`clocks::child`),
+along with the operating system's resource counts for the child. Those
+counts include CPU time, peak memory, bytes read from storage, major page
+faults (Linux and macOS), and on macOS cycles and instructions per core
+kind. The samples file keeps them as comment
 lines beside each run's time.
 
-**Inputs.** Single files of 4 KiB, 64 KiB, 1 MiB, 16 MiB, 256 MiB, and
-1 GiB; a tree of 1000 files of 16 KiB passed together, as `b3sum $(find
-src -type f)` passes them, and the same files with a b3sum process each,
-one after another, as `for F in $(find src -type f); do b3sum $F; done`
-runs them (its time the processes' sum); and a mixed tree of 1000 files, 74 MiB in all,
-as a source checkout holds them (300 of 1 KiB, 300 of 4 KiB, 200 of
-16 KiB, 120 of 64 KiB, 60 of 256 KiB, 15 of 1 MiB, 4 of 4 MiB, one of
-16 MiB, their sizes interleaved), hashed in one run as `find . -type f
--print0 | xargs -0 b3sum` hashes them; and 16 files of 64 MiB, as many
-bytes as the 1 GiB file, in one run as `b3sum *.iso` hashes them (with
-`--quick`, 4 of 16 MiB). Each file holds BLAKE3's extended
-output of its name (its path under the files directory): the same files
-on every machine, and incompressible, so a filesystem or drive that
-compresses reads them in full.
+**Inputs.** The benchmark hashes four kinds of file input:
+- Single files of 4 KiB, 64 KiB, 1 MiB, 16 MiB, 256 MiB, and 1 GiB.
+- A tree of 1000 files of 16 KiB passed in one command (`b3sum $(find src -type f)`), and the same 1000 files hashed by one `b3sum` process per file.
+- A mixed tree of 1000 files (74 MiB in all, from 1 KiB to 16 MiB with sizes interleaved like a source checkout) passed in one command.
+- 16 files of 64 MiB (1 GiB in all; 4 of 16 MiB under `--quick`) passed in one command.
+
+Each file contains BLAKE3's extended output of its relative path: the
+same bytes on every machine, and incompressible so a compressing
+filesystem or drive still reads them in full.
 
 **Builds.** `tools/b3sum-contenders.py` builds each `b3sum` as its own
 project recommends: official BLAKE3's as `cargo install b3sum` builds it
 (dynamically linked), the fork's statically linked on Linux, as its
-README recommends. A static build skips the dynamic loader, which on an
-i7-12700K makes each run about 240 µs shorter (a 64-byte file in 0.49 ms
-against 0.74), so in the cells that start a process per file, part of the
-fork's lead is its linking rather than its code. With `LAYOUTS=N` the
-script relinks every `b3sum` N times, its functions in a random order each
-time, and `bench-hashes b3sum` runs a contender named more than once (each
-build as `NAME=PATH`) one build a round: a binary's layout alone moves its
-times by several percent, as the library's comparisons found, so no one
-layout's luck stands for a program.
+README recommends. A static build skips the dynamic loader, saving about 240 µs per process
+on an i7-12700K (0.49 ms against 0.74 ms on a 64-byte file), which
+contributes to the single-file process cells. With `LAYOUTS=N`, the
+script relinks each `b3sum` binary `N` times with a random function
+order, and `bench-hashes b3sum` rotates through those builds across
+rounds so no single link layout dominates.
 
 **Page cache.** *Warm*: the files were read moments before. *Cold*: each
 file is evicted before each run, without root: Linux with
@@ -653,13 +570,10 @@ serve a guest's cold reads.
 **Rounds.** Every contender runs once on every input, untimed, then 15
 rounds (5 with `--quick`), the contenders in the main run's Williams
 design (Interleaving), a row a round and input: every contender runs in
-every position and right after every other equally often. A run's
-after-effects fall on the run that follows it; with the contenders only
-rotating, each kept one predecessor, and that alone moved cells: run
-right after sha256sum, a b3sum took about 10% longer on 1 MiB and 16 MiB
-files in the page cache, and run right after another b3sum, 7-9% longer
-on a 1 MiB file from storage, whichever build it was (i7-12700K, two runs
-with the order swapped, October 18). The balance is exact in whole cycles
+every position and right after every other equally often. A run's after-effects fall on the run that follows it. When contenders
+merely rotated in a fixed order, each kept the same predecessor, which
+moved cells by 7–10% on an i7-12700K; the Williams design balances those
+predecessors. The balance is exact in whole cycles
 of the design, a multiple of n rounds for n contenders when n is even and
 of 2n when odd (18 rounds for three contenders); other round counts leave
 a few rounds' remainder, a fraction of a percent at that effect's size.
@@ -669,7 +583,7 @@ contender is the ratio `compare` judges, each round a pair: the geometric
 mean of the rounds' ratios, marked slower or faster where every cell
 judged at once says so, beyond 3%. (A median of the rounds' ratios flips
 with the share of rounds in each mode where a cell runs at two speeds: a
-1 GiB file read ×0.62 or ×0.98 by that alone, October 17.)
+1 GiB file read ×0.62 or ×0.98 by that alone.)
 
 The run writes `b3sum.result.txt` (the report) and `b3sum.samples.tsv`
 (each run's time, and its counts as `# counts` lines), and draws the
@@ -677,18 +591,12 @@ folder's map again, with a b3sum section (above, "The map").
 
 ## Output
 
-The run prints the text report on stdout and progress on stderr (the
-phase, a bar over the sample rounds, and the running mean of every
-contender at the largest input size), and writes six files to
-`benchmark-results/{CPU}.{OS}/`: `bench-hashes.result.txt` (the
-report), `bench-hashes.map.html` (the map), `bench-hashes.chart.svg`
-(one 1 MiB message after other work as bars: BLAKE3 servil on every core
-and on one, and the fastest measured member of SHA-256, SHA3-256, and
-SHA-1, from each cell's mean; a quick run, which stops below 1 MiB, draws
-none), and `bench-hashes.samples.tsv` (every sample of every cell, every scenario,
-in the order taken, each as `ns/units`, and in a last column the
-millisecond each sample started, with the provenance, the CPU's identity,
-and the load windows as `# key: value` lines). `bench-hashes compare` and `bench-hashes regress` read it.
+The run prints the text report on stdout and progress on stderr, and
+writes its results to `benchmark-results/{CPU}.{OS}/`:
+- `bench-hashes.result.txt`: the text report.
+- `bench-hashes.map.html`: the interactive map.
+- `bench-hashes.chart.svg`: one 1 MiB message as bars (drawn on full runs).
+- `bench-hashes.samples.tsv`: every sample in the order taken (`ns/units`, start time, CPU time, energy, and core counts), preceded by `# key: value` header lines for provenance, CPU identity, and load windows. `bench-hashes compare` and `bench-hashes regress` read this file.
 
 `bench-hashes chart SAMPLES.tsv` draws a samples file's chart again
 beside it, and `bench-hashes map FOLDER` a folder's map; both come from
@@ -743,14 +651,12 @@ power supply, and its report says the OS reports none.
 
 ## Build settings and provenance
 
-Every samples file names what decided its machine code, so another person
-can rebuild it: bench-hashes' repository, commit and clean state (a dirty
-tree's BLAKE3 fingerprint), a BLAKE3 fingerprint of `Cargo.lock` (every
-dependency's exact version and checksum), the Rust and C compilers (the C
-compiler assembles ring's and the fork's C and assembly), `RUSTFLAGS`, the
-target and its features, and one `source CONTENDER` line for every
-contender the run measured: a crate's version and archive checksum, a git
-commit, or the system library it calls. The CPU's identity includes its
+Every samples file records what built its machine code so another person
+can reproduce it. The header lists `bench-hashes`'s repository, commit,
+and working-tree state, the BLAKE3 digest of `Cargo.lock`, the Rust and C
+compilers, `RUSTFLAGS`, the target and its features, and one `source
+CONTENDER` line per contender (crate version and checksum, git commit, or
+system library). The CPU's identity includes its
 microcode. A b3sum contender's line names its build by the BLAKE3 digest
 of its executable.
 
@@ -769,15 +675,15 @@ build of one commit measures the same code.
 
 ## Produced leaves (`bench-hashes leaves`)
 
-A Merkle tree's leaves that a program computes, as a zero-knowledge
-prover's encoder computes code words and hashes each: N 64-byte messages
-(16384 and 1048576) from a counter (the buffer's 64-bit words count up),
-the same producer in every variant, which differ in how the program hands
-them over: produced into its own buffer and lent to
-`hash_many_multithreaded` (lend-oneshot) or to a stream's `submit_batch`
-(lend-stream); produced into its own buffer and copied into the stream's
-ring (copy-ring); or produced straight into the ring by
-`submit_batch_with` (write-ring). A sample times whole jobs, from
+`bench-hashes leaves` times a program that computes a Merkle tree's
+leaves and hashes each one, as a zero-knowledge prover's encoder does.
+All four variants run the same producer (N 64-byte messages, 16,384 or
+1,048,576, filled from a 64-bit counter) and differ in how the program
+hands the messages to `blake3-servil`:
+- `lend-oneshot`: produced into a buffer and lent to `hash_many_multithreaded`.
+- `lend-stream`: produced into a buffer and lent to a stream's `submit_batch`.
+- `copy-ring`: produced into a buffer and copied into the stream's ring.
+- `write-ring`: produced straight into the stream's ring via `submit_batch_with`. A sample times whole jobs, from
 producing the first message to having read every digest, nothing
 subtracted. Each sample records, solo, the process's CPU time across it
 (all its threads), as the main run's samples do; `solo` is one program,
@@ -788,12 +694,10 @@ main run's samples format, which `bench-hashes compare` reads.
 ## Choices that stay settled, and why
 
 **The bytes hashed.** In memory, any bytes the program has written: their
-values change no contender's speed. Never memory read before it is
-written (uninitialised, or zeroed by the allocator without a write): the
-operating system backs a page nobody has written with one shared page of
-zeros, so a 64 MiB input would be read from one 4 KiB page in the L1
-cache, faster than any real data; and in Rust, reading uninitialised
-memory is undefined behaviour. The benchmark writes little-endian 64-bit
+values change no contender's speed. The benchmark always writes its input buffers before timing. An
+unwritten allocation can be backed by a single shared zero page in the
+L1 cache, which would make a 64 MiB read artificially fast, and reading
+uninitialised memory in Rust is undefined behaviour. The benchmark writes little-endian 64-bit
 counter words (`seed << 48 | index`, `make_input`) once, outside the timed
 work, so every block differs. Files on storage (`bench-hashes b3sum`)
 hold BLAKE3's extended output of their names: a filesystem or a drive
@@ -805,10 +709,9 @@ digest to `black_box`, and the harness's tests check its own work: that
 each call's digest reaches its slot, and that each input of a collection
 or batch reaches the hash, in order.
 
-**Wall time is the basis.** Cycles per byte would hide a slowdown the
-core's cycle counter does not see (time waiting on Apple's SME unit: a
-25% slower SME2 batch cell read the same cycles per message), and a
-contender's own power draw throttling the clock is a cost its user pays.
+**Wall time is the basis.** Cycles per byte would miss time a core waits
+on a shared unit (such as Apple's SME unit), and clock throttling caused
+by a contender's power draw is a real cost its caller pays.
 CPU time and energy are recorded beside wall time, never in its place.
 
 **The default roster is fixed:** BLAKE3 servil st and mt, and SHA-256 by

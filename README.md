@@ -15,15 +15,14 @@ a web browser.
 <img src="benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.chart.svg" alt="Hashing one 128 MiB message after a pause on an Intel i7-12700K: BLAKE3 multi-core and on one core beside SHA-256, SHA3-256 and SHA-1, in GB/s" width="720">
 
 [The overview](https://devonjonte.github.io/bench-hashes/) is one page
-for every machine measured: a row per machine, a column per
-representative situation (small values, one message, every core, nonstop,
-many small messages, files), and in each cell how many times faster
-BLAKE3 servil ran than official BLAKE3 and than SHA-256 there, below 1×
-where it ran slower. Every size, on each machine measured so far:
+for every machine measured: a column per machine, a row per way a program
+hashes, and in each row the hashes' speeds as bars, with how many times
+faster the fastest ran. Every size, on each machine measured so far:
 
 - [Intel i7-12700K, Linux](https://devonjonte.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html)
-- [Apple M4 Max, macOS](https://johnservil.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html)
-- [A Linux VM on that Mac](https://johnservil.github.io/bench-hashes/benchmark-results/aarch64.linux618520virt/bench-hashes.map.html)
+- [AMD EPYC 9255, Linux](https://devonjonte.github.io/bench-hashes/benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html)
+- [Apple M4 Max, macOS](https://devonjonte.github.io/bench-hashes/benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html)
+- [A Linux VM on that Mac](https://devonjonte.github.io/bench-hashes/benchmark-results/aarch64.linux618520virt/bench-hashes.map.html)
 
 ## Run it on your computer
 
@@ -96,11 +95,10 @@ slow the results, and battery power changes which cores run them.
 
 The contenders:
 
-- **BLAKE3 servil mt**: [a fork](https://github.com/johnservil/BLAKE3) of
-  the official BLAKE3 Rust crate, faster on 64-bit Arm, above all on
-  Apple M4-class chips, and on x86-64, with its own threads to spread
-  large inputs over your CPU cores and a stream for inputs that come one
-  after another.
+- **BLAKE3 servil mt**: [`blake3-servil`](https://github.com/johnservil/BLAKE3),
+  faster than official BLAKE3 on 64-bit Arm (above all on Apple M4-class
+  chips) and on x86-64, with its own threads to spread large inputs over
+  your CPU cores and a stream for inputs that come one after another.
 - **BLAKE3 servil st**: the same on one thread.
 - **SHA-256** (the `sha2` crate) and **SHA-256 ring** (the `ring`
   crate): SHA-256 with the CPU's SHA-256 instructions where it has them;
@@ -155,10 +153,9 @@ maps; a run redraws it too, beside its own map, and a test fails while
 index.html is stale. FROZEN.md's "The overview" names its representative
 cells.
 
-To see two runs side by side (before and after a change, or two
-releases), `bench-hashes map NEW_FOLDER --beside OLD_FOLDER` writes
-`bench-hashes.beside.map.html` in the new folder: each chart draws the
-older run's lines dashed under the newer run's, and the values under the
+`bench-hashes map NEW_FOLDER --beside OLD_FOLDER` compares two runs side
+by side in `bench-hashes.beside.map.html`. Each chart draws the older
+run's lines dashed under the newer run's, and the values under the
 pointer say how many times faster each hash runs now. The releases'
 comparisons are in [`beside/`](beside/).
 
