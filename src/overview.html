@@ -33,7 +33,9 @@ th.yours { background: #f5f3ff; }
 .bars { position: relative; display: flex; flex-direction: column; gap: 2px; width: 220px; border-left: 1px solid #d1d5db; padding-left: 1px; margin-right: 40px; }
 /* The span, as on the map: a bracket from the shortest bar shown to the
    longest, and how many times faster the longest is. */
-.span { position: absolute; width: 3px; border: 1px solid #6b7280; border-left: none; pointer-events: none; } .fam-bars .span { pointer-events: auto; cursor: help; }
+/* The bracket: its border counted in its height, and a pixel past each
+   end's bar, so both ends hook around their bars alike. */
+.span { position: absolute; box-sizing: border-box; width: 4px; margin-top: -1px; border: 1px solid #6b7280; border-left: none; pointer-events: none; } .fam-bars .span { pointer-events: auto; cursor: help; }
 .span b { position: absolute; left: 100%; top: 50%; transform: translate(4px, -50%); font-size: 11px; color: #4c1d95; white-space: nowrap; }
 .fam-bars .span { width: 5px; } .fam-bars .span b { font-size: 13px; font-weight: 700; }
 .bar { display: flex; align-items: center; }
@@ -116,7 +118,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
       const longest = Math.max(...[all[0], last].flatMap(f => [...f.querySelectorAll("i:not(.off)")].map(i => parseFloat(i.style.width))));
       const top = all[0].offsetTop, bottom = last.offsetTop + last.offsetHeight;
       const label = figures.map(([m, c]) => `<span style="color:${c}">${times(m)}</span>`).join(" ");
-      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other, in the colour of the faster: on one thread (1 KiB), then nonstop on every core" style="left:calc(${longest}% + 4px);top:${top}px;height:${bottom - top}px"><b>${label}</b></span>`);
+      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other, in the colour of the faster: on one thread (1 KiB), then nonstop on every core" style="left:calc(${longest}% + 4px);top:${top}px;height:${bottom - top + 2}px"><b>${label}</b></span>`);
     }
     for (const bars of document.querySelectorAll(".bars")) {
       bars.querySelector(".span")?.remove();
@@ -128,7 +130,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
       const pair = [shown[0], shown[r]];
       const longest = Math.max(...pair.map(i => parseFloat(i.style.width)));
       const top = pair[0].parentElement.offsetTop, bottom = pair[1].parentElement.offsetTop + pair[1].parentElement.offsetHeight;
-      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other, in the colour of the faster" style="left:calc(${longest}% + 3px);top:${top}px;height:${bottom - top}px"><b style="color:${shown[w].dataset.color}">${times(m)}</b></span>`);
+      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other, in the colour of the faster" style="left:calc(${longest}% + 3px);top:${top}px;height:${bottom - top + 2}px"><b style="color:${shown[w].dataset.color}">${times(m)}</b></span>`);
     }
   };
   const apply = (b, off) => {

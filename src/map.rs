@@ -709,9 +709,27 @@ fn b3sum(path: &Path) -> Section {
             n.parse::<u64>().is_ok() && ["KiB", "MiB", "GiB"].contains(&unit)
         })
     };
-    let palette = [
-        "#3b82f6", "#4c1d95", "#c2410c", "#0e9aa7", "#db2777", "#8a7a1e",
-    ];
+    // Each b3sum in its library's colour, as on the hashing section: the
+    // fork's and official's on every core striped, their one-thread forms
+    // solid; sha256sum in SHA-256's; sha1sum and md5sum the overview's
+    // drab greys. Another name takes the next colour of the palette.
+    let palette = ["#0e9aa7", "#db2777", "#8a7a1e"];
+    let fork = |n: &str| {
+        super::overview::FORK_B3SUM
+            .iter()
+            .any(|f| n == *f || n.strip_prefix(f).is_some_and(|rest| rest.starts_with('-')))
+    };
+    let style = |i: usize, n: &str| -> (String, bool) {
+        let one_thread = n.ends_with("-1-thread");
+        match n.trim_end_matches("-1-thread") {
+            _ if fork(n) => ("#7c3aed".to_owned(), !one_thread),
+            "official" => ("#3b82f6".to_owned(), !one_thread),
+            "sha256sum" => ("#e07a45".to_owned(), false),
+            "sha1sum" => ("#b4b0a8".to_owned(), false),
+            "md5sum" => ("#cfcbc3".to_owned(), false),
+            _ => (palette[i % palette.len()].to_owned(), false),
+        }
+    };
     let mut cells = Vec::new();
     for (cache, col) in [("warm", "cached"), ("cold", "storage")] {
         for (row, points) in [
@@ -797,9 +815,9 @@ fn b3sum(path: &Path) -> Section {
             ("storage", "read from storage", "Each file was dropped from the operating system's memory before the run, so b3sum reads it from the disk."),
         ],
         layers: vec![("solo", "one program", "One program hashes; the machine is otherwise quiet.")],
-        colors: (0..names.len()).map(|i| palette[i % palette.len()].to_owned()).collect(),
-        striped: names.iter().map(|_| false).collect(),
-        ours: names.iter().map(|n| super::overview::FORK_B3SUM.contains(&n.as_str())).collect(),
+        colors: names.iter().enumerate().map(|(i, n)| style(i, n).0).collect(),
+        striped: names.iter().enumerate().map(|(i, n)| style(i, n).1).collect(),
+        ours: names.iter().map(|n| fork(n)).collect(),
         shown: names.iter().map(|_| true).collect(),
         names,
         cells,

@@ -508,8 +508,27 @@ function openFromHash() {
   if (location.hash.length < 2) return;
   const want = decodeURIComponent(location.hash.slice(1)), key = want.includes(":") ? want : "0:" + want;
   const cell = document.querySelector(`.cell[data-key="${CSS.escape(key)}"]`);
-  if (cell && !document.querySelector(".zoom")) { cell.scrollIntoView({ block: "center" }); cell.click(); }
+  if (!cell || document.querySelector(".zoom")) return;
+  cell.scrollIntoView({ block: "center" });
+  cell.click();
+  // The chart grows from the small cell into a larger box (.zoom's 0.2 s
+  // transition), which can reach below the screen: once grown, bring the
+  // opened chart itself into view, centred if it fits, else from its top
+  // (a link from the overview opened it below the fold, Zooko, October 24).
+  const zoom = document.querySelector(".zoom");
+  if (!zoom) return;
+  let done = false;
+  const show = () => {
+    if (done) return;
+    done = true;
+    zoom.scrollIntoView({ block: zoom.offsetHeight <= innerHeight ? "center" : "start" });
+  };
+  // When its growth ends (the last of its transitions), or soon after in
+  // any case.
+  zoom.addEventListener("transitionend", () => setTimeout(show, 30));
+  setTimeout(show, 600);
 }
-openFromHash();
+// After the page has laid out, so nothing moves the chart afterwards.
+if (document.readyState === "complete") openFromHash(); else addEventListener("load", openFromHash);
 window.addEventListener("hashchange", openFromHash);
 </script></body></html>
