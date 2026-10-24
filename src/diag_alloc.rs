@@ -108,7 +108,11 @@ unsafe impl GlobalAlloc for LineOffset {
         match Self::moved(layout) {
             Some(moved) => unsafe {
                 let p = System.alloc(moved);
-                if p.is_null() { p } else { p.add(LINE_OFFSET) }
+                if p.is_null() {
+                    p
+                } else {
+                    p.add(LINE_OFFSET)
+                }
             },
             None => unsafe { System.alloc(layout) },
         }
@@ -117,7 +121,11 @@ unsafe impl GlobalAlloc for LineOffset {
         match Self::moved(layout) {
             Some(moved) => unsafe {
                 let p = System.alloc_zeroed(moved);
-                if p.is_null() { p } else { p.add(LINE_OFFSET) }
+                if p.is_null() {
+                    p
+                } else {
+                    p.add(LINE_OFFSET)
+                }
             },
             None => unsafe { System.alloc_zeroed(layout) },
         }
