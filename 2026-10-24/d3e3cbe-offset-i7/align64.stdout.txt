@@ -1,0 +1,12 @@
+scanned 256 offsets x 32 cells, rescanned 132 twice; confirming 8: thread-stack+3088 (1.38x the median at its lowest) against thread-stack+160, thread-stack+2288 (1.10x the median at its lowest) against thread-stack+1824, thread-stack+1536 (1.07x the median at its lowest) against thread-stack+1856, thread-stack+3136 (1.04x the median at its lowest) against thread-stack+32, thread-stack+2832 (1.03x the median at its lowest) against thread-stack+272, thread-stack+896 (1.03x the median at its lowest) against thread-stack+2848, thread-stack+3120 (1.03x the median at its lowest) against thread-stack+1328, thread-stack+2896 (1.03x the median at its lowest) against thread-stack+384
+confirm thread-stack+3088 against thread-stack+160: regress exit 1; slower: blake3-official|shared|LentMessages|256 B, blake3-official|shared|LentMessages|64 B
+confirm thread-stack+2288 against thread-stack+1824: regress exit 0; slower: none
+confirm thread-stack+1536 against thread-stack+1856: regress exit 0; slower: none
+confirm thread-stack+3136 against thread-stack+32: regress exit 1; slower: blake3-official|shared|LentMessages|256 B, blake3-official|shared|LentMessages|64 B
+confirm thread-stack+2832 against thread-stack+272: regress exit 0; slower: none
+confirm thread-stack+896 against thread-stack+2848: regress exit 0; slower: none
+confirm thread-stack+3120 against thread-stack+1328: regress exit 1; slower: blake3-official|shared|LentMessages|64 B
+confirm thread-stack+2896 against thread-stack+384: regress exit 1; slower: blake3-official|shared|LentMessages|64 B
+offset-sensitive: blake3-official|shared|LentMessages|256 B (slower at thread-stack+3088 vs thread-stack+160, thread-stack+3136 vs thread-stack+32)
+offset-sensitive: blake3-official|shared|LentMessages|64 B (slower at thread-stack+3088 vs thread-stack+160, thread-stack+3136 vs thread-stack+32, thread-stack+3120 vs thread-stack+1328, thread-stack+2896 vs thread-stack+384)
+ok: immune cells stay immune; the check still sees the effect (blake3-official|shared|LentMessages|64 B)
