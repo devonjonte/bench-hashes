@@ -4369,7 +4369,7 @@ fn each_message<D: AsRef<[u8]>>(
 
 /// [`each_message`] for servil st, its digests written by
 /// `hash_with(Mode::Hash, m, &mut kept)` into one place the program keeps
-/// (on the heap, reused for every message), as a program that keeps its
+/// (on the heap, this thread's for its life: KEPT_DIGEST), as a program that keeps its
 /// digests does: no temporary on the stack between the kernel's store and
 /// `consume`'s load (BLAKE3 #141, exp/hash-with-out; an experiment).
 fn each_message_into_kept(
@@ -4378,18 +4378,28 @@ fn each_message_into_kept(
     iterations: usize,
     mut consume: impl FnMut(&[u8]),
 ) {
-    let mut kept = Box::new(blake3_servil::Hash::from([0; 32]));
-    for _ in 0..iterations {
-        if message_len == input.len() {
-            blake3_servil::hash_with(blake3_servil::Mode::Hash, black_box(input), &mut kept);
-            consume(kept.as_bytes());
-        } else {
-            for message in black_box(input).chunks_exact(message_len) {
-                blake3_servil::hash_with(blake3_servil::Mode::Hash, message, &mut kept);
+    KEPT_DIGEST.with(|kept| {
+        let kept = &mut *kept.borrow_mut();
+        for _ in 0..iterations {
+            if message_len == input.len() {
+                blake3_servil::hash_with(blake3_servil::Mode::Hash, black_box(input), kept);
                 consume(kept.as_bytes());
+            } else {
+                for message in black_box(input).chunks_exact(message_len) {
+                    blake3_servil::hash_with(blake3_servil::Mode::Hash, message, kept);
+                    consume(kept.as_bytes());
+                }
             }
         }
-    }
+    });
+}
+
+thread_local! {
+    /* each_message_into_kept's one place for a digest, on the heap, kept
+     * for the thread's life: the lent cells enter the helper once a
+     * message, so a slot made on entry was a calloc and a free each hash
+     * (Sam Shackleton's finding, BLAKE3 #141). */
+    static KEPT_DIGEST: std::cell::RefCell<Box<blake3_servil::Hash>> = std::cell::RefCell::new(Box::new(blake3_servil::Hash::from([0; 32])));
 }
 
 /*
