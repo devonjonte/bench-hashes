@@ -20,9 +20,15 @@ th.situation, td.situation { min-width: 150px; max-width: 170px; font-size: 12px
 td.situation .pt { display: block; color: #9ca3af; font-size: 11px; font-weight: normal; }
 th.vm, td.vm { display: none; } body.show-vm th.vm, body.show-vm td.vm { display: table-cell; }
 th.yours { background: #f5f3ff; }
-.pick { display: block; text-decoration: none; color: inherit; }
-.pick.none { color: #d1d5db; font-size: 11px; }
-.bars { position: relative; display: flex; flex-direction: column; gap: 2px; width: 260px; border-left: 1px solid #d1d5db; padding-left: 1px; margin-right: 44px; }
+/* A cell is a card that opens its chart: an outline, a chevron at its
+   right edge, a lift under the pointer. No words. */
+.pick { display: block; position: relative; text-decoration: none; color: inherit; border: 1px solid #e7e4de; border-radius: 6px; padding: 5px 22px 5px 6px; background: #fff; transition: box-shadow .12s, border-color .12s, transform .12s; }
+.pick::after { content: "\203A"; position: absolute; right: 7px; top: 50%; transform: translateY(-52%); font-size: 18px; line-height: 1; color: #c9c4bb; transition: color .12s, right .12s; }
+.pick:hover, .pick:focus-visible { border-color: #a78bfa; box-shadow: 0 2px 8px rgba(76,29,149,.14); transform: translateY(-1px); }
+.pick:hover::after, .pick:focus-visible::after { color: #6d28d9; right: 4px; }
+.pick.none { color: #d1d5db; font-size: 11px; border-color: transparent; background: none; }
+.pick.none::after { content: none; }
+.bars { position: relative; display: flex; flex-direction: column; gap: 2px; width: 220px; border-left: 1px solid #d1d5db; padding-left: 1px; margin-right: 40px; }
 /* The span, as on the map: a bracket from the shortest bar shown to the
    longest, and how many times faster the longest is. */
 .span { position: absolute; width: 3px; border: 1px solid #6b7280; border-left: none; pointer-events: none; } .fam-bars .span { pointer-events: auto; cursor: help; }
@@ -59,12 +65,12 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 }
 </style></head><body>
 <h1>How fast BLAKE3 servil runs</h1>
-<p class="sub">Longer is faster, on one scale for every machine. The full bar hashes nonstop on every core; the darker part is one message of 1 MiB on one thread. The bracket: how many times faster the fastest ran. Point at a bar for figures.</p>
+<p class="sub">Longer is faster, on one scale for every machine. The full bar hashes nonstop on every core; the darker part is one message of 1 KiB on one thread. The bracket: how many times faster the fastest ran, in its colour. Point at a bar for figures.</p>
 <div class="legend">@LEGEND@<label><input type="checkbox" id="vm"> show virtual machines</label></div>
-<div class="fam-legend"><span><i class="lo"></i> one message of 1 MiB, one thread, between other work</span><span><i class="hi"></i> messages nonstop, every core</span></div>
+<div class="fam-legend"><span><i class="lo"></i> one message of 1 KiB, one thread, between other work</span><span><i class="hi"></i> messages nonstop, every core</span></div>
 @FAMILIES@
 <h2>By machine and by use case</h2>
-<p class="sub">A column is a machine, a row a use case. Bar length is speed, each row on its own scale (the row's fastest fills the width). Point at bars for figures; open a cell for its chart on the machine's map.</p>
+<p class="sub">A column is a machine, a row a use case. In each cell the fastest bar fills the width; the bracket says by how much it leads.</p>
 @BODY@
 
 <div id="tip"></div>
@@ -85,15 +91,19 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
       bars.querySelector(".span")?.remove();
       const shown = [...bars.querySelectorAll(".fam-bar:not(.off)")];
       if (shown.length < 2) continue;
-      // Each bar's two speeds: the full bar's (nonstop, every core) and the
-      // inner's (1 MiB, one thread). The bracket says the range of how many
-      // times faster the fastest is: least to greatest across the two.
-      const ratio = cls => { const gs = shown.map(f => +f.querySelector("i." + cls).dataset.g); return Math.max(...gs) / Math.min(...gs); };
-      const hi = ratio("hi"), lo = ratio("lo"), [a, b] = [Math.min(hi, lo), Math.max(hi, lo)];
+      // Each bar's two speeds: the inner's (1 KiB, one thread) and the full
+      // bar's (nonstop, every core). The bracket gives, for each, how many
+      // times faster the fastest ran, in the fastest's colour: who leads
+      // shows without a word, and the two may differ.
+      const lead = cls => {
+        const gs = shown.map(f => +f.querySelector("i." + cls).dataset.g), k = gs.indexOf(Math.max(...gs));
+        return [Math.max(...gs) / Math.min(...gs), shown[k].dataset.c];
+      };
+      const [lo, loC] = lead("lo"), [hi, hiC] = lead("hi");
       const longest = Math.max(...shown.map(f => parseFloat(f.querySelector("i.hi").style.width)));
       const top = shown[0].offsetTop, bottom = shown.at(-1).offsetTop + shown.at(-1).offsetHeight;
-      const label = a.toFixed(1) === b.toFixed(1) ? times(b) : `${times(a)}–${times(b).slice(1)}`;
-      const title = `the fastest over the slowest: ${times(lo)} on one thread, ${times(hi)} nonstop on every core`;
+      const label = `<span style="color:${loC}">${times(lo)}</span> <span style="color:${hiC}">${times(hi)}</span>`;
+      const title = `the fastest over the slowest: ${times(lo)} on one thread (1 KiB), ${times(hi)} nonstop on every core`;
       bars.insertAdjacentHTML("beforeend", `<span class="span" title="${title}" style="left:calc(${longest}% + 4px);top:${top}px;height:${bottom - top}px"><b>${label}</b></span>`);
     }
     for (const bars of document.querySelectorAll(".bars")) {
@@ -105,7 +115,8 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
       // the bottom of the last (as on the map, to the right of the lines).
       const longest = Math.max(...shown.map(i => parseFloat(i.style.width)));
       const top = shown[0].parentElement.offsetTop, bottom = shown.at(-1).parentElement.offsetTop + shown.at(-1).parentElement.offsetHeight;
-      bars.insertAdjacentHTML("beforeend", `<span class="span" title="the fastest over the slowest" style="left:calc(${longest}% + 3px);top:${top}px;height:${bottom - top}px"><b>${times(m)}</b></span>`);
+      const leader = shown[gs.indexOf(Math.max(...gs))].dataset.c;
+      bars.insertAdjacentHTML("beforeend", `<span class="span" title="the fastest over the slowest" style="left:calc(${longest}% + 3px);top:${top}px;height:${bottom - top}px"><b style="color:${leader}">${times(m)}</b></span>`);
     }
   };
   const apply = (b, off) => {

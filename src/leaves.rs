@@ -193,28 +193,47 @@ fn measure_cell(
 }
 
 /// The existing samples format and report, from the same recorded batches.
-fn cell_lines(scenario: &str, count: usize, variant: &str, samples: &[clocks::Batch]) -> (String, String) {
+fn cell_lines(
+    scenario: &str,
+    count: usize,
+    variant: &str,
+    samples: &[clocks::Batch],
+) -> (String, String) {
     let units = |b: &clocks::Batch| b.calls * count as u64;
-    let field = |f: &dyn Fn(&clocks::Batch) -> String| samples.iter().map(f).collect::<Vec<_>>().join(",");
+    let field =
+        |f: &dyn Fn(&clocks::Batch) -> String| samples.iter().map(f).collect::<Vec<_>>().join(",");
     let cpu_values = if scenario == "solo" {
         samples.iter().map(|b| b.cpu_ns).collect::<Option<Vec<_>>>()
     } else {
         None
     };
-    let cpu_field = cpu_values.as_ref().map_or_else(|| "-".into(), |ns| ns.iter().map(u64::to_string).collect::<Vec<_>>().join(","));
+    let cpu_field = cpu_values.as_ref().map_or_else(
+        || "-".into(),
+        |ns| ns.iter().map(u64::to_string).collect::<Vec<_>>().join(","),
+    );
     let counts = super::counts_field(&samples.iter().map(|b| b.counts).collect::<Vec<_>>());
     let row = format!(
         "{variant}\t{scenario}\tLeaves\t{count} messages\tmsg\t{}\t{}\t{cpu_field}\t-\t{counts}\n",
         field(&|b| format!("{}/{}", b.wall_ns, units(b))),
         field(&|b| (b.started_ns / 1_000_000).to_string()),
     );
-    let measured: Vec<_> = samples.iter().map(|b| super::Measured::new(b.wall_ns, units(b))).collect();
+    let measured: Vec<_> = samples
+        .iter()
+        .map(|b| super::Measured::new(b.wall_ns, units(b)))
+        .collect();
     let wall = super::Mean::of(&measured).format_ns(1);
     // CPU time, as in compare: all raw CPU time over all raw work.
-    let cpu = cpu_values.map_or_else(|| "-".into(), |ns| {
-        super::format_ns(ns.iter().map(|&n| u128::from(n)).sum(), samples.iter().map(|b| u128::from(units(b))).sum())
-    });
-    let report = format!("{scenario:6} {count:>8} {variant:13} {wall:>8} ns {cpu:>8} CPU ns  per message\n");
+    let cpu = cpu_values.map_or_else(
+        || "-".into(),
+        |ns| {
+            super::format_ns(
+                ns.iter().map(|&n| u128::from(n)).sum(),
+                samples.iter().map(|b| u128::from(units(b))).sum(),
+            )
+        },
+    );
+    let report =
+        format!("{scenario:6} {count:>8} {variant:13} {wall:>8} ns {cpu:>8} CPU ns  per message\n");
     (row, report)
 }
 
@@ -268,7 +287,10 @@ pub fn command(arguments: &[String]) {
         }
     }
     assert!(rounds >= 2, "two rounds at least");
-    assert!(counts.iter().all(|&n| n > 0), "a leaf count must be positive");
+    assert!(
+        counts.iter().all(|&n| n > 0),
+        "a leaf count must be positive"
+    );
     blake3_servil::initialize_multithreaded(None);
     let mut machine = machine_metadata();
     let mut cells: Vec<(&str, usize, &str)> = Vec::new();
@@ -333,12 +355,27 @@ mod tests {
 
     fn fixed_batches() -> Vec<clocks::Batch> {
         let counts = clocks::Counts {
-            p: clocks::Level { time_ns: 10, cycles: 20, instructions: 0 },
-            e: clocks::Level { time_ns: 30, cycles: 40, instructions: 0 },
+            p: clocks::Level {
+                time_ns: 10,
+                cycles: 20,
+                instructions: 0,
+            },
+            e: clocks::Level {
+                time_ns: 30,
+                cycles: 40,
+                instructions: 0,
+            },
         };
-        let mut batches = vec![clocks::Batch {
-            calls: 2, wall_ns: 4000, cpu_ns: Some(6000), counts: Some(counts), started_ns: 3_000_000,
-        }; 6];
+        let mut batches = vec![
+            clocks::Batch {
+                calls: 2,
+                wall_ns: 4000,
+                cpu_ns: Some(6000),
+                counts: Some(counts),
+                started_ns: 3_000_000,
+            };
+            6
+        ];
         batches[5].wall_ns = 4_000_000;
         batches
     }

@@ -488,10 +488,12 @@ pub fn text(rows: &[Row]) -> String {
     out
 }
 
-/// The picks the first view draws: the everyday case (one message of
-/// 1 MiB on one thread, between other work) inside the headline case
-/// (messages nonstop, 64 KiB each, every core), by their index in PICKS.
-const EVERYDAY: usize = 2;
+/// The picks the first view draws: a short message (1 KiB on one thread,
+/// between other work, where SHA-256 with the CPU's instructions leads)
+/// inside the headline case (messages nonstop, 64 KiB each, every core),
+/// so the view spans the range from where servil trails to where it
+/// leads most (Zooko, October 24), by their index in PICKS.
+const EVERYDAY: usize = 1;
 const HEADLINE: usize = 4;
 
 /// The first view: a row per machine, three bars (BLAKE3 servil, BLAKE3
@@ -657,20 +659,9 @@ pub fn html(rows: &[Row]) -> String {
             }
         }
     }
-    // One linear scale a row: the row's fastest bar, over every machine,
-    // fills the width, so a bar's length is its speed in proportion (×19
-    // looks like ×19) and machines in a row compare directly; the row's
-    // full-width speed is written at its right (Zooko, October 24: a log
-    // scale made ×19 look like a little more). Columns compare by the
-    // brackets and the labels.
-    let row_max: Vec<f64> = (0..PICKS.len())
-        .map(|i| {
-            rows.iter()
-                .filter(|r| !r.stale && !r.virtual_machine)
-                .flat_map(|r| r.cells[i].iter().map(|b| b.gbps))
-                .fold(0.0, f64::max)
-        })
-        .collect();
+    // Each cell on its own linear scale: its fastest bar fills the width,
+    // the others in proportion, so every cell shows its contest at full
+    // resolution and the bracket gives the factor (Zooko, October 24).
     // The grid, turned: a column per machine, a row per use case, so a
     // glance across a row compares machines. Machines of another release
     // get a column that names their last run and links its map.
@@ -705,19 +696,11 @@ pub fn html(rows: &[Row]) -> String {
     for (i, pick) in PICKS.iter().enumerate() {
         {
             let column = pick.column;
-            let width = |g: f64| {
-                if row_max[i] > 0.0 {
-                    100.0 * g / row_max[i]
-                } else {
-                    0.0
-                }
-            };
             let _ = write!(
                 body,
-                "<tr><td class=\"situation\" title=\"{}\">{}<span class=\"pt\">full width {}</span></td>",
+                "<tr><td class=\"situation\" title=\"{}\">{}</td>",
                 escape(pick.situation),
-                escape(column),
-                speed(row_max[i])
+                escape(column)
             );
             for row in rows {
                 let class = if row.virtual_machine {
@@ -730,6 +713,14 @@ pub fn html(rows: &[Row]) -> String {
                     continue;
                 }
                 let bars = &row.cells[i];
+                let fastest = bars.iter().map(|b| b.gbps).fold(0.0f64, f64::max);
+                let width = |g: f64| {
+                    if fastest > 0.0 {
+                        100.0 * g / fastest
+                    } else {
+                        0.0
+                    }
+                };
                 let map = match &PICKS[i].cell {
                     Cell::Hashing { use_case, .. } => format!(
                         "{}/bench-hashes.map.html#{}",
@@ -976,22 +967,18 @@ mod tests {
         let vm = row("virt", true, PICKS.iter().map(|_| Vec::new()).collect());
         let rows = [row("A", false, cells), vm];
         let page = html(&rows);
-        // Each row on its own linear scale: its fastest bar fills the width
-        // (official's 1.0 GB/s in the first row; servil's b3sum in the
-        // last), the others in proportion, and the row names its full width.
+        // Each cell on its own linear scale: its fastest bar fills the width
+        // (official's 1.0 GB/s in the first cell; servil's b3sum in the
+        // last), the others in proportion.
         assert!(
             page.contains("width:90.0%;background:#7c3aed"),
-            "servil's bar in proportion to the row's fastest"
+            "servil's bar in proportion to the cell's fastest"
         );
         assert!(
             page.contains("width:100.0%;background:#3b82f6"),
-            "the row's fastest fills the width"
+            "the cell's fastest fills the width"
         );
         assert!(page.contains("width:75.0%;background:#e07a45"));
-        assert!(
-            page.contains("<span class=\"pt\">full width 1.0 GB/s</span>"),
-            "the row names the speed that fills its width"
-        );
         assert!(
             page.contains("width:5.0%;background:#cfcbc3"),
             "md5sum's 1.5 of b3sum's 30"
