@@ -16,7 +16,7 @@ sys.path.insert(0, "/home/agent/BLAKE3-offset-check/tools")
 from offset_check import parse_report  # noqa: E402
 
 here = pathlib.Path(__file__).resolve().parent
-BUILDS = ["default", "diag-align64", "line16", "line32", "line48"]
+BUILDS = sys.argv[1:] or ["default", "diag-align64", "line16", "line32", "line48"]
 OFFSETS = range(448, 4545, 16)
 SLOW = 1.08
 
