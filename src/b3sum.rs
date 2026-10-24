@@ -908,31 +908,30 @@ fn report(
     }
     // Each comparison's ratio (the geometric mean of the rounds' ratios, the
     // ratio the rule judges) and its verdict.
-    let judgments: crate::Map<(usize, usize, usize), clocks::summary::Judgment> =
-        if judged {
-            compared
-                .into_iter()
-                .zip(clocks::summary::discoveries(
-                    &pairs,
-                    super::COMPARE_Q_PERMILLE,
-                    MARGIN_PERMILLE,
-                ))
-                .collect()
-        } else {
-            compared
-                .into_iter()
-                .zip(&pairs)
-                .map(|(key, p)| {
-                    (
-                        key,
-                        clocks::summary::Judgment {
-                            verdict: clocks::summary::Verdict::Level,
-                            ratio_permille: clocks::summary::geometric_mean_permille(p),
-                        },
-                    )
-                })
-                .collect()
-        };
+    let judgments: crate::Map<(usize, usize, usize), clocks::summary::Judgment> = if judged {
+        compared
+            .into_iter()
+            .zip(clocks::summary::discoveries(
+                &pairs,
+                super::COMPARE_Q_PERMILLE,
+                MARGIN_PERMILLE,
+            ))
+            .collect()
+    } else {
+        compared
+            .into_iter()
+            .zip(&pairs)
+            .map(|(key, p)| {
+                (
+                    key,
+                    clocks::summary::Judgment {
+                        verdict: clocks::summary::Verdict::Level,
+                        ratio_permille: clocks::summary::geometric_mean_permille(p),
+                    },
+                )
+            })
+            .collect()
+    };
     for (ci, &cache) in caches.iter().enumerate() {
         out += &format!("\n{}\nmean time per run, lower is better; xN: against {base}, the ratio judged (the geometric mean of the rounds' ratios), marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 3%)\n", cache.heading());
         let mut rows: Vec<Vec<String>> = vec![std::iter::once("input".to_owned())
