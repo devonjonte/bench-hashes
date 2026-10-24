@@ -5388,6 +5388,9 @@ const REGRESS_REPEATS: usize = 3;
 
 /// The margin a solo cell's verdict uses.
 const REGRESS_MARGIN_PERMILLE: u64 = 30;
+/// The most level cells a regression run names as suspects for a second
+/// stage, and so the largest family that stage judges (bench-hashes #66).
+const REGRESS_SUSPECTS: usize = 8;
 
 /// What each of the check's runs measures, and which of its cells are
 /// judged: the regress points' solo cells; a default run's every cell
@@ -5551,10 +5554,11 @@ fn regress_load(start_ns: u64, end_ns: u64) -> String {
 }
 
 fn regress_command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes regress [--contenders A,B [--points P,Q]] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE... (pair i runs the i-th of each, round robin; bench-hashes check builds the sides and chooses the cells)";
+    let usage = "usage: bench-hashes regress [--contenders A,B [--points P,Q]] [--judge CELL;CELL] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE... (pair i runs the i-th of each, round robin; bench-hashes check builds the sides and chooses the cells)";
     let mut arguments = arguments;
     let (mut contenders, mut points, mut pairs, mut chosen_rounds, mut keep) =
         (None, None, REGRESS_PAIRS, None, None);
+    let mut only: Option<Vec<String>> = None;
     while let Some(name) = arguments
         .first()
         .filter(|a| a.starts_with("--") && *a != "--")
@@ -5574,6 +5578,7 @@ fn regress_command(arguments: &[String]) -> i32 {
             "--pairs" => pairs = count(),
             "--rounds" => chosen_rounds = Some(count()),
             "--keep" => keep = Some(std::path::PathBuf::from(&value)),
+            "--judge" => only = Some(value.split(';').map(str::to_string).collect()),
             _ => panic!("unknown option {name}\n{usage}"),
         }
         arguments = &arguments[2..];
@@ -5744,17 +5749,30 @@ fn regress_command(arguments: &[String]) -> i32 {
     // The cells judged (the points' solo cells; with --full or a chosen
     // selection, every cell every pair measured), all at once
     // (clocks::summary::discoveries).
+    // With --judge, those cells alone: a second stage's family (check).
     let judged: Vec<&String> = pairs_means
         .iter()
         .filter(|(_, m)| m.len() == pairs)
         .map(|(k, _)| k)
+        .filter(|k| only.as_ref().is_none_or(|only| only.contains(k)))
         .collect();
+    if let Some(only) = &only {
+        assert_eq!(
+            judged.len(),
+            only.len(),
+            "--judge: every cell named is measured in every pair"
+        );
+    }
     let tested: Vec<Vec<(u128, u128)>> = judged.iter().map(|k| pairs_means[*k].clone()).collect();
     let judgments =
         clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
     let mut slower = 0;
+    let mut suspects: Vec<(u64, &String)> = Vec::new();
     for (key, judgment) in judged.into_iter().zip(judgments) {
         if judgment.verdict == clocks::summary::Verdict::Level {
+            if judgment.ratio_permille > 1000 + REGRESS_MARGIN_PERMILLE {
+                suspects.push((judgment.ratio_permille, key));
+            }
             continue;
         }
         let word = if judgment.verdict == clocks::summary::Verdict::Slower {
@@ -5775,6 +5793,17 @@ fn regress_command(arguments: &[String]) -> i32 {
         println!("regress: REGRESSION: {slower} cells slower");
     } else {
         println!("regress: no cell slower");
+        // The level cells slowest beyond the margin, most-slowed first:
+        // what a second stage confirms on fresh pairs (check).
+        suspects.sort_by(|a, b| b.cmp(a));
+        if !suspects.is_empty() {
+            let named: Vec<&str> = suspects
+                .iter()
+                .take(REGRESS_SUSPECTS)
+                .map(|(_, k)| k.as_str())
+                .collect();
+            println!("regress: suspects: {}", named.join(";"));
+        }
     }
     println!("{power}");
     i32::from(slower > 0)
