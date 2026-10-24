@@ -1055,11 +1055,15 @@ mod tests {
         );
         // Another release among the results: its machine keeps a row
         // that says so, with its map, and no cells.
-        let samples = copied[0].join("bench-hashes.samples.tsv");
-        let text = std::fs::read_to_string(&samples)
-            .unwrap()
-            .replace(SAMPLES_VERSION, "# bench-hashes samples v0");
-        std::fs::write(&samples, text).unwrap();
+        for file in ["bench-hashes.samples.tsv", "b3sum.samples.tsv"] {
+            let samples = copied[0].join(file);
+            if samples.exists() {
+                let text = std::fs::read_to_string(&samples)
+                    .unwrap()
+                    .replace(SAMPLES_VERSION, "# bench-hashes samples v0");
+                std::fs::write(&samples, text).unwrap();
+            }
+        }
         refresh(&copied[0]);
         let drawn = std::fs::read_to_string(site.join("index.html")).unwrap();
         assert!(
