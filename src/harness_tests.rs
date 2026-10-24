@@ -195,7 +195,7 @@ fn every_samples_file_names_what_measured_and_where() {
 fn a_pipelined_collection_hashes_every_item() {
     blake3_servil::initialize_multithreaded(None);
     for point in &POINTS[UseCase::ContinuousCollection.points()] {
-        let input = make_input(point.bytes);
+        let input = make_input(input_len(*point));
         let items = items_of(*point, &input);
         let want: Vec<[u8; 32]> = items
             .iter()
@@ -301,7 +301,7 @@ fn a_merkle_tree_hashes_leaves_and_parents_apart() {
     blake3_servil::initialize_multithreaded(None);
     /* Two child digests side by side, hashed as a parent and as a leaf:
      * were they equal, the pair would pass for a leaf. */
-    let (pair, at) = batch_copy(&make_input(64));
+    let (pair, at) = block_copy(&make_input(64));
     let pair = &pair[at..];
     for algorithm in Algorithm::ALL
         .into_iter()

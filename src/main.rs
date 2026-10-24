@@ -245,7 +245,8 @@ const COLLECTIONS: [(&str, &[(usize, usize)]); COLLECTION_COUNT] = [
     ),
 ];
 
-/// A collection's messages as (offset, length) in one buffer, in the stride's order.
+/// A collection's messages as (offset, length) in one buffer, in the
+/// stride's order, each starting its own whole blocks (UseCase::in_blocks).
 fn collection_items(classes: &[(usize, usize)]) -> Vec<(usize, usize)> {
     let lengths: Vec<usize> = classes
         .iter()
@@ -260,10 +261,22 @@ fn collection_items(classes: &[(usize, usize)]) -> Vec<(usize, usize)> {
     (0..count)
         .map(|j| {
             let len = lengths[j * 389 % count];
-            offset += len;
-            (offset - len, len)
+            let at = offset;
+            offset += len.next_multiple_of(BLOCK_LEN);
+            (at, len)
         })
         .collect()
+}
+
+/// A collection's buffer: each message in its own whole blocks.
+const fn collection_layout_bytes(classes: &[(usize, usize)]) -> usize {
+    let mut total = 0;
+    let mut i = 0;
+    while i < classes.len() {
+        total += classes[i].0 * classes[i].1.next_multiple_of(BLOCK_LEN);
+        i += 1;
+    }
+    total
 }
 
 const fn collection_bytes(classes: &[(usize, usize)]) -> usize {
@@ -714,6 +727,25 @@ impl UseCase {
         } else {
             visits.nonstop
         }
+    }
+
+    /// Whether the cell's inputs are laid out in blocks, each message
+    /// starting a 64-byte boundary with whole 64-byte blocks behind it, for
+    /// every contender alike: the batches, and every cell where servil's
+    /// call is a performance call that takes blocks (Zooko, October 24:
+    /// align the inputs of every cell that has a performance-call
+    /// contender). The pieces cells and the interleaved ones feed servil's
+    /// Hasher, which takes any slice.
+    fn in_blocks(self) -> bool {
+        self.batch()
+            || matches!(
+                self.call(),
+                Self::OneMessage
+                    | Self::LentMessages
+                    | Self::ContinuousMessages
+                    | Self::Collection
+                    | Self::ContinuousCollection
+            )
     }
 
     /// Whether a call hashes a batch of messages.
@@ -2157,7 +2189,7 @@ fn measure_all(roster: &Roster, sizes: &Sizes) -> (Results, RunSamples, Vec<cloc
     let largest = |wanted: &dyn Fn(usize) -> bool| {
         (0..POINT_COUNT)
             .filter(|&index| roster.measures(index) && wanted(index))
-            .map(|index| POINTS[index].bytes)
+            .map(|index| input_len(POINTS[index]))
             .max()
             .unwrap_or(0)
     };
@@ -2169,24 +2201,24 @@ fn measure_all(roster: &Roster, sizes: &Sizes) -> (Results, RunSamples, Vec<cloc
     let prefixes = |buffer: &[u8]| -> Vec<std::ops::Range<usize>> {
         (0..POINT_COUNT)
             .map(|index| {
-                if roster.measures(index) && POINTS[index].bytes <= buffer.len() {
-                    0..POINTS[index].bytes
+                if roster.measures(index) && input_len(POINTS[index]) <= buffer.len() {
+                    0..input_len(POINTS[index])
                 } else {
                     0..0
                 }
             })
             .collect()
     };
-    /* A batch point reads its prefix of an aligned copy (batch_copy). */
-    let batch_bytes =
-        |buffer: &[u8]| largest(&|index| POINTS[index].use_case.batch()).min(buffer.len());
-    let (own_batches, own_at) = batch_copy(&own[..batch_bytes(&own)]);
-    let (other_batches, other_at) = batch_copy(&other[..batch_bytes(&other)]);
+    /* A point in blocks reads its prefix of an aligned copy (block_copy). */
+    let block_bytes =
+        |buffer: &[u8]| largest(&|index| POINTS[index].use_case.in_blocks()).min(buffer.len());
+    let (own_batches, own_at) = block_copy(&own[..block_bytes(&own)]);
+    let (other_batches, other_at) = block_copy(&other[..block_bytes(&other)]);
     let inputs: Vec<&[u8]> = prefixes(&own)
         .into_iter()
         .enumerate()
         .map(|(index, range)| {
-            if POINTS[index].use_case.batch() && !range.is_empty() {
+            if POINTS[index].use_case.in_blocks() && !range.is_empty() {
                 &own_batches[own_at..][range]
             } else {
                 &own[range]
@@ -2197,7 +2229,7 @@ fn measure_all(roster: &Roster, sizes: &Sizes) -> (Results, RunSamples, Vec<cloc
         .into_iter()
         .enumerate()
         .map(|(index, range)| {
-            if POINTS[index].use_case.batch() && !range.is_empty() {
+            if POINTS[index].use_case.in_blocks() && !range.is_empty() {
                 &other_batches[other_at..][range]
             } else {
                 &other[range]
@@ -2665,13 +2697,12 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
         if point.use_case.call() == UseCase::OneMessage {
             // Select the API before the gap and clocks. A cold call should
             // pay for its API, rather than the benchmark's dispatch tree.
-            return take_prepared_sample(
-                input,
-                false,
-                iterations,
-                idle,
-                one_message_call(algorithm),
-            );
+            let call = one_message_call(algorithm);
+            return take_prepared_sample(input, true, iterations, idle, |input| {
+                // The door, for every contender alike (UseCase::in_blocks).
+                assert_blocks_aligned(input);
+                call(input)
+            });
         }
         if point.use_case.call() == UseCase::ManyMessages {
             let hash_many: Option<fn(&[u8], usize, &mut [[u8; 32]])> = match algorithm {
@@ -2684,7 +2715,7 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
                 let measured = take_prepared_sample(input, true, iterations, idle, |input| {
                     #[cfg(test)]
                     observe_call("hash_many");
-                    assert_batch_aligned(input);
+                    assert_blocks_aligned(input);
                     hash_many(
                         black_box(input),
                         MESSAGE_LEN,
@@ -2696,9 +2727,13 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
                 return measured;
             }
         }
-        return take_prepared_sample(input, point.use_case.batch(), iterations, idle, |input| {
-            run_batch(algorithm, input, point, 1)
-        });
+        return take_prepared_sample(
+            input,
+            point.use_case.in_blocks(),
+            iterations,
+            idle,
+            |input| run_batch(algorithm, input, point, 1),
+        );
     }
     let started_ns = clocks::load::now_ns();
     let cpu0 = clocks::process_cpu_ns();
@@ -2727,11 +2762,12 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
 
 /// Prepare and time an already-selected call, each after the program
 /// idled (`idle`) or after its other work. The producer and work buffers
-/// stay outside the API's interval, as does dispatch selection. A `batch`
-/// is written from a 64-byte boundary of the producer's buffer (BATCH_SPARE).
+/// stay outside the API's interval, as does dispatch selection. An input
+/// `in_blocks` is written from a 64-byte boundary of the producer's buffer,
+/// whole blocks behind it (BLOCK_SPARE).
 fn take_prepared_sample(
     input: &[u8],
-    batch: bool,
+    in_blocks: bool,
     iterations: usize,
     idle: bool,
     mut call: impl FnMut(&[u8]),
@@ -2740,13 +2776,15 @@ fn take_prepared_sample(
         let mut buffers = kept.borrow_mut();
         let (work, produced) = &mut *buffers;
         produced.clear();
-        let at = if batch {
-            produced.reserve(input.len() + BATCH_SPARE);
-            batch_start(produced)
+        let at = if in_blocks {
+            produced.reserve(input.len() + BLOCK_SPARE);
+            let at = block_start(produced);
+            produced.resize(at + input.len().next_multiple_of(BLOCK_LEN), 0);
+            at
         } else {
+            produced.resize(input.len(), 0);
             0
         };
-        produced.resize(at + input.len(), 0);
         let gap = if idle {
             clocks::Gap::Idle
         } else {
@@ -2757,7 +2795,7 @@ fn take_prepared_sample(
             iterations as u64,
             gap,
             GAP_NS,
-            &mut produced[at..],
+            &mut produced[at..at + input.len()],
             |produced| produced.copy_from_slice(black_box(input)),
             |produced| call(black_box(produced)),
         );
@@ -2907,6 +2945,10 @@ fn hash_in_memory(
     iterations: usize,
     consume: impl FnMut(&[u8]),
 ) {
+    if point.use_case.in_blocks() {
+        // The door, for every contender alike.
+        assert_blocks_aligned(input);
+    }
     let message_len = if point.use_case.batch() {
         point.use_case.message_len()
     } else {
@@ -2935,9 +2977,6 @@ fn hash_messages(
     iterations: usize,
     consume: impl FnMut(&[u8]),
 ) {
-    if batch {
-        assert_batch_aligned(input);
-    }
     match algorithm {
         Algorithm::Blake3 => {
             if !batch {
@@ -3223,16 +3262,33 @@ fn encoding(input: &[u8]) -> ([u8; 32], std::sync::Arc<Vec<u8>>) {
 fn items_of(point: Point, input: &[u8]) -> &'static [(usize, usize)] {
     static ITEMS: [std::sync::OnceLock<Vec<(usize, usize)>>; COLLECTION_COUNT] =
         [const { std::sync::OnceLock::new() }; COLLECTION_COUNT];
-    let index = COLLECTIONS
-        .iter()
-        .position(|(label, _)| *label == point.label)
-        .expect("a collection's point");
+    let index = collection_index(point);
     assert_eq!(
         input.len(),
-        point.bytes,
-        "the collection's messages fill its input"
+        input_len(point),
+        "the collection's messages, each in its whole blocks, fill its input"
     );
     ITEMS[index].get_or_init(|| collection_items(COLLECTIONS[index].1))
+}
+
+/// The COLLECTIONS entry a collection point measures.
+fn collection_index(point: Point) -> usize {
+    COLLECTIONS
+        .iter()
+        .position(|(label, _)| *label == point.label)
+        .expect("a collection's point")
+}
+
+/// The bytes a point's input takes: a collection's layout, each message in
+/// its own whole blocks; any other point's bytes. (A point's bytes are its
+/// work: what a speed divides by.)
+fn input_len(point: Point) -> usize {
+    match point.use_case {
+        UseCase::Collection | UseCase::ContinuousCollection => {
+            collection_layout_bytes(COLLECTIONS[collection_index(point)].1)
+        }
+        _ => point.bytes,
+    }
 }
 
 /*
@@ -3279,16 +3335,21 @@ fn hash_continuous_collection(
         return keep_places(places);
     }
     let longest = items.iter().map(|&(_, len)| len).max().unwrap_or(0);
-    let mut buffers = take_buffers(1, longest);
+    let mut buffers = take_buffers(1, longest + BLOCK_SPARE);
     for _ in 0..iterations {
         for &(offset, len) in items {
             let buffer = &mut buffers[0];
-            buffer.clear();
-            buffer.extend_from_slice(black_box(&input[offset..offset + len]));
-            hash_in_memory(algorithm, buffer, Point::one("", len), 1, &mut consume);
+            let at = block_message(buffer, black_box(&input[offset..offset + len]));
+            hash_in_memory(
+                algorithm,
+                &buffer[at..][..len],
+                Point::one("", len),
+                1,
+                &mut consume,
+            );
         }
     }
-    keep_buffers(1, longest, buffers);
+    keep_buffers(1, longest + BLOCK_SPARE, buffers);
 }
 
 fn hash_collection(
@@ -3796,14 +3857,19 @@ fn hash_continuous_messages(
         messages: 1,
         use_case: UseCase::OneMessage,
     };
-    let mut buffers = take_buffers(1, input.len());
+    let mut buffers = take_buffers(1, input.len() + BLOCK_SPARE);
     for _ in 0..iterations {
         let buffer = &mut buffers[0];
-        buffer.clear();
-        buffer.extend_from_slice(black_box(input));
-        hash_in_memory(algorithm, buffer, one, 1, &mut consume);
+        let at = block_message(buffer, black_box(input));
+        hash_in_memory(
+            algorithm,
+            &buffer[at..][..input.len()],
+            one,
+            1,
+            &mut consume,
+        );
     }
-    keep_buffers(1, input.len(), buffers);
+    keep_buffers(1, input.len() + BLOCK_SPARE, buffers);
 }
 
 /*
@@ -3859,14 +3925,19 @@ fn hash_continuous_batches(
         use_case: UseCase::ManyMessages,
         ..point
     };
-    let mut buffers = take_buffers(1, input.len() + BATCH_SPARE);
+    let mut buffers = take_buffers(1, input.len() + BLOCK_SPARE);
     for _ in 0..iterations {
         let buffer = &mut buffers[0];
-        let at = batch_start(buffer);
-        buffer.extend_from_slice(black_box(input));
-        hash_in_memory(algorithm, &buffer[at..], batch, 1, &mut consume);
+        let at = block_message(buffer, black_box(input));
+        hash_in_memory(
+            algorithm,
+            &buffer[at..][..input.len()],
+            batch,
+            1,
+            &mut consume,
+        );
     }
-    keep_buffers(1, input.len() + BATCH_SPARE, buffers);
+    keep_buffers(1, input.len() + BLOCK_SPARE, buffers);
 }
 
 /// The producer lends a whole message or batch for one synchronous call.
@@ -3887,24 +3958,20 @@ fn hash_lent(
         },
         ..point
     };
-    let spare = if point.use_case.batch() {
-        BATCH_SPARE
-    } else {
-        0
-    };
-    let mut buffers = take_buffers(1, input.len() + spare);
+    // Messages and batches lent alike are in blocks (UseCase::in_blocks).
+    let mut buffers = take_buffers(1, input.len() + BLOCK_SPARE);
     for _ in 0..iterations {
         let buffer = &mut buffers[0];
-        let at = if point.use_case.batch() {
-            batch_start(buffer)
-        } else {
-            buffer.clear();
-            0
-        };
-        buffer.extend_from_slice(black_box(input));
-        hash_in_memory(algorithm, &buffer[at..], in_memory, 1, &mut consume);
+        let at = block_message(buffer, black_box(input));
+        hash_in_memory(
+            algorithm,
+            &buffer[at..][..input.len()],
+            in_memory,
+            1,
+            &mut consume,
+        );
     }
-    keep_buffers(1, input.len() + spare, buffers);
+    keep_buffers(1, input.len() + BLOCK_SPARE, buffers);
 }
 
 /*
@@ -3958,7 +4025,7 @@ fn hash_tree_layer(
 ) {
     use sha1_checked::digest::Update as _;
     use sha2::Digest as _;
-    assert_batch_aligned(input);
+    assert_blocks_aligned(input);
     let messages = input.len() / message_len;
     let prefix = [node.prefix()];
     match algorithm {
@@ -4081,17 +4148,17 @@ fn hash_merkle(
     /* Every layer is a batch: each buffer starts its layer at a 64-byte
      * boundary (batch_start), at `at[k]`. */
     let mut buffers: Vec<Vec<u8>> = (0..depth + 2)
-        .map(|k| take_buffers(1, size(k) + BATCH_SPARE).pop().unwrap())
+        .map(|k| take_buffers(1, size(k) + BLOCK_SPARE).pop().unwrap())
         .collect();
     let mut at = vec![0; depth + 2];
     for _ in 0..iterations {
-        at[0] = batch_start(&mut buffers[0]);
+        at[0] = block_start(&mut buffers[0]);
         buffers[0].extend_from_slice(black_box(input));
         let mut message_len = MERKLE.leaf_len;
         for layer in 0..=depth {
             let (done, rest) = buffers.split_at_mut(layer + 1);
             let (from, to) = (&done[layer][at[layer]..], &mut rest[0]);
-            at[layer + 1] = batch_start(to);
+            at[layer + 1] = block_start(to);
             let node = if layer == 0 { Node::Leaf } else { Node::Parent };
             hash_tree_layer(algorithm, from, message_len, node, |digest| {
                 to.extend_from_slice(digest)
@@ -4101,7 +4168,7 @@ fn hash_merkle(
         consume(&buffers[depth + 1][at[depth + 1]..]);
     }
     for (k, buffer) in buffers.into_iter().enumerate() {
-        keep_buffers(1, size(k) + BATCH_SPARE, vec![buffer]);
+        keep_buffers(1, size(k) + BLOCK_SPARE, vec![buffer]);
     }
 }
 
@@ -4151,43 +4218,57 @@ fn written<T: Clone>(len: usize, value: T) -> Vec<T> {
 }
 
 /*
- * A batch starts at a 64-byte boundary, as the fork's padded batch
- * contract requires (Zooko, October 24, BLAKE3 #141): the bench gives
- * every contender's batch that placement. A single message's buffer
- * starts where the allocator puts it (glibc places a large one 16 bytes
- * into a line), as a real program's does, so the cells show what an unaligned caller
- * meets. A batch buffer is a kept Vec with BATCH_SPARE bytes to spare,
- * its batch written from the first boundary within (batch_start).
+ * Inputs in blocks (UseCase::in_blocks): every batch, and every message of
+ * a cell where servil's call is a performance call, starts at a 64-byte
+ * boundary with whole 64-byte blocks behind it, for every contender alike
+ * (Zooko, October 24: the fork's performance calls take their inputs as
+ * Blocks, and the bench aligns the inputs of every cell that has a
+ * performance-call contender). A message of the other cells starts where
+ * the allocator puts it (glibc places a large one 16 bytes into a line), as
+ * a real program's does. A kept buffer for blocks has BLOCK_SPARE bytes to
+ * spare: the message is written from the first boundary within
+ * (block_start) and padded with zeros to its last block's end
+ * (block_message).
  */
-const BATCH_SPARE: usize = 63;
+const BLOCK_LEN: usize = 64;
+const BLOCK_SPARE: usize = 2 * (BLOCK_LEN - 1);
 
 /// Empties `buffer` and fills it up to its first 64-byte boundary, where
-/// its batch is then written: the batch's offset. With BATCH_SPARE bytes
-/// beyond the batch in its capacity, the writes never move it.
-fn batch_start(buffer: &mut Vec<u8>) -> usize {
+/// its message or batch is then written: the offset. With BLOCK_SPARE
+/// bytes beyond the input in its capacity, the writes never move it.
+fn block_start(buffer: &mut Vec<u8>) -> usize {
     buffer.clear();
-    let at = buffer.as_ptr().align_offset(64);
+    let at = buffer.as_ptr().align_offset(BLOCK_LEN);
     assert!(
-        at <= BATCH_SPARE,
+        at < BLOCK_LEN,
         "a byte buffer reaches a 64-byte boundary within 63 bytes"
     );
     buffer.resize(at, 0);
     at
 }
 
-/// `batch` copied to a 64-byte boundary: the copy and the batch's offset.
-fn batch_copy(batch: &[u8]) -> (Vec<u8>, usize) {
-    let mut copy = Vec::with_capacity(batch.len() + BATCH_SPARE);
-    let at = batch_start(&mut copy);
-    copy.extend_from_slice(batch);
+/// `input` written into `buffer` in blocks: from its first boundary, then
+/// zeros to its last block's end; the offset.
+fn block_message(buffer: &mut Vec<u8>, input: &[u8]) -> usize {
+    let at = block_start(buffer);
+    buffer.extend_from_slice(input);
+    buffer.resize(at + input.len().next_multiple_of(BLOCK_LEN), 0);
+    at
+}
+
+/// `input` copied into blocks (block_message): the copy and its offset.
+fn block_copy(input: &[u8]) -> (Vec<u8>, usize) {
+    let mut copy = Vec::with_capacity(input.len() + BLOCK_SPARE);
+    let at = block_message(&mut copy, input);
     (copy, at)
 }
 
-/// The batch placement at the contenders' door (BATCH_SPARE).
-fn assert_batch_aligned(batch: &[u8]) {
+/// The placement of an input in blocks, at the contenders' door.
+fn assert_blocks_aligned(input: &[u8]) {
+    // An empty input's pointer says nothing of placement.
     assert!(
-        batch.as_ptr().align_offset(64) == 0,
-        "a batch starts at a 64-byte boundary"
+        input.is_empty() || input.as_ptr().align_offset(BLOCK_LEN) == 0,
+        "an input in blocks starts at a 64-byte boundary"
     );
 }
 
@@ -7057,10 +7138,11 @@ mod correctness_tests {
     /// as many, and more messages or batches than it keeps in flight. What
     /// the digests are is the contenders' tests' business (AGENTS.md,
     /// "Correctness tests").
-    /// Every batch reaches a contender at a 64-byte boundary (BATCH_SPARE),
-    /// from a source 16 bytes into a line as glibc places one: the kept
-    /// buffers of the after-gap, continuous, lent and Merkle cells realign
-    /// it, and the door (assert_batch_aligned) would stop the run otherwise.
+    /// Every input in blocks (UseCase::in_blocks), batch or message,
+    /// reaches a contender at a 64-byte boundary, from a source 16 bytes
+    /// into a line as glibc places one: the kept buffers of the after-gap,
+    /// continuous, lent and Merkle cells realign it, and the door
+    /// (assert_blocks_aligned) would stop the run otherwise.
     #[test]
     fn every_batch_reaches_the_contenders_on_a_64_byte_boundary() {
         blake3_servil::initialize_multithreaded(None);
@@ -7073,6 +7155,10 @@ mod correctness_tests {
             Point::lent_batch("", 16),
             Point::continuous_batch("", 16),
             Point::merkle("", 64),
+            Point::one("", 1000),
+            Point::one("", 1000).idle(),
+            Point::lent("", 1000),
+            Point::continuous("", 1000),
         ];
         for algorithm in Algorithm::ALL
             .into_iter()
@@ -7086,17 +7172,29 @@ mod correctness_tests {
         }
     }
 
-    /// The door's control: a batch 16 bytes into a line stops the run.
+    /// The door's control: an input in blocks 16 bytes into a line stops
+    /// the run, a batch and a message alike.
     #[test]
-    #[should_panic(expected = "a batch starts at a 64-byte boundary")]
+    #[should_panic(expected = "an input in blocks starts at a 64-byte boundary")]
     fn a_batch_off_its_boundary_stops_the_run() {
-        let (copy, at) = batch_copy(&make_input(16 * MESSAGE_LEN + 16));
-        hash_messages(
+        let (copy, at) = block_copy(&make_input(16 * MESSAGE_LEN + 16));
+        hash_in_memory(
             Algorithm::Sha256,
             &copy[at + 16..][..16 * MESSAGE_LEN],
-            16,
-            MESSAGE_LEN,
-            true,
+            Point::many("", 16),
+            1,
+            |_| {},
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "an input in blocks starts at a 64-byte boundary")]
+    fn a_message_off_its_boundary_stops_the_run() {
+        let (copy, at) = block_copy(&make_input(1000 + 16));
+        hash_in_memory(
+            Algorithm::Sha256,
+            &copy[at + 16..][..1000],
+            Point::one("", 1000),
             1,
             |_| {},
         );
