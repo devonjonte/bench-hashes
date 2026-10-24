@@ -1,0 +1,11 @@
+scanned 256 offsets x 16 cells, rescanned 33 twice; confirming 8: thread-stack+1552 (1.12x the median at its lowest) against thread-stack+1280, thread-stack+3264 (1.11x the median at its lowest) against thread-stack+1264, thread-stack+3520 (1.11x the median at its lowest) against thread-stack+1984, thread-stack+2672 (1.06x the median at its lowest) against thread-stack+912, thread-stack+1248 (1.03x the median at its lowest) against thread-stack+2560, thread-stack+2240 (1.02x the median at its lowest) against thread-stack+432, thread-stack+3920 (1.02x the median at its lowest) against thread-stack+1664, thread-stack+160 (1.01x the median at its lowest) against thread-stack+1616
+confirm thread-stack+1552 against thread-stack+1280: regress exit 0; slower: none
+confirm thread-stack+3264 against thread-stack+1264: regress exit 0; slower: none
+confirm thread-stack+3520 against thread-stack+1984: regress exit 1; slower: blake3-servil-st|shared|LentMessages|64 B
+confirm thread-stack+2672 against thread-stack+912: regress exit 0; slower: none
+confirm thread-stack+1248 against thread-stack+2560: regress exit 0; slower: none
+confirm thread-stack+2240 against thread-stack+432: regress exit 0; slower: none
+confirm thread-stack+3920 against thread-stack+1664: regress exit 0; slower: none
+confirm thread-stack+160 against thread-stack+1616: regress exit 0; slower: none
+offset-sensitive: blake3-servil-st|shared|LentMessages|64 B (slower at thread-stack+3520 vs thread-stack+1984)
+ok: immune cells stay immune; the check still sees the effect (blake3-servil-st|shared|LentMessages|64 B)

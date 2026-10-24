@@ -47,4 +47,19 @@ settings did not bring the episode back. Recorded, not attributed.
 
 `summarize.py` reads the sweeps.
 
+**A patch to offset_check.py** (devonjonte/BLAKE3
+`candidate/devon-offset-check` 9145354; `patched/`). Three causes of
+its blindness here, each fixed:
+- steps of 64 jump over the 48-byte window: steps of 16;
+- a 10% screen sits above a 9% effect: each cell's three worst offsets
+  rescanned twice, ranked by the lowest of three readings;
+- four pairs cannot clear Benjamini-Hochberg over 16 cells: in
+  `patched/confirm-4-pairs` the slow offset ran 0.81-0.86 ns/B against
+  0.71-0.77 in every one of four pairs (`run_means.py`), and regress
+  judged it level. Confirmations now run eight pairs.
+Main-thread offsets are left out: regress's command line differs from
+the scan's, so a main-stack offset lands elsewhere when confirmed.
+`repeat.py`: 5 of 8 runs exit 0 (2e892e1: 3 of 5; 082afa3: 2 of 3); in
+the other three the candidates missed the window.
+
 **Posted.** johnservil/bench-hashes #65.
