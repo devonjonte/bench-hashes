@@ -62,6 +62,15 @@ the notes) may still change, to say it better.
   shape on which a generated x86 kernel ran 34.6% slower (1,152 to 1,984
   bytes) while no single-message cell could show it: the points went from
   1 KiB to 2 KiB. Every run now carries it.
+- **Produced leaves use the shared sampler** (Zooko, October 22, approval
+  to proceed with sampler consolidation): whole jobs, 5 ms sizing and
+  three samples per cell per round stay unchanged. `clocks::measure`
+  owns calibration, wall time, process CPU time and caller thread counts.
+  Shared rows keep process CPU time absent; solo rows retain it. The
+  existing v6 core-count field now records available caller counts, with
+  energy absent. The wall report uses the same shared mean selection as
+  compare and the map; it had its own plain sum. Hash calls, generated
+  input, checksum work and stored digests stay unchanged.
 - **BLAKE3 commonware retires** (Zooko, October 20): its kernels were
   commonware's pull request #4982, which closed unmerged; commonware's
   shipped BLAKE3 is the official `blake3` crate (a thread-pool split of
