@@ -92,7 +92,6 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
       // times faster the fastest is: least to greatest across the two.
       const ratio = cls => { const gs = shown.map(f => +f.querySelector("i." + cls).dataset.g); return Math.max(...gs) / Math.min(...gs); };
       const hi = ratio("hi"), lo = ratio("lo"), [a, b] = [Math.min(hi, lo), Math.max(hi, lo)];
-      if (b < 1.05) continue;
       const longest = Math.max(...shown.map(f => parseFloat(f.querySelector("i.hi").style.width)));
       const top = shown[0].offsetTop, bottom = shown.at(-1).offsetTop + shown.at(-1).offsetHeight;
       const label = a.toFixed(1) === b.toFixed(1) ? times(b) : `${times(a)}–${times(b).slice(1)}`;
@@ -104,7 +103,6 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
       const shown = [...bars.querySelectorAll("i")].filter(i => !hidden(i));
       if (shown.length < 2) continue;
       const gs = shown.map(i => +i.dataset.g), m = Math.max(...gs) / Math.min(...gs);
-      if (m < 1.05) continue;
       // Just past the longest bar, from the top of the first bar shown to
       // the bottom of the last (as on the map, to the right of the lines).
       const longest = Math.max(...shown.map(i => parseFloat(i.style.width)));
