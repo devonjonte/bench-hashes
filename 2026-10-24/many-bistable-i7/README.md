@@ -19,6 +19,7 @@ max/min, then every process's mean (ns/message).
 processes are above 1.15x the median, and those at about 1.2x (64
 messages: medians 29.3-30.4 on P cores, 65.2 on an E core; 256: 20.8-21.2,
 41.4). The EPYC's slow state (up to 15 of 32 at 1.55x and more) does not
-appear on this Intel.
+appear on this Intel, though its one L3 is shared by every core: sharing an
+L3 is not enough on its own.
 
 **Posted.** johnservil/bench-hashes #69.
