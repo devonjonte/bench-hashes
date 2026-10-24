@@ -120,11 +120,43 @@ the documentation).
 the page", has the whole practice. Check a change with
 `node tools/graph-check/map.js` and by looking at the page.
 
+## Releases
+
+A release is what every published run is drawn under: the overview shows
+one release a page, so a release is the moment every machine runs again.
+In order:
+
+1. **What it carries.** Each entry of FROZEN.md's "Changes for the next
+   release", with Zooko's decision; the contender pin (BLAKE3 servil's
+   commit) and the clocks pin, each a commit that passed the fork's own
+   checks. The release commit's message names both.
+2. **Checks on main:** `cargo nextest run --release`, `cargo fmt
+   --check`, and a `--quick` run with no busy window.
+3. **The tag:** `python3 tools/gen-ver.py X.Y.Z` from a clean tree, one
+   commit setting the version to X.Y.Z+<HEAD's hash>, and its tag.
+4. **Every machine runs again at the tag**, the same day if it can: a
+   full run (`--all`) and `b3sum`, each on a quiet machine, each machine
+   by its owner (today the i7-12700K Devon Jonte's, the EPYC 9255 Sam
+   Shackleton's, the M4 Max and its Linux VM John Servil's). A machine
+   new to the results, or changed (hardware, OS), first runs the fork's
+   `tools/offset_check.py` on both axes (stack offsets and cores), so a
+   cell that turns on where it runs is known before its figures are
+   read. A run whose instrument was patched says so in its folder's
+   README, and its samples' provenance says how.
+5. **The results:** one pull request a machine, its folder under
+   `benchmark-results/` as the run wrote it, with SHA-256 and BLAKE3
+   manifests.
+6. **The overview, drawn once the machines are in:** `cargo run --release
+   -- overview index.html benchmark-results`; its test fails while it is
+   stale. A machine still on the previous release keeps its column, named
+   and linked to its map, until its run arrives.
+7. **FROZEN.md:** the released entries leave "Changes for the next
+   release" and stand under the release's version.
+
 ## Maintainers' notes
 
 `AGENTS.md` holds the maintainers' principles and the repository's shape;
-the open work is in the issues. Contributing needs neither. A release is
-`python3 tools/gen-ver.py X.Y.Z` from a clean tree: one commit setting the version
-to X.Y.Z+<HEAD's hash>, and its tag. `METHODOLOGY.md` explains why the measurement works as it does,
+the open work is in the issues. Contributing needs neither.
+`METHODOLOGY.md` explains why the measurement works as it does,
 should you want to change it; earlier findings are in `git log`, and in the
 notes the tree held until commit `aadeca9d`.
