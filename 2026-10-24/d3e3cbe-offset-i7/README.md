@@ -28,6 +28,7 @@ machine; the aligned run began at 0.7.
 |---|---|---|
 | plain | shared LentMessages 64 B +3.4% (+3936 against +48, 8 of 8 pairs slower); shared ContinuousMessages 64 B +4.0% (+1760 against +3856) | LentMessages 64 B +38.2% at +3088 |
 | diag-align64 | none: "ok: immune cells stay immune" | LentMessages 64 B and 256 B, still sensitive |
+| diag-align64, again (`align64-2`) | none | LentMessages and ContinuousMessages 64 B |
 
 At #141's earlier head ad29ede the plain run had servil's shared lent
 64 B at +5.8% (`2026-10-24/lent64-i7`). Aligned buffers close the rest on

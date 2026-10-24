@@ -1,0 +1,14 @@
+scanned 256 offsets x 32 cells, rescanned 131 twice; confirming 8: thread-stack+864 (1.34x the median at its lowest) against thread-stack+2720, thread-stack+3088 (1.33x the median at its lowest) against thread-stack+224, thread-stack+448 (1.10x the median at its lowest) against thread-stack+1456, thread-stack+4032 (1.10x the median at its lowest) against thread-stack+2464, thread-stack+3632 (1.10x the median at its lowest) against thread-stack+2896, thread-stack+1552 (1.08x the median at its lowest) against thread-stack+2608, thread-stack+3728 (1.05x the median at its lowest) against thread-stack+608, thread-stack+992 (1.04x the median at its lowest) against thread-stack+3552
+confirm thread-stack+864 against thread-stack+2720: regress exit 1; slower: blake3-official|shared|ContinuousMessages|256 B, blake3-official|shared|ContinuousMessages|64 B
+confirm thread-stack+3088 against thread-stack+224: regress exit 1; slower: blake3-official|shared|LentMessages|64 B
+confirm thread-stack+448 against thread-stack+1456: regress exit 0; slower: none
+confirm thread-stack+4032 against thread-stack+2464: regress exit 0; slower: none
+confirm thread-stack+3632 against thread-stack+2896: regress exit 0; slower: none
+confirm thread-stack+1552 against thread-stack+2608: regress exit 0; slower: none
+confirm thread-stack+3728 against thread-stack+608: regress exit 1; slower: blake3-servil-st|shared|LentMessages|64 B
+confirm thread-stack+992 against thread-stack+3552: regress exit 0; slower: none
+offset-sensitive: blake3-official|shared|ContinuousMessages|256 B (slower at thread-stack+864 vs thread-stack+2720)
+offset-sensitive: blake3-official|shared|ContinuousMessages|64 B (slower at thread-stack+864 vs thread-stack+2720)
+offset-sensitive: blake3-official|shared|LentMessages|64 B (slower at thread-stack+3088 vs thread-stack+224)
+offset-sensitive: blake3-servil-st|shared|LentMessages|64 B (slower at thread-stack+3728 vs thread-stack+608)
+FAIL: cells our APIs keep immune turned offset-sensitive: blake3-servil-st|shared|LentMessages|64 B
