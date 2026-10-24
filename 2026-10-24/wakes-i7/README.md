@@ -20,4 +20,19 @@ judged them level.
 So on 19 workers the publisher making every wake itself is faster; on 47
 (EPYC) the cascade is. The fix is not landed.
 
+**The number of direct wakes** (`wakes-sweep.py`; branches
+devonjonte/BLAKE3 `exp/wakes-2` 8caf7ce, `exp/wakes-4` 772bf2d,
+`exp/wakes-8` 41e6b53d): the publisher makes up to W wakes itself and
+owes the rest, which every woken worker helps pay. Each W against
+08ffe77 (every wake direct), two-stage check:
+
+| W | verdict | 1 MiB one-shot | 1 MiB after a pause | batches of 16384 |
+|---|---|---|---|---|
+| 1 (gate18) | 6 slower | +19.5% | +20.9% | +21.5% |
+| 2 | 2 slower | +10.1% | +11.6% | +7.2% |
+| 4 | 1 slower | +8.7% | +4.6% | +4.4% |
+| 8 | none | +5.1% | -3.2% | +0.9% |
+
+(first-stage geometric means over 4 pairs, `cell_ratios.py`.)
+
 **Posted.** johnservil/BLAKE3 #119.
