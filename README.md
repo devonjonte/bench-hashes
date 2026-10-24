@@ -1,5 +1,9 @@
 # bench-hashes
 
+> Devon Jonte's fork of [John Servil's bench-hashes](https://github.com/johnservil/bench-hashes),
+> measuring [Devon Jonte's line of BLAKE3 servil](https://github.com/devonjonte/BLAKE3).
+> Latest results: https://devonjonte.github.io/bench-hashes/
+
 Written by AI at Zooko's request and to his specifications.
 
 ## Is BLAKE3 faster than SHA-256?
@@ -10,15 +14,17 @@ a web browser.
 
 <img src="benchmark-results/AppleM4Max.darwin25/bench-hashes.chart.svg" alt="Hashing one 128 MiB message after a pause on an Apple M4 Max: BLAKE3 multi-core and on one core beside SHA-256, SHA3-256 and SHA-1, in GB/s" width="720">
 
-[The overview](https://johnservil.github.io/bench-hashes/) is one page
-for every machine measured: a column per machine, a row per way a program
-hashes, and in each row the hashes' speeds as bars, with how many times
-faster the fastest ran. Every size, on each machine measured so far:
+[The overview](https://devonjonte.github.io/bench-hashes/) is one page
+for every machine measured: first a bar for each hash on each machine,
+then a column per machine and a row per way a program hashes, every bar
+in its library's colour (the multi-threaded form striped), with a
+bracket saying how many times faster servil or its strongest rival ran.
+Every size, on each machine measured so far:
 
-- [Apple M4 Max, macOS](https://johnservil.github.io/bench-hashes/benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html)
-- [AMD EPYC 9255, Linux](https://johnservil.github.io/bench-hashes/benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html)
-- [Intel i7-12700K, Linux](https://johnservil.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html)
-- [A Linux VM on that Mac](https://johnservil.github.io/bench-hashes/benchmark-results/aarch64.linux618520virt/bench-hashes.map.html)
+- [Apple M4 Max, macOS](https://devonjonte.github.io/bench-hashes/benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html)
+- [AMD EPYC 9255, Linux](https://devonjonte.github.io/bench-hashes/benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html)
+- [Intel i7-12700K, Linux](https://devonjonte.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html)
+- [A Linux VM on that Mac](https://devonjonte.github.io/bench-hashes/benchmark-results/aarch64.linux618520virt/bench-hashes.map.html)
 
 ## Run it on your computer
 
@@ -71,6 +77,11 @@ or *after a pause*, and nonstop, *waiting for each call* or
 what it means. Open a chart to read its values under the pointer or
 where you tap; a hash's name hides or shows its lines; each call's name
 links to its documentation.
+
+Each library keeps one colour, its multi-threaded form drawn as a double
+line. At a chart's right end a bracket joins BLAKE3 servil's line (the
+faster of its forms shown) and its strongest rival's, and says how many
+times faster the winner ran, in the winner's colour.
 
 The bar at the top stays in view as you scroll. Its switch shows each
 hash as a rate, knob up (bytes per second: higher is better), or as a
