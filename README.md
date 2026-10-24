@@ -72,6 +72,11 @@ what it means. Open a chart to read its values under the pointer or
 where you tap; a hash's name hides or shows its lines; each call's name
 links to its documentation.
 
+Each library keeps one colour, its multi-threaded form drawn as a double
+line. At a chart's right end a bracket joins BLAKE3 servil's line (the
+faster of its forms shown) and its strongest rival's, and says how many
+times faster the winner ran, in the winner's colour.
+
 The bar at the top stays in view as you scroll. Its switch shows each
 hash as a rate, knob up (bytes per second: higher is better), or as a
 cost, knob down (nanoseconds per byte: lower is better). Its chips choose

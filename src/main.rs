@@ -1191,18 +1191,25 @@ impl Algorithm {
      * panel reserves for "faster" and "slower". A multithreaded contender
      * wears a darker shade of its single-threaded sibling's hue.
      */
+    /// The colour of the contender's library: a library's single- and
+    /// multi-threaded forms share it, and `striped` tells them apart
+    /// (Zooko, October 24: one family, two forms, at a glance).
     fn color(self) -> &'static str {
         match self {
-            Self::Blake3 => "#3b82f6",
+            Self::Blake3 | Self::Blake3Rayon => "#3b82f6",
             Self::Sha256 => "#e07a45",
             Self::Sha1Dc => "#8a7a1e",
-            Self::Blake3ServilSt => "#7c3aed",
+            Self::Blake3ServilSt | Self::Blake3ServilMt => "#7c3aed",
             Self::Sha256CommonCrypto => "#0e9aa7",
             Self::Sha256Ring => "#c2410c",
-            Self::Blake3Rayon => "#1e3a8a",
-            Self::Blake3ServilMt => "#4c1d95",
             Self::Sha3_256 => "#db2777",
         }
+    }
+
+    /// Whether the contender is a library's multi-threaded form, drawn in
+    /// its single-threaded form's colour with a pattern of its own.
+    fn striped(self) -> bool {
+        matches!(self, Self::Blake3Rayon | Self::Blake3ServilMt)
     }
 
     /// The Cargo.lock description of the crate that implements this contender.
@@ -5291,14 +5298,12 @@ fn compare_command(arguments: &[String]) {
     // CPU time, in the first old run's order.
     type Pairs = Vec<(u128, u128)>;
     let mut order: Vec<String> = Vec::new();
-    let mut cells: crate::Map<String, (Pairs, Pairs, Pairs)> =
-        crate::Map::default();
+    let mut cells: crate::Map<String, (Pairs, Pairs, Pairs)> = crate::Map::default();
     for (old_path, new_path) in old.iter().zip(new) {
-        let new_means: crate::Map<String, (u128, Option<u128>, Option<u128>)> =
-            means(new_path)
-                .into_iter()
-                .map(|(k, m, c, e)| (k, (m, c, e)))
-                .collect();
+        let new_means: crate::Map<String, (u128, Option<u128>, Option<u128>)> = means(new_path)
+            .into_iter()
+            .map(|(k, m, c, e)| (k, (m, c, e)))
+            .collect();
         for (key, old_mean, old_cpu, old_energy) in means(old_path) {
             let Some(&(new_mean, new_cpu, new_energy)) = new_means.get(&key) else {
                 continue;
@@ -5658,25 +5663,24 @@ fn regress_command(arguments: &[String]) -> i32 {
         std::collections::BTreeMap::new();
     // A run's means, and its load line when clocks found it no evidence
     // (other programs busy, or no load window).
-    let mut means =
-        |exe: &str, side: &str| -> (crate::Map<String, u128>, Option<String>) {
-            run_index += 1;
-            let kept = keep
-                .as_ref()
-                .map(|dir| dir.join(format!("run-{run_index:03}-{side}.tsv")));
-            let (file, load) = regress_run(exe, rounds, &scope, &sizes, kept.as_deref());
-            if !powers.contains(&file.power) {
-                powers.push(file.power.clone());
-            }
-            let busy = (!load.starts_with("quiet")).then_some(load);
-            (
-                file.cells
-                    .into_iter()
-                    .map(|(key, samples)| (key, Mean::of(&samples).fixed().0))
-                    .collect(),
-                busy,
-            )
-        };
+    let mut means = |exe: &str, side: &str| -> (crate::Map<String, u128>, Option<String>) {
+        run_index += 1;
+        let kept = keep
+            .as_ref()
+            .map(|dir| dir.join(format!("run-{run_index:03}-{side}.tsv")));
+        let (file, load) = regress_run(exe, rounds, &scope, &sizes, kept.as_deref());
+        if !powers.contains(&file.power) {
+            powers.push(file.power.clone());
+        }
+        let busy = (!load.starts_with("quiet")).then_some(load);
+        (
+            file.cells
+                .into_iter()
+                .map(|(key, samples)| (key, Mean::of(&samples).fixed().0))
+                .collect(),
+            busy,
+        )
+    };
     for pair in 0..pairs {
         let began = clocks::now();
         // A pair with a run that is no evidence runs again, in the same
@@ -6138,7 +6142,8 @@ fn machine_metadata() -> MachineMetadata {
     // CPUs alone: every process's name (a kworker's changes as it works)
     // went into the heap before the measurement and moved the buffers
     // after it to a new offset each run (bench-hashes #65).
-    let system = System::new_with_specifics(RefreshKind::new().with_cpu(CpuRefreshKind::everything()));
+    let system =
+        System::new_with_specifics(RefreshKind::new().with_cpu(CpuRefreshKind::everything()));
 
     let cpus = system.cpus();
 

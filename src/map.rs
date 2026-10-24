@@ -284,6 +284,12 @@ struct Section {
     layers: Vec<(&'static str, &'static str, &'static str)>,
     names: Vec<String>,
     colors: Vec<String>,
+    /// Each contender's pattern: a library's multi-threaded form is drawn
+    /// in its single-threaded form's colour, as a double line.
+    striped: Vec<bool>,
+    /// Which contenders are BLAKE3 servil's: a bracket joins servil's line
+    /// and its strongest rival's.
+    ours: Vec<bool>,
     shown: Vec<bool>,
     cells: Vec<(String, Chart)>,
     about: String,
@@ -322,6 +328,18 @@ impl Section {
             .map(bool::to_string)
             .collect::<Vec<_>>()
             .join(",");
+        let striped = self
+            .striped
+            .iter()
+            .map(bool::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        let ours = self
+            .ours
+            .iter()
+            .map(bool::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
         let cells = self
             .cells
             .iter()
@@ -334,8 +352,8 @@ impl Section {
             .map(|(a, b, c)| format!("[{},{},{}]", json(a), json(b), json(c)))
             .collect::<Vec<_>>()
             .join(",");
-        format!("{{\"title\":{},\"rows\":[{}],\"cols\":[{}],\"layers\":[{}],\"names\":[{}],\"colors\":[{}],\"shown\":[{}],\"cells\":{{{}}},\"about\":{},\"details\":[{}],\"run\":{},\"before\":[{},{}]}}",
-            json(self.title), triples(&self.rows), triples(&self.cols), triples(&self.layers), names, colors, shown, cells, json(&self.about), details, json(&self.run), json(&self.before.0), json(&self.before.1))
+        format!("{{\"title\":{},\"rows\":[{}],\"cols\":[{}],\"layers\":[{}],\"names\":[{}],\"colors\":[{}],\"striped\":[{}],\"ours\":[{}],\"shown\":[{}],\"cells\":{{{}}},\"about\":{},\"details\":[{}],\"run\":{},\"before\":[{},{}]}}",
+            json(self.title), triples(&self.rows), triples(&self.cols), triples(&self.layers), names, colors, striped, ours, shown, cells, json(&self.about), details, json(&self.run), json(&self.before.0), json(&self.before.1))
     }
 }
 
@@ -655,6 +673,8 @@ fn hashing(path: &Path) -> Section {
             }).chain([BAO_TREE.to_owned()]).collect()
         },
         colors: algorithms.iter().map(|a| a.color()).chain(["#15803d"]).map(str::to_owned).collect(),
+        striped: algorithms.iter().map(|a| a.striped()).chain([false]).collect(),
+        ours: algorithms.iter().map(|a| matches!(a, Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt)).chain([false]).collect(),
         shown: algorithms.iter().map(|a| SHOWN_AT_FIRST.contains(a)).chain([true]).collect(),
         cells,
         about: about(&file.headers, &file.load),
@@ -689,9 +709,27 @@ fn b3sum(path: &Path) -> Section {
             n.parse::<u64>().is_ok() && ["KiB", "MiB", "GiB"].contains(&unit)
         })
     };
-    let palette = [
-        "#3b82f6", "#4c1d95", "#c2410c", "#0e9aa7", "#db2777", "#8a7a1e",
-    ];
+    // Each b3sum in its library's colour, as on the hashing section: the
+    // fork's and official's on every core striped, their one-thread forms
+    // solid; sha256sum in SHA-256's; sha1sum and md5sum the overview's
+    // drab greys. Another name takes the next colour of the palette.
+    let palette = ["#0e9aa7", "#db2777", "#8a7a1e"];
+    let fork = |n: &str| {
+        super::overview::FORK_B3SUM
+            .iter()
+            .any(|f| n == *f || n.strip_prefix(f).is_some_and(|rest| rest.starts_with('-')))
+    };
+    let style = |i: usize, n: &str| -> (String, bool) {
+        let one_thread = n.ends_with("-1-thread");
+        match n.trim_end_matches("-1-thread") {
+            _ if fork(n) => ("#7c3aed".to_owned(), !one_thread),
+            "official" => ("#3b82f6".to_owned(), !one_thread),
+            "sha256sum" => ("#e07a45".to_owned(), false),
+            "sha1sum" => ("#b4b0a8".to_owned(), false),
+            "md5sum" => ("#cfcbc3".to_owned(), false),
+            _ => (palette[i % palette.len()].to_owned(), false),
+        }
+    };
     let mut cells = Vec::new();
     for (cache, col) in [("warm", "cached"), ("cold", "storage")] {
         for (row, points) in [
@@ -777,7 +815,9 @@ fn b3sum(path: &Path) -> Section {
             ("storage", "read from storage", "Each file was dropped from the operating system's memory before the run, so b3sum reads it from the disk."),
         ],
         layers: vec![("solo", "one program", "One program hashes; the machine is otherwise quiet.")],
-        colors: (0..names.len()).map(|i| palette[i % palette.len()].to_owned()).collect(),
+        colors: names.iter().enumerate().map(|(i, n)| style(i, n).0).collect(),
+        striped: names.iter().enumerate().map(|(i, n)| style(i, n).1).collect(),
+        ours: names.iter().map(|n| fork(n)).collect(),
         shown: names.iter().map(|_| true).collect(),
         names,
         cells,
