@@ -110,21 +110,35 @@ pub fn frozen_lines() -> String {
 /// The b3sum names the fork's build goes by in a run, newest convention
 /// first (bench-hashes #55 settles on `b3sum`), and the competitors shown.
 const FORK_B3SUM: [&str; 3] = ["b3sum", "devon", "fork"];
-const B3SUM_COMPETITORS: [(&str, &str, &str); 4] = [
-    ("official", "b3sum, official BLAKE3's", "#3b82f6"),
-    ("sha256sum", "sha256sum", "#e07a45"),
+/// (run key, name shown, identity, colour, striped): b3sum's bars join
+/// their library's multi-threaded form in the legend (b3sum hashes on
+/// every core).
+const B3SUM_COMPETITORS: [(&str, &str, &str, &str, bool); 4] = [
+    (
+        "official",
+        "b3sum, official BLAKE3's",
+        "blake3-official-mt",
+        "#3b82f6",
+        true,
+    ),
+    ("sha256sum", "sha256sum", "sha256", "#e07a45", false),
     // Drab greys: SHA-1 and MD5 are broken as cryptographic hashes
     // (collisions are cheap to make) and kept only as checksums people
     // still run; the page's door says so.
-    ("sha1sum", "sha1sum", "#b4b0a8"),
-    ("md5sum", "md5sum", "#cfcbc3"),
+    ("sha1sum", "sha1sum", "sha1sum", "#b4b0a8", false),
+    ("md5sum", "md5sum", "md5sum", "#cfcbc3", false),
 ];
 
 /// One bar: a hash's speed in a cell.
 pub struct Bar {
     pub name: String,
-    /// The map's colour for it.
+    /// Which hash it is, for the legend's buttons: a contender's key (a
+    /// b3sum bar shares its library's multi-threaded form's).
+    pub id: &'static str,
+    /// The map's colour for it: its library's.
     pub color: &'static str,
+    /// A library's multi-threaded form: its colour in stripes.
+    pub striped: bool,
     /// Bytes hashed per second, in GB/s (the map's unit), from the cell's
     /// mean through the shared rule.
     pub gbps: f64,
@@ -181,7 +195,9 @@ fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algo
     };
     let bar = |a: Algorithm, samples: &[Measured], note| Bar {
         name: plain_name(a).to_owned(),
+        id: a.key(),
         color: a.color(),
+        striped: a.striped(),
         gbps: gbps(samples, per_unit),
         note,
     };
@@ -222,7 +238,9 @@ fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algo
         // (the page's door says it is the fastest measured on the machine).
         bars.push(Bar {
             name: "SHA-256".to_owned(),
+            id: Algorithm::Sha256.key(),
             color: Algorithm::Sha256.color(),
+            striped: false,
             gbps: gbps(theirs, per_unit),
             note: match a {
                 Algorithm::Sha256 => "the sha2 crate",
@@ -237,9 +255,11 @@ fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algo
 fn b3sum_bars(file: &SamplesFile, cache: &str, input: &str) -> Bars {
     let key = |name: &str| format!("{name}|{cache}|b3sum|{input}");
     // b3sum's samples are ns over the input's bytes.
-    let bar = |name: &str, color, samples| Bar {
+    let bar = |name: &str, id, color, striped, samples| Bar {
         name: name.to_owned(),
+        id,
         color,
+        striped,
         gbps: gbps(samples, 1.0),
         note: "",
     };
@@ -248,13 +268,28 @@ fn b3sum_bars(file: &SamplesFile, cache: &str, input: &str) -> Bars {
     };
     let mut bars = vec![bar(
         "b3sum, BLAKE3 servil's",
+        Algorithm::Blake3ServilMt.key(),
         Algorithm::Blake3ServilMt.color(),
+        true,
         ours,
     )];
-    bars.extend(B3SUM_COMPETITORS.iter().filter_map(|(name, shown, color)| {
-        cell(file, &key(name)).map(|theirs| bar(shown, color, theirs))
-    }));
+    bars.extend(
+        B3SUM_COMPETITORS
+            .iter()
+            .filter_map(|(name, shown, id, color, striped)| {
+                cell(file, &key(name)).map(|theirs| bar(shown, id, color, *striped, theirs))
+            }),
+    );
     bars
+}
+
+/// A bar's background: its colour, or a multi-threaded form's stripes of it.
+fn paint(color: &str, striped: bool) -> String {
+    if striped {
+        format!("repeating-linear-gradient(135deg, {color} 0 3px, {color}73 3px 5px)")
+    } else {
+        color.to_owned()
+    }
 }
 
 /// A contender's name in plain words: the map's "st" and "mt" spelled out.
@@ -550,9 +585,19 @@ fn families_by_machine(rows: &[Row]) -> String {
                 continue;
             };
             let color = inner.color;
+            // Either form's button hides the family's bar (it shows both).
+            let id = if inner.id == top.id {
+                inner.id.to_owned()
+            } else {
+                format!("{} {}", inner.id, top.id)
+            };
+            let (hi_paint, lo_paint) = (
+                paint(top.color, top.striped),
+                paint(inner.color, inner.striped),
+            );
             let _ = write!(
                 out,
-                "<div class=\"fam-bar\" data-c=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}: {}\t{}\t{}: {}\"><i class=\"hi\" data-g=\"{}\" style=\"width:{:.1}%;background:{color}\"></i><i class=\"lo\" data-g=\"{}\" style=\"width:{:.1}%;background:{color}\"></i></div>",
+                "<div class=\"fam-bar\" data-k=\"{id}\" data-color=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}: {}\t{}\t{}: {}\"><i class=\"hi\" data-g=\"{}\" style=\"width:{:.1}%;background:{hi_paint}\"></i><i class=\"lo\" data-g=\"{}\" style=\"width:{:.1}%;background:{lo_paint}\"></i></div>",
                 escape(&r.machine),
                 escape(family),
                 top.gbps,
@@ -593,13 +638,14 @@ fn families_by_machine(rows: &[Row]) -> String {
 /// hide or show its bars; a pick under the pointer shows its figures in
 /// the map's tooltip.
 pub fn html(rows: &[Row]) -> String {
-    // The legend: one button a colour, named for the hash first drawn in
-    // it (b3sum's bars share their library's colour; the tooltip names
-    // each bar exactly). A button hides or shows every bar of its colour.
-    let mut drawn: Vec<(&str, &str)> = Vec::new();
+    // The legend: one button a hash, named for its first bar (b3sum's
+    // bars join their library's multi-threaded form; the tooltip names
+    // each bar exactly), in its bar's paint. A button hides or shows every
+    // bar of its hash.
+    let mut drawn: Vec<(&str, &str, &str, bool)> = Vec::new();
     for b in rows.iter().flat_map(|r| r.cells.iter().flatten()) {
-        if !drawn.iter().any(|(_, c)| *c == b.color) {
-            drawn.push((&b.name, b.color));
+        if !drawn.iter().any(|(_, id, _, _)| *id == b.id) {
+            drawn.push((&b.name, b.id, b.color, b.striped));
         }
     }
     // Servil's two first, then official's two, then the SHA-256s, then the
@@ -613,13 +659,13 @@ pub fn html(rows: &[Row]) -> String {
         Algorithm::Sha256Ring,
         Algorithm::Sha256CommonCrypto,
     ];
-    let rank = |color: &str| {
+    let rank = |id: &str| {
         order
             .iter()
-            .position(|a| a.color() == color)
+            .position(|a| a.key() == id)
             .unwrap_or(usize::MAX)
     };
-    drawn.sort_by_key(|(_, c)| rank(c));
+    drawn.sort_by_key(|(_, id, _, _)| rank(id));
     // A library's two forms, single- and multi-threaded, stand one above
     // the other: they are one contender in two forms, which SHA-256 is
     // related to in neither (Zooko, October 23).
@@ -627,35 +673,34 @@ pub fn html(rows: &[Row]) -> String {
         (Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt),
         (Algorithm::Blake3, Algorithm::Blake3Rayon),
     ];
-    let button = |name: &str, color: &str| {
+    let button = |name: &str, id: &str, color: &str, striped: bool| {
         format!(
-            "<button style=\"--c:{color}\" data-c=\"{color}\">{}</button>",
+            "<button style=\"--c:{}\" data-k=\"{id}\">{}</button>",
+            paint(color, striped),
             escape(name.split(" (").next().unwrap_or(name))
         )
     };
     let mut legend = String::new();
     let mut done: Vec<&str> = Vec::new();
-    for (name, color) in &drawn {
-        if done.contains(color) {
+    for (name, id, color, striped) in &drawn {
+        if done.contains(id) {
             continue;
         }
-        match pairs
-            .iter()
-            .find(|(a, b)| a.color() == *color || b.color() == *color)
-        {
+        match pairs.iter().find(|(a, b)| a.key() == *id || b.key() == *id) {
             Some((a, b)) => {
                 legend.push_str("<span class=\"pair\">");
                 for form in [a, b] {
-                    if let Some((n, c)) = drawn.iter().find(|(_, c)| *c == form.color()) {
-                        legend.push_str(&button(n, c));
-                        done.push(c);
+                    if let Some((n, k, c, st)) = drawn.iter().find(|(_, k, _, _)| *k == form.key())
+                    {
+                        legend.push_str(&button(n, k, c, *st));
+                        done.push(k);
                     }
                 }
                 legend.push_str("</span>");
             }
             None => {
-                legend.push_str(&button(name, color));
-                done.push(color);
+                legend.push_str(&button(name, id, color, *striped));
+                done.push(id);
             }
         }
     }
@@ -740,7 +785,15 @@ pub fn html(rows: &[Row]) -> String {
                 }
                 let tip: Vec<String> = bars
                     .iter()
-                    .map(|b| format!("{}\t{}\t{}\t{}", b.color, b.name, b.note, b.gbps))
+                    .map(|b| {
+                        format!(
+                            "{}\t{}\t{}\t{}",
+                            paint(b.color, b.striped),
+                            b.name,
+                            b.note,
+                            b.gbps
+                        )
+                    })
                     .collect();
                 let _ = write!(
                     body,
@@ -754,14 +807,20 @@ pub fn html(rows: &[Row]) -> String {
                 for b in bars {
                     let _ = write!(
                         body,
-                        "<span class=\"bar\"><i data-c=\"{}\" data-g=\"{}\" style=\"width:{:.1}%;background:{}\"></i></span>",
+                        "<span class=\"bar\"><i data-k=\"{}\" data-color=\"{}\" data-g=\"{}\" style=\"width:{:.1}%;background:{}\"></i></span>",
+                        b.id,
                         b.color,
                         b.gbps,
                         width(b.gbps),
-                        b.color
+                        paint(b.color, b.striped)
                     );
                 }
-                body.push_str("</span></a></td>");
+                // The scale: the speed the full width stands for, under its end.
+                let _ = write!(
+                    body,
+                    "</span><span class=\"scale\">{}</span></a></td>",
+                    speed(fastest)
+                );
             }
             body.push_str("</tr>\n");
         }
@@ -932,10 +991,35 @@ mod tests {
         }
     }
 
-    fn bar(name: &str, color: &'static str, gbps: f64, note: &'static str) -> Bar {
+    /// A bar as the page's readers make it: its hash's key, colour and
+    /// pattern from its name (b3sum's bars join their library's
+    /// multi-threaded form).
+    fn bar(name: &str, gbps: f64, note: &'static str) -> Bar {
+        let (a, id) = match name {
+            "BLAKE3 servil st" => (Algorithm::Blake3ServilSt, Algorithm::Blake3ServilSt.key()),
+            "BLAKE3 servil mt" | "b3sum, BLAKE3 servil's" => {
+                (Algorithm::Blake3ServilMt, Algorithm::Blake3ServilMt.key())
+            }
+            "BLAKE3 official" => (Algorithm::Blake3, Algorithm::Blake3.key()),
+            "b3sum, official BLAKE3's" => (Algorithm::Blake3Rayon, Algorithm::Blake3Rayon.key()),
+            "SHA-256" => (Algorithm::Sha256, Algorithm::Sha256.key()),
+            "md5sum" => {
+                return Bar {
+                    name: name.to_owned(),
+                    id: "md5sum",
+                    color: "#cfcbc3",
+                    striped: false,
+                    gbps,
+                    note,
+                };
+            }
+            other => panic!("no test bar named {other}"),
+        };
         Bar {
             name: name.to_owned(),
-            color,
+            id,
+            color: a.color(),
+            striped: a.striped(),
             gbps,
             note,
         }
@@ -946,23 +1030,22 @@ mod tests {
         let mut cells: Vec<Bars> = PICKS.iter().map(|_| Vec::new()).collect();
         // Servil 0.9× official (official fills the width), 1.2× SHA-256.
         cells[0] = vec![
-            bar("BLAKE3 servil st", "#7c3aed", 0.9, ""),
-            bar("BLAKE3 official", "#3b82f6", 1.0, ""),
-            bar("SHA-256", "#e07a45", 0.75, ""),
+            bar("BLAKE3 servil st", 0.9, ""),
+            bar("BLAKE3 official", 1.0, ""),
+            bar("SHA-256", 0.75, ""),
         ];
         cells[3] = vec![
-            bar("BLAKE3 servil mt", "#4c1d95", 12.0, ""),
+            bar("BLAKE3 servil mt", 12.0, ""),
             bar(
                 "BLAKE3 official",
-                "#3b82f6",
                 1.0,
                 "official on one thread: this run lacks its multithreaded form",
             ),
         ];
         cells[6] = vec![
-            bar("b3sum, BLAKE3 servil's", "#4c1d95", 30.0, ""),
-            bar("b3sum, official BLAKE3's", "#3b82f6", 10.0, ""),
-            bar("md5sum", "#cfcbc3", 1.5, ""),
+            bar("b3sum, BLAKE3 servil's", 30.0, ""),
+            bar("b3sum, official BLAKE3's", 10.0, ""),
+            bar("md5sum", 1.5, ""),
         ];
         let vm = row("virt", true, PICKS.iter().map(|_| Vec::new()).collect());
         let rows = [row("A", false, cells), vm];
@@ -993,9 +1076,18 @@ mod tests {
             .skip(1)
             .map(|s| &s[..s.find('"').unwrap()])
             .collect();
+        // Each library's two forms in its one colour, the multi-threaded
+        // striped; official's multi-threaded button is b3sum's bar's.
         assert_eq!(
             legend,
-            ["#7c3aed", "#4c1d95", "#3b82f6", "#e07a45", "#cfcbc3"]
+            [
+                "#7c3aed".to_owned(),
+                paint("#7c3aed", true),
+                "#3b82f6".to_owned(),
+                paint("#3b82f6", true),
+                "#e07a45".to_owned(),
+                "#cfcbc3".to_owned()
+            ]
         );
         assert!(text(&rows).contains(
             "1000 files, b3sum:                   30 GB/s b3sum, BLAKE3 servil's; 10 GB/s b3sum, official BLAKE3's (3.0×); 1.5 GB/s md5sum (20×)"

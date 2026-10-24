@@ -1191,18 +1191,25 @@ impl Algorithm {
      * panel reserves for "faster" and "slower". A multithreaded contender
      * wears a darker shade of its single-threaded sibling's hue.
      */
+    /// The colour of the contender's library: a library's single- and
+    /// multi-threaded forms share it, and `striped` tells them apart
+    /// (Zooko, October 24: one family, two forms, at a glance).
     fn color(self) -> &'static str {
         match self {
-            Self::Blake3 => "#3b82f6",
+            Self::Blake3 | Self::Blake3Rayon => "#3b82f6",
             Self::Sha256 => "#e07a45",
             Self::Sha1Dc => "#8a7a1e",
-            Self::Blake3ServilSt => "#7c3aed",
+            Self::Blake3ServilSt | Self::Blake3ServilMt => "#7c3aed",
             Self::Sha256CommonCrypto => "#0e9aa7",
             Self::Sha256Ring => "#c2410c",
-            Self::Blake3Rayon => "#1e3a8a",
-            Self::Blake3ServilMt => "#4c1d95",
             Self::Sha3_256 => "#db2777",
         }
+    }
+
+    /// Whether the contender is a library's multi-threaded form, drawn in
+    /// its single-threaded form's colour with a pattern of its own.
+    fn striped(self) -> bool {
+        matches!(self, Self::Blake3Rayon | Self::Blake3ServilMt)
     }
 
     /// The Cargo.lock description of the crate that implements this contender.

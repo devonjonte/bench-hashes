@@ -284,6 +284,9 @@ struct Section {
     layers: Vec<(&'static str, &'static str, &'static str)>,
     names: Vec<String>,
     colors: Vec<String>,
+    /// Each contender's pattern: a library's multi-threaded form is drawn
+    /// in its single-threaded form's colour, as a double line.
+    striped: Vec<bool>,
     shown: Vec<bool>,
     cells: Vec<(String, Chart)>,
     about: String,
@@ -322,6 +325,12 @@ impl Section {
             .map(bool::to_string)
             .collect::<Vec<_>>()
             .join(",");
+        let striped = self
+            .striped
+            .iter()
+            .map(bool::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
         let cells = self
             .cells
             .iter()
@@ -334,8 +343,8 @@ impl Section {
             .map(|(a, b, c)| format!("[{},{},{}]", json(a), json(b), json(c)))
             .collect::<Vec<_>>()
             .join(",");
-        format!("{{\"title\":{},\"rows\":[{}],\"cols\":[{}],\"layers\":[{}],\"names\":[{}],\"colors\":[{}],\"shown\":[{}],\"cells\":{{{}}},\"about\":{},\"details\":[{}],\"run\":{},\"before\":[{},{}]}}",
-            json(self.title), triples(&self.rows), triples(&self.cols), triples(&self.layers), names, colors, shown, cells, json(&self.about), details, json(&self.run), json(&self.before.0), json(&self.before.1))
+        format!("{{\"title\":{},\"rows\":[{}],\"cols\":[{}],\"layers\":[{}],\"names\":[{}],\"colors\":[{}],\"striped\":[{}],\"shown\":[{}],\"cells\":{{{}}},\"about\":{},\"details\":[{}],\"run\":{},\"before\":[{},{}]}}",
+            json(self.title), triples(&self.rows), triples(&self.cols), triples(&self.layers), names, colors, striped, shown, cells, json(&self.about), details, json(&self.run), json(&self.before.0), json(&self.before.1))
     }
 }
 
@@ -655,6 +664,7 @@ fn hashing(path: &Path) -> Section {
             }).chain([BAO_TREE.to_owned()]).collect()
         },
         colors: algorithms.iter().map(|a| a.color()).chain(["#15803d"]).map(str::to_owned).collect(),
+        striped: algorithms.iter().map(|a| a.striped()).chain([false]).collect(),
         shown: algorithms.iter().map(|a| SHOWN_AT_FIRST.contains(a)).chain([true]).collect(),
         cells,
         about: about(&file.headers, &file.load),
@@ -778,6 +788,7 @@ fn b3sum(path: &Path) -> Section {
         ],
         layers: vec![("solo", "one program", "One program hashes; the machine is otherwise quiet.")],
         colors: (0..names.len()).map(|i| palette[i % palette.len()].to_owned()).collect(),
+        striped: names.iter().map(|_| false).collect(),
         shown: names.iter().map(|_| true).collect(),
         names,
         cells,

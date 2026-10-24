@@ -26,6 +26,8 @@ th.yours { background: #f5f3ff; }
 .pick::after { content: "\203A"; position: absolute; right: 7px; top: 50%; transform: translateY(-52%); font-size: 18px; line-height: 1; color: #c9c4bb; transition: color .12s, right .12s; }
 .pick:hover, .pick:focus-visible { border-color: #a78bfa; box-shadow: 0 2px 8px rgba(76,29,149,.14); transform: translateY(-1px); }
 .pick:hover::after, .pick:focus-visible::after { color: #6d28d9; right: 4px; }
+/* The cell's scale: the speed its full width stands for, under the end. */
+.pick .scale { display: block; width: 220px; text-align: right; font-size: 10px; line-height: 12px; color: #a8a29e; margin-top: 1px; }
 .pick.none { color: #d1d5db; font-size: 11px; border-color: transparent; background: none; }
 .pick.none::after { content: none; }
 .bars { position: relative; display: flex; flex-direction: column; gap: 2px; width: 220px; border-left: 1px solid #d1d5db; padding-left: 1px; margin-right: 40px; }
@@ -78,51 +80,59 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 <footer>Each bar is one run's mean, by the same rule as the map (<code>clocks::summary</code>), on a machine whose load reading is on its map; no verdict is drawn across runs. From <a href="https://github.com/johnservil/bench-hashes">johnservil/bench-hashes</a>, measuring <a href="https://github.com/johnservil/BLAKE3">blake3-servil</a>; the cells shown are FROZEN.md's "The overview".</footer>
 <script>
 (function () {
-  const sel = b => `.bars i[data-c="${CSS.escape(b.dataset.c)}"]`;
+  const sel = b => `.bars i[data-k="${CSS.escape(b.dataset.k)}"]`;
   const hidden = i => i.closest(".bar").classList.contains("off");
   const fmt = g => { if (g <= 0) return "0 GB/s"; const d = Math.max(0, 1 - Math.floor(Math.log10(g))); return g.toFixed(d) + " GB/s"; };
   const times = m => "×" + (m >= 10 ? m.toFixed(0) : m.toFixed(1));
-  // The multipliers: servil's speed over each competitor still shown, each
-  // with the competitor's colour, in the bars' order.
-  // A legend button hides or shows a hash's bars in both views.
+  // A bracket joins BLAKE3 servil's bar and its strongest rival's (the
+  // fastest of the others shown) and says how many times faster the
+  // winner ran, in the winner's colour: every bracket is about servil
+  // (Zooko, October 24). With servil hidden, or alone, there is none.
+  // `speeds` are the bars' speeds, servil's first; the result is [the
+  // factor, the winner's index].
+  const duel = speeds => {
+    const rival = speeds.slice(1).reduce((k, g, j) => (g > speeds[k] ? j + 1 : k), 1);
+    const [ours, theirs] = [speeds[0], speeds[rival]];
+    return ours >= theirs ? [ours / theirs, 0, rival] : [theirs / ours, rival, rival];
+  };
   const spans = () => {
-    // The first view: the bracket compares the full bars (nonstop, every core).
+    // The first view: servil's family bar against the strongest other, on
+    // each measure (the inner part, 1 KiB on one thread; the full bar,
+    // nonstop on every core).
     for (const bars of document.querySelectorAll(".fam-bars:not(.fam-scale .fam-bars)")) {
       bars.querySelector(".span")?.remove();
-      const shown = [...bars.querySelectorAll(".fam-bar:not(.off)")];
-      if (shown.length < 2) continue;
-      // Each bar's two speeds: the inner's (1 KiB, one thread) and the full
-      // bar's (nonstop, every core). The bracket gives, for each, how many
-      // times faster the fastest ran, in the fastest's colour: who leads
-      // shows without a word, and the two may differ.
-      const lead = cls => {
-        const gs = shown.map(f => +f.querySelector("i." + cls).dataset.g), k = gs.indexOf(Math.max(...gs));
-        return [Math.max(...gs) / Math.min(...gs), shown[k].dataset.c];
+      const all = [...bars.querySelectorAll(".fam-bar")];
+      const shown = all.filter(f => !f.classList.contains("off"));
+      if (shown.length < 2 || shown[0] !== all[0]) continue;
+      const measure = cls => {
+        const [m, w, r] = duel(shown.map(f => +f.querySelector("i." + cls).dataset.g));
+        return [m, shown[w].dataset.color, r];
       };
-      const [lo, loC] = lead("lo"), [hi, hiC] = lead("hi");
-      const longest = Math.max(...shown.map(f => parseFloat(f.querySelector("i.hi").style.width)));
-      const top = shown[0].offsetTop, bottom = shown.at(-1).offsetTop + shown.at(-1).offsetHeight;
+      const [lo, loC, loR] = measure("lo"), [hi, hiC, hiR] = measure("hi");
+      const pair = [shown[0], shown[Math.max(loR, hiR)]];
+      const longest = Math.max(...pair.map(f => parseFloat(f.querySelector("i.hi").style.width)));
+      const top = pair[0].offsetTop, bottom = pair[1].offsetTop + pair[1].offsetHeight;
       const label = `<span style="color:${loC}">${times(lo)}</span> <span style="color:${hiC}">${times(hi)}</span>`;
-      const title = `the fastest over the slowest: ${times(lo)} on one thread (1 KiB), ${times(hi)} nonstop on every core`;
+      const title = `servil against the fastest other: ${times(lo)} on one thread (1 KiB), ${times(hi)} nonstop on every core, each in the colour of the faster`;
       bars.insertAdjacentHTML("beforeend", `<span class="span" title="${title}" style="left:calc(${longest}% + 4px);top:${top}px;height:${bottom - top}px"><b>${label}</b></span>`);
     }
     for (const bars of document.querySelectorAll(".bars")) {
       bars.querySelector(".span")?.remove();
-      const shown = [...bars.querySelectorAll("i")].filter(i => !hidden(i));
-      if (shown.length < 2) continue;
-      const gs = shown.map(i => +i.dataset.g), m = Math.max(...gs) / Math.min(...gs);
-      // Just past the longest bar, from the top of the first bar shown to
-      // the bottom of the last (as on the map, to the right of the lines).
-      const longest = Math.max(...shown.map(i => parseFloat(i.style.width)));
-      const top = shown[0].parentElement.offsetTop, bottom = shown.at(-1).parentElement.offsetTop + shown.at(-1).parentElement.offsetHeight;
-      const leader = shown[gs.indexOf(Math.max(...gs))].dataset.c;
-      bars.insertAdjacentHTML("beforeend", `<span class="span" title="the fastest over the slowest" style="left:calc(${longest}% + 3px);top:${top}px;height:${bottom - top}px"><b style="color:${leader}">${times(m)}</b></span>`);
+      const all = [...bars.querySelectorAll("i")];
+      const shown = all.filter(i => !hidden(i));
+      if (shown.length < 2 || shown[0] !== all[0]) continue;
+      const [m, w, r] = duel(shown.map(i => +i.dataset.g));
+      // Just past the longer of the two, from servil's bar to its rival's.
+      const pair = [shown[0], shown[r]];
+      const longest = Math.max(...pair.map(i => parseFloat(i.style.width)));
+      const top = pair[0].parentElement.offsetTop, bottom = pair[1].parentElement.offsetTop + pair[1].parentElement.offsetHeight;
+      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other, in the colour of the faster" style="left:calc(${longest}% + 3px);top:${top}px;height:${bottom - top}px"><b style="color:${shown[w].dataset.color}">${times(m)}</b></span>`);
     }
   };
   const apply = (b, off) => {
     b.classList.toggle("off", off);
     for (const i of document.querySelectorAll(sel(b))) i.closest(".bar").classList.toggle("off", off);
-    for (const f of document.querySelectorAll(`.fam-bar[data-c="${CSS.escape(b.dataset.c)}"]`)) f.classList.toggle("off", off);
+    for (const f of document.querySelectorAll(`.fam-bar[data-k~="${CSS.escape(b.dataset.k)}"]`)) f.classList.toggle("off", off);
     spans();
   };
   spans();
