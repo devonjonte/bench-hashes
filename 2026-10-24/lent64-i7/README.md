@@ -59,7 +59,12 @@ its blindness here, each fixed:
   judged it level. Confirmations now run eight pairs.
 Main-thread offsets are left out: regress's command line differs from
 the scan's, so a main-stack offset lands elsewhere when confirmed.
-`repeat.py`: 5 of 8 runs exit 0 (2e892e1: 3 of 5; 082afa3: 2 of 3); in
-the other three the candidates missed the window.
+`repeat.py`: 5 of 8 runs exit 0 with three candidates a cell
+(`patched/three-candidates`); `misses.py` shows why: a single quick
+reading strays as high as the window reads, which ranked 1st to 10th of
+256. With ten candidates a cell (`4f3e033`, `patched/ten-candidates`):
+**8 of 8 runs exit 0**, about 97 s each, no batch cell judged sensitive;
+shared lent 64 B found at +3472..+3520 in 7 runs, shared continuous 64 B
+at +912..+960 in 6.
 
 **Posted.** johnservil/bench-hashes #65.
