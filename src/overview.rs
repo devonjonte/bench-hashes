@@ -992,7 +992,10 @@ mod tests {
             page.contains("<span class=\"pt\">full width 1.0 GB/s</span>"),
             "the row names the speed that fills its width"
         );
-        assert!(page.contains("width:5.0%;background:#cfcbc3"), "md5sum's 1.5 of b3sum's 30");
+        assert!(
+            page.contains("width:5.0%;background:#cfcbc3"),
+            "md5sum's 1.5 of b3sum's 30"
+        );
         assert!(
             page.contains("<th class=\"vm\""),
             "a virtual machine's column is marked"
