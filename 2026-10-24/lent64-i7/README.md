@@ -25,4 +25,26 @@ S, solo ns/B, shared ns/B. Machine otherwise idle; one job at a time.
 - E cores: nothing above noise at steps of 64 (shared 1.19–1.24 ns/B,
   isolated high readings that did not recur); steps of 16 not swept.
 
+**Sam's offset_check.py on the i7** (samshackleton-tech/BLAKE3
+8b25ac65, on servil 2e892e1; `offset-check-*`): exit 3 both with
+`--coarse` (128-byte steps) and by default (64): "no control cell was
+judged sensitive". Its scan steps over the i7's 48-byte window, and its
+screen (worst above 1.10 times the median) sits just above the i7's
++9–11%, so the cells it confirmed were noise, each judged level.
+
+**The same window at servil 2e892e1** (`sweep16-tip`, the binary the
+tool built, SHA-256 a4f175b8...): shared 0.800–0.807 ns/B at S =
+3984–4032 again, so the window held across the two builds.
+
+**An unexplained solo episode.** Through all of `sweep16-tip` (257 runs,
+about ten minutes) solo 64 B read 0.97–1.07 ns/B against 0.72–0.74 in
+every other run before and after, at a P core's full clock (core counts:
+4.9 GHz, 4.8 cycles a byte against 3.5). The main thread's stack through
+a page (`sweep-main`, environment size in steps of 16) shows 16-byte
+slow spots at three offsets for that build (to 0.95) and none for the
+release build; re-running the sweep's own script, directories and
+settings did not bring the episode back. Recorded, not attributed.
+
+`summarize.py` reads the sweeps.
+
 **Posted.** johnservil/bench-hashes #65.
