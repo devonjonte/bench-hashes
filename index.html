@@ -202,7 +202,12 @@ repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)	b3sum, offic
       // (BLAKE3 official, off at first) leaves no cell narrower than the
       // rest (Zooko, October 24).
       const fastest = Math.max(...shown.map(i => +i.dataset.g));
-      if (fastest > 0) for (const i of all) i.style.width = `${Math.min(100, (100 * +i.dataset.g) / fastest).toFixed(1)}%`;
+      if (fastest > 0) {
+        for (const i of all) i.style.width = `${Math.min(100, (100 * +i.dataset.g) / fastest).toFixed(1)}%`;
+        // The magnitude under the cell's end is the fastest shown's.
+        const scale = bars.closest(".pick")?.querySelector(".scale");
+        if (scale) scale.textContent = fmt(fastest);
+      }
       if (shown.length < 2 || shown[0] !== all[0]) continue;
       const [m, w, r] = duel(shown.map(i => +i.dataset.g));
       // Just past the longer of the two, from servil's bar to its rival's.
