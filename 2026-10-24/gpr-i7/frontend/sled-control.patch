@@ -1,0 +1,20 @@
+commit b649f9ed8c53bad5848e1104335eecde2e43649c
+Author: Devon Jonte <devonjonte@users.noreply.github.com>
+Date:   Sat Oct 24 23:37:12 2026 +0000
+
+    local control: the SSE4.1 chunk-root entry with 1972 bytes of executed no-ops (the GPR kernel's size)
+
+diff --git a/c/blake3_chunk_root_x86-64_unix.S b/c/blake3_chunk_root_x86-64_unix.S
+index ffff0b8..9832e30 100644
+--- a/c/blake3_chunk_root_x86-64_unix.S
++++ b/c/blake3_chunk_root_x86-64_unix.S
+@@ -24,6 +24,9 @@
+ blake3_sse41_chunk_root:
+ _blake3_sse41_chunk_root:
+ _CET_ENDBR
++        # Code-size control (local, not for landing): 1972 bytes of
++        # executed no-ops, the SIMD entry at the GPR kernel's 2996 bytes.
++        .nops 1972
+         movzx r11d, cl
+         mov r10, rcx
+         shr r10, 8
