@@ -258,7 +258,12 @@ repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)	b3sum, offic
   const col = document.querySelector(`th[data-arch="${apple ? "apple" : "x86"}"]:not(.vm)`);
   if (col) { col.classList.add("yours"); const b = col.querySelector("b"); if (b) b.insertAdjacentHTML("afterend", ' <span style="display:inline;color:#7c3aed;font-size:11px;font-weight:normal">yours?</span>'); }
   const vm = document.getElementById("vm");
-  vm.addEventListener("change", () => document.body.classList.toggle("show-vm", vm.checked));
+  // The brackets are measured from where the bars sit, and a hidden
+  // column's bars sit nowhere: draw them again once the column shows
+  // (they lay flat at its cells' tops, Zooko, October 24), and when the
+  // window's width moves the bars.
+  vm.addEventListener("change", () => { document.body.classList.toggle("show-vm", vm.checked); spans(); });
+  addEventListener("resize", spans);
 })();
 </script>
 </body></html>
