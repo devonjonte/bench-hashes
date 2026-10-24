@@ -266,8 +266,8 @@ two callers in one process sharing that one pool, the same situation
 the servil fork's fair sharing addresses, so the two multithreaded
 columns compare like for like.
 
-BLAKE3 servil mt is the fork's `blake3_servil::hash_multithreaded`,
-which returns the same hash as `blake3_servil::hash`. Inputs below
+BLAKE3 servil mt is the fork's `performance::hash_multithreaded`,
+which returns the same hash as `convenience::hash`. Inputs below
 its split (512 KiB) stay on the calling thread.
 Larger inputs can split at subtree
 boundaries across the calling thread and worker threads the fork starts

@@ -199,7 +199,7 @@ fn a_pipelined_collection_hashes_every_item() {
         let items = items_of(*point, &input);
         let want: Vec<[u8; 32]> = items
             .iter()
-            .map(|&(o, l)| *blake3_servil::hash(&input[o..o + l]).as_bytes())
+            .map(|&(o, l)| *blake3_servil::convenience::hash(&input[o..o + l]).as_bytes())
             .collect();
         for algorithm in [
             Algorithm::Blake3ServilSt,
@@ -335,6 +335,59 @@ fn visits_follow_what_the_run_is_for() {
     for use_case in UseCase::ALL {
         for schedule in [&TO_MEASURE_SPEED, &TO_CHECK_FOR_REGRESSIONS] {
             assert!(use_case.visits(schedule) <= FULL_ROUNDS);
+        }
+    }
+}
+
+/// Every cell whose inputs come in blocks (UseCase::in_blocks) hashes each
+/// message's own bytes: the three BLAKE3 contenders' digests equal
+/// official BLAKE3's of the message alone, whether a contender gets the
+/// message cut from its blocks or, as servil's performance calls, the
+/// blocks and the length. The benchmark checks no digest in a run, so this
+/// holds the layouts' lengths (lengths off a block, and a collection's
+/// items each in their own blocks).
+#[test]
+fn every_message_in_blocks_hashes_its_own_bytes() {
+    blake3_servil::initialize_multithreaded(None);
+    let mut points: Vec<Point> = [1, 63, 64, 65, 1000, 4096, 70_000]
+        .into_iter()
+        .flat_map(|len| {
+            [
+                Point::one("", len),
+                Point::lent("", len),
+                Point::continuous("", len),
+            ]
+        })
+        .collect();
+    points.extend_from_slice(&POINTS[UseCase::Collection.points()]);
+    for point in points {
+        let (copy, at) = block_copy(&make_input(input_len(point)));
+        let input = &copy[at..][..input_len(point)];
+        let want: Vec<[u8; 32]> = match point.use_case {
+            UseCase::Collection => items_of(point, input)
+                .iter()
+                .map(|&(o, l)| *blake3::hash(&input[o..o + l]).as_bytes())
+                .collect(),
+            _ => vec![*blake3::hash(&input[..point.bytes]).as_bytes()],
+        };
+        for algorithm in [
+            Algorithm::Blake3ServilSt,
+            Algorithm::Blake3ServilMt,
+            Algorithm::Blake3,
+        ] {
+            let mut got: Vec<[u8; 32]> = Vec::new();
+            hash_batch(algorithm, input, point, 1, |d| {
+                got.push(d.try_into().unwrap())
+            });
+            assert_eq!(
+                got,
+                want,
+                "{} {:?} {}, {} B",
+                algorithm.key(),
+                point.use_case,
+                point.label,
+                point.bytes
+            );
         }
     }
 }
