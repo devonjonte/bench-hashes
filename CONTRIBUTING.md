@@ -26,6 +26,7 @@ process (`cargo test` stops at once and says so).
 cargo nextest run --release
 cargo run --release -- --quick     # seconds; a full run takes minutes
 node tools/graph-check/map.js benchmark-results/FOLDER/bench-hashes.map.html
+node tools/graph-check/overview.js index.html
 ```
 
 ## Adding a contender
