@@ -16,6 +16,7 @@ th, td { text-align: left; vertical-align: middle; padding: 5px 10px; border-top
 th { border-top: none; vertical-align: bottom; } th.stale { max-width: 180px; }
 th a { color: #4c1d95; text-decoration: none; } th b { font-size: 15px; } th span { display: block; color: #9ca3af; font-size: 12px; font-weight: normal; margin-top: 2px; }
 th span.stale { color: #6b7280; }
+tr.band th { text-align: left; font-size: 13px; font-weight: 700; color: #4c1d95; padding: 14px 0 4px; border-bottom: 1px solid #ede9fe; }
 th.situation, td.situation { min-width: 150px; max-width: 170px; font-size: 12px; font-weight: 600; color: #6b7280; cursor: help; }
 td.situation .pt { display: block; color: #9ca3af; font-size: 11px; font-weight: normal; }
 th.vm, td.vm { display: none; } body.show-vm th.vm, body.show-vm td.vm { display: table-cell; }
@@ -69,9 +70,9 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 }
 </style></head><body>
 <h1>How fast BLAKE3 servil runs</h1>
-<p class="sub">Longer is faster, on one scale for every machine. The full bar hashes nonstop on every core; the darker part is one message of 1 KiB on one thread. The bracket: how many times faster the fastest ran, in its colour. Point at a bar for figures.</p>
+<p class="sub">Longer is faster, on one scale for every machine. The full bar hashes nonstop on every core; the darker part is one message of 1 MiB on one thread, the convenience API's one call. The bracket: how many times faster the fastest ran, in its colour. Point at a bar for figures.</p>
 <div class="legend">@LEGEND@<label><input type="checkbox" id="vm"> show virtual machines</label></div>
-<div class="fam-legend"><span><i class="lo"></i> one message of 1 KiB, one thread, between other work</span><span><i class="hi"></i> messages nonstop, every core</span></div>
+<div class="fam-legend"><span><i class="lo"></i> one message of 1 MiB, one thread, between other work</span><span><i class="hi"></i> messages nonstop, every core</span></div>
 @FAMILIES@
 <h2>By machine and by use case</h2>
 <p class="sub">A column is a machine, a row a use case. In each cell the fastest bar fills the width; the bracket says by how much it leads.</p>
@@ -99,7 +100,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
   };
   const spans = () => {
     // The first view: servil's family bar against the strongest other, on
-    // each measure (the inner part, 1 KiB on one thread; the full bar,
+    // each measure (the inner part, 1 MiB on one thread; the full bar,
     // nonstop on every core).
     for (const bars of document.querySelectorAll(".fam-bars:not(.fam-scale .fam-bars)")) {
       bars.querySelector(".span")?.remove();
@@ -118,7 +119,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
       const longest = Math.max(...[all[0], last].flatMap(f => [...f.querySelectorAll("i:not(.off)")].map(i => parseFloat(i.style.width))));
       const top = all[0].offsetTop, bottom = last.offsetTop + last.offsetHeight;
       const label = figures.map(([m, c]) => `<span style="color:${c}">${times(m)}</span>`).join(" ");
-      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other, in the colour of the faster: on one thread (1 KiB), then nonstop on every core" style="left:calc(${longest}% + 4px);top:${top}px;height:${bottom - top + 2}px"><b>${label}</b></span>`);
+      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other, in the colour of the faster: on one thread (1 MiB), then nonstop on every core" style="left:calc(${longest}% + 4px);top:${top}px;height:${bottom - top + 2}px"><b>${label}</b></span>`);
     }
     for (const bars of document.querySelectorAll(".bars")) {
       bars.querySelector(".span")?.remove();

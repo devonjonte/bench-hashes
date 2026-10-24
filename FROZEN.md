@@ -576,24 +576,33 @@ use, across machines?".
   for) and the fastest SHA-256 the run measured (sha2, ring, or the OS's).
   A bar's full length is hashing nonstop on every core (ContinuousMessages
   64 KiB: servil's stream, official's multi-threaded form); the part
-  inside it, one message of 1 KiB on one thread, after other work, where
-  SHA-256 with the CPU's instructions leads. So the view spans where
-  servil trails to where it leads most.
-- **The grid: a column a machine, a row a representative cell.** In each
-  cell a bar a hash, each cell on its own linear scale (its fastest bar
-  fills the width, that speed written under its end). The rows, chosen
-  once, here; the overview reads these cells and no others:
+  inside it, one message of 1 MiB on one thread, after other work: the
+  convenience API's one call inside the performance API's headline case.
+- **The grid: a column a machine, a row a representative cell,** in two
+  bands named by the page's only words for them, "Convenience API" and
+  "Performance API" (Zooko, October 24: the overview is for people
+  choosing by speed, so it shows the performance API, and one cell of the
+  convenience API, since most programs call it, its performance twin the
+  next row down). In each cell a bar a hash, each cell on its own linear
+  scale (its fastest bar shown fills the width, that speed written under
+  its end). The rows, chosen once, here; the overview reads these cells
+  and no others:
 
   | row | scenario, use case, point | servil's contender | the situation |
   |---|---|---|---|
-  | 64 B; 1 KiB | solo OneMessage 64 B; solo OneMessage 1 KiB | blake3-servil-st | a key, an identifier, a small record, hashed between a program's other work |
-  | 1 MiB, one thread | solo OneMessage 1 MiB | blake3-servil-st | a buffer the size of a file, on the calling thread |
+  | **Convenience API** | | | |
+  | 1 MiB, one thread | solo OneMessage 1 MiB | blake3-servil-st (`convenience::hash`) | a buffer the size of a file, one call on the calling thread |
+  | **Performance API** | | | |
+  | 1 MiB, every core | solo OneMessage 1 MiB | blake3-servil-mt (`performance::hash_multithreaded`) | the same buffer, the library's threads at work |
   | 128 MiB, every core | solo OneMessage 128 MiB | blake3-servil-mt (against blake3-official-mt) | a download or a disk image, the library's threads at work |
   | 64 KiB messages, one after another | solo ContinuousMessages 64 KiB | blake3-servil-mt (the stream) | messages arriving one after another, as fast as the program can feed them |
   | 1024 messages of 64 B, batched | solo ManyMessages 1024 | blake3-servil-st | a Merkle layer, a content-addressed store, a database's keys |
   | 1000 files, b3sum | b3sum, warm, mixed tree, 1000 files, 74 MiB | the fork's b3sum (against official b3sum and the system's sha256sum, sha1sum and md5sum: still what many people run on a download, whatever their security) | the command people actually run, process start to exit |
 
-  Seven cells. **The budget is eight.** Adding one names the one it
+  Six cells. 64 B and 1 KiB left with the bands: at those sizes servil's
+  two kinds of one-message call run the same code, and the performance
+  API's gain for short messages is the batch, a row of its own; their
+  cells stay on each machine's map. **The budget is eight.** Adding one names the one it
   displaces, or argues the rare exception, here. Each cell is a card that
   opens its chart on that machine's map.
 - **One colour a library.** A library's single- and multi-threaded forms
@@ -683,9 +692,8 @@ blake3-servil-st IdleOneMessage: hash(input), each call after idling
 blake3-servil-st IdleManyMessages: hash_many(batch, 64, out), the padded batch contract, each call after idling
 blake3-servil-mt IdleOneMessage: hash_multithreaded(input), each call after idling
 blake3-servil-mt IdleManyMessages: hash_many_multithreaded(batch, 64, out), the padded batch contract, each call after idling
-overview cell: solo OneMessage 64 B, blake3-servil-st (64 B)
-overview cell: solo OneMessage 1 KiB, blake3-servil-st (1 KiB)
 overview cell: solo OneMessage 1 MiB, blake3-servil-st (1 MiB, one thread)
+overview cell: solo OneMessage 1 MiB, blake3-servil-mt (1 MiB, every core)
 overview cell: solo OneMessage 128 MiB, blake3-servil-mt (128 MiB, every core)
 overview cell: solo ContinuousMessages 64 KiB, blake3-servil-mt (64 KiB messages, one after another)
 overview cell: solo ManyMessages 1024, blake3-servil-st (1024 messages of 64 B, batched)
