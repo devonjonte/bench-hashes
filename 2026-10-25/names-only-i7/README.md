@@ -1,4 +1,8 @@
-# The kernel names alone (#164) against `servil`, i7-12700K: servil's own batch kernels, measured for the first time beside official's
+# The kernel names alone (#164) against `servil`, i7-12700K: no cell slower
+
+> **Correction, October 25 (`../overread-cost-i7`):** the reading below rests on
+> 4-pair first-stage ratios. With 23 pairs, servil's own kernels and upstream's
+> run alike on these cells. The figures here are noise, not a cost.
 
 **Question:** the 0.8 integration's after-a-pause cells read 7–20% slower
 (`../release-08-i7`), while a probe that links servil alone shows the
