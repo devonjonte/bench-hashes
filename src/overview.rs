@@ -729,7 +729,31 @@ pub fn html(rows: &[Row]) -> String {
     // glance across a row compares machines. Machines of another release
     // get a column that names their last run and links its map.
     let mut body = String::new();
-    body.push_str("<div class=\"grid\"><table><thead><tr><th class=\"situation\"></th>");
+    // One logarithmic scale for every cell of every machine (an experiment,
+    // Zooko, October 24): from the decade below the slowest bar to the one
+    // above the fastest, a faint line at each decade between.
+    let speeds: Vec<f64> = rows
+        .iter()
+        .filter(|r| !r.stale)
+        .flat_map(|r| r.cells.iter().flatten().map(|b| b.gbps))
+        .filter(|&g| g > 0.0)
+        .collect();
+    let lo = 10f64.powf(speeds.iter().cloned().fold(f64::INFINITY, f64::min).log10().floor());
+    let hi = 10f64.powf(speeds.iter().cloned().fold(0.0, f64::max).log10().ceil());
+    let shared = |g: f64| {
+        if g > 0.0 {
+            (100.0 * (g.log10() - lo.log10()) / (hi.log10() - lo.log10())).max(0.5)
+        } else {
+            0.0
+        }
+    };
+    let mut ticks = String::new();
+    let mut decade = lo * 10.0;
+    while decade < hi * 0.999 {
+        let _ = write!(ticks, "<span class=\"tick\" style=\"left:{:.1}%\"></span>", shared(decade));
+        decade *= 10.0;
+    }
+    body.push_str("<div class=\"grid\" data-shared=\"\"><table><thead><tr><th class=\"situation\"></th>");
     for row in rows {
         let class = if row.virtual_machine {
             " class=\"vm\""
@@ -754,6 +778,18 @@ pub fn html(rows: &[Row]) -> String {
             if row.stale { "<span class=\"stale\">that release's run is on its map; a run under this release is awaited</span>" } else { "" }
         );
     }
+    // The shared scale's decades, named once under each machine's name.
+    body.push_str("</tr><tr class=\"axis\"><th class=\"situation\"></th>");
+    for row in rows {
+        let class = if row.virtual_machine { " class=\"vm\"" } else { "" };
+        let _ = write!(body, "<th{class}><span class=\"axis\">");
+        let mut decade = lo * 10.0;
+        while decade < hi * 0.999 {
+            let _ = write!(body, "<i style=\"left:{:.1}%\">{}</i>", shared(decade), speed(decade).replace(" GB/s", ""));
+            decade *= 10.0;
+        }
+        body.push_str("<i class=\"unit\">GB/s</i></span></th>");
+    }
     body.push_str("</tr></thead><tbody>\n");
     for (i, pick) in PICKS.iter().enumerate() {
         {
@@ -776,13 +812,6 @@ pub fn html(rows: &[Row]) -> String {
                 }
                 let bars = &row.cells[i];
                 let fastest = bars.iter().map(|b| b.gbps).fold(0.0f64, f64::max);
-                let width = |g: f64| {
-                    if fastest > 0.0 {
-                        100.0 * g / fastest
-                    } else {
-                        0.0
-                    }
-                };
                 let map = match &PICKS[i].cell {
                     Cell::Hashing { use_case, .. } => format!(
                         "{}/bench-hashes.map.html#{}",
@@ -828,14 +857,16 @@ pub fn html(rows: &[Row]) -> String {
                         b.id,
                         b.color,
                         b.gbps,
-                        width(b.gbps),
+                        shared(b.gbps),
                         paint(b.color, b.striped)
                     );
                 }
-                // The scale: the speed the full width stands for, under its end.
+                body.push_str(&ticks);
+                // The fastest bar's speed, under its end.
                 let _ = write!(
                     body,
-                    "</span><span class=\"scale\">{}</span></a></td>",
+                    "</span><span class=\"scale\"><b style=\"left:{:.1}%\">{}</b></span></a></td>",
+                    shared(fastest),
                     speed(fastest)
                 );
             }

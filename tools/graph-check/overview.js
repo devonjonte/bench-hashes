@@ -26,9 +26,25 @@ const { chromium } = require('playwright');
     const scale = parseFloat(a.querySelector('.scale').textContent);
     return [[a.dataset.head, Math.max(...bars.map(i => i.getBoundingClientRect().width)) / track, scale / fastest]];
   }));
+  // A shared grid (data-shared) has one logarithmic scale for every cell:
+  // each bar's width, as a fraction of its track, is one straight line in
+  // log(speed), the same in every cell.
+  const shared = await page.$$eval('.grid[data-shared]', g => g.length > 0);
+  const scale = () => page.$$eval('a.pick', picks => picks.filter(a => a.offsetParent !== null).flatMap(a => {
+    const track = a.querySelector('.bars').getBoundingClientRect().width;
+    return [...a.querySelectorAll('.bar:not(.off) i')].map(i => [Math.log10(+i.dataset.g), i.getBoundingClientRect().width / track]);
+  }));
   const check = async state => {
     const all = await cells();
-    assert.deepEqual(all.filter(([, f]) => f < 0.98).map(c => c.slice(0, 2)), [], `${state}: the fastest bar shown fills each cell`);
+    if (shared) {
+      const points = (await scale()).filter(([, f]) => f > 0.02);
+      const [a, b] = [points[0], points.reduce((m, p) => (Math.abs(p[0] - points[0][0]) > Math.abs(m[0] - points[0][0]) ? p : m))];
+      const slope = (b[1] - a[1]) / (b[0] - a[0]);
+      const off = points.filter(([x, f]) => Math.abs(a[1] + slope * (x - a[0]) - f) > 0.01);
+      assert.deepEqual(off, [], `${state}: every bar on the one shared scale`);
+    } else {
+      assert.deepEqual(all.filter(([, f]) => f < 0.98).map(c => c.slice(0, 2)), [], `${state}: the fastest bar shown fills each cell`);
+    }
     // The magnitude is the fastest shown's, as rounded to two figures.
     assert.deepEqual(all.filter(([, , r]) => Math.abs(r - 1) > 0.06).map(c => [c[0], c[2]]), [], `${state}: each cell's magnitude is its fastest bar's`);
   };
@@ -44,5 +60,5 @@ const { chromium } = require('playwright');
   }
   assert.deepEqual(errors, [], 'no script error');
   await browser.close();
-  console.log(`overview: ${buttons} buttons, every cell filled in each state`);
+  console.log(`overview: ${buttons} buttons, ${shared ? 'one shared scale' : 'every cell filled'} in each state`);
 })().catch(e => { console.error(e.message); process.exit(1); });
