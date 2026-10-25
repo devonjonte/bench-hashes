@@ -26,6 +26,11 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **Official's b3sum on one thread too** (Zooko, October 25, answering
+  official BLAKE3's maintainer): `official-1-thread`, official's `b3sum`
+  with `--num-threads 1`, beside the fork's `b3sum-1-thread`, so every
+  b3sum cell compares the two on one thread as well as on every core.
+  `tools/b3sum-contenders.py` adds it.
 - **The fork's two kinds of call** (Zooko, October 24): BLAKE3 servil
   splits its API into `convenience` (one call per hash, any slice) and
   `performance` (every way to hash fast, inputs as `Block`s; BLAKE3 #146).

@@ -1,7 +1,9 @@
 """Build b3sum contenders for `bench-hashes b3sum` into DIR, each named for what it is:
     python3 tools/b3sum-contenders.py FORK DIR [COMMIT...]
 FORK is a checkout of github.com/johnservil/BLAKE3.
-  DIR/b3sum-official-1.8.2  official BLAKE3's b3sum from crates.io
+  DIR/b3sum-official-1.8.2  official BLAKE3's b3sum from crates.io (also as
+                            official-1-thread, the same build with
+                            --num-threads 1)
   DIR/b3sum-COMMIT          the fork's b3sum at each COMMIT (default: FORK's HEAD),
                             built from a clean worktree of that commit as its
                             README recommends: statically linked on Linux;
@@ -97,6 +99,10 @@ if not os.access(official, os.X_OK):
 cargo_home = os.environ.get("CARGO_HOME", os.path.expanduser("~/.cargo"))
 official_src = sorted(glob.glob(os.path.join(cargo_home, "registry", "src", "*", "b3sum-1.8.2")))[0]
 contenders = relink("official", os.path.join(official_src, "Cargo.toml"), official)
+# Official's on one thread too, as the fork's is, so the two compare on one
+# thread as well as on every core (official's maintainer asked; Zooko,
+# October 25).
+contenders += [c.replace("official=", "official-1-thread=", 1) + " --num-threads 1" for c in list(contenders)]
 for rev in revs:
     commit = out("git", "-C", fork, "rev-parse", "--short=7", f"{rev}^{{commit}}")
     worktree = os.path.join(target, f"worktree-{commit}")
