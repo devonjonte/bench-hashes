@@ -1721,21 +1721,24 @@ impl Sizes {
             Some(SIZES_VERSION),
             "--sizes: {path} begins with {SIZES_VERSION:?}"
         );
+        // A row for a point this bench lacks is another bench's (check
+        // --old-bench merges both sides' sizes): skipped; a cell this run
+        // measures without a size stops it below.
         Sizes::From(
             lines
-                .map(|line| {
+                .filter_map(|line| {
                     let fields: Vec<&str> = line.split('\t').collect();
                     assert_eq!(
                         fields.len(),
                         3,
                         "--sizes: {path}: a row of contender, point, iterations: {line}"
                     );
-                    (
-                        (fields[0].to_owned(), point_named(fields[1])),
+                    Some((
+                        (fields[0].to_owned(), point_if_named(fields[1])?),
                         fields[2]
                             .parse()
                             .expect("--sizes: iterations are a whole number"),
-                    )
+                    ))
                 })
                 .collect(),
         )
@@ -1849,29 +1852,41 @@ fn parse_arguments() -> Options {
  * prefix that matches, the plain label the calls after other work.
  */
 fn point_named(name: &str) -> usize {
-    let name = name.trim();
-    let (prefix, label) = UseCase::ALL
+    point_if_named(name).unwrap_or_else(|| {
+        let (prefix, _) = prefix_and_label(name.trim());
+        let labels: Vec<String> = POINTS
+            .iter()
+            .filter(|point| point.use_case.label_prefix() == prefix)
+            .map(|point| format!("{prefix}{}", point.label))
+            .collect();
+        panic!(
+            "--points: no point {name:?}; the points named so are {}",
+            labels.join(", ")
+        )
+    })
+}
+
+/// A `--points` name's use-case prefix (the longest that matches) and the
+/// label after it.
+fn prefix_and_label(name: &str) -> (&'static str, &str) {
+    UseCase::ALL
         .into_iter()
         .map(UseCase::label_prefix)
         .filter(|prefix| name.starts_with(prefix))
         .max_by_key(|prefix| prefix.len())
         .map(|prefix| (prefix, &name[prefix.len()..]))
-        .expect("the plain prefix matches every label");
-    let wanted = |point: &Point| point.use_case.label_prefix() == prefix;
+        .expect("the plain prefix matches every label")
+}
+
+/// The point a `--points` name names, or None where this bench has no
+/// such point (a sizes file written beside another bench, for a cell this
+/// one lacks: check --old-bench).
+fn point_if_named(name: &str) -> Option<usize> {
+    let name = name.trim();
+    let (prefix, label) = prefix_and_label(name);
     POINTS
         .iter()
-        .position(|point| point.label == label && wanted(point))
-        .unwrap_or_else(|| {
-            let labels: Vec<String> = POINTS
-                .iter()
-                .filter(|point| wanted(point))
-                .map(|point| format!("{prefix}{}", point.label))
-                .collect();
-            panic!(
-                "--points: no point {name:?}; the points named so are {}",
-                labels.join(", ")
-            )
-        })
+        .position(|point| point.label == label && point.use_case.label_prefix() == prefix)
 }
 
 fn parse_selection(arguments: &[String]) -> (Selection, Vec<Algorithm>) {
