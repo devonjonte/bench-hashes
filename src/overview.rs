@@ -551,6 +551,24 @@ pub fn text(rows: &[Row]) -> String {
     out
 }
 
+/// The page's one logarithmic scale, for both views and every machine
+/// (Zooko, October 24–25): from the decade below the slowest bar of any
+/// current machine to the decade above the fastest.
+fn decades(rows: &[Row]) -> (f64, f64) {
+    let speeds: Vec<f64> = rows
+        .iter()
+        .filter(|r| !r.stale)
+        .flat_map(|r| r.cells.iter().flatten().map(|b| b.gbps))
+        .filter(|&g| g > 0.0)
+        .collect();
+    let lo = speeds.iter().cloned().fold(f64::INFINITY, f64::min);
+    let hi = speeds.iter().cloned().fold(0.0, f64::max);
+    (
+        10f64.powf(lo.log10().floor()),
+        10f64.powf(hi.log10().ceil()),
+    )
+}
+
 /// The grid's two rows the first view overlays, by their index in PICKS:
 /// 64 B on one thread (where SHA-256 with the CPU's instructions keeps up)
 /// inside 128 MiB on every core, so each machine's bars there are the two
@@ -564,6 +582,8 @@ const HEADLINE: usize = 3;
 /// every machine, so bars compare across rows. No figure on the page; the
 /// figures and the cells' names under the pointer.
 fn families_by_machine(rows: &[Row]) -> String {
+    // The grid's scale, so a bar here matches its two cells below.
+    let (lo_g, hi_g) = decades(rows);
     let rows: Vec<&Row> = rows
         .iter()
         .filter(|r| !r.stale && !r.cells[HEADLINE].is_empty() && !r.cells[EVERYDAY].is_empty())
@@ -573,23 +593,6 @@ fn families_by_machine(rows: &[Row]) -> String {
     }
     // The families, in the bars' order: servil, official, SHA-256.
     let families = ["BLAKE3 servil", "BLAKE3 official", "SHA-256"];
-    let all: Vec<f64> = rows
-        .iter()
-        .flat_map(|r| {
-            r.cells[HEADLINE]
-                .iter()
-                .chain(&r.cells[EVERYDAY])
-                .map(|b| b.gbps)
-        })
-        .collect();
-    let lo_g = 10f64.powf(
-        all.iter()
-            .cloned()
-            .fold(f64::INFINITY, f64::min)
-            .log10()
-            .floor(),
-    );
-    let hi_g = 10f64.powf(all.iter().cloned().fold(0.0, f64::max).log10().ceil());
     let width = |g: f64| 100.0 * (g.log10() - lo_g.log10()) / (hi_g.log10() - lo_g.log10());
     let mut out = String::from("<div class=\"families\">");
     for r in &rows {
@@ -729,17 +732,8 @@ pub fn html(rows: &[Row]) -> String {
     // glance across a row compares machines. Machines of another release
     // get a column that names their last run and links its map.
     let mut body = String::new();
-    // One logarithmic scale for every cell of every machine (an experiment,
-    // Zooko, October 24): from the decade below the slowest bar to the one
-    // above the fastest, a faint line at each decade between.
-    let speeds: Vec<f64> = rows
-        .iter()
-        .filter(|r| !r.stale)
-        .flat_map(|r| r.cells.iter().flatten().map(|b| b.gbps))
-        .filter(|&g| g > 0.0)
-        .collect();
-    let lo = 10f64.powf(speeds.iter().cloned().fold(f64::INFINITY, f64::min).log10().floor());
-    let hi = 10f64.powf(speeds.iter().cloned().fold(0.0, f64::max).log10().ceil());
+    // The page's one scale, a faint line at each decade.
+    let (lo, hi) = decades(rows);
     let shared = |g: f64| {
         if g > 0.0 {
             (100.0 * (g.log10() - lo.log10()) / (hi.log10() - lo.log10())).max(0.5)
@@ -750,10 +744,16 @@ pub fn html(rows: &[Row]) -> String {
     let mut ticks = String::new();
     let mut decade = lo * 10.0;
     while decade < hi * 0.999 {
-        let _ = write!(ticks, "<span class=\"tick\" style=\"left:{:.1}%\"></span>", shared(decade));
+        let _ = write!(
+            ticks,
+            "<span class=\"tick\" style=\"left:{:.1}%\"></span>",
+            shared(decade)
+        );
         decade *= 10.0;
     }
-    body.push_str("<div class=\"grid\" data-shared=\"\"><table><thead><tr><th class=\"situation\"></th>");
+    body.push_str(
+        "<div class=\"grid\" data-shared=\"\"><table><thead><tr><th class=\"situation\"></th>",
+    );
     for row in rows {
         let class = if row.virtual_machine {
             " class=\"vm\""
@@ -781,11 +781,20 @@ pub fn html(rows: &[Row]) -> String {
     // The shared scale's decades, named once under each machine's name.
     body.push_str("</tr><tr class=\"axis\"><th class=\"situation\"></th>");
     for row in rows {
-        let class = if row.virtual_machine { " class=\"vm\"" } else { "" };
+        let class = if row.virtual_machine {
+            " class=\"vm\""
+        } else {
+            ""
+        };
         let _ = write!(body, "<th{class}><span class=\"axis\">");
         let mut decade = lo * 10.0;
         while decade < hi * 0.999 {
-            let _ = write!(body, "<i style=\"left:{:.1}%\">{}</i>", shared(decade), speed(decade).replace(" GB/s", ""));
+            let _ = write!(
+                body,
+                "<i style=\"left:{:.1}%\">{}</i>",
+                shared(decade),
+                speed(decade).replace(" GB/s", "")
+            );
             decade *= 10.0;
         }
         body.push_str("<i class=\"unit\">GB/s</i></span></th>");
