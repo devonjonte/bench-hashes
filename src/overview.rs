@@ -551,103 +551,6 @@ pub fn text(rows: &[Row]) -> String {
     out
 }
 
-/// The grid's two rows the first view overlays, by their index in PICKS:
-/// 64 B on one thread (where SHA-256 with the CPU's instructions keeps up)
-/// inside 128 MiB on every core, so each machine's bars there are the two
-/// rows of its column below (Zooko, October 25).
-const EVERYDAY: usize = 0;
-const HEADLINE: usize = 3;
-
-/// The first view: a row per machine, three bars (BLAKE3 servil, BLAKE3
-/// official, the fastest SHA-256). A bar's full length is the headline
-/// case, the darker part inside it the everyday case; log scale, one for
-/// every machine, so bars compare across rows. No figure on the page; the
-/// figures and the cells' names under the pointer.
-fn families_by_machine(rows: &[Row]) -> String {
-    let rows: Vec<&Row> = rows
-        .iter()
-        .filter(|r| !r.stale && !r.cells[HEADLINE].is_empty() && !r.cells[EVERYDAY].is_empty())
-        .collect();
-    if rows.is_empty() {
-        return String::new();
-    }
-    // The families, in the bars' order: servil, official, SHA-256.
-    let families = ["BLAKE3 servil", "BLAKE3 official", "SHA-256"];
-    let all: Vec<f64> = rows
-        .iter()
-        .flat_map(|r| {
-            r.cells[HEADLINE]
-                .iter()
-                .chain(&r.cells[EVERYDAY])
-                .map(|b| b.gbps)
-        })
-        .collect();
-    let lo_g = 10f64.powf(
-        all.iter()
-            .cloned()
-            .fold(f64::INFINITY, f64::min)
-            .log10()
-            .floor(),
-    );
-    let hi_g = 10f64.powf(all.iter().cloned().fold(0.0, f64::max).log10().ceil());
-    let width = |g: f64| 100.0 * (g.log10() - lo_g.log10()) / (hi_g.log10() - lo_g.log10());
-    let mut out = String::from("<div class=\"families\">");
-    for r in &rows {
-        let _ = write!(
-            out,
-            "<div class=\"fam-row{}\"><div class=\"fam-machine\"><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span>{} CPUs, {}</span></div><div class=\"fam-bars\">",
-            if r.virtual_machine { " vm" } else { "" },
-            escape(&r.link),
-            escape(&r.title()),
-            escape(&r.cpus),
-            escape(&r.os)
-        );
-        for (k, family) in families.iter().enumerate() {
-            let (Some(top), Some(inner)) = (r.cells[HEADLINE].get(k), r.cells[EVERYDAY].get(k))
-            else {
-                continue;
-            };
-            let color = inner.color;
-            // Each part answers to its own form's button: the full bar to
-            // the every-core form's, the inner part to the one-thread form's.
-            let (hi_id, lo_id) = (top.id, inner.id);
-            let (hi_paint, lo_paint) = (
-                paint(top.color, top.striped),
-                paint(inner.color, inner.striped),
-            );
-            let _ = write!(
-                out,
-                "<div class=\"fam-bar\" data-color=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}\"><i class=\"hi\" data-k=\"{hi_id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{hi_paint}\"></i><i class=\"lo\" data-k=\"{lo_id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{lo_paint}\"></i></div>",
-                escape(&r.title()),
-                escape(family),
-                top.gbps,
-                inner.gbps,
-                top.gbps,
-                width(top.gbps),
-                inner.gbps,
-                width(inner.gbps)
-            );
-        }
-        out.push_str("</div></div>");
-    }
-    // Under the machines, the switch that adds the virtual ones, to this
-    // view and the grid alike.
-    out.push_str("<div class=\"fam-row fam-scale\"><div class=\"fam-machine\"><label><input type=\"checkbox\" id=\"vm\"> show virtual machines</label></div><div class=\"fam-bars\">");
-    let mut e = lo_g.log10() as i32;
-    while 10f64.powi(e) <= hi_g {
-        let g = 10f64.powi(e);
-        let _ = write!(
-            out,
-            "<span style=\"left:{:.1}%\">{}</span>",
-            width(g),
-            speed(g)
-        );
-        e += 1;
-    }
-    out.push_str("</div></div></div>");
-    out
-}
-
 /// The page: a row per machine, a column per situation, and in each cell
 /// a small bar chart in the map's colours, BLAKE3 servil's bar first and
 /// each competitor's under it, lengths in proportion to speed (the fastest
@@ -729,7 +632,7 @@ pub fn html(rows: &[Row]) -> String {
     // glance across a row compares machines. Machines of another release
     // get a column that names their last run and links its map.
     let mut body = String::new();
-    body.push_str("<div class=\"grid\"><table><thead><tr><th class=\"situation\"></th>");
+    body.push_str("<div class=\"grid\"><table><thead><tr><th class=\"situation corner\"><label><input type=\"checkbox\" id=\"vm\"> show virtual machines</label></th>");
     for row in rows {
         let class = if row.virtual_machine {
             " class=\"vm\""
@@ -844,9 +747,6 @@ pub fn html(rows: &[Row]) -> String {
     }
     body.push_str("</tbody></table></div>\n");
     include_str!("overview.html")
-        .replace("@FAMILIES@", &families_by_machine(rows))
-        .replace("@EVERYDAY@", &units_kept(&escape(PICKS[EVERYDAY].column)))
-        .replace("@HEADLINE@", &units_kept(&escape(PICKS[HEADLINE].column)))
         .replace("@LEGEND@", &legend)
         .replace("@BODY@", &body)
 }

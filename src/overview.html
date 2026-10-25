@@ -18,6 +18,7 @@ th a { color: #4c1d95; text-decoration: none; } th b { font-size: 15px; } th spa
 th span.stale { color: #6b7280; }
 th.situation, td.situation { min-width: 150px; max-width: 170px; font-size: 12px; font-weight: 600; color: #6b7280; cursor: help; }
 td.situation .pt { display: block; color: #9ca3af; font-size: 11px; font-weight: normal; }
+th.corner { vertical-align: bottom; font-weight: normal; } th.corner label { font-size: 12px; color: #6b7280; cursor: pointer; white-space: nowrap; }
 th.vm, td.vm { display: none; } body.show-vm th.vm, body.show-vm td.vm { display: table-cell; }
 th.yours { background: #f5f3ff; }
 /* A cell is a card that opens its chart: an outline, a chevron at its
@@ -35,9 +36,8 @@ th.yours { background: #f5f3ff; }
    longest, and how many times faster the longest is. */
 /* The bracket: its border counted in its height, and a pixel past each
    end's bar, so both ends hook around their bars alike. */
-.span { position: absolute; box-sizing: border-box; width: 4px; margin-top: -1px; border: 1px solid #6b7280; border-left: none; pointer-events: none; } .fam-bars .span { pointer-events: auto; cursor: help; }
+.span { position: absolute; box-sizing: border-box; width: 4px; margin-top: -1px; border: 1px solid #6b7280; border-left: none; pointer-events: none; } 
 .span b { position: absolute; left: 100%; top: 50%; transform: translate(4px, -50%); font-size: 11px; color: #4c1d95; white-space: nowrap; }
-.fam-bars .span { width: 5px; } .fam-bars .span b { font-size: 13px; font-weight: 700; }
 .bar { display: flex; align-items: center; }
 .bars i { display: block; height: 7px; border-radius: 0 2px 2px 0; flex-shrink: 0; }
 .bar.off { display: none; }
@@ -49,19 +49,6 @@ th.yours { background: #f5f3ff; }
 footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
 .door { color: #6b7280; font-size: 12px; margin-top: 16px; max-width: 980px; } .door summary { cursor: pointer; width: max-content; } .door p { margin: 6px 0 0 14px; }
 h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
-.families { max-width: 980px; margin: 8px 0 8px; }
-.fam-legend { display: flex; gap: 18px; color: #6b7280; font-size: 12px; margin-top: 14px; } .fam-legend i { display: inline-block; width: 22px; height: 10px; border-radius: 0 3px 3px 0; background: #6b7280; vertical-align: -1px; margin-right: 5px; } .fam-legend i.hi { opacity: .4; }
-.fam-row.vm { display: none; } body.show-vm .fam-row.vm { display: flex; }
-.fam-scale .fam-machine label { font-size: 12px; color: #6b7280; cursor: pointer; white-space: nowrap; }
-.fam-row { display: flex; align-items: center; gap: 14px; padding: 8px 0; border-top: 1px solid #e5e7eb; }
-.fam-machine { width: 190px; flex-shrink: 0; } .fam-machine a { color: #4c1d95; text-decoration: none; } .fam-machine b { font-size: 15px; } .fam-machine span { display: block; color: #9ca3af; font-size: 12px; }
-.fam-bars { flex: 1; display: flex; flex-direction: column; gap: 5px; position: relative; }
-.fam-bar { position: relative; height: 14px; } .fam-bar.off { display: none; } .fam-bar i.off { display: none; }
-.fam-bar i { position: absolute; left: 0; top: 0; height: 14px; border-radius: 0 3px 3px 0; display: block; }
-.fam-bar i.hi { opacity: .45; } .fam-bar i.lo { opacity: 1; }
-.fam-bar:hover i.hi { opacity: .6; }
-.fam-scale { border-top: none; padding-top: 0; } .fam-scale .fam-bars { height: 14px; } .fam-scale span { position: absolute; top: 0; transform: translateX(-50%); color: #9ca3af; font-size: 10px; white-space: nowrap; }
-@media (max-width: 700px) { .fam-row { flex-direction: column; align-items: stretch; gap: 6px; } .fam-machine { width: auto; } }
 #tip .edge { color: #d1d5db; }
 /* A phone: one machine at a time, its columns as rows, each named. */
 @media (max-width: 700px) {
@@ -71,12 +58,8 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 }
 </style></head><body>
 <h1>How fast BLAKE3 servil runs</h1>
-<p class="sub">Longer is faster, on one scale for every machine. Each machine's bars overlay two rows of its column below: the full bar “@HEADLINE@”, the darker part “@EVERYDAY@”. The bracket: how many times faster the fastest ran, in its colour. Point at a bar for figures.</p>
+<p class="sub">A column is a machine, a row a use case. In each cell the fastest bar fills the width; the bracket says by how much servil or its strongest rival leads, in the faster one's colour. Point at a cell for figures; open it for the machine's map.</p>
 <div class="legend">@LEGEND@</div>
-<div class="fam-legend"><span><i class="lo"></i> @EVERYDAY@</span><span><i class="hi"></i> @HEADLINE@</span></div>
-@FAMILIES@
-<h2>By machine and by use case</h2>
-<p class="sub">A column is a machine, a row a use case. In each cell the fastest bar fills the width; the bracket says by how much it leads.</p>
 @BODY@
 
 <div id="tip"></div>
@@ -99,31 +82,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
     const [ours, theirs] = [speeds[0], speeds[rival]];
     return ours >= theirs ? [ours / theirs, 0, rival] : [theirs / ours, rival, rival];
   };
-  const [everyday, headline] = [...document.querySelectorAll(".fam-legend span")].map(s => s.textContent.trim());
-  const rows = `${everyday}, then ${headline}`;
   const spans = () => {
-    // The first view: servil's family bar against the strongest other, on
-    // each measure (the inner part and the full bar, the legend's two rows).
-    for (const bars of document.querySelectorAll(".fam-bars:not(.fam-scale .fam-bars)")) {
-      bars.querySelector(".span")?.remove();
-      if (bars.offsetParent === null) continue;
-      const all = [...bars.querySelectorAll(".fam-bar")];
-      // A measure takes part where servil's part of it is shown and some
-      // rival's is: its figure, in the winner's colour; else none.
-      const measure = cls => {
-        const parts = all.map(f => f.querySelector("i." + cls)).filter(i => !i.classList.contains("off"));
-        if (parts.length < 2 || parts[0] !== all[0].querySelector("i." + cls)) return null;
-        const [m, w, r] = duel(parts.map(i => +i.dataset.g));
-        return [m, parts[w].closest(".fam-bar").dataset.color, parts[r].closest(".fam-bar")];
-      };
-      const figures = [measure("lo"), measure("hi")].filter(Boolean);
-      if (!figures.length) continue;
-      const last = figures.map(f => f[2]).reduce((a, b) => (b.offsetTop > a.offsetTop ? b : a));
-      const longest = Math.max(...[all[0], last].flatMap(f => [...f.querySelectorAll("i:not(.off)")].map(i => parseFloat(i.style.width))));
-      const top = all[0].offsetTop, bottom = last.offsetTop + last.offsetHeight;
-      const label = figures.map(([m, c]) => `<span style="color:${c}">${times(m)}</span>`).join(" ");
-      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other, in the colour of the faster: ${rows}" style="left:calc(${longest}% + 4px);top:${top}px;height:${bottom - top + 2}px"><b>${label}</b></span>`);
-    }
     for (const bars of document.querySelectorAll(".bars")) {
       bars.querySelector(".span")?.remove();
       const all = [...bars.querySelectorAll("i")];
@@ -151,10 +110,6 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
   const apply = (b, off) => {
     b.classList.toggle("off", off);
     for (const i of document.querySelectorAll(sel(b))) i.closest(".bar").classList.toggle("off", off);
-    // The first view: the part of each bar this form draws; a bar whose
-    // two parts are both off leaves the row.
-    for (const i of document.querySelectorAll(`.fam-bar i[data-k="${CSS.escape(b.dataset.k)}"]`)) i.classList.toggle("off", off);
-    for (const f of document.querySelectorAll(".fam-bar")) f.classList.toggle("off", f.querySelectorAll("i:not(.off)").length === 0);
     spans();
   };
   spans();
@@ -186,19 +141,6 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
     });
   }
   document.addEventListener("click", e => { if (!e.target.closest(".pick")) { tip.style.display = "none"; tapped = null; } });
-  // The first view's tooltip: a family on a machine, and its speed in
-  // each of the two rows, named as the grid names them.
-  for (const c of document.querySelectorAll(".fam-bar")) {
-    c.addEventListener("mousemove", e => {
-      const [color, hi, lo] = c.dataset.tip.split("\t");
-      const rows = [`<div class="row"><span class="sw" style="background:${color};opacity:.45"></span>${headline}: ${fmt(+hi)}</div>`, `<div class="row"><span class="sw" style="background:${color}"></span>${everyday}: ${fmt(+lo)}</div>`];
-      tip.innerHTML = `<b>${c.dataset.head}</b>` + rows.join("");
-      tip.style.display = "block"; tip.style.left = "0px";
-      tip.style.left = Math.max(4, Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 4)) + "px";
-      tip.style.top = Math.max(4, Math.min(e.clientY + 10, innerHeight - tip.offsetHeight - 4)) + "px";
-    });
-    c.addEventListener("mouseleave", () => { tip.style.display = "none"; });
-  }
   // A guess at the reader's kind of machine, lit and marked "yours?", nothing more.
   const apple = /Macintosh|iPhone|iPad/.test(navigator.userAgent);
   const col = document.querySelector(`th[data-arch="${apple ? "apple" : "x86"}"]:not(.vm)`);

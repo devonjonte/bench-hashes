@@ -18,6 +18,7 @@ th a { color: #4c1d95; text-decoration: none; } th b { font-size: 15px; } th spa
 th span.stale { color: #6b7280; }
 th.situation, td.situation { min-width: 150px; max-width: 170px; font-size: 12px; font-weight: 600; color: #6b7280; cursor: help; }
 td.situation .pt { display: block; color: #9ca3af; font-size: 11px; font-weight: normal; }
+th.corner { vertical-align: bottom; font-weight: normal; } th.corner label { font-size: 12px; color: #6b7280; cursor: pointer; white-space: nowrap; }
 th.vm, td.vm { display: none; } body.show-vm th.vm, body.show-vm td.vm { display: table-cell; }
 th.yours { background: #f5f3ff; }
 /* A cell is a card that opens its chart: an outline, a chevron at its
@@ -35,9 +36,8 @@ th.yours { background: #f5f3ff; }
    longest, and how many times faster the longest is. */
 /* The bracket: its border counted in its height, and a pixel past each
    end's bar, so both ends hook around their bars alike. */
-.span { position: absolute; box-sizing: border-box; width: 4px; margin-top: -1px; border: 1px solid #6b7280; border-left: none; pointer-events: none; } .fam-bars .span { pointer-events: auto; cursor: help; }
+.span { position: absolute; box-sizing: border-box; width: 4px; margin-top: -1px; border: 1px solid #6b7280; border-left: none; pointer-events: none; } 
 .span b { position: absolute; left: 100%; top: 50%; transform: translate(4px, -50%); font-size: 11px; color: #4c1d95; white-space: nowrap; }
-.fam-bars .span { width: 5px; } .fam-bars .span b { font-size: 13px; font-weight: 700; }
 .bar { display: flex; align-items: center; }
 .bars i { display: block; height: 7px; border-radius: 0 2px 2px 0; flex-shrink: 0; }
 .bar.off { display: none; }
@@ -49,19 +49,6 @@ th.yours { background: #f5f3ff; }
 footer { color: #9ca3af; font-size: 12px; margin-top: 24px; max-width: 980px; }
 .door { color: #6b7280; font-size: 12px; margin-top: 16px; max-width: 980px; } .door summary { cursor: pointer; width: max-content; } .door p { margin: 6px 0 0 14px; }
 h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
-.families { max-width: 980px; margin: 8px 0 8px; }
-.fam-legend { display: flex; gap: 18px; color: #6b7280; font-size: 12px; margin-top: 14px; } .fam-legend i { display: inline-block; width: 22px; height: 10px; border-radius: 0 3px 3px 0; background: #6b7280; vertical-align: -1px; margin-right: 5px; } .fam-legend i.hi { opacity: .4; }
-.fam-row.vm { display: none; } body.show-vm .fam-row.vm { display: flex; }
-.fam-scale .fam-machine label { font-size: 12px; color: #6b7280; cursor: pointer; white-space: nowrap; }
-.fam-row { display: flex; align-items: center; gap: 14px; padding: 8px 0; border-top: 1px solid #e5e7eb; }
-.fam-machine { width: 190px; flex-shrink: 0; } .fam-machine a { color: #4c1d95; text-decoration: none; } .fam-machine b { font-size: 15px; } .fam-machine span { display: block; color: #9ca3af; font-size: 12px; }
-.fam-bars { flex: 1; display: flex; flex-direction: column; gap: 5px; position: relative; }
-.fam-bar { position: relative; height: 14px; } .fam-bar.off { display: none; } .fam-bar i.off { display: none; }
-.fam-bar i { position: absolute; left: 0; top: 0; height: 14px; border-radius: 0 3px 3px 0; display: block; }
-.fam-bar i.hi { opacity: .45; } .fam-bar i.lo { opacity: 1; }
-.fam-bar:hover i.hi { opacity: .6; }
-.fam-scale { border-top: none; padding-top: 0; } .fam-scale .fam-bars { height: 14px; } .fam-scale span { position: absolute; top: 0; transform: translateX(-50%); color: #9ca3af; font-size: 10px; white-space: nowrap; }
-@media (max-width: 700px) { .fam-row { flex-direction: column; align-items: stretch; gap: 6px; } .fam-machine { width: auto; } }
 #tip .edge { color: #d1d5db; }
 /* A phone: one machine at a time, its columns as rows, each named. */
 @media (max-width: 700px) {
@@ -71,13 +58,9 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 }
 </style></head><body>
 <h1>How fast BLAKE3 servil runs</h1>
-<p class="sub">Longer is faster, on one scale for every machine. Each machine's bars overlay two rows of its column below: the full bar “128&nbsp;MiB, every core”, the darker part “64&nbsp;B”. The bracket: how many times faster the fastest ran, in its colour. Point at a bar for figures.</p>
+<p class="sub">A column is a machine, a row a use case. In each cell the fastest bar fills the width; the bracket says by how much servil or its strongest rival leads, in the faster one's colour. Point at a cell for figures; open it for the machine's map.</p>
 <div class="legend"><span class="pair"><button style="--c:#7c3aed" data-k="blake3-servil-st">BLAKE3 servil, single-threaded</button><button style="--c:repeating-linear-gradient(135deg, #7c3aed 0 3px, #7c3aed73 3px 5px)" data-k="blake3-servil-mt">BLAKE3 servil, multi-threaded</button></span><span class="pair"><button style="--c:#3b82f6" data-k="blake3-official">BLAKE3 official, single-threaded</button><button style="--c:repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)" data-k="blake3-official-mt">BLAKE3 official, multi-threaded</button></span><button style="--c:#e07a45" data-k="sha256">SHA-256</button><button style="--c:#b4b0a8" data-k="sha1sum">sha1sum</button><button style="--c:#cfcbc3" data-k="md5sum">md5sum</button></div>
-<div class="fam-legend"><span><i class="lo"></i> 64&nbsp;B</span><span><i class="hi"></i> 128&nbsp;MiB, every core</span></div>
-<div class="families"><div class="fam-row"><div class="fam-machine"><a href="benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html"><b>Intel Core i7-12700K</b></a><span>20 CPUs, Linux</span></div><div class="fam-bars"><div class="fam-bar" data-color="#7c3aed" data-head="Intel Core i7-12700K · BLAKE3 servil" data-tip="#7c3aed	12.683091079363384	0.07938805044449039"><i class="hi" data-k="blake3-servil-mt" data-g="12.683091079363384" style="width:77.6%;background:repeating-linear-gradient(135deg, #7c3aed 0 3px, #7c3aed73 3px 5px)"></i><i class="lo" data-k="blake3-servil-st" data-g="0.07938805044449039" style="width:22.5%;background:#7c3aed"></i></div><div class="fam-bar" data-color="#3b82f6" data-head="Intel Core i7-12700K · BLAKE3 official" data-tip="#3b82f6	12.692362505727418	0.07769085513892635"><i class="hi" data-k="blake3-official-mt" data-g="12.692362505727418" style="width:77.6%;background:repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)"></i><i class="lo" data-k="blake3-official" data-g="0.07769085513892635" style="width:22.3%;background:#3b82f6"></i></div><div class="fam-bar" data-color="#e07a45" data-head="Intel Core i7-12700K · SHA-256" data-tip="#e07a45	2.098273092559872	0.07438256658595642"><i class="hi" data-k="sha256" data-g="2.098273092559872" style="width:58.0%;background:#e07a45"></i><i class="lo" data-k="sha256" data-g="0.07438256658595642" style="width:21.8%;background:#e07a45"></i></div></div></div><div class="fam-row"><div class="fam-machine"><a href="benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html"><b>AMD EPYC 9255</b></a><span>48 CPUs, Linux</span></div><div class="fam-bars"><div class="fam-bar" data-color="#7c3aed" data-head="AMD EPYC 9255 · BLAKE3 servil" data-tip="#7c3aed	30.394527624257314	0.11902363425029058"><i class="hi" data-k="blake3-servil-mt" data-g="30.394527624257314" style="width:87.1%;background:repeating-linear-gradient(135deg, #7c3aed 0 3px, #7c3aed73 3px 5px)"></i><i class="lo" data-k="blake3-servil-st" data-g="0.11902363425029058" style="width:26.9%;background:#7c3aed"></i></div><div class="fam-bar" data-color="#3b82f6" data-head="AMD EPYC 9255 · BLAKE3 official" data-tip="#3b82f6	29.190338368007655	0.13513196480938416"><i class="hi" data-k="blake3-official-mt" data-g="29.190338368007655" style="width:86.6%;background:repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)"></i><i class="lo" data-k="blake3-official" data-g="0.13513196480938416" style="width:28.3%;background:#3b82f6"></i></div><div class="fam-bar" data-color="#e07a45" data-head="AMD EPYC 9255 · SHA-256" data-tip="#e07a45	2.0032667866163645	0.11372161895360315"><i class="hi" data-k="sha256" data-g="2.0032667866163645" style="width:57.5%;background:#e07a45"></i><i class="lo" data-k="sha256" data-g="0.11372161895360315" style="width:26.4%;background:#e07a45"></i></div></div></div><div class="fam-row"><div class="fam-machine"><a href="benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html"><b>Apple M4 Max</b></a><span>16 CPUs, macOS</span></div><div class="fam-bars"><div class="fam-bar" data-color="#7c3aed" data-head="Apple M4 Max · BLAKE3 servil" data-tip="#7c3aed	27.944864832489856	0.1050328227571116"><i class="hi" data-k="blake3-servil-mt" data-g="27.944864832489856" style="width:86.2%;background:repeating-linear-gradient(135deg, #7c3aed 0 3px, #7c3aed73 3px 5px)"></i><i class="lo" data-k="blake3-servil-st" data-g="0.1050328227571116" style="width:25.5%;background:#7c3aed"></i></div><div class="fam-bar" data-color="#3b82f6" data-head="Apple M4 Max · BLAKE3 official" data-tip="#3b82f6	2.3749628669839	0.06929740134744947"><i class="hi" data-k="blake3-official" data-g="2.3749628669839" style="width:59.4%;background:#3b82f6"></i><i class="lo" data-k="blake3-official" data-g="0.06929740134744947" style="width:21.0%;background:#3b82f6"></i></div><div class="fam-bar" data-color="#e07a45" data-head="Apple M4 Max · SHA-256" data-tip="#e07a45	3.2882697608214255	0.11308419471684777"><i class="hi" data-k="sha256" data-g="3.2882697608214255" style="width:62.9%;background:#e07a45"></i><i class="lo" data-k="sha256" data-g="0.11308419471684777" style="width:26.3%;background:#e07a45"></i></div></div></div><div class="fam-row vm"><div class="fam-machine"><a href="benchmark-results/aarch64.linux618520virt/bench-hashes.map.html"><b>VM on aarch64</b></a><span>16 CPUs, Linux</span></div><div class="fam-bars"><div class="fam-bar" data-color="#7c3aed" data-head="VM on aarch64 · BLAKE3 servil" data-tip="#7c3aed	24.406151271299485	0.04707613093048915"><i class="hi" data-k="blake3-servil-mt" data-g="24.406151271299485" style="width:84.7%;background:repeating-linear-gradient(135deg, #7c3aed 0 3px, #7c3aed73 3px 5px)"></i><i class="lo" data-k="blake3-servil-st" data-g="0.04707613093048915" style="width:16.8%;background:#7c3aed"></i></div><div class="fam-bar" data-color="#3b82f6" data-head="VM on aarch64 · BLAKE3 official" data-tip="#3b82f6	2.3015138790170826	0.03998750390502968"><i class="hi" data-k="blake3-official" data-g="2.3015138790170826" style="width:59.1%;background:#3b82f6"></i><i class="lo" data-k="blake3-official" data-g="0.03998750390502968" style="width:15.0%;background:#3b82f6"></i></div><div class="fam-bar" data-color="#e07a45" data-head="VM on aarch64 · SHA-256" data-tip="#e07a45	3.208050016996296	0.04490046478996755"><i class="hi" data-k="sha256" data-g="3.208050016996296" style="width:62.7%;background:#e07a45"></i><i class="lo" data-k="sha256" data-g="0.04490046478996755" style="width:16.3%;background:#e07a45"></i></div></div></div><div class="fam-row fam-scale"><div class="fam-machine"><label><input type="checkbox" id="vm"> show virtual machines</label></div><div class="fam-bars"><span style="left:0.0%">0.010 GB/s</span><span style="left:25.0%">0.10 GB/s</span><span style="left:50.0%">1.0 GB/s</span><span style="left:75.0%">10 GB/s</span><span style="left:100.0%">100 GB/s</span></div></div></div>
-<h2>By machine and by use case</h2>
-<p class="sub">A column is a machine, a row a use case. In each cell the fastest bar fills the width; the bracket says by how much it leads.</p>
-<div class="grid"><table><thead><tr><th class="situation"></th><th data-arch="x86"><a href="benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html"><b>Intel Core i7-12700K</b></a><span>20 CPUs, Linux · 2026-10-23</span><span>BLAKE3 servil 082afa3 · bench-hashes 0.17.0</span></th><th data-arch="x86"><a href="benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html"><b>AMD EPYC 9255</b></a><span>48 CPUs, Linux · 2026-10-23</span><span>BLAKE3 servil 082afa3 · bench-hashes 0.17.0</span></th><th data-arch="apple"><a href="benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html"><b>Apple M4 Max</b></a><span>16 CPUs, macOS · 2026-10-24</span><span>BLAKE3 servil b94e2fa · bench-hashes 0.17.0</span></th><th class="vm" data-arch="x86"><a href="benchmark-results/aarch64.linux618520virt/bench-hashes.map.html"><b>VM on aarch64</b></a><span>16 CPUs, Linux · 2026-10-24</span><span>BLAKE3 servil b94e2fa · bench-hashes 0.17.0</span></th></tr></thead><tbody>
+<div class="grid"><table><thead><tr><th class="situation corner"><label><input type="checkbox" id="vm"> show virtual machines</label></th><th data-arch="x86"><a href="benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html"><b>Intel Core i7-12700K</b></a><span>20 CPUs, Linux · 2026-10-23</span><span>BLAKE3 servil 082afa3 · bench-hashes 0.17.0</span></th><th data-arch="x86"><a href="benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html"><b>AMD EPYC 9255</b></a><span>48 CPUs, Linux · 2026-10-23</span><span>BLAKE3 servil 082afa3 · bench-hashes 0.17.0</span></th><th data-arch="apple"><a href="benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html"><b>Apple M4 Max</b></a><span>16 CPUs, macOS · 2026-10-24</span><span>BLAKE3 servil b94e2fa · bench-hashes 0.17.0</span></th><th class="vm" data-arch="x86"><a href="benchmark-results/aarch64.linux618520virt/bench-hashes.map.html"><b>VM on aarch64</b></a><span>16 CPUs, Linux · 2026-10-24</span><span>BLAKE3 servil b94e2fa · bench-hashes 0.17.0</span></th></tr></thead><tbody>
 <tr><td class="situation" title="a key, an identifier, a small record, hashed between a program's other work">64&nbsp;B</td><td><a class="pick" href="benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/bench-hashes.map.html#solo|one|busy" data-head="Intel Core i7-12700K · 64 B" data-tip="#7c3aed	BLAKE3 servil, single-threaded		0.07938805044449039
 #3b82f6	BLAKE3 official, single-threaded		0.07769085513892635
 #e07a45	SHA-256	the sha2 crate	0.07438256658595642"><span class="bars"><span class="bar"><i data-k="blake3-servil-st" data-color="#7c3aed" data-g="0.07938805044449039" style="width:100.0%;background:#7c3aed"></i></span><span class="bar"><i data-k="blake3-official" data-color="#3b82f6" data-g="0.07769085513892635" style="width:97.9%;background:#3b82f6"></i></span><span class="bar"><i data-k="sha256" data-color="#e07a45" data-g="0.07438256658595642" style="width:93.7%;background:#e07a45"></i></span></span><span class="scale">0.079 GB/s</span></a></td><td><a class="pick" href="benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html#solo|one|busy" data-head="AMD EPYC 9255 · 64 B" data-tip="#7c3aed	BLAKE3 servil, single-threaded		0.11902363425029058
@@ -168,31 +151,7 @@ repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)	b3sum, offic
     const [ours, theirs] = [speeds[0], speeds[rival]];
     return ours >= theirs ? [ours / theirs, 0, rival] : [theirs / ours, rival, rival];
   };
-  const [everyday, headline] = [...document.querySelectorAll(".fam-legend span")].map(s => s.textContent.trim());
-  const rows = `${everyday}, then ${headline}`;
   const spans = () => {
-    // The first view: servil's family bar against the strongest other, on
-    // each measure (the inner part and the full bar, the legend's two rows).
-    for (const bars of document.querySelectorAll(".fam-bars:not(.fam-scale .fam-bars)")) {
-      bars.querySelector(".span")?.remove();
-      if (bars.offsetParent === null) continue;
-      const all = [...bars.querySelectorAll(".fam-bar")];
-      // A measure takes part where servil's part of it is shown and some
-      // rival's is: its figure, in the winner's colour; else none.
-      const measure = cls => {
-        const parts = all.map(f => f.querySelector("i." + cls)).filter(i => !i.classList.contains("off"));
-        if (parts.length < 2 || parts[0] !== all[0].querySelector("i." + cls)) return null;
-        const [m, w, r] = duel(parts.map(i => +i.dataset.g));
-        return [m, parts[w].closest(".fam-bar").dataset.color, parts[r].closest(".fam-bar")];
-      };
-      const figures = [measure("lo"), measure("hi")].filter(Boolean);
-      if (!figures.length) continue;
-      const last = figures.map(f => f[2]).reduce((a, b) => (b.offsetTop > a.offsetTop ? b : a));
-      const longest = Math.max(...[all[0], last].flatMap(f => [...f.querySelectorAll("i:not(.off)")].map(i => parseFloat(i.style.width))));
-      const top = all[0].offsetTop, bottom = last.offsetTop + last.offsetHeight;
-      const label = figures.map(([m, c]) => `<span style="color:${c}">${times(m)}</span>`).join(" ");
-      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other, in the colour of the faster: ${rows}" style="left:calc(${longest}% + 4px);top:${top}px;height:${bottom - top + 2}px"><b>${label}</b></span>`);
-    }
     for (const bars of document.querySelectorAll(".bars")) {
       bars.querySelector(".span")?.remove();
       const all = [...bars.querySelectorAll("i")];
@@ -220,10 +179,6 @@ repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)	b3sum, offic
   const apply = (b, off) => {
     b.classList.toggle("off", off);
     for (const i of document.querySelectorAll(sel(b))) i.closest(".bar").classList.toggle("off", off);
-    // The first view: the part of each bar this form draws; a bar whose
-    // two parts are both off leaves the row.
-    for (const i of document.querySelectorAll(`.fam-bar i[data-k="${CSS.escape(b.dataset.k)}"]`)) i.classList.toggle("off", off);
-    for (const f of document.querySelectorAll(".fam-bar")) f.classList.toggle("off", f.querySelectorAll("i:not(.off)").length === 0);
     spans();
   };
   spans();
@@ -255,19 +210,6 @@ repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)	b3sum, offic
     });
   }
   document.addEventListener("click", e => { if (!e.target.closest(".pick")) { tip.style.display = "none"; tapped = null; } });
-  // The first view's tooltip: a family on a machine, and its speed in
-  // each of the two rows, named as the grid names them.
-  for (const c of document.querySelectorAll(".fam-bar")) {
-    c.addEventListener("mousemove", e => {
-      const [color, hi, lo] = c.dataset.tip.split("\t");
-      const rows = [`<div class="row"><span class="sw" style="background:${color};opacity:.45"></span>${headline}: ${fmt(+hi)}</div>`, `<div class="row"><span class="sw" style="background:${color}"></span>${everyday}: ${fmt(+lo)}</div>`];
-      tip.innerHTML = `<b>${c.dataset.head}</b>` + rows.join("");
-      tip.style.display = "block"; tip.style.left = "0px";
-      tip.style.left = Math.max(4, Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 4)) + "px";
-      tip.style.top = Math.max(4, Math.min(e.clientY + 10, innerHeight - tip.offsetHeight - 4)) + "px";
-    });
-    c.addEventListener("mouseleave", () => { tip.style.display = "none"; });
-  }
   // A guess at the reader's kind of machine, lit and marked "yours?", nothing more.
   const apple = /Macintosh|iPhone|iPad/.test(navigator.userAgent);
   const col = document.querySelector(`th[data-arch="${apple ? "apple" : "x86"}"]:not(.vm)`);
