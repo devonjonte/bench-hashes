@@ -505,7 +505,8 @@ fn require_sme2_kernel(exe: &Path) {
         return;
     }
     let bytes = std::fs::read(exe).expect("the executable reads");
-    let symbol = b"blake3_sme2_hash16_chunks_512";
+    // The kernel's name without its crate prefix: `blake3_servil_` since BLAKE3 #164, `blake3_` before.
+    let symbol = b"sme2_hash16_chunks_512";
     assert!(
         bytes.windows(symbol.len()).any(|w| w == symbol),
         "check: this CPU has SME2, and the fork was built without its SME2 kernel: point CC at a compiler that assembles SME2 (CC=clang-19 on Debian 12)"
