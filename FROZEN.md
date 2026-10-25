@@ -589,8 +589,8 @@ use, across machines?".
   | 64 B; 1 KiB | solo OneMessage 64 B; solo OneMessage 1 KiB | blake3-servil-st | a key, an identifier, a small record, hashed between a program's other work |
   | 1 MiB, one thread | solo OneMessage 1 MiB | blake3-servil-st | a buffer the size of a file, on the calling thread |
   | 128 MiB, every core | solo OneMessage 128 MiB | blake3-servil-mt (against blake3-official-mt) | a download or a disk image, the library's threads at work |
-  | 64 KiB messages, one after another | solo ContinuousMessages 64 KiB | blake3-servil-mt (the stream) | messages arriving one after another, as fast as the program can feed them |
-  | 1024 messages of 64 B, batched | solo ManyMessages 1024 | blake3-servil-st | a Merkle layer, a content-addressed store, a database's keys |
+  | a stream of 64 KiB messages | solo ContinuousMessages 64 KiB | blake3-servil-mt (the stream) | messages arriving one after another, as fast as the program can feed them |
+  | a batch of 1024 messages, 64 B each | solo ManyMessages 1024 | blake3-servil-st | a Merkle layer, a content-addressed store, a database's keys |
   | 1000 files, b3sum | b3sum, warm, mixed tree, 1000 files, 74 MiB | the fork's b3sum (against official b3sum and the system's sha256sum, sha1sum and md5sum: still what many people run on a download, whatever their security) | the command people actually run, process start to exit |
 
   Seven cells. **The budget is eight.** Adding one names the one it
@@ -687,7 +687,7 @@ overview cell: solo OneMessage 64 B, blake3-servil-st (64 B)
 overview cell: solo OneMessage 1 KiB, blake3-servil-st (1 KiB)
 overview cell: solo OneMessage 1 MiB, blake3-servil-st (1 MiB, one thread)
 overview cell: solo OneMessage 128 MiB, blake3-servil-mt (128 MiB, every core)
-overview cell: solo ContinuousMessages 64 KiB, blake3-servil-mt (64 KiB messages, one after another)
-overview cell: solo ManyMessages 1024, blake3-servil-st (1024 messages of 64 B, batched)
+overview cell: solo ContinuousMessages 64 KiB, blake3-servil-mt (a stream of 64 KiB messages)
+overview cell: solo ManyMessages 1024, blake3-servil-st (a batch of 1024 messages, 64 B each)
 overview cell: b3sum warm mixed tree, 1000 files, 74 MiB (1000 files, b3sum)
 ```

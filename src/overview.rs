@@ -61,12 +61,12 @@ pub const PICKS: [Pick; 7] = [
         cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "128 MiB", servil: Algorithm::Blake3ServilMt },
     },
     Pick {
-        column: "64 KiB messages, one after another",
+        column: "a stream of 64 KiB messages",
         situation: "messages arriving one after another, as fast as the program can feed them; BLAKE3 servil's stream hashes them on its threads, the others on the calling thread",
         cell: Cell::Hashing { use_case: UseCase::ContinuousMessages, point: "64 KiB", servil: Algorithm::Blake3ServilMt },
     },
     Pick {
-        column: "1024 messages of 64 B, batched",
+        column: "a batch of 1024 messages, 64 B each",
         situation: "a Merkle layer, a content-addressed store, a database's keys: 1024 messages of 64 bytes in one call",
         cell: Cell::Hashing { use_case: UseCase::ManyMessages, point: "1024", servil: Algorithm::Blake3ServilSt },
     },
