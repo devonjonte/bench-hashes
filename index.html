@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>How fast BLAKE3 servil runs, on each machine measured</title>
 <style>
+/* One track width for the bars and both label rows, so the decades line up. */
+:root { --track: 220px; }
 body { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: #111827; margin: 24px; background: #fdfdfc; }
 h1 { font-size: 20px; margin: 0 0 4px; }
 .sub { color: #6b7280; margin: 0 0 14px; max-width: 980px; }
@@ -27,15 +29,15 @@ th.yours { background: #f5f3ff; }
 .pick:hover, .pick:focus-visible { border-color: #a78bfa; box-shadow: 0 2px 8px rgba(76,29,149,.14); transform: translateY(-1px); }
 .pick:hover::after, .pick:focus-visible::after { color: #6d28d9; right: 4px; }
 /* The cell's scale: the speed its full width stands for, under the end. */
-.pick .scale { display: block; position: relative; width: 220px; height: 12px; font-size: 10px; line-height: 12px; color: #a8a29e; margin-top: 1px; }
+.pick .scale { display: block; position: relative; width: var(--track); height: 12px; font-size: 10px; line-height: 12px; color: #a8a29e; margin-top: 1px; }
 .pick .scale b { position: absolute; font-weight: normal; transform: translateX(-50%); white-space: nowrap; }
 tr.axis th { padding: 0 0 2px 0; border: none; }
-span.axis { display: block; position: relative; width: 220px; height: 11px; margin-left: 19px; font-size: 9px; color: #9ca3af; font-weight: normal; }
+span.axis { display: block; position: relative; width: var(--track); height: 11px; margin-left: 19px; font-size: 9px; color: #9ca3af; font-weight: normal; }
 span.axis i { position: absolute; font-style: normal; transform: translateX(-50%); }
 span.axis i.unit { left: 100%; transform: none; padding-left: 4px; }
 .pick.none { color: #d1d5db; font-size: 11px; border-color: transparent; background: none; }
 .pick.none::after { content: none; }
-.bars { position: relative; display: flex; flex-direction: column; gap: 2px; width: 220px; border-left: 1px solid #d1d5db; padding-left: 1px; margin-right: 40px; }
+.bars { position: relative; display: flex; flex-direction: column; gap: 2px; width: var(--track); border-left: 1px solid #d1d5db; padding-left: 1px; margin-right: 40px; }
 /* The span, as on the map: a bracket from the shortest bar shown to the
    longest, and how many times faster the longest is. */
 /* The bracket: its border counted in its height, and a pixel past each
@@ -72,7 +74,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 /* A phone: one machine at a time, its columns as rows, each named. */
 @media (max-width: 700px) {
   body { margin: 12px; }
-  .bars { width: 150px; }
+  :root { --track: 150px; }
   #tip { pointer-events: auto; }
 }
 </style></head><body>

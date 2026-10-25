@@ -59,6 +59,21 @@ const { chromium } = require('playwright');
     }
   }
   assert.deepEqual(errors, [], 'no script error');
+  // Each decade's label sits over its line in the cells, at desktop and phone widths.
+  if (shared) {
+    for (const width of [1400, 420]) {
+      await page.setViewportSize({ width, height: 900 });
+      const { labels, ticks } = await page.evaluate(() => {
+        const centre = e => { const b = e.getBoundingClientRect(); return b.left + b.width / 2; };
+        return {
+          labels: [...document.querySelectorAll('tr.axis th:nth-child(2) span.axis i:not(.unit)')].map(centre),
+          ticks: [...document.querySelector('a.pick .bars').querySelectorAll('.tick')].map(t => t.getBoundingClientRect().left),
+        };
+      });
+      assert.equal(labels.length, ticks.length, `${width}px: a label for each decade line`);
+      labels.forEach((x, k) => assert.ok(Math.abs(x - ticks[k]) <= 2, `${width}px: decade ${k} label at ${x}, its line at ${ticks[k]}`));
+    }
+  }
   await browser.close();
   console.log(`overview: ${buttons} buttons, ${shared ? 'one shared scale' : 'every cell filled'} in each state`);
 })().catch(e => { console.error(e.message); process.exit(1); });
