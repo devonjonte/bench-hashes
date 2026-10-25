@@ -169,6 +169,15 @@ pub struct Row {
     pub stale: bool,
 }
 
+impl Row {
+    /// The machine's name as both views write it: a virtual machine's
+    /// says so.
+    fn title(&self) -> String {
+        let vm = if self.virtual_machine { "VM on " } else { "" };
+        format!("{vm}{}", self.machine)
+    }
+}
+
 fn mean_q64(samples: &[Measured]) -> u128 {
     clocks::summary::mean(samples.iter().map(|m| (m.ns, m.units)))
 }
@@ -542,13 +551,12 @@ pub fn text(rows: &[Row]) -> String {
     out
 }
 
-/// The picks the first view draws: a short message (1 KiB on one thread,
-/// between other work, where SHA-256 with the CPU's instructions leads)
-/// inside the headline case (messages nonstop, 64 KiB each, every core),
-/// so the view spans the range from where servil trails to where it
-/// leads most (Zooko, October 24), by their index in PICKS.
-const EVERYDAY: usize = 1;
-const HEADLINE: usize = 4;
+/// The grid's two rows the first view overlays, by their index in PICKS:
+/// 64 B on one thread (where SHA-256 with the CPU's instructions keeps up)
+/// inside 128 MiB on every core, so each machine's bars there are the two
+/// rows of its column below (Zooko, October 25).
+const EVERYDAY: usize = 0;
+const HEADLINE: usize = 3;
 
 /// The first view: a row per machine, three bars (BLAKE3 servil, BLAKE3
 /// official, the fastest SHA-256). A bar's full length is the headline
@@ -558,12 +566,7 @@ const HEADLINE: usize = 4;
 fn families_by_machine(rows: &[Row]) -> String {
     let rows: Vec<&Row> = rows
         .iter()
-        .filter(|r| {
-            !r.stale
-                && !r.virtual_machine
-                && !r.cells[HEADLINE].is_empty()
-                && !r.cells[EVERYDAY].is_empty()
-        })
+        .filter(|r| !r.stale && !r.cells[HEADLINE].is_empty() && !r.cells[EVERYDAY].is_empty())
         .collect();
     if rows.is_empty() {
         return String::new();
@@ -592,9 +595,10 @@ fn families_by_machine(rows: &[Row]) -> String {
     for r in &rows {
         let _ = write!(
             out,
-            "<div class=\"fam-row\"><div class=\"fam-machine\"><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span>{} CPUs, {}</span></div><div class=\"fam-bars\">",
+            "<div class=\"fam-row{}\"><div class=\"fam-machine\"><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span>{} CPUs, {}</span></div><div class=\"fam-bars\">",
+            if r.virtual_machine { " vm" } else { "" },
             escape(&r.link),
-            escape(&r.machine),
+            escape(&r.title()),
             escape(&r.cpus),
             escape(&r.os)
         );
@@ -613,15 +617,11 @@ fn families_by_machine(rows: &[Row]) -> String {
             );
             let _ = write!(
                 out,
-                "<div class=\"fam-bar\" data-color=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}: {}\t{}\t{}: {}\"><i class=\"hi\" data-k=\"{hi_id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{hi_paint}\"></i><i class=\"lo\" data-k=\"{lo_id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{lo_paint}\"></i></div>",
-                escape(&r.machine),
+                "<div class=\"fam-bar\" data-color=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}\"><i class=\"hi\" data-k=\"{hi_id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{hi_paint}\"></i><i class=\"lo\" data-k=\"{lo_id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{lo_paint}\"></i></div>",
+                escape(&r.title()),
                 escape(family),
                 top.gbps,
-                escape(&top.name),
-                escape(PICKS[HEADLINE].situation),
                 inner.gbps,
-                escape(&inner.name),
-                escape(PICKS[EVERYDAY].situation),
                 top.gbps,
                 width(top.gbps),
                 inner.gbps,
@@ -630,7 +630,9 @@ fn families_by_machine(rows: &[Row]) -> String {
         }
         out.push_str("</div></div>");
     }
-    out.push_str("<div class=\"fam-row fam-scale\"><div class=\"fam-machine\"></div><div class=\"fam-bars\">");
+    // Under the machines, the switch that adds the virtual ones, to this
+    // view and the grid alike.
+    out.push_str("<div class=\"fam-row fam-scale\"><div class=\"fam-machine\"><label><input type=\"checkbox\" id=\"vm\"> show virtual machines</label></div><div class=\"fam-bars\">");
     let mut e = lo_g.log10() as i32;
     while 10f64.powi(e) <= hi_g {
         let g = 10f64.powi(e);
@@ -741,10 +743,9 @@ pub fn html(rows: &[Row]) -> String {
         };
         let _ = write!(
             body,
-            "<th{class} data-arch=\"{arch}\"><a href=\"{}/bench-hashes.map.html\"><b>{}{}</b></a><span>{} CPUs, {} · {}</span><span>BLAKE3 servil {} · bench-hashes {}</span>{}</th>",
+            "<th{class} data-arch=\"{arch}\"><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span>{} CPUs, {} · {}</span><span>BLAKE3 servil {} · bench-hashes {}</span>{}</th>",
             escape(&row.link),
-            if row.virtual_machine { "VM on " } else { "" },
-            escape(&row.machine),
+            escape(&row.title()),
             escape(&row.cpus),
             escape(&row.os),
             escape(&row.day),
@@ -844,6 +845,8 @@ pub fn html(rows: &[Row]) -> String {
     body.push_str("</tbody></table></div>\n");
     include_str!("overview.html")
         .replace("@FAMILIES@", &families_by_machine(rows))
+        .replace("@EVERYDAY@", &units_kept(&escape(PICKS[EVERYDAY].column)))
+        .replace("@HEADLINE@", &units_kept(&escape(PICKS[HEADLINE].column)))
         .replace("@LEGEND@", &legend)
         .replace("@BODY@", &body)
 }

@@ -559,11 +559,12 @@ use, across machines?".
 - **The first view: three bars a machine,** on one logarithmic scale for
   every machine: BLAKE3 servil's, BLAKE3 official's (off until asked
   for) and the fastest SHA-256 the run measured (sha2, ring, or the OS's).
-  A bar's full length is hashing nonstop on every core (ContinuousMessages
-  64 KiB: servil's stream, official's multi-threaded form); the part
-  inside it, one message of 1 KiB on one thread, after other work, where
-  SHA-256 with the CPU's instructions leads. So the view spans where
-  servil trails to where it leads most.
+  Each machine's bars are two rows of its grid column, overlaid: a
+  bar's full length is the "128 MiB, every core" row, the darker part
+  inside it the "64 B" row, where SHA-256 with the CPU's instructions
+  keeps up. So the view spans where servil trails to where it leads
+  most, and a reader can match it against the grid. Virtual machines
+  join both views at the switch under the machines' names.
 - **The grid: a column a machine, a row a representative cell.** In each
   cell a bar a hash, each cell on its own linear scale (its fastest bar
   fills the width, that speed written under its end). The rows, chosen
