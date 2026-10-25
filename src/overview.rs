@@ -36,23 +36,24 @@ pub enum Cell {
     },
 }
 
-/// The representative measurements, chosen once (FROZEN, "The overview"),
-/// in two bands (Zooko, October 24): the convenience API's call first (one
-/// message, one call, one thread), then the performance API's, starting
-/// with the same message on every core, so the eye moves one row down from
-/// the call most programs make to the one that makes it fast. The test
-/// frozen_contract_matches_frozen_md keeps this list and FROZEN's block the
-/// same.
-pub const PICKS: [Pick; 6] = [
+/// The representative measurements, chosen once (FROZEN, "The overview").
+/// The test frozen_contract_matches_frozen_md keeps this list and FROZEN's
+/// block the same.
+pub const PICKS: [Pick; 7] = [
     Pick {
-        column: "1 MiB, one thread",
-        situation: "a buffer the size of a file, one call on the calling thread: convenience::hash",
-        cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "1 MiB", servil: Algorithm::Blake3ServilSt },
+        column: "64 B",
+        situation: "a key, an identifier, a small record, hashed between a program's other work",
+        cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "64 B", servil: Algorithm::Blake3ServilSt },
     },
     Pick {
-        column: "1 MiB, every core",
-        situation: "the same buffer, the library's threads at work: performance::hash_multithreaded",
-        cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "1 MiB", servil: Algorithm::Blake3ServilMt },
+        column: "1 KiB",
+        situation: "a small record, hashed between a program's other work",
+        cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "1 KiB", servil: Algorithm::Blake3ServilSt },
+    },
+    Pick {
+        column: "1 MiB, one thread",
+        situation: "a buffer the size of a file, on the calling thread",
+        cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "1 MiB", servil: Algorithm::Blake3ServilSt },
     },
     Pick {
         column: "128 MiB, every core",
@@ -75,10 +76,6 @@ pub const PICKS: [Pick; 6] = [
         cell: Cell::B3sum { cache: "warm", input: "mixed tree, 1000 files, 74 MiB" },
     },
 ];
-
-/// How many of PICKS, from the first, are the convenience API's: the rest
-/// are the performance API's.
-const CONVENIENCE_PICKS: usize = 1;
 
 /// The picks as FROZEN's block states them, one line each.
 #[cfg(test)]
@@ -526,13 +523,13 @@ pub fn text(rows: &[Row]) -> String {
     out
 }
 
-/// The picks the first view draws, by their index in PICKS: the
-/// convenience API's call (one 1 MiB message on one thread, between other
-/// work) inside the performance API's headline case (messages nonstop,
-/// 64 KiB each, every core), so each bar spans the two kinds of call
-/// (Zooko, October 24).
-const EVERYDAY: usize = 0;
-const HEADLINE: usize = 3;
+/// The picks the first view draws: a short message (1 KiB on one thread,
+/// between other work, where SHA-256 with the CPU's instructions leads)
+/// inside the headline case (messages nonstop, 64 KiB each, every core),
+/// so the view spans the range from where servil trails to where it
+/// leads most (Zooko, October 24), by their index in PICKS.
+const EVERYDAY: usize = 1;
+const HEADLINE: usize = 4;
 
 /// The first view: a row per machine, three bars (BLAKE3 servil, BLAKE3
 /// official, the fastest SHA-256). A bar's full length is the headline
@@ -739,19 +736,6 @@ pub fn html(rows: &[Row]) -> String {
     }
     body.push_str("</tr></thead><tbody>\n");
     for (i, pick) in PICKS.iter().enumerate() {
-        // The two bands' names, the page's only words for the two kinds.
-        if i == 0 || i == CONVENIENCE_PICKS {
-            let _ = write!(
-                body,
-                "<tr class=\"band\"><th colspan=\"{}\">{}</th></tr>",
-                rows.len() + 1,
-                if i == 0 {
-                    "Convenience API"
-                } else {
-                    "Performance API"
-                }
-            );
-        }
         {
             let column = pick.column;
             let _ = write!(
@@ -1057,7 +1041,7 @@ mod tests {
             bar("BLAKE3 official", 1.0, ""),
             bar("SHA-256", 0.75, ""),
         ];
-        cells[2] = vec![
+        cells[3] = vec![
             bar("BLAKE3 servil mt", 12.0, ""),
             bar(
                 "BLAKE3 official",
@@ -1065,7 +1049,7 @@ mod tests {
                 "official on one thread: this run lacks its multithreaded form",
             ),
         ];
-        cells[5] = vec![
+        cells[6] = vec![
             bar("b3sum, BLAKE3 servil's", 30.0, ""),
             bar("b3sum, official BLAKE3's", 10.0, ""),
             bar("md5sum", 1.5, ""),
@@ -1180,11 +1164,7 @@ mod tests {
 
     #[test]
     fn the_picks_keep_to_the_budget() {
-        assert!(PICKS.len() <= 8, "the budget: at most eight cells");
-        assert!(
-            (1..PICKS.len()).contains(&CONVENIENCE_PICKS),
-            "both bands have a row"
-        );
+        assert_eq!(PICKS.len(), 7, "the budget: at most eight cells");
         let mut labels: Vec<&str> = PICKS.iter().map(|p| p.column).collect();
         labels.dedup();
         assert_eq!(labels.len(), PICKS.len(), "each row its own label");
