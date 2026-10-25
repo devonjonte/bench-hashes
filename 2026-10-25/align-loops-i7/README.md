@@ -25,14 +25,16 @@ aligned, st solo LentBatches read 16: x0.985 (7 of 8 pairs faster), 64:
 x1.022 (1 of 8), 256: x1.018 (1 of 8), 1024: x1.035 (0 of 8), 4096:
 x0.985: the same pattern as the default layout.
 
-**Verdict, a second finding:** under this layout the after-a-pause
-cells at small counts read slower. The second stage (16 fresh pairs)
-confirmed 7 cells: mt solo IdleManyMessages 2, 3, 4, 6, 16, 24 at +8.0
-to +13.9%, and mt solo ManyMessages 2 at +12.0%. The same comparison
-under the default layout (`../release-08-fanout-i7`) read the
-after-a-pause cells level at the median (x1.007). So the cost of waking
-after a pause depends on where the code lands, as a user's own build
-can change it. One suspect mechanism: a spin or wait counted in
-iterations, whose length then varies with the loop's speed.
+**Verdict, a second finding, corrected:** the second stage (16 fresh
+pairs) confirmed 7 cells: mt solo IdleManyMessages 2, 3, 4, 6, 16, 24 at
++8.0 to +13.9%, and mt solo ManyMessages 2 at +12.0%. Taken whole, this
+first stage matches the default layout's (`../release-08-fanout-i7`): solo
+after-a-pause cells median x1.002, 24% above +5% here; x1.007, 18% there.
+The same IdleManyMessages cells read +8% to +22% in that run's first stage
+too, and its second stage judged them level. So the difference between the
+runs is bench-hashes #81's flicker at the threshold, with no visible part
+for layout. (A first reading here, "the cost depends on layout", was
+withdrawn on #125.) What remains is a possible cost in mt batches of 2-32
+messages after a pause, measured next in `../idle-mt-i7`.
 
 **Posted:** BLAKE3 #125.
