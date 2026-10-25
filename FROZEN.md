@@ -571,15 +571,6 @@ the maps, built from every machine's published run, that answers "how
 does BLAKE3 servil do on my kind of machine?" and "how does it do for my
 use, across machines?".
 
-- **The first view: three bars a machine,** on one logarithmic scale for
-  every machine: BLAKE3 servil's, BLAKE3 official's (off until asked
-  for) and the fastest SHA-256 the run measured (sha2, ring, or the OS's).
-  Each machine's bars are two rows of its grid column, overlaid: a
-  bar's full length is the "128 MiB, every core" row, the darker part
-  inside it the "64 B" row, where SHA-256 with the CPU's instructions
-  keeps up. So the view spans where servil trails to where it leads
-  most, and a reader can match it against the grid. Virtual machines
-  join both views at the switch under the machines' names.
 - **The grid: a column a machine, a row a representative cell.** In each
   cell a bar a hash, each cell on its own linear scale (its fastest bar
   fills the width, that speed written under its end). The rows, chosen
@@ -601,15 +592,14 @@ use, across machines?".
   share its colour, the multi-threaded striped (on the map, a double
   line); SHA-1 and MD5 are drab greys, broken as cryptographic hashes and
   shown as the checksums people still run.
-- **A bracket: servil against its strongest rival.** In every cell, and
-  on each first-view bar's two measures, the bracket joins BLAKE3
+- **A bracket: servil against its strongest rival.** In every cell the bracket joins BLAKE3
   servil's bar and the fastest other bar shown and gives the factor
   between them in the winner's colour; with servil hidden there is none.
   The map's brackets follow the same rule.
 - **The legend is the hashes drawn,** a button each, a library's two
-  forms one above the other. A button hides or shows its hash's bars (in
-  the first view, its form's part of a bar).
-- **Machines** are each one published run, the newest of the current
+  forms one above the other. A button hides or shows its hash's bars.
+- **Machines** are each one published run (a virtual machine's column
+  shows at the switch in the grid's corner), the newest of the current
   benchmark release on that machine: its CPU name, core count and OS from
   the run's own header, its date, and the servil commit it measured. A
   machine whose last run is another release's keeps a column that names

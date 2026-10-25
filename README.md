@@ -12,11 +12,11 @@ It depends. Try it! bench-hashes measures the hashes on your computer,
 for each way a program hashes, and draws the answer as a map you open in
 a web browser.
 
-<img src="benchmark-results/AppleM4Max.darwin25/bench-hashes.chart.svg" alt="Hashing one 128 MiB message after a pause on an Apple M4 Max: BLAKE3 multi-core and on one core beside SHA-256, SHA3-256 and SHA-1, in GB/s" width="720">
+<img src="benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/b3sum.chart.svg" alt="b3sum hashing a tree of 1000 files of mixed sizes, 74 MiB in the page cache, on an AMD EPYC 9255: 19 GB/s on every core and 4.48 GB/s on one thread, beside sha1sum at 1.74, sha256sum at 1.68 and md5sum at 0.67 GB/s" width="720">
 
 [The overview](https://devonjonte.github.io/bench-hashes/) is one page
-for every machine measured: first a bar for each hash on each machine,
-then a column per machine and a row per way a program hashes, every bar
+for every machine measured: a column per machine and a row per way a
+program hashes, every bar
 in its library's colour (the multi-threaded form striped), with a
 bracket saying how many times faster servil or its strongest rival ran.
 Every size, on each machine measured so far:
