@@ -22,7 +22,11 @@ reached this machine's memory floor (15 GiB).
 - `ulimit -v 6291456; prove_x86_loop.py --workers 2`: **102 of 102
   all-count cases proved** (`loop.stdout.txt`), 06:41 to about 07:55 UTC.
 
-Not run here: the Arm proofs (prove_hybrid, prove_sme2) and the 472-case
-finite x86 matrix.
+- `full2.py` (prove_x86.py's full finite matrix, `cases()`, the 472
+  cases plus the 52 new, with 2 workers): **524 of 524 proved**
+  (`full.stdout.txt`), 07:11 to about 08:00 UTC.
+
+Not run here: the Arm proofs (prove_hybrid, prove_sme2), which need an
+AArch64 CPU for their cross-checks.
 
 **Posted:** BLAKE3 #164, #166, #163.
