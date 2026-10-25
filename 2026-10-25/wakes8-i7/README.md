@@ -17,11 +17,9 @@ October 25, 03:42–04:06 UTC. One first-stage pair was repeated as busy.
 judged 412 cells (servil st and mt) on 6 pairs; its eight suspects went to
 16 fresh pairs, which judged every one level (`kept/second/`).
 
-The supervisor vanished after the second stage's last pair and before the
-check printed its closing line or released its lock; nothing in the logs
-says why. Both stages' judgements are in `check.stdout.txt`, and
-`bench-hashes compare` over `kept/` and `kept/second/` reproduces them
-(`stage1-compare.txt`).
+Both stages' judgements are in `check.stdout.txt` (the second stage's is
+the check's last output), and `bench-hashes compare` over `kept/` and
+`kept/second/` reproduces them (`stage1-compare.txt`).
 
 **The pool's one-shot cells, again (`pool-cells/`):** the first stage read
 servil mt after a pause at 2 and 3 MiB about 5% slower in all six pairs,
