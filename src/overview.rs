@@ -463,6 +463,25 @@ fn speed(gbps: f64) -> String {
     format!("{gbps:.digits$} GB/s")
 }
 
+/// The text with a non-breaking space between a number and its unit ("64 B",
+/// "1 KiB"), so a row's name never wraps between the two.
+fn units_kept(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    for (i, &c) in chars.iter().enumerate() {
+        let between = c == ' '
+            && i > 0
+            && chars[i - 1].is_ascii_digit()
+            && chars.get(i + 1).is_some_and(|n| n.is_ascii_uppercase());
+        if between {
+            out.push_str("&nbsp;");
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 fn escape(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -742,7 +761,7 @@ pub fn html(rows: &[Row]) -> String {
                 body,
                 "<tr><td class=\"situation\" title=\"{}\">{}</td>",
                 escape(pick.situation),
-                escape(column)
+                units_kept(&escape(column))
             );
             for row in rows {
                 let class = if row.virtual_machine {
@@ -924,6 +943,19 @@ pub fn command(args: &[String]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_number_keeps_its_unit_on_one_line() {
+        assert_eq!(
+            units_kept("a batch of 1024 messages, 64 B each"),
+            "a batch of 1024 messages, 64&nbsp;B each"
+        );
+        assert_eq!(
+            units_kept("128 MiB, every core"),
+            "128&nbsp;MiB, every core"
+        );
+        assert_eq!(units_kept("1000 files, b3sum"), "1000 files, b3sum");
+    }
 
     #[test]
     fn a_speed_is_bytes_over_the_shared_rule_s_mean() {
