@@ -2722,9 +2722,8 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
     let energy_nj = energy0
         .zip(clocks::energy::package_nj())
         .map(|(before, after)| after - before);
-    let cpu_ns = cpu0
-        .zip(clocks::process_cpu_ns())
-        .map(|(before, after)| after - before);
+    // Unix always has the clock (clocks' process_cpu_ns, BLAKE3 #171).
+    let cpu_ns = Some(clocks::process_cpu_ns() - cpu0);
     DuoCopy {
         elapsed_ns,
         counts,
@@ -5590,7 +5589,7 @@ fn regress_load(start_ns: u64, end_ns: u64) -> String {
         let windows = clocks::load::windows();
         // Where the OS counts CPU time, a window covers the end within half
         // a window; elsewhere none ever closes (describe says so).
-        let counted = cfg!(any(target_os = "linux", target_vendor = "apple"));
+        let counted = clocks::load::MEASURED;
         if windows
             .last()
             .map_or(!counted, |last| last.end_ns >= end_ns)
