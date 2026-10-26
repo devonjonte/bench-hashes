@@ -81,7 +81,7 @@ impl Program {
                 produce(0, blake3_servil::performance::Block::bytes_mut(blocks));
                 let digests = &mut self.digests[..count];
                 blake3_servil::performance::hash_many_multithreaded(
-                    blake3_servil::Mode::Hash,
+                    blake3_servil::Mode::Plain,
                     blocks,
                     MESSAGE_LEN,
                     digests,
@@ -101,7 +101,7 @@ impl Program {
                 let buffer = &*blocks;
                 let places = &mut self.places[..count];
                 blake3_servil::performance::stream(
-                    blake3_servil::Mode::Hash,
+                    blake3_servil::Mode::Plain,
                     |_| {},
                     |s| {
                         s.submit_batch(buffer, MESSAGE_LEN, places);
@@ -115,7 +115,7 @@ impl Program {
                 let buffer = blake3_servil::performance::Block::bytes(blocks);
                 let places = &mut self.places[..count];
                 blake3_servil::performance::stream(
-                    blake3_servil::Mode::Hash,
+                    blake3_servil::Mode::Plain,
                     |_| {},
                     |s| {
                         s.submit_batch_with(
@@ -131,7 +131,7 @@ impl Program {
             "write-ring" => {
                 let places = &mut self.places[..count];
                 blake3_servil::performance::stream(
-                    blake3_servil::Mode::Hash,
+                    blake3_servil::Mode::Plain,
                     |_| {},
                     |s| {
                         s.submit_batch_with(
