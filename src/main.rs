@@ -5315,7 +5315,7 @@ fn compare_command(arguments: &[String]) {
     // energy, over their units, in the same fixed point.
     let means = |path: &String| {
         let file = read_samples(path);
-        if !file.load.starts_with("quiet") {
+        if clocks::load::MEASURED && !file.load.starts_with("quiet") {
             println!(
                 "{path}: {}: its samples are no evidence of speed",
                 file.load
@@ -5718,7 +5718,10 @@ fn regress_command(arguments: &[String]) -> i32 {
         if !powers.contains(&file.power) {
             powers.push(file.power.clone());
         }
-        let busy = (!load.starts_with("quiet")).then_some(load);
+        // Where clocks measures no load (macOS: clocks::load's doc), a run's
+        // line says "not measured", and the run is evidence: keep that
+        // machine quiet by hand while it measures.
+        let busy = (clocks::load::MEASURED && !load.starts_with("quiet")).then_some(load);
         (
             file.cells
                 .into_iter()
