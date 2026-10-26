@@ -228,8 +228,8 @@ function draw(S, c, w, h, axes) {
   /* CPU time (the processor time a unit took, all the program's threads)
      dotted; energy (the CPU package's, a unit's share) dashed. */
   for (const [m, dash, cap] of [["cpu", `0.1 ${axes ? 4 : 3}`, "round"], ["energy", axes ? "7 4" : "5 3", "butt"]]) if (MEASURES[m]) for (const i of live) {
-    const line = c[m][i]; if (!line) continue;
-    const pts = line.map((v, k) => v ? [x(k), y(shown(v))] : null);
+    const values = c[m][i]; if (!values) continue;
+    const pts = values.map((v, k) => v ? [x(k), y(shown(v))] : null);
     let run = [];
     for (const p of pts.concat([null])) {
       if (p) { run.push(p); continue; }
