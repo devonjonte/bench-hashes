@@ -46,6 +46,12 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
             "performance::hash_many_multithreaded",
             "performance/fn.hash_many_multithreaded.html",
         ),
+        UseCase::ManyLongMessages => (
+            "long",
+            "busy",
+            "performance::hash_many_multithreaded",
+            "performance/fn.hash_many_multithreaded.html",
+        ),
         UseCase::IdleManyMessages => (
             "batch",
             "idle",
@@ -121,6 +127,7 @@ fn axis(use_case: UseCase) -> &'static str {
         }
         UseCase::MerkleTree => "leaves (256 B each)",
         UseCase::Collection | UseCase::ContinuousCollection => "collection",
+        UseCase::ManyLongMessages => "messages in the batch (4 KiB each)",
         _ if use_case.batch() => "messages in the batch (64 B each)",
         _ => "message size",
     }
@@ -520,17 +527,16 @@ fn hashing(path: &Path) -> Section {
             let points = &POINTS[use_case.points()];
             // Every chart in bytes per second, so one axis serves them all:
             // a batch's time per message over its message's bytes.
-            let per_byte = if use_case.batch() {
-                use_case.message_len() as f64
-            } else {
-                1.0
+            let per_byte = |label: &str| match points.iter().find(|p| p.label == label) {
+                Some(p) if use_case.batch() => p.message_len() as f64,
+                _ => 1.0,
             };
             let mean = |a: &Algorithm, label: &str| {
                 let key = format!("{}|{scenario}|{use_case:?}|{label}", a.key());
                 file.cells
                     .iter()
                     .find(|(k, _)| *k == key)
-                    .map(|(_, s)| mean_ns(s) / per_byte)
+                    .map(|(_, s)| mean_ns(s) / per_byte(label))
             };
             let column = |col: &[(String, Vec<u64>)], a: &Algorithm, label: &str| {
                 let key = format!("{}|{scenario}|{use_case:?}|{label}", a.key());
@@ -538,7 +544,7 @@ fn hashing(path: &Path) -> Section {
                     .iter()
                     .find(|(k, _)| *k == key)
                     .and_then(|(_, s)| per_unit(col, &key, s))
-                    .map(|v| v / per_byte)
+                    .map(|v| v / per_byte(label))
             };
             // The points this run measured for some contender, in axis order.
             let measured: Vec<_> = points
@@ -611,6 +617,7 @@ fn hashing(path: &Path) -> Section {
         rows: vec![
             ("one", "one message", "One message in memory, of the length along the chart's axis."),
             ("batch", "a batch of short messages", "Many 64-byte messages hashed together, such as a Merkle tree's nodes; the axis counts the messages."),
+            ("long", "a batch of longer messages", "Many 4 KiB messages hashed together, such as a store's blocks or a backup's chunks; the axis counts the messages."),
             ("merkle", "a Merkle tree", "A Merkle tree over 256-byte leaves the program has just written into place, leaves and parents hashed apart, every layer kept, as a zero-knowledge prover commits to its Reed-Solomon codeword (WHIR); the axis counts the leaves."),
             ("many", "many messages at once, in pieces", "256 messages in progress at once, their pieces arriving 64 at a time, as a server's uploads arrive."),
             ("coll", "a collection of messages", "A collection of messages of every size, such as a repository's objects or a store's files, hashed together."),
