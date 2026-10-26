@@ -165,7 +165,22 @@ pub fn command(arguments: &[String]) -> i32 {
     let (contenders, points): (Vec<String>, Option<Vec<String>>) = if all {
         (SUBJECTS.iter().map(|s| s.to_string()).collect(), None)
     } else {
-        let cells = touched_cells(&fork, &bench, &cache, &old, &new, &new_exe);
+        let cells = touched_cells(
+            &fork,
+            Side {
+                bench: &old_bench,
+                name: "old",
+                commit: &old,
+                exe: &old_exe,
+            },
+            Side {
+                bench: &bench,
+                name: "new",
+                commit: &new,
+                exe: &new_exe,
+            },
+            &cache,
+        );
         if cells.is_empty() {
             println!("check: the change touches no line a cell executes; nothing to measure");
             return 0;
@@ -705,20 +720,37 @@ fn shuffle(items: &mut [&str], seed: u64) {
     }
 }
 
-/// The points whose cells execute a line the change touches: a coverage
-/// build of the new side runs each point once (servil st and mt) and the
-/// lines each executes in the fork's `src/` are kept, cached by the bench's
-/// source and the fork's commit; the change's diff (old..new, `src/`)
-/// gives the touched lines. Assembly, the build script or a manifest
-/// changed: every point.
+/// One side of a check: its bench, its name under the cache, the fork's
+/// commit it builds, and its executable.
+#[derive(Clone, Copy)]
+struct Side<'a> {
+    bench: &'a Path,
+    name: &'a str,
+    commit: &'a str,
+    exe: &'a Path,
+}
+
+/// The points whose cells execute a line the change touches: the lines it
+/// adds or changes, which the new side's cells execute, and the lines it
+/// deletes or changes, which the old side's executed (a deleted line has
+/// no new side: a change deleting a fast path still measures the cells
+/// that took it). A coverage build of each side runs each point once
+/// (servil st and mt) and keeps the lines each executes in the fork's
+/// `src/`, cached by the bench's source and the fork's commit; the diff
+/// (old..new, `src/`) gives the lines. Assembly, the build script or a
+/// manifest changed: every point.
 fn touched_cells(
     fork: &Path,
-    bench: &Path,
+    old_side: Side,
+    new_side: Side,
     cache: &Path,
-    old: &str,
-    new: &str,
-    new_exe: &Path,
 ) -> Vec<(String, String)> {
+    let (bench, old, new, new_exe) = (
+        new_side.bench,
+        old_side.commit,
+        new_side.commit,
+        new_side.exe,
+    );
     let changed_files = git(fork, &["diff", "--name-only", &format!("{old}..{new}")]);
     let every = || all_cells(new_exe, bench);
     if changed_files.lines().any(|f| {
@@ -731,9 +763,7 @@ fn touched_cells(
         eprintln!("check: assembly, the build script or the build's manifest changed: every point");
         return every();
     }
-    let mut touched: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
-    let mut current = None;
-    for line in git(
+    let (added, deleted) = touched_lines(&git(
         fork,
         &[
             "diff",
@@ -743,43 +773,72 @@ fn touched_cells(
             "src",
             "capi/src",
         ],
-    )
-    .lines()
-    {
-        if let Some(f) = line.strip_prefix("+++ b/") {
-            current = Some(f.to_string());
+    ));
+    if added.is_empty() && deleted.is_empty() {
+        return Vec::new();
+    }
+    let reaches = |reached: &BTreeMap<String, BTreeSet<usize>>,
+                   touched: &BTreeMap<String, BTreeSet<usize>>| {
+        reached
+            .iter()
+            .any(|(f, lines)| touched.get(f).is_some_and(|t| !t.is_disjoint(lines)))
+    };
+    let new_reached = coverage(new_side, cache);
+    let old_reached = if deleted.is_empty() {
+        BTreeMap::new()
+    } else {
+        coverage(old_side, cache)
+    };
+    new_reached
+        .iter()
+        .filter(|(cell, files)| {
+            reaches(files, &added) || old_reached.get(*cell).is_some_and(|f| reaches(f, &deleted))
+        })
+        .map(|(cell, _)| cell.clone())
+        .collect()
+}
+
+/// A `--unified=0` diff's touched lines, by file: the new side's (each
+/// hunk's `+c,d`) and the old side's (`-a,b`). A hunk that adds nothing
+/// (`+c,0`) touches no new line, and one that deletes nothing no old one.
+fn touched_lines(
+    diff: &str,
+) -> (
+    BTreeMap<String, BTreeSet<usize>>,
+    BTreeMap<String, BTreeSet<usize>>,
+) {
+    let (mut added, mut deleted) = (BTreeMap::new(), BTreeMap::new());
+    let (mut old_file, mut new_file) = (None::<String>, None::<String>);
+    let range = |r: &str| -> (usize, usize) {
+        r.split_once(',')
+            .map(|(s, c)| (s.parse().unwrap(), c.parse().unwrap()))
+            .unwrap_or_else(|| (r.parse().unwrap(), 1))
+    };
+    for line in diff.lines() {
+        if let Some(f) = line.strip_prefix("--- ") {
+            old_file = f.strip_prefix("a/").map(str::to_string);
+        } else if let Some(f) = line.strip_prefix("+++ ") {
+            new_file = f.strip_prefix("b/").map(str::to_string);
         } else if line.starts_with("@@") {
-            if let Some(f) = &current {
-                // "@@ -a,b +c,d @@ context": the new side's range is c,d.
-                let range = line
-                    .split_whitespace()
-                    .nth(2)
-                    .unwrap()
-                    .trim_start_matches('+');
-                let (start, count) = range
-                    .split_once(',')
-                    .map(|(s, c)| (s.parse::<usize>().unwrap(), c.parse::<usize>().unwrap()))
-                    .unwrap_or_else(|| (range.parse().unwrap(), 1));
-                touched
+            // "@@ -a,b +c,d @@ context"
+            let mut parts = line.split_whitespace().skip(1);
+            let (a, b) = range(parts.next().unwrap().trim_start_matches('-'));
+            let (c, d) = range(parts.next().unwrap().trim_start_matches('+'));
+            if let (Some(f), true) = (&old_file, b > 0) {
+                deleted
                     .entry(f.clone())
-                    .or_default()
-                    .extend(start..start + count);
+                    .or_insert_with(BTreeSet::new)
+                    .extend(a..a + b);
+            }
+            if let (Some(f), true) = (&new_file, d > 0) {
+                added
+                    .entry(f.clone())
+                    .or_insert_with(BTreeSet::new)
+                    .extend(c..c + d);
             }
         }
     }
-    if touched.is_empty() {
-        return Vec::new();
-    }
-    let reached = coverage(bench, cache, new, new_exe);
-    reached
-        .into_iter()
-        .filter(|(_, files)| {
-            files
-                .iter()
-                .any(|(f, lines)| touched.get(f).is_some_and(|t| !t.is_disjoint(lines)))
-        })
-        .map(|(cell, _)| cell)
-        .collect()
+    (added, deleted)
 }
 
 /// Every cell of the check's contenders, (contender, point as `--points`
@@ -821,14 +880,13 @@ fn all_cells(exe: &Path, bench: &Path) -> Vec<(String, String)> {
 }
 
 /// Each point's executed lines of the fork's `src/`, from a coverage build
-/// of the new side run one point at a time; cached as JSON-free TSV under
-/// the cache, keyed by the bench's source and the fork's commit.
+/// of `side` run one point at a time; cached as JSON-free TSV under the
+/// cache, keyed by the bench's source and the fork's commit.
 fn coverage(
-    bench: &Path,
+    side: Side,
     cache: &Path,
-    new: &str,
-    new_exe: &Path,
 ) -> BTreeMap<(String, String), BTreeMap<String, BTreeSet<usize>>> {
+    let (bench, new, new_exe) = (side.bench, side.commit, side.exe);
     let bench_source = {
         let mut h = blake3_servil::performance::Hasher::new();
         for f in walk(&bench.join("src")) {
@@ -857,11 +915,12 @@ fn coverage(
         return map;
     }
     eprintln!(
-        "check: recording which lines each point executes (once per change to the bench or the fork)"
+        "check: recording which lines each point executes on the {} side (once per change to the bench or the fork)",
+        side.name
     );
-    let checkout = cache.join("new").join("src");
+    let checkout = cache.join(side.name).join("src");
     let copy = checkout.join("bench-hashes");
-    let target = cache.join("new").join("target-coverage");
+    let target = cache.join(side.name).join("target-coverage");
     let patch_fork = fork_patch(&copy, &checkout);
     let out = Command::new("cargo")
         .args(["--config", &patch_fork, "build", "--release", "--quiet"])
@@ -1086,11 +1145,29 @@ fn manifest_builds_differently(fork: &Path, old: &str, new: &str, manifest: &str
 
 #[cfg(test)]
 mod tests {
+    use super::touched_lines;
+    use std::collections::BTreeSet;
     /// Every point the bench measures survives the trip through a cell key
     /// and back to the label that selects it: a second stage's suspects
     /// are cell keys, and "256 B" alone selects the call after other work,
     /// not the one after a pause (an IdleOneMessage suspect once went
     /// unmeasured so).
+    #[test]
+    fn a_deleted_line_is_touched_on_the_old_side() {
+        let diff = "diff --git a/src/lanes.rs b/src/lanes.rs\n--- a/src/lanes.rs\n+++ b/src/lanes.rs\n\
+                    @@ -1247 +1246,0 @@ fn run_members\n-                128 => return,\n\
+                    @@ -1300,2 +1299,2 @@\n-a\n-b\n+c\n+d\n\
+                    diff --git a/src/new.rs b/src/new.rs\n--- /dev/null\n+++ b/src/new.rs\n@@ -0,0 +1,3 @@\n+x\n+y\n+z\n";
+        let (added, deleted) = touched_lines(diff);
+        // The deleted arm: no new line, but its old one (the case the new
+        // side alone missed: "nothing to measure", BLAKE3 #183).
+        assert_eq!(deleted["src/lanes.rs"], BTreeSet::from([1247, 1300, 1301]));
+        assert_eq!(added["src/lanes.rs"], BTreeSet::from([1299, 1300]));
+        // A new file has no old side.
+        assert_eq!(added["src/new.rs"], BTreeSet::from([1, 2, 3]));
+        assert!(!deleted.contains_key("src/new.rs"));
+    }
+
     #[test]
     fn every_cell_key_names_the_point_that_measures_it() {
         for (index, point) in super::super::POINTS.iter().enumerate() {
