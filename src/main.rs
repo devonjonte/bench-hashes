@@ -142,7 +142,7 @@ const TO_CHECK_FOR_REGRESSIONS: Visits = Visits {
 const INPUT_COUNT: usize = 28;
 const BATCH_COUNT: usize = 24;
 /// Points on the continuous axes: message lengths, and messages per batch.
-const CONTINUOUS_MESSAGE_COUNT: usize = 11;
+const CONTINUOUS_MESSAGE_COUNT: usize = 13;
 const CONTINUOUS_BATCH_COUNT: usize = 7;
 /// Many messages at once is measured at one point (FROZEN.md).
 const INTERLEAVED_COUNT: usize = 1;
@@ -509,7 +509,12 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::many("131072", 131072).idle(),
     Point::many("262144", 262144).idle(),
     Point::continuous("64 B", 64),
+    // 128 B and 512 B too: the stream's kernels for tasks of one member
+    // length run at 64 B, 128 B, 256 B, 512 B and 1 KiB (Zooko, October 26;
+    // BLAKE3 #183).
+    Point::continuous("128 B", 128),
     Point::continuous("256 B", 256),
+    Point::continuous("512 B", 512),
     Point::continuous("1 KiB", 1024),
     Point::continuous("4 KiB", 4 * 1024),
     Point::continuous("16 KiB", 16 * 1024),
@@ -527,7 +532,9 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::continuous_batch("16384", 16384),
     Point::continuous_batch("65536", 65536),
     Point::lent("64 B", 64),
+    Point::lent("128 B", 128),
     Point::lent("256 B", 256),
+    Point::lent("512 B", 512),
     Point::lent("1 KiB", 1024),
     Point::lent("4 KiB", 4 * 1024),
     Point::lent("16 KiB", 16 * 1024),
@@ -6943,16 +6950,17 @@ mod correctness_tests {
             many.bytes == INTERLEAVED.chunk && many.label == "256" && INTERLEAVED.open == 256,
             "many messages at once: 256 messages open, a unit of INTERLEAVED.chunk bytes"
         );
-        for (k, point) in POINTS[UseCase::ContinuousMessages.points()]
-            .iter()
-            .enumerate()
-        {
-            assert_eq!(
-                point.bytes,
-                64 << (2 * k),
-                "the continuous messages go up by factors of four from 64 B"
-            );
-        }
+        assert_eq!(
+            POINTS[UseCase::ContinuousMessages.points()]
+                .iter()
+                .map(|p| p.bytes)
+                .collect::<Vec<_>>(),
+            [64, 128, 256, 512, 1024]
+                .into_iter()
+                .chain((3..11).map(|k| 64 << (2 * k)))
+                .collect::<Vec<_>>(),
+            "the continuous messages: every member kernel's length to 1 KiB, then factors of four"
+        );
         for (k, point) in POINTS[UseCase::ContinuousBatches.points()]
             .iter()
             .enumerate()

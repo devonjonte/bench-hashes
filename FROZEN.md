@@ -26,6 +26,14 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **Streams and lent calls of 128 B and 512 B messages** (Zooko, October
+  26): the ContinuousMessages and LentMessages axes gain 128 B and 512 B
+  (64 B, 128 B, 256 B, 512 B, 1 KiB, then factors of four to 64 MiB),
+  the two axes keeping one set of sizes. Why: BLAKE3 servil's stream
+  gathers messages of one length into a task and hashes them side by
+  side with a kernel for each length from 64 B to 1 KiB
+  (`Task::run_members`); no cell streamed 128 B or 512 B messages, so
+  those two kernels' speed went unmeasured (BLAKE3 #183).
 - **Official's b3sum on one thread too** (Zooko, October 25, answering
   official BLAKE3's maintainer): `official-1-thread`, official's `b3sum`
   with `--num-threads 1`, beside the fork's `b3sum-1-thread`, so every
@@ -657,9 +665,9 @@ use case OneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 
 use case ManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
 use case IdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case IdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
-use case ContinuousMessages: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
+use case ContinuousMessages: 64 B, 128 B, 256 B, 512 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case ContinuousBatches: 16, 64, 256, 1024, 4096, 16384, 65536
-use case LentMessages: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
+use case LentMessages: 64 B, 128 B, 256 B, 512 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case Interleaved: 256
 use case Collection: git objects, Nix files
 use case LentBatches: 16, 64, 256, 1024, 4096, 16384, 65536
