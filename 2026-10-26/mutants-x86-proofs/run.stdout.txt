@@ -1,0 +1,45 @@
+== 664087a
+  base: no full pass, every remainder
+  base paths proved; constructing the group invariant
+  initial invariant checked; proving its step and tails
+  induction pass 1: 1 paths, 8 positions left unknown ["('v', 0, 0)", "('v', 0, 1)", "('v', 0, 2)", "('v', 0, 3)", "('v', 0, 4)", "('v', 0, 5)", "('v', 0, 6)", "('v', 0, 7)"]
+  induction pass 2: 9 paths, 0 positions left unknown []
+AVX2 mutant-domain positive control: proved {'head': 1, 'return': 8}
+  base: no full pass, every remainder
+  base: no full pass, every remainder
+  base paths proved; constructing the group invariant
+  base paths proved; constructing the group invariant
+  initial invariant checked; proving its step and tails
+  initial invariant checked; proving its step and tails
+  induction pass 1: 1 paths, 8 positions left unknown ["('v', 0, 0)", "('v', 0, 1)", "('v', 0, 2)", "('v', 0, 3)", "('v', 0, 4)", "('v', 0, 5)", "('v', 0, 6)", "('v', 0, 7)"]
+  induction pass 1: 1 paths, 8 positions left unknown ["('v', 0, 0)", "('v', 0, 1)", "('v', 0, 2)", "('v', 0, 3)", "('v', 0, 4)", "('v', 0, 5)", "('v', 0, 6)", "('v', 0, 7)"]
+  induction pass 2: 9 paths, 0 positions left unknown []
+  induction pass 2: 9 paths, 0 positions left unknown []
+assembled AVX2 mutant, input-stride: rejected (output 0, word 0, differs)
+assembled AVX2 mutant, output-stride: rejected (output 0 incomplete)
+  base: no full pass, every remainder
+  base: no full pass, every remainder
+assembled AVX2 mutant, tail-output-stride: rejected (output 3, word 0, differs)
+  base paths proved; constructing the group invariant
+  base: no full pass, every remainder
+  initial invariant checked; proving its step and tails
+  base paths proved; constructing the group invariant
+  initial invariant checked; proving its step and tails
+  induction pass 1: 1 paths, 16 positions left unknown ["('v', 0, 0)", "('v', 0, 1)", "('v', 0, 2)", "('v', 0, 3)", "('v', 0, 4)", "('v', 0, 5)", "('v', 0, 6)", "('v', 0, 7)"]
+assembled AVX2 mutant, counter-direction: rejected (read of unwritten stack+576 + len_stack_frame0 (at 0x17be: vpxor ymm12, ymm0, ymmword ptr [rsp + 0x240]))
+  base: no full pass, every remainder
+  induction pass 1: 1 paths, 8 positions left unknown ["('v', 0, 0)", "('v', 0, 1)", "('v', 0, 2)", "('v', 0, 3)", "('v', 0, 4)", "('v', 0, 5)", "('v', 0, 6)", "('v', 0, 7)"]
+  induction pass 2: 1 paths, 0 positions left unknown []
+assembled AVX2 mutant, nonterminating: rejected (back edge leaves the next iteration's domain or wraps its count)
+  base paths proved; constructing the group invariant
+assembled AVX2 mutant, input-overread: rejected (read of 16 bytes at input@0+64 outside [0, 64) (at 0x14d5: vmovdqu xmm15, xmmword ptr [r8 + 0x40]))
+x86 memory-mutant positive controls: proved (467, 1284)
+x86 memory mutant, caller-stack write: rejected (write of 8 bytes at stack+65656 + len_stack outside [65536 + len_stack - 128, 65536 + len_stack + 8 + 0) (at 0x3a40: mov qword ptr [rsp + 0x78], 0x0))
+x86 memory mutant, aligned load of an unaligned buffer: rejected (movaps needs 16-byte alignment at cv+0 (at 0x3a40: movaps xmm0, xmmword ptr [rdi]))
+x86 memory mutant, secret-derived prefetch address: rejected (an address that is no pointer: byte ptr [rax] (at 0x3a42: prefetcht0 byte ptr [rax]))
+x86 memory mutant, masked store: rejected (unmodelled vector store: vpmaskmovd (at 0x2dc9: vpmaskmovd ymmword ptr [rbx], ymm15, ymm12))
+chunk-root mutant, CHUNK_START never set: rejected (output word 0 differs from the specification)
+chunk-root mutant, input stride: rejected (output word 0 differs from the specification)
+chunk-root mutant, CHUNK_END dropped: rejected (output word 0 differs from the specification)
+chunk-root mutant, half the output unwritten: rejected (the output is not exactly written)
+x86 stages: 0 failures
