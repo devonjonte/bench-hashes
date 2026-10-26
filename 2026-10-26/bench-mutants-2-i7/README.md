@@ -7,7 +7,7 @@ claim speed without a figure.
 8c34ead, against 8c34ead; bench d21cdf36.
 
 **Command:** `bench_mutants.py` at 8 pairs (`run3.sh`) under
-run-bounded.py, October 26, 09:51-12:40 UTC. The version here also
+run-bounded.py, October 26, 09:51-11:18 UTC. The version here also
 skips places the suite catches (`TESTS_TSV`); this run predates that.
 
 | mutant | verdict |
