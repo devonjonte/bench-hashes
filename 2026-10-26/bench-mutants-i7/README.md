@@ -13,7 +13,7 @@ f448bb3, against f448bb3 itself; bench d21cdf36.
 **Command:** `bench_mutants.py` (in this folder), one mutant at a time:
 `bench-hashes check --against f448bb3 --pairs 8` from a worktree holding
 the mutant, over the cells that execute its changed lines. `run2`: the
-one that read faster, again at 23 pairs. October 26, 06:55-10:00 UTC.
+one that read faster, again at 23 pairs. October 26, 06:55-08:40 UTC.
 
 **Verdicts** (`results-run1.tsv`; the first stage, `*/stage1.txt`):
 
