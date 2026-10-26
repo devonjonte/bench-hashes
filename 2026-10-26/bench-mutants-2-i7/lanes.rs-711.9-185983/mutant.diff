@@ -1,0 +1,21 @@
+--- src/lanes.rs
++++ replace Pool::wake_for with ()
+@@ -703,17 +703,17 @@
+         core::mem::forget(published);
+         if let Some(slot) = slot {
+             sources::Source::unregister(slot);
+         }
+     }
+ 
+     /// Wake workers for `wanted` pieces of new work (crate::park).
+     pub(crate) fn wake_for(&self, wanted: usize) {
+-        self.park.wake_for(wanted, self.threads - 1);
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     /// Wake one parked worker, if any: whether one was.
+     pub(crate) fn wake_one(&self) -> bool {
+         self.park.wake_one()
+     }
+ 
+     /// Whether any worker is parked.

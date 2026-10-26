@@ -1,0 +1,21 @@
+--- src/hasher.rs
++++ replace > with >= in ChunkState<P>::absorb
+@@ -344,17 +344,17 @@
+             if !input.is_empty() {
+                 let block_flags = self.flags | self.start_flag();
+                 self.platform.compress_in_place(&mut self.cv, &self.buf, BLOCK_LEN as u8, self.chunk_counter, block_flags);
+                 self.buf_len = 0;
+                 self.buf = [0; BLOCK_LEN];
+                 self.blocks_compressed += 1;
+             }
+         }
+-        if input.len() > BLOCK_LEN {
++        if input.len() >= /* ~ changed by cargo-mutants ~ */ BLOCK_LEN {
+             let count = (input.len() - 1) / BLOCK_LEN;
+             let start_flag = self.start_flag();
+             self.platform.compress_blocks(&mut self.cv, input, count, self.chunk_counter, self.flags, start_flag);
+             self.blocks_compressed += count as u8;
+             input = &input[count * BLOCK_LEN..];
+         }
+         self.fill_buf(input);
+     }

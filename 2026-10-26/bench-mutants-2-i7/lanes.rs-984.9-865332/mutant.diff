@@ -1,0 +1,21 @@
+--- src/lanes.rs
++++ replace sources::closed with ()
+@@ -976,17 +976,17 @@
+         })
+     }
+ 
+     pub(crate) fn opened() {
+         OPEN.fetch_add(1, Ordering::SeqCst);
+     }
+ 
+     pub(crate) fn closed() {
+-        OPEN.fetch_sub(1, Ordering::SeqCst);
++        () /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     pub(crate) fn open() -> bool {
+         OPEN.load(Ordering::Relaxed) > 0
+     }
+ 
+     /// The first registered source for which `f` says yes.
+     fn find(mut f: impl FnMut(&'static Source) -> bool) -> bool {

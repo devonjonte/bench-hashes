@@ -1,0 +1,26 @@
+--- src/many.rs
++++ delete match arm 3 in hash_four_at_a_time
+@@ -578,22 +578,17 @@
+         platform.hash_many::<N>(lanes, key, 0, IncrementCounter::No, flags, start, end, outputs.as_flattened_mut());
+         return;
+     }
+     let fours = lanes.len() / 4 * 4;
+     if fours > 0 {
+         platform.hash_many::<N>(&lanes[..fours], key, 0, IncrementCounter::No, flags, start, end, outputs[..fours].as_flattened_mut());
+     }
+     match lanes.len() - fours {
+-        3 => {
+-            let spare = [lanes[fours], lanes[fours + 1], lanes[fours + 2], lanes[fours + 2]];
+-            let mut digests = [[0u8; OUT_LEN]; 4];
+-            platform.hash_many::<N>(&spare, key, 0, IncrementCounter::No, flags, start, end, digests.as_flattened_mut());
+-            outputs[fours..].copy_from_slice(&digests[..3]);
+-        }
++         /* ~ changed by cargo-mutants ~ */
+         _ => {
+             for (output, message) in outputs[fours..].iter_mut().zip(&lanes[fours..]) {
+                 *output = *crate::hash_serial_on(&message[..], key, flags, platform).as_bytes();
+             }
+         }
+     }
+ }
+ 
