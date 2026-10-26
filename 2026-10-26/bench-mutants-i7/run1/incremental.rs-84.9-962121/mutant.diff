@@ -1,0 +1,26 @@
+--- src/incremental.rs
++++ replace <impl hasher::Hooks for HasherHooks<'_>>::subtree_cv -> Option<CVBytes> with None
+@@ -76,22 +76,17 @@
+     #[inline(always)]
+     #[allow(unused_variables)]
+     fn subtree_cv(&self, input: &[u8], ahead: usize, counter: u64) -> Option<CVBytes> {
+         // After the first input, no subtree is the root: on SME2 the flat
+         // walk runs it down to its own chaining value, so one value goes
+         // on the stack and about one merge runs on the core between SME2
+         // kernels (about 0.2 us of other work between them puts the SME
+         // unit in its slow state: `sme2`'s documentation).
+-        #[cfg(blake3_sme2)]
+-        if !self.pooled && matches!(self.platform, Platform::SME2) && sme2::flat_takes(input.len()) {
+-            // Safe: the SME2 platform is selected only where the CPU has it.
+-            return Some(unsafe { sme2::compress_subtree_flat_to_cv(input, ahead, self.key, counter, self.flags) });
+-        }
+-        None
++        None /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     #[inline(always)]
+     fn children(&self, input: &[u8], ahead: usize, counter: u64) -> [CVBytes; 2] {
+         #[cfg(feature = "std")]
+         let pool_takes = self.pooled && input.len() >= lanes::MIN_SPLIT_LEN;
+         #[cfg(not(feature = "std"))]
+         let pool_takes = false;

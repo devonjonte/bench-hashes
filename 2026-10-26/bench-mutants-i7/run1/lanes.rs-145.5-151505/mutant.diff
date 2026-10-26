@@ -1,0 +1,27 @@
+--- src/lanes.rs
++++ replace poll_pause with ()
+@@ -137,23 +137,17 @@
+ 
+ /// Between polls a thread spins in user space, and every YIELD_EVERY it
+ /// hands the CPU to any runnable thread (a caller the OS has queued
+ /// behind a poller then waits this long at most, never a quantum).
+ const YIELD_EVERY: std::time::Duration = std::time::Duration::from_micros(20);
+ 
+ #[inline]
+ pub(crate) fn poll_pause(yielded: &mut std::time::Instant) {
+-    for _ in 0..8 {
+-        std::hint::spin_loop();
+-    }
+-    if yielded.elapsed() >= YIELD_EVERY {
+-        std::thread::yield_now();
+-        *yielded = std::time::Instant::now();
+-    }
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ /// How long a caller polls for its last pieces before sleeping.
+ pub(crate) const SPIN_BEFORE_SLEEP: std::time::Duration = std::time::Duration::from_micros(200);
+ 
+ /// The length of the next piece when `remaining` bytes are uncut and
+ /// `threads` threads may share them: about a thread's share of what is
+ /// left, rounded down to a power of two chunks within the bounds above.

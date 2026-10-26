@@ -1,0 +1,21 @@
+--- src/hasher.rs
++++ replace <impl Feed<ChunkState<P>> for Kernels<'_, P, H>>::subtree_cv -> Option<Cv> with None
+@@ -253,17 +253,17 @@
+     fn whole_chunk_cv(&self, chunk: &[u8], counter: u64) -> Cv {
+         let mut state = ChunkState::new(self.key, counter, self.flags, self.platform);
+         state.absorb(chunk);
+         state.output().chaining_value()
+     }
+ 
+     #[inline(always)]
+     fn subtree_cv(&self, input: &[u8], ahead: usize, counter: u64) -> Option<Cv> {
+-        self.hooks.subtree_cv(input, ahead, counter)
++        None /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     #[inline(always)]
+     fn children(&self, input: &[u8], ahead: usize, counter: u64) -> [Cv; 2] {
+         self.hooks.children(input, ahead, counter)
+     }
+ }
+ 

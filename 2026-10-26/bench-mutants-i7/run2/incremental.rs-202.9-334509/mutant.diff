@@ -1,0 +1,22 @@
+--- src/incremental.rs
++++ replace Hasher::held_group -> Option<(u64, &[u8; STAGE_LEN])> with None
+@@ -194,18 +194,17 @@
+         }
+         &[]
+     }
+ 
+     /// A whole group in the stage, from offset zero: its first chunk's
+     /// counter and its bytes.
+     #[cfg(feature = "std")]
+     pub(crate) fn held_group(&self) -> Option<(u64, &[u8; STAGE_LEN])> {
+-        (self.staged == STAGE_LEN && self.core.initial_chunk_counter == 0)
+-            .then(|| (self.core.count() / CHUNK_LEN as u64, self.staged_bytes().try_into().unwrap()))
++        None /* ~ changed by cargo-mutants ~ */
+     }
+ 
+     #[cfg(not(feature = "std"))]
+     pub(crate) fn held_group(&self) -> Option<(u64, &[u8; STAGE_LEN])> {
+         None
+     }
+ 
+     /// The held group's subtree, as [`HasherCore::update_with_results`]

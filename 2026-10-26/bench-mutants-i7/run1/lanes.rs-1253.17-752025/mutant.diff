@@ -1,0 +1,22 @@
+--- src/lanes.rs
++++ delete match arm CHUNK_LEN in Task::run_members
+@@ -1245,18 +1245,17 @@
+             match members[0].len {
+                 crate::BLOCK_LEN => return self.run_equal_members::<{ crate::BLOCK_LEN }>(platform),
+                 #[cfg(target_arch = "x86_64")]
+                 128 => return self.run_equal_members::<128>(platform),
+                 #[cfg(target_arch = "x86_64")]
+                 256 => return self.run_equal_members::<256>(platform),
+                 #[cfg(target_arch = "x86_64")]
+                 512 => return self.run_equal_members::<512>(platform),
+-                #[cfg(target_arch = "x86_64")]
+-                CHUNK_LEN => return self.run_equal_members::<CHUNK_LEN>(platform),
++                 /* ~ changed by cargo-mutants ~ */
+                 _ => {}
+             }
+         }
+         for m in members {
+             let bytes = unsafe { core::slice::from_raw_parts(m.input, m.len) };
+             let hash = crate::hash_serial_on(bytes, &self.key, self.flags, platform);
+             unsafe { core::ptr::copy_nonoverlapping(hash.as_bytes().as_ptr(), m.out, crate::OUT_LEN) };
+         }

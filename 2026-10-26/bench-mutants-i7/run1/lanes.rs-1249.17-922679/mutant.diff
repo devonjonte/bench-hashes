@@ -1,0 +1,22 @@
+--- src/lanes.rs
++++ delete match arm 256 in Task::run_members
+@@ -1241,18 +1241,17 @@
+         }
+         // Sound: the stream keeps every member's bytes and `out` in place
+         // until the task's `left` is zero.
+         if members.len() >= 2 && members.iter().all(|m| m.len == members[0].len) {
+             match members[0].len {
+                 crate::BLOCK_LEN => return self.run_equal_members::<{ crate::BLOCK_LEN }>(platform),
+                 #[cfg(target_arch = "x86_64")]
+                 128 => return self.run_equal_members::<128>(platform),
+-                #[cfg(target_arch = "x86_64")]
+-                256 => return self.run_equal_members::<256>(platform),
++                 /* ~ changed by cargo-mutants ~ */
+                 #[cfg(target_arch = "x86_64")]
+                 512 => return self.run_equal_members::<512>(platform),
+                 #[cfg(target_arch = "x86_64")]
+                 CHUNK_LEN => return self.run_equal_members::<CHUNK_LEN>(platform),
+                 _ => {}
+             }
+         }
+         for m in members {
