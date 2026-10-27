@@ -12,9 +12,10 @@ Copies in `results/`.
 
 **Commands:** `bench-hashes overview index.html results` (bench 0.18.1;
 `text.txt` is its text), then `python3 table.py index.html` reads the
-overview's cells: one-thread rows compare one-thread forms; official is
-called as a program normally calls it, on one thread, but for one large
-message on its thread pool; b3sum against official's b3sum.
+overview's cells: one-thread rows compare one-thread forms; on the
+every-core rows each library uses its multithreaded function (official's
+`update_rayon`, Zooko, October 27: what a user who wants every core calls);
+b3sum against official's b3sum.
 
 **Output:** `table.md`, the table in the CHANGELOG (BLAKE3 PR against
 `candidate/release-0.8`).

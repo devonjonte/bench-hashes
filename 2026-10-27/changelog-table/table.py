@@ -1,9 +1,9 @@
 """The CHANGELOG's speed table from the overview the bench draws (bench
 0.18.1, `bench-hashes overview`), so its figures are the overview's cells:
 blake3-servil over official BLAKE3 1.8.7, both from the same run. Rows on
-one thread compare one-thread forms; official is called as a program
-normally calls it: on one thread (blake3::hash), but for one large message
-on its thread pool (update_rayon); b3sum against official's b3sum. A ratio as the overview says it (one decimal below 10)."""
+one thread compare one-thread forms; on the every-core rows each library
+uses its multithreaded function (servil's, and official's update_rayon),
+as a user who wants every core calls it; b3sum against official's b3sum. A ratio as the overview says it (one decimal below 10)."""
 import re, sys, html
 page = open(sys.argv[1]).read()
 heads = dict(re.findall(r'<th class="col[^"]*" data-m="(\d+)" data-f="[^"]*" data-arch="[^"]*"><a href="[^"]*"><b>([^<]*)</b>', page))
@@ -23,7 +23,7 @@ for label, cells in rows:
         form = want[label][1]
         if form == 'st': r = g['blake3-servil-st'] / g['blake3-official']
         elif form == 'large': r = g['blake3-servil-mt'] / g['blake3-official-mt']
-        elif form == 'stream': r = g['blake3-servil-mt'] / g['blake3-official']
+        elif form == 'stream': r = g['blake3-servil-mt'] / g['blake3-official-mt']
         else: r = g['blake3-servil-mt'] / g['blake3-official-mt']   # b3sum's bars: servil's b3sum, official's b3sum
         table.setdefault(want[label][0], {})[heads[m]] = fig(r)
 cols = [c for c in order if any(c in v for v in table.values())]
