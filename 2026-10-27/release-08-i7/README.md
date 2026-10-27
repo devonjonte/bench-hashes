@@ -29,6 +29,12 @@ October 27, 18:03-20:09 UTC):
   then 24 pairs of its suspect cells, A/B and both A/A controls
   (`confirm-ab/`, `confirm-aa-old/`, `confirm-aa-new/`).
 
+- `full-0.18.1/`: **the full run for the release table** (October 27,
+  22:30 UTC, quiet), with bench 0.18.1 (2c9633ae: #93 and #94 merged, so
+  BLAKE3 official is measured in both its forms), built by `build-against
+  ..`; the b3sum results beside it, and the map drawn by 0.18.1. It
+  replaces `results/` for the CHANGELOG.
+
 **Verdicts:**
 - Suites: every one passes (library 130, no std 35, default features off
   128, release 127, doc tests, test vectors 3, C API 8, b3sum 29,
