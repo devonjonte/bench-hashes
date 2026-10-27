@@ -5707,8 +5707,15 @@ fn regress_command(arguments: &[String]) -> i32 {
     // run takes the sizes (Sizes). A cell both sides measure takes the old
     // side's size, so both do the same work a sample; a cell only one side
     // measures (a --bench comparison whose cells changed), its own side's.
+    // Each side reads a file of its own: the old side's builds its own
+    // calibration (an older bench rejects a size for a cell it lacks, such
+    // as one this bench added), the new side's the merged file.
     let sizes = std::env::temp_dir().join(format!(
         "bench-hashes-regress-sizes-{}.tsv",
+        std::process::id()
+    ));
+    let old_sizes = std::env::temp_dir().join(format!(
+        "bench-hashes-regress-sizes-{}-old-side.tsv",
         std::process::id()
     ));
     let calibrate = |exe: &str, side: &str| -> String {
@@ -5732,12 +5739,12 @@ fn regress_command(arguments: &[String]) -> i32 {
         fs::remove_file(&path).unwrap();
         text
     };
-    let merged = merge_sizes(
-        &calibrate(&old_exes[0], "old"),
-        &calibrate(&new_exes[0], "new"),
-    );
+    let old_calibration = calibrate(&old_exes[0], "old");
+    let merged = merge_sizes(&old_calibration, &calibrate(&new_exes[0], "new"));
     fs::write(&sizes, merged)
         .unwrap_or_else(|error| panic!("cannot write {}: {error}", sizes.display()));
+    fs::write(&old_sizes, old_calibration)
+        .unwrap_or_else(|error| panic!("cannot write {}: {error}", old_sizes.display()));
     if let Some(keep) = &keep {
         fs::copy(&sizes, keep.join("sizes.tsv"))
             .unwrap_or_else(|error| panic!("cannot keep the sizes: {error}"));
@@ -5755,7 +5762,8 @@ fn regress_command(arguments: &[String]) -> i32 {
         let kept = keep
             .as_ref()
             .map(|dir| dir.join(format!("run-{run_index:03}-{side}.tsv")));
-        let (file, load) = regress_run(exe, rounds, &scope, &sizes, kept.as_deref());
+        let side_sizes = if side == "old" { &old_sizes } else { &sizes };
+        let (file, load) = regress_run(exe, rounds, &scope, side_sizes, kept.as_deref());
         if !powers.contains(&file.power) {
             powers.push(file.power.clone());
         }
