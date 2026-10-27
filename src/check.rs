@@ -1024,17 +1024,12 @@ fn coverage(
     map
 }
 
-/// llvm-profdata or llvm-cov: on PATH, else the toolchain's own llvm-tools
-/// (`rustup component add llvm-tools`: its coverage format is the
-/// compiler's), else the newest in /usr/lib/llvm-*/bin.
+/// llvm-profdata or llvm-cov: the toolchain's own llvm-tools first
+/// (`rustup component add llvm-tools`: its profile format is always the
+/// compiler's), else on PATH, else the newest in /usr/lib/llvm-*/bin. An
+/// LLVM on PATH older than the compiler's cannot read its profiles (Ubuntu
+/// 26.04's LLVM 21 beside Rust 1.99's LLVM 23, EPYC 9255: bench-hashes #87).
 fn llvm_tool(name: &str) -> PathBuf {
-    if let Some(p) = std::env::var_os("PATH").and_then(|p| {
-        std::env::split_paths(&p)
-            .map(|d| d.join(name))
-            .find(|p| p.exists())
-    }) {
-        return p;
-    }
     let sysroot = Command::new("rustc")
         .args(["--print", "sysroot"])
         .output()
@@ -1051,8 +1046,16 @@ fn llvm_tool(name: &str) -> PathBuf {
         found.sort();
         found
     };
+    let on_path = || {
+        std::env::var_os("PATH").and_then(|p| {
+            std::env::split_paths(&p)
+                .map(|d| d.join(name))
+                .find(|p| p.exists())
+        })
+    };
     in_bins(&rustlib)
         .pop()
+        .or_else(on_path)
         .or_else(|| in_bins(Path::new("/usr/lib")).pop())
         .unwrap_or_else(|| {
             panic!(
@@ -1145,6 +1148,36 @@ fn manifest_builds_differently(fork: &Path, old: &str, new: &str, manifest: &str
 
 #[cfg(test)]
 mod tests {
+    /// The toolchain's llvm-profdata wins over one on PATH: an older LLVM
+    /// there cannot read the compiler's profiles (bench-hashes #87, Sam's
+    /// EPYC). Needs `rustup component add llvm-tools`, which the release
+    /// machines have; without it the test fails, saying so.
+    #[test]
+    fn llvm_tool_takes_the_toolchains_copy_before_path() {
+        let fake = std::env::temp_dir().join(format!("llvm-tool-test-{}", std::process::id()));
+        std::fs::create_dir_all(&fake).unwrap();
+        std::fs::write(fake.join("llvm-profdata"), "#!/bin/sh\nexit 1\n").unwrap();
+        let path = std::env::var_os("PATH").unwrap_or_default();
+        let joined =
+            std::env::join_paths(std::iter::once(fake.clone()).chain(std::env::split_paths(&path)))
+                .unwrap();
+        // Sound: nextest runs each test in its own process, so no other
+        // thread reads the environment meanwhile.
+        unsafe { std::env::set_var("PATH", &joined) };
+        let got = super::llvm_tool("llvm-profdata");
+        unsafe { std::env::set_var("PATH", &path) };
+        std::fs::remove_dir_all(&fake).unwrap();
+        let sysroot = std::process::Command::new("rustc")
+            .args(["--print", "sysroot"])
+            .output()
+            .unwrap()
+            .stdout;
+        assert!(
+            got.starts_with(String::from_utf8(sysroot).unwrap().trim()),
+            "took {got:?}: install llvm-tools (rustup component add llvm-tools)"
+        );
+    }
+
     use super::touched_lines;
     use std::collections::BTreeSet;
     /// Every point the bench measures survives the trip through a cell key
