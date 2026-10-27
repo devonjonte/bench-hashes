@@ -1,0 +1,61 @@
+== cargo fmt --all --check
+== cargo nextest run --cargo-quiet --features serde,zeroize
+== cargo nextest run --cargo-quiet --no-default-features
+== cargo test -q --doc --features serde,zeroize
+
+running 19 tests
+...................
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.19s; merged doctests compilation took 0.19s
+== cargo nextest run --cargo-quiet --release --manifest-path capi/Cargo.toml
+== cargo nextest run --cargo-quiet --manifest-path b3sum/Cargo.toml
+== cargo nextest run --cargo-quiet --manifest-path b3sum/Cargo.toml --no-default-features
+== cargo nextest run --cargo-quiet --manifest-path clocks/Cargo.toml
+== cargo test -q --release --test shuttle_park --test shuttle_finish
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+== cargo doc -q --no-deps
+== python3 tools/mutants/test_check.py
+== python3 -m unittest discover -s tools/verify -p test_*.py
+  induction pass 1: 1 paths, 0 positions left unknown []
+  induction pass 1: 1 paths, 0 positions left unknown []
+== sh tools/check-builds.sh
+== cargo nextest run --cargo-quiet --release --no-default-features
+== cargo test -q --release --doc --no-default-features
+
+running 9 tests
+.........
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.13s; merged doctests compilation took 0.13s
+== taskset -c 0 cargo nextest run --cargo-quiet --release --lib
+== cargo check -q --release --tests --examples
+== cargo check -q --release --manifest-path b3sum/Cargo.toml
+== cargo nextest run --cargo-quiet --release --manifest-path capi/Cargo.toml
+== cargo check -q --tests --examples --target x86_64-unknown-linux-gnu
+== cargo check -q --tests --target x86_64-unknown-linux-gnu --no-default-features
+== sh -c cargo check -q --keep-going --target x86_64-pc-windows-msvc 2>&1 | grep -q 'for x86_64-pc-windows-msvc, use official BLAKE3'
+== sh -c cargo check -q --keep-going --target wasm32-unknown-unknown 2>&1 | grep -q 'for wasm32-unknown-unknown, use official BLAKE3'
+== sh -c CC=/nonexistent/cc cargo check -q 2>&1 | grep -q 'use official BLAKE3 for a build without assembly'
+== sh -c python3 tools/gen_neon_hybrid.py | cmp - c/blake3_neon_hybrid_aarch64.S && python3 tools/gen_sme2_hybrid.py | cmp - c/blake3_sme2_hybrid_aarch64.S
+== sh -c python3 tools/gen_x86.py | cmp - c/blake3_partial_x86-64_unix.S
+== sh -c python3 tools/gen_x86_chunk_root.py | cmp - c/blake3_chunk_root_x86-64_unix.S
+== sh -c python3 tools/gen_avx512_32.py | cmp - c/blake3_avx512_32.S
+check-builds: every build passes
+GATE PASSED
+mutants: the fork at f783eab5a8fec6939fbae45703d6cb6489895fe9
+Found 8 mutants to test
+ok       Unmutated baseline in 8s build + 1s test
+MISSED   src/lanes.rs:597:16: replace > with >= in initialize in 0s build + 1s test
+8 mutants tested in 24s: 1 missed, 6 caught, 1 unviable
+mutants: the change since candidate/devon-prerelease-fixes: 8 mutants, no new survivor
+== mutants exit 0
