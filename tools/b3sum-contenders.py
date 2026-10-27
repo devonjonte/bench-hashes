@@ -1,7 +1,7 @@
 """Build b3sum contenders for `bench-hashes b3sum` into DIR, each named for what it is:
     python3 tools/b3sum-contenders.py FORK DIR [COMMIT...]
 FORK is a checkout of github.com/johnservil/BLAKE3.
-  DIR/b3sum-official-1.8.2  official BLAKE3's b3sum from crates.io (also as
+  DIR/b3sum-official-1.8.7  official BLAKE3's b3sum from crates.io (also as
                             official-1-thread, the same build with
                             --num-threads 1)
   DIR/b3sum-COMMIT          the fork's b3sum at each COMMIT (default: FORK's HEAD),
@@ -91,13 +91,17 @@ def relink(name, manifest, built, flags=""):
     return contenders
 
 
-official = os.path.join(dir, "b3sum-official-1.8.2")
+# Official BLAKE3 1.8.7, the release the fork comes from and the one the
+# bench's hash cells measure (Cargo.lock): one reference point (Zooko,
+# October 25).
+OFFICIAL = "1.8.7"
+official = os.path.join(dir, f"b3sum-official-{OFFICIAL}")
 if not os.access(official, os.X_OK):
-    run("cargo", "install", "--quiet", "--locked", "b3sum", "--version", "1.8.2", "--root", os.path.join(dir, "official"),
+    run("cargo", "install", "--quiet", "--locked", "b3sum", "--version", OFFICIAL, "--root", os.path.join(dir, f"official-{OFFICIAL}"),
         env={"CARGO_TARGET_DIR": os.path.join(target, "official")})
-    shutil.copy(os.path.join(dir, "official", "bin", "b3sum"), official)
+    shutil.copy(os.path.join(dir, f"official-{OFFICIAL}", "bin", "b3sum"), official)
 cargo_home = os.environ.get("CARGO_HOME", os.path.expanduser("~/.cargo"))
-official_src = sorted(glob.glob(os.path.join(cargo_home, "registry", "src", "*", "b3sum-1.8.2")))[0]
+official_src = sorted(glob.glob(os.path.join(cargo_home, "registry", "src", "*", f"b3sum-{OFFICIAL}")))[0]
 contenders = relink("official", os.path.join(official_src, "Cargo.toml"), official)
 # Official's on one thread too, as the fork's is, so the two compare on one
 # thread as well as on every core (official's maintainer asked; Zooko,

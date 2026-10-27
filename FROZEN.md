@@ -26,6 +26,12 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **Official b3sum 1.8.7** (October 27, for 0.18.0): the b3sum run's
+  official contender is b3sum 1.8.7 (was 1.8.2), the release the fork
+  comes from and the one the hash cells' official crate already is
+  (Cargo.lock). Zooko, October 25: official BLAKE3 1.8.7 is the one
+  reference point; a b3sum chart against 1.8.2 compared the fork with an
+  older official than every other chart.
 - **A batch of 4 KiB messages** (Zooko, October 24, for 0.18.0): a use
   case of its own, ManyLongMessages, batches of 4, 16, 64 and 256
   messages of 4 KiB each, after other work: servil st's
