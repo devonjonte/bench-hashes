@@ -1637,20 +1637,12 @@ const SHOWN_AT_FIRST: [Algorithm; 3] = [
     Algorithm::Blake3,
 ];
 
-/*
- * Contenders that run only when --contenders names them, left out of
- * --all: BLAKE3 official mt, which BLAKE3 servil mt beats at every point
- * (Zooko, September 26, 2026: kept so that the crate's maintainers, or
- * anyone, can see it measured on request).
- */
-const BY_REQUEST: [Algorithm; 1] = [Algorithm::Blake3Rayon];
-
 /// How the user chose the contenders, for the report header.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Selection {
     /// DEFAULT_CONTENDERS.
     Default,
-    /// `--all`: every contender that can run here, but BY_REQUEST.
+    /// `--all`: every contender that can run here.
     All,
     /// `--contenders a,b,c`.
     Explicit,
@@ -1663,7 +1655,6 @@ shared with a second copy of the same contender
   bench-hashes                     BLAKE3 servil st and mt
                                    and SHA-256 (sha2 and ring)
   bench-hashes --all               every contender this machine can run
-                                   but blake3-official-mt (named only)
   bench-hashes --contenders K,...  exactly these, in this column order
   bench-hashes --list              contenders and their availability here
 
@@ -2035,12 +2026,10 @@ fn main() {
             /* SHA-1DC, the slowest by far, runs in quick runs only when named. */
             Algorithm::ALL
                 .into_iter()
-                .filter(|algorithm| {
-                    algorithm.availability().is_ok() && !BY_REQUEST.contains(algorithm)
-                })
+                .filter(|algorithm| algorithm.availability().is_ok())
                 .filter(|&algorithm| !quick || algorithm != Algorithm::Sha1Dc)
                 .collect(),
-            String::from("every contender available on this machine but those run on request"),
+            String::from("every contender available on this machine"),
         ),
         Selection::Explicit => {
             let keys = explicit

@@ -26,6 +26,13 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **BLAKE3 official, multi-threaded, in every `--all` run** (Zooko,
+  October 27). Since September 26 it ran only when named, on the ground
+  that servil's multi-threaded form beat it at every point. The one run
+  since that named it (EPYC 9255, October 23) read 128 MiB level, and
+  without it every "times official" on an every-core cell compared
+  servil on every core with official on one. Each library is measured
+  in both its forms, so every comparison is like for like.
 - **Official b3sum 1.8.7** (October 27, for 0.18.0): the b3sum run's
   official contender is b3sum 1.8.7 (was 1.8.2), the release the fork
   comes from and the one the hash cells' official crate already is
