@@ -26,6 +26,28 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **A batch of 4 KiB messages** (Zooko, October 24, for 0.18.0): a use
+  case of its own, ManyLongMessages, batches of 4, 16, 64 and 256
+  messages of 4 KiB each, after other work: servil st's
+  `performance::hash_many` and servil mt's `hash_many_multithreaded`
+  with 4096 for the length; BLAKE3 official and the rest message by
+  message (official's hidden batch function hashes each message as one
+  chunk, so a program with longer messages calls `blake3::hash` on each).
+  It is the one cell on the path `hash_many` takes for messages of 2 to
+  15 chunks, across the messages at every step of their tree
+  (`hash_across`), which no cell reached before (the data branch,
+  `2026-10-24/shortcuts`). On the map it is a row of its own, a batch of
+  longer messages, in the after-other-work column. A batch's message
+  length is its point's (bytes over messages), one rule for every batch
+  cell.
+- **Streams and lent calls of 128 B and 512 B messages** (Zooko, October
+  26): the ContinuousMessages and LentMessages axes gain 128 B and 512 B
+  (64 B, 128 B, 256 B, 512 B, 1 KiB, then factors of four to 64 MiB),
+  the two axes keeping one set of sizes. Why: BLAKE3 servil's stream
+  gathers messages of one length into a task and hashes them side by
+  side with a kernel for each length from 64 B to 1 KiB
+  (`Task::run_members`); no cell streamed 128 B or 512 B messages, so
+  those two kernels' speed went unmeasured (BLAKE3 #183).
 - **The fork's names made consistent** (Zooko, October 26): the plain
   hash's mode is `Mode::Plain` (was `Mode::Hash`), and a `Hasher` is made
   by `Hasher::new(mode)` alone. The calls and their work are unchanged:
@@ -659,11 +681,12 @@ use, across machines?".
 ```frozen
 use case OneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case ManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
+use case ManyLongMessages: 4, 16, 64, 256
 use case IdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case IdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
-use case ContinuousMessages: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
+use case ContinuousMessages: 64 B, 128 B, 256 B, 512 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case ContinuousBatches: 16, 64, 256, 1024, 4096, 16384, 65536
-use case LentMessages: 64 B, 256 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
+use case LentMessages: 64 B, 128 B, 256 B, 512 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case Interleaved: 256
 use case Collection: git objects, Nix files
 use case LentBatches: 16, 64, 256, 1024, 4096, 16384, 65536
@@ -683,6 +706,8 @@ blake3-servil-st OneMessage: convenience::hash(input), each call after other wor
 blake3-servil-st ManyMessages: performance::hash_many(Mode::Plain, blocks, 64, out), the padded batch contract, each call after other work
 blake3-servil-mt OneMessage: performance::hash_multithreaded(Mode::Plain, blocks, len), each call after other work
 blake3-servil-mt ManyMessages: performance::hash_many_multithreaded(Mode::Plain, blocks, 64, out), the padded batch contract, each call after other work
+blake3-servil-st ManyLongMessages: performance::hash_many(Mode::Plain, blocks, 4096, out), the padded batch contract, each call after other work
+blake3-servil-mt ManyLongMessages: performance::hash_many_multithreaded(Mode::Plain, blocks, 4096, out), the padded batch contract, each call after other work
 blake3-servil-mt ContinuousMessages: performance::stream(Mode::Plain, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
 blake3-servil-mt ContinuousBatches: performance::stream(Mode::Plain, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again
 blake3-servil-st ContinuousMessages: convenience::hash(input), one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)

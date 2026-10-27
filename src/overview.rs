@@ -188,10 +188,12 @@ fn cell<'a>(file: &'a SamplesFile, key: &str) -> Option<&'a [Measured]> {
 
 fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algorithm) -> Bars {
     let key = |a: Algorithm| format!("{}|solo|{use_case:?}|{point}", a.key());
-    let per_unit = if use_case.batch() {
-        use_case.message_len() as f64
-    } else {
-        1.0
+    let per_unit = match super::POINTS
+        .iter()
+        .find(|p| p.use_case == use_case && p.label == point)
+    {
+        Some(p) if use_case.batch() => p.message_len() as f64,
+        _ => 1.0,
     };
     let bar = |a: Algorithm, samples: &[Measured], note| Bar {
         name: plain_name(a).to_owned(),
