@@ -752,9 +752,8 @@ fn families_by_machine(all: &[Row], shown: &[usize]) -> String {
 /// family's column.
 fn door(rows: &[Row], shown: &[usize]) -> String {
     let mut out = format!(
-        "<details class=\"more\" id=\"more\"><summary><b>All {} machines measured</b>: choose which one stands for each kind</summary><p class=\"glance-key\">Under each machine: {}, BLAKE3 servil on every core (striped) against SHA-256 (solid). Choose a machine to put it in the grid.</p><div class=\"cards\">",
-        rows.len(),
-        escape(PICKS[HEADLINE].column)
+        "<details class=\"more\" id=\"more\"><summary><b>All {} machines measured</b>: choose which one stands for each kind</summary><p class=\"glance-key\">Under each machine: BLAKE3 servil against SHA-256, on a stream of messages. Click a machine to put it in the grid above.</p><div class=\"cards\">",
+        rows.len()
     );
     for f in FAMILIES {
         let mut members: Vec<usize> = (0..rows.len()).filter(|&i| family(&rows[i]) == f).collect();
