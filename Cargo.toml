@@ -43,10 +43,13 @@ default-features = false
 # crate: wall time, and the thread's counts per core kind). Each pin names
 # its full commit hash: the contender's code, and the instrument's clocks.
 # build-against replaces the contender and keeps the instrument pinned.
-# To build against a local checkout of the fork instead, with this
-# repository inside it, add
-#   --config 'patch."https://github.com/johnservil/BLAKE3".blake3-servil.path=".."'
-# to the cargo command (CONTRIBUTING.md).
+# To measure a local checkout of the fork instead, with this repository
+# inside it, build with `bench-hashes build-against ..` and run the
+# executable it prints (CONTRIBUTING.md); pass `--expect-servil COMMIT` to
+# have the run refuse any other servil. Not a bare `--config` patch: Cargo
+# applies a patch only at a version the lock allows, and otherwise builds
+# this pin with a warning (0.3.0 here; the fork's 0.8 releases are 0.8.x).
+# build-against updates its own lock for the patch first.
 [dependencies.blake3-servil]
 git = "https://github.com/johnservil/BLAKE3"
 rev = "49b43b1d317305dbd25e1aa93d56f307430a1205"

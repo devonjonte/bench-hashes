@@ -245,7 +245,7 @@ fn watch_repository(repository: &Path) {
 /// results directory, or this repository nested inside the fork's
 /// checkout, where it is an untracked directory). A dirty tree is fingerprinted by hashing its status, its
 /// diff against HEAD, and every untracked file.
-fn git_state(repository: &Path, skip: Option<&str>) -> GitState {
+fn git_state(repository: &Path, skip: &[&str]) -> GitState {
     let source = normalize_git_source(&git_text(repository, &["remote", "get-url", "origin"]));
 
     let commit = git_text(repository, &["rev-parse", "HEAD"]);
@@ -280,8 +280,14 @@ fn git_state(repository: &Path, skip: Option<&str>) -> GitState {
         None => "(no reachable release tag)".to_owned(),
     };
 
-    let exclude = skip.map(|path| format!(":(exclude){path}"));
-    let pathspec: Vec<&str> = ["--", "."].into_iter().chain(exclude.as_deref()).collect();
+    let exclude: Vec<String> = skip
+        .iter()
+        .map(|path| format!(":(exclude){path}"))
+        .collect();
+    let pathspec: Vec<&str> = ["--", "."]
+        .into_iter()
+        .chain(exclude.iter().map(String::as_str))
+        .collect();
     let status = git_bytes(
         repository,
         &[
@@ -382,7 +388,7 @@ fn emit_git_metadata(repository: &Path) {
     watch_repository(repository);
 
     /* The run's own results are output, not source. */
-    let state = git_state(repository, Some("benchmark-results"));
+    let state = git_state(repository, &["benchmark-results"]);
 
     emit_env("BENCH_GIT_SOURCE", &state.source);
     emit_env("BENCH_GIT_COMMIT", &state.commit);
@@ -459,7 +465,24 @@ fn emit_servil_package(manifest_dir: &Path, lock: &str) {
                 .file_name()
                 .and_then(|name| name.to_str())
                 .expect("the manifest directory has a UTF-8 name");
-            let state = git_state(&repository, Some(own_name));
+            /* Not the fork's own: this build's directory, and the bench
+            checkout it was copied from where that sits in the fork too (a
+            nested bench built by build-against, BENCH_HASHES_CHECKOUT). */
+            let nested_bench = env::var_os("BENCH_HASHES_CHECKOUT")
+                .map(PathBuf::from)
+                .filter(|bench| {
+                    bench.parent().map(fs::canonicalize).and_then(Result::ok)
+                        == fs::canonicalize(&repository).ok()
+                })
+                .and_then(|bench| {
+                    bench
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .map(str::to_owned)
+                });
+            let mut skip = vec![own_name];
+            skip.extend(nested_bench.as_deref());
+            let state = git_state(&repository, &skip);
             format!(
                 "blake3-servil {version} (local checkout {SERVIL_CHECKOUT}); source {}; branch {}; commit {}; {}",
                 state.source, state.branch, state.commit, state.clean_status
