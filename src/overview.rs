@@ -51,13 +51,13 @@ pub const PICKS: [Pick; 7] = [
         cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "1 KiB", servil: Algorithm::Blake3ServilSt },
     },
     Pick {
-        column: "1 MiB, one thread",
-        situation: "a buffer the size of a file, on the calling thread",
+        column: "1 MiB",
+        situation: "a buffer the size of a file",
         cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "1 MiB", servil: Algorithm::Blake3ServilSt },
     },
     Pick {
-        column: "128 MiB, every core",
-        situation: "a download or a disk image, the library's threads at work",
+        column: "128 MiB",
+        situation: "a download or a disk image",
         cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "128 MiB", servil: Algorithm::Blake3ServilMt },
     },
     Pick {
@@ -146,8 +146,38 @@ pub struct Bar {
     pub note: &'static str,
 }
 
-/// A cell's bars: BLAKE3 servil's first, then each competitor's.
+/// A cell's bars: BLAKE3 servil's forms first, then each competitor's.
 pub type Bars = Vec<Bar>;
+
+/// Whether a bar is one of BLAKE3 servil's forms (b3sum's shares the
+/// multi-threaded form's key).
+fn is_servil(b: &Bar) -> bool {
+    b.id == Algorithm::Blake3ServilSt.key() || b.id == Algorithm::Blake3ServilMt.key()
+}
+
+/// A cell's three families, as the first view and the door draw them:
+/// servil's form `form`, official's matching form (its multi-threaded one where servil's
+/// is and the run measured it, else its one thread), and SHA-256.
+fn trio<'a>(bars: &'a [Bar], form: Algorithm) -> [Option<&'a Bar>; 3] {
+    let find = |a: Algorithm| bars.iter().find(|b| b.id == a.key());
+    let servil = find(form);
+    let official = match servil.map(|b| b.id) {
+        Some(id) if id == Algorithm::Blake3ServilMt.key() => {
+            find(Algorithm::Blake3Rayon).or_else(|| find(Algorithm::Blake3))
+        }
+        _ => find(Algorithm::Blake3),
+    };
+    [servil, official, find(Algorithm::Sha256)]
+}
+
+/// The row's own servil bar: its pick's form (b3sum's, in its row).
+fn ours<'a>(bars: &'a [Bar], pick: &Pick) -> Option<&'a Bar> {
+    let form = match &pick.cell {
+        Cell::Hashing { servil, .. } => servil.key(),
+        Cell::B3sum { .. } => Algorithm::Blake3ServilMt.key(),
+    };
+    bars.iter().find(|b| b.id == form)
+}
 
 /// One machine's row.
 pub struct Row {
@@ -203,29 +233,22 @@ fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algo
         gbps: gbps(samples, per_unit),
         note,
     };
-    let Some(ours) = cell(file, &key(servil)) else {
+    // The row's own form of servil must be measured; then every form of
+    // each library the run measured, in the legend's order (servil's
+    // single- and multi-threaded, official's), so the reader's choice of
+    // forms holds in every row.
+    if cell(file, &key(servil)).is_none() {
         return Vec::new();
-    };
-    let mut bars = vec![bar(servil, ours, "")];
-    // BLAKE3 official: its multithreaded form where servil's cell is
-    // multithreaded and the run measured it; else its one thread, noted.
-    let official = if servil == Algorithm::Blake3ServilMt {
-        match cell(file, &key(Algorithm::Blake3Rayon)) {
-            Some(mt) => Some((Algorithm::Blake3Rayon, mt, "")),
-            None => cell(file, &key(Algorithm::Blake3)).map(|one| {
-                (
-                    Algorithm::Blake3,
-                    one,
-                    "this run has no multi-threaded BLAKE3 official, so its single-threaded form stands beside servil's multi-threaded",
-                )
-            }),
-        }
-    } else {
-        cell(file, &key(Algorithm::Blake3)).map(|one| (Algorithm::Blake3, one, ""))
-    };
-    if let Some((a, theirs, note)) = official {
-        bars.push(bar(a, theirs, note));
     }
+    let mut bars: Bars = [
+        Algorithm::Blake3ServilSt,
+        Algorithm::Blake3ServilMt,
+        Algorithm::Blake3,
+        Algorithm::Blake3Rayon,
+    ]
+    .into_iter()
+    .filter_map(|a| cell(file, &key(a)).map(|s| bar(a, s, "")))
+    .collect();
     // The fastest SHA-256 the run measured in this cell.
     let sha = [
         Algorithm::Sha256,
@@ -497,11 +520,11 @@ pub fn text(rows: &[Row]) -> String {
             continue;
         }
         for (pick, bars) in PICKS.iter().zip(&row.cells) {
-            let line = match bars.split_first() {
+            let line = match ours(bars, pick) {
                 None => "not in this run".to_owned(),
-                Some((ours, others)) => {
+                Some(ours) => {
                     let mut line = format!("{} {}", speed(ours.gbps), ours.name);
-                    for b in others {
+                    for b in bars.iter().filter(|b| !is_servil(b)) {
                         let note = if b.note.is_empty() {
                             String::new()
                         } else {
@@ -530,6 +553,94 @@ pub fn text(rows: &[Row]) -> String {
 /// inside the headline case (messages nonstop, 64 KiB each, every core),
 /// so the view spans the range from where servil trails to where it
 /// leads most (Zooko, October 24), by their index in PICKS.
+/// The grid's columns, one a family of CPU (Zooko, October 27): in each,
+/// the machine measured that is most like the family's machines shipping
+/// through 2027. The Apple M4 Max stands for Apple silicon, the most common
+/// Arm computer a program like this runs on; the Ryzen 7 9700X for AMD's
+/// Zen 5 and its successors, desktops and laptops outnumbering servers; the
+/// i7-12700K for Intel's hybrid PCs (performance and efficiency cores,
+/// AVX2, no AVX-512). Where the results lack a family's chosen machine, its
+/// first machine stands in, so a reader's own run shows their machine.
+pub const CHOSEN: [(&str, &str); 3] = [
+    ("Arm", "Apple M4 Max"),
+    ("AMD", "AMD Ryzen 7 9700X"),
+    ("Intel", "Intel Core i7-12700K"),
+];
+
+/// The families, in the grid's order.
+const FAMILIES: [&str; 4] = ["Arm", "AMD", "Intel", "Other"];
+
+/// A machine's family, from its CPU's name.
+fn family(row: &Row) -> &'static str {
+    let m = row.machine.as_str();
+    if m.starts_with("Apple") || m.contains("aarch64") || m.contains("Neoverse") {
+        "Arm"
+    } else if m.starts_with("AMD") {
+        "AMD"
+    } else if m.starts_with("Intel") {
+        "Intel"
+    } else {
+        "Other"
+    }
+}
+
+/// The machine in each family's column, by index into `rows`, in the
+/// families' order: the chosen machine where measured, else the family's
+/// first real machine with cells, else its first.
+pub fn shown(rows: &[Row]) -> Vec<usize> {
+    FAMILIES
+        .iter()
+        .filter_map(|f| {
+            let members: Vec<usize> = (0..rows.len())
+                .filter(|&i| family(&rows[i]) == *f)
+                .collect();
+            let chosen = CHOSEN.iter().find(|(c, _)| c == f).map(|(_, m)| *m);
+            members
+                .iter()
+                .copied()
+                .find(|&i| Some(rows[i].machine.as_str()) == chosen && !rows[i].virtual_machine)
+                .or_else(|| {
+                    members
+                        .iter()
+                        .copied()
+                        .find(|&i| !rows[i].virtual_machine && !rows[i].stale)
+                })
+                .or_else(|| members.first().copied())
+        })
+        .collect()
+}
+
+/// Each machine measured in plain words (its kind, design and year), for
+/// its column and its card: (the CPU as the page names it, the words).
+const KNOWN: [(&str, &str); 8] = [
+    ("Apple M4 Max", "Apple laptop or desktop, 2024"),
+    ("AMD Ryzen 7 9700X", "AMD desktop, Zen 5, 2024"),
+    ("AMD EPYC 9255", "AMD server, Zen 5, 2024"),
+    ("AMD EPYC 9254", "AMD server, Zen 4, 2022"),
+    ("AMD EPYC 7443P", "AMD server, Zen 3, 2021"),
+    ("Intel Core i7-12700K", "Intel desktop, Alder Lake, 2021"),
+    ("Intel Xeon Gold 6330", "Intel server, Ice Lake, 2021"),
+    (
+        "Intel Xeon E5-1650 v4",
+        "Intel workstation, Broadwell, 2016",
+    ),
+];
+
+/// A machine in plain words: a virtual machine says so; a CPU not in
+/// KNOWN goes by its family and core count.
+fn plain(row: &Row) -> String {
+    if row.virtual_machine {
+        return format!("Linux in a virtual machine, {} CPUs", row.cpus);
+    }
+    KNOWN
+        .iter()
+        .find(|(m, _)| row.machine.starts_with(m))
+        .map_or_else(
+            || format!("{} machine, {} CPUs", family(row), row.cpus),
+            |(_, w)| (*w).to_owned(),
+        )
+}
+
 const EVERYDAY: usize = 1;
 const HEADLINE: usize = 4;
 
@@ -538,16 +649,19 @@ const HEADLINE: usize = 4;
 /// case, the darker part inside it the everyday case; log scale, one for
 /// every machine, so bars compare across rows. No figure on the page; the
 /// figures and the cells' names under the pointer.
-fn families_by_machine(rows: &[Row]) -> String {
-    let rows: Vec<&Row> = rows
+fn families_by_machine(all: &[Row], shown: &[usize]) -> String {
+    let mut rows: Vec<(usize, &Row)> = all
         .iter()
-        .filter(|r| {
-            !r.stale
-                && !r.virtual_machine
-                && !r.cells[HEADLINE].is_empty()
-                && !r.cells[EVERYDAY].is_empty()
-        })
+        .enumerate()
+        .filter(|(_, r)| !r.stale && !r.cells[HEADLINE].is_empty() && !r.cells[EVERYDAY].is_empty())
         .collect();
+    rows.sort_by_key(|(i, r)| {
+        (
+            FAMILIES.iter().position(|f| *f == family(r)),
+            !shown.contains(i),
+            *i,
+        )
+    });
     if rows.is_empty() {
         return String::new();
     }
@@ -555,7 +669,7 @@ fn families_by_machine(rows: &[Row]) -> String {
     let families = ["BLAKE3 servil", "BLAKE3 official", "SHA-256"];
     let all: Vec<f64> = rows
         .iter()
-        .flat_map(|r| {
+        .flat_map(|(_, r)| {
             r.cells[HEADLINE]
                 .iter()
                 .chain(&r.cells[EVERYDAY])
@@ -572,18 +686,21 @@ fn families_by_machine(rows: &[Row]) -> String {
     let hi_g = 10f64.powf(all.iter().cloned().fold(0.0, f64::max).log10().ceil());
     let width = |g: f64| 100.0 * (g.log10() - lo_g.log10()) / (hi_g.log10() - lo_g.log10());
     let mut out = String::from("<div class=\"families\">");
-    for r in &rows {
+    for (i, r) in &rows {
         let _ = write!(
             out,
-            "<div class=\"fam-row\"><div class=\"fam-machine\"><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span>{} CPUs, {}</span></div><div class=\"fam-bars\">",
+            "<div class=\"fam-row col{}\" data-m=\"{i}\" data-f=\"{}\"><div class=\"fam-machine\"><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span>{}</span></div><div class=\"fam-bars\">",
+            if shown.contains(i) { "" } else { " alt" },
+            family(r),
             escape(&r.link),
             escape(&r.machine),
-            escape(&r.cpus),
-            escape(&r.os)
+            escape(&plain(r))
         );
         for (k, family) in families.iter().enumerate() {
-            let (Some(top), Some(inner)) = (r.cells[HEADLINE].get(k), r.cells[EVERYDAY].get(k))
-            else {
+            let (Some(top), Some(inner)) = (
+                trio(&r.cells[HEADLINE], Algorithm::Blake3ServilMt)[k],
+                trio(&r.cells[EVERYDAY], Algorithm::Blake3ServilMt)[k],
+            ) else {
                 continue;
             };
             let color = inner.color;
@@ -626,6 +743,61 @@ fn families_by_machine(rows: &[Row]) -> String {
         e += 1;
     }
     out.push_str("</div></div></div>");
+    out
+}
+
+/// The door to every machine measured: a card each, grouped by family, in
+/// plain words, with the headline contest at a glance (servil on every
+/// core against SHA-256, messages nonstop); choosing one puts it in its
+/// family's column.
+fn door(rows: &[Row], shown: &[usize]) -> String {
+    let mut out = format!(
+        "<details class=\"more\" id=\"more\"><summary><b>All {} machines measured</b>: choose which one stands for each kind</summary><p class=\"glance-key\">Under each machine: {}, BLAKE3 servil on every core (striped) against SHA-256 (solid). Choose a machine to put it in the grid.</p><div class=\"cards\">",
+        rows.len(),
+        escape(PICKS[HEADLINE].column)
+    );
+    for f in FAMILIES {
+        let mut members: Vec<usize> = (0..rows.len()).filter(|&i| family(&rows[i]) == f).collect();
+        if members.is_empty() {
+            continue;
+        }
+        members.sort_by_key(|i| !shown.contains(i));
+        let _ = write!(out, "<div class=\"fam-col\" data-f=\"{f}\"><h3>{f}</h3>");
+        for i in members {
+            let r = &rows[i];
+            let [ours, _, sha] = trio(&r.cells[HEADLINE], Algorithm::Blake3ServilMt);
+            let glance = match (ours, sha) {
+                (Some(o), Some(h)) => {
+                    let top = o.gbps.max(h.gbps);
+                    format!(
+                        "<span class=\"glance\" title=\"{}: BLAKE3 servil, multi-threaded, {} against SHA-256, {}\"><i style=\"width:{:.0}%;background:{}\"></i><i style=\"width:{:.0}%;background:{}\"></i><em>{}</em></span>",
+                        escape(PICKS[HEADLINE].column),
+                        speed(o.gbps),
+                        speed(h.gbps),
+                        60.0 * o.gbps / top,
+                        paint(o.color, o.striped),
+                        60.0 * h.gbps / top,
+                        h.color,
+                        figure(o.gbps / h.gbps)
+                    )
+                }
+                _ => String::new(),
+            };
+            let _ = write!(
+                out,
+                "<div class=\"card{}\" data-m=\"{i}\"><button type=\"button\" class=\"use\" data-m=\"{i}\"><b>{}</b><span>{} · {} CPUs, {} · {}</span>{glance}<span class=\"state\">in the grid</span></button><a href=\"{}/bench-hashes.map.html\">its map \u{203A}</a></div>",
+                if shown.contains(&i) { " on" } else { "" },
+                escape(&plain(r)),
+                escape(&r.machine),
+                escape(&r.cpus),
+                escape(&r.os),
+                escape(&r.day),
+                escape(&r.link)
+            );
+        }
+        out.push_str("</div>");
+    }
+    out.push_str("</div></details>\n");
     out
 }
 
@@ -709,31 +881,53 @@ pub fn html(rows: &[Row]) -> String {
     // The grid, turned: a column per machine, a row per use case, so a
     // glance across a row compares machines. Machines of another release
     // get a column that names their last run and links its map.
+    // A column a machine, in the families' order: each family's shown
+    // machine visible, its others waiting (class "alt") until the door
+    // swaps one in.
+    let shown = shown(rows);
+    let mut order: Vec<usize> = (0..rows.len()).collect();
+    order.sort_by_key(|&i| {
+        (
+            FAMILIES.iter().position(|f| *f == family(&rows[i])),
+            !shown.contains(&i),
+            i,
+        )
+    });
+    let col = |i: usize| {
+        format!(
+            "class=\"col{}\" data-m=\"{i}\" data-f=\"{}\"",
+            if shown.contains(&i) { "" } else { " alt" },
+            family(&rows[i])
+        )
+    };
     let mut body = String::new();
     body.push_str("<div class=\"grid\"><table><thead><tr><th class=\"situation\"></th>");
-    for row in rows {
-        let class = if row.virtual_machine {
-            " class=\"vm\""
-        } else {
-            ""
-        };
-        let arch = if row.machine.contains("Apple") {
-            "apple"
-        } else {
-            "x86"
-        };
+    for &i in &order {
+        let row = &rows[i];
+        let others = rows.iter().filter(|r| family(r) == family(row)).count() - 1;
         let _ = write!(
             body,
-            "<th{class} data-arch=\"{arch}\"><a href=\"{}/bench-hashes.map.html\"><b>{}{}</b></a><span>{} CPUs, {} · {}</span><span>BLAKE3 servil {} · bench-hashes {}</span>{}</th>",
+            "<th {} data-arch=\"{}\"><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span class=\"kind\">{}</span><span>{} CPUs, {} · {}</span><span>BLAKE3 servil {} · bench-hashes {}</span>{}{}</th>",
+            col(i),
+            if row.machine.contains("Apple") { "apple" } else { "other" },
             escape(&row.link),
-            if row.virtual_machine { "VM on " } else { "" },
             escape(&row.machine),
+            escape(&plain(row)),
             escape(&row.cpus),
             escape(&row.os),
             escape(&row.day),
             escape(&row.fork),
             escape(&row.version),
-            if row.stale { "<span class=\"stale\">that release's run is on its map; a run under this release is awaited</span>" } else { "" }
+            if row.stale { "<span class=\"stale\">that release's run is on its map; a run under this release is awaited</span>" } else { "" },
+            if others > 0 {
+                format!(
+                    "<a class=\"swap\" href=\"#more\" data-f=\"{0}\">{others} other {0} machine{1} \u{25BE}</a>",
+                    family(row),
+                    if others == 1 { "" } else { "s" }
+                )
+            } else {
+                String::new()
+            }
         );
     }
     body.push_str("</tr></thead><tbody>\n");
@@ -746,12 +940,9 @@ pub fn html(rows: &[Row]) -> String {
                 escape(pick.situation),
                 escape(column)
             );
-            for row in rows {
-                let class = if row.virtual_machine {
-                    " class=\"vm\""
-                } else {
-                    ""
-                };
+            for &m in &order {
+                let row = &rows[m];
+                let class = format!(" {}", col(m));
                 if row.stale {
                     let _ = write!(body, "<td{class}></td>");
                     continue;
@@ -825,8 +1016,9 @@ pub fn html(rows: &[Row]) -> String {
         }
     }
     body.push_str("</tbody></table></div>\n");
+    body.push_str(&door(rows, &shown));
     include_str!("overview.html")
-        .replace("@FAMILIES@", &families_by_machine(rows))
+        .replace("@FAMILIES@", &families_by_machine(rows, &shown))
         .replace("@LEGEND@", &legend)
         .replace("@BODY@", &body)
 }
@@ -1066,8 +1258,12 @@ mod tests {
             "md5sum's 1.5 of b3sum's 30"
         );
         assert!(
-            page.contains("<th class=\"vm\""),
-            "a virtual machine's column is marked"
+            page.contains("<th class=\"col alt\" data-m=\"1\""),
+            "a virtual machine waits behind the door"
+        );
+        assert!(
+            page.contains("<b>All 2 machines measured</b>"),
+            "the door holds every machine"
         );
         // The legend: one button a colour, servil first, b3sum's sharing.
         let legend: Vec<&str> = page
@@ -1152,6 +1348,35 @@ mod tests {
             "the other release's machine is named, not drawn"
         );
         std::fs::remove_dir_all(&site).unwrap();
+    }
+
+    /// A column a family (Zooko, October 27): its chosen machine where
+    /// measured, else its first real machine, else (only a virtual one
+    /// measured) that one; the others wait behind the door.
+    #[test]
+    fn a_column_a_family_its_chosen_machine_first() {
+        let none = || PICKS.iter().map(|_| Vec::new()).collect::<Vec<Bars>>();
+        let rows = [
+            row("AMD EPYC 9255", false, none()),
+            row("AMD Ryzen 7 9700X", false, none()),
+            row("aarch64", true, none()),
+            row("Intel Xeon Gold 6330 @ 2.00GHz", false, none()),
+        ];
+        // Arm, AMD, Intel: the virtual machine alone; the chosen 9700X over
+        // the EPYC named first; the Xeon, the family's only machine.
+        assert_eq!(shown(&rows), [2, 1, 3]);
+        let rows = [
+            row("aarch64", true, none()),
+            row("Apple M4 Max", false, none()),
+            row("Intel Core i7-12700K", false, none()),
+        ];
+        assert_eq!(
+            shown(&rows),
+            [1, 2],
+            "the chosen Mac over the virtual machine"
+        );
+        assert_eq!(plain(&rows[1]), "Apple laptop or desktop, 2024");
+        assert_eq!(plain(&rows[0]), "Linux in a virtual machine, 8 CPUs");
     }
 
     #[test]
