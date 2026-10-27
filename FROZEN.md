@@ -26,6 +26,17 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **The overview: a column a kind of machine** (Zooko, October 27). Nine
+  machines have runs, and a column each did not fit. The grid shows
+  three columns, Arm, AMD and Intel, each the machine most like its
+  family's machines shipping through 2027 (`overview::CHOSEN`: Apple M4
+  Max, AMD Ryzen 7 9700X, Intel Core i7-12700K). Every other machine
+  waits behind a door, a card each in plain words, and a card puts its
+  machine in its family's column. Every cell holds each form of each
+  library its run measured, and the page opens on BLAKE3 servil,
+  multi-threaded, beside SHA-256; the legend shows the rest. So the rows
+  "1 MiB, one thread" and "128 MiB, every core" become "1 MiB" and
+  "128 MiB": the legend, not the row, says which forms are drawn.
 - **Official b3sum 1.8.7** (October 27, for 0.18.0): the b3sum run's
   official contender is b3sum 1.8.7 (was 1.8.2), the release the fork
   comes from and the one the hash cells' official crate already is
@@ -623,24 +634,36 @@ the maps, built from every machine's published run, that answers "how
 does BLAKE3 servil do on my kind of machine?" and "how does it do for my
 use, across machines?".
 
-- **The first view: three bars a machine,** on one logarithmic scale for
-  every machine: BLAKE3 servil's, BLAKE3 official's (off until asked
-  for) and the fastest SHA-256 the run measured (sha2, ring, or the OS's).
-  A bar's full length is hashing nonstop on every core (ContinuousMessages
-  64 KiB: servil's stream, official's multi-threaded form); the part
-  inside it, one message of 1 KiB on one thread, after other work, where
-  SHA-256 with the CPU's instructions leads. So the view spans where
-  servil trails to where it leads most.
-- **The grid: a column a machine, a row a representative cell.** In each
+- **The first view: three bars a machine** (the machines in the grid),
+  on one logarithmic scale for every machine: BLAKE3 servil's
+  multi-threaded form, BLAKE3 official's (off until asked for) and the
+  fastest SHA-256 the run measured (sha2, ring, or the OS's). A bar's full
+  length is hashing nonstop on every core (ContinuousMessages 64 KiB:
+  servil's stream, official's multi-threaded form where measured); the
+  part inside it, one message of 1 KiB after other work, where SHA-256
+  with the CPU's instructions leads. So the view spans where servil
+  trails to where it leads most.
+- **The grid: a column a kind of machine, a row a representative cell.**
+  The columns are Arm, AMD and Intel (and "Other" for a run on another
+  CPU), each the family's machine in `overview::CHOSEN` where the
+  results hold it, else the family's first. The page's door, "All N
+  machines measured", shows every machine as a card in plain words (its
+  kind, design and year, `overview::KNOWN`, with the headline contest at
+  a glance); a card puts its machine in its family's column, and each
+  column's button opens the door at its family. In each
   cell a bar a hash, each cell on its own linear scale (its fastest bar
   fills the width, that speed written under its end). The rows, chosen
   once, here; the overview reads these cells and no others:
 
-  | row | scenario, use case, point | servil's contender | the situation |
+  Each cell holds every form of each library its run measured (servil's
+  two, official's one or two) and the fastest SHA-256; the column below
+  names the form the row's text report and the first view compare.
+
+  | row | scenario, use case, point | servil's form for the text | the situation |
   |---|---|---|---|
   | 64 B; 1 KiB | solo OneMessage 64 B; solo OneMessage 1 KiB | blake3-servil-st | a key, an identifier, a small record, hashed between a program's other work |
-  | 1 MiB, one thread | solo OneMessage 1 MiB | blake3-servil-st | a buffer the size of a file, on the calling thread |
-  | 128 MiB, every core | solo OneMessage 128 MiB | blake3-servil-mt (against blake3-official-mt) | a download or a disk image, the library's threads at work |
+  | 1 MiB | solo OneMessage 1 MiB | blake3-servil-st | a buffer the size of a file |
+  | 128 MiB | solo OneMessage 128 MiB | blake3-servil-mt | a download or a disk image |
   | 64 KiB messages, one after another | solo ContinuousMessages 64 KiB | blake3-servil-mt (the stream) | messages arriving one after another, as fast as the program can feed them |
   | 1024 messages of 64 B, batched | solo ManyMessages 1024 | blake3-servil-st | a Merkle layer, a content-addressed store, a database's keys |
   | 1000 files, b3sum | b3sum, warm, mixed tree, 1000 files, 74 MiB | the fork's b3sum (against official b3sum and the system's sha256sum, sha1sum and md5sum: still what many people run on a download, whatever their security) | the command people actually run, process start to exit |
@@ -658,17 +681,21 @@ use, across machines?".
   between them in the winner's colour; with servil hidden there is none.
   The map's brackets follow the same rule.
 - **The legend is the hashes drawn,** a button each, a library's two
-  forms one above the other. A button hides or shows its hash's bars (in
-  the first view, its form's part of a bar).
+  forms one above the other, under "Show:", with a line saying a click
+  shows or hides. A button hides or shows its hash's bars (in the first
+  view, its form's part of a bar); an off button keeps its name readable
+  and its swatch hollow. The page opens on BLAKE3 servil, multi-threaded,
+  and SHA-256 (Zooko, October 27).
 - **Machines** are each one published run, the newest of the current
   benchmark release on that machine: its CPU name, core count and OS from
   the run's own header, its date, and the servil commit it measured. A
   machine whose last run is another release's keeps a column that names
   it and links its map, with no cells, until a run under this release
   replaces it: one page shows one release's cells and never averages
-  two. A virtual machine is kept (it is data) but shown only on request.
-  The page guesses the reader's kind of machine from the browser (Apple
-  silicon; x86) and marks it "yours?".
+  two. A virtual machine is kept (it is data): a card behind the door,
+  never a family's first choice. The page guesses the reader's machine
+  where the browser names it (Apple's) and marks the Arm column "yours?";
+  a browser does not tell AMD from Intel.
 - **Nonstop compares the calling thread's view.** In ContinuousMessages
   BLAKE3 official hashes on the one calling thread, while servil's stream
   uses the machine: what one calling thread gets from each library, the
@@ -734,8 +761,8 @@ blake3-servil-mt IdleOneMessage: performance::hash_multithreaded(Mode::Plain, bl
 blake3-servil-mt IdleManyMessages: performance::hash_many_multithreaded(Mode::Plain, blocks, 64, out), the padded batch contract, each call after idling
 overview cell: solo OneMessage 64 B, blake3-servil-st (64 B)
 overview cell: solo OneMessage 1 KiB, blake3-servil-st (1 KiB)
-overview cell: solo OneMessage 1 MiB, blake3-servil-st (1 MiB, one thread)
-overview cell: solo OneMessage 128 MiB, blake3-servil-mt (128 MiB, every core)
+overview cell: solo OneMessage 1 MiB, blake3-servil-st (1 MiB)
+overview cell: solo OneMessage 128 MiB, blake3-servil-mt (128 MiB)
 overview cell: solo ContinuousMessages 64 KiB, blake3-servil-mt (64 KiB messages, one after another)
 overview cell: solo ManyMessages 1024, blake3-servil-st (1024 messages of 64 B, batched)
 overview cell: b3sum warm mixed tree, 1000 files, 74 MiB (1000 files, b3sum)

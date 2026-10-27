@@ -8,7 +8,13 @@ h1 { font-size: 20px; margin: 0 0 4px; }
 .legend .pair { display: inline-flex; flex-direction: column; gap: 3px; } .legend .pair button { text-align: left; }
 .legend button { font: 12px inherit; border: 1px solid #d1d5db; background: #fff; border-radius: 12px; padding: 3px 10px 3px 8px; cursor: pointer; }
 .legend button::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: -1px; }
-.legend button.off { opacity: .35; }
+/* Off: the swatch hollow, the name still readable, so a button reads as
+   a switch, not as a disabled one. */
+.legend button.off { color: #6b7280; background: #f9fafb; border-style: dashed; }
+.legend button.off::before { background: none; box-shadow: inset 0 0 0 1.5px #9ca3af; }
+.legend button:not(.off) { border-color: #9ca3af; font-weight: 600; }
+.legend .hint { color: #9ca3af; font-size: 11px; }
+.glance-key { color: #6b7280; font-size: 12px; margin: 0 0 10px; }
 .legend label { color: #9ca3af; font-size: 12px; margin-left: 8px; }
 .grid { overflow-x: auto; }
 table { border-collapse: collapse; }
@@ -18,7 +24,27 @@ th a { color: #4c1d95; text-decoration: none; } th b { font-size: 15px; } th spa
 th span.stale { color: #6b7280; }
 th.situation, td.situation { min-width: 150px; max-width: 170px; font-size: 12px; font-weight: 600; color: #6b7280; cursor: help; }
 td.situation .pt { display: block; color: #9ca3af; font-size: 11px; font-weight: normal; }
-th.vm, td.vm { display: none; } body.show-vm th.vm, body.show-vm td.vm { display: table-cell; }
+/* A family's other machines wait out of sight until the door swaps one in. */
+.alt { display: none !important; }
+th span.kind { color: #4b5563; font-size: 12px; font-weight: 600; }
+th a.swap { display: inline-block; margin-top: 4px; font-size: 11px; font-weight: normal; color: #6d28d9; border: 1px solid #ddd6fe; border-radius: 10px; padding: 1px 8px; background: #faf8ff; }
+th a.swap:hover { background: #ede9fe; }
+.legend .show { color: #374151; font-size: 12px; font-weight: 600; margin-right: 2px; }
+/* The door to every machine: a card each, by family. */
+.more { margin: 18px 0 0; max-width: 1100px; }
+.more summary { cursor: pointer; font-size: 14px; color: #374151; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; width: max-content; max-width: 100%; box-sizing: border-box; }
+.more summary:hover { border-color: #a78bfa; }
+.more[open] summary { margin-bottom: 10px; }
+.cards { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+.fam-col { flex: 1 1 250px; min-width: 230px; } .fam-col h3 { font-size: 13px; color: #6b7280; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+.card { border: 1px solid #e7e4de; border-radius: 8px; background: #fff; margin: 0 0 8px; padding: 0 0 6px; }
+.card .use { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: none; padding: 8px 10px 4px; cursor: pointer; border-radius: 8px 8px 0 0; }
+.card .use:hover { background: #f5f3ff; }
+.card .use b { display: block; font-size: 14px; } .card .use > span { display: block; color: #6b7280; font-size: 12px; margin-top: 1px; }
+.card .glance { display: flex !important; flex-direction: column; gap: 2px; margin-top: 6px; position: relative; }
+.card .glance i { display: block; height: 6px; border-radius: 0 2px 2px 0; } .card .glance em { position: absolute; left: 64%; top: 0; font-style: normal; font-size: 11px; color: #4c1d95; font-weight: 600; }
+.card .state { display: none !important; } .card.on { border-color: #a78bfa; box-shadow: 0 0 0 1px #a78bfa inset; } .card.on .state { display: inline-block !important; margin-top: 4px; font-size: 11px; color: #fff; background: #7c3aed; border-radius: 8px; padding: 0 7px; }
+.card > a { display: inline-block; margin: 0 10px; font-size: 12px; color: #6d28d9; text-decoration: none; }
 th.yours { background: #f5f3ff; }
 /* A cell is a card that opens its chart: an outline, a chevron at its
    right edge, a lift under the pointer. No words. */
@@ -69,12 +95,12 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 }
 </style></head><body>
 <h1>How fast BLAKE3 servil runs</h1>
-<p class="sub">Longer is faster, on one scale for every machine. The full bar hashes nonstop on every core; the darker part is one message of 1 KiB on one thread. The bracket: how many times faster the fastest ran, in its colour. Point at a bar for figures.</p>
-<div class="legend">@LEGEND@<label><input type="checkbox" id="vm"> show virtual machines</label></div>
-<div class="fam-legend"><span><i class="lo"></i> one message of 1 KiB, one thread, between other work</span><span><i class="hi"></i> messages nonstop, every core</span></div>
+<p class="sub">Longer is faster, on one scale for every machine. The full bar hashes nonstop on every core; the darker part is one message of 1 KiB between other work. The bracket: how many times faster the fastest ran, in its colour. Point at a bar for figures.</p>
+<div class="legend"><span class="show">Show:</span>@LEGEND@<span class="hint">click a name to show or hide it</span></div>
+<div class="fam-legend"><span><i class="lo"></i> one message of 1 KiB, between other work</span><span><i class="hi"></i> messages nonstop, every core</span></div>
 @FAMILIES@
 <h2>By machine and by use case</h2>
-<p class="sub">A column is a machine, a row a use case. In each cell the fastest bar fills the width; the bracket says by how much it leads.</p>
+<p class="sub">A column is a kind of machine, a row a use case. In each cell the fastest bar fills the width; the bracket says by how much it leads. Each kind shows the machine most like those sold this year; <a href="#more">every machine measured</a> can take its place.</p>
 @BODY@
 
 <div id="tip"></div>
@@ -83,6 +109,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 <script>
 (function () {
   const sel = b => `.bars i[data-k="${CSS.escape(b.dataset.k)}"]`;
+  const SERVIL = ["blake3-servil-st", "blake3-servil-mt"];
   const hidden = i => i.closest(".bar").classList.contains("off");
   const fmt = g => { if (g <= 0) return "0 GB/s"; const d = Math.max(0, 1 - Math.floor(Math.log10(g))); return g.toFixed(d) + " GB/s"; };
   const times = m => "×" + (m >= 10 ? m.toFixed(0) : m.toFixed(1));
@@ -99,7 +126,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
   };
   const spans = () => {
     // The first view: servil's family bar against the strongest other, on
-    // each measure (the inner part, 1 KiB on one thread; the full bar,
+    // each measure (the inner part, one message of 1 KiB; the full bar,
     // nonstop on every core).
     for (const bars of document.querySelectorAll(".fam-bars:not(.fam-scale .fam-bars)")) {
       bars.querySelector(".span")?.remove();
@@ -118,19 +145,22 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
       const longest = Math.max(...[all[0], last].flatMap(f => [...f.querySelectorAll("i:not(.off)")].map(i => parseFloat(i.style.width))));
       const top = all[0].offsetTop, bottom = last.offsetTop + last.offsetHeight;
       const label = figures.map(([m, c]) => `<span style="color:${c}">${times(m)}</span>`).join(" ");
-      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other, in the colour of the faster: on one thread (1 KiB), then nonstop on every core" style="left:calc(${longest}% + 4px);top:${top}px;height:${bottom - top + 2}px"><b>${label}</b></span>`);
+      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other, in the colour of the faster: one message of 1 KiB, then nonstop on every core" style="left:calc(${longest}% + 4px);top:${top}px;height:${bottom - top + 2}px"><b>${label}</b></span>`);
     }
-    for (const bars of document.querySelectorAll(".bars")) {
+    for (const bars of document.querySelectorAll(".col:not(.alt) .bars")) {
       bars.querySelector(".span")?.remove();
-      const all = [...bars.querySelectorAll("i")];
-      const shown = all.filter(i => !hidden(i));
-      if (shown.length < 2 || shown[0] !== all[0]) continue;
-      const [m, w, r] = duel(shown.map(i => +i.dataset.g));
-      // Just past the longer of the two, from servil's bar to its rival's.
-      const pair = [shown[0], shown[r]];
-      const longest = Math.max(...pair.map(i => parseFloat(i.style.width)));
-      const top = pair[0].parentElement.offsetTop, bottom = pair[1].parentElement.offsetTop + pair[1].parentElement.offsetHeight;
-      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other, in the colour of the faster" style="left:calc(${longest}% + 3px);top:${top}px;height:${bottom - top + 2}px"><b style="color:${shown[w].dataset.color}">${times(m)}</b></span>`);
+      const shown = [...bars.querySelectorAll("i")].filter(i => !hidden(i));
+      // servil's fastest form shown against the fastest other hash shown.
+      const fastest = list => list.reduce((a, i) => (!a || +i.dataset.g > +a.dataset.g ? i : a), null);
+      const ours = fastest(shown.filter(i => SERVIL.includes(i.dataset.k)));
+      const rival = fastest(shown.filter(i => !SERVIL.includes(i.dataset.k)));
+      if (!ours || !rival) continue;
+      const [m, w] = duel([+ours.dataset.g, +rival.dataset.g]);
+      const pair = [ours, rival].map(i => i.parentElement).sort((a, b) => a.offsetTop - b.offsetTop);
+      // Just past the longer of the two, from the upper bar to the lower.
+      const longest = Math.max(parseFloat(ours.style.width), parseFloat(rival.style.width));
+      const top = pair[0].offsetTop, bottom = pair[1].offsetTop + pair[1].offsetHeight;
+      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other, in the colour of the faster" style="left:calc(${longest}% + 3px);top:${top}px;height:${bottom - top + 2}px"><b style="color:${(w === 0 ? ours : rival).dataset.color}">${times(m)}</b></span>`);
     }
   };
   const apply = (b, off) => {
@@ -144,13 +174,15 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
   };
   spans();
   for (const b of document.querySelectorAll(".legend button")) b.addEventListener("click", () => apply(b, !b.classList.contains("off")));
-  // BLAKE3 official is off until asked for (Zooko, October 23): the page
-  // opens on servil beside SHA-256.
-  for (const b of document.querySelectorAll(".legend button")) if (b.textContent.startsWith("BLAKE3 official")) apply(b, true);
+  // The page opens on BLAKE3 servil, multi-threaded, beside SHA-256
+  // (Zooko, October 27); the other forms and hashes wait in the legend.
+  const OPENS_ON = ["blake3-servil-mt", "sha256"];
+  for (const b of document.querySelectorAll(".legend button")) if (!OPENS_ON.includes(b.dataset.k)) apply(b, true);
   // The tooltip: each hash shown, its speed, and servil's over it; the two
   // compared in bold. Follows the pointer; on a touch screen a tap shows
   // it and a second tap on the same cell opens the map.
   const tip = document.getElementById("tip");
+  const touch = () => matchMedia("(hover: none)").matches;
   let tapped = null;
   const show = (p, x, y) => {
     const is = [...p.querySelectorAll(".bars i")], lines = p.dataset.tip.split("\n").map(l => l.split("\t"));
@@ -163,9 +195,11 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
   };
   for (const p of document.querySelectorAll(".pick[data-tip]")) {
     p.addEventListener("mousemove", e => show(p, e.clientX, e.clientY));
-    p.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+    // On a touch screen a tap elsewhere closes the tooltip; a tap's own
+    // pointer events (some browsers send leave events after it) do not.
+    p.addEventListener("mouseleave", () => { if (!touch()) tip.style.display = "none"; });
     p.addEventListener("click", e => {
-      if (!matchMedia("(hover: none)").matches) return;
+      if (!touch()) return;
       if (tapped === p) return;
       e.preventDefault(); tapped = p; show(p, e.clientX, e.clientY);
     });
@@ -176,24 +210,42 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
   for (const c of document.querySelectorAll(".fam-bar")) {
     c.addEventListener("mousemove", e => {
       const [color, hi, hw, lo, lw] = c.dataset.tip.split("\t");
-      const rows = [`<div class="row"><span class="sw" style="background:${color};opacity:.45"></span>nonstop, every core: ${fmt(+hi)}<br><span class="edge">${hw}</span></div>`, `<div class="row"><span class="sw" style="background:${color}"></span>one message, one thread: ${fmt(+lo)}<br><span class="edge">${lw}</span></div>`];
+      const rows = [`<div class="row"><span class="sw" style="background:${color};opacity:.45"></span>nonstop, every core: ${fmt(+hi)}<br><span class="edge">${hw}</span></div>`, `<div class="row"><span class="sw" style="background:${color}"></span>one message of 1 KiB: ${fmt(+lo)}<br><span class="edge">${lw}</span></div>`];
       tip.innerHTML = `<b>${c.dataset.head}</b>` + rows.join("");
       tip.style.display = "block"; tip.style.left = "0px";
       tip.style.left = Math.max(4, Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 4)) + "px";
       tip.style.top = Math.max(4, Math.min(e.clientY + 10, innerHeight - tip.offsetHeight - 4)) + "px";
     });
-    c.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+    c.addEventListener("mouseleave", () => { if (!touch()) tip.style.display = "none"; });
   }
-  // A guess at the reader's kind of machine, lit and marked "yours?", nothing more.
-  const apple = /Macintosh|iPhone|iPad/.test(navigator.userAgent);
-  const col = document.querySelector(`th[data-arch="${apple ? "apple" : "x86"}"]:not(.vm)`);
-  if (col) { col.classList.add("yours"); const b = col.querySelector("b"); if (b) b.insertAdjacentHTML("afterend", ' <span style="display:inline;color:#7c3aed;font-size:11px;font-weight:normal">yours?</span>'); }
-  const vm = document.getElementById("vm");
+  // A guess at the reader's kind of machine, lit and marked "yours?",
+  // nothing more. A browser names Apple's machines; it does not say AMD
+  // from Intel, so the guess stops there.
+  const yours = () => {
+    for (const t of document.querySelectorAll("th.yours")) { t.classList.remove("yours"); t.querySelector(".guess")?.remove(); }
+    if (!/Macintosh|iPhone|iPad/.test(navigator.userAgent)) return;
+    const col = document.querySelector('th.col[data-arch="apple"]:not(.alt)');
+    if (col) { col.classList.add("yours"); col.querySelector("b")?.insertAdjacentHTML("afterend", ' <span class="guess" style="display:inline;color:#7c3aed;font-size:11px;font-weight:normal">yours?</span>'); }
+  };
+  yours();
+  // The door: a card puts its machine in its family's column (its header,
+  // cells and first-view row), and its family's other machines step out.
   // The brackets are measured from where the bars sit, and a hidden
-  // column's bars sit nowhere: draw them again once the column shows
-  // (they lay flat at its cells' tops, Zooko, October 24), and when the
-  // window's width moves the bars.
-  vm.addEventListener("change", () => { document.body.classList.toggle("show-vm", vm.checked); spans(); });
+  // column's bars sit nowhere: draw them again once a column shows, and
+  // when the window's width moves the bars.
+  const swap = m => {
+    const f = document.querySelector(`th.col[data-m="${m}"]`).dataset.f;
+    for (const e of document.querySelectorAll(`.col[data-f="${f}"]`)) e.classList.toggle("alt", e.dataset.m !== m);
+    for (const c of document.querySelectorAll(`.fam-col[data-f="${f}"] .card`)) c.classList.toggle("on", c.dataset.m === m);
+    yours(); spans();
+  };
+  for (const u of document.querySelectorAll(".card .use")) u.addEventListener("click", () => { swap(u.dataset.m); document.querySelector(".grid").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  // A column's "other machines" opens the door at its family.
+  for (const a of document.querySelectorAll("a.swap")) a.addEventListener("click", e => {
+    e.preventDefault(); const more = document.getElementById("more"); more.open = true;
+    document.querySelector(`.fam-col[data-f="${a.dataset.f}"]`).scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+  for (const a of document.querySelectorAll('a[href="#more"]:not(.swap)')) a.addEventListener("click", () => { document.getElementById("more").open = true; });
   addEventListener("resize", spans);
 })();
 </script>
