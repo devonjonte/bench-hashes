@@ -49,12 +49,12 @@ A default run measures BLAKE3 servil, multithreaded (servil mt) and
 single-threaded (servil st), and SHA-256 from two crates, sha2 and ring,
 since each is the faster SHA-256 at some sizes. `--all` adds every other
 contender the machine can run: the crates.io BLAKE3 crate (BLAKE3
-official), SHA3-256 (the `sha3` crate, with the CPU's SHA-3 instructions
+official), on one thread and on its Rayon pool (`blake3-official-mt`),
+SHA3-256 (the `sha3` crate, with the CPU's SHA-3 instructions
 where it has them), SHA-1DC (`sha1dc`, SHA-1 with the collision detection
 git uses, left out of `--quick --all`), and CommonCrypto's SHA-256 on
-Apple platforms (`sha256-cc`). `--contenders` names any set, including
-the crates.io crate on its Rayon pool (`blake3-official-mt`), which runs
-only when named. `--list` shows every key.
+Apple platforms (`sha256-cc`). `--contenders` names any set. `--list`
+shows every key.
 
 ## Input sizes
 

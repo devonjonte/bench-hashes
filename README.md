@@ -106,10 +106,10 @@ The contenders:
   two implementations, since each is fastest at some sizes on some
   computers.
 
-`cargo run --release -- --all` adds the official BLAKE3 crate, SHA3-256,
-SHA-1DC, and Apple's CommonCrypto SHA-256; it takes longer. `--contenders` picks any set by name, among them the official
-crate on its thread pool (`blake3-official-mt`), which runs only when
-named (`--list` shows the names).
+`cargo run --release -- --all` adds the official BLAKE3 crate, on one
+thread and on its thread pool, SHA3-256, SHA-1DC, and Apple's
+CommonCrypto SHA-256; it takes longer. `--contenders` picks any set by
+name (`--list` shows the names).
 
 ## Which function to use
 
