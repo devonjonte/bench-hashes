@@ -96,12 +96,18 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 .fam-bar i { position: absolute; left: 0; top: 0; height: 14px; border-radius: 0 3px 3px 0; display: block; }
 .fam-bar i.hi { opacity: .45; } .fam-bar i.lo { opacity: 1; }
 .fam-bar:hover i.hi { opacity: .6; }
-.fam-scale { border-top: none; padding-top: 0; } .fam-scale .fam-bars { height: 14px; } .fam-scale span { position: absolute; top: 0; transform: translateX(-50%); color: #9ca3af; font-size: 10px; white-space: nowrap; }
+.fam-scale { border-top: none; padding-top: 0; } .fam-scale span:first-child { transform: none; } .fam-scale span:last-child { transform: translateX(-100%); } .fam-scale .fam-bars { height: 14px; } .fam-scale span { position: absolute; top: 0; transform: translateX(-50%); color: #9ca3af; font-size: 10px; white-space: nowrap; }
 @media (max-width: 700px) { .fam-row { flex-direction: column; align-items: stretch; gap: 6px; position: relative; } .fam-machine { width: auto; }
   /* On a phone the claim sits beside the machine's name, above its bars. */
-  .claim, .claim.splat { flex: none; justify-content: flex-start; }
-  .claim.splat span { all: unset; color: #4c1d95; font-size: 13px; font-weight: 600; }
-  .claim.splat span b { font-size: 15px; display: inline; color: inherit; } .claim.splat .who { display: inline; } }
+  .claim, .claim.plain { flex: none; justify-content: flex-start; }
+  /* Room right of the bars for the bracket's figures ("×1.5 ×9.3"). */
+  .fam-bars { margin-right: 78px; }
+  /* The starburst: smaller, at the row's right, beside its bars, which
+     give it room. */
+  .fam-row:has(.claim.splat) { padding-right: 92px; }
+  .claim.splat { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+  .claim.splat span { width: 88px; height: 88px; margin: 0; font-size: 8.5px; padding: 0 9px; }
+  .claim.splat span b { font-size: 13px; } }
 #tip .edge { color: #d1d5db; }
 /* A phone: one machine at a time, its columns as rows, each named. */
 @media (max-width: 700px) {
@@ -385,7 +391,7 @@ repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)	b3sum, offic
     // each measure (the inner part, one message of 1 KiB; the full bar,
     // nonstop on every core).
     for (const bars of document.querySelectorAll(".fam-bars:not(.fam-scale .fam-bars)")) {
-      bars.querySelector(".span")?.remove();
+      for (const old of bars.querySelectorAll(".span")) old.remove();
       const all = [...bars.querySelectorAll(".fam-bar")];
       // A measure takes part where servil's part of it is shown and some
       // rival's is: its figure, in the winner's colour; else none.
@@ -406,11 +412,22 @@ repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)	b3sum, offic
         row.insertAdjacentHTML("beforeend", `<div class="claim ${LOOK}"><span><em class="who">BLAKE3-Servil is </em>up to <b>${n} times</b> as fast as ${rival.dataset.head.split(" · ")[1].replace(/-/g, "\u2011")}!</span></div>`);
       }
       if (!figures.length) continue;
-      const last = figures.map(f => f[2]).reduce((a, b) => (b.offsetTop > a.offsetTop ? b : a));
-      const longest = Math.max(...[all[0], last].flatMap(f => [...f.querySelectorAll("i:not(.off)")].map(i => parseFloat(i.style.width))));
-      const top = all[0].offsetTop, bottom = last.offsetTop + last.offsetHeight;
-      const label = figures.map(([m, c]) => `<span style="color:${c}">${times(m)}</span>`).join(" ");
-      bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other: one short message, then a stream on every core" style="left:calc(${longest}% + 4px);top:${top}px;height:${bottom - top + 2}px"><b>${label}</b></span>`);
+      // A bracket a rival: from servil's bar to the bar its figures are
+      // about (one short message, then a stream), so a figure never names
+      // one bar while its bracket hooks another. Nearer rivals first; each
+      // further bracket stands past the one before and its figures.
+      const groups = [];
+      for (const f of figures) { const g = groups.find(g => g.rival === f[2]); if (g) g.figs.push(f); else groups.push({ rival: f[2], figs: [f] }); }
+      groups.sort((a, b) => a.rival.offsetTop - b.rival.offsetTop);
+      let after = 0;
+      for (const { rival, figs } of groups) {
+        const longest = Math.max(...[all[0], rival].flatMap(f => [...f.querySelectorAll("i:not(.off)")].map(i => parseFloat(i.style.width))));
+        const top = all[0].offsetTop, bottom = rival.offsetTop + rival.offsetHeight;
+        const label = figs.map(([m, c]) => `<span style="color:${c}">${times(m)}</span>`).join(" ");
+        bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other: one short message, then a stream on every core" style="left:max(calc(${longest}% + 4px), ${after}px);top:${top}px;height:${bottom - top + 2}px"><b>${label}</b></span>`);
+        const drawn = bars.lastElementChild.querySelector("b").getBoundingClientRect();
+        after = drawn.right - bars.getBoundingClientRect().left + 8;
+      }
     }
     for (const bars of document.querySelectorAll(".col:not(.alt) .bars")) {
       bars.querySelector(".span")?.remove();
