@@ -133,7 +133,7 @@ macOS, evicted from it before each run (read from storage):
 
 A contender is `NAME=COMMAND`, a `b3sum` and its flags, or any program
 that hashes the files it is given (the files are appended);
-`tools/b3sum-contenders.py` builds official BLAKE3's `b3sum` 1.8.2 and
+`tools/b3sum-contenders.py` builds official BLAKE3's `b3sum` 1.8.7 and
 the fork's at given commits, official's and (for one commit) the fork's
 on one thread too (`--num-threads 1`), and adds the system's `sha256sum`, `sha1sum` and
 `md5sum`, the programs a user chooses between. The first contender
