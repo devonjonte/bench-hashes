@@ -26,4 +26,11 @@ devonjonte/BLAKE3 `candidate/devon-prerelease-fixes` 6fb0f903 (BLAKE3 #190).
 
 **Gate of the fixes:** `gate.sh` (`gate.stdout.txt`): GATE PASSED.
 
+**Second commit** (fb2cbdaa, Zooko: users never run the portable Rust):
+no `pure`; a CPU without SSE4.1 stops at `initialize`; Arm's extended
+output on the x4 kernel. `miri.sh`: CI's Miri tests on the default build,
+3 of 3 pass. `gate2.stdout.txt`: GATE PASSED. `mutants.sh`: `check.py
+--since e7c5ef48`, no new survivor. `xof_probe.rs`: for the Mac, the
+speed of 1 to 8 blocks of extended output on both commits.
+
 **Posted:** BLAKE3 #190.
