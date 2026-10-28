@@ -920,9 +920,8 @@ pub fn html(rows: &[Row]) -> String {
         let others = rows.iter().filter(|r| family(r) == family(row)).count() - 1;
         let _ = write!(
             body,
-            "<th {} data-arch=\"{}\"><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span class=\"kind\">{}</span><span>{} CPUs, {} · {}</span><span>BLAKE3 servil {} · bench-hashes {}</span>{}{}</th>",
+            "<th {}><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span class=\"kind\">{}</span><span>{} CPUs, {} · {}</span><span>BLAKE3 servil {} · bench-hashes {}</span>{}{}</th>",
             col(i),
-            if row.machine.contains("Apple") { "apple" } else { "other" },
             escape(&row.link),
             escape(&row.machine),
             escape(&plain(row)),

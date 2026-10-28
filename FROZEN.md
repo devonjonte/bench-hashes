@@ -713,9 +713,7 @@ use, across machines?".
   it and links its map, with no cells, until a run under this release
   replaces it: one page shows one release's cells and never averages
   two. A virtual machine is kept (it is data): a card behind the door,
-  never a family's first choice. The page guesses the reader's machine
-  where the browser names it (Apple's) and marks the Arm column "yours?";
-  a browser does not tell AMD from Intel.
+  never a family's first choice.
 - **Nonstop compares the calling thread's view.** In ContinuousMessages
   BLAKE3 official hashes on the one calling thread, while servil's stream
   uses the machine: what one calling thread gets from each library, the

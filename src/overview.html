@@ -45,7 +45,6 @@ th a.swap:hover { background: #ede9fe; }
 .card .glance i { display: block; height: 6px; border-radius: 0 2px 2px 0; } .card .glance em { position: absolute; left: 64%; top: 0; font-style: normal; font-size: 11px; color: #4c1d95; font-weight: 600; }
 .card .state { display: none !important; } .card.on { border-color: #a78bfa; box-shadow: 0 0 0 1px #a78bfa inset; } .card.on .state { display: inline-block !important; margin-top: 4px; font-size: 11px; color: #fff; background: #7c3aed; border-radius: 8px; padding: 0 7px; }
 .card > a { display: inline-block; margin: 0 10px; font-size: 12px; color: #6d28d9; text-decoration: none; }
-th.yours { background: #f5f3ff; }
 /* A cell is a card that opens its chart: an outline, a chevron at its
    right edge, a lift under the pointer. No words. */
 .pick { display: block; position: relative; text-decoration: none; color: inherit; border: 1px solid #e7e4de; border-radius: 6px; padding: 5px 22px 5px 6px; background: #fff; transition: box-shadow .12s, border-color .12s, transform .12s; }
@@ -265,16 +264,6 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
     c.addEventListener("click", showFam);
     c.addEventListener("mouseleave", () => { if (!touch()) tip.style.display = "none"; });
   }
-  // A guess at the reader's kind of machine, lit and marked "yours?",
-  // nothing more. A browser names Apple's machines; it does not say AMD
-  // from Intel, so the guess stops there.
-  const yours = () => {
-    for (const t of document.querySelectorAll("th.yours")) { t.classList.remove("yours"); t.querySelector(".guess")?.remove(); }
-    if (!/Macintosh|iPhone|iPad/.test(navigator.userAgent)) return;
-    const col = document.querySelector('th.col[data-arch="apple"]:not(.alt)');
-    if (col) { col.classList.add("yours"); col.querySelector("b")?.insertAdjacentHTML("afterend", ' <span class="guess" style="display:inline;color:#7c3aed;font-size:11px;font-weight:normal">yours?</span>'); }
-  };
-  yours();
   // The door: a card puts its machine in its family's column (its header,
   // cells and first-view row), and its family's other machines step out.
   // The brackets are measured from where the bars sit, and a hidden
@@ -284,7 +273,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
     const f = document.querySelector(`th.col[data-m="${m}"]`).dataset.f;
     for (const e of document.querySelectorAll(`.col[data-f="${f}"]`)) e.classList.toggle("alt", e.dataset.m !== m);
     for (const c of document.querySelectorAll(`.fam-col[data-f="${f}"] .card`)) c.classList.toggle("on", c.dataset.m === m);
-    yours(); spans();
+    spans();
   };
   for (const u of document.querySelectorAll(".card .use")) u.addEventListener("click", () => { swap(u.dataset.m); document.querySelector(".grid").scrollIntoView({ behavior: "smooth", block: "start" }); });
   // A column's "other machines" opens the door at its family.
