@@ -812,10 +812,24 @@ pub fn html(rows: &[Row]) -> String {
     // bars join their library's multi-threaded form; the tooltip names
     // each bar exactly), in its bar's paint. A button hides or shows every
     // bar of its hash.
+    // A library's form is named for the form, whichever bar of it the
+    // page draws first (b3sum's bars share their library's
+    // multi-threaded form's button).
+    let form_name = |id: &str| {
+        [
+            Algorithm::Blake3ServilSt,
+            Algorithm::Blake3ServilMt,
+            Algorithm::Blake3,
+            Algorithm::Blake3Rayon,
+        ]
+        .into_iter()
+        .find(|a| a.key() == id)
+        .map(plain_name)
+    };
     let mut drawn: Vec<(&str, &str, &str, bool)> = Vec::new();
     for b in rows.iter().flat_map(|r| r.cells.iter().flatten()) {
         if !drawn.iter().any(|(_, id, _, _)| *id == b.id) {
-            drawn.push((&b.name, b.id, b.color, b.striped));
+            drawn.push((form_name(b.id).unwrap_or(&b.name), b.id, b.color, b.striped));
         }
     }
     // Servil's two first, then official's two, then the SHA-256s, then the
@@ -1283,6 +1297,13 @@ mod tests {
                 "#cfcbc3".to_owned()
             ]
         );
+        // A form's button is named for the form, though its first bar
+        // drawn here is official's b3sum.
+        assert!(
+            page.contains(">BLAKE3 official, multi-threaded</button>"),
+            "official's multi-threaded button named for its form"
+        );
+        assert!(!page.contains(">b3sum, official BLAKE3's</button>"));
         assert!(text(&rows).contains(
             "1000 files, b3sum:                   30 GB/s b3sum, BLAKE3 servil's; 10 GB/s b3sum, official BLAKE3's (3.0×); 1.5 GB/s md5sum (20×)"
         ));
