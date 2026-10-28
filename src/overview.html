@@ -155,11 +155,16 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
       const all = [...bars.querySelectorAll(".fam-bar")];
       // A measure takes part where servil's part of it is shown and some
       // rival's is: its figure, in the winner's colour; else none.
+      // A measure: servil's fastest form shown against the fastest other
+      // hash shown, as in the grid; none without one of each.
       const measure = cls => {
-        const parts = all.map(f => f.querySelector("i." + cls)).filter(i => !i.classList.contains("off"));
-        if (parts.length < 2 || parts[0] !== all[0].querySelector("i." + cls)) return null;
-        const [m, w, r] = duel(parts.map(i => +i.dataset.g));
-        return [m, parts[w].closest(".fam-bar").dataset.color, parts[r].closest(".fam-bar"), w === 0, cls];
+        const parts = all.filter(f => !f.classList.contains("off")).map(f => f.querySelector("i." + cls)).filter(i => !i.classList.contains("off"));
+        const fastest = list => list.reduce((a, i) => (!a || +i.dataset.g > +a.dataset.g ? i : a), null);
+        const ours = fastest(parts.filter(i => SERVIL.includes(i.dataset.k)));
+        const rival = fastest(parts.filter(i => !SERVIL.includes(i.dataset.k)));
+        if (!ours || !rival) return null;
+        const [m, w] = duel([+ours.dataset.g, +rival.dataset.g]);
+        return [m, (w === 0 ? ours : rival).closest(".fam-bar").dataset.color, rival.closest(".fam-bar"), w === 0, cls, ours.closest(".fam-bar")];
       };
       const figures = [measure("lo"), measure("hi")].filter(Boolean);
       // The claim: servil's best lead, where it leads, over the hash it beat.
@@ -176,10 +181,11 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
       // is about. The short message's stands just past the two short
       // parts, over the stream's bars; the stream's just past the longer
       // stream bar.
-      for (const [m, c, rival, , cls] of figures) {
-        const pair = [all[0], rival].map(f => f.querySelector("i." + cls));
+      for (const [m, c, rival, , cls, ours] of figures) {
+        const pair = [ours, rival].map(f => f.querySelector("i." + cls));
         const end = Math.max(...pair.map(i => parseFloat(i.style.width)));
-        const top = all[0].offsetTop, bottom = rival.offsetTop + rival.offsetHeight;
+        const [upper, lower] = [ours, rival].sort((a, b) => a.offsetTop - b.offsetTop);
+        const top = upper.offsetTop, bottom = lower.offsetTop + lower.offsetHeight;
         const what = cls === "lo" ? "one short message" : "a stream of messages, every core";
         bars.insertAdjacentHTML("beforeend", `<span class="span ${cls}" title="servil against the fastest other, ${what}" style="left:calc(${end}% + 4px);top:${top}px;height:${bottom - top + 2}px"><b><span style="color:${c}">${times(m)}</span></b></span>`);
       }

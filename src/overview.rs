@@ -665,8 +665,6 @@ fn families_by_machine(all: &[Row], shown: &[usize]) -> String {
     if rows.is_empty() {
         return String::new();
     }
-    // The families, in the bars' order: servil, official, SHA-256.
-    let families = ["BLAKE3 servil", "BLAKE3 official", "SHA-256"];
     let all: Vec<f64> = rows
         .iter()
         .flat_map(|(_, r)| {
@@ -696,24 +694,26 @@ fn families_by_machine(all: &[Row], shown: &[usize]) -> String {
             escape(&r.machine),
             escape(&plain(r))
         );
-        for (k, family) in families.iter().enumerate() {
-            let (Some(top), Some(inner)) = (
-                trio(&r.cells[HEADLINE], Algorithm::Blake3ServilMt)[k],
-                trio(&r.cells[EVERYDAY], Algorithm::Blake3ServilMt)[k],
-            ) else {
+        // A bar a form, in the legend's order, each part from its own
+        // form's cells, so every button shows or hides its form here as in
+        // the grid (the page opens on servil multi-threaded and SHA-256).
+        for (form, family) in [
+            (Algorithm::Blake3ServilSt, "BLAKE3 servil"),
+            (Algorithm::Blake3ServilMt, "BLAKE3 servil"),
+            (Algorithm::Blake3, "BLAKE3 official"),
+            (Algorithm::Blake3Rayon, "BLAKE3 official"),
+            (Algorithm::Sha256, "SHA-256"),
+        ] {
+            let find = |cell: usize| r.cells[cell].iter().find(|b| b.id == form.key());
+            let (Some(top), Some(inner)) = (find(HEADLINE), find(EVERYDAY)) else {
                 continue;
             };
             let color = inner.color;
-            // Each part answers to its own form's button: the full bar to
-            // the every-core form's, the inner part to the one-thread form's.
-            let (hi_id, lo_id) = (top.id, inner.id);
-            let (hi_paint, lo_paint) = (
-                paint(top.color, top.striped),
-                paint(inner.color, inner.striped),
-            );
+            let id = form.key();
+            let p = paint(top.color, top.striped);
             let _ = write!(
                 out,
-                "<div class=\"fam-bar\" data-color=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}: {}\t{}\t{}: {}\"><i class=\"hi\" data-k=\"{hi_id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{hi_paint}\"></i><i class=\"lo\" data-k=\"{lo_id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{lo_paint}\"></i></div>",
+                "<div class=\"fam-bar\" data-color=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}: {}\t{}\t{}: {}\"><i class=\"hi\" data-k=\"{id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{p}\"></i><i class=\"lo\" data-k=\"{id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{p}\"></i></div>",
                 escape(&r.machine),
                 escape(family),
                 top.gbps,
