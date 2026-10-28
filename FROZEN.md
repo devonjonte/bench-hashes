@@ -26,6 +26,12 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **A stream's fill returns the bytes it wrote** (Zooko, October 28;
+  BLAKE3 #204). `submit_with` and `submit_batch_with` now call `fill`
+  as `Read::read_exact` calls `read`, until each piece is full, so a
+  fill that writes less is never hashed with stale bytes. The bench's
+  fills write all of each room and return its length: the same calls,
+  writing the same bytes.
 - **BLAKE3 official, multi-threaded, in every `--all` run** (Zooko,
   October 27). Since September 26 it ran only when named, on the ground
   that servil's multi-threaded form beat it at every point. The one run
