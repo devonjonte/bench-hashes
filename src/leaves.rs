@@ -82,8 +82,7 @@ impl Program {
                 let digests = &mut self.digests[..count];
                 blake3_servil::performance::hash_many_multithreaded(
                     blake3_servil::Mode::Plain,
-                    blocks,
-                    MESSAGE_LEN,
+                    &blake3_servil::performance::Batch::from_blocks(blocks, MESSAGE_LEN),
                     digests,
                 );
                 // Sound: a Hash is its 32 bytes.
@@ -98,13 +97,13 @@ impl Program {
             // space as lend-oneshot, then fold them as it does.
             "lend-stream" => {
                 produce(0, blake3_servil::performance::Block::bytes_mut(blocks));
-                let buffer = &*blocks;
+                let buffer = blake3_servil::performance::Batch::from_blocks(blocks, MESSAGE_LEN);
                 let places = &mut self.places[..count];
                 blake3_servil::performance::stream(
                     blake3_servil::Mode::Plain,
                     |_| {},
                     |s| {
-                        s.submit_batch(buffer, MESSAGE_LEN, places);
+                        s.submit_batch(&buffer, places);
                         s.finish();
                     },
                 );
