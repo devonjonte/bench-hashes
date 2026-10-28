@@ -3192,7 +3192,10 @@ fn hash_continuous_collection(
                         let place = free_place(&free, s);
                         s.submit_with(
                             len,
-                            |at, room| room.copy_from_slice(&item[at..][..room.len()]),
+                            |at, room| {
+                                room.copy_from_slice(&item[at..][..room.len()]);
+                                room.len()
+                            },
                             &mut place[0],
                         );
                     }
@@ -3719,7 +3722,10 @@ fn hash_continuous_messages(
                     let place = free_place(&free, s);
                     s.submit_with(
                         message.len(),
-                        |at, room| room.copy_from_slice(&message[at..][..room.len()]),
+                        |at, room| {
+                            room.copy_from_slice(&message[at..][..room.len()]);
+                            room.len()
+                        },
                         &mut place[0],
                     );
                 }
@@ -3792,7 +3798,10 @@ fn hash_continuous_batches(
                     let place = free_place(&free, s);
                     s.submit_batch_with(
                         MESSAGE_LEN,
-                        |at, room| room.copy_from_slice(&batch[at..][..room.len()]),
+                        |at, room| {
+                            room.copy_from_slice(&batch[at..][..room.len()]);
+                            room.len()
+                        },
                         &mut place[..point.messages],
                     );
                 }

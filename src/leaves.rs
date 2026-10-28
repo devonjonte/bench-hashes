@@ -120,7 +120,10 @@ impl Program {
                     |s| {
                         s.submit_batch_with(
                             MESSAGE_LEN,
-                            |at, room| room.copy_from_slice(&buffer[at..][..room.len()]),
+                            |at, room| {
+                                room.copy_from_slice(&buffer[at..][..room.len()]);
+                                room.len()
+                            },
                             places,
                         );
                         s.finish();
@@ -136,7 +139,10 @@ impl Program {
                     |s| {
                         s.submit_batch_with(
                             MESSAGE_LEN,
-                            |at, room| produce(at / MESSAGE_LEN, room),
+                            |at, room| {
+                                produce(at / MESSAGE_LEN, room);
+                                room.len()
+                            },
                             places,
                         );
                         s.finish();
