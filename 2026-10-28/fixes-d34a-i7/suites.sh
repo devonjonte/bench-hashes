@@ -1,0 +1,15 @@
+set -u
+export PATH=/home/agent/.cargo/bin:/home/agent/bin:$PATH TMPDIR=/home/agent/tmp RUSTFLAGS="-D warnings"
+cd /home/agent/BLAKE3-fixes
+echo "== suites $(git rev-parse HEAD)"
+cargo nextest run --features=serde,zeroize; echo "STEP features rc=$?"
+cargo test --doc --features=serde,zeroize; echo "STEP doc rc=$?"
+cargo nextest run --no-default-features; echo "STEP nostd rc=$?"
+cargo nextest run --features=; echo "STEP default-features-off rc=$?"
+cargo nextest run --features= --release; echo "STEP release rc=$?"
+CFLAGS=-flto cargo build --tests; echo "STEP lto rc=$?"
+(cd test_vectors && cargo nextest run); echo "STEP vectors rc=$?"
+(cd capi && cargo nextest run --release); echo "STEP capi rc=$?"
+(cd b3sum && cargo nextest run); echo "STEP b3sum rc=$?"
+sh tools/check-builds.sh; echo "STEP check-builds rc=$?"
+for d in $(git ls-files '*Cargo.toml' | xargs -n1 dirname); do (cd "$d" && cargo fmt --all -- --check >/dev/null) || echo "fmt FAIL $d"; done; echo "STEP fmt done"
