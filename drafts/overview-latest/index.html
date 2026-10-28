@@ -64,6 +64,9 @@ th.yours { background: #f5f3ff; }
 .span { position: absolute; box-sizing: border-box; width: 4px; margin-top: -1px; border: 1px solid #6b7280; border-left: none; pointer-events: none; } .fam-bars .span { pointer-events: auto; cursor: help; }
 .span b { position: absolute; left: 100%; top: 50%; transform: translate(4px, -50%); font-size: 11px; color: #4c1d95; white-space: nowrap; }
 .fam-bars .span { width: 5px; } .fam-bars .span b { font-size: 13px; font-weight: 700; }
+/* The short message's figure sits over the stream's bars: a light backing
+   keeps it legible on their stripes. */
+.fam-bars .span.lo b { background: rgba(253,253,252,.9); border-radius: 3px; padding: 0 3px; transform: translate(2px, -50%); }
 .bar { display: flex; align-items: center; }
 .bars i { display: block; height: 7px; border-radius: 0 2px 2px 0; flex-shrink: 0; }
 .bar.off { display: none; }
@@ -85,8 +88,6 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 .claim.splat span { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; width: 116px; height: 116px; margin: -16px 0; background: #facc15; color: #b91c1c; font-size: 11px; line-height: 1.1; font-weight: 700; clip-path: polygon(50.0% 0.0%, 56.3% 6.4%, 64.1% 2.0%, 68.3% 10.0%, 77.0% 7.9%, 78.8% 16.7%, 87.8% 17.3%, 87.0% 26.2%, 95.5% 29.2%, 92.2% 37.6%, 99.5% 42.9%, 94.0% 50.0%, 99.5% 57.1%, 92.2% 62.4%, 95.5% 70.8%, 87.0% 73.8%, 87.8% 82.7%, 78.8% 83.3%, 77.0% 92.1%, 68.3% 90.0%, 64.1% 98.0%, 56.3% 93.6%, 50.0% 100.0%, 43.7% 93.6%, 35.9% 98.0%, 31.7% 90.0%, 23.0% 92.1%, 21.2% 83.3%, 12.2% 82.7%, 13.0% 73.8%, 4.5% 70.8%, 7.8% 62.4%, 0.5% 57.1%, 6.0% 50.0%, 0.5% 42.9%, 7.8% 37.6%, 4.5% 29.2%, 13.0% 26.2%, 12.2% 17.3%, 21.2% 16.7%, 23.0% 7.9%, 31.7% 10.0%, 35.9% 2.0%, 43.7% 6.4%); transform: rotate(-9deg); filter: drop-shadow(0 1px 0 #ca8a04); padding: 0 14px; box-sizing: border-box; }
 .claim.splat span b { display: block; font-size: 18px; line-height: 1.05; color: #991b1b; }
 .claim.splat .who { display: none; } .claim .who { font-style: normal; }
-.claim.plain { flex-basis: 190px; justify-content: flex-start; } .claim.plain span { color: #4c1d95; font-size: 13px; font-weight: 600; line-height: 1.3; }
-.claim.plain span b { font-size: 16px; }
 .fam-scale .claim { visibility: hidden; }
 .fam-machine { width: 190px; flex-shrink: 0; } .fam-machine a { color: #4c1d95; text-decoration: none; } .fam-machine b { font-size: 15px; } .fam-machine span { display: block; color: #9ca3af; font-size: 12px; }
 .fam-bars { flex: 1; display: flex; flex-direction: column; gap: 5px; position: relative; }
@@ -99,7 +100,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 .fam-scale { border-top: none; padding-top: 0; } .fam-scale span:first-child { transform: none; } .fam-scale span:last-child { transform: translateX(-100%); } .fam-scale .fam-bars { height: 14px; } .fam-scale span { position: absolute; top: 0; transform: translateX(-50%); color: #9ca3af; font-size: 10px; white-space: nowrap; }
 @media (max-width: 700px) { .fam-row { flex-direction: column; align-items: stretch; gap: 6px; position: relative; } .fam-machine { width: auto; }
   /* On a phone the claim sits beside the machine's name, above its bars. */
-  .claim, .claim.plain { flex: none; justify-content: flex-start; }
+  .claim { flex: none; justify-content: flex-start; }
   /* Room right of the bars for the bracket's figures ("×1.5 ×9.3"). */
   .fam-bars { margin-right: 78px; }
   /* The starburst: smaller, at the row's right, beside its bars, which
@@ -380,8 +381,6 @@ repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)	b3sum, offic
 (function () {
   const sel = b => `.bars i[data-k="${CSS.escape(b.dataset.k)}"]`;
   const SERVIL = ["blake3-servil-st", "blake3-servil-mt"];
-  // The claim's look, for the draft only: a starburst, or ?look=plain.
-  const LOOK = new URLSearchParams(location.search).get("look") === "plain" ? "plain" : "splat";
   const hidden = i => i.closest(".bar").classList.contains("off");
   const fmt = g => { if (g <= 0) return "0 GB/s"; const d = Math.max(0, 1 - Math.floor(Math.log10(g))); return g.toFixed(d) + " GB/s"; };
   const times = m => "×" + (m >= 10 ? m.toFixed(0) : m.toFixed(1));
@@ -409,7 +408,7 @@ repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)	b3sum, offic
         const parts = all.map(f => f.querySelector("i." + cls)).filter(i => !i.classList.contains("off"));
         if (parts.length < 2 || parts[0] !== all[0].querySelector("i." + cls)) return null;
         const [m, w, r] = duel(parts.map(i => +i.dataset.g));
-        return [m, parts[w].closest(".fam-bar").dataset.color, parts[r].closest(".fam-bar"), w === 0];
+        return [m, parts[w].closest(".fam-bar").dataset.color, parts[r].closest(".fam-bar"), w === 0, cls];
       };
       const figures = [measure("lo"), measure("hi")].filter(Boolean);
       // The claim: servil's best lead, where it leads, over the hash it beat.
@@ -419,24 +418,19 @@ repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)	b3sum, offic
       if (leads.length) {
         const [m, , rival] = leads.reduce((a, b) => (b[0] > a[0] ? b : a));
         const n = m >= 10 ? m.toFixed(0) : m.toFixed(1);
-        row.insertAdjacentHTML("beforeend", `<div class="claim ${LOOK}"><span><em class="who">BLAKE3-Servil is </em>up to <b>${n} times</b> as fast as ${rival.dataset.head.split(" · ")[1].replace(/-/g, "\u2011")}!</span></div>`);
+        row.insertAdjacentHTML("beforeend", `<div class="claim splat"><span><em class="who">BLAKE3-Servil is </em>up to <b>${n} times</b> as fast as ${rival.dataset.head.split(" · ")[1].replace(/-/g, "\u2011")}!</span></div>`);
       }
       if (!figures.length) continue;
-      // A bracket a rival: from servil's bar to the bar its figures are
-      // about (one short message, then a stream), so a figure never names
-      // one bar while its bracket hooks another. Nearer rivals first; each
-      // further bracket stands past the one before and its figures.
-      const groups = [];
-      for (const f of figures) { const g = groups.find(g => g.rival === f[2]); if (g) g.figs.push(f); else groups.push({ rival: f[2], figs: [f] }); }
-      groups.sort((a, b) => a.rival.offsetTop - b.rival.offsetTop);
-      let after = 0;
-      for (const { rival, figs } of groups) {
-        const longest = Math.max(...[all[0], rival].flatMap(f => [...f.querySelectorAll("i:not(.off)")].map(i => parseFloat(i.style.width))));
+      // A bracket a measure, from servil's bar to the rival's its figure
+      // is about. The short message's stands just past the two short
+      // parts, over the stream's bars; the stream's just past the longer
+      // stream bar.
+      for (const [m, c, rival, , cls] of figures) {
+        const pair = [all[0], rival].map(f => f.querySelector("i." + cls));
+        const end = Math.max(...pair.map(i => parseFloat(i.style.width)));
         const top = all[0].offsetTop, bottom = rival.offsetTop + rival.offsetHeight;
-        const label = figs.map(([m, c]) => `<span style="color:${c}">${times(m)}</span>`).join(" ");
-        bars.insertAdjacentHTML("beforeend", `<span class="span" title="servil against the fastest other: one short message, then a stream on every core" style="left:max(calc(${longest}% + 4px), ${after}px);top:${top}px;height:${bottom - top + 2}px"><b>${label}</b></span>`);
-        const drawn = bars.lastElementChild.querySelector("b").getBoundingClientRect();
-        after = drawn.right - bars.getBoundingClientRect().left + 8;
+        const what = cls === "lo" ? "one short message" : "a stream of messages, every core";
+        bars.insertAdjacentHTML("beforeend", `<span class="span ${cls}" title="servil against the fastest other, ${what}" style="left:calc(${end}% + 4px);top:${top}px;height:${bottom - top + 2}px"><b><span style="color:${c}">${times(m)}</span></b></span>`);
       }
     }
     for (const bars of document.querySelectorAll(".col:not(.alt) .bars")) {
