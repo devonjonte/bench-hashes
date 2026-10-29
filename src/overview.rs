@@ -665,8 +665,6 @@ fn families_by_machine(all: &[Row], shown: &[usize]) -> String {
     if rows.is_empty() {
         return String::new();
     }
-    // The families, in the bars' order: servil, official, SHA-256.
-    let families = ["BLAKE3 servil", "BLAKE3 official", "SHA-256"];
     let all: Vec<f64> = rows
         .iter()
         .flat_map(|(_, r)| {
@@ -696,24 +694,26 @@ fn families_by_machine(all: &[Row], shown: &[usize]) -> String {
             escape(&r.machine),
             escape(&plain(r))
         );
-        for (k, family) in families.iter().enumerate() {
-            let (Some(top), Some(inner)) = (
-                trio(&r.cells[HEADLINE], Algorithm::Blake3ServilMt)[k],
-                trio(&r.cells[EVERYDAY], Algorithm::Blake3ServilMt)[k],
-            ) else {
+        // A bar a form, in the legend's order, each part from its own
+        // form's cells, so every button shows or hides its form here as in
+        // the grid (the page opens on servil multi-threaded and SHA-256).
+        for (form, family) in [
+            (Algorithm::Blake3ServilSt, "BLAKE3 servil"),
+            (Algorithm::Blake3ServilMt, "BLAKE3 servil"),
+            (Algorithm::Blake3, "BLAKE3 official"),
+            (Algorithm::Blake3Rayon, "BLAKE3 official"),
+            (Algorithm::Sha256, "SHA-256"),
+        ] {
+            let find = |cell: usize| r.cells[cell].iter().find(|b| b.id == form.key());
+            let (Some(top), Some(inner)) = (find(HEADLINE), find(EVERYDAY)) else {
                 continue;
             };
             let color = inner.color;
-            // Each part answers to its own form's button: the full bar to
-            // the every-core form's, the inner part to the one-thread form's.
-            let (hi_id, lo_id) = (top.id, inner.id);
-            let (hi_paint, lo_paint) = (
-                paint(top.color, top.striped),
-                paint(inner.color, inner.striped),
-            );
+            let id = form.key();
+            let p = paint(top.color, top.striped);
             let _ = write!(
                 out,
-                "<div class=\"fam-bar\" data-color=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}: {}\t{}\t{}: {}\"><i class=\"hi\" data-k=\"{hi_id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{hi_paint}\"></i><i class=\"lo\" data-k=\"{lo_id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{lo_paint}\"></i></div>",
+                "<div class=\"fam-bar\" data-color=\"{color}\" data-head=\"{} · {}\" data-tip=\"{color}\t{}\t{}: {}\t{}\t{}: {}\"><i class=\"hi\" data-k=\"{id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{p}\"></i><i class=\"lo\" data-k=\"{id}\" data-g=\"{}\" style=\"width:{:.1}%;background:{p}\"></i></div>",
                 escape(&r.machine),
                 escape(family),
                 top.gbps,
@@ -752,9 +752,8 @@ fn families_by_machine(all: &[Row], shown: &[usize]) -> String {
 /// family's column.
 fn door(rows: &[Row], shown: &[usize]) -> String {
     let mut out = format!(
-        "<details class=\"more\" id=\"more\"><summary><b>All {} machines measured</b>: choose which one stands for each kind</summary><p class=\"glance-key\">Under each machine: {}, BLAKE3 servil on every core (striped) against SHA-256 (solid). Choose a machine to put it in the grid.</p><div class=\"cards\">",
-        rows.len(),
-        escape(PICKS[HEADLINE].column)
+        "<details class=\"more\" id=\"more\"><summary><b>All {} machines measured</b>: choose which one stands for each kind</summary><p class=\"glance-key\">Under each machine: BLAKE3 servil against SHA-256, on a stream of messages. Click a machine to put it in the grid above.</p><div class=\"cards\">",
+        rows.len()
     );
     for f in FAMILIES {
         let mut members: Vec<usize> = (0..rows.len()).filter(|&i| family(&rows[i]) == f).collect();
@@ -813,10 +812,24 @@ pub fn html(rows: &[Row]) -> String {
     // bars join their library's multi-threaded form; the tooltip names
     // each bar exactly), in its bar's paint. A button hides or shows every
     // bar of its hash.
+    // A library's form is named for the form, whichever bar of it the
+    // page draws first (b3sum's bars share their library's
+    // multi-threaded form's button).
+    let form_name = |id: &str| {
+        [
+            Algorithm::Blake3ServilSt,
+            Algorithm::Blake3ServilMt,
+            Algorithm::Blake3,
+            Algorithm::Blake3Rayon,
+        ]
+        .into_iter()
+        .find(|a| a.key() == id)
+        .map(plain_name)
+    };
     let mut drawn: Vec<(&str, &str, &str, bool)> = Vec::new();
     for b in rows.iter().flat_map(|r| r.cells.iter().flatten()) {
         if !drawn.iter().any(|(_, id, _, _)| *id == b.id) {
-            drawn.push((&b.name, b.id, b.color, b.striped));
+            drawn.push((form_name(b.id).unwrap_or(&b.name), b.id, b.color, b.striped));
         }
     }
     // Servil's two first, then official's two, then the SHA-256s, then the
@@ -907,9 +920,8 @@ pub fn html(rows: &[Row]) -> String {
         let others = rows.iter().filter(|r| family(r) == family(row)).count() - 1;
         let _ = write!(
             body,
-            "<th {} data-arch=\"{}\"><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span class=\"kind\">{}</span><span>{} CPUs, {} · {}</span><span>BLAKE3 servil {} · bench-hashes {}</span>{}{}</th>",
+            "<th {}><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span class=\"kind\">{}</span><span>{} CPUs, {} · {}</span><span>BLAKE3 servil {} · bench-hashes {}</span>{}{}</th>",
             col(i),
-            if row.machine.contains("Apple") { "apple" } else { "other" },
             escape(&row.link),
             escape(&row.machine),
             escape(&plain(row)),
@@ -1284,6 +1296,13 @@ mod tests {
                 "#cfcbc3".to_owned()
             ]
         );
+        // A form's button is named for the form, though its first bar
+        // drawn here is official's b3sum.
+        assert!(
+            page.contains(">BLAKE3 official, multi-threaded</button>"),
+            "official's multi-threaded button named for its form"
+        );
+        assert!(!page.contains(">b3sum, official BLAKE3's</button>"));
         assert!(text(&rows).contains(
             "1000 files, b3sum:                   30 GB/s b3sum, BLAKE3 servil's; 10 GB/s b3sum, official BLAKE3's (3.0×); 1.5 GB/s md5sum (20×)"
         ));
