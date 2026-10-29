@@ -447,7 +447,15 @@ pub fn build_against_command(arguments: &[String]) -> i32 {
 /// measuring the working tree (`bench-hashes build-against ..`).
 pub fn build_against(checkout: &Path, bench: &Path, target: &Path, name: &str) -> PathBuf {
     let commit = git(checkout, &["rev-parse", "HEAD"]);
-    let copy = checkout.join("bench-hashes");
+    // The copy sits directly in the checkout (build.rs finds the fork at
+    // ..). Where the bench itself is nested there, as bench-hashes, that
+    // directory is the bench: building in it would rewrite its committed
+    // Cargo.lock (the update below) and read the bench as dirty (BLAKE3
+    // #125, October 27). It then builds from a copy of its own beside it.
+    let mut copy = checkout.join("bench-hashes");
+    if std::fs::canonicalize(&copy).ok() == std::fs::canonicalize(bench).ok() {
+        copy = checkout.join(".bench-hashes-build");
+    }
     copy_bench(bench, &copy);
     let target = target.to_path_buf();
     let patch_fork = fork_patch(&copy, &checkout);

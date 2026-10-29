@@ -1683,6 +1683,10 @@ cell sampled in a share of them.
   --threads N                      BLAKE3 servil mt on N threads in all, its
                                    caller among them (default: one a CPU); the
                                    results name the count
+  --expect-servil COMMIT           stop before measuring unless this build's
+                                   BLAKE3 servil is the fork at COMMIT (a full
+                                   hash), from a clean tree: a run says what it
+                                   measures, and refuses to measure anything else
 
   bench-hashes compare OLD.tsv... -- NEW.tsv...
                                    compare runs' samples files in pairs (the
@@ -1791,6 +1795,24 @@ impl Sizes {
     }
 }
 
+/// Stops unless `info` (this build's BLAKE3_SERVIL_SOURCE_INFO) names the
+/// fork at `commit` from a clean tree: `--expect-servil`.
+fn expect_servil(commit: &str, info: &str) {
+    assert!(
+        commit.len() == 40 && commit.bytes().all(|b| b.is_ascii_hexdigit()),
+        "--expect-servil takes a full 40-hex commit, not {commit:?}"
+    );
+    let named = info
+        .split("; ")
+        .any(|field| field == format!("commit {commit}"));
+    let clean = info.split("; ").any(|field| field == "clean");
+    assert!(
+        named && clean,
+        "--expect-servil {commit}: this build's BLAKE3 servil is not that commit from a clean tree; it is: {info}\n\
+         (build against a checkout with `bench-hashes build-against DIR`; a `--config` patch Cargo leaves unused builds the pin)"
+    );
+}
+
 fn parse_arguments() -> Options {
     let mut arguments: Vec<String> = std::env::args().skip(1).collect();
 
@@ -1840,6 +1862,12 @@ fn parse_arguments() -> Options {
         n.parse::<std::num::NonZeroUsize>()
             .expect("--threads takes a whole number above 0")
     });
+    /* --expect-servil COMMIT: this build's servil is the fork at COMMIT,
+    clean, or nothing is measured (a Cargo patch that goes unused builds the
+    pin instead, and says so only in a warning: BLAKE3 #125, October 27). */
+    if let Some(commit) = take_value("--expect-servil") {
+        expect_servil(&commit, BLAKE3_SERVIL_SOURCE_INFO);
+    }
     /* --calibrate-only PATH or --sizes PATH may accompany any selection. */
     let sizes = match (take_value("--calibrate-only"), take_value("--sizes")) {
         (None, None) => Sizes::Calibrate,
@@ -6611,6 +6639,19 @@ mod correctness_tests {
             }
         }
         (results, samples)
+    }
+
+    #[test]
+    fn expect_servil_takes_only_the_named_clean_commit() {
+        let c = "934dee8902889186e3da9b62edf43699dd1c6305";
+        let patched = format!("blake3-servil 0.8.0+f7ce (local checkout ..); source https://github.com/johnservil/BLAKE3; branch HEAD; commit {c}; clean; single-threaded");
+        expect_servil(c, &patched);
+        let pin = "blake3-servil 0.3.0+2e4f; source https://github.com/johnservil/BLAKE3; commit 49b43b1d317305dbd25e1aa93d56f307430a1205; clean";
+        let dirty = patched.replace("; clean;", "; dirty-00ab;");
+        for (expected, info) in [(c, pin), (c, dirty.as_str()), (&c[..12], patched.as_str())] {
+            let r = std::panic::catch_unwind(|| expect_servil(expected, info));
+            assert!(r.is_err(), "{expected} accepted {info}");
+        }
     }
 
     #[test]
