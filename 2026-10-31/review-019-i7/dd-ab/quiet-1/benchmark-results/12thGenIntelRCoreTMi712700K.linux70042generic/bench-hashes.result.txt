@@ -1,0 +1,38 @@
+Hash speed on 12th Gen Intel(R) Core(TM) i7-12700K (linux7.0.0-42-generic, 20 CPUs), 2026-10-31 22:26:52 UTC
+Full run: 96 rounds. Each cell is the mean time per unit (total time over total work), lower is better.
+
+In “A message in one buffer, after other work”, the program hashes, runs other code and reads 128 MiB of memory (at least 1 ms), and hashes again, as a program hashes between its other tasks; the second call, with the write of its input, is timed.
+In “Messages one after another, buffers owned”, the program hashes one input after another, as fast as it can, alone and with a second program doing the same at once.
+
+SOLO: one copy of each contender, on one thread.
+
+  A message in one buffer, after other work (ns/B)
+  size        B3 servil st    B3 servil mt    SHA-256 ring
+  1 KiB             1.726           1.554           1.350 
+  64 KiB            0.320           0.306           0.570 
+  1 MiB             0.267           0.158           0.492 
+  8 MiB             0.260          0.0955           0.479 
+
+  Messages one after another, buffers owned (ns/B)
+  size        B3 servil st    B3 servil mt    SHA-256 ring
+  64 KiB            0.201          0.0405           0.425 
+  1 MiB             0.198          0.0422           0.428 
+
+SHARED: two copies of the contender at once, each hashing its own input on its own thread, inputs one after another; the time of each copy.
+
+  Messages one after another, buffers owned (ns/B)
+  size        B3 servil st    B3 servil mt    SHA-256 ring
+  64 KiB            0.202          0.0438           0.431 
+  1 MiB             0.203          0.0476           0.434 
+
+PROVENANCE
+  bench-hashes 0.18.3+7e002a05faed6b9de63faf0cc2e4c188c5abc1e8, https://github.com/devonjonte/bench-hashes, commit 99eefde3ebb6c9135a51336c46e823153a6a714d (clean)
+  contenders: --contenders blake3-servil-st,blake3-servil-mt,sha256-ring
+  BLAKE3 servil st: blake3-servil 0.8.0+2aa17489537c922634b53035ab0a635682ba4a1c; source https://github.com/johnservil/BLAKE3; commit d34af7413177284655b95cb718a1a306a2d15ccd; clean; single-threaded; convenience::hash for one message, performance::hash_many for a batch, performance::Hasher::update per piece for many messages at once
+  BLAKE3 servil mt: blake3-servil 0.8.0+2aa17489537c922634b53035ab0a635682ba4a1c; source https://github.com/johnservil/BLAKE3; commit d34af7413177284655b95cb718a1a306a2d15ccd; clean; multithreaded; performance::hash_multithreaded for one message, performance::hash_many_multithreaded for a batch, performance::Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: the fork chooses when to wake its worker threads
+  SHA-256 ring: ring 0.17.14; crate archive SHA-256 a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7; source registry+https://github.com/rust-lang/crates.io-index; single-threaded
+  CPU: model name: 12th Gen Intel(R) Core(TM) i7-12700K · microcode: 0x3e · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l2 cdp_l2 ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdt_a rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize pconfig arch_lbr ibt flush_l1d arch_capabilities · machine: B748
+  rustc 1.98.1 (48a229cea 2026-09-01); target x86_64-unknown-linux-gnu; features fxsr,sse,sse2
+  clock: std::time::Instant → CLOCK_MONOTONIC (stops during suspend, NTP slew only)
+  load during the run: quiet: other programs kept 0.17 CPUs busy on average, 0.26 in the busiest window
+  power: mains power, no battery, CPU frequency governor powersave, energy-performance preference performance
