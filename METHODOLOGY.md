@@ -478,13 +478,14 @@ measures the smallest pipeline, one worker beside the program's thread.
 
 `bench-hashes check --fork DIR [--against REV]` checks whether a change to
 `blake3-servil` slowed any cell. It builds the working tree and the
-target commit, relinks each side with a fresh random function order for
-each pair of runs, and runs the cells whose code the change touches
+target commit, relinks each side with fresh random function orders (each
+link run twice), and runs the cells whose code the change touches
 (`--cells all` runs every cell). A change to assembly or to the build
 runs every cell.
 
 Underneath, `bench-hashes regress` runs the pairs back to back in
-alternating order (four pairs by default in `check`, eight in `regress`),
+alternating order (eight pairs by default in `check`, four links a side
+each run twice; eight in `regress`, a link each),
 with 24 visits per run for cells after a gap and 2 trains for nonstop
 cells.
 Before the pairs start, `regress` calibrates sample sizes once per side
@@ -494,21 +495,22 @@ placement, which alone can move calls after a gap by several percent.
 
 When the pairs find no cell slower, `check` takes a second stage. The
 cells `regress` names as suspects (level, but the pairs' mean beyond the
-margin; at most 8) run again on 16 fresh pairs, each side relinked anew,
-and are judged among themselves. Judged among every cell a change
-reaches, a slowdown at one point passes unseen unless it is many times
-its pairs' spread; among 8 cells on 16 pairs the bar is about a third as
-high. The stage adds about five minutes, most of it the relinks.
+margin; at most 8, the strongest evidence of change first) run again on 64 fresh pairs, 16 new links a side each
+run 4 times, and are judged among themselves. Judged among every cell a
+change reaches, a slowdown at one point passes unseen unless it is many
+times its pairs' spread; among 8 cells on 64 pairs it shows once it
+reaches about a third of one pair's spread. The stage adds about eight
+minutes, most of it the relinks.
 
 ### Each part of the rule, and its evidence
 
 | choice | evidence | what it gives up |
 |---|---|---|
 | A run's cell is its **mean**, total time over total work, every sample counted (`clocks::summary::mean`; Zooko, October 2 and 23) | Planted slowdowns on the Mac: at +6% a fast speed never caught 1 MiB, while the mean caught every cell nearly every time. At the check's budgets (6 and 24 samples per cell), setting the slowest sample aside erased a slow state occurring once in ten samples (`2026-10-22/mean-trim-controls`), whereas the untrimmed mean shows it in full. | A stall moves a cell's figure in full; a run whose load reading is busy carries no verdict. |
-| **Pairs of runs**, alternating, a **fresh link layout** on each side per pair (October 2 and 16) | Most uncertainty lies between processes (placement, the speed a cell settles into): one binary's run means varied 1.49 times what its samples predict; 12 samples or 24 gave the same between-run spread. A layout moves the cells of calls made now and then by several percent, fixed for every run of that binary, so alternation cannot cancel it: two links of one source gave 27 false verdicts in 700 cells. | A second side's runs and a relink per pair. |
-| **4 pairs** by default, each run with **the regression check's visits** (24 after a gap, 6 nonstop; October 20; nonstop 2 trains of 6 samples from 0.19, October 31, the safety checks below) | Calibrated on the i7-12700K (`data` branch `2026-10-20/check-validation`) and the M4 Max: on both, an A/A over every cell found no cell slower (the Mac at 8 pairs, 16 min; the i7 over 146 cells), and the two planted 6% slowdowns were caught at 4 pairs: `hash()`'s in servil st's cells (the Mac: +5% to +28% in the continuous cells, 11 min; the i7: 48 cells), the pool split's in servil mt's cells from 512 KiB, the cells after a gap among them (the Mac: +7% to +25%, 7 min; the i7: 22 of 28), in half the time of 8 pairs. At 12 visits after a gap instead of 24, the cells after a gap caught a plant 3 times in 10. Of the budget, pairs buy more than samples: 18 pairs of 4 samples judged 40% more narrowly than 8 of 12 in the same minutes. | A check takes 2 to 6 minutes. |
+| **Pairs of runs**, alternating, a **fresh link layout** on each side per pair (October 2 and 16) | Most uncertainty lies between processes (placement, the speed a cell settles into): one binary's run means varied 1.49 times what its samples predict; 12 samples or 24 gave the same between-run spread. A layout moves the cells of calls made now and then by several percent, fixed for every run of that binary, so alternation cannot cancel it: two links of one source gave 27 false verdicts in 700 cells. Seven A/A checks of the same links a side (i7-12700K, October 31; `2026-10-31/check-errors-i7`) found that share small there: their cells' ratios correlated 0.03 from check to check, so `check` runs each link twice (4 in its second stage). | A second side's runs and a relink per link. |
+| **8 pairs** by default (4 links a side, each run twice; October 31), each run with **the regression check's visits** (24 after a gap, 6 nonstop; October 20; nonstop 2 trains of 6 samples from 0.19, October 31, the safety checks below) | Calibrated on the i7-12700K (`data` branch `2026-10-20/check-validation`) and the M4 Max: on both, an A/A over every cell found no cell slower (the Mac at 8 pairs, 16 min; the i7 over 146 cells), and the two planted 6% slowdowns were caught at 4 pairs: `hash()`'s in servil st's cells (the Mac: +5% to +28% in the continuous cells, 11 min; the i7: 48 cells), the pool split's in servil mt's cells from 512 KiB, the cells after a gap among them (the Mac: +7% to +25%, 7 min; the i7: 22 of 28), in half the time of 8 pairs. At 12 visits after a gap instead of 24, the cells after a gap caught a plant 3 times in 10. Of the budget, pairs buy more than samples: 18 pairs of 4 samples judged 40% more narrowly than 8 of 12 in the same minutes. The first stage also chooses the second's suspects: among the 8 cells #119 slowed (+3% to +11% of 420), 4 pairs put one among the suspects in 6 checks of 11, 8 pairs in 52 of 55 resamplings of those checks. | A check takes 10 to 25 minutes, about 6 more than at 4 pairs. |
 | **All cells judged at once**: a paired t-test per cell on the log ratios, Benjamini-Hochberg at a 5% false discovery rate (Zooko, October 16) | A per-cell test over 700 cells flags 15-27 cells of unchanged code; a sign test cannot go stricter with few pairs. With the rule: 0 of 700 in three unchanged-code controls, and the code's real changes found. | Floating point inside the t-test. |
-| **A second stage** for the suspects, 16 fresh pairs, judged among themselves (Zooko, October 24; bench #66) | One input length planted slower in `hash()` (`data` branch, `2026-10-24/check-one-point` and `check-second-stage`): judged among 75 cells, +20% of calls (the cell +23% to +77% in every pair) was level. With the stage, +20% and +10% were caught, +6% not (cells after a gap swing 10-25% a pair); three A/A checks found no cell slower. | About five minutes a check; one cell beside the planted ones judged slower at +10%. |
+| **A second stage** for the suspects, the strongest evidence first, 64 fresh pairs (16 links a side, each run 4 times), judged among themselves (Zooko, October 24; bench #66; October 31) | One input length planted slower in `hash()` (`data` branch, `2026-10-24/check-one-point` and `check-second-stage`): judged among 75 cells, +20% of calls (the cell +23% to +77% in every pair) was level. With the stage, +20% and +10% were caught, +6% not (cells after a gap swing 10-25% a pair); three A/A checks found no cell slower. A real slowdown, #119's +3% to +11% in 8 cold one-message cells (`2026-10-31/check-errors-i7`), passed 4 of 5 checks at 4 and 16 pairs, by ratio; with 8 pairs, suspects by evidence and 64 pairs, it was caught 3 of 3, and 3 A/A checks found no cell slower. | About eight minutes a check; one cell beside the planted ones judged slower at +10%. |
 | **A 3% margin** (October 2) | +3% planted was caught about half the time, +6% nearly always; one layout-only change in eight sat near 3% at lent 64 B. | Changes under 3% pass one commit at a time; the release check (`--against` the last release) sees their sum. |
 | **One calibration a side a check** (October 17) | Each run calibrating its own sizes cost 18 s of a 41-s run; shared sizes judged every group of cells more narrowly in less time (about 2.2 times the information per minute), and both sides do the same work a sample. | Sizes chosen on the old side's build. |
 | **Cells chosen by what the change touches** (October 20; code outside every coverage region, October 31) | Coverage names the lines each cell executes; a change to `hash()` chose 73 points, a stream change 13, a comment none. The fixed five-cell list this replaced was blind to the cells after a gap, where #80's +18% sat, and to the stream. A constant's line is in no coverage region: `const SPIN` from 5 µs to 0, measured 41% slower in servil mt's 16 KiB stream, read "nothing to measure" (the fork's `plant/spin0`, Mac jobs 1801 and 1802, under 0.19 and 0.18). So a touched line of code that no region holds and that is no attribute of an item a region holds (a constant, a type, a `use`) measures every point; comments, test code and files the target does not compile measure none. | A coverage build once per contender (cached); a change to assembly, the build, or code outside every coverage region checks every cell. |

@@ -1,4 +1,4 @@
-//! `bench-hashes check --fork DIR [--against REV] [--old-bench REV] [--cells all] [--pairs N] [--keep DIR]`:
+//! `bench-hashes check --fork DIR [--against REV] [--old-bench REV] [--cells all] [--layouts N] [--keep DIR]`:
 //! did a change to the fork hurt its speed anywhere? Run from a checkout of
 //! bench-hashes inside a checkout of the fork (the fork at `..`), it
 //! compares the fork's working tree with a commit (`--against`, HEAD by
@@ -25,12 +25,14 @@
 //!    its tests, examples, benches and dev-dependencies)
 //!    checks every point (coverage cannot see into assembly or the build).
 //!    `--cells all` checks every point regardless.
-//! 3. Runs `bench-hashes regress` over the pairs: servil st and servil mt
+//! 3. Runs `bench-hashes regress` over the pairs (LAYOUTS new links a side,
+//!    each run FIRST_RUNS times): servil st and servil mt
 //!    (the code that changes) at the regression check's visits
 //!    (TO_CHECK_FOR_REGRESSIONS), judged all at once (clocks::summary).
 //! 4. When no cell is slower, runs the cells `regress` names as suspects
 //!    (level, the pairs' mean beyond the margin; at most 8) again on
-//!    SECOND_PAIRS fresh pairs, each side relinked anew, judged among
+//!    SECOND_PAIRS fresh pairs (SECOND_LAYOUTS new links a side, each run
+//!    SECOND_RUNS times), judged among
 //!    themselves: judged among every cell, a slowdown at one point is
 //!    level unless it is many times its pairs' spread (bench-hashes #66).
 //!
@@ -51,14 +53,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Pairs of runs a check takes (its layouts a side). Measured October 20,
+/// Links a side a check takes (each run FIRST_RUNS times). Measured October 20,
 /// 2026 (i7-12700K; the data branch, 2026-10-20/check-validation), 4 pairs
 /// against 8: a hash() plant 6% a call caught in 48 cells against 60; a
 /// plant in the pool's split path in 22 of its 28 cells against 28; the
 /// A/A over the same 146 cells no cell slower either way; a check that
 /// chooses 73 points 6 minutes against 14. Every plant is still found;
-/// `--pairs 8` sees more of its cells.
-const PAIRS: usize = 4;
+/// `--layouts 8` sees more of its cells.
+const LAYOUTS: usize = 4;
 /// Pairs of the second stage: when the first finds no cell slower, the
 /// cells it names as suspects (level, beyond the margin) run again on
 /// fresh layouts and are judged among themselves. Judged among the 75
@@ -67,14 +69,42 @@ const PAIRS: usize = 4;
 /// its cell +23% to +77% in every pair) was judged level; among 8 cells
 /// on 16 pairs the bar is about 3 (bench-hashes #66; the data branch,
 /// 2026-10-24/check-one-point).
-const SECOND_PAIRS: usize = 16;
+const SECOND_LAYOUTS: usize = 16;
+/// Runs of each second-stage layout: its pairs are SECOND_LAYOUTS times
+/// this. A relink costs about 18 s, a run of the suspects 1 to 3 s,
+/// and a layout's own bias is a small part of a cold cell's spread (seven
+/// A/A checks of the same layouts: their cells' ratios correlated 0.03).
+/// At 16 pairs, #119's +3% to +11% on cold one-message calls passed 3
+/// checks of 3 whose suspects held them; on 64 pairs from the same 16
+/// layouts, about 2.5 minutes more, its cells were caught 3 of 3, and 3
+/// A/A runs found no cell slower. A whole check, these 64 pairs after 8
+/// (FIRST_RUNS): #119 caught 3 of 3, 3 A/A checks no cell slower (the
+/// data branch, 2026-10-31/check-errors-i7).
+const SECOND_RUNS: usize = 4;
+const SECOND_PAIRS: usize = SECOND_LAYOUTS * SECOND_RUNS;
+/// Runs of each first-stage layout. The first stage's pairs choose the
+/// second's suspects: among #119's 8 slowed cells (+3% to +11%, of 420),
+/// 4 pairs put one among the 8 suspects in 6 checks of 11, 8 pairs in 52
+/// of 55 resamplings of the same checks (the data branch,
+/// 2026-10-31/check-errors-i7).
+const FIRST_RUNS: usize = 2;
+
+/// `exes`, each `times` times, in turn: the same layouts run again cost a
+/// run each, where a new layout costs a relink.
+fn each_run(exes: Vec<String>, times: usize) -> Vec<String> {
+    exes.iter()
+        .cycle()
+        .take(exes.len() * times)
+        .cloned()
+        .collect()
+}
 /// The two sides' contenders: the code a change to the fork changes.
 const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
 pub fn command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--old-bench REV] [--cells all] [--pairs N] [--keep DIR]";
-    let (mut against, mut all, mut pairs, mut keep) =
-        ("HEAD".to_string(), false, PAIRS, None::<PathBuf>);
+    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--old-bench REV] [--cells all] [--layouts N] [--keep DIR]";
+    let (mut against, mut all, mut layouts_a_side, mut keep) =
+        ("HEAD".to_string(), false, LAYOUTS, None::<PathBuf>);
     let mut old_bench_rev = None::<String>;
     let mut fork = None::<PathBuf>;
     let mut it = arguments.iter();
@@ -105,12 +135,12 @@ pub fn command(arguments: &[String]) -> i32 {
                 assert_eq!(value, "all", "--cells takes `all`\n{usage}");
                 all = true;
             }
-            "--pairs" => {
-                pairs = it
+            "--layouts" => {
+                layouts_a_side = it
                     .next()
                     .and_then(|v| v.parse().ok())
-                    .filter(|&n| n >= 3)
-                    .unwrap_or_else(|| panic!("--pairs takes a count of 3 or more\n{usage}"))
+                    .filter(|&n| n >= 2)
+                    .unwrap_or_else(|| panic!("--layouts takes a count of 2 or more\n{usage}"))
             }
             "--keep" => {
                 keep =
@@ -216,12 +246,24 @@ pub fn command(arguments: &[String]) -> i32 {
             Some(points.into_iter().collect()),
         )
     };
-    let olds = layouts(&old_bench, &cache, "old", &old_exe, 0..pairs);
-    let news = layouts(&bench, &cache, "new", &new_exe, pairs..2 * pairs);
+    let olds = each_run(
+        layouts(&old_bench, &cache, "old", &old_exe, 0..layouts_a_side),
+        FIRST_RUNS,
+    );
+    let news = each_run(
+        layouts(
+            &bench,
+            &cache,
+            "new",
+            &new_exe,
+            layouts_a_side..2 * layouts_a_side,
+        ),
+        FIRST_RUNS,
+    );
     let mut regress: Vec<String> = vec![
         "regress".into(),
         "--pairs".into(),
-        pairs.to_string(),
+        (layouts_a_side * FIRST_RUNS).to_string(),
         "--contenders".into(),
         contenders.join(","),
     ];
@@ -258,21 +300,22 @@ pub fn command(arguments: &[String]) -> i32 {
             point_label(&field(k, 2), &field(k, 3)).expect("a suspect's use case is this bench's")
         })
         .collect();
-    let first = 2 * pairs;
+    let first = 2 * layouts_a_side;
     let olds = layouts(
         &old_bench,
         &cache,
         "old",
         &old_exe,
-        first..first + SECOND_PAIRS,
+        first..first + SECOND_LAYOUTS,
     );
     let news = layouts(
         &bench,
         &cache,
         "new",
         &new_exe,
-        first + SECOND_PAIRS..first + 2 * SECOND_PAIRS,
+        first + SECOND_LAYOUTS..first + 2 * SECOND_LAYOUTS,
     );
+    let (olds, news) = (each_run(olds, SECOND_RUNS), each_run(news, SECOND_RUNS));
     let mut second: Vec<String> = vec![
         "regress".into(),
         "--pairs".into(),
@@ -1521,6 +1564,14 @@ fn manifest_builds_differently(fork: &Path, old: &str, new: &str, manifest: &str
 
 #[cfg(test)]
 mod tests {
+    /// Each link runs again in turn, so neighbouring pairs keep different
+    /// links (a link run twice in a row would pair its runs' drift).
+    #[test]
+    fn each_run_takes_the_links_in_turn() {
+        let links = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        assert_eq!(super::each_run(links, 2), ["a", "b", "c", "a", "b", "c"]);
+    }
+
     /// The toolchain's llvm-profdata wins over one on PATH: an older LLVM
     /// there cannot read the compiler's profiles (bench-hashes #87, Sam's
     /// EPYC). Needs `rustup component add llvm-tools`, which the release
