@@ -923,12 +923,15 @@ fn report(
         compared
             .into_iter()
             .zip(&pairs)
-            .map(|(key, p)| {
+            .enumerate()
+            .map(|(rank, (key, p))| {
                 (
                     key,
                     clocks::summary::Judgment {
                         verdict: clocks::summary::Verdict::Level,
                         ratio_permille: clocks::summary::geometric_mean_permille(p),
+                        // No evidence orders them: their order.
+                        rank,
                     },
                 )
             })

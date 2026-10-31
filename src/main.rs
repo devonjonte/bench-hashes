@@ -5889,11 +5889,11 @@ fn regress_command(arguments: &[String]) -> i32 {
     let judgments =
         clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
     let mut slower = 0;
-    let mut suspects: Vec<(u64, &String)> = Vec::new();
+    let mut suspects: Vec<(usize, &String)> = Vec::new();
     for (key, judgment) in judged.into_iter().zip(judgments) {
         if judgment.verdict == clocks::summary::Verdict::Level {
             if judgment.ratio_permille > 1000 + REGRESS_MARGIN_PERMILLE {
-                suspects.push((judgment.ratio_permille, key));
+                suspects.push((judgment.rank, key));
             }
             continue;
         }
@@ -5915,9 +5915,12 @@ fn regress_command(arguments: &[String]) -> i32 {
         println!("regress: REGRESSION: {slower} cells slower");
     } else {
         println!("regress: no cell slower");
-        // The level cells slowest beyond the margin, most-slowed first:
-        // what a second stage confirms on fresh pairs (check).
-        suspects.sort_by(|a, b| b.cmp(a));
+        // The level cells slower beyond the margin, the strongest evidence
+        // first: what a second stage confirms on fresh pairs (check). At 8
+        // pairs, ranked by ratio, #119's slowed cells were among the 8 in
+        // 42 resamplings of 55, ranked by evidence in 52 (the data branch,
+        // 2026-10-31/check-errors-i7).
+        suspects.sort();
         if !suspects.is_empty() {
             let named: Vec<&str> = suspects
                 .iter()
