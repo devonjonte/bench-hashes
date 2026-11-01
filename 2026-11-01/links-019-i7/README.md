@@ -26,4 +26,20 @@ known checks' suspects held as many slowed cells as with 8 (by evidence
 5 against 5; by ratio 5 against 7): the doubled first stage bought nothing
 here.
 
+**The lean variant** (`lean.sh`; the same branch with FIRST_RUNS 1: the
+first stage at 4 pairs, suspects by evidence, the 64-pair second stage).
+Second known truth: `--fork` at 1a4f72b3 (080d250f + SPIN 0, as
+plant/spin0) `--against 080d250f`.
+
+| run | verdict | time |
+|---|---|---|
+| lean-spin0-1 | 5 cells slower: servil mt streams 64-256 B, +4.2% to +10.4% | 2245 s (first: coverage, relinks) |
+| lean-spin0-2 | 5 cells slower: servil mt streams 64 B-16 KiB and Nix files, +3.1% to +9.4% | 1141 s |
+| lean-known-1 | 1 cell slower: mt OneMessage 1536 B +3.1% (a size the 64-pair runs read level: perhaps a false alarm) | 2388 s |
+| lean-known-2 | 1 cell slower: mt IdleOneMessage 3839 B +7.6% (a #119 cell) | 1046 s |
+
+No A/A of the lean variant: its first stage is 0.19's own 4 pairs (A/A
+clean, `2026-10-31/review-019-i7`), and its second stage is the one the
+A/A runs above cleared.
+
 **Posted:** bench-hashes #98.
