@@ -167,7 +167,12 @@ machine runs again. In order:
      `--config` patch (Cargo's lock can build the pin instead):
      `bench-hashes build-against ..`, then the executable it prints, with
      `--all --expect-servil COMMIT`, from a scratch directory;
-   - the b3sum run, `LAYOUTS=4 python3 tools/b3sum-contenders.py`.
+   - the b3sum run, `LAYOUTS=4 python3 tools/b3sum-contenders.py`, with
+     `--files` on the machine's own storage. On tmpfs (a VM's `/tmp`, for
+     one) nothing is read from storage, and the run reports its
+     read-from-storage cells as not measured. A VM's storage is a disk
+     image on its host, which may serve the reads from its own memory;
+     that is what a program in the VM meets.
 
    Check each report names the commit you meant, before you read its numbers.
 5. **The results:** each machine's folder under `benchmark-results/` as
