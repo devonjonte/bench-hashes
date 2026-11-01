@@ -93,6 +93,9 @@ anything", John Servil releasing it):
   host's name, and on the Mac's runner on another network refused the
   guess ("benchrunner@Mac.(none)", job 1830). `check` alone changes; a
   run measures as 0.19.0's.
+- **0.19.2: `check --old-bench` makes the old side's worktree afresh**
+  each check: one left by a check from before the separate checkouts
+  pointed at a repository gone (job 1831). `check` alone changes.
 - **Studies read samples in Python** (`tools/samples.py`): `means` and
   `settle` left the program for `tools/points.py` and `tools/settle.py`,
   beside `tools/variance.py`; comparisons and verdicts stay in it.

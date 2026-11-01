@@ -178,25 +178,27 @@ pub fn command(arguments: &[String]) -> i32 {
                 "--old-bench {rev}: a bench that builds beside the fork (BENCH_HASHES_FORK, from candidate/bench-0.18 1f4dfd63 on); \
                  0.18.3 and older build only inside the fork's checkout"
             );
+            // Made afresh each check (a second's checkout): a worktree left
+            // by another bench checkout may point at a repository gone (a
+            // check from before the separate checkouts left one inside the
+            // fork's target/, whose .git named the fork's bench-hashes/:
+            // the Mac's job 1831).
             let dir = cache.join("old-bench");
-            if !dir.exists() {
-                git(&bench, &["worktree", "prune"]);
-                git(
-                    &bench,
-                    &[
-                        "worktree",
-                        "add",
-                        "--detach",
-                        dir.to_str().unwrap(),
-                        &commit,
-                    ],
-                );
-            } else if git(&dir, &["rev-parse", "HEAD"]) != commit {
-                git(
-                    &dir,
-                    &["checkout", "--quiet", "--force", "--detach", &commit],
-                );
+            if dir.exists() {
+                std::fs::remove_dir_all(&dir)
+                    .unwrap_or_else(|e| panic!("removing {}: {e}", dir.display()));
             }
+            git(&bench, &["worktree", "prune"]);
+            git(
+                &bench,
+                &[
+                    "worktree",
+                    "add",
+                    "--detach",
+                    dir.to_str().unwrap(),
+                    &commit,
+                ],
+            );
             eprintln!(
                 "check: the old side with the bench at {rev} ({})",
                 &commit[..12]
