@@ -100,6 +100,11 @@ anything", John Servil releasing it):
   and on macOS. On 112 CPUs the machine's user time less ours read 1-6
   CPUs where no other process took 0.5 (bench #98, Sam Shackleton). The
   load reading alone changes; a run measures as 0.19.0's.
+- **0.19.4: `check`'s first stage is 4 pairs, a link a side each**
+  (Devon Jonte's lean variant of his check; Zooko, November 1: "I love
+  saving 12 minutes without losing sensitivity"): its 4 pairs choose the
+  suspects as well as 8 did on #119, ranked by evidence, and the 64-pair
+  second stage stays. About 12 minutes less a check.
 - **Studies read samples in Python** (`tools/samples.py`): `means` and
   `settle` left the program for `tools/points.py` and `tools/settle.py`,
   beside `tools/variance.py`; comparisons and verdicts stay in it.

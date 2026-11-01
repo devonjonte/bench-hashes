@@ -77,17 +77,22 @@ const SECOND_LAYOUTS: usize = 16;
 /// At 16 pairs, #119's +3% to +11% on cold one-message calls passed 3
 /// checks of 3 whose suspects held them; on 64 pairs from the same 16
 /// layouts, about 2.5 minutes more, its cells were caught 3 of 3, and 3
-/// A/A runs found no cell slower. A whole check, these 64 pairs after 8
-/// (FIRST_RUNS): #119 caught 3 of 3, 3 A/A checks no cell slower (the
-/// data branch, 2026-10-31/check-errors-i7).
+/// A/A runs found no cell slower (the data branch,
+/// 2026-10-31/check-errors-i7).
 const SECOND_RUNS: usize = 4;
 const SECOND_PAIRS: usize = SECOND_LAYOUTS * SECOND_RUNS;
-/// Runs of each first-stage layout. The first stage's pairs choose the
-/// second's suspects: among #119's 8 slowed cells (+3% to +11%, of 420),
-/// 4 pairs put one among the 8 suspects in 6 checks of 11, 8 pairs in 52
-/// of 55 resamplings of the same checks (the data branch,
-/// 2026-10-31/check-errors-i7).
-const FIRST_RUNS: usize = 2;
+/// Runs of each first-stage layout: once, so the first stage is LAYOUTS
+/// pairs. Its pairs choose the second stage's suspects, ranked by evidence
+/// (clocks::summary::Judgment::rank). Each run twice (8 pairs) cost about
+/// 12 minutes more a check and bought nothing: read from each check's
+/// first 4 pairs alone, its suspects held as many of #119's slowed cells
+/// (by evidence 5 against 5), and every check's suspects held at least
+/// one; the misses fell in the second stage. At 4 pairs, ranked, with 64
+/// second-stage pairs, plant/spin0 was caught 2 of 2 and #119 2 of 2 (the
+/// i7; Devon Jonte, bench-hashes #98, the data branch
+/// 2026-11-01/links-019-i7; Zooko, November 1: "I love saving 12 minutes
+/// without losing sensitivity").
+const FIRST_RUNS: usize = 1;
 
 /// `exes`, each `times` times, in turn: the same layouts run again cost a
 /// run each, where a new layout costs a relink.
