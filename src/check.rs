@@ -898,23 +898,65 @@ fn seen_lines(
                 into.insert(n);
                 continue;
             }
-            // An attribute: the line its item starts on (past further
-            // attributes and comments).
-            let item = line.trim().starts_with("#[").then(|| {
-                (n + 1..=source.len()).find(|&m| {
-                    let t = source[m - 1].trim();
-                    !(t.starts_with("#[") || inert(t))
-                })
-            });
-            match item.flatten() {
-                Some(m) if held(m) => {
+            // An attribute: the first held line of the item it is
+            // attached to (past further attributes and comments, to the
+            // item's `;` or the brace closing its first one), since an
+            // attribute acts on its item alone: `#[cfg(...)]` on an
+            // `unsafe { asm!(...) }` whose `unsafe {` no region holds.
+            let item = line
+                .trim()
+                .starts_with("#[")
+                .then(|| item_lines(&source, n + 1))
+                .unwrap_or_default();
+            match item.into_iter().find(|&m| held(m)) {
+                Some(m) => {
                     into.insert(m);
                 }
-                _ => return Err(format!("{file}:{n}: {}", line.trim())),
+                None => return Err(format!("{file}:{n}: {}", line.trim())),
             }
         }
     }
     Ok(seen)
+}
+
+/// The lines (from 1) of the item starting at or after line `from`: past
+/// attributes and comments, from its first line to the line ending it,
+/// one ending in `;` before any brace or the one closing its first brace
+/// (braces counted as `test_lines` counts them, literals aside).
+fn item_lines(source: &[&str], from: usize) -> Vec<usize> {
+    let Some(start) = (from..=source.len()).find(|&m| {
+        let t = source[m - 1].trim();
+        !(t.starts_with("#[") || inert(t))
+    }) else {
+        return Vec::new();
+    };
+    let mut depth = 0i64;
+    let mut opened = false;
+    for m in start..=source.len() {
+        let t = source[m - 1].trim();
+        let mut in_str = false;
+        let mut chars = t.chars().peekable();
+        while let Some(c) = chars.next() {
+            match c {
+                '\\' if in_str => {
+                    chars.next();
+                }
+                '"' => in_str = !in_str,
+                '/' if !in_str && chars.peek() == Some(&'/') => break,
+                '{' if !in_str => {
+                    depth += 1;
+                    opened = true;
+                }
+                '}' if !in_str => depth -= 1,
+                ';' if !in_str && !opened => return (start..=m).collect(),
+                _ => {}
+            }
+        }
+        if opened && depth <= 0 {
+            return (start..=m).collect();
+        }
+    }
+    (start..=source.len()).collect()
 }
 
 /// A line that is no code: blank, a line comment, or punctuation alone (a
@@ -1576,6 +1618,20 @@ mod tests {
         ] {
             assert!(!inert(t), "{t:?}");
         }
+        // An attribute's item: to its `;`, or to the brace closing its first.
+        let src = [
+            "#[cfg(x)]",
+            "// Sound: ...",
+            "unsafe {",
+            "    asm!(\"x\");",
+            "}",
+            "f();",
+        ];
+        assert_eq!(super::item_lines(&src, 2), vec![3, 4, 5]);
+        assert_eq!(
+            super::item_lines(&["#[inline]", "use a::b;", "x"], 2),
+            vec![2]
+        );
         // A block comment's lines, and a continuation line outside one.
         let block = "/*\n * x\n */\nlet n = a\n    * CHUNK_LEN;\n/* one line */\n";
         assert_eq!(block_comment_lines(block), BTreeSet::from([1, 2, 3, 6]));
