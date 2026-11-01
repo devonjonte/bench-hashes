@@ -37,7 +37,8 @@
 //! A change to the fork's API changes the bench with it, so one bench builds
 //! against one side alone: `--old-bench REV` builds the old side with this
 //! bench at REV (a commit of this bench's repository, in a worktree under
-//! `target/check/`), the new side with the bench as it is. The cells are
+//! `target/check/`; a bench that builds beside the fork, so 1f4dfd63 or
+//! later), the new side with the bench as it is. The cells are
 //! keyed by use case and point, not by call, so the two sides' cells meet.
 //!
 //! It replaces the fork's `tools/perf_regress.py` (October 19, 2026,
@@ -139,6 +140,14 @@ pub fn command(arguments: &[String]) -> i32 {
         None => bench.clone(),
         Some(rev) => {
             let commit = git(&bench, &["rev-parse", &format!("{rev}^{{commit}}")]);
+            // A bench from before the bench and the fork became separate
+            // checkouts (0.18.3 and older) builds only inside the fork:
+            // its results are read with its own tools.
+            assert!(
+                git(&bench, &["show", &format!("{commit}:build.rs")]).contains("BENCH_HASHES_FORK"),
+                "--old-bench {rev}: a bench that builds beside the fork (BENCH_HASHES_FORK, from candidate/bench-0.18 1f4dfd63 on); \
+                 0.18.3 and older build only inside the fork's checkout"
+            );
             let dir = cache.join("old-bench");
             if !dir.exists() {
                 git(&bench, &["worktree", "prune"]);

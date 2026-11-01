@@ -641,9 +641,9 @@ process's own count; on macOS, which lets a program read only its own
 user's processes, it is the machine's system time less this process's.
 Linux also reports steal time, CPU time a hypervisor withheld from a
 virtual machine's CPUs for other work on the host. The two parts keep
-out the kernel's own work for the run (waking its threads, starting and
-ending the processes it spawns), which is system time charged to no
-process: counted as the machine's busy time less ours, a cell that
+out the kernel's own work for the run: waking its threads, and starting
+and ending the processes it spawns. That work is system time charged to
+no process. Counted as the machine's busy time less ours, a cell that
 starts a thousand processes read 0.61 CPUs of it on an EPYC 9255. On
 macOS that work stays in, about 0.1-0.25 CPUs on an M4 Max. Another
 program's system time is load like its user time: four readers of
