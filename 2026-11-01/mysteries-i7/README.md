@@ -26,6 +26,24 @@ Commands: `run.sh`, `runB2.sh`.
 - In full `--all` runs (`B2-*`), 0.19 as released sat in the fast mode
   (218-242 cycles), 0.19 measuring 0.18's way (`--train 0,1
   --nonstop-visits 6`) in the slow one (249-280): the opposite direction.
-- Not pinned: which neighbour leaves the caches in which state.
+- **Found (`C-*`, `D-*`, `E-*`, `place-probe/`): the depth of the pause's
+  idle state.** ASLR off (`setarch -R`, `C-*`) and pinning to CPU 2
+  (`D-*`) leave the two modes; whole runs' idle-state counts (`E-*`) do
+  not separate them. Within one process (`place-probe/place_probe.rs`,
+  40 fresh allocations), the modes come in streaks across allocations.
+  Per visit (`place-probe/idle_probe.rs`, 3000 visits pinned to CPU 2,
+  CPU 2's cpuidle counters read around each 1 ms sleep): a pause that went
+  no deeper than C1E, 1440 visits, median 13.5 ns a message; C6, 941,
+  25.8; C8, 619, 58.2. Linux's `menu` governor chooses each pause's depth
+  from recent history, so a run's mix, and its mode, follow what ran
+  before it.
 
-**Posted:** bench-hashes #99.
+**The shared scenario's tail** (from `release-0193-i7/check-same`): in
+0.19 the last of a train's 6 steps reads 3-8% faster than the first five
+(servil mt 64 MiB x0.936, 16 MiB x0.969, 4 KiB x0.919; servil st 64 MiB
+x0.969), its copies 1.09-1.13 apart where the others are 1.02: one copy
+ends its train first. About 1% of a shared cell's figure. Taking the
+slower copy of each step: servil st's 50 shared cells x1.002 (median),
+servil mt's x1.013 (to x1.267 where the pool shares unevenly).
+
+**Posted:** bench-hashes #99 and the issues it links.
