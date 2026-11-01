@@ -878,10 +878,11 @@ fn seen_lines(
         let text = git(fork, &["show", &format!("{commit}:{file}")]);
         let source: Vec<&str> = text.lines().collect();
         let tests = test_lines(&text);
+        let comments = block_comment_lines(&text);
         let held = |n: usize| cov.instrumented.get(file).is_some_and(|h| h.contains(&n));
         let into: &mut BTreeSet<usize> = seen.entry(file.clone()).or_default();
         for (&n, line) in lines {
-            if inert(line) || tests.contains(&n) {
+            if inert(line) || tests.contains(&n) || comments.contains(&n) {
                 continue;
             }
             if held(n) {
@@ -907,17 +908,32 @@ fn seen_lines(
     Ok(seen)
 }
 
-/// A line that is no code: blank, a comment, or punctuation alone (a
-/// closing brace).
+/// A line that is no code: blank, a line comment, or punctuation alone (a
+/// closing brace). A block comment's lines are `block_comment_lines`'s:
+/// a line beginning `* ` may be code (rustfmt's `    * CHUNK_LEN`).
 fn inert(text: &str) -> bool {
     let t = text.trim();
-    t.is_empty()
-        || t.starts_with("//")
-        || t.starts_with("/*")
-        || t.starts_with("*/")
-        || t.starts_with("* ")
-        || t == "*"
-        || t.chars().all(|c| "{}()[];,".contains(c))
+    t.is_empty() || t.starts_with("//") || t.chars().all(|c| "{}()[];,".contains(c))
+}
+
+/// The lines (from 1) of a source file's block comments that begin a line:
+/// from a line beginning `/*` to the line holding its `*/`.
+fn block_comment_lines(text: &str) -> BTreeSet<usize> {
+    let mut out = BTreeSet::new();
+    let mut open = false;
+    for (i, line) in text.lines().enumerate() {
+        let t = line.trim();
+        if !open && t.starts_with("/*") {
+            open = true;
+        }
+        if open {
+            out.insert(i + 1);
+            if t.contains("*/") {
+                open = false;
+            }
+        }
+    }
+    out
 }
 
 /// Whether an attribute line makes the item after it test code alone.
@@ -1537,10 +1553,8 @@ mod tests {
     /// cannot: comments, blank lines, punctuation, test items.
     #[test]
     fn inert_lines_and_test_items() {
-        use super::{inert, test_lines};
-        for t in [
-            "", "   ", "// x", "/// doc", "//! m", "/* x", " * x", " */", "}", "    });", "],",
-        ] {
+        use super::{block_comment_lines, inert, test_lines};
+        for t in ["", "   ", "// x", "/// doc", "//! m", "}", "    });", "],"] {
             assert!(inert(t), "{t:?}");
         }
         for t in [
@@ -1549,9 +1563,13 @@ mod tests {
             "use crate::x;",
             "*p = 1;",
             "pub struct A;",
+            "    * CHUNK_LEN;",
         ] {
             assert!(!inert(t), "{t:?}");
         }
+        // A block comment's lines, and a continuation line outside one.
+        let block = "/*\n * x\n */\nlet n = a\n    * CHUNK_LEN;\n/* one line */\n";
+        assert_eq!(block_comment_lines(block), BTreeSet::from([1, 2, 3, 6]));
         let text = "fn a() {}\n#[cfg(test)]\nmod test {\n    fn b() { let c = '{'; let s = \"}\"; }\n}\nconst X: u8 = 1;\n\
                     #[cfg(test)]\nuse std::x;\n#[cfg(all(test, target_arch = \"aarch64\"))]\n#[test]\nfn t() {\n    x();\n}\n\
                     #[cfg(any(test, feature = \"f\"))]\nfn both() {}\n";

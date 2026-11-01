@@ -374,13 +374,16 @@ Max. The fork under test is left out of the context, because a size only
 sets how much work fills a sample. A slower fork lengthens samples, which
 costs time alone. A faster one shortens them, so a run on cached sizes
 checks each nonstop cell: if a cell's median sample falls under a
-quarter of its target, the run deletes that file and the next run
-calibrates again. (A calibration's own cells come out as short as half
-their target, so a quarter leaves a margin of two.) Each samples
+quarter of its target, or over four times it, the run deletes that file
+and the next run calibrates again. (A calibration's own cells come out
+as short as half their target, so a quarter leaves a margin of two.) Each samples
 file's `sample sizes` line says where its sizes came from: calibrated in
 the run, given by `--sizes`, or taken from the cache, with when that
 calibration ran and against which fork. `regress` and `check` give their
-runs sizes of their own and never read the cache.
+runs sizes of their own and never read the cache. A comparison needs no
+equal sizes: a cell's figure is its total time over its total work, and
+runs that calibrate each size their samples a little differently, as
+every run before the cache did.
 
 A full run has 96 rounds, a `--quick` one 24 (and stops below 1 MiB and
 10,000 messages). A point after a gap samples at least 12 visits, and a
@@ -631,18 +634,22 @@ change: `bench-hashes compare` gives the verdicts).
 
 ## Load from other programs
 
-While it measures, the run reads how much user time the whole machine
-spent and how much of it this process used; the difference is CPU time
-other programs took. Linux also reports steal time, CPU time a
-hypervisor withheld from a virtual machine's CPUs for other work on the
-host. User time, because the kernel's own work for the run (waking its
-threads, starting and ending the processes it spawns) is system time
-charged to no process, and would read as other programs' load: a cell
-that starts a thousand processes read 0.61 CPUs of it on an EPYC 9255.
-Programs that disturb a measurement run in user time: on an Apple M4
-Max, a busy loop read 1.04-1.13 CPUs, and a Linux VM's two busy vCPUs
-2.0 more. Another program's system time (heavy disk or network work)
-goes unseen. The OS counts both in 10 ms ticks, so the run sums them over
+While it measures, the run reads how much CPU time other programs took:
+their user time, the whole machine's less this process's, and their
+system time. On Linux their system time is summed from each other
+process's own count; on macOS, which lets a program read only its own
+user's processes, it is the machine's system time less this process's.
+Linux also reports steal time, CPU time a hypervisor withheld from a
+virtual machine's CPUs for other work on the host. The two parts keep
+out the kernel's own work for the run (waking its threads, starting and
+ending the processes it spawns), which is system time charged to no
+process: counted as the machine's busy time less ours, a cell that
+starts a thousand processes read 0.61 CPUs of it on an EPYC 9255. On
+macOS that work stays in, about 0.1-0.25 CPUs on an M4 Max. Another
+program's system time is load like its user time: four readers of
+`/dev/urandom` keep four CPUs busy in it, and a loop of page faults moved
+a cell 14.5%. Inside a container or another PID namespace, the run sees
+the system time of that namespace's processes alone. The OS counts both in 10 ms ticks, so the run sums them over
 windows of about a second, read between samples (a reading takes about
 9 µs, once a second, outside every timed interval); on 16 CPUs a window
 reads within 0.16 CPUs. The report, the samples file, and the line under

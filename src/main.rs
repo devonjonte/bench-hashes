@@ -1989,9 +1989,10 @@ fn sizes_stale(roster: &Roster, samples: &RunSamples, iterations: &[Vec<usize>])
             let mut ns: Vec<u64> = cell.iter().map(|m| m.ns).collect();
             ns.sort_unstable();
             let target = TARGET_SAMPLE_NS;
-            if u128::from(ns[ns.len() / 2]) * 4 < target {
+            let median = u128::from(ns[ns.len() / 2]);
+            if median * 4 < target || median > target * 4 {
                 return Some(format!(
-                    "{} {}{}: median sample {} ns, target {target} ns",
+                    "{} {}{}: median sample {} ns, target {target} ns, a quarter to four times it",
                     roster.algorithms[a].key(),
                     POINTS[p].use_case.label_prefix(),
                     POINTS[p].label,
@@ -5830,7 +5831,7 @@ fn compare_command(arguments: &[String]) {
     // Only cells every pair measured.
     order.retain(|key| cells[key].0.len() == old.len());
     let tested: Vec<Pairs> = order.iter().map(|key| cells[key].0.clone()).collect();
-    let judged = clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
+    let (judged, _) = judge_once(&tested);
     let times = |permille: u64| format!("x{}.{:03}", permille / 1000, permille % 1000);
     for (key, judgment) in order.into_iter().zip(judged) {
         let (wall, cpu, energy) = &cells[&key];
@@ -5865,6 +5866,33 @@ fn compare_command(arguments: &[String]) {
             wall.len()
         );
     }
+}
+
+/// Every cell judged at once (clocks::summary::discoveries), each
+/// measurement once: cells whose means agree in every pair, on both sides,
+/// are one measurement (an owned cell measured as its lent twin,
+/// lent_twin), judged as one and given its verdict on each row, so the
+/// family the false discovery rate is controlled over counts it once
+/// (bench-hashes #98, Devon Jonte). Returns each row's judgment and the
+/// first row holding its measurement.
+fn judge_once(tested: &[Vec<(u128, u128)>]) -> (Vec<clocks::summary::Judgment>, Vec<usize>) {
+    let mut first: std::collections::BTreeMap<&Vec<(u128, u128)>, usize> = Default::default();
+    let mut unique: Vec<Vec<(u128, u128)>> = Vec::new();
+    let mut of = Vec::new();
+    let mut held = Vec::new();
+    for (i, pairs) in tested.iter().enumerate() {
+        let k = *first.entry(pairs).or_insert_with(|| {
+            unique.push(pairs.clone());
+            held.push(i);
+            unique.len() - 1
+        });
+        of.push(k);
+    }
+    let judged = clocks::summary::discoveries(&unique, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
+    (
+        of.iter().map(|&k| judged[k]).collect(),
+        of.iter().map(|&k| held[k]).collect(),
+    )
 }
 
 /// The geometric mean of some positive Q64.64 values: each side's figure in
@@ -6285,19 +6313,21 @@ fn regress_command(arguments: &[String]) -> i32 {
         );
     }
     let tested: Vec<Vec<(u128, u128)>> = judged.iter().map(|k| pairs_means[*k].clone()).collect();
-    let judgments =
-        clocks::summary::discoveries(&tested, COMPARE_Q_PERMILLE, REGRESS_MARGIN_PERMILLE);
+    let (judgments, measurement) = judge_once(&tested);
     let mut slower = 0;
     let mut suspects: Vec<(u64, &String)> = Vec::new();
-    for (key, judgment) in judged.into_iter().zip(judgments) {
+    for (i, (key, judgment)) in judged.into_iter().zip(judgments).enumerate() {
+        // A row whose measurement an earlier row holds (an owned cell
+        // measured as its lent twin): its verdict printed, not counted again.
+        let first = measurement[i] == i;
         if judgment.verdict == clocks::summary::Verdict::Level {
-            if judgment.ratio_permille > 1000 + REGRESS_MARGIN_PERMILLE {
+            if first && judgment.ratio_permille > 1000 + REGRESS_MARGIN_PERMILLE {
                 suspects.push((judgment.ratio_permille, key));
             }
             continue;
         }
         let word = if judgment.verdict == clocks::summary::Verdict::Slower {
-            slower += 1;
+            slower += usize::from(first);
             "SLOWER"
         } else {
             "faster"
@@ -7214,6 +7244,26 @@ mod correctness_tests {
             !tsv.contains("\tshared\tOneMessage\t"),
             "calls after a gap run alone: {tsv}"
         );
+    }
+
+    /// Rows whose means agree in every pair are one measurement: judged
+    /// once, each given its verdict, the first row holding it named.
+    #[test]
+    fn identical_measurements_are_judged_once() {
+        let q = |x: u128| x << 64;
+        let slower: Vec<(u128, u128)> = [110, 111, 109, 112]
+            .iter()
+            .map(|&n| (q(100), q(n)))
+            .collect();
+        let level: Vec<(u128, u128)> = [100, 101, 99, 100]
+            .iter()
+            .map(|&n| (q(100), q(n)))
+            .collect();
+        let (judged, first) = judge_once(&[slower.clone(), level, slower]);
+        assert_eq!(first, vec![0, 1, 0]);
+        assert_eq!(judged[0], judged[2]);
+        assert_eq!(judged[0].verdict, clocks::summary::Verdict::Slower);
+        assert_eq!(judged[1].verdict, clocks::summary::Verdict::Level);
     }
 
     /// The calibration cache gives back a file's sizes for its very

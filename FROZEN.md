@@ -79,10 +79,15 @@ anything", John Servil releasing it):
   part of the context: a nonstop cell whose median sample falls under a
   quarter of its target deletes the file. The samples file's `sample
   sizes` line names the sizes' source.
-- **Load is other programs' user time, measured on macOS again** (the
-  fork's clocks at c7cb21d3, where its probes are): the machine's user
-  time less this process's, so the kernel's own work for the run reads as
-  none.
+- **Load is other programs' user and system time, measured on macOS
+  again** (the fork's clocks at 49fde61d, where its probes are): their user
+  time is the machine's less this process's; their system time, on Linux,
+  each other process's own (so the kernel's work for the run, charged to
+  no process, reads as none), and on macOS the machine's less ours.
+- **Comparisons judge each measurement once** (`judge_once`; Devon Jonte,
+  bench #98): an owned cell measured as its lent twin is one measurement,
+  counted once in the false discovery rate's family and among the
+  suspects, its verdict printed on both rows.
 - **Studies read samples in Python** (`tools/samples.py`): `means` and
   `settle` left the program for `tools/points.py` and `tools/settle.py`,
   beside `tools/variance.py`; comparisons and verdicts stay in it.
