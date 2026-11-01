@@ -80,7 +80,7 @@ anything", John Servil releasing it):
   quarter of its target deletes the file. The samples file's `sample
   sizes` line names the sizes' source.
 - **Load is other programs' user and system time, measured on macOS
-  again** (the fork's clocks at 49fde61d, where its probes are): their user
+  again** (the fork's clocks at ae99ed77, where its probes are): their user
   time is the machine's less this process's; their system time, on Linux,
   each other process's own (so the kernel's work for the run, charged to
   no process, reads as none), and on macOS the machine's less ours.
