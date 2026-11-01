@@ -7090,6 +7090,18 @@ mod correctness_tests {
         (results, samples)
     }
 
+    /// A dirty tree's status is its changes' BLAKE3 hash as a sigil
+    /// (build.rs): `dirty-` and 26 characters that decode to 32 bytes.
+    #[test]
+    fn a_dirty_status_is_a_sigil_of_its_hash() {
+        if let Some(sigil) = GIT_CLEAN_STATUS.strip_prefix("dirty-") {
+            assert_eq!(sigil.chars().count(), 26, "{GIT_CLEAN_STATUS}");
+            assert_eq!(sigilcode::decode(sigil, 32).map(|d| d.len()), Ok(32));
+        } else {
+            assert_eq!(GIT_CLEAN_STATUS, "clean");
+        }
+    }
+
     #[test]
     fn expect_servil_takes_only_the_named_clean_commit() {
         let c = "934dee8902889186e3da9b62edf43699dd1c6305";
