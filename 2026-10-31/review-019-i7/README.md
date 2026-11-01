@@ -20,4 +20,8 @@ dd, all 12 runs quiet; `compare` in `ddab.stdout.txt`: servil mt
 OneMessage 64 KiB x1.044 slower, its solo 1 MiB stream x1.061 (0 of 6
 pairs faster), the streams' energy x1.11 to x1.44.
 
-**Posted:** bench-hashes #98.
+`dd-018/` (`dd-018.sh`, `dd-018.stdout.txt`): 0.18.3 (1f4dfd63, clocks
+f448bb32, load as all busy time less ours) beside the same dd: busy in 3
+runs of 3 (1.08-1.12 CPUs); its quiet runs 0.08-0.20.
+
+**Posted:** bench-hashes #98 (the review, then a correction).
