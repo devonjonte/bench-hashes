@@ -191,6 +191,7 @@ for example
 
 `cargo run --release -- --help` lists the other options, such as more
 BLAKE3 and SHA implementations. [METHODOLOGY.md](METHODOLOGY.md) explains
-how bench-hashes measures, and what each contender runs. To race your own
+how bench-hashes measures, and what each contender runs, and
+[CHANGELOG.md](CHANGELOG.md) what changed from one version to the next. To race your own
 hash against these, [CONTRIBUTING.md](CONTRIBUTING.md) says how to add
 it.
