@@ -867,9 +867,9 @@ fn touched_cells(
 }
 
 /// The touched lines, on the side at `commit`, that cells can be seen to
-/// execute, by file: each line a coverage region holds, and for an
-/// attribute the first line of the item it is attached to, where a region
-/// holds that (an attribute acts on its item alone). Err names the first
+/// execute, by file: each line a coverage region holds, and for any other
+/// line of code the first held line of its item (an attribute's: the item
+/// it is attached to, on which alone it acts). Err names the first
 /// touched line that is code this target compiles but no region holds
 /// ("src/lanes.rs:760: const SPIN ..."), which can act anywhere.
 fn seen_lines(
@@ -898,17 +898,12 @@ fn seen_lines(
                 into.insert(n);
                 continue;
             }
-            // An attribute: the first held line of the item it is
-            // attached to (past further attributes and comments, to the
-            // item's `;` or the brace closing its first one), since an
-            // attribute acts on its item alone: `#[cfg(...)]` on an
-            // `unsafe { asm!(...) }` whose `unsafe {` no region holds.
-            let item = line
-                .trim()
-                .starts_with("#[")
-                .then(|| item_lines(&source, n + 1))
-                .unwrap_or_default();
-            match item.into_iter().find(|&m| held(m)) {
+            // Code no region holds: the first held line of the item it
+            // is, or is attached to (an attribute), to the item's `;` or
+            // the brace closing its first. `#[cfg(...)]` on an `unsafe {
+            // asm!(...) }`, whose `unsafe {` no region holds, stands for
+            // its asm! line; a `const`, a `use` or a type holds none.
+            match item_lines(&source, n).into_iter().find(|&m| held(m)) {
                 Some(m) => {
                     into.insert(m);
                 }
@@ -919,7 +914,7 @@ fn seen_lines(
     Ok(seen)
 }
 
-/// The lines (from 1) of the item starting at or after line `from`: past
+/// The lines (from 1) of the item at or after line `from`: past
 /// attributes and comments, from its first line to the line ending it,
 /// one ending in `;` before any brace or the one closing its first brace
 /// (braces counted as `test_lines` counts them, literals aside).
@@ -1627,7 +1622,8 @@ mod tests {
             "}",
             "f();",
         ];
-        assert_eq!(super::item_lines(&src, 2), vec![3, 4, 5]);
+        assert_eq!(super::item_lines(&src, 1), vec![3, 4, 5]);
+        assert_eq!(super::item_lines(&src, 3), vec![3, 4, 5]);
         assert_eq!(
             super::item_lines(&["#[inline]", "use a::b;", "x"], 2),
             vec![2]
