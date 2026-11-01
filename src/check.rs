@@ -421,6 +421,14 @@ fn working_tree_commit(fork: &Path) -> String {
             .env("GIT_INDEX_FILE", &copy)
             .env("GIT_AUTHOR_DATE", "2000-01-01T00:00:00Z")
             .env("GIT_COMMITTER_DATE", "2000-01-01T00:00:00Z")
+            // An identity of its own, as its date: git otherwise takes the
+            // account's, or guesses one from the host's name and refuses a
+            // guess without a domain (the Mac's runner on another network,
+            // job 1830: "benchrunner@Mac.(none)").
+            .env("GIT_AUTHOR_NAME", "bench-hashes check")
+            .env("GIT_AUTHOR_EMAIL", "check@bench-hashes.invalid")
+            .env("GIT_COMMITTER_NAME", "bench-hashes check")
+            .env("GIT_COMMITTER_EMAIL", "check@bench-hashes.invalid")
             .output()
             .expect("git runs");
         assert!(

@@ -88,6 +88,11 @@ anything", John Servil releasing it):
   bench #98): an owned cell measured as its lent twin is one measurement,
   counted once in the false discovery rate's family and among the
   suspects, its verdict printed on both rows.
+- **0.19.1: `check`'s commit of the working tree has an identity of its
+  own** (as it has a date of its own): git otherwise guessed one from the
+  host's name, and on the Mac's runner on another network refused the
+  guess ("benchrunner@Mac.(none)", job 1830). `check` alone changes; a
+  run measures as 0.19.0's.
 - **Studies read samples in Python** (`tools/samples.py`): `means` and
   `settle` left the program for `tools/points.py` and `tools/settle.py`,
   beside `tools/variance.py`; comparisons and verdicts stay in it.
