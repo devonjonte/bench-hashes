@@ -111,7 +111,8 @@ blake3-servil's, and no other change to `Cargo.lock`.
   that it is correct; the benchmark only keeps every digest from being
   optimized away (`black_box`).
 - **Results name their code.** Commit before you publish a result: a
-  report whose provenance says `dirty-…` measured uncommitted code.
+  report whose provenance says `dirty-…` (the uncommitted changes' BLAKE3
+  hash, as a sigil) measured uncommitted code.
 - **The fork's regression check runs `bench-hashes regress OLD... -- NEW...`**,
   which runs the two executables with `--contenders`, `--points`, and
   `--rounds` and reads their samples files: the rule lives here, so a

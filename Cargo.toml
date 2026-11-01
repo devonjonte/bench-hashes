@@ -73,11 +73,22 @@ diag-align64 = []
 diag-line-offset = []
 
 [build-dependencies]
-# Used to fingerprint a dirty benchmark working tree.
+# Used to fingerprint a dirty benchmark working tree: its BLAKE3 hash,
+# written as a sigil (johnservil/sigil: 26 characters for 256 bits, no two
+# alike, selected whole by a double-click).
 [build-dependencies.blake3]
 version = "1"
 default-features = false
 features = ["std"]
+
+[build-dependencies.sigilcode]
+git = "https://github.com/johnservil/sigil"
+rev = "8bd993a459cdb9c44a358b1e6636b7be2b339c91"
+
+# A test reads the sigil back (main.rs, the clean status).
+[dev-dependencies.sigilcode]
+git = "https://github.com/johnservil/sigil"
+rev = "8bd993a459cdb9c44a358b1e6636b7be2b339c91"
 
 [profile.release]
 opt-level = 3
