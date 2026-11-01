@@ -636,22 +636,23 @@ change: `bench-hashes compare` gives the verdicts).
 
 ## Load from other programs
 
-While it measures, the run reads how much CPU time other programs took:
-their user time, the whole machine's less this process's, and their
-system time. On Linux their system time is summed from each other
-process's own count; on macOS, which lets a program read only its own
-user's processes, it is the machine's system time less this process's.
-Linux also reports steal time, CPU time a hypervisor withheld from a
-virtual machine's CPUs for other work on the host. The two parts keep
-out the kernel's own work for the run: waking its threads, and starting
-and ending the processes it spawns. That work is system time charged to
-no process. Counted as the machine's busy time less ours, a cell that
-starts a thousand processes read 0.61 CPUs of it on an EPYC 9255. On
-macOS that work stays in, about 0.1-0.25 CPUs on an M4 Max. Another
-program's system time is load like its user time: four readers of
-`/dev/urandom` keep four CPUs busy in it, and a loop of page faults moved
-a cell 14.5%. Inside a container or another PID namespace, the run sees
-the system time of that namespace's processes alone. The OS counts both in 10 ms ticks, so the run sums them over
+While it measures, the run reads how much CPU time other programs took.
+On Linux it sums each other process's own user and system time, where
+`/proc` lists the whole machine; inside a container or another PID
+namespace, and on macOS (which lets a program read only its own user's
+processes), it takes the machine's busy time less this process's. Linux
+also reports steal time, CPU time a hypervisor withheld from a virtual
+machine's CPUs for other work on the host. The sum keeps out the
+kernel's own work for the run: waking its threads, and starting and
+ending the processes it spawns, system time charged to no process.
+Counted as the machine's busy time less ours, a cell that starts a
+thousand processes read 0.61 CPUs of it on an EPYC 9255, and on 112 CPUs
+the difference's coarser ticks read 1-6 CPUs where no other process took
+0.5. On macOS the difference is the one reading available: on an M4 Max
+the kernel's work for the run reads 0.1-0.25 CPUs. Another program's
+system time counts like its user time: four readers of `/dev/urandom`
+read four CPUs busy.
+The OS counts both in 10 ms ticks, so the run sums them over
 windows of about a second, read between samples (a reading takes about
 9 µs, once a second, outside every timed interval); on 16 CPUs a window
 reads within 0.16 CPUs. The report, the samples file, and the line under

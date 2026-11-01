@@ -79,11 +79,8 @@ anything", John Servil releasing it):
   part of the context: a nonstop cell whose median sample falls under a
   quarter of its target deletes the file. The samples file's `sample
   sizes` line names the sizes' source.
-- **Load is other programs' user and system time, measured on macOS
-  again** (the fork's clocks at ae99ed77, where its probes are): their user
-  time is the machine's less this process's; their system time, on Linux,
-  each other process's own (so the kernel's work for the run, charged to
-  no process, reads as none), and on macOS the machine's less ours.
+- **Load is other programs' CPU time, measured on macOS again** (the
+  fork's clocks, where its probes are; as of 0.19.3 below).
 - **Comparisons judge each measurement once** (`judge_once`; Devon Jonte,
   bench #98): an owned cell measured as its lent twin is one measurement,
   counted once in the false discovery rate's family and among the
@@ -96,6 +93,13 @@ anything", John Servil releasing it):
 - **0.19.2: `check --old-bench` makes the old side's worktree afresh**
   each check: one left by a check from before the separate checkouts
   pointed at a repository gone (job 1831). `check` alone changes.
+- **0.19.3: on Linux, other programs' load is their own CPU time,
+  summed** (the fork's clocks at ac9e6b7d): every other process's user
+  and system time from `/proc`, where it lists the whole machine; the
+  machine's busy time less ours, in one subtraction, in a PID namespace
+  and on macOS. On 112 CPUs the machine's user time less ours read 1-6
+  CPUs where no other process took 0.5 (bench #98, Sam Shackleton). The
+  load reading alone changes; a run measures as 0.19.0's.
 - **Studies read samples in Python** (`tools/samples.py`): `means` and
   `settle` left the program for `tools/points.py` and `tools/settle.py`,
   beside `tools/variance.py`; comparisons and verdicts stay in it.
