@@ -6447,7 +6447,7 @@ fn generate_samples_tsv(
         ("sample sizes".to_owned(), roster.sample_sizes.clone()),
         (
             "buffers owned".to_owned(),
-            "where a contender's calls are those of buffers lent (owned_runs_lent), its cell is the lent cell's samples".to_owned(),
+            "where a contender makes the same calls as with buffers lent, one measurement, shown in both rows".to_owned(),
         ),
         (
             "nonstop train".to_owned(),
