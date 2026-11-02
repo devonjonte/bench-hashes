@@ -4,15 +4,16 @@ This file explains what a run measures, how it controls measurement
 noise, and what each contender runs. [README.md](README.md) says how to
 run it.
 
-Every run measures each contender in twelve use cases. Four are calls
+Every run measures each contender in fifteen use cases. Seven are calls
 made now and then, each after a gap of one of two kinds. **After other
 work** runs after the program has executed a fixed other program and read
 128 MiB of data, as a program hashes between its other tasks. **After
 idling** runs after the program has slept 1 ms, as a server waits for its
 next request. Each kind measures **a message in one buffer** at
-twenty-eight sizes from 64 B to 128 MiB (reported per byte) and **a
-batch** of 64-byte messages at twenty-four counts from 1 to 262144
-(reported per message).
+twenty-eight sizes from 64 B to 128 MiB (reported per byte), **a batch**
+of 64-byte messages at twenty-four counts from 1 to 262144 (reported per
+message), and **a turn of many messages' pieces** (below); after other
+work alone, **a batch of 4 KiB messages** at 4 to 256.
 
 Eight hash one input after another, as fast as the program can, each
 input first read or written into a buffer (timed with the hashing):
@@ -30,11 +31,11 @@ input first read or written into a buffer (timed with the hashing):
 - **A collection** of 2048 items of every size, each hashed once, all in
   memory, as git, Nix, and content-addressed stores name their objects:
   two collections in the shares of real ones (git's objects, and the
-  files of Nix store paths).
-- **A message with its outboard**, for verified streaming: messages of
-  1 MiB and 64 MiB hashed with the tree's parent nodes above 16 KiB
-  groups, as iroh-blobs stores them.
-- **A message received in that form**, verified as it arrives.
+  files of Nix store paths); and the same collection **pipelined**, its
+  items one after another through each contender's stream or call.
+- **A Merkle tree** over 256-byte leaves the program has just written
+  into place, every layer kept, at 1024 to 262144 leaves, as a
+  zero-knowledge prover commits to its codeword.
 
 FROZEN.md lists each contender's calls in each use case.
 
@@ -551,11 +552,10 @@ spares SHA-256 (as fast on either kind): bench #25.
 
 `bench-hashes.map.html` draws every cell the run's samples file holds as
 a small chart, its lines through each contender's means on log scales,
-higher faster. The charts sit in a grid, first for one program (solo) and then for two
-at once (shared). Its rows are what the program hashes: one message, a
-batch of 64-byte messages, many messages at once in pieces, a collection
-of messages, a message with its outboard, and a message verified as it
-arrives. Its columns are how the program calls: after other work, after
+higher faster. The charts sit in a grid, first for one program (solo) and then, for the
+multithreaded contenders, two at once (shared). Its rows are what the program hashes: one message, a
+batch of short messages, a batch of longer ones, a Merkle tree, many
+messages at once in pieces, and a collection of messages. Its columns are how the program calls: after other work, after
 a pause, waiting for each call, or pipelined. A cell the run did not measure stays
 empty, in its place. Clicking a chart opens it over the cells, its row's
 and column's headers lit, with its axes and, under the pointer, each
@@ -609,8 +609,7 @@ rounds so no single link layout dominates.
 file is evicted before each run, without root: Linux with
 `posix_fadvise(DONTNEED)`, macOS with `msync(MS_INVALIDATE)`. The report
 checks every cold run's reads from storage and names any cell the page
-cache still served. Cold runs are skipped on Windows and on filesystems
-kept in memory (tmpfs). In a virtual machine the host's own cache may
+cache still served. Cold runs are skipped on filesystems kept in memory (tmpfs). In a virtual machine the host's own cache may
 serve a guest's cold reads.
 
 **Rounds.** Every contender runs once on every input, untimed, then 15

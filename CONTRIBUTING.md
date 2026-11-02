@@ -7,12 +7,18 @@ it measures, and keep your results comparable with ours.
 ## Layout
 
 - `src/main.rs`: the benchmark (contenders, timing, statistics, the text
-  report); `src/map.rs` and `src/map.html`, the map; `src/b3sum.rs`,
-  `bench-hashes b3sum`.
+  report, `compare` and `regress`); `src/check.rs`, `bench-hashes check`;
+  `src/map.rs` and `src/map.html`, the map; `src/overview.rs` and
+  `src/overview.html`, the overview page; `src/chart.rs`, the charts;
+  `src/b3sum.rs`, `bench-hashes b3sum`; `src/leaves.rs`, `bench-hashes
+  leaves`; `src/fingerprint.rs`, a dirty tree's fingerprint, shared with
+  `build.rs`.
 - `build.rs`: embeds the provenance (this repository's commit and state,
   and each contender crate's version and source).
-- `tools/graph-check/`: `map.js` drives the map in Chromium (its README
-  says how).
+- `tools/`: `samples.py` reads samples files for the Python studies
+  (`points.py`, `settle.py`, `variance.py`); `b3sum-contenders.py` builds
+  b3sum's contenders; `gen-ver.py` makes a release; `graph-check/map.js`
+  drives the map in Chromium (its README says how).
 - `bench-hashes compare OLD.tsv... -- NEW.tsv...`: compares runs'
   samples files in pairs (the i-th old with the i-th new), each cell
   judged by its pairs' ratios as `regress` judges.
