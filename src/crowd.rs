@@ -45,9 +45,11 @@ struct Program {
 }
 
 impl Program {
-    /// Units per second.
-    fn rate(self) -> f64 {
-        (self.samples * self.units_per_sample) as f64 / self.elapsed_ns as f64 * 1e9
+    /// Units per second, rounded once.
+    fn rate(self) -> u128 {
+        let units = u128::from(self.samples * self.units_per_sample);
+        let ns = u128::from(self.elapsed_ns);
+        (units * 1_000_000_000 + ns / 2) / ns
     }
 }
 
@@ -55,7 +57,7 @@ impl Program {
 /// result): the samples row in the main run's format (each program's
 /// time over its units, a sample), and the report's line with the mean
 /// time per unit, the machine's total, and the luckiest-to-unluckiest
-/// ratio (the median over rounds).
+/// ratio (each the mean over rounds, in integers, rounded once).
 fn cell_lines(
     algorithm: Algorithm,
     point: Point,
@@ -84,33 +86,46 @@ fn cell_lines(
         .iter()
         .map(|p| super::Measured::new(p.elapsed_ns, p.samples * p.units_per_sample))
         .collect();
-    let mean = super::Mean::of(&measured).format_ns(1);
-    let mut totals: Vec<f64> = rounds
-        .iter()
-        .map(|round| round.iter().map(|p| p.rate()).sum())
-        .collect();
-    let mut spreads: Vec<f64> = rounds
-        .iter()
-        .map(|round| {
-            let rates = round.iter().map(|p| p.rate());
-            rates.clone().fold(0.0, f64::max) / rates.fold(f64::INFINITY, f64::min)
-        })
-        .collect();
-    totals.sort_by(f64::total_cmp);
-    spreads.sort_by(f64::total_cmp);
-    let total = totals[totals.len() / 2];
+    let mean_ns = super::Mean::of(&measured).format_ns(1);
+    // Each round's total (the programs' rates summed) and spread (the
+    // luckiest program's rate over the unluckiest's, in permille); each
+    // the mean over rounds.
+    let n = rounds.len() as u128;
+    let mean = |sum: u128| (sum + n / 2) / n;
+    let total = mean(
+        rounds
+            .iter()
+            .map(|round| round.iter().map(|p| p.rate()).sum::<u128>())
+            .sum(),
+    );
+    let spread = mean(
+        rounds
+            .iter()
+            .map(|round| {
+                let (max, min) = (
+                    round.iter().map(|p| p.rate()).max().expect("a program"),
+                    round.iter().map(|p| p.rate()).min().expect("a program"),
+                );
+                (max * 1000 + min / 2) / min
+            })
+            .sum(),
+    );
+    let hundredths = |value: u128, per_unit: u128| {
+        let h = (value * 100 + per_unit / 2) / per_unit;
+        format!("{}.{:02}", h / 100, h % 100)
+    };
     let unit = point.use_case.unit_key();
     let total = if unit == "B" {
-        format!("{:.2} GB/s", total / 1e9)
+        format!("{} GB/s", hundredths(total, 1_000_000_000))
     } else {
-        format!("{:.2} M msg/s", total / 1e6)
+        format!("{} M msg/s", hundredths(total, 1_000_000))
     };
     let report = format!(
-        "{:20} {:>7} {:?}: {mean:>9} ns per {unit} a program; the machine {total}; luckiest/unluckiest x{:.2}\n",
+        "{:20} {:>7} {:?}: {mean_ns:>9} ns per {unit} a program; the machine {total}; luckiest/unluckiest x{}\n",
         algorithm.key(),
         point.label,
         point.use_case,
-        spreads[spreads.len() / 2],
+        hundredths(spread, 1000),
     );
     (row, report)
 }
@@ -332,7 +347,7 @@ mod tests {
 
     /// Two rounds of three programs: the row holds every program's time
     /// over its units in the main run's format, and the report the mean,
-    /// the machine's total (the programs' rates summed, the median round)
+    /// the machine's total (the programs' rates summed, the mean round)
     /// and the luckiest-to-unluckiest ratio.
     #[test]
     fn rows_and_report_from_fixed_programs() {
@@ -379,9 +394,9 @@ mod tests {
             "1000000000/1024000000,1000000000/1024000000,1000000000/1024000000,1000000000/2048000000,1000000000/1024000000,1000000000/1024000000"
         );
         assert_eq!(fields[6], "5000,5000,5000,9000,9000,9000");
-        // Round totals 3.07 and 4.10 GB/s (the median of two is the upper); spreads 1 and 2.
+        // Round totals 3.072 and 4.096 GB/s, spreads x1 and x2: their means.
         assert!(
-            report.contains("the machine 4.10 GB/s; luckiest/unluckiest x2.00"),
+            report.contains("the machine 3.58 GB/s; luckiest/unluckiest x1.50"),
             "{report}"
         );
         assert!(report.contains("ns per B a program"), "{report}");

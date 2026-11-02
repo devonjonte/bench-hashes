@@ -8108,7 +8108,6 @@ mod correctness_tests {
         );
     }
 
-    /// A nonstop cell's visit is a train (Train): its warm-up, then its
     /// Every shared sample is taken under contention (#105): over many
     /// duo jobs of short calls, where one copy is often a call or more
     /// ahead, each copy's last sample began before the other's work
@@ -8149,6 +8148,7 @@ mod correctness_tests {
         }
     }
 
+    /// A nonstop cell's visit is a train (Train): its warm-up, then its
     /// samples back to back, solo and in the two shared copies; a call
     /// after a gap stays one sample a visit.
     #[test]
