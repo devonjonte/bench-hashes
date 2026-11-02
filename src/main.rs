@@ -611,11 +611,13 @@ type Samples = Vec<Vec<Vec<Measured>>>;
 /// shared samples beside it, one per copy.
 struct RunSamples {
     solo: Samples,
-    shared: Samples,
+    /// The shared samples, by placement (Placement::index), then contender
+    /// and point.
+    shared: [Samples; 2],
     /// Each sample's start on the load windows' scale, by contender and
     /// point. Shared starts belong to the individual copies, after solo.
     solo_started_ns: Vec<Vec<Vec<u64>>>,
-    shared_started_ns: Vec<Vec<Vec<u64>>>,
+    shared_started_ns: [Vec<Vec<Vec<u64>>>; 2],
     /// Each solo sample's process CPU time (DuoCopy::cpu_ns), by contender
     /// and point. Shared samples have none: their two copies share the
     /// process, so its CPU time is both copies'.
@@ -627,11 +629,11 @@ struct RunSamples {
     /// solo and shared as their samples: which kind of core ran it, and
     /// at what clock. None where the platform counts none.
     solo_counts: Vec<Vec<Vec<Option<clocks::Counts>>>>,
-    shared_counts: Vec<Vec<Vec<Option<clocks::Counts>>>>,
+    shared_counts: [Vec<Vec<Vec<Option<clocks::Counts>>>>; 2],
     /// The CPU each sample's thread ended on (DuoCopy::cpu), solo and
     /// shared as their samples.
     solo_cpu: Vec<Vec<Vec<Option<u32>>>>,
-    shared_cpu: Vec<Vec<Vec<Option<u32>>>>,
+    shared_cpu: [Vec<Vec<Vec<Option<u32>>>>; 2],
 }
 
 /*
@@ -1424,23 +1426,51 @@ impl Fixed {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Scenario {
     Solo,
-    Shared,
+    Shared(Placement),
+}
+
+/// Where the shared scenario's two copies run (Zooko, November 2, 2026;
+/// bench-hashes #116): what two programs share decides what they cost
+/// each other, and the scheduler chose it for every sample until 0.20
+/// (an SMT pair read x1.5, two L3 domains x0.6 of one, Sam Shackleton).
+/// Each placement is two physical cores, never one core's two hardware
+/// threads: under one last-level cache, or under two (two L3 domains, or
+/// two of Apple's clusters, which also means two SME units). A machine
+/// with one cache measures the first alone (Topology::pair).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Placement {
+    OneCache,
+    TwoCaches,
+}
+
+impl Placement {
+    const ALL: [Placement; 2] = [Placement::OneCache, Placement::TwoCaches];
+
+    fn index(self) -> usize {
+        self as usize
+    }
 }
 
 impl Scenario {
-    const ALL: [Scenario; 2] = [Scenario::Solo, Scenario::Shared];
+    const ALL: [Scenario; 3] = [
+        Scenario::Solo,
+        Scenario::Shared(Placement::OneCache),
+        Scenario::Shared(Placement::TwoCaches),
+    ];
 
     fn key(self) -> &'static str {
         match self {
             Self::Solo => "solo",
-            Self::Shared => "shared",
+            Self::Shared(Placement::OneCache) => "shared-one-cache",
+            Self::Shared(Placement::TwoCaches) => "shared-two-caches",
         }
     }
 
     fn heading(self) -> &'static str {
         match self {
             Self::Solo => "Solo",
-            Self::Shared => "Shared",
+            Self::Shared(Placement::OneCache) => "Shared, one cache",
+            Self::Shared(Placement::TwoCaches) => "Shared, two caches",
         }
     }
 
@@ -1448,7 +1478,8 @@ impl Scenario {
     fn description(self) -> &'static str {
         match self {
             Self::Solo => "one copy of each contender, on one thread",
-            Self::Shared => "the multithreaded contenders, two copies at once, each hashing its own input on its own thread, inputs one after another; the time of each copy",
+            Self::Shared(Placement::OneCache) => "the multithreaded contenders, two copies at once on two cores under one last-level cache, each hashing its own input on its own thread, inputs one after another; the time of each copy",
+            Self::Shared(Placement::TwoCaches) => "the multithreaded contenders, two copies at once on two cores under two last-level caches, each hashing its own input on its own thread, inputs one after another; the time of each copy",
         }
     }
 
@@ -1463,8 +1494,17 @@ impl Scenario {
     /// kept compact). After a gap, a copy whose twin had just run the same
     /// code met that code in a cache the gap left warm, and read faster
     /// than one program alone ("Shared after a gap"; Zooko, September 30).
+    /// A placement the machine lacks (one cache) measures nothing
+    /// (Topology::pair).
     fn measures(self, algorithm: Algorithm, use_case: UseCase) -> bool {
-        self == Self::Solo || (algorithm.multithreaded() && !use_case.after_gap())
+        match self {
+            Self::Solo => true,
+            Self::Shared(placement) => {
+                algorithm.multithreaded()
+                    && !use_case.after_gap()
+                    && topology().pair(placement).is_some()
+            }
+        }
     }
 }
 
@@ -1473,7 +1513,7 @@ impl Scenario {
 #[derive(Clone, Copy)]
 struct Cell {
     solo: Mean,
-    shared: Option<Mean>,
+    shared: [Option<Mean>; 2],
 }
 
 impl Cell {
@@ -1481,11 +1521,108 @@ impl Cell {
     fn get(&self, scenario: Scenario) -> Mean {
         match scenario {
             Scenario::Solo => self.solo,
-            Scenario::Shared => self
-                .shared
+            Scenario::Shared(p) => self.shared[p.index()]
                 .expect("a shared cell exists for the nonstop use cases alone"),
         }
     }
+}
+
+/*
+ * The machine's cores and caches, for placing the shared scenario's two
+ * copies (Placement). Linux: each CPU's core (topology/core_cpus_list)
+ * and last-level cache (cache/index3/shared_cpu_list, or index2 where
+ * there is no level 3), from sysfs. macOS: each performance cluster is a
+ * cache (hw.perflevel0.cpusperl2 CPUs a cluster, in order); its CPUs
+ * cannot be chosen (no affinity), so the pairs are None there and the
+ * scheduler places the copies, which each sample's `cpu` records as
+ * unknown. The pair for a placement: two CPUs on two different cores,
+ * performance cores where the machine has both kinds, under one cache or
+ * under two; None where the machine has no such pair.
+ */
+struct Topology {
+    /// Each CPU's core and cache, by CPU number; empty where unknown.
+    core: Vec<usize>,
+    cache: Vec<usize>,
+    /// Performance CPUs, where the machine has two kinds (Linux: the
+    /// CPUs whose cpu_capacity is the largest); else every CPU.
+    fast: Vec<usize>,
+}
+
+impl Topology {
+    /// From the machine's tables: each CPU's core and cache, and the fast
+    /// CPUs (tests).
+    #[cfg(test)]
+    fn from_tables(core: Vec<usize>, cache: Vec<usize>, fast: Vec<usize>) -> Topology {
+        Topology { core, cache, fast }
+    }
+
+    fn read() -> Topology {
+        let mut core = Vec::new();
+        let mut cache = Vec::new();
+        let mut capacity = Vec::new();
+        for n in 0.. {
+            let dir = format!("/sys/devices/system/cpu/cpu{n}");
+            let Ok(cores) = fs::read_to_string(format!("{dir}/topology/core_cpus_list")) else {
+                break;
+            };
+            let caches = fs::read_to_string(format!("{dir}/cache/index3/shared_cpu_list"))
+                .or_else(|_| fs::read_to_string(format!("{dir}/cache/index2/shared_cpu_list")))
+                .unwrap_or_default();
+            // A group's identity: its lowest CPU.
+            let first = |list: &str| {
+                list.split([',', '-'])
+                    .next()
+                    .and_then(|x| x.trim().parse().ok())
+                    .unwrap_or(n)
+            };
+            core.push(first(&cores));
+            cache.push(first(&caches));
+            capacity.push(
+                fs::read_to_string(format!("{dir}/cpu_capacity"))
+                    .ok()
+                    .and_then(|c| c.trim().parse::<u64>().ok())
+                    .unwrap_or(1024),
+            );
+        }
+        let top = capacity.iter().copied().max().unwrap_or(1024);
+        let fast = (0..core.len()).filter(|&i| capacity[i] == top).collect();
+        Topology { core, cache, fast }
+    }
+
+    /// The two CPUs for `placement`, or None where the machine has no such
+    /// pair (or its CPUs cannot be chosen).
+    fn pair(&self, placement: Placement) -> Option<[usize; 2]> {
+        let a = *self.fast.first()?;
+        self.fast
+            .iter()
+            .copied()
+            .find(|&b| {
+                self.core[b] != self.core[a]
+                    && match placement {
+                        Placement::OneCache => self.cache[b] == self.cache[a],
+                        Placement::TwoCaches => self.cache[b] != self.cache[a],
+                    }
+            })
+            .map(|b| [a, b])
+    }
+
+    /// The header's line: each placement's pair, or "none".
+    fn describe(&self) -> String {
+        let one = |p: Placement| {
+            self.pair(p)
+                .map_or("none".to_owned(), |[a, b]| format!("CPUs {a} and {b}"))
+        };
+        format!(
+            "one cache: {}; two caches: {}",
+            one(Placement::OneCache),
+            one(Placement::TwoCaches)
+        )
+    }
+}
+
+fn topology() -> &'static Topology {
+    static T: std::sync::OnceLock<Topology> = std::sync::OnceLock::new();
+    T.get_or_init(Topology::read)
 }
 
 struct MachineMetadata {
@@ -1500,6 +1637,9 @@ struct MachineMetadata {
     /// How the OS lets a core sleep when a thread waits, which sets what a
     /// call after a pause costs: see idle_states.
     idle_states: String,
+    /// Where the shared scenario's two copies ran, by placement
+    /// (Topology::describe): "one cache: CPUs 0 and 2; two caches: none".
+    placements: String,
     /// Other programs' load during the measuring phase, window by window
     /// (clocks::load), where the OS reports it (Linux, macOS; empty
     /// elsewhere); set once measuring ends.
@@ -2523,7 +2663,7 @@ fn measure_all(
             roster
                 .algorithms
                 .iter()
-                .any(|&a| Scenario::Shared.measures(a, POINTS[index].use_case))
+                .any(|&a| Scenario::Shared(Placement::OneCache).measures(a, POINTS[index].use_case))
         }),
         1,
     );
@@ -2585,15 +2725,24 @@ fn measure_all(
     };
     let mut samples = RunSamples {
         solo: empty(),
-        shared: empty(),
+        shared: [empty(), empty()],
         solo_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
-        shared_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+        shared_started_ns: [
+            vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+            vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+        ],
         solo_cpu_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
         solo_energy_nj: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
         solo_counts: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
-        shared_counts: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+        shared_counts: [
+            vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+            vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+        ],
         solo_cpu: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
-        shared_cpu: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+        shared_cpu: [
+            vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+            vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+        ],
     };
     let mut batch_iterations: Vec<Vec<usize>> = vec![vec![1usize; POINT_COUNT]; roster.len()];
     let point_orders: Vec<_> = POINTS
@@ -2762,18 +2911,28 @@ fn measure_all(
                      * run its own train on its own thread, and each copy's
                      * own time is a sample.
                      */
-                    let copies = Scenario::Shared
-                        .measures(algorithm, point.use_case)
-                        .then(|| {
-                            duo.run(
-                                algorithm,
-                                input,
-                                duo_inputs[size_index],
-                                point,
-                                iterations,
-                                train,
+                    // Each placement the machine has, its two copies on
+                    // the pair of CPUs the topology names (Placement).
+                    let copies: Vec<(Placement, [Vec<DuoCopy>; 2])> = Placement::ALL
+                        .into_iter()
+                        .filter(|&p| Scenario::Shared(p).measures(algorithm, point.use_case))
+                        .map(|p| {
+                            (
+                                p,
+                                duo.run(
+                                    algorithm,
+                                    input,
+                                    duo_inputs[size_index],
+                                    point,
+                                    iterations,
+                                    train,
+                                    topology()
+                                        .pair(p)
+                                        .expect("a placement measured has its pair"),
+                                ),
                             )
-                        });
+                        })
+                        .collect();
 
                     let total_units = point.use_case.units(point, iterations);
                     let per_unit = |ns: u64| Measured::new(ns, total_units);
@@ -2787,14 +2946,15 @@ fn measure_all(
                         samples.solo_cpu[algorithm_index][size_index].push(sample.cpu);
                     }
                     // In pairs, copy 0's i-th sample beside copy 1's.
-                    if let Some([first, second]) = &copies {
+                    for (placement, [first, second]) in &copies {
+                        let i = placement.index();
                         for copy in first.iter().zip(second).flat_map(|(a, b)| [a, b]) {
-                            samples.shared[algorithm_index][size_index]
+                            samples.shared[i][algorithm_index][size_index]
                                 .push(per_unit(copy.elapsed_ns));
-                            samples.shared_started_ns[algorithm_index][size_index]
+                            samples.shared_started_ns[i][algorithm_index][size_index]
                                 .push(copy.started_ns);
-                            samples.shared_counts[algorithm_index][size_index].push(copy.counts);
-                            samples.shared_cpu[algorithm_index][size_index].push(copy.cpu);
+                            samples.shared_counts[i][algorithm_index][size_index].push(copy.counts);
+                            samples.shared_cpu[i][algorithm_index][size_index].push(copy.cpu);
                         }
                     }
                 }
@@ -2816,11 +2976,13 @@ fn measure_all(
                 samples.solo_cpu_ns[a][p] = samples.solo_cpu_ns[a][t].clone();
                 samples.solo_energy_nj[a][p] = samples.solo_energy_nj[a][t].clone();
                 samples.solo_counts[a][p] = samples.solo_counts[a][t].clone();
-                samples.shared[a][p] = samples.shared[a][t].clone();
-                samples.shared_started_ns[a][p] = samples.shared_started_ns[a][t].clone();
-                samples.shared_counts[a][p] = samples.shared_counts[a][t].clone();
+                for i in 0..2 {
+                    samples.shared[i][a][p] = samples.shared[i][a][t].clone();
+                    samples.shared_started_ns[i][a][p] = samples.shared_started_ns[i][a][t].clone();
+                    samples.shared_counts[i][a][p] = samples.shared_counts[i][a][t].clone();
+                    samples.shared_cpu[i][a][p] = samples.shared_cpu[i][a][t].clone();
+                }
                 samples.solo_cpu[a][p] = samples.solo_cpu[a][t].clone();
-                samples.shared_cpu[a][p] = samples.shared_cpu[a][t].clone();
                 batch_iterations[a][p] = batch_iterations[a][t];
             }
         }
@@ -2840,13 +3002,6 @@ fn measure_all(
                 continue;
             }
             let solo = &samples.solo[algorithm_index][size_index];
-            let shared = &samples.shared[algorithm_index][size_index];
-            let copies =
-                if Scenario::Shared.measures(roster.algorithms[algorithm_index], point.use_case) {
-                    2
-                } else {
-                    0
-                };
             let train = if point.use_case.after_gap() {
                 1
             } else {
@@ -2856,14 +3011,27 @@ fn measure_all(
                 !solo.is_empty() && solo.len() <= roster.rounds * train,
                 "one solo sample per round (a nonstop cell: one train) at most, and one at least"
             );
-            assert_eq!(
-                shared.len(),
-                copies * solo.len(),
-                "two shared samples, one per copy, beside every solo sample of a nonstop cell"
-            );
+            let algorithm = roster.algorithms[algorithm_index];
+            let shared_mean = |placement: Placement| {
+                let shared = &samples.shared[placement.index()][algorithm_index][size_index];
+                let copies = if Scenario::Shared(placement).measures(algorithm, point.use_case) {
+                    2
+                } else {
+                    0
+                };
+                assert_eq!(
+                    shared.len(),
+                    copies * solo.len(),
+                    "two shared samples, one per copy, beside every solo sample of a nonstop cell"
+                );
+                (copies > 0).then(|| Mean::of(shared))
+            };
             results[algorithm_index][size_index] = Some(Cell {
                 solo: Mean::of(solo),
-                shared: (copies > 0).then(|| Mean::of(shared)),
+                shared: [
+                    shared_mean(Placement::OneCache),
+                    shared_mean(Placement::TwoCaches),
+                ],
             });
         }
     }
@@ -3089,6 +3257,24 @@ fn warm_up(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, 
             break;
         }
     }
+}
+
+/// Pin the calling thread to `cpu` (Linux; elsewhere nothing: Topology
+/// gives no pairs there, so this is never reached).
+fn pin_to_cpu(cpu: usize) {
+    #[cfg(target_os = "linux")]
+    {
+        unsafe extern "C" {
+            fn sched_setaffinity(pid: i32, size: usize, set: *const u64) -> i32;
+        }
+        let mut set = [0u64; 16];
+        set[cpu / 64] |= 1 << (cpu % 64);
+        // Sound: `set` is a cpu_set_t of 1024 bits, the calling thread (0).
+        let r = unsafe { sched_setaffinity(0, core::mem::size_of_val(&set), set.as_ptr()) };
+        assert_eq!(r, 0, "pin the shared copy to CPU {cpu}");
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = cpu;
 }
 
 /// The CPU the calling thread runs on now (Linux: sched_getcpu; elsewhere
@@ -4765,10 +4951,11 @@ fn frozen_contract() -> String {
     text += &format!("scenarios: {}\n", keys(&Scenario::ALL));
     let shared: Vec<String> = UseCase::ALL
         .into_iter()
-        .filter(|&use_case| Scenario::Shared.measures(Algorithm::Blake3ServilMt, use_case))
+        .filter(|&use_case| Algorithm::Blake3ServilMt.multithreaded() && !use_case.after_gap())
         .map(|use_case| format!("{use_case:?}"))
         .collect();
     text += &format!("shared measures: {}\n", shared.join(", "));
+    text += "shared placements: two cores under one last-level cache; two cores under two (where the machine has two)\n";
     let multithreaded: Vec<&str> = Algorithm::ALL
         .iter()
         .filter(|a| a.multithreaded())
@@ -5011,6 +5198,8 @@ struct DuoJob {
     iterations: usize,
     /// Each copy's warm-up and samples, back to back from the release.
     train: Train,
+    /// The CPU each copy's thread runs on for this job (Placement).
+    cpus: [usize; 2],
     /// Which workers have taken this job (a bit each).
     taken: u8,
 }
@@ -5051,6 +5240,7 @@ impl Duo {
         point: Point,
         iterations: usize,
         train: Train,
+        cpus: [usize; 2],
     ) -> [Vec<DuoCopy>; 2] {
         use std::sync::atomic::Ordering;
         assert_eq!(
@@ -5067,6 +5257,7 @@ impl Duo {
                 point,
                 iterations,
                 train,
+                cpus,
                 taken: 0,
             });
             self.posted.notify_all();
@@ -5121,6 +5312,10 @@ impl Duo {
              * instruction stream when the release comes, within a
              * microsecond of it.
              */
+            // On this placement's CPU before arriving, so the release finds
+            // the copy there. The copy's thread alone is pinned; a
+            // multithreaded contender's workers run where its pool puts them.
+            pin_to_cpu(job.cpus[copy]);
             self.ready.fetch_add(1, Ordering::AcqRel);
             while self.generation.load(Ordering::Acquire) == seen {
                 std::thread::yield_now();
@@ -6477,6 +6672,7 @@ fn samples_header(machine: &MachineMetadata, run: &[(String, String)]) -> String
         ("os type", machine.os_type.as_str()),
         ("cpu identity", machine.cpu_identity.as_str()),
         ("idle states", machine.idle_states.as_str()),
+        ("shared placements", machine.placements.as_str()),
     ]
     .into_iter()
     .chain(
@@ -6557,7 +6753,7 @@ fn generate_samples_tsv(
         for scenario in Scenario::ALL {
             let rows = match scenario {
                 Scenario::Solo => &samples.solo,
-                Scenario::Shared => &samples.shared,
+                Scenario::Shared(p) => &samples.shared[p.index()],
             };
             for (point_index, point) in POINTS.iter().enumerate() {
                 let cell_samples = &rows[algorithm_index][point_index];
@@ -6570,7 +6766,7 @@ fn generate_samples_tsv(
                     .collect();
                 let timestamps = match scenario {
                     Scenario::Solo => &samples.solo_started_ns,
-                    Scenario::Shared => &samples.shared_started_ns,
+                    Scenario::Shared(p) => &samples.shared_started_ns[p.index()],
                 };
                 let cell_starts = &timestamps[algorithm_index][point_index];
                 assert_eq!(
@@ -6589,11 +6785,13 @@ fn generate_samples_tsv(
                         counts_field(&samples.solo_counts[algorithm_index][point_index]),
                         cpu_of_field(&samples.solo_cpu[algorithm_index][point_index]),
                     ),
-                    Scenario::Shared => (
+                    Scenario::Shared(p) => (
                         "-".to_string(),
                         "-".to_string(),
-                        counts_field(&samples.shared_counts[algorithm_index][point_index]),
-                        cpu_of_field(&samples.shared_cpu[algorithm_index][point_index]),
+                        counts_field(
+                            &samples.shared_counts[p.index()][algorithm_index][point_index],
+                        ),
+                        cpu_of_field(&samples.shared_cpu[p.index()][algorithm_index][point_index]),
                     ),
                 };
                 writeln!(
@@ -6833,6 +7031,7 @@ fn machine_metadata() -> MachineMetadata {
         os_type,
         cpu_identity: cpu_identity(),
         idle_states: idle_states(),
+        placements: topology().describe(),
         load: Vec::new(),
         power: [Power::read(), None],
     }
@@ -7184,15 +7383,24 @@ mod correctness_tests {
         let empty = || -> Samples { vec![vec![Vec::new(); POINT_COUNT]; roster.len()] };
         let mut samples = RunSamples {
             solo: empty(),
-            shared: empty(),
+            shared: [empty(), empty()],
             solo_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
-            shared_started_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+            shared_started_ns: [
+                vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+                vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+            ],
             solo_cpu_ns: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
             solo_energy_nj: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
             solo_counts: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
-            shared_counts: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+            shared_counts: [
+                vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+                vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+            ],
             solo_cpu: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
-            shared_cpu: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+            shared_cpu: [
+                vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+                vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+            ],
         };
         let mut results: Results = vec![vec![None; POINT_COUNT]; roster.len()];
         for a in 0..roster.len() {
@@ -7200,16 +7408,19 @@ mod correctness_tests {
                 for r in 0..rounds {
                     let v = Measured::new(value(a, p, r), 1);
                     samples.solo[a][p].push(v);
-                    if Scenario::Shared.measures(roster.algorithms[a], POINTS[p].use_case) {
-                        samples.shared[a][p].extend([v, v]);
-                        // Separate starts cross load-window boundaries, and
-                        // distinguish the two copies from one another.
-                        samples.shared_started_ns[a][p].extend([
-                            10_000_000 + r as u64 * 1_000_000,
-                            11_000_000 + r as u64 * 1_000_000,
-                        ]);
-                        // Copy 0 on CPU 2, copy 1 on CPU 5.
-                        samples.shared_cpu[a][p].extend([Some(2), Some(5)]);
+                    for pl in Placement::ALL {
+                        if Scenario::Shared(pl).measures(roster.algorithms[a], POINTS[p].use_case) {
+                            let i = pl.index();
+                            samples.shared[i][a][p].extend([v, v]);
+                            // Separate starts cross load-window boundaries, and
+                            // distinguish the two copies from one another.
+                            samples.shared_started_ns[i][a][p].extend([
+                                10_000_000 + r as u64 * 1_000_000,
+                                11_000_000 + r as u64 * 1_000_000,
+                            ]);
+                            // Copy 0 on CPU 2, copy 1 on CPU 5.
+                            samples.shared_cpu[i][a][p].extend([Some(2), Some(5)]);
+                        }
                     }
                     samples.solo_started_ns[a][p].push(r as u64 * 1_000_000);
                     samples.solo_cpu[a][p].push(Some(3));
@@ -7227,9 +7438,11 @@ mod correctness_tests {
                 }
                 results[a][p] = Some(Cell {
                     solo: Mean::of(&samples.solo[a][p]),
-                    shared: Scenario::Shared
-                        .measures(roster.algorithms[a], POINTS[p].use_case)
-                        .then(|| Mean::of(&samples.shared[a][p])),
+                    shared: [Placement::OneCache, Placement::TwoCaches].map(|pl| {
+                        Scenario::Shared(pl)
+                            .measures(roster.algorithms[a], POINTS[p].use_case)
+                            .then(|| Mean::of(&samples.shared[pl.index()][a][p]))
+                    }),
                 });
             }
         }
@@ -7419,10 +7632,16 @@ mod correctness_tests {
         assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\t30000,30003,30006\t10000:40000:0:0,10001:40004:0:0,10002:40008:0:0\t3,3,3\n"), "{tsv}");
         // The multithreaded contender's shared rows, the two copies in turn,
         // each sample's CPU with it; a single-threaded contender has none.
-        assert!(tsv.contains("\nblake3-servil-mt\tshared\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\t-\t-\t-\t2,5,2,5,2,5\n"), "{tsv}");
+        assert!(tsv.contains("\nblake3-servil-mt\tshared-one-cache\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\t-\t-\t-\t2,5,2,5,2,5\n"), "{tsv}");
+        // The second placement where the machine has two caches alone.
+        assert_eq!(
+            tsv.contains("\tshared-two-caches\t"),
+            topology().pair(Placement::TwoCaches).is_some(),
+            "{tsv}"
+        );
         assert!(
-            !tsv.contains("\nblake3-servil-st\tshared\t")
-                && !tsv.contains("\tshared\tOneMessage\t"),
+            !tsv.contains("\nblake3-servil-st\tshared")
+                && !tsv.contains("\tshared-one-cache\tOneMessage\t"),
             "the single-threaded contender, and every call after a gap, run alone: {tsv}"
         );
     }
@@ -7445,6 +7664,35 @@ mod correctness_tests {
         assert_eq!(judged[0], judged[2]);
         assert_eq!(judged[0].verdict, clocks::summary::Verdict::Slower);
         assert_eq!(judged[1].verdict, clocks::summary::Verdict::Level);
+    }
+
+    /// The pairs a placement takes on three machines (#116): the i7-12700K
+    /// (8 P cores of 2 threads, 4 E cores, one L3: CPUs 0 and 2, and no
+    /// two-caches pair), an EPYC 9255 cut to two L3 domains of 6 cores
+    /// with SMT (0 and 1 under one, 0 and 6 under two), and one core alone
+    /// (no pair at all).
+    #[test]
+    fn placements_take_two_cores_never_a_hardware_thread_pair() {
+        let i7 = Topology::from_tables(
+            (0..20)
+                .map(|c| if c < 16 { c / 2 * 2 } else { c })
+                .collect(),
+            vec![0; 20],
+            (0..16).collect(),
+        );
+        assert_eq!(i7.pair(Placement::OneCache), Some([0, 2]));
+        assert_eq!(i7.pair(Placement::TwoCaches), None);
+        assert_eq!(i7.describe(), "one cache: CPUs 0 and 2; two caches: none");
+        // 24 CPUs: cores 0-11, thread c and c + 12 a core; L3s of cores 0-5 and 6-11.
+        let epyc = Topology::from_tables(
+            (0..24).map(|c| c % 12).collect(),
+            (0..24).map(|c| (c % 12) / 6 * 6).collect(),
+            (0..24).collect(),
+        );
+        assert_eq!(epyc.pair(Placement::OneCache), Some([0, 1]));
+        assert_eq!(epyc.pair(Placement::TwoCaches), Some([0, 6]));
+        let one_core = Topology::from_tables(vec![0, 0], vec![0, 0], vec![0, 1]);
+        assert_eq!(one_core.pair(Placement::OneCache), None);
     }
 
     /// The idle-states line from the three kinds of machine (#106): Linux
@@ -7571,7 +7819,6 @@ mod correctness_tests {
             ns(&samples.solo[0][lent]),
             "servil st: the owned cell is the lent cell"
         );
-        assert_eq!(ns(&samples.shared[0][owned]), ns(&samples.shared[0][lent]));
         assert_ne!(
             ns(&samples.solo[1][owned]),
             ns(&samples.solo[1][lent]),
@@ -7616,7 +7863,13 @@ mod correctness_tests {
             } else {
                 0
             };
-            assert_eq!(samples.shared[a][nonstop].len(), copies * 2 * 3);
+            for pl in Placement::ALL {
+                let has = topology().pair(pl).is_some();
+                assert_eq!(
+                    samples.shared[pl.index()][a][nonstop].len(),
+                    if has { copies * 2 * 3 } else { 0 }
+                );
+            }
             assert_eq!(samples.solo[a][gap].len(), 2);
             // Within a train, each sample starts after the one before.
             let starts = &samples.solo_started_ns[a][nonstop];
@@ -7673,7 +7926,8 @@ mod correctness_tests {
             for &p in &roster.points {
                 for (scenario, cell) in [
                     ("solo", &samples.solo[a][p]),
-                    ("shared", &samples.shared[a][p]),
+                    ("shared-one-cache", &samples.shared[0][a][p]),
+                    ("shared-two-caches", &samples.shared[1][a][p]),
                 ] {
                     if cell.is_empty() {
                         continue;
@@ -7745,13 +7999,16 @@ mod correctness_tests {
                         .iter()
                         .find(|(k, _)| *k == key)
                         .map(|(_, c)| c.clone());
-                    let wanted: Vec<u32> = if scenario == "solo" {
-                        samples.solo_cpu[a][p].iter().map(|c| c.unwrap()).collect()
-                    } else {
-                        samples.shared_cpu[a][p]
+                    let wanted: Vec<u32> = match scenario {
+                        "solo" => samples.solo_cpu[a][p].iter().map(|c| c.unwrap()).collect(),
+                        "shared-one-cache" => samples.shared_cpu[0][a][p]
                             .iter()
                             .map(|c| c.unwrap())
-                            .collect()
+                            .collect(),
+                        _ => samples.shared_cpu[1][a][p]
+                            .iter()
+                            .map(|c| c.unwrap())
+                            .collect(),
                     };
                     assert_eq!(cpus, Some(wanted), "{key}'s CPUs");
                     checked += 1;

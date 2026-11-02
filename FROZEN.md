@@ -143,7 +143,22 @@ anything", John Servil releasing it):
   for them (Zooko: it revealed this and may reveal the next). Each
   sample's row now records the CPU its thread ended on (`cpu`, read
   after the timed call), so a reader can tell what two copies shared.
-  The samples format is v8. The pool's fairness between two callers is
+  The samples format is v8.
+- **The shared copies are placed** (Zooko, November 2, 2026; bench-hashes
+  #116): until 0.20 the scheduler chose where the two copies ran, each
+  sample, and the figure followed it (an SMT pair x1.5, two L3 domains
+  x0.6 of one; 59 of the Xeon pair's 81 shared cells mixed placements).
+  Now each copy's thread is pinned to a chosen CPU for its job: two
+  physical cores, never one core's two hardware threads, performance
+  cores where the machine has two kinds, under **one last-level cache**
+  (what a busy machine most often gives two programs, and the case that
+  found #196), and, where the machine has two caches, also under **two**
+  (two L3 domains; on Apple silicon two clusters, so two SME units),
+  each a layer of its own. Both are measured because the pool's
+  placement work (#196) changes what each shows; a one-cache machine
+  measures the first alone. The header's `shared placements` line names
+  the CPUs. macOS offers no thread affinity, so there the scheduler still
+  places the copies and the line says none. The pool's fairness between two callers is
   the fork's `tests/pool_fairness.rs` (BLAKE3 #215) besides.
 
 **Changes for the next release** (Zooko, October 16, 2026):
@@ -866,8 +881,9 @@ use case ContinuousCollection: git objects, Nix files
 use case MerkleTree: 1024, 4096, 16384, 65536, 262144
 use case InterleavedTurn: 256
 use case IdleInterleavedTurn: 256
-scenarios: solo, shared
+scenarios: solo, shared-one-cache, shared-two-caches
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree
+shared placements: two cores under one last-level cache; two cores under two (where the machine has two)
 shared contenders: blake3-official-mt, blake3-servil-mt
 blake3-servil-st InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each, then performance::finalize_each for the messages that ended in it
 blake3-servil-st IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: performance::update_each, then performance::finalize_each for the messages that ended in it

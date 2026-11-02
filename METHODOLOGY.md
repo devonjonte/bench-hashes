@@ -189,10 +189,12 @@ interval takes two samples of the same batch:
 - **Shared**, for the multithreaded contenders at the tasks that hash
   one input after another: two independent copies at once, each on its
   own thread over its own input, released together; each copy's own time
-  is a sample, and the CPU its thread ended on is recorded with it (the
-  samples file's `cpu` column, read after the call), since what two
-  copies share, a core's two hardware threads, one L3 domain or one SME
-  cluster, is the scheduler's choice and sets what they cost each other. They compete for
+  is a sample. What two copies share sets what they cost each other, so
+  each copy's thread is pinned for the job to a chosen CPU (Linux): two
+  physical cores under **one last-level cache**, and where the machine
+  has two, also under **two**, a layer each (FROZEN.md, "Changes for
+  0.20"). The header's `shared placements` line names the CPUs, and each
+  sample records the CPU its thread ended on (the `cpu` column). They compete for
   cores, memory bandwidth, and any shared execution unit (such as Apple
   M4's SME unit). The calls after a gap run solo, since a second copy
   would warm the cache the gap was meant to cool. Each copy runs its own train,

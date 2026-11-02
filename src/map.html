@@ -354,8 +354,10 @@ function render() {
       legend.appendChild(b);
     }
     box.appendChild(legend);
-    for (const [layer, lname, lnote] of S.layers) {
-      if (S.layers.length > 1) {
+    // The layers this run measured (a placement the machine lacks has no cells).
+    const layers = S.layers.filter(([layer]) => Object.keys(S.cells).some(k => k.startsWith(layer + "|")));
+    for (const [layer, lname, lnote] of layers) {
+      if (layers.length > 1) {
         const lay = document.createElement("div");
         lay.className = "layer";
         lay.innerHTML = glyph(layer, 18) + lname + `<span class="means">${lnote}</span>`;
