@@ -529,9 +529,8 @@ pub fn build_against_command(arguments: &[String]) -> i32 {
     // Where Cargo would build (CARGO_TARGET_DIR where set: the VM builds on
     // a tmpfs, since its shared mount runs no executable), else the
     // checkout's target/.
-    let target = std::env::var_os("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| checkout.join("target"));
+    let shared = std::env::var_os("CARGO_TARGET_DIR").map(PathBuf::from);
+    let target = shared.clone().unwrap_or_else(|| checkout.join("target"));
     // A directory no bench before the separation (0.18.3 and earlier) builds
     // in: those built in target/build-against, from a copy at
     // checkout/bench-hashes, under the same package name and version, so
@@ -543,11 +542,26 @@ pub fn build_against_command(arguments: &[String]) -> i32 {
     let exe = build_against(
         &checkout,
         &bench,
-        &target.join("bench-hashes-build"),
+        &build_against_dir(&target, &checkout, shared.is_some()),
         "build-against",
     );
     println!("{}", exe.display());
     0
+}
+
+/// Where `build-against` builds for `checkout`, inside `target`: its
+/// bench-hashes-build, and, where the target directory is shared by every
+/// checkout (CARGO_TARGET_DIR), a directory of the checkout's own in it.
+/// Shared, three checkouts' builds once wrote one executable, so each
+/// comparison of them ran one build against itself (BLAKE3 #196, the VM,
+/// November 2).
+fn build_against_dir(target: &Path, checkout: &Path, shared: bool) -> PathBuf {
+    let dir = target.join("bench-hashes-build");
+    if !shared {
+        return dir;
+    }
+    let path = checkout.as_os_str().as_encoded_bytes();
+    dir.join(&blake3::hash(path).to_hex()[..16])
 }
 
 /// The copy of the bench a build against the fork compiles, in the build's
@@ -1604,6 +1618,30 @@ fn manifest_builds_differently(fork: &Path, old: &str, new: &str, manifest: &str
 
 #[cfg(test)]
 mod tests {
+    /// Each checkout builds in a directory of its own where the target
+    /// directory is shared, and in its own target's bench-hashes-build
+    /// where it isn't.
+    #[test]
+    fn checkouts_sharing_a_target_directory_build_apart() {
+        use super::build_against_dir;
+        use std::path::Path;
+        let shared = Path::new("/tmp/shared-target");
+        let (a, b) = (Path::new("/w/probe"), Path::new("/w/base"));
+        assert_ne!(
+            build_against_dir(shared, a, true),
+            build_against_dir(shared, b, true)
+        );
+        assert_eq!(
+            build_against_dir(shared, a, true),
+            build_against_dir(shared, a, true)
+        );
+        assert!(build_against_dir(shared, a, true).starts_with(shared.join("bench-hashes-build")));
+        assert_eq!(
+            build_against_dir(&a.join("target"), a, false),
+            a.join("target/bench-hashes-build")
+        );
+    }
+
     /// `check` and `build-against` build the bench in the current directory:
     /// this checkout is one; an empty directory and another package aren't.
     #[test]

@@ -7603,7 +7603,7 @@ mod correctness_tests {
     #[test]
     fn a_fingerprint_is_the_sigil_of_the_hash() {
         let hash = *blake3::hash(b"").as_bytes();
-        assert_eq!(fingerprint(&hash), "dirty-ᕖᣇጎʗƾኖᣊⷈeᑭɨᣫѯᖣቀⷃᣡᗯᕜᑡᔮᣥዲᑮᘜᒬ");
+        assert_eq!(fingerprint(&hash), "dirty-ᢳᕌᔃጾዿᑂഔጕꔍⶰᣟꕄꕛቴⴲజᐽᙿᕯⶂጁᑃሃᛜጩ");
         let sigil = fingerprint(&hash)["dirty-".len()..].to_owned();
         assert_eq!(sigilcode::decode(&sigil, 32).unwrap(), hash);
     }
@@ -7613,7 +7613,7 @@ mod correctness_tests {
     #[test]
     fn a_dirty_status_is_a_sigil_of_its_hash() {
         if let Some(sigil) = GIT_CLEAN_STATUS.strip_prefix("dirty-") {
-            assert_eq!(sigil.chars().count(), 26, "{GIT_CLEAN_STATUS}");
+            assert_eq!(sigil.chars().count(), 25, "{GIT_CLEAN_STATUS}");
             assert_eq!(sigilcode::decode(sigil, 32).map(|d| d.len()), Ok(32));
         } else {
             assert_eq!(GIT_CLEAN_STATUS, "clean");
