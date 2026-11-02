@@ -2456,6 +2456,9 @@ fn main() {
     if arguments.first().map(String::as_str) == Some("leaves") {
         return leaves::command(&arguments[1..]);
     }
+    if arguments.first().map(String::as_str) == Some("crowd") {
+        return crowd::command(&arguments[1..]);
+    }
     if arguments.first().map(String::as_str) == Some("chart") {
         return chart::command(&arguments[1..]);
     }
@@ -7402,6 +7405,7 @@ mod harness_tests;
 mod require_nextest {
     include!("../tools/require_nextest.rs");
 }
+mod crowd;
 mod leaves;
 mod map;
 mod overview;

@@ -161,6 +161,19 @@ comparisons are in [`beside/`](beside/).
 The maps above hold b3sum's results too: official b3sum beside the
 fork's.
 
+## Many programs at once
+
+`bench-hashes crowd` runs many programs at once, one a CPU unless told
+`--programs N`: each is a process of its own with its own thread pool,
+hashing 1 KiB or 64 KiB messages one after another for two seconds, all
+released together. It prints, for each multithreaded hash, the time per
+byte a program saw, what the machine did in all, and how unevenly the
+operating system served the programs (the luckiest's rate over the
+unluckiest's). Twenty programs each starting a pool of twenty threads is
+the classic oversubscription, and the question is whether a hash's pool
+degrades gracefully there. The samples go to `crowd.samples.tsv` in
+`benchmark-results/`, in the format `bench-hashes compare` reads.
+
 ## Share your results
 
 Your map is one self-contained file. Post it and `bench-hashes.result.txt`
