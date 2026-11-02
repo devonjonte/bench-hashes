@@ -5477,8 +5477,7 @@ impl Duo {
         while finished.iter().any(Option::is_none) {
             finished = self.done.wait(finished).unwrap();
         }
-        let copies = std::mem::take(&mut *finished).map(|copy| copy.unwrap());
-        copies
+        std::mem::take(&mut *finished).map(|copy| copy.unwrap())
     }
 
     fn worker(&self, copy: usize) {
