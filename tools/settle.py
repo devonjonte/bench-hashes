@@ -7,9 +7,8 @@ continuous-load proposal's tests (FROZEN.md, October 31, 2026).
 A nonstop cell's samples are its visits' trains, in order (the file's
 `nonstop train` line gives S samples a visit); in a settling run
 (`--train 0,N --nonstop-visits 1`) a cell's one train starts from the
-machine as the contender before it left it. For each nonstop cell, solo
-and shared (each step the two copies' samples together), its warm-up
-curve: the time a unit over the train's first sample and over its first
+machine as the contender before it left it. For each nonstop cell, its
+warm-up curve: the time a unit over the train's first sample and over its first
 5, 20, 50, 100, 200, 500 and 1000 ms (each taking the samples that start
 within it), each against the train's last third, in permille, averaged
 over its trains. A cell that needs no warm-up reads about 1000 from the
@@ -62,20 +61,20 @@ def main(paths):
         per_visit = int(train.split(", ")[1].removesuffix(" samples a visit"))
         print(f"# {path}: nonstop train {train}")
         print("# the time a unit over each part of a train against its last third, permille (1000: as settled)")
-        print("contender\tscenario\tuse case\tpoint\ttrains\tfirst sample\t" + "\t".join(f"first {s} ms" for s in SPANS_MS))
+        print("contender\tuse case\tpoint\ttrains\tfirst sample\t" + "\t".join(f"first {s} ms" for s in SPANS_MS))
         groups = {}
-        for (contender, scenario, use_case, label), cell in run.cells.items():
+        for (contender, use_case, label), cell in run.cells.items():
             if use_case in AFTER_GAP:
                 continue
-            steps = [(a[0] + b[0], a[1] + b[1]) for a, b in zip(cell[::2], cell[1::2])] if scenario == "shared" else cell
+            steps = cell
             assert len(steps) % per_visit == 0, f"{path}: {contender} {use_case} {label}: whole trains"
             curves = [curve(steps[i:i + per_visit]) for i in range(0, len(steps), per_visit)]
             mean = []
             for k in range(len(curves[0])):
                 v = [c[k] for c in curves]
                 mean.append(None if None in v else (sum(v) + len(v) // 2) // len(v))
-            print(f"{contender}\t{scenario}\t{use_case}\t{label}\t{len(curves)}\t" + "\t".join("-" if v is None else str(v) for v in mean))
-            groups.setdefault(f"{use_case} {scenario}", []).append(mean)
+            print(f"{contender}\t{use_case}\t{label}\t{len(curves)}\t" + "\t".join("-" if v is None else str(v) for v in mean))
+            groups.setdefault(use_case, []).append(mean)
         print("# by use case: each column's median / largest, permille: first sample, first " + ", ".join(map(str, SPANS_MS)) + " ms")
         for group, means in groups.items():
             cols = []

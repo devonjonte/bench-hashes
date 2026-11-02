@@ -18,12 +18,10 @@
  * A job is the whole of it, timed as one (the user's decision, October 16,
  * 2026): from producing the first message to having read every digest (each
  * folded into a checksum), nothing subtracted. Each sample records its
- * wall time and, solo, the process's CPU time across it (all its threads,
- * the pool's included), as the main run's samples do; `solo` runs one
- * program, `shared` two at once, each on its own thread and buffers, each
- * program's samples its own (their CPU time is the two programs', so none
- * is recorded). The cells rotate in each round; the samples file is the
- * main run's format, so `bench-hashes compare` reads it.
+ * wall time and the process's CPU time across it (all its threads, the
+ * pool's included), as the main run's samples do. The cells rotate in
+ * each round; the samples file is the main run's format, so
+ * `bench-hashes compare` reads it.
  */
 
 use super::{machine_metadata, output_directory, SAMPLES_COLUMNS};
@@ -32,7 +30,6 @@ use std::fs;
 const MESSAGE_LEN: usize = 64;
 const COUNTS: [usize; 2] = [16 * 1024, 1 << 20];
 const VARIANTS: [&str; 4] = ["lend-oneshot", "lend-stream", "copy-ring", "write-ring"];
-const SCENARIOS: [&str; 2] = ["solo", "shared"];
 /// A sample's length: jobs back to back for at least this long.
 const SAMPLE_NS: u64 = 5_000_000;
 const SAMPLES_PER_ROUND: usize = 3;
@@ -171,8 +168,7 @@ fn expected(count: usize) -> [u8; 32] {
     sum
 }
 
-/// One program's whole-job samples, sized and timed by the shared sampler.
-/// Shared-process CPU figures are suppressed when the cell is written.
+/// One program's whole-job samples, sized and timed by the one sampler.
 fn measure_program(
     program: &mut Program,
     variant: &str,
@@ -189,46 +185,19 @@ fn measure_program(
     clocks::measure(SAMPLES_PER_ROUND, SAMPLE_NS, job)
 }
 
-fn measure_cell(
-    programs: &mut [Program],
-    variant: &str,
-    count: usize,
-    want: [u8; 32],
-) -> Vec<clocks::Batch> {
-    std::thread::scope(|scope| {
-        let handles: Vec<_> = programs
-            .iter_mut()
-            .map(|p| scope.spawn(move || measure_program(p, variant, count, want)))
-            .collect();
-        handles
-            .into_iter()
-            .flat_map(|h| h.join().expect("a program's thread"))
-            .collect()
-    })
-}
-
 /// The existing samples format and report, from the same recorded batches.
-fn cell_lines(
-    scenario: &str,
-    count: usize,
-    variant: &str,
-    samples: &[clocks::Batch],
-) -> (String, String) {
+fn cell_lines(count: usize, variant: &str, samples: &[clocks::Batch]) -> (String, String) {
     let units = |b: &clocks::Batch| b.calls * count as u64;
     let field =
         |f: &dyn Fn(&clocks::Batch) -> String| samples.iter().map(f).collect::<Vec<_>>().join(",");
-    let cpu_values = if scenario == "solo" {
-        samples.iter().map(|b| b.cpu_ns).collect::<Option<Vec<_>>>()
-    } else {
-        None
-    };
+    let cpu_values = samples.iter().map(|b| b.cpu_ns).collect::<Option<Vec<_>>>();
     let cpu_field = cpu_values.as_ref().map_or_else(
         || "-".into(),
         |ns| ns.iter().map(u64::to_string).collect::<Vec<_>>().join(","),
     );
     let counts = super::counts_field(&samples.iter().map(|b| b.counts).collect::<Vec<_>>());
     let row = format!(
-        "{variant}\t{scenario}\tLeaves\t{count} messages\tmsg\t{}\t{}\t{cpu_field}\t-\t{counts}\n",
+        "{variant}\tLeaves\t{count} messages\tmsg\t{}\t{}\t{cpu_field}\t-\t{counts}\n",
         field(&|b| format!("{}/{}", b.wall_ns, units(b))),
         field(&|b| (b.started_ns / 1_000_000).to_string()),
     );
@@ -247,16 +216,14 @@ fn cell_lines(
             )
         },
     );
-    let report =
-        format!("{scenario:6} {count:>8} {variant:13} {wall:>8} ns {cpu:>8} CPU ns  per message\n");
+    let report = format!("{count:>8} {variant:13} {wall:>8} ns {cpu:>8} CPU ns  per message\n");
     (row, report)
 }
 
 pub fn command(arguments: &[String]) {
-    let usage = "bench-hashes leaves [--rounds N] [--variants V,...] [--counts N,...] [--scenarios solo,shared]";
+    let usage = "bench-hashes leaves [--rounds N] [--variants V,...] [--counts N,...]";
     let mut rounds = 12usize;
-    let (mut variants, mut counts, mut scenarios) =
-        (VARIANTS.to_vec(), COUNTS.to_vec(), SCENARIOS.to_vec());
+    let (mut variants, mut counts) = (VARIANTS.to_vec(), COUNTS.to_vec());
     let mut it = arguments.iter();
     let list = |v: Option<&String>| -> Vec<String> {
         v.expect(usage).split(',').map(str::to_owned).collect()
@@ -287,17 +254,6 @@ pub fn command(arguments: &[String]) {
                     .map(|c| c.parse().expect("a count"))
                     .collect()
             }
-            "--scenarios" => {
-                scenarios = list(it.next())
-                    .iter()
-                    .map(|v| {
-                        *SCENARIOS
-                            .iter()
-                            .find(|&&k| k == v)
-                            .unwrap_or_else(|| panic!("no scenario {v}"))
-                    })
-                    .collect()
-            }
             other => panic!("{usage}: unknown argument {other}"),
         }
     }
@@ -308,28 +264,23 @@ pub fn command(arguments: &[String]) {
     );
     blake3_servil::initialize_multithreaded(None);
     let mut machine = machine_metadata();
-    let mut cells: Vec<(&str, usize, &str)> = Vec::new();
-    for &sc in &scenarios {
-        for &n in &counts {
-            for &v in &variants {
-                cells.push((sc, n, v));
-            }
+    let mut cells: Vec<(usize, &str)> = Vec::new();
+    for &n in &counts {
+        for &v in &variants {
+            cells.push((n, v));
         }
     }
     let wants: Vec<[u8; 32]> = counts.iter().map(|&n| expected(n)).collect();
-    let mut programs: Vec<Program> = (0..2)
-        .map(|_| Program::new(*counts.iter().max().unwrap()))
-        .collect();
+    let mut program = Program::new(*counts.iter().max().unwrap());
     // Each cell's rounds; first one untimed round of every cell (one-time
     // costs: the pool, the stream's storage, the buffers' pages).
     let mut results: Vec<Vec<clocks::Batch>> = cells.iter().map(|_| Vec::new()).collect();
     for round in 0..=rounds {
         for k in 0..cells.len() {
             let c = (k + round) % cells.len();
-            let (scenario, count, variant) = cells[c];
-            let n = if scenario == "solo" { 1 } else { 2 };
+            let (count, variant) = cells[c];
             let want = wants[counts.iter().position(|&x| x == count).unwrap()];
-            let r = measure_cell(&mut programs[..n], variant, count, want);
+            let r = measure_program(&mut program, variant, count, want);
             if round > 0 {
                 results[c].extend(r);
             }
@@ -347,8 +298,8 @@ pub fn command(arguments: &[String]) {
     tsv += SAMPLES_COLUMNS;
     tsv += "\n";
     let mut report = String::new();
-    for (c, &(scenario, count, variant)) in cells.iter().enumerate() {
-        let (row, text) = cell_lines(scenario, count, variant, &results[c]);
+    for (c, &(count, variant)) in cells.iter().enumerate() {
+        let (row, text) = cell_lines(count, variant, &results[c]);
         tsv += &row;
         report += &text;
     }
@@ -396,32 +347,28 @@ mod tests {
     }
 
     #[test]
-    fn recorded_batches_keep_jobs_cpu_counts_and_shared_mean() {
-        let (row, report) = cell_lines("solo", 2, "write-ring", &fixed_batches());
+    fn recorded_batches_keep_jobs_cpu_counts_and_the_mean() {
+        let (row, report) = cell_lines(2, "write-ring", &fixed_batches());
         let fields: Vec<_> = row.trim().split('\t').collect();
-        assert_eq!(fields.len(), 10);
-        assert_eq!(fields[5], "4000/4,4000/4,4000/4,4000/4,4000/4,4000000/4");
-        assert_eq!(fields[6], "3,3,3,3,3,3");
-        assert_eq!(fields[7], "6000,6000,6000,6000,6000,6000");
-        assert_eq!(fields[8], "-");
-        assert_eq!(fields[9], ["10:20:30:40"; 6].join(","));
+        assert_eq!(fields.len(), 9);
+        assert_eq!(fields[4], "4000/4,4000/4,4000/4,4000/4,4000/4,4000000/4");
+        assert_eq!(fields[5], "3,3,3,3,3,3");
+        assert_eq!(fields[6], "6000,6000,6000,6000,6000,6000");
+        assert_eq!(fields[7], "-");
+        assert_eq!(fields[8], ["10:20:30:40"; 6].join(","));
         // All six samples count ((5 * 4000 + 4_000_000) ns / 24 messages = 167500ns/message).
         // All raw CPU time gives 36000ns/24 messages = 1500ns/message.
         assert!(report.contains("167500.000 ns 1500.000 CPU ns"), "{report}");
     }
 
     #[test]
-    fn shared_and_unavailable_cpu_figures_stay_absent() {
+    fn unavailable_cpu_figures_stay_absent() {
         let mut batches = fixed_batches();
-        let (row, report) = cell_lines("shared", 2, "write-ring", &batches);
-        assert_eq!(row.trim().split('\t').nth(7), Some("-"));
-        assert!(report.contains("CPU ns"));
-        assert!(!report.contains("1500.000"));
         batches[0].cpu_ns = None;
         batches[0].counts = None;
-        let (row, report) = cell_lines("solo", 2, "write-ring", &batches);
+        let (row, report) = cell_lines(2, "write-ring", &batches);
         let fields: Vec<_> = row.trim().split('\t').collect();
-        assert_eq!((fields[7], fields[9]), ("-", "-"));
+        assert_eq!((fields[6], fields[8]), ("-", "-"));
         assert!(!report.contains("1500.000"));
     }
 

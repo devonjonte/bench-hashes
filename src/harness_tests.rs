@@ -22,7 +22,7 @@ fn batch_digest_storage_survives_a_smaller_cell_without_zeroing() {
 #[test]
 fn official_batch_wrapper_hashes_each_message_with_plain_api_flags() {
     for messages in [1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 1024] {
-        let input = make_input_seeded(messages * MESSAGE_LEN, 17);
+        let input = make_input(messages * MESSAGE_LEN);
         let expected: Vec<u8> = input
             .chunks_exact(MESSAGE_LEN)
             .flat_map(|message| *blake3::hash(message).as_bytes())

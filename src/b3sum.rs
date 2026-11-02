@@ -17,7 +17,7 @@ const MIB: u64 = 1024 * KIB;
 const GIB: u64 = 1024 * MIB;
 
 /// The margin a cell's verdict uses against the first contender, as the
-/// regression check's solo cells.
+/// regression check's cells.
 const MARGIN_PERMILLE: u64 = 30;
 
 // ---------- Inputs ----------
@@ -759,7 +759,7 @@ pub fn command(args: &[String]) {
                     .collect();
                 let cpu: Vec<Option<u64>> = runs.iter().map(|r| r.cpu_ns).collect();
                 tsv += &format!(
-                    "{}\t{}\tb3sum\t{}\tB\t{}\t{}\t{}\t{}\t{}\n",
+                    "{}\t{}\t{}\tB\t{}\t{}\t{}\t{}\t{}\n",
                     spec.name,
                     cache.name(),
                     input.label,

@@ -21,7 +21,7 @@ pub struct Pick {
 }
 
 pub enum Cell {
-    /// A hashing cell: `solo|use_case|point`, BLAKE3 servil's contender in
+    /// A hashing cell: `use_case|point`, BLAKE3 servil's contender in
     /// it, and whether BLAKE3 official's multithreaded form is the fair
     /// comparison (where servil's is multithreaded).
     Hashing {
@@ -90,7 +90,7 @@ pub fn frozen_lines() -> String {
             } => {
                 let _ = writeln!(
                     text,
-                    "overview cell: solo {use_case:?} {point}, {} ({})",
+                    "overview cell: {use_case:?} {point}, {} ({})",
                     servil.key(),
                     pick.column
                 );
@@ -217,7 +217,7 @@ fn cell<'a>(file: &'a SamplesFile, key: &str) -> Option<&'a [Measured]> {
 }
 
 fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algorithm) -> Bars {
-    let key = |a: Algorithm| format!("{}|solo|{use_case:?}|{point}", a.key());
+    let key = |a: Algorithm| format!("{}|{use_case:?}|{point}", a.key());
     let per_unit = match super::POINTS
         .iter()
         .find(|p| p.use_case == use_case && p.label == point)
@@ -278,7 +278,7 @@ fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algo
 }
 
 fn b3sum_bars(file: &SamplesFile, cache: &str, input: &str) -> Bars {
-    let key = |name: &str| format!("{name}|{cache}|b3sum|{input}");
+    let key = |name: &str| format!("{name}|{cache}|{input}");
     // b3sum's samples are ns over the input's bytes.
     let bar = |name: &str, id, color, striped, samples| Bar {
         name: name.to_owned(),

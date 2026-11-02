@@ -105,7 +105,6 @@ function glyph(kind, size = 20, color = "#4b5563") {
     lent: r(1, 7, 7, 8) + `<path d="M10 11 h6 M14 11 l-2.5 -2.5 M14 11 l-2.5 2.5" stroke="${color}" stroke-width="1.8" fill="none" stroke-linecap="round"/><rect x="17" y="7" width="4" height="8" rx="1" fill="none" stroke="${color}" stroke-width="1.5"/>`,
     piped: [0, 1, 2].map(j => r(1 + j * 7, 8, 5.5, 6, 1 - j * .3)).join("") + `<path d="M2 18 h18 m-3 -2.5 l3 2.5 l-3 2.5" stroke="${color}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
     solo: `<circle cx="11" cy="6" r="3.5" fill="${color}"/><path d="M4.5 20 a6.5 6.5 0 0 1 13 0 z" fill="${color}"/>`,
-    shared: `<circle cx="7" cy="7" r="3" fill="${color}"/><path d="M1.5 20 a5.5 5.5 0 0 1 11 0 z" fill="${color}"/><circle cx="15.5" cy="7" r="3" fill="${color}"/><path d="M10 20 a5.5 5.5 0 0 1 11 0 z" fill="${color}"/>`,
     file: `<path d="M5 2 h8 l5 5 v13 h-13 z" fill="none" stroke="${color}" stroke-width="1.8"/><path d="M13 2 v5 h5" fill="none" stroke="${color}" stroke-width="1.5"/>`,
     tree: `<path d="M3 3 h6 l2 2 h8 v13 h-16 z" fill="none" stroke="${color}" stroke-width="1.8"/>` + r(6, 9, 10, 2) + r(6, 13, 7, 2),
     cached: r(3, 4, 16, 14) + [6, 10, 14].map(x => `<rect x="${x}" y="1" width="1.6" height="3" fill="${color}"/><rect x="${x}" y="18" width="1.6" height="3" fill="${color}"/>`).join(""),
@@ -362,8 +361,7 @@ function render() {
         box.appendChild(lay);
       }
       // The layer's own rows and columns: a column no row of this layer
-      // measures, or a row no column measures, is left out (two programs
-      // at once run the nonstop calls alone, so its grid is two columns).
+      // measures, or a row no column measures, is left out.
       const has = (r, c) => S.cells[`${layer}|${r}|${c}`];
       const cols = S.cols.filter(([c]) => S.rows.some(([r]) => has(r, c)));
       const rows = S.rows.filter(([r]) => cols.some(([c]) => has(r, c)));

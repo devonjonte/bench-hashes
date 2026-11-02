@@ -6,23 +6,22 @@ rule"): comparisons and verdicts stay in bench-hashes (`compare`,
     import samples
     run = samples.read(path)
     run.headers["nonstop train"]          # a `# key: value` line
-    run.cells[(contender, scenario, use_case, point)]   # [(ns, units), ...]
+    run.cells[(contender, use_case, point)]   # [(ns, units), ...]
     samples.mean_ps(run.cells[key])       # picoseconds a unit, the cell's mean
 
 A file of another version stops the reader (its own commit's tools read it).
 """
 import collections
 
-VERSION = "# bench-hashes samples v7"
-COLUMNS = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts"
+VERSION = "# bench-hashes samples v8"
+COLUMNS = "contender\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts"
 
 Run = collections.namedtuple("Run", "path headers cells")
 
 
 def read(path):
     """A samples file: its `# key: value` header lines, and each cell's samples
-    as (ns, units) in the order taken, keyed (contender, scenario, use case,
-    point)."""
+    as (ns, units) in the order taken, keyed (contender, use case, point)."""
     with open(path) as f:
         lines = f.read().splitlines()
     assert lines and lines[0] == VERSION, f"{path}: a samples file begins with {VERSION!r}"
@@ -37,10 +36,10 @@ def read(path):
             columns = True
         else:
             fields = line.split("\t")
-            assert len(fields) == 10, f"{path}: a row of ten fields: {line}"
-            key = tuple(fields[:4])
+            assert len(fields) == 9, f"{path}: a row of nine fields: {line}"
+            key = tuple(fields[:3])
             assert key not in cells, f"{path}: {key} twice"
-            cells[key] = [tuple(int(x) for x in s.split("/")) for s in fields[5].split(",")]
+            cells[key] = [tuple(int(x) for x in s.split("/")) for s in fields[4].split(",")]
     return Run(path, headers, cells)
 
 

@@ -38,10 +38,10 @@ input first read or written into a buffer (timed with the hashing):
 
 FROZEN.md lists each contender's calls in each use case.
 
-Each nonstop use case runs in two scenarios: **solo**, one copy of the
-contender, and **shared**, two copies at once. The calls after a gap run
-solo. The report shows each use case once per scenario, solo first; the
-map shows both.
+Every cell measures one program alone on an otherwise quiet machine.
+Until 0.20 the nonstop use cases were also measured as two copies of the
+program at once; FROZEN.md's "Changes for 0.20" says what that found and
+why it went.
 
 ## Contenders
 
@@ -170,28 +170,10 @@ crate has no multithreaded batch entry point. The bencher writes no wrapper of i
 contender; the contenders' own entry points are the whole of what it
 calls.
 
-Both scenarios apply unchanged: in the shared one each copy hashes its
-own batch.
+## The gap
 
-## Solo and shared, and the gap
-
-A reader of these results wants to compare contenders on a load pattern,
-to spot a regression, or to estimate speed in a system they are
-designing. Each needs a few numbers per contender, so every sample
-interval takes two samples of the same batch:
-
-- **Solo**: one copy of the contender on one thread, no other program
-  running at the same time. What a program gets with the machine to
-  itself.
-- **Shared**, for the tasks that hash one input after another: two
-  independent copies at once, each on its own thread over its own input,
-  released together; each copy's own time is a sample. They compete for
-  cores, memory bandwidth, and any shared execution unit (such as Apple
-  M4's SME unit). The calls after a gap run solo, since a second copy
-  would warm the cache the gap was meant to cool. Each copy runs its own train,
-  so the last sample of the slower copy's train can run partly alone:
-  about 1% optimistic on an i7-12700K, level on an EPYC 9255 and a pair
-  of Xeon Gold 6330s (bench-hashes #105).
+One copy of the contender on one thread, no other program running at
+the same time: what a program gets with the machine to itself.
 
 In the calls after a gap, each sample is one call (or enough calls to
 fill 2 µs when a single call is shorter than the clock tick), each
@@ -220,10 +202,6 @@ states (`idle states`: driver, governor, each state's latency and
 residency), so a reader can tell two machines', or two runs', states
 apart. The cell's mean weighs these
 states by how often they occur.
-
-A single-threaded hash costs about the same in both. A multithreaded one
-shows in the shared scenario what its threads cost when the machine is
-shared; an SME2 kernel shows what sharing its unit costs.
 
 ## Hash implementations
 
@@ -273,10 +251,7 @@ program calls it by default: `Hasher::new().update_rayon(input)` on
 Rayon's global pool, which Rayon sizes to one thread per logical CPU.
 The method splits the tree recursively with `rayon::join` down to the
 SIMD degree, so any input above one SIMD width of chunks may cross
-threads, and idle pool threads steal the halves. The two shared copies are
-two callers in one process sharing that one pool, the same situation
-the servil fork's fair sharing addresses, so the two multithreaded
-columns compare like for like.
+threads, and idle pool threads steal the halves.
 
 BLAKE3 servil mt is the fork's `performance::hash_multithreaded`,
 which returns the same hash as `convenience::hash`. Inputs below
@@ -352,12 +327,10 @@ fork's `src/ffi_sme2.rs` and `src/ffi_neon_hybrid.rs`.
 ## Inputs, and what the benchmark leaves to others
 
 The benchmark times hashes and checks no digests: each implementation's
-own tests establish that it is correct. An input of `n` bytes for seed `s` consists of the little-endian 64-bit
-words `s << 48 | 0, s << 48 | 1, ...` cut to `n` bytes. Every block of
-every input differs, and seed 1 gives the second shared copy distinct
-bytes. The timed loop hands every digest to `black_box`, so no hash can
-be optimized away, and the two shared copies hash separate buffers, as
-two programs would.
+own tests establish that it is correct. An input of `n` bytes consists of
+the little-endian 64-bit words `0, 1, ...` cut to `n` bytes, so every
+block of every input differs. The timed loop hands every digest to
+`black_box`, so no hash can be optimized away.
 
 ## Interleaving
 
@@ -402,10 +375,9 @@ A full run has 96 rounds, a `--quick` one 24 (and stops below 1 MiB and
 nonstop point 2, each rounded up to whole cycles of its orders and spread
 over the rounds at an offset of its own; every contender that takes part
 samples at each, long hashes included, so each meets every position and
-every predecessor equally often. A visit after a gap is one sample, and
-a shared one gives two, one per copy. A nonstop visit is a train: the
-cell's own load, untimed, for 100 ms, then 6 samples back to back, solo,
-then the same for the two shared copies together. So each sample meets
+every predecessor equally often. A visit after a gap is one sample. A
+nonstop visit is a train: the cell's own load, untimed, for 100 ms, then
+6 samples back to back. So each sample meets
 the machine as the cell's own sustained load leaves it: its cores'
 clocks, its threads' placement, a GPU's clock. The starting
 point's rotation is even only when the round count is a multiple of the
@@ -428,9 +400,8 @@ fastest and slowest samples, and the samples file holds every timing.
 Most of a measurement's uncertainty lies between runs, not inside one:
 where a program's code landed, where its threads were placed, which of
 two speeds a cell settled into, all fixed for a whole process. Some
-cells run at two speeds: two copies of an SME2 kernel run at full speed
-when macOS places them on different P-clusters and at about half when it
-places them on one, which shares its SME unit. The mean weighs each speed
+cells run at two speeds (the cells after a pause, by the idle state the
+core slept in). The mean weighs each speed
 by how often it came, which is what a caller pays, and the samples file
 keeps every timing for a look at the speeds. A lead between two runs is
 established by repeating them.
@@ -458,8 +429,7 @@ read outside the timed interval with the thread's counts), in the samples
 file's `cpu ns` column. It is what the call costs the machine, beside
 what its caller waits for: the calling thread and every worker the call
 kept busy, waiting, or spinning. A sample after gaps has none, since the
-gap's other work would count as the call's, and a shared sample none,
-since its two copies share the process. A b3sum row holds each run's CPU
+gap's other work would count as the call's. A b3sum row holds each run's CPU
 time as the OS counts it for the child process.
 
 **Energy.** The same samples record the CPU package's energy across each
@@ -545,8 +515,7 @@ spares SHA-256 (as fast on either kind): bench #25.
 
 `bench-hashes.map.html` draws every cell the run's samples file holds as
 a small chart, its lines through each contender's means on log scales,
-higher faster. The charts sit in a grid, first for one program (solo) and then for two
-at once (shared). Its rows are what the program hashes: one message, a
+higher faster. The charts sit in a grid. Its rows are what the program hashes: one message, a
 batch of 64-byte messages, many messages at once in pieces, a collection
 of messages, a message with its outboard, and a message verified as it
 arrives. Its columns are how the program calls: after other work, after
@@ -741,10 +710,8 @@ hands the messages to `blake3-servil`:
 - `copy-ring`: produced into a buffer and copied into the stream's ring.
 - `write-ring`: produced straight into the stream's ring via `submit_batch_with`. A sample times whole jobs, from
 producing the first message to having read every digest, nothing
-subtracted. Each sample records, solo, the process's CPU time across it
-(all its threads), as the main run's samples do; `solo` is one program,
-`shared` two at once, each with its own samples (their CPU time is both
-programs', so none is recorded). It writes `leaves.samples.tsv` in the
+subtracted. Each sample records the process's CPU time across it (all
+its threads), as the main run's samples do. It writes `leaves.samples.tsv` in the
 main run's samples format, which `bench-hashes compare` reads.
 
 ## Choices that stay settled, and why
@@ -786,9 +753,6 @@ result.
   would score without limit. Inputs pass through `black_box`, but the
   bytes don't change. A defence, if one is ever needed: rotate among
   equal-size buffers, at a cache cost every contender would pay.
-- **Knowing the harness's thread count.** The shared scenario runs exactly
-  two copies; a multithreaded contender could detect that. More copies
-  (devonjonte/bench-hashes#1) would make it harder.
 - **Workers that stay hot.** A contender whose workers keep polling
   between calls looks better in a tight loop than in a program that hashes
   once a second; the after-idling cells (a 1 ms sleep before each call)

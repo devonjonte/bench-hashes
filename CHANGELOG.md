@@ -1,4 +1,11 @@
-# bench-hashes 0.19.6+71c71159217a2a627fb06f270bb39890b76138f3
+# bench-hashes 0.20.0
+
+**"Two programs at once" is gone.** Since September every nonstop cell was measured twice: alone, and as two copies of the program running at the same time, as a guard against a speed-up that wins alone and loses beside a neighbour. In six weeks of releases that never happened: a neighbour cost what you'd expect (two programs splitting the machine each get about half, for every library alike), and nothing else. The question it alone answered, whether two callers get fair shares of BLAKE3-Servil's worker threads, is now one of BLAKE3-Servil's own tests. So:
+- The maps and the overview show one measurement a cell, one program alone.
+- A full run and a `check` take about a third less time.
+- The samples files have no `scenario` column (format v8). Files from earlier versions are read with those versions.
+
+## Earlier: 0.19.6+71c71159217a2a627fb06f270bb39890b76138f3
 
 **Each result records the computer's idle states**: how deeply its cores can sleep, and how long each depth takes to wake from. On computers with deep sleep states, calls after a pause vary from run to run with the state the core slept in, so a reader can see why.
 

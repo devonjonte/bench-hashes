@@ -109,11 +109,12 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
     }
 }
 
-/// The map's address of a use case's chart: `scenario|row|col`, as a link
-/// to `bench-hashes.map.html#…` opens it.
-pub fn cell_key(scenario: &str, use_case: UseCase) -> String {
+/// The map's address of a use case's chart: `layer|row|col`, as a link
+/// to `bench-hashes.map.html#…` opens it. The hashing section has one
+/// layer, `solo` (one program hashes), the name its links have carried.
+pub fn cell_key(layer: &str, use_case: UseCase) -> String {
     let (row, col, _, _) = place(use_case);
-    format!("{scenario}|{row}|{col}")
+    format!("{layer}|{row}|{col}")
 }
 
 const DOCS: &str = "https://johnservil.github.io/BLAKE3/blake3_servil/";
@@ -154,7 +155,7 @@ fn mean_ns(samples: &[super::Measured]) -> f64 {
 
 /// A cell's CPU time (ns) or energy (nJ) per unit, for drawing: all its
 /// samples' figures in `column` (the samples file's `cpu` or `energy`) over
-/// their units, where the file records them (solo nonstop cells, b3sum's
+/// their units, where the file records them (nonstop cells, b3sum's
 /// runs), else None.
 fn per_unit(column: &[(String, Vec<u64>)], key: &str, samples: &[super::Measured]) -> Option<f64> {
     let (_, v) = column.iter().find(|(k, _)| k == key)?;
@@ -555,7 +556,7 @@ fn hashing(path: &Path) -> Section {
     let mut cells = Vec::new();
     for use_case in UseCase::ALL {
         let (_, _, call, doc) = place(use_case);
-        for scenario in ["solo", "shared"] {
+        {
             let points = &POINTS[use_case.points()];
             // Every chart in bytes per second, so one axis serves them all:
             // a batch's time per message over its message's bytes.
@@ -564,14 +565,14 @@ fn hashing(path: &Path) -> Section {
                 _ => 1.0,
             };
             let mean = |a: &Algorithm, label: &str| {
-                let key = format!("{}|{scenario}|{use_case:?}|{label}", a.key());
+                let key = format!("{}|{use_case:?}|{label}", a.key());
                 file.cells
                     .iter()
                     .find(|(k, _)| *k == key)
                     .map(|(_, s)| mean_ns(s) / per_byte(label))
             };
             let column = |col: &[(String, Vec<u64>)], a: &Algorithm, label: &str| {
-                let key = format!("{}|{scenario}|{use_case:?}|{label}", a.key());
+                let key = format!("{}|{use_case:?}|{label}", a.key());
                 file.cells
                     .iter()
                     .find(|(k, _)| *k == key)
@@ -610,7 +611,7 @@ fn hashing(path: &Path) -> Section {
                         .map(|p| {
                             where_ran(
                                 &file.cores,
-                                &format!("{}|{scenario}|{use_case:?}|{}", a.key(), p.label),
+                                &format!("{}|{use_case:?}|{}", a.key(), p.label),
                             )
                         })
                         .collect();
@@ -618,7 +619,7 @@ fn hashing(path: &Path) -> Section {
                 })
                 .collect();
             cells.push((
-                cell_key(scenario, use_case),
+                cell_key("solo", use_case),
                 Chart {
                     sizes: measured.iter().map(|p| p.label.to_owned()).collect(),
                     unit: "GB/s",
@@ -660,10 +661,7 @@ fn hashing(path: &Path) -> Section {
             ("lent", "nonstop, waiting for each call", "The program hashes input after input as fast as it can, reading each input once the hash before it has returned."),
             ("piped", "nonstop, pipelined", "The program hashes input after input as fast as it can, and reads the next inputs while earlier ones hash: it hands its inputs to BLAKE3 servil's stream, which hashes them on other threads. The other hashes have no such call and hash on the program's thread."),
         ],
-        layers: vec![
-            ("solo", "one program", "One program hashes; the machine is otherwise quiet."),
-            ("shared", "two programs at once", "Two programs hash at the same moment, nonstop, sharing the machine."),
-        ],
+        layers: vec![("solo", "one program", "One program hashes; the machine is otherwise quiet.")],
         // A run with --threads N names servil mt's count (its pool is the run's).
         names: {
             let threads = header(&file.headers, "contenders").split("; --threads ").nth(1).and_then(|rest| rest.split("; ").next()).map(str::to_owned);
@@ -742,7 +740,7 @@ fn b3sum(path: &Path) -> Section {
             let cell = |name: &str, input: &str| {
                 file.cells
                     .iter()
-                    .find(|(k, _)| *k == format!("{name}|{cache}|b3sum|{input}"))
+                    .find(|(k, _)| *k == format!("{name}|{cache}|{input}"))
                     .map(|(_, s)| s)
             };
             if points.is_empty()
@@ -759,9 +757,8 @@ fn b3sum(path: &Path) -> Section {
                         let line: Vec<Option<f64>> = points
                             .iter()
                             .map(|p| {
-                                cell(n, p).and_then(|s| {
-                                    per_unit(col, &format!("{n}|{cache}|b3sum|{p}"), s)
-                                })
+                                cell(n, p)
+                                    .and_then(|s| per_unit(col, &format!("{n}|{cache}|{p}"), s))
                             })
                             .collect();
                         line.iter().any(Option::is_some).then_some(line)

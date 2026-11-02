@@ -123,6 +123,25 @@ anything", John Servil releasing it):
   `settle` left the program for `tools/points.py` and `tools/settle.py`,
   beside `tools/variance.py`; comparisons and verdicts stay in it.
 
+**Changes for 0.20** (Zooko, November 2, 2026, bench-hashes #108):
+- **The shared scenario retires.** From September 23 every nonstop cell
+  was measured twice, alone and as two copies of the program at once,
+  as a guard against an optimization that wins alone and loses beside a
+  neighbour. In six weeks and five releases it found one regression
+  (October 18, fork fc9903b2, caught by measuring every cell), a fact
+  about machines (a neighbour keeps a core awake: September 30, the
+  idle-state finding in its first form), and two artifacts of its own
+  (0.18's uneven copies read 7% optimistic, #105; its one-call release
+  showed the pool's first-come, first-served order as unfairness, BLAKE3
+  #213). The trap never appeared: on the i7-12700K at 0.8 a neighbour
+  cost servil mt x1.07 at the median and x1.8-1.9 where two programs
+  split 20 CPUs, the same as official mt; single-threaded code x1.01.
+  It cost 24% of the map's cells, a third of a run's and a check's time,
+  the two-copy machinery and a paragraph in every document. Its one
+  durable question, whether two callers share servil mt's pool fairly,
+  is the fork's `tests/pool_fairness.rs` (BLAKE3 #215), asked with every
+  `cargo nextest run`. The samples format is v8, with no scenario column.
+
 **Changes for the next release** (Zooko, October 16, 2026):
 - **The batch calls take a `Batch`** (Zooko, October 28; BLAKE3 #205):
   `hash_many`, `hash_many_multithreaded` and `Stream::submit_batch` take
@@ -734,14 +753,10 @@ their users seldom make):
   own contract (no allocation after warm-up) was never reached.
 - **Batches under the padded batch contract** (Zooko, September 26): the
   caller lays out and zero-pads the messages.
-- **Shared scenarios for the nonstop use cases** (Zooko, September 28;
-  after the gaps removed September 30): two copies at once, one input
-  after another; a sanity check against designs that need the machine
-  to themselves, and a pessimistic estimate of what users see; measured
-  and reported, not optimised for directly. After a gap a copy met the
-  code its twin had just run in a cache the gap left warm, and read
-  faster than one program alone (bench-hashes NOTES at `aadeca9d`, "Shared after a gap"). The map
-  draws solo and shared.
+- **Shared scenarios for the nonstop use cases** (Zooko, September 28,
+  2026 to November 2, 2026; "Changes for 0.20" above): two copies at
+  once, retired after six weeks with the trap it guarded against never
+  seen and its one durable question moved into the fork's tests.
 - **Planned, to add under this contract**: keyed and derive-key spot
   checks in perf_regress.
 
@@ -843,8 +858,6 @@ use case ContinuousCollection: git objects, Nix files
 use case MerkleTree: 1024, 4096, 16384, 65536, 262144
 use case InterleavedTurn: 256
 use case IdleInterleavedTurn: 256
-scenarios: solo, shared
-shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree
 blake3-servil-st InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each, then performance::finalize_each for the messages that ended in it
 blake3-servil-st IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: performance::update_each, then performance::finalize_each for the messages that ended in it
 blake3-servil-mt InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each_multithreaded, then performance::finalize_each for the messages that ended in it
@@ -875,11 +888,11 @@ blake3-servil-st IdleOneMessage: convenience::hash(input), each call after idlin
 blake3-servil-st IdleManyMessages: performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling
 blake3-servil-mt IdleOneMessage: performance::hash_multithreaded(Mode::Plain, blocks, len), each call after idling
 blake3-servil-mt IdleManyMessages: performance::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling
-overview cell: solo OneMessage 64 B, blake3-servil-st (64 B)
-overview cell: solo OneMessage 1 KiB, blake3-servil-st (1 KiB)
-overview cell: solo OneMessage 1 MiB, blake3-servil-st (1 MiB)
-overview cell: solo OneMessage 128 MiB, blake3-servil-mt (128 MiB)
-overview cell: solo ContinuousMessages 64 KiB, blake3-servil-mt (64 KiB messages, one after another)
-overview cell: solo ManyMessages 1024, blake3-servil-st (1024 messages of 64 B, batched)
+overview cell: OneMessage 64 B, blake3-servil-st (64 B)
+overview cell: OneMessage 1 KiB, blake3-servil-st (1 KiB)
+overview cell: OneMessage 1 MiB, blake3-servil-st (1 MiB)
+overview cell: OneMessage 128 MiB, blake3-servil-mt (128 MiB)
+overview cell: ContinuousMessages 64 KiB, blake3-servil-mt (64 KiB messages, one after another)
+overview cell: ManyMessages 1024, blake3-servil-st (1024 messages of 64 B, batched)
 overview cell: b3sum warm mixed tree, 1000 files, 74 MiB (1000 files, b3sum)
 ```

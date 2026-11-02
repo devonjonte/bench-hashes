@@ -304,7 +304,7 @@ pub fn command(arguments: &[String]) -> i32 {
     let points: BTreeSet<String> = suspects
         .iter()
         .map(|k| {
-            point_label(&field(k, 2), &field(k, 3)).expect("a suspect's use case is this bench's")
+            point_label(&field(k, 1), &field(k, 2)).expect("a suspect's use case is this bench's")
         })
         .collect();
     let first = 2 * layouts_a_side;

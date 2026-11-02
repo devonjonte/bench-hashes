@@ -6,8 +6,7 @@ settings, FROZEN.md, October 31, 2026).
     python3 tools/variance.py RUN.tsv RUN.tsv RUN.tsv...
 
 Runs of one machine and one protocol (each file's `nonstop train` line:
-S samples a visit, V visits a cell). For each nonstop cell, solo and
-shared, the time a unit of each sample, visit and run, in permille of the
+S samples a visit, V visits a cell). For each nonstop cell, the time a unit of each sample, visit and run, in permille of the
 cell's mean over every run, splits into three parts (squared permille,
 the classic nested estimates):
   within    sample to sample inside a visit
@@ -99,21 +98,17 @@ def main(argv):
     v_now = len(first) // s
     settings = settings or [(v_now, s), (4, 3), (3, 4), (2, 12), (6, 2)]
     print(f"# {len(runs)} runs, {warm} ms warm-up, {s} samples a visit, {v_now} visits; predicted spread of a run's mean, permille")
-    print("contender\tscenario\tuse case\tpoint\twithin\tvisits\truns\t" + "\t".join(f"V{v}S{t}" for v, t in settings))
+    print("contender\tuse case\tpoint\twithin\tvisits\truns\t" + "\t".join(f"V{v}S{t}" for v, t in settings))
     groups = {}
     for key in keys:
-        contender, scenario, use_case, label = key
-        per_run = []
-        for r in runs:
-            cell = r.cells[key]
-            steps = [(a[0] + b[0], a[1] + b[1]) for a, b in zip(cell[::2], cell[1::2])] if scenario == "shared" else cell
-            per_run.append(steps)
+        contender, use_case, label = key
+        per_run = [r.cells[key] for r in runs]
         if any(len(x) != len(per_run[0]) or len(x) % s for x in per_run):
             continue
         w, v, rr = components(per_run, s)
         pred = [spread(w, v, rr, V, S) for V, S in settings]
-        print(f"{contender}\t{scenario}\t{use_case}\t{label}\t{w}\t{v}\t{rr}\t" + "\t".join(tenths(p) for p in pred))
-        groups.setdefault(f"{use_case} {scenario}", []).append((w, v, rr, pred))
+        print(f"{contender}\t{use_case}\t{label}\t{w}\t{v}\t{rr}\t" + "\t".join(tenths(p) for p in pred))
+        groups.setdefault(use_case, []).append((w, v, rr, pred))
     cost = lambda V, S: V * (warm + S)
     print("# cost a cell (nonstop time), permille of this run's: " + ", ".join(f"V{v}S{t} {cost(v, t) * 1000 // cost(v_now, s)}" for v, t in settings))
     print("# by use case: median / p90 of the predicted spread, permille, per setting; and of the three parts (sqrt)")

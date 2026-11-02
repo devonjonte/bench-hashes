@@ -3,11 +3,11 @@
 
     python3 tools/points.py [--tolerance P,...] [--quantile Q] [--axes A,...] [--protect USECASE:LABEL...] RUN.tsv...
 
-It reads the samples files through tools/samples.py. For each axis (a use case and a
-scenario: OneMessage, IdleOneMessage, ManyMessages, IdleManyMessages,
+It reads the samples files through tools/samples.py. For each axis (a use
+case: OneMessage, IdleOneMessage, ManyMessages, IdleManyMessages,
 ContinuousMessages, LentMessages, ContinuousBatches, LentBatches), every
-series the runs measured (a run's contender in that use case and
-scenario) gives its time a unit at each point. A dropped point is
+series the runs measured (a run's contender in that use case) gives its
+time a unit at each point. A dropped point is
 predicted from its nearest kept neighbours by straight-line interpolation
 of log time against log size, and its error is the ratio of the prediction
 to the measurement. Points drop one at a time, always the one that keeps
@@ -73,7 +73,7 @@ def axis_value(label):
 
 
 def means(paths):
-    """{(machine, contender, scenario, use case): {axis value: (label, ps a unit)}}:
+    """{(machine, contender, use case): {axis value: (label, ps a unit)}}:
     each machine's runs of a cell averaged (the geometric mean of their
     means), so that a point's departure from its neighbours counts as it
     repeats over runs rather than as one run's noise (two cells of the same
@@ -82,14 +82,14 @@ def means(paths):
     labels = {}
     for path in paths:
         run = samples.read(path)
-        for (contender, scenario, use_case, label), cell in run.cells.items():
+        for (contender, use_case, label), cell in run.cells.items():
             x = axis_value(label)
             if x is not None:
-                runs[(samples.machine(path), contender, scenario, use_case)][x].append(samples.mean_ps(cell))
+                runs[(samples.machine(path), contender, use_case)][x].append(samples.mean_ps(cell))
                 labels[(use_case, x)] = label
     series = {}
     for key, points in runs.items():
-        series[key] = {x: (labels[(key[3], x)], math.exp(sum(map(math.log, v)) / len(v))) for x, v in points.items()}
+        series[key] = {x: (labels[(key[2], x)], math.exp(sum(map(math.log, v)) / len(v))) for x, v in points.items()}
     counts = collections.Counter(samples.machine(f) for f in paths)
     print("# runs a machine: " + ", ".join(f"{m} {n}" for m, n in sorted(counts.items())))
     return series
@@ -181,41 +181,40 @@ def main():
     print(f"# {len(args.runs)} runs, {len(series)} series")
     q = args.quantile / 100
     for use_case in args.axes:
-        for scenario in ["solo", "shared"]:
-            curves = {k: {x: ps for x, (_, ps) in v.items()} for k, v in series.items()
-                      if k[2] == scenario and k[3] == use_case and len(v) >= 3}
-            if not curves:
-                continue
-            labels = {}
-            for k, v in series.items():
-                if k[2] == scenario and k[3] == use_case:
-                    labels.update({x: label for x, (label, _) in v.items()})
-            xs = sorted(labels)
-            stay = {xs[0], xs[-1]} | {x for x in xs if (use_case, labels[x]) in protected}
-            print(f"\n## {use_case} {scenario}: {len(xs)} points, {len(curves)} series, {len(stay)} kept by rule")
-            for tol in args.tolerance:
-                kept = set(xs)
-                dropped = []
-                while True:
-                    best = None
-                    for x in sorted(kept - stay):
-                        c = cost(curves, kept - {x}, xs, q)
-                        if c <= tol and (best is None or c < best[1]):
-                            best = (x, c)
-                    if best is None:
-                        break
-                    kept.discard(best[0])
-                    dropped.append(best[0])
-                # Each dropped point's error at the quantile, and its largest, with the final kept set.
-                detail = []
-                for x in sorted(dropped):
-                    errs = errors_at(curves, kept, x)
-                    err, key = error_at(curves, kept, x)
-                    detail.append(f"{labels[x]} (p{args.quantile} {quantile(errs, q):.0f}, largest {err:.0f}: {key[1]}, {key[0][:24]})")
-                show = [labels[x] + ("*" if x in stay else "") for x in xs if x in kept]
-                print(f"  within {tol} permille: keep {len(kept)} of {len(xs)}: {', '.join(show)}")
-                if detail:
-                    print(f"    dropped (largest error, permille, and its series): {'; '.join(detail)}")
+        curves = {k: {x: ps for x, (_, ps) in v.items()} for k, v in series.items()
+                  if k[2] == use_case and len(v) >= 3}
+        if not curves:
+            continue
+        labels = {}
+        for k, v in series.items():
+            if k[2] == use_case:
+                labels.update({x: label for x, (label, _) in v.items()})
+        xs = sorted(labels)
+        stay = {xs[0], xs[-1]} | {x for x in xs if (use_case, labels[x]) in protected}
+        print(f"\n## {use_case}: {len(xs)} points, {len(curves)} series, {len(stay)} kept by rule")
+        for tol in args.tolerance:
+            kept = set(xs)
+            dropped = []
+            while True:
+                best = None
+                for x in sorted(kept - stay):
+                    c = cost(curves, kept - {x}, xs, q)
+                    if c <= tol and (best is None or c < best[1]):
+                        best = (x, c)
+                if best is None:
+                    break
+                kept.discard(best[0])
+                dropped.append(best[0])
+            # Each dropped point's error at the quantile, and its largest, with the final kept set.
+            detail = []
+            for x in sorted(dropped):
+                errs = errors_at(curves, kept, x)
+                err, key = error_at(curves, kept, x)
+                detail.append(f"{labels[x]} (p{args.quantile} {quantile(errs, q):.0f}, largest {err:.0f}: {key[1]}, {key[0][:24]})")
+            show = [labels[x] + ("*" if x in stay else "") for x in xs if x in kept]
+            print(f"  within {tol} permille: keep {len(kept)} of {len(xs)}: {', '.join(show)}")
+            if detail:
+                print(f"    dropped (largest error, permille, and its series): {'; '.join(detail)}")
 
 
 if __name__ == "__main__":

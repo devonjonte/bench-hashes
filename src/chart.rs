@@ -30,7 +30,7 @@ struct Bar {
 /// hashes now and then). None when the file lacks BLAKE3 servil's cells
 /// there (a quick run stops below 1 MiB).
 pub fn from_samples(path: &str) -> Option<String> {
-    const CELL: &str = "solo|IdleOneMessage|128 MiB";
+    const CELL: &str = "IdleOneMessage|128 MiB";
     const FAMILIES: [(&str, &[&str], &str); 3] = [
         (
             "SHA-256",
@@ -73,7 +73,7 @@ pub fn from_samples(path: &str) -> Option<String> {
 /// beside the system's sum programs. None when the run lacks that cell for
 /// b3sum.
 pub fn b3sum_from_samples(path: &str) -> Option<String> {
-    const CELL: &str = "warm|b3sum|mixed tree, 1000 files, 74 MiB";
+    const CELL: &str = "warm|mixed tree, 1000 files, 74 MiB";
     const OTHERS: [(&str, &str); 3] = [
         ("sha256sum", "#c2410c"),
         ("sha1sum", "#8a7a1e"),
@@ -303,7 +303,9 @@ mod tests {
             std::process::id()
         ));
         let row = |key: &str, ns: u64| {
-            format!("{key}\tsolo\tIdleOneMessage\t128 MiB\tB\t{ns}/134217728,{ns}/134217728\t1,2\t-\t-\t-\n")
+            format!(
+                "{key}\tIdleOneMessage\t128 MiB\tB\t{ns}/134217728,{ns}/134217728\t1,2\t-\t-\t-\n"
+            )
         };
         let text = format!(
             "{}\n# timestamp: 2026-10-02 12:00:00 UTC\n# bench-hashes version: 0.13.0+abc\n# bench-hashes source: https://github.com/johnservil/bench-hashes\n# git commit: 0123456789abcdef0123456789abcdef01234567\n# git clean status: clean\n# rust compiler: rustc 1.0.0\n# build target: x86_64-unknown-linux-gnu\n# cpu type: Test CPU\n# cpu count: 4\n# os type: linux1\n# source blake3-servil-st: blake3-servil 0.8.0+b3c5; source https://github.com/johnservil/BLAKE3; commit b5b988d8982bea9490c38c79ec4b8c5c2428270c; clean\n# power: n/a\n# load: quiet\n{}\n{}{}{}",
