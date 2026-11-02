@@ -1,4 +1,4 @@
-# bench-hashes 0.19.7
+# bench-hashes 0.19.7+d37df38c7c9e22f47e10d8e9adfc2e2359c8105f
 
 **Two fixes to the map.** Each column now stays in its place through both halves of a map, so a reader scanning down a column finds the same way of calling in it. A run whose BLAKE3-Servil checkout was cloned from a local folder now writes its report and map, where it stopped after measuring.
 
