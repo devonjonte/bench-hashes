@@ -2949,11 +2949,12 @@ fn measure_all(
                      * The shared samples, under the same conditions, for the
                      * nonstop use cases: two copies, released together, each
                      * run its own train on its own thread, and each copy's
-                     * own time is a sample.
+                     * own time is a sample; the copy that finishes first
+                     * keeps hashing until the other has finished (#105).
                      */
                     // Each placement the machine has, its two copies on
                     // the pair of CPUs the topology names (Placement).
-                    let copies: Vec<(Placement, [Vec<DuoCopy>; 2])> = Placement::ALL
+                    let copies: Vec<(Placement, [DuoWork; 2])> = Placement::ALL
                         .into_iter()
                         .filter(|&p| Scenario::Shared(p).measures(algorithm, point.use_case))
                         .map(|p| {
@@ -2988,7 +2989,16 @@ fn measure_all(
                     // In pairs, copy 0's i-th sample beside copy 1's.
                     for (placement, [first, second]) in &copies {
                         let i = placement.index();
-                        for copy in first.iter().zip(second).flat_map(|(a, b)| [a, b]) {
+                        debug_assert!(
+                            both_contended(first, second),
+                            "each copy's last sample began before the other's work ended"
+                        );
+                        for copy in first
+                            .samples
+                            .iter()
+                            .zip(&second.samples)
+                            .flat_map(|(a, b)| [a, b])
+                        {
                             samples.shared[i][algorithm_index][size_index]
                                 .push(per_unit(copy.elapsed_ns));
                             samples.shared_started_ns[i][algorithm_index][size_index]
@@ -5249,10 +5259,34 @@ struct Duo {
     ready: std::sync::atomic::AtomicUsize,
     /// Advances once both copies are ready: the release.
     generation: std::sync::atomic::AtomicU64,
-    /// Each copy's samples (its train's, in order); None while a copy is
-    /// still running.
-    finished: std::sync::Mutex<[Option<Vec<DuoCopy>>; 2]>,
+    /// Copies still taking their samples. The copy that finishes first
+    /// keeps hashing, unsampled, until this reaches zero, so the other's
+    /// last samples are taken under contention like its first (#105: the
+    /// tail ran alone, about 1% optimistic).
+    sampling: std::sync::atomic::AtomicUsize,
+    /// Each copy's finished work; None while a copy is still running.
+    finished: std::sync::Mutex<[Option<DuoWork>; 2]>,
     done: std::sync::Condvar,
+}
+
+/// One copy's work for a job: its train's samples, in order, and when its
+/// work ended (the load windows' scale), after the other copy's last
+/// sample began.
+struct DuoWork {
+    samples: Vec<DuoCopy>,
+    worked_until_ns: u64,
+}
+
+/// Whether each copy's last sample began while the other copy still
+/// worked: the shared contract (#105), which Duo keeps by having the copy
+/// that finishes first hash on until the other has finished.
+fn both_contended(first: &DuoWork, second: &DuoWork) -> bool {
+    let began_under = |copy: &DuoWork, other: &DuoWork| {
+        copy.samples
+            .last()
+            .is_none_or(|last| last.started_ns <= other.worked_until_ns)
+    };
+    began_under(first, second) && began_under(second, first)
 }
 
 /// One copy's part of a duo sample: nanoseconds from its own start to its
@@ -5307,6 +5341,7 @@ impl Duo {
             posted: std::sync::Condvar::new(),
             ready: AtomicUsize::new(0),
             generation: AtomicU64::new(0),
+            sampling: AtomicUsize::new(0),
             finished: std::sync::Mutex::new([None, None]),
             done: std::sync::Condvar::new(),
         }));
@@ -5332,7 +5367,7 @@ impl Duo {
         iterations: usize,
         train: Train,
         cpus: [usize; 2],
-    ) -> [Vec<DuoCopy>; 2] {
+    ) -> [DuoWork; 2] {
         use std::sync::atomic::Ordering;
         assert_eq!(
             input.len(),
@@ -5351,6 +5386,7 @@ impl Duo {
                 cpus,
                 taken: 0,
             });
+            self.sampling.store(2, Ordering::Release);
             self.posted.notify_all();
         }
         /*
@@ -5431,8 +5467,16 @@ impl Duo {
             let samples: Vec<DuoCopy> = (0..job.train.samples)
                 .map(|_| take_sample(job.algorithm, input, job.point, job.iterations))
                 .collect();
+            self.sampling.fetch_sub(1, Ordering::AcqRel);
+            while self.sampling.load(Ordering::Acquire) > 0 {
+                take_sample(job.algorithm, input, job.point, job.iterations);
+            }
+            let worked_until_ns = clocks::load::now_ns();
             let mut finished = self.finished.lock().unwrap();
-            finished[copy] = Some(samples);
+            finished[copy] = Some(DuoWork {
+                samples,
+                worked_until_ns,
+            });
             self.done.notify_all();
         }
     }
@@ -7942,6 +7986,46 @@ mod correctness_tests {
     }
 
     /// A nonstop cell's visit is a train (Train): its warm-up, then its
+    /// Every shared sample is taken under contention (#105): over many
+    /// duo jobs of short calls, where one copy is often a call or more
+    /// ahead, each copy's last sample began before the other's work
+    /// ended. Control: with the finishing copy's tail loop removed from
+    /// Duo::worker, this failed 10 of 10 runs (November 2).
+    #[test]
+    fn shared_samples_are_all_contended() {
+        blake3_servil::initialize_multithreaded(None);
+        let duo = Duo::new();
+        let pair = topology()
+            .pair(Placement::OneCache)
+            .expect("a machine with two cores");
+        let point = POINTS[point("64 B", UseCase::ContinuousMessages)];
+        let (input, other) = (make_input_seeded(64, 0), make_input_seeded(64, 1));
+        let train = Train {
+            warm_ns: 100_000,
+            samples: 200,
+        };
+        for _ in 0..30 {
+            let [first, second] = duo.run(
+                Algorithm::Blake3ServilMt,
+                &input,
+                &other,
+                point,
+                1,
+                train,
+                pair,
+            );
+            assert_eq!(first.samples.len(), 200);
+            assert!(
+                both_contended(&first, &second),
+                "copy 0's last sample began at {}, copy 1's at {}; work ended at {} and {}",
+                first.samples.last().unwrap().started_ns,
+                second.samples.last().unwrap().started_ns,
+                first.worked_until_ns,
+                second.worked_until_ns
+            );
+        }
+    }
+
     /// samples back to back, solo and in the two shared copies; a call
     /// after a gap stays one sample a visit.
     #[test]
