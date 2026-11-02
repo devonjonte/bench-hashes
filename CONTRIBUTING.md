@@ -79,13 +79,20 @@ cd bench-hashes && "$(cargo run --release --quiet -- build-against ../BLAKE3)" -
 ```
 
 `check` builds in directories of its own (the fork's `target/check/`), and
-`build-against DIR` in DIR's `target/build-against/`, each from a copy of
+`build-against DIR` in DIR's `target/bench-hashes-build/` (a directory of
+DIR's own there, under a shared `CARGO_TARGET_DIR`), each from a copy of
 this repository whose `Cargo.lock` points at the fork checkout, and leaves
 your checkouts' files as they were. It chooses the cells a
 change touches from coverage, with the toolchain's `llvm-profdata` and
 `llvm-cov` (`rustup component add llvm-tools`). Run the executable from a
 scratch directory (it writes `benchmark-results/` there); the report
-names the fork checkout's commit and whether its tree was clean. The fork's `CONTRIBUTING.md` covers the
+names the fork checkout's commit and whether its tree was clean.
+`build-against` prints an executable in a directory named for both
+builds, as `bench-hashes provenance` prints them: each checkout's commit
+and its tree's state (`clean`, or a dirty tree's sigil). So a path kept
+from an earlier build runs what it names. `regress` and `compare` print
+each side's builds the same way, and say so when both sides are one
+build. The fork's `CONTRIBUTING.md` covers the
 fork's own tests and its performance-regression check, which runs this
 benchmark.
 

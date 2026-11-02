@@ -1934,7 +1934,10 @@ cell sampled in a share of them.
   bench-hashes compare OLD.tsv... -- NEW.tsv...
                                    compare runs' samples files in pairs (the
                                    i-th old with the i-th new), each cell's
-                                   verdict as regress gives it
+                                   verdict as regress gives it, after each
+                                   side's builds (as provenance prints them)
+  bench-hashes provenance          this build's bench-hashes and BLAKE3 servil
+                                   commits, each with its tree's state
   bench-hashes regress [--full | --contenders A,B [--points P,Q]] OLD_EXE... -- NEW_EXE...
                                    whether the new build is slower: pair i
                                    runs the i-th of each side (fresh
@@ -2200,6 +2203,65 @@ fn sizes_stale(roster: &Roster, samples: &RunSamples, iterations: &[Vec<usize>])
     None
 }
 
+/// A build's provenance in one line: bench-hashes' commit and BLAKE3
+/// servil's, each with its tree's state (`clean`, or a dirty tree's
+/// fingerprint), as the build records them (`servil_info` is
+/// BLAKE3_SERVIL_SOURCE_INFO, or "" where a run measured no servil).
+/// `compare` and `regress` print each side's, and `build-against` names
+/// its executable's directory after it (`bench-hashes provenance`).
+fn provenance(bench_commit: &str, bench_status: &str, servil_info: &str) -> String {
+    let servil = match servil_info
+        .split("; ")
+        .find_map(|f| f.strip_prefix("commit "))
+    {
+        Some(commit) => format!(
+            "servil {} {}",
+            &commit[..12],
+            servil_info
+                .rsplit("; ")
+                .next()
+                .expect("a status after the commit")
+        ),
+        None => "no servil".to_owned(),
+    };
+    format!("bench {} {bench_status}; {servil}", &bench_commit[..12])
+}
+
+/// A samples file's provenance (provenance), from its headers.
+fn file_provenance(file: &SamplesFile) -> String {
+    let header = |key: &str| {
+        file.headers
+            .iter()
+            .find(|(k, _)| k == key)
+            .map_or("", |(_, v)| v.as_str())
+    };
+    let servil = file
+        .headers
+        .iter()
+        .find(|(k, _)| k.starts_with("source blake3-servil"))
+        .map_or("", |(_, v)| v.as_str());
+    provenance(header("git commit"), header("git clean status"), servil)
+}
+
+/// Each side's builds, as `compare` and `regress` print them (`tool: old
+/// side: ...`), and a line saying so where both sides are one build: the
+/// comparison is then an A/A, whether or not it was meant as one.
+fn print_sides(tool: &str, old: &[String], new: &[String]) {
+    print!("{}", sides(tool, old, new));
+}
+
+fn sides(tool: &str, old: &[String], new: &[String]) -> String {
+    let mut text = format!(
+        "{tool}: old side: {}\n{tool}: new side: {}\n",
+        old.join(" | "),
+        new.join(" | ")
+    );
+    if old == new {
+        text += &format!("{tool}: both sides are one build: an A/A comparison\n");
+    }
+    text
+}
+
 /// Stops unless `info` (this build's BLAKE3_SERVIL_SOURCE_INFO) names the
 /// fork at `commit` from a clean tree: `--expect-servil`.
 fn expect_servil(commit: &str, info: &str) {
@@ -2440,6 +2502,14 @@ fn main() {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     if arguments.first().map(String::as_str) == Some("compare") {
         return compare_command(&arguments[1..]);
+    }
+    if arguments.first().map(String::as_str) == Some("provenance") {
+        assert!(arguments.len() == 1, "usage: bench-hashes provenance");
+        println!(
+            "{}",
+            provenance(GIT_COMMIT, GIT_CLEAN_STATUS, BLAKE3_SERVIL_SOURCE_INFO)
+        );
+        return;
     }
     if arguments.first().map(String::as_str) == Some("check") {
         std::process::exit(check::command(&arguments[1..]));
@@ -6199,8 +6269,13 @@ fn compare_command(arguments: &[String]) {
     // Each cell's mean wall time per unit, and (where its samples carry
     // them) its CPU time and energy per unit: all the samples' CPU time, or
     // energy, over their units, in the same fixed point.
-    let means = |path: &String| {
+    let (mut old_builds, mut new_builds) = (Vec::new(), Vec::new());
+    let means = |path: &String, builds: &mut Vec<String>| {
         let file = read_samples(path);
+        let build = file_provenance(&file);
+        if !builds.contains(&build) {
+            builds.push(build);
+        }
         if clocks::load::MEASURED && !file.load.starts_with("quiet") {
             println!(
                 "{path}: {}: its samples are no evidence of speed",
@@ -6232,11 +6307,12 @@ fn compare_command(arguments: &[String]) {
     let mut order: Vec<String> = Vec::new();
     let mut cells: crate::Map<String, (Pairs, Pairs, Pairs)> = crate::Map::default();
     for (old_path, new_path) in old.iter().zip(new) {
-        let new_means: crate::Map<String, (u128, Option<u128>, Option<u128>)> = means(new_path)
-            .into_iter()
-            .map(|(k, m, c, e)| (k, (m, c, e)))
-            .collect();
-        for (key, old_mean, old_cpu, old_energy) in means(old_path) {
+        let new_means: crate::Map<String, (u128, Option<u128>, Option<u128>)> =
+            means(new_path, &mut new_builds)
+                .into_iter()
+                .map(|(k, m, c, e)| (k, (m, c, e)))
+                .collect();
+        for (key, old_mean, old_cpu, old_energy) in means(old_path, &mut old_builds) {
             let Some(&(new_mean, new_cpu, new_energy)) = new_means.get(&key) else {
                 continue;
             };
@@ -6253,6 +6329,7 @@ fn compare_command(arguments: &[String]) {
             }
         }
     }
+    print_sides("compare", &old_builds, &new_builds);
     // Only cells every pair measured.
     order.retain(|key| cells[key].0.len() == old.len());
     let tested: Vec<Pairs> = order.iter().map(|key| cells[key].0.clone()).collect();
@@ -6623,6 +6700,7 @@ fn regress_command(arguments: &[String]) -> i32 {
     }
     let mut unreliable = Vec::new();
     let mut powers: Vec<String> = Vec::new();
+    let (mut old_builds, mut new_builds): (Vec<String>, Vec<String>) = (Vec::new(), Vec::new());
     let mut ratios: std::collections::BTreeMap<String, Vec<u64>> =
         std::collections::BTreeMap::new();
     let mut pairs_means: std::collections::BTreeMap<String, Vec<(u128, u128)>> =
@@ -6636,6 +6714,15 @@ fn regress_command(arguments: &[String]) -> i32 {
             .map(|dir| dir.join(format!("run-{run_index:03}-{side}.tsv")));
         let side_sizes = if side == "old" { &old_sizes } else { &sizes };
         let (file, load) = regress_run(exe, rounds, &scope, side_sizes, kept.as_deref());
+        let builds = if side == "old" {
+            &mut old_builds
+        } else {
+            &mut new_builds
+        };
+        let build = file_provenance(&file);
+        if !builds.contains(&build) {
+            builds.push(build);
+        }
         if !powers.contains(&file.power) {
             powers.push(file.power.clone());
         }
@@ -6702,6 +6789,7 @@ fn regress_command(arguments: &[String]) -> i32 {
             tenths % 10
         );
     }
+    print_sides("regress", &old_builds, &new_builds);
     let power = format!("regress: power during the check: {}", powers.join("; "));
     if !unreliable.is_empty() {
         println!("regress: other programs kept the machine busy, or clocks saw no load window, during {} runs. No verdict (exit 2); run again when nothing else runs on the machine.", unreliable.len());
@@ -7610,6 +7698,37 @@ mod correctness_tests {
 
     /// This build's own status: `clean`, or a fingerprint (above) that
     /// decodes to 32 bytes.
+    /// A build's line names both commits and both trees' states, and the
+    /// A/A line appears exactly where the two sides' builds are one.
+    #[test]
+    fn each_side_names_its_builds() {
+        let (bench, servil) = (
+            "1c1958de1234567890abcdef1234567890abcdef",
+            "68fd3e57d4a805dff77981d5ac223b309c97989f",
+        );
+        let info = |status: &str| {
+            format!("blake3-servil 0.8.0 (local checkout); source ..; branch HEAD; commit {servil}; {status}")
+        };
+        let clean = provenance(bench, "clean", &info("clean"));
+        assert_eq!(clean, "bench 1c1958de1234 clean; servil 68fd3e57d4a8 clean");
+        let dirty = provenance(bench, "clean", &info("dirty-ᕖᣇጎ"));
+        assert_eq!(
+            dirty,
+            "bench 1c1958de1234 clean; servil 68fd3e57d4a8 dirty-ᕖᣇጎ"
+        );
+        assert_eq!(
+            provenance(bench, "clean", ""),
+            "bench 1c1958de1234 clean; no servil"
+        );
+        let one = sides("compare", &[clean.clone()], &[clean.clone()]);
+        assert!(one.ends_with("compare: both sides are one build: an A/A comparison\n"));
+        let two = sides("compare", &[clean.clone()], &[dirty.clone()]);
+        assert_eq!(
+            two,
+            format!("compare: old side: {clean}\ncompare: new side: {dirty}\n")
+        );
+    }
+
     #[test]
     fn a_dirty_status_is_a_sigil_of_its_hash() {
         if let Some(sigil) = GIT_CLEAN_STATUS.strip_prefix("dirty-") {

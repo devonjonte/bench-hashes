@@ -545,8 +545,28 @@ pub fn build_against_command(arguments: &[String]) -> i32 {
         &build_against_dir(&target, &checkout, shared.is_some()),
         "build-against",
     );
-    println!("{}", exe.display());
+    println!("{}", named_for_provenance(&exe).display());
     0
+}
+
+/// `exe`, copied into a directory beside it named for its provenance
+/// (`bench-hashes provenance`: the bench's commit and the fork's, each with
+/// its tree's state): a path kept from an earlier build still runs what it
+/// names, and whoever holds the path can tell what it measures.
+fn named_for_provenance(exe: &Path) -> PathBuf {
+    let out = Command::new(exe)
+        .arg("provenance")
+        .output()
+        .expect("the build runs");
+    assert!(out.status.success(), "{} provenance failed", exe.display());
+    let line = String::from_utf8(out.stdout).expect("UTF-8");
+    let name = line.trim_end().replace("; ", "_").replace(' ', "-");
+    let dir = exe.parent().expect("a directory").join(&name);
+    std::fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("{}: {e}", dir.display()));
+    let named = dir.join("bench-hashes");
+    std::fs::copy(exe, &named).unwrap_or_else(|e| panic!("{}: {e}", named.display()));
+    eprintln!("build-against: {}", line.trim_end());
+    named
 }
 
 /// Where `build-against` builds for `checkout`, inside `target`: its

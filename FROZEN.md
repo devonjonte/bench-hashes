@@ -19,8 +19,9 @@ of runs: `clocks::summary`), the load rule (`clocks::load`), the
 regression check (`bench-hashes regress`: its points, its pairs, its
 margin of 3%), and the
 presentation (the map and the report, their layout and
-their words). A change to any of these, a bug fix included, is Zooko's
-decision, recorded here with its date and reason, and it starts a new
+their words). A change to any of these, a bug fix included, is John
+Servil's decision (Zooko, November 2, 2026: a momentous, uncertain one
+waits for Zooko), recorded here with its date and reason, and it starts a new
 release, so results of different benchmarks are never read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
