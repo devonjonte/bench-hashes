@@ -12,13 +12,18 @@ it measures, and keep your results comparable with ours.
   `src/overview.html`, the overview page; `src/chart.rs`, the charts;
   `src/b3sum.rs`, `bench-hashes b3sum`; `src/leaves.rs`, `bench-hashes
   leaves`; `src/fingerprint.rs`, a dirty tree's fingerprint, shared with
-  `build.rs`.
+  `build.rs`; `src/harness_tests.rs`, tests of the benchmark's own work
+  (zeroing, orders, the output directory); `src/diag_alloc.rs`,
+  diagnostic allocators for the cache-line study (#65), never a
+  measurement configuration.
 - `build.rs`: embeds the provenance (this repository's commit and state,
   and each contender crate's version and source).
 - `tools/`: `samples.py` reads samples files for the Python studies
   (`points.py`, `settle.py`, `variance.py`); `b3sum-contenders.py` builds
   b3sum's contenders; `gen-ver.py` makes a release; `graph-check/map.js`
-  drives the map in Chromium (its README says how).
+  drives the map in Chromium (its README says how); `require_nextest.rs`,
+  included by every crate's tests, fails under plain `cargo test` and
+  says to use nextest.
 - `bench-hashes compare OLD.tsv... -- NEW.tsv...`: compares runs'
   samples files in pairs (the i-th old with the i-th new), each cell
   judged by its pairs' ratios as `regress` judges.
