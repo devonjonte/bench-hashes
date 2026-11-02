@@ -38,7 +38,7 @@ that [Releases](https://github.com/johnservil/bench-hashes/releases)
 lists.
 
 The first build takes a minute or two; the run then measures for about
-a minute and needs about 1 GB of free memory. The numbers come out most
+two minutes (on an Apple M4 Max) and needs about 1 GB of free memory. The numbers come out most
 accurate when nothing else busy runs on the computer meanwhile.
 
 ## Read your results
