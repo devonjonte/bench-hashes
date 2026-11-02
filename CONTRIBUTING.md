@@ -11,7 +11,7 @@ it measures, and keep your results comparable with ours.
   `src/map.rs` and `src/map.html`, the map; `src/overview.rs` and
   `src/overview.html`, the overview page; `src/chart.rs`, the charts;
   `src/b3sum.rs`, `bench-hashes b3sum`; `src/leaves.rs`, `bench-hashes
-  leaves`; `src/fingerprint.rs`, a dirty tree's fingerprint, shared with
+  leaves`; `src/crowd.rs`, `bench-hashes crowd` (many programs at once); `src/fingerprint.rs`, a dirty tree's fingerprint, shared with
   `build.rs`; `src/harness_tests.rs`, tests of the benchmark's own work
   (zeroing, orders, the output directory); `src/diag_alloc.rs`,
   diagnostic allocators for the cache-line study (#65), never a
@@ -187,6 +187,9 @@ machine runs again. In order:
      read-from-storage cells as not measured. A VM's storage is a disk
      image on its host, which may serve the reads from its own memory;
      that is what a program in the VM meets.
+   - the crowd run, `bench-hashes crowd` from the same executable: one
+     program a CPU, so a release's number for the pool under
+     oversubscription is on record (`crowd.samples.tsv`).
 
    Check each report names the commit you meant, before you read its numbers.
 5. **The results:** each machine's folder under `benchmark-results/` as
