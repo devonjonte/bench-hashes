@@ -189,7 +189,8 @@ interval takes two samples of the same batch:
 - **Shared**, for the multithreaded contenders at the tasks that hash
   one input after another: two independent copies at once, each on its
   own thread over its own input, released together; each copy's own time
-  is a sample. What two copies share sets what they cost each other, so
+  is a sample, and the copy that finishes first keeps hashing, unsampled,
+  until the other has finished, so every sample is taken under contention. What two copies share sets what they cost each other, so
   each copy's thread is pinned for the job to a chosen CPU (Linux): two
   physical cores under **one last-level cache**, and where the machine
   has two, also under **two**, a layer each (FROZEN.md, "Changes for
