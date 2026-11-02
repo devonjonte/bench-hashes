@@ -1,4 +1,9 @@
-# The bench's work between the gap and the call sets the after-other-work figures (i7-12700K, November 2)
+# RETRACTED: the "pre-call syscalls" effect was my experiment's artifact (i7-12700K, November 2)
+
+**Correction (run3, run4):** variant B had removed the bench's timing-path warm-up (a counts read and a clock read *before* the input's write, which keep the interval's own closing `now()` warm). Without it, the cold `Instant::now()` after 1 MiB of code eviction was measured inside the interval: about 430 ns, the whole "effect". With that warm-up kept and nothing between the write and the call (`regress4-warm`), every cell is level with the bench as it is (x0.93-1.00). Variants that put a perf read or a 2 us spin between write and call (`regress3-*`) read x3-6 slower for the same reason, the clock path colder still. The bench's design, and its comment ("warms its own timing path, so the interval measures the call"), were right. The original text follows for the record.
+
+---
+
 
 **Question** (from Sam's #106 finding that a read placed before the call
 hid the Xeon's wake effect): does what `clocks::measure_after_gaps_prepared`
