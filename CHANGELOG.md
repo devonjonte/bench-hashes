@@ -1,5 +1,9 @@
 # Changes
 
+## 0.19.5
+
+**Every result carries its whole record.** A map's "About this run" lists everything the run recorded: the exact commit of each program measured, each library's archive hash, the compiler, the CPU and its features, power and load. Each chart draws its record into the image, so a chart shared alone still says where it came from. On a phone, the overview keeps its row names in view as you scroll.
+
 ## 0.19.4+222a04421d109ca50f0498f2b4bd7afcc9b096d6
 
 These are the changes since 0.18.3, which drew the published results for BLAKE3-Servil 0.8. The two versions measure "one input after another" differently, so compare results only with others from the same version.

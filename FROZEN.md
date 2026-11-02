@@ -105,6 +105,14 @@ anything", John Servil releasing it):
   saving 12 minutes without losing sensitivity"): its 4 pairs choose the
   suspects as well as 8 did on #119, ranked by evidence, and the 64-pair
   second stage stays. About 12 minutes less a check.
+- **0.19.5: the record shown whole** (Devon Jonte, bench #103, #104,
+  #107). A dirty tree's fingerprint is its BLAKE3 hash written as a sigil.
+  The map's "About this run" lists every header line, each chart draws
+  its record into the image (machine, date, the bench's and BLAKE3-Servil's
+  commits, the compiler), and the overview links each machine's record.
+  A phone keeps the grid's row names in view; a map's layer shows its own
+  rows and columns; a cell's call name fits. What a run measures is as
+  0.19.0's.
 - **Studies read samples in Python** (`tools/samples.py`): `means` and
   `settle` left the program for `tools/points.py` and `tools/settle.py`,
   beside `tools/variance.py`; comparisons and verdicts stay in it.
