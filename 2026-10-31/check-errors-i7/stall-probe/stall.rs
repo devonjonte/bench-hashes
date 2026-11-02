@@ -1,4 +1,4 @@
-const THRESH: u64 = 36_000; // 10 us
+const THRESH: u64 = 36_000; // 10 us: the stalls listed with their gaps
 // Back-to-back slices of ~4 us of work, timed with the TSC; prints how
 // many slices took over 5x the median, the extra time they cost, and the
 // slice count, over a fixed duration. Run pinned (taskset).
