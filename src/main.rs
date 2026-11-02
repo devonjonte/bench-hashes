@@ -7090,8 +7090,21 @@ mod correctness_tests {
         (results, samples)
     }
 
-    /// A dirty tree's status is its changes' BLAKE3 hash as a sigil
-    /// (build.rs): `dirty-` and 26 characters that decode to 32 bytes.
+    include!("fingerprint.rs");
+
+    /// The fingerprint build.rs writes, on a fixed hash: Sigil's own vector,
+    /// BLAKE3 of the empty input (johnservil/sigil's README), and it reads
+    /// back to the same bytes.
+    #[test]
+    fn a_fingerprint_is_the_sigil_of_the_hash() {
+        let hash = *blake3::hash(b"").as_bytes();
+        assert_eq!(fingerprint(&hash), "dirty-ᕖᣇጎʗƾኖᣊⷈeᑭɨᣫѯᖣቀⷃᣡᗯᕜᑡᔮᣥዲᑮᘜᒬ");
+        let sigil = fingerprint(&hash)["dirty-".len()..].to_owned();
+        assert_eq!(sigilcode::decode(&sigil, 32).unwrap(), hash);
+    }
+
+    /// This build's own status: `clean`, or a fingerprint (above) that
+    /// decodes to 32 bytes.
     #[test]
     fn a_dirty_status_is_a_sigil_of_its_hash() {
         if let Some(sigil) = GIT_CLEAN_STATUS.strip_prefix("dirty-") {
