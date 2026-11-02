@@ -160,13 +160,14 @@ anything", John Servil releasing it):
   (two sockets), each copy moves its input's pages to its CPU's node
   before it runs, as a program's own memory would be (Sam, November 2).
   The header's `shared placements` line names the CPUs, and the nodes
-  where it applies.
+  where it applies. macOS offers no thread affinity, so there the
+  scheduler still places the copies and the line says none. The pool's
+  fairness between two callers is the fork's `tests/pool_fairness.rs`
+  (BLAKE3 #215) besides.
 - **Every shared sample is contended** (#105): the copy that finishes
   its train first keeps hashing, unsampled, until the other has finished.
   Before, the slower copy's last samples ran alone, about 1% optimistic
-  in 0.19 (7% in 0.18, whose copies were uneven). macOS offers no thread affinity, so there the scheduler still
-  places the copies and the line says none. The pool's fairness between two callers is
-  the fork's `tests/pool_fairness.rs` (BLAKE3 #215) besides.
+  in 0.19 (7% in 0.18, whose copies were uneven).
 
 **Changes for the next release** (Zooko, October 16, 2026):
 - **The batch calls take a `Batch`** (Zooko, October 28; BLAKE3 #205):
