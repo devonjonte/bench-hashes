@@ -4,6 +4,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+include!("src/fingerprint.rs");
+
 fn hash_framed(hasher: &mut Hasher, label: &[u8], contents: &[u8]) {
     hasher.update(&(label.len() as u64).to_le_bytes());
     hasher.update(label);
@@ -351,7 +353,7 @@ fn git_state(repository: &Path, skip: &[&str]) -> GitState {
             hash_framed(&mut hasher, b"untracked contents", &contents);
         }
 
-        format!("dirty-{}", sigilcode::encode(hasher.finalize().as_bytes()))
+        fingerprint(hasher.finalize().as_bytes())
     };
 
     GitState {
