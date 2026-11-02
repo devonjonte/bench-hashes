@@ -156,7 +156,7 @@ pub fn command(arguments: &[String]) -> i32 {
             other => panic!("unknown option {other}\n{usage}"),
         }
     }
-    let bench = std::env::current_dir().expect("the current directory");
+    let bench = bench_checkout("check", usage);
     let fork = fork_checkout(
         &fork.unwrap_or_else(|| panic!("check: --fork DIR names the fork's checkout\n{usage}")),
     );
@@ -492,6 +492,32 @@ fn side(fork: &Path, bench: &Path, cache: &Path, name: &str, commit: &str) -> Pa
 /// executable's path on stdout (the Mac runner's benchmark jobs, and a
 /// maintainer measuring the working tree, run it from there). The two
 /// checkouts sit anywhere; neither holds the other.
+/// The bench `check` and `build-against` copy and build: the current
+/// directory, which must be a bench-hashes checkout. Run from anywhere else,
+/// they once copied that directory as the bench and stopped on a missing
+/// file, with no word of why (BLAKE3 #196's runs, from a scratch directory).
+fn bench_checkout(command: &str, usage: &str) -> PathBuf {
+    let dir = std::env::current_dir().expect("the current directory");
+    if let Err(why) = is_bench_checkout(&dir) {
+        panic!("{command}: run it from the bench-hashes checkout it should build: {why}\n{usage}");
+    }
+    dir
+}
+
+/// Whether `dir` is a bench-hashes checkout: its Cargo.toml names the
+/// package and it has the sources.
+fn is_bench_checkout(dir: &Path) -> Result<(), String> {
+    let toml = std::fs::read_to_string(dir.join("Cargo.toml"))
+        .map_err(|_| format!("{} has no Cargo.toml", dir.display()))?;
+    if toml.lines().any(|l| l.trim() == "name = \"bench-hashes\"")
+        && dir.join("src/main.rs").is_file()
+    {
+        Ok(())
+    } else {
+        Err(format!("{} is not a bench-hashes checkout", dir.display()))
+    }
+}
+
 pub fn build_against_command(arguments: &[String]) -> i32 {
     let usage = "usage: bench-hashes build-against DIR    (DIR: a checkout of the fork)";
     let [dir] = arguments else { panic!("{usage}") };
@@ -500,7 +526,7 @@ pub fn build_against_command(arguments: &[String]) -> i32 {
         checkout.join("Cargo.toml").exists() && checkout.join("c").is_dir(),
         "{dir} is no checkout of the fork\n{usage}"
     );
-    let bench = std::env::current_dir().expect("the current directory");
+    let bench = bench_checkout("build-against", usage);
     // Where Cargo would build (CARGO_TARGET_DIR where set: the VM builds on
     // a tmpfs, since its shared mount runs no executable), else the
     // checkout's target/.
@@ -1579,6 +1605,28 @@ fn manifest_builds_differently(fork: &Path, old: &str, new: &str, manifest: &str
 
 #[cfg(test)]
 mod tests {
+    /// `check` and `build-against` build the bench in the current directory:
+    /// this checkout is one; an empty directory and another package aren't.
+    #[test]
+    fn only_a_bench_checkout_is_taken_for_the_bench() {
+        use super::is_bench_checkout;
+        assert_eq!(
+            is_bench_checkout(std::path::Path::new(env!("CARGO_MANIFEST_DIR"))),
+            Ok(())
+        );
+        let dir = std::env::temp_dir().join(format!("bench-checkout-test-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        assert!(is_bench_checkout(&dir)
+            .unwrap_err()
+            .contains("has no Cargo.toml"));
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"other\"\n").unwrap();
+        std::fs::write(dir.join("src/main.rs"), "fn main() {}\n").unwrap();
+        assert!(is_bench_checkout(&dir)
+            .unwrap_err()
+            .contains("is not a bench-hashes checkout"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     /// Each link runs again in turn, so neighbouring pairs keep different
     /// links (a link run twice in a row would pair its runs' drift).
     #[test]
