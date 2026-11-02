@@ -23,6 +23,10 @@ th { border-top: none; vertical-align: bottom; } th.stale { max-width: 180px; }
 th a { color: #4c1d95; text-decoration: none; } th b { font-size: 15px; } th span { display: block; color: #9ca3af; font-size: 12px; font-weight: normal; margin-top: 2px; }
 th span.stale { color: #6b7280; } th a.run { color: inherit; } th a.run:hover { text-decoration: underline; }
 th.situation, td.situation { min-width: 150px; max-width: 170px; font-size: 12px; font-weight: 600; color: #6b7280; cursor: help; }
+/* On a narrow screen the grid scrolls sideways to its other machines; the
+   row's name stays in view, so every bar says what it measures. */
+td.situation, th.situation { position: sticky; left: 0; background: #fff; z-index: 1; }
+@media (max-width: 600px) { th.situation, td.situation { min-width: 96px; max-width: 110px; } }
 td.situation .pt { display: block; color: #9ca3af; font-size: 11px; font-weight: normal; }
 /* A family's other machines wait out of sight until the door swaps one in. */
 .alt { display: none !important; }

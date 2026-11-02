@@ -361,25 +361,31 @@ function render() {
         lay.onclick = () => lay.classList.toggle("show");
         box.appendChild(lay);
       }
-      const g = document.createElement("div"); g.className = "grid"; g.style.setProperty("--cols", S.cols.length); box.appendChild(g);
+      // The layer's own rows and columns: a column no row of this layer
+      // measures, or a row no column measures, is left out (two programs
+      // at once run the nonstop calls alone, so its grid is two columns).
+      const has = (r, c) => S.cells[`${layer}|${r}|${c}`];
+      const cols = S.cols.filter(([c]) => S.rows.some(([r]) => has(r, c)));
+      const rows = S.rows.filter(([r]) => cols.some(([c]) => has(r, c)));
+      const g = document.createElement("div"); g.className = "grid"; g.style.setProperty("--cols", cols.length); box.appendChild(g);
       GRIDS.push(g);
       g.appendChild(document.createElement("div"));
       g.appendChild(document.createElement("div"));
-      for (const [c, cname, cmeans] of S.cols) {
+      for (const [c, cname, cmeans] of cols) {
         const h = document.createElement("div"); h.className = "h";
         h.innerHTML = glyph(c) + cname + `<span class="means">${cmeans}</span>`; h.dataset.key = "col:" + c; h.onclick = () => h.classList.toggle("show"); g.appendChild(h);
       }
-      for (const [r, rname, rmeans] of S.rows) {
+      for (const [r, rname, rmeans] of rows) {
         const h = document.createElement("div"); h.className = "h row";
         h.innerHTML = glyph(r) + `<span>${rname}</span><span class="means">${rmeans}</span>`; h.dataset.key = "row:" + r; h.onclick = () => h.classList.toggle("show"); g.appendChild(h);
         const ax = document.createElement("div"); ax.className = "axis-cell"; ax.innerHTML = rowAxis(); g.appendChild(ax);
-        for (const [c] of S.cols) {
+        for (const [c] of cols) {
           const cell = document.createElement("div"); cell.className = "cell";
           const key = `${layer}|${r}|${c}`, q = S.cells[key];
           if (q) {
             const nothing = (MEASURES.wall || MEASURES.cpu || MEASURES.energy) && !MEASURES.wall && !(MEASURES.cpu && q.cpu.some(Boolean)) && !(MEASURES.energy && q.energy.some(Boolean));
             const d = draw(S, q, 208, 94, false);
-            cell.innerHTML = d.svg + (nothing ? `<span class="note">nothing selected is recorded for this way of calling</span>` : "") + `<span class="call"><a class="doc" href="${q.doc}" target="_blank" title="${q.call}: its documentation">${q.call}</a></span>`;
+            cell.innerHTML = d.svg + (nothing ? `<span class="note">nothing selected is recorded for this way of calling</span>` : "") + `<span class="call"><a class="doc" href="${q.doc}" target="_blank" title="${q.call}: its documentation">${q.call.split("::").pop()}</a></span>`;
             if (!nothing) hoverTip(cell, S, q, d);
             cell.querySelector("a.doc").onclick = e => e.stopPropagation();
             cell.dataset.key = si + ":" + key;
