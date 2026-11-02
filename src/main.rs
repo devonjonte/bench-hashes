@@ -1486,6 +1486,9 @@ struct MachineMetadata {
     /// that report the same brand (every Linux VM on Apple silicon says
     /// "aarch64") can be told apart: see cpu_identity.
     cpu_identity: String,
+    /// How the OS lets a core sleep when a thread waits, which sets what a
+    /// call after a pause costs: see idle_states.
+    idle_states: String,
     /// Other programs' load during the measuring phase, window by window
     /// (clocks::load), where the OS reports it (Linux, macOS; empty
     /// elsewhere); set once measuring ends.
@@ -6393,6 +6396,7 @@ fn samples_header(machine: &MachineMetadata, run: &[(String, String)]) -> String
         ("cpu count", machine.cpu_count.to_string().as_str()),
         ("os type", machine.os_type.as_str()),
         ("cpu identity", machine.cpu_identity.as_str()),
+        ("idle states", machine.idle_states.as_str()),
     ]
     .into_iter()
     .chain(
@@ -6745,6 +6749,7 @@ fn machine_metadata() -> MachineMetadata {
         cpu_count: cpus.len(),
         os_type,
         cpu_identity: cpu_identity(),
+        idle_states: idle_states(),
         load: Vec::new(),
         power: [Power::read(), None],
     }
@@ -6758,6 +6763,59 @@ fn machine_metadata() -> MachineMetadata {
  * the brand string and the core count of each performance level. Empty
  * where neither source exists.
  */
+/*
+ * The machine's idle states (bench-hashes #106): a call after a pause pays
+ * for the depth the core slept at, which Linux's idle governor chooses
+ * from recent history. On the i7-12700K a 16 x 64 B batch after 1 ms
+ * costs 13.5 ns a message after C1E, 25.8 after C6, 58.2 after C8; the
+ * EPYC 9255 runs no cpuidle driver and has no such modes; the Xeon Gold
+ * 6330 is 14 times slower than the EPYC in that cell, mostly this. Linux
+ * reports the driver and governor, and CPU 0's states as "NAME latency
+ * LAT us residency RES us" with "disabled" where a state is; "none" where
+ * no driver runs; other systems report no states ("not reported by this
+ * OS"), as the power line does.
+ */
+fn idle_states() -> String {
+    describe_idle_states(&|path| fs::read_to_string(path).ok())
+}
+
+fn describe_idle_states(read: &dyn Fn(&str) -> Option<String>) -> String {
+    let dir = "/sys/devices/system/cpu";
+    let Some(driver) = read(&format!("{dir}/cpuidle/current_driver")) else {
+        return "not reported by this OS".to_owned();
+    };
+    let driver = driver.trim();
+    if driver == "none" {
+        return "none".to_owned();
+    }
+    let governor = read(&format!("{dir}/cpuidle/current_governor"))
+        .map_or("?".to_owned(), |g| g.trim().to_owned());
+    let mut states = Vec::new();
+    for i in 0.. {
+        let state = format!("{dir}/cpu0/cpuidle/state{i}");
+        let Some(name) = read(&format!("{state}/name")) else {
+            break;
+        };
+        let field =
+            |f: &str| read(&format!("{state}/{f}")).map_or("?".to_owned(), |v| v.trim().to_owned());
+        states.push(format!(
+            "{} latency {} us residency {} us{}",
+            name.trim(),
+            field("latency"),
+            field("residency"),
+            if field("disable") == "1" {
+                " disabled"
+            } else {
+                ""
+            }
+        ));
+    }
+    format!(
+        "driver {driver}, governor {governor}; {}",
+        states.join(", ")
+    )
+}
+
 fn cpu_identity() -> String {
     let mut parts: Vec<String> = Vec::new();
     if let Ok(cpuinfo) = fs::read_to_string("/proc/cpuinfo") {
@@ -7296,6 +7354,57 @@ mod correctness_tests {
         assert_eq!(judged[0], judged[2]);
         assert_eq!(judged[0].verdict, clocks::summary::Verdict::Slower);
         assert_eq!(judged[1].verdict, clocks::summary::Verdict::Level);
+    }
+
+    /// The idle-states line from the three kinds of machine (#106): Linux
+    /// with a driver (the i7), Linux with none (the EPYC 9255), and a
+    /// system without cpuidle (the Mac).
+    #[test]
+    fn idle_states_line_from_each_kind_of_machine() {
+        let i7 = |path: &str| -> Option<String> {
+            let f = path.rsplit('/').next().unwrap();
+            if path.ends_with("cpuidle/current_driver") {
+                return Some("intel_idle\n".into());
+            }
+            if path.ends_with("cpuidle/current_governor") {
+                return Some("menu\n".into());
+            }
+            let states = [
+                ("POLL", "0", "0", "0"),
+                ("C1E", "2", "4", "0"),
+                ("C6", "220", "600", "1"),
+            ];
+            let n: usize = path
+                .split("state")
+                .nth(1)?
+                .split('/')
+                .next()?
+                .parse()
+                .ok()?;
+            let (name, lat, res, dis) = states.get(n)?;
+            Some(
+                match f {
+                    "name" => name,
+                    "latency" => lat,
+                    "residency" => res,
+                    "disable" => dis,
+                    _ => return None,
+                }
+                .to_string()
+                    + "\n",
+            )
+        };
+        assert_eq!(
+            describe_idle_states(&i7),
+            "driver intel_idle, governor menu; POLL latency 0 us residency 0 us, C1E latency 2 us residency 4 us, C6 latency 220 us residency 600 us disabled"
+        );
+        let epyc = |path: &str| -> Option<String> {
+            path.ends_with("current_driver")
+                .then(|| "none\n".to_owned())
+        };
+        assert_eq!(describe_idle_states(&epyc), "none");
+        let mac = |_: &str| -> Option<String> { None };
+        assert_eq!(describe_idle_states(&mac), "not reported by this OS");
     }
 
     /// The calibration cache gives back a file's sizes for its very

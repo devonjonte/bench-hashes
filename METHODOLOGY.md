@@ -209,7 +209,16 @@ other work, the calling core is at full clock with its caches holding the
 other program's code and data. After idling, the operating system has often lowered the core's clock or
 moved the thread. On an Apple M4 Max, 1 ms of sleep lowers the clock
 until roughly 85 µs of work raises it again, and multi-millisecond calls
-run near 3.8–4.0 GHz after idling against 4.5 GHz after other work. The cell's mean weighs these
+run near 3.8–4.0 GHz after idling against 4.5 GHz after other work. On
+Linux, what a call after idling costs follows how deeply the core slept,
+which the idle governor chooses from recent history: on an i7-12700K, a
+batch of 16 x 64 B after 1 ms costs 13.5 ns a message after C1E, 25.8
+after C6, 58.2 after C8; a machine with no cpuidle driver (an EPYC 9255)
+has no such modes, and a Xeon Gold 6330 pays 14 times the EPYC in that
+cell (bench-hashes #106). Each samples file records the machine's idle
+states (`idle states`: driver, governor, each state's latency and
+residency), so a reader can tell two machines', or two runs', states
+apart. The cell's mean weighs these
 states by how often they occur.
 
 A single-threaded hash costs about the same in both. A multithreaded one
