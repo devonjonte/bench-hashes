@@ -525,6 +525,7 @@ fn details(
         "dependency lock",
         "build target",
         "files",
+        "idle states",
         "contender",
     ];
     for (k, v) in headers.iter().filter(|(k, _)| {
