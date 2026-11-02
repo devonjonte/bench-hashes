@@ -8,7 +8,7 @@ names = ["POLL", "C1E", "C6", "C8", "C10"]
 for f in sys.argv[1:]:
     rows = [l.rstrip("\n").split("\t") for l in open(f) if not l.startswith("#")]
     first = defaultdict(list); steady = defaultdict(list); states = defaultdict(lambda: defaultdict(int)); c6share = defaultdict(list)
-    for cell, pause, fst, stdy, du, c1, c6, tsc in rows:
+    for cell, pause, fst, stdy, du, c1, c6, tsc, *_c7 in rows:
         k = (cell, int(pause)); first[k].append(int(fst))
         if stdy != "-": steady[cell].append(int(stdy))
         d = [int(x) for x in du.split(",")]
