@@ -193,7 +193,8 @@ interval takes two samples of the same batch:
   each copy's thread is pinned for the job to a chosen CPU (Linux): two
   physical cores under **one last-level cache**, and where the machine
   has two, also under **two**, a layer each (FROZEN.md, "Changes for
-  0.20"). The header's `shared placements` line names the CPUs, and each
+  0.20"); on a two-socket machine each copy's input is in its own
+  socket's memory, as a program's own would be. The header's `shared placements` line names the CPUs, and each
   sample records the CPU its thread ended on (the `cpu` column). They compete for
   cores, memory bandwidth, and any shared execution unit (such as Apple
   M4's SME unit). The calls after a gap run solo, since a second copy

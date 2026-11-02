@@ -156,8 +156,11 @@ anything", John Servil releasing it):
   (two L3 domains; on Apple silicon two clusters, so two SME units),
   each a layer of its own. Both are measured because the pool's
   placement work (#196) changes what each shows; a one-cache machine
-  measures the first alone. The header's `shared placements` line names
-  the CPUs. macOS offers no thread affinity, so there the scheduler still
+  measures the first alone. Where the two caches are two memory nodes
+  (two sockets), each copy moves its input's pages to its CPU's node
+  before it runs, as a program's own memory would be (Sam, November 2).
+  The header's `shared placements` line names the CPUs, and the nodes
+  where it applies. macOS offers no thread affinity, so there the scheduler still
   places the copies and the line says none. The pool's fairness between two callers is
   the fork's `tests/pool_fairness.rs` (BLAKE3 #215) besides.
 
