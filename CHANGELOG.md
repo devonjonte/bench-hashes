@@ -1,4 +1,4 @@
-# bench-hashes 0.19.6
+# bench-hashes 0.19.6+71c71159217a2a627fb06f270bb39890b76138f3
 
 **Each result records the computer's idle states**: how deeply its cores can sleep, and how long each depth takes to wake from. On computers with deep sleep states, calls after a pause vary from run to run with the state the core slept in, so a reader can see why.
 
