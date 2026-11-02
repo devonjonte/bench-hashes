@@ -119,6 +119,11 @@ anything", John Servil releasing it):
   driver, `not reported by this OS` elsewhere. The cells after a pause
   measure the state the core slept in (the i7: 13.5, 25.8 and 58.2 ns a
   message after C1E, C6 and C8). What a run measures is as 0.19.0's.
+- **0.19.7: two of the map's fixes.** Every layer keeps every column at
+  its place, a column it doesn't measure a blank track (Sam's review of
+  #107); a BLAKE3-Servil source with no repository (a local clone's) is a
+  row without a link, where the map panicked after measuring (Sam, #111).
+  What a run measures is as 0.19.0's.
 - **Studies read samples in Python** (`tools/samples.py`): `means` and
   `settle` left the program for `tools/points.py` and `tools/settle.py`,
   beside `tools/variance.py`; comparisons and verdicts stay in it.

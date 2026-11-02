@@ -1,4 +1,8 @@
-# bench-hashes 0.19.6+71c71159217a2a627fb06f270bb39890b76138f3
+# bench-hashes 0.19.7
+
+**Two fixes to the map.** Each column now stays in its place through both halves of a map, so a reader scanning down a column finds the same way of calling in it. A run whose BLAKE3-Servil checkout was cloned from a local folder now writes its report and map, where it stopped after measuring.
+
+## Earlier: 0.19.6+71c71159217a2a627fb06f270bb39890b76138f3
 
 **Each result records the computer's idle states**: how deeply its cores can sleep, and how long each depth takes to wake from. On computers with deep sleep states, calls after a pause vary from run to run with the state the core slept in, so a reader can see why.
 
