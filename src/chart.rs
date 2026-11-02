@@ -303,7 +303,7 @@ mod tests {
             std::process::id()
         ));
         let row = |key: &str, ns: u64| {
-            format!("{key}\tsolo\tIdleOneMessage\t128 MiB\tB\t{ns}/134217728,{ns}/134217728\t1,2\t-\t-\t-\n")
+            format!("{key}\tsolo\tIdleOneMessage\t128 MiB\tB\t{ns}/134217728,{ns}/134217728\t1,2\t-\t-\t-\t-\n")
         };
         let text = format!(
             "{}\n# timestamp: 2026-10-02 12:00:00 UTC\n# bench-hashes version: 0.13.0+abc\n# bench-hashes source: https://github.com/johnservil/bench-hashes\n# git commit: 0123456789abcdef0123456789abcdef01234567\n# git clean status: clean\n# rust compiler: rustc 1.0.0\n# build target: x86_64-unknown-linux-gnu\n# cpu type: Test CPU\n# cpu count: 4\n# os type: linux1\n# source blake3-servil-st: blake3-servil 0.8.0+b3c5; source https://github.com/johnservil/BLAKE3; commit b5b988d8982bea9490c38c79ec4b8c5c2428270c; clean\n# power: n/a\n# load: quiet\n{}\n{}{}{}",

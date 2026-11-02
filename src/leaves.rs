@@ -228,7 +228,7 @@ fn cell_lines(
     );
     let counts = super::counts_field(&samples.iter().map(|b| b.counts).collect::<Vec<_>>());
     let row = format!(
-        "{variant}\t{scenario}\tLeaves\t{count} messages\tmsg\t{}\t{}\t{cpu_field}\t-\t{counts}\n",
+        "{variant}\t{scenario}\tLeaves\t{count} messages\tmsg\t{}\t{}\t{cpu_field}\t-\t{counts}\t-\n",
         field(&|b| format!("{}/{}", b.wall_ns, units(b))),
         field(&|b| (b.started_ns / 1_000_000).to_string()),
     );
@@ -399,7 +399,7 @@ mod tests {
     fn recorded_batches_keep_jobs_cpu_counts_and_shared_mean() {
         let (row, report) = cell_lines("solo", 2, "write-ring", &fixed_batches());
         let fields: Vec<_> = row.trim().split('\t').collect();
-        assert_eq!(fields.len(), 10);
+        assert_eq!(fields.len(), 11);
         assert_eq!(fields[5], "4000/4,4000/4,4000/4,4000/4,4000/4,4000000/4");
         assert_eq!(fields[6], "3,3,3,3,3,3");
         assert_eq!(fields[7], "6000,6000,6000,6000,6000,6000");

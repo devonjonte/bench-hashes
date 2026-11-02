@@ -759,7 +759,7 @@ pub fn command(args: &[String]) {
                     .collect();
                 let cpu: Vec<Option<u64>> = runs.iter().map(|r| r.cpu_ns).collect();
                 tsv += &format!(
-                    "{}\t{}\tb3sum\t{}\tB\t{}\t{}\t{}\t{}\t{}\n",
+                    "{}\t{}\tb3sum\t{}\tB\t{}\t{}\t{}\t{}\t-\t-\n",
                     spec.name,
                     cache.name(),
                     input.label,
@@ -767,7 +767,6 @@ pub fn command(args: &[String]) {
                     starts.join(","),
                     super::cpu_field(&cpu),
                     super::cpu_field(&energy[ci][i][c]),
-                    "-"
                 );
             }
         }

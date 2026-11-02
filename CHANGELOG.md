@@ -1,4 +1,8 @@
-# bench-hashes 0.19.7+d37df38c7c9e22f47e10d8e9adfc2e2359c8105f
+# bench-hashes 0.20.0
+
+**"Two programs at once" is measured for the multithreaded hashes alone.** Since September every nonstop cell was measured twice: alone, and as two copies of the program at once. For the single-threaded hashes the two always read the same, apart from where the operating system happened to put the two copies, so those 300 cells go. For the two multithreaded hashes the pair stays: it showed BLAKE3-Servil running faster beside a neighbour on a chip with several cache domains, which led to a fix, and two programs on one SME unit or one GPU are the same question. Each sample now records which CPU it ran on, so a reader can see what two copies shared. A full run is about a quarter shorter. The samples files gain a `cpu` column (format v8); files from earlier versions are read with those versions.
+
+## Earlier: 0.19.7+d37df38c7c9e22f47e10d8e9adfc2e2359c8105f
 
 **Two fixes to the map.** Each column now stays in its place through both halves of a map, so a reader scanning down a column finds the same way of calling in it. A run whose BLAKE3-Servil checkout was cloned from a local folder now writes its report and map, where it stopped after measuring.
 

@@ -128,6 +128,24 @@ anything", John Servil releasing it):
   `settle` left the program for `tools/points.py` and `tools/settle.py`,
   beside `tools/variance.py`; comparisons and verdicts stay in it.
 
+**Changes for 0.20** (Zooko, November 2, 2026, bench-hashes #108):
+- **The shared scenario measures the multithreaded contenders alone**,
+  and records where each copy ran. From September 23 every nonstop cell
+  was measured twice, alone and as two copies at once. In six weeks the
+  single-threaded contenders' shared cells read x1.00 at the median on
+  every machine, apart from where the scheduler placed the copies (an
+  SMT pair: x1.5, Sam Shackleton, EPYC 9255); they were 300 of the 381
+  shared cells and told nothing a solo cell did not. The multithreaded
+  contenders' shared cells told what nothing else could: servil mt ran
+  x0.59 beside a neighbour on the EPYC, its pool kept to one L3 domain
+  where alone it sprawled (BLAKE3 #196, found so). Two programs on one
+  SME cluster or one GPU are the same question, so the scenario stays
+  for them (Zooko: it revealed this and may reveal the next). Each
+  sample's row now records the CPU its thread ended on (`cpu`, read
+  after the timed call), so a reader can tell what two copies shared.
+  The samples format is v8. The pool's fairness between two callers is
+  the fork's `tests/pool_fairness.rs` (BLAKE3 #215) besides.
+
 **Changes for the next release** (Zooko, October 16, 2026):
 - **The batch calls take a `Batch`** (Zooko, October 28; BLAKE3 #205):
   `hash_many`, `hash_many_multithreaded` and `Stream::submit_batch` take
@@ -850,6 +868,7 @@ use case InterleavedTurn: 256
 use case IdleInterleavedTurn: 256
 scenarios: solo, shared
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree
+shared contenders: blake3-official-mt, blake3-servil-mt
 blake3-servil-st InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each, then performance::finalize_each for the messages that ended in it
 blake3-servil-st IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: performance::update_each, then performance::finalize_each for the messages that ended in it
 blake3-servil-mt InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each_multithreaded, then performance::finalize_each for the messages that ended in it
