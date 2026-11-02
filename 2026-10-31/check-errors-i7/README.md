@@ -35,7 +35,7 @@ which adds `Judgment::rank` and changes no hash code).
 - Reusing a link is cheap and costs little: seven A/A checks ran the same
   links a side, and their cells' ratios correlated 0.03 check to check.
 
-**Also found, unresolved.** About 1 sample in 1000 loses 25-400 us to the
+**Also found (resolved November 2 by Zooko's `perf sched` outside the sandbox: `tailscaled` and `mosh-server` waking every 7-10 ms on a few cores, 3-80 us each; ordinary daemons).** About 1 sample in 1000 loses 25-400 us to the
 environment (`stall-probe/`): stops of up to 0.4 ms come on a 60 Hz beat,
 on one core at a time, from a task outside the sandbox's pid namespace;
 the counters show the thread on core with few cycles. Under the mean of
