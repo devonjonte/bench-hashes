@@ -487,15 +487,9 @@ fn side(fork: &Path, bench: &Path, cache: &Path, name: &str, commit: &str) -> Pa
     build_against(&checkout, bench, &cache.join(name).join("target"), name)
 }
 
-/// `bench-hashes build-against DIR`: this bench built against the fork
-/// checkout at DIR as it is, into DIR's `target/build-against/`; the
-/// executable's path on stdout (the Mac runner's benchmark jobs, and a
-/// maintainer measuring the working tree, run it from there). The two
-/// checkouts sit anywhere; neither holds the other.
 /// The bench `check` and `build-against` copy and build: the current
-/// directory, which must be a bench-hashes checkout. Run from anywhere else,
-/// they once copied that directory as the bench and stopped on a missing
-/// file, with no word of why (BLAKE3 #196's runs, from a scratch directory).
+/// directory, which must be a bench-hashes checkout (they stop, saying so,
+/// anywhere else).
 fn bench_checkout(command: &str, usage: &str) -> PathBuf {
     let dir = std::env::current_dir().expect("the current directory");
     if let Err(why) = is_bench_checkout(&dir) {
@@ -518,6 +512,11 @@ fn is_bench_checkout(dir: &Path) -> Result<(), String> {
     }
 }
 
+/// `bench-hashes build-against DIR`: this bench built against the fork
+/// checkout at DIR as it is, into `bench-hashes-build/` of the fork's target directory; the
+/// executable's path on stdout (the Mac runner's benchmark jobs, and a
+/// maintainer measuring the working tree, run it from there). The two
+/// checkouts sit anywhere; neither holds the other.
 pub fn build_against_command(arguments: &[String]) -> i32 {
     let usage = "usage: bench-hashes build-against DIR    (DIR: a checkout of the fork)";
     let [dir] = arguments else { panic!("{usage}") };
