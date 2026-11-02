@@ -188,7 +188,10 @@ interval takes two samples of the same batch:
   released together; each copy's own time is a sample. They compete for
   cores, memory bandwidth, and any shared execution unit (such as Apple
   M4's SME unit). The calls after a gap run solo, since a second copy
-  would warm the cache the gap was meant to cool.
+  would warm the cache the gap was meant to cool. Each copy runs its own train,
+  so the last sample of the slower copy's train can run partly alone:
+  about 1% optimistic on an i7-12700K, level on an EPYC 9255 and a pair
+  of Xeon Gold 6330s (bench-hashes #105).
 
 In the calls after a gap, each sample is one call (or enough calls to
 fill 2 µs when a single call is shorter than the clock tick), each
