@@ -113,6 +113,12 @@ anything", John Servil releasing it):
   A phone keeps the grid's row names in view; a map's layer shows its own
   rows and columns; a cell's call name fits. What a run measures is as
   0.19.0's.
+- **0.19.6: each samples file records the machine's idle states** (Devon
+  Jonte, bench #106, #109): the cpuidle driver, governor and CPU 0's states
+  with their exit latencies and target residencies, `none` without a
+  driver, `not reported by this OS` elsewhere. The cells after a pause
+  measure the state the core slept in (the i7: 13.5, 25.8 and 58.2 ns a
+  message after C1E, C6 and C8). What a run measures is as 0.19.0's.
 - **Studies read samples in Python** (`tools/samples.py`): `means` and
   `settle` left the program for `tools/points.py` and `tools/settle.py`,
   beside `tools/variance.py`; comparisons and verdicts stay in it.

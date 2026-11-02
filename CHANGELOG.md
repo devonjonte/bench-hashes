@@ -1,4 +1,8 @@
-# bench-hashes 0.19.5+8069a10c790b84158fdc9c1080ef77afb264b696
+# bench-hashes 0.19.6
+
+**Each result records the computer's idle states**: how deeply its cores can sleep, and how long each depth takes to wake from. On computers with deep sleep states, calls after a pause vary from run to run with the state the core slept in, so a reader can see why.
+
+## Earlier: 0.19.5+8069a10c790b84158fdc9c1080ef77afb264b696
 
 **Every result carries its whole record.** A map's "About this run" lists everything the run recorded: the exact commit of each program measured, each library's archive hash, the compiler, the CPU and its features, power and load. Each chart draws its record into the image, so a chart shared alone still says where it came from. On a phone, the overview keeps its row names in view as you scroll.
 
