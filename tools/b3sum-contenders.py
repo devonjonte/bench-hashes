@@ -111,9 +111,11 @@ for rev in revs:
     commit = out("git", "-C", fork, "rev-parse", "--short=7", f"{rev}^{{commit}}")
     worktree = os.path.join(target, f"worktree-{commit}")
     built = os.path.join(dir, f"b3sum-{commit}")
+    # The worktree is wanted below too (relink builds from it), so it is made
+    # whether or not an earlier run left the build in DIR.
+    if not os.path.isdir(worktree):
+        run("git", "-C", fork, "worktree", "add", "--detach", "--quiet", worktree, commit)
     if not os.access(built, os.X_OK):
-        if not os.path.isdir(worktree):
-            run("git", "-C", fork, "worktree", "add", "--detach", "--quiet", worktree, commit)
         run("cargo", "build", "--quiet", "--release", "--manifest-path", os.path.join(worktree, "b3sum", "Cargo.toml"),
             "--target", host, env={"RUSTFLAGS": static, "CARGO_TARGET_DIR": os.path.join(target, "build")})
         shutil.copy(os.path.join(target, "build", host, "release", "b3sum"), built)
