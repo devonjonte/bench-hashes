@@ -1,6 +1,4 @@
-# bench-hashes 0.19.5
-
-**Every result carries its whole record.** A map's "About this run" lists everything the run recorded: the exact commit of each program measured, each library's archive hash, the compiler, the CPU and its features, power and load. Each chart draws its record into the image, so a chart shared alone still says where it came from. On a phone, the overview keeps its row names in view as you scroll.
+# bench-hashes 0.19.5+8069a10c790b84158fdc9c1080ef77afb264b696 result carries its whole record.** A map's "About this run" lists everything the run recorded: the exact commit of each program measured, each library's archive hash, the compiler, the CPU and its features, power and load. Each chart draws its record into the image, so a chart shared alone still says where it came from. On a phone, the overview keeps its row names in view as you scroll.
 
 ## Earlier: 0.19.4+222a04421d109ca50f0498f2b4bd7afcc9b096d6
 
