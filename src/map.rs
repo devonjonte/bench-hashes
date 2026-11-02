@@ -455,6 +455,16 @@ fn details(
     add("Machine", machine, String::new());
     add("Power", power.to_owned(), String::new());
     add("Other programs", load.to_owned(), String::new());
+    add(
+        "Idle states",
+        header(headers, "idle states").to_owned(),
+        String::new(),
+    );
+    add(
+        "Shared placements",
+        header(headers, "shared placements").to_owned(),
+        String::new(),
+    );
     let version = header(headers, "bench-hashes version");
     let commit = header(headers, "git commit");
     let clean = header(headers, "git clean status");
@@ -546,6 +556,7 @@ fn details(
         "build target",
         "files",
         "idle states",
+        "shared placements",
         "contender",
     ];
     for (k, v) in headers.iter().filter(|(k, _)| {
@@ -575,7 +586,7 @@ fn hashing(path: &Path) -> Section {
     let mut cells = Vec::new();
     for use_case in UseCase::ALL {
         let (_, _, call, doc) = place(use_case);
-        for scenario in ["solo", "shared"] {
+        for scenario in ["solo", "shared-one-cache", "shared-two-caches"] {
             let points = &POINTS[use_case.points()];
             // Every chart in bytes per second, so one axis serves them all:
             // a batch's time per message over its message's bytes.
@@ -696,9 +707,12 @@ fn hashing(path: &Path) -> Section {
             ("lent", "nonstop, waiting for each call", "The program hashes input after input as fast as it can, reading each input once the hash before it has returned."),
             ("piped", "nonstop, pipelined", "The program hashes input after input as fast as it can, and reads the next inputs while earlier ones hash: it hands its inputs to BLAKE3 servil's stream, which hashes them on other threads. The other hashes have no such call and hash on the program's thread."),
         ],
+        // A layer the run did not measure (two caches on a one-cache
+        // machine) has no cells, and the page leaves it out.
         layers: vec![
             ("solo", "one program", "One program hashes; the machine is otherwise quiet."),
-            ("shared", "two programs at once", "Two programs hash at the same moment, nonstop, sharing the machine."),
+            ("shared-one-cache", "two programs at once, one cache", "Two programs hash at the same moment, nonstop, on two cores under one last-level cache: they share the cache and the memory path, as two programs on a busy machine most often do."),
+            ("shared-two-caches", "two programs at once, two caches", "Two programs hash at the same moment, nonstop, on two cores under different last-level caches: they share the memory path and little else."),
         ],
         // A run with --threads N names servil mt's count (its pool is the run's).
         names: {
