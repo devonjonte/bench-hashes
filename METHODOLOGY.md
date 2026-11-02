@@ -39,9 +39,11 @@ input first read or written into a buffer (timed with the hashing):
 FROZEN.md lists each contender's calls in each use case.
 
 Each nonstop use case runs in two scenarios: **solo**, one copy of the
-contender, and **shared**, two copies at once. The calls after a gap run
-solo. The report shows each use case once per scenario, solo first; the
-map shows both.
+contender, and **shared**, two copies at once, for the multithreaded
+contenders (a single-threaded hash costs the same beside a neighbour as
+alone; FROZEN.md's "Changes for 0.20"). The calls after a gap run solo.
+The report shows each use case once per scenario, solo first; the map
+shows both.
 
 ## Contenders
 
@@ -183,9 +185,13 @@ interval takes two samples of the same batch:
 - **Solo**: one copy of the contender on one thread, no other program
   running at the same time. What a program gets with the machine to
   itself.
-- **Shared**, for the tasks that hash one input after another: two
-  independent copies at once, each on its own thread over its own input,
-  released together; each copy's own time is a sample. They compete for
+- **Shared**, for the multithreaded contenders at the tasks that hash
+  one input after another: two independent copies at once, each on its
+  own thread over its own input, released together; each copy's own time
+  is a sample, and the CPU its thread ended on is recorded with it (the
+  samples file's `cpu` column, read after the call), since what two
+  copies share, a core's two hardware threads, one L3 domain or one SME
+  cluster, is the scheduler's choice and sets what they cost each other. They compete for
   cores, memory bandwidth, and any shared execution unit (such as Apple
   M4's SME unit). The calls after a gap run solo, since a second copy
   would warm the cache the gap was meant to cool. Each copy runs its own train,

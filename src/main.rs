@@ -628,6 +628,10 @@ struct RunSamples {
     /// at what clock. None where the platform counts none.
     solo_counts: Vec<Vec<Vec<Option<clocks::Counts>>>>,
     shared_counts: Vec<Vec<Vec<Option<clocks::Counts>>>>,
+    /// The CPU each sample's thread ended on (DuoCopy::cpu), solo and
+    /// shared as their samples.
+    solo_cpu: Vec<Vec<Vec<Option<u32>>>>,
+    shared_cpu: Vec<Vec<Vec<Option<u32>>>>,
 }
 
 /*
@@ -1238,8 +1242,9 @@ impl Algorithm {
     }
 
     /// Whether the contender is a library's multi-threaded form, drawn in
-    /// its single-threaded form's colour with a pattern of its own.
-    fn striped(self) -> bool {
+    /// its single-threaded form's colour with a pattern of its own, and
+    /// the one kind the shared scenario measures (Scenario::measures).
+    fn multithreaded(self) -> bool {
         matches!(self, Self::Blake3Rayon | Self::Blake3ServilMt)
     }
 
@@ -1443,17 +1448,23 @@ impl Scenario {
     fn description(self) -> &'static str {
         match self {
             Self::Solo => "one copy of each contender, on one thread",
-            Self::Shared => "two copies of the contender at once, each hashing its own input on its own thread, inputs one after another; the time of each copy",
+            Self::Shared => "the multithreaded contenders, two copies at once, each hashing its own input on its own thread, inputs one after another; the time of each copy",
         }
     }
 
-    /// Whether this scenario measures `use_case`. Two copies at once
-    /// measure the nonstop use cases alone: after a gap, a copy whose twin
-    /// had just run the same code met that code in a cache the gap left
-    /// warm, and read faster than one program alone (bench-hashes NOTES at aadeca9d,
-    /// "Shared after a gap"; Zooko, September 30, 2026).
-    fn measures(self, use_case: UseCase) -> bool {
-        self == Self::Solo || !use_case.after_gap()
+    /// Whether this scenario measures `algorithm` at `use_case`. Two
+    /// copies at once measure the multithreaded contenders alone, at the
+    /// nonstop use cases alone (bench-hashes #108, November 2, 2026): a
+    /// single-threaded hash cost the same beside a neighbour as alone on
+    /// every machine measured (x1.00 at the median), apart from where the
+    /// scheduler happened to place its two copies; a multithreaded one
+    /// shows what its threads do beside a neighbour's, which nothing else
+    /// measures (on an EPYC 9255 servil mt ran x0.59 beside one, its pool
+    /// kept compact). After a gap, a copy whose twin had just run the same
+    /// code met that code in a cache the gap left warm, and read faster
+    /// than one program alone ("Shared after a gap"; Zooko, September 30).
+    fn measures(self, algorithm: Algorithm, use_case: UseCase) -> bool {
+        self == Self::Solo || (algorithm.multithreaded() && !use_case.after_gap())
     }
 }
 
@@ -2508,7 +2519,12 @@ fn measure_all(
     };
     let own = make_input_seeded(largest(&|_| true), 0);
     let other = make_input_seeded(
-        largest(&|index| Scenario::Shared.measures(POINTS[index].use_case)),
+        largest(&|index| {
+            roster
+                .algorithms
+                .iter()
+                .any(|&a| Scenario::Shared.measures(a, POINTS[index].use_case))
+        }),
         1,
     );
     let prefixes = |buffer: &[u8]| -> Vec<std::ops::Range<usize>> {
@@ -2576,6 +2592,8 @@ fn measure_all(
         solo_energy_nj: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
         solo_counts: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
         shared_counts: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+        solo_cpu: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+        shared_cpu: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
     };
     let mut batch_iterations: Vec<Vec<usize>> = vec![vec![1usize; POINT_COUNT]; roster.len()];
     let point_orders: Vec<_> = POINTS
@@ -2744,16 +2762,18 @@ fn measure_all(
                      * run its own train on its own thread, and each copy's
                      * own time is a sample.
                      */
-                    let copies = Scenario::Shared.measures(point.use_case).then(|| {
-                        duo.run(
-                            algorithm,
-                            input,
-                            duo_inputs[size_index],
-                            point,
-                            iterations,
-                            train,
-                        )
-                    });
+                    let copies = Scenario::Shared
+                        .measures(algorithm, point.use_case)
+                        .then(|| {
+                            duo.run(
+                                algorithm,
+                                input,
+                                duo_inputs[size_index],
+                                point,
+                                iterations,
+                                train,
+                            )
+                        });
 
                     let total_units = point.use_case.units(point, iterations);
                     let per_unit = |ns: u64| Measured::new(ns, total_units);
@@ -2764,6 +2784,7 @@ fn measure_all(
                         samples.solo_cpu_ns[algorithm_index][size_index].push(sample.cpu_ns);
                         samples.solo_energy_nj[algorithm_index][size_index].push(sample.energy_nj);
                         samples.solo_counts[algorithm_index][size_index].push(sample.counts);
+                        samples.solo_cpu[algorithm_index][size_index].push(sample.cpu);
                     }
                     // In pairs, copy 0's i-th sample beside copy 1's.
                     if let Some([first, second]) = &copies {
@@ -2773,6 +2794,7 @@ fn measure_all(
                             samples.shared_started_ns[algorithm_index][size_index]
                                 .push(copy.started_ns);
                             samples.shared_counts[algorithm_index][size_index].push(copy.counts);
+                            samples.shared_cpu[algorithm_index][size_index].push(copy.cpu);
                         }
                     }
                 }
@@ -2797,6 +2819,8 @@ fn measure_all(
                 samples.shared[a][p] = samples.shared[a][t].clone();
                 samples.shared_started_ns[a][p] = samples.shared_started_ns[a][t].clone();
                 samples.shared_counts[a][p] = samples.shared_counts[a][t].clone();
+                samples.solo_cpu[a][p] = samples.solo_cpu[a][t].clone();
+                samples.shared_cpu[a][p] = samples.shared_cpu[a][t].clone();
                 batch_iterations[a][p] = batch_iterations[a][t];
             }
         }
@@ -2817,11 +2841,12 @@ fn measure_all(
             }
             let solo = &samples.solo[algorithm_index][size_index];
             let shared = &samples.shared[algorithm_index][size_index];
-            let copies = if Scenario::Shared.measures(point.use_case) {
-                2
-            } else {
-                0
-            };
+            let copies =
+                if Scenario::Shared.measures(roster.algorithms[algorithm_index], point.use_case) {
+                    2
+                } else {
+                    0
+                };
             let train = if point.use_case.after_gap() {
                 1
             } else {
@@ -3066,6 +3091,23 @@ fn warm_up(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize, 
     }
 }
 
+/// The CPU the calling thread runs on now (Linux: sched_getcpu; elsewhere
+/// None), read after a sample, outside its timing: a read before the call
+/// would warm the core the gap just cooled (bench-hashes #106).
+fn current_cpu() -> Option<u32> {
+    #[cfg(target_os = "linux")]
+    {
+        unsafe extern "C" {
+            fn sched_getcpu() -> i32;
+        }
+        // Sound: a plain query of the calling thread.
+        let cpu = unsafe { sched_getcpu() };
+        return u32::try_from(cpu).ok();
+    }
+    #[allow(unreachable_code)]
+    None
+}
+
 /*
  * One sample of `iterations` on this thread, as the point's use case
  * calls (FROZEN.md): for a synchronous use case, that many calls, each
@@ -3153,6 +3195,7 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
         started_ns,
         cpu_ns,
         energy_nj,
+        cpu: current_cpu(),
     }
 }
 
@@ -3209,6 +3252,7 @@ fn take_prepared_sample(
             started_ns,
             cpu_ns: None,
             energy_nj: None,
+            cpu: current_cpu(),
         }
     })
 }
@@ -4721,10 +4765,16 @@ fn frozen_contract() -> String {
     text += &format!("scenarios: {}\n", keys(&Scenario::ALL));
     let shared: Vec<String> = UseCase::ALL
         .into_iter()
-        .filter(|&use_case| Scenario::Shared.measures(use_case))
+        .filter(|&use_case| Scenario::Shared.measures(Algorithm::Blake3ServilMt, use_case))
         .map(|use_case| format!("{use_case:?}"))
         .collect();
     text += &format!("shared measures: {}\n", shared.join(", "));
+    let multithreaded: Vec<&str> = Algorithm::ALL
+        .iter()
+        .filter(|a| a.multithreaded())
+        .map(|a| a.key())
+        .collect();
+    text += &format!("shared contenders: {}\n", multithreaded.join(", "));
     for (algorithm, use_case, call) in SERVIL_CALLS {
         assert!(
             algorithm.takes_part(use_case),
@@ -4936,6 +4986,11 @@ struct DuoCopy {
     started_ns: u64,
     elapsed_ns: u64,
     counts: Option<clocks::Counts>,
+    /// The CPU this copy's thread was on when the sample ended, read after
+    /// the timed interval (bench-hashes #108: where the two shared copies
+    /// ran, an SMT pair, one L3 domain, one SME cluster or two, decides
+    /// what they share; a reader can now tell). None where the OS says none.
+    cpu: Option<u32>,
     /// The process's CPU time across the sample, all its threads (read
     /// outside the timed interval): None for a sample after gaps (their
     /// other work is no part of the call's), or where the platform has no
@@ -5585,11 +5640,11 @@ fn calibrate_batch(algorithm: Algorithm, input: &[u8], point: Point) -> (usize, 
 /// (read_samples) requires: a file in another format is read with the
 /// tools of the commit that wrote it.
 /// The samples format, and with it the rule the samples were taken under:
-/// v7 marks samples that 0.17's summary reads with the declared trim, so a
-/// comparison between files can tell the rule each was collected and read
-/// under by this line alone (Zooko, October 23). The columns are v6's.
-const SAMPLES_VERSION: &str = "# bench-hashes samples v7";
-const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts";
+/// v8 (0.20) adds each sample's CPU, and its shared rows are the
+/// multithreaded contenders' alone (bench-hashes #108); v7 marked samples
+/// that 0.17's summary reads with the declared trim (Zooko, October 23).
+const SAMPLES_VERSION: &str = "# bench-hashes samples v8";
+const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\tcpu";
 
 /// A row's `core counts` field: each sample's calling-thread counts per
 /// core kind, `P time ns:P cycles:E time ns:E cycles`, or `-` where a
@@ -5610,6 +5665,15 @@ fn counts_field(counts: &[Option<clocks::Counts>]) -> String {
             })
             .collect::<Vec<_>>()
             .join(","),
+        _ => "-".to_string(),
+    }
+}
+
+/// A row's `cpu` field: the CPU each sample's thread ended on, or `-`
+/// where the OS names none.
+fn cpu_of_field(cpus: &[Option<u32>]) -> String {
+    match cpus.iter().copied().collect::<Option<Vec<u32>>>() {
+        Some(c) if !c.is_empty() => c.iter().map(u32::to_string).collect::<Vec<_>>().join(","),
         _ => "-".to_string(),
     }
 }
@@ -5642,6 +5706,8 @@ struct SamplesFile {
     /// The cells whose samples carry the calling thread's counts per core
     /// kind: each sample's [P time ns, P cycles, E time ns, E cycles].
     cores: Vec<(String, Vec<[u64; 4]>)>,
+    /// The cells whose samples name the CPU each sample's thread ended on.
+    cpus: Vec<(String, Vec<u32>)>,
 }
 
 fn read_samples(path: &str) -> SamplesFile {
@@ -5661,6 +5727,7 @@ fn read_samples(path: &str) -> SamplesFile {
     let mut cpu = Vec::new();
     let mut energy = Vec::new();
     let mut cores = Vec::new();
+    let mut cpus = Vec::new();
     for line in lines {
         if let Some(rest) = line.strip_prefix("# load: ") {
             load = Some(rest.to_owned());
@@ -5678,7 +5745,7 @@ fn read_samples(path: &str) -> SamplesFile {
             columns = true;
         } else {
             let fields: Vec<&str> = line.split('\t').collect();
-            assert_eq!(fields.len(), 10, "{path}: a row of ten fields: {line}");
+            assert_eq!(fields.len(), 11, "{path}: a row of eleven fields: {line}");
             let samples: Vec<Measured> = fields[5]
                 .split(',')
                 .map(|sample| {
@@ -5733,6 +5800,18 @@ fn read_samples(path: &str) -> SamplesFile {
                 );
                 cores.push((key.clone(), c));
             }
+            if fields[10] != "-" {
+                let c: Vec<u32> = fields[10]
+                    .split(',')
+                    .map(|x| x.parse().expect("a CPU number"))
+                    .collect();
+                assert_eq!(
+                    c.len(),
+                    samples.len(),
+                    "{path}: a CPU for every sample of {key}"
+                );
+                cpus.push((key.clone(), c));
+            }
             cells.push((key, samples));
         }
     }
@@ -5744,6 +5823,7 @@ fn read_samples(path: &str) -> SamplesFile {
         cpu,
         energy,
         cores,
+        cpus,
     }
 }
 
@@ -6502,21 +6582,23 @@ fn generate_samples_tsv(
                     .iter()
                     .map(|ns| (ns / 1_000_000).to_string())
                     .collect();
-                let (cpu, energy, counts) = match scenario {
+                let (cpu, energy, counts, on) = match scenario {
                     Scenario::Solo => (
                         cpu_field(&samples.solo_cpu_ns[algorithm_index][point_index]),
                         cpu_field(&samples.solo_energy_nj[algorithm_index][point_index]),
                         counts_field(&samples.solo_counts[algorithm_index][point_index]),
+                        cpu_of_field(&samples.solo_cpu[algorithm_index][point_index]),
                     ),
                     Scenario::Shared => (
                         "-".to_string(),
                         "-".to_string(),
                         counts_field(&samples.shared_counts[algorithm_index][point_index]),
+                        cpu_of_field(&samples.shared_cpu[algorithm_index][point_index]),
                     ),
                 };
                 writeln!(
                     out,
-                    "{}\t{}\t{:?}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                    "{}\t{}\t{:?}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
                     algorithm.key(),
                     scenario.key(),
                     point.use_case,
@@ -6527,6 +6609,7 @@ fn generate_samples_tsv(
                     cpu,
                     energy,
                     counts,
+                    on,
                 )
                 .unwrap();
             }
@@ -6603,10 +6686,7 @@ fn generate_text(
         )
         .unwrap();
         writeln!(output).unwrap();
-        for use_case in UseCase::ALL
-            .into_iter()
-            .filter(|&use_case| scenario.measures(use_case))
-        {
+        for use_case in UseCase::ALL {
             append_table(&mut output, roster, results, scenario, use_case);
         }
     }
@@ -6659,13 +6739,16 @@ fn append_table(
     use_case: UseCase,
 ) {
     let contenders: Vec<usize> = (0..roster.len())
-        .filter(|&index| roster.algorithms[index].takes_part(use_case))
+        .filter(|&index| {
+            roster.algorithms[index].takes_part(use_case)
+                && scenario.measures(roster.algorithms[index], use_case)
+        })
         .collect();
     let points: Vec<usize> = use_case
         .points()
         .filter(|&index| roster.measures(index))
         .collect();
-    if points.is_empty() {
+    if points.is_empty() || contenders.is_empty() {
         return;
     }
     writeln!(
@@ -7108,6 +7191,8 @@ mod correctness_tests {
             solo_energy_nj: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
             solo_counts: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
             shared_counts: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+            solo_cpu: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
+            shared_cpu: vec![vec![Vec::new(); POINT_COUNT]; roster.len()],
         };
         let mut results: Results = vec![vec![None; POINT_COUNT]; roster.len()];
         for a in 0..roster.len() {
@@ -7115,7 +7200,7 @@ mod correctness_tests {
                 for r in 0..rounds {
                     let v = Measured::new(value(a, p, r), 1);
                     samples.solo[a][p].push(v);
-                    if Scenario::Shared.measures(POINTS[p].use_case) {
+                    if Scenario::Shared.measures(roster.algorithms[a], POINTS[p].use_case) {
                         samples.shared[a][p].extend([v, v]);
                         // Separate starts cross load-window boundaries, and
                         // distinguish the two copies from one another.
@@ -7123,8 +7208,11 @@ mod correctness_tests {
                             10_000_000 + r as u64 * 1_000_000,
                             11_000_000 + r as u64 * 1_000_000,
                         ]);
+                        // Copy 0 on CPU 2, copy 1 on CPU 5.
+                        samples.shared_cpu[a][p].extend([Some(2), Some(5)]);
                     }
                     samples.solo_started_ns[a][p].push(r as u64 * 1_000_000);
+                    samples.solo_cpu[a][p].push(Some(3));
                     samples.solo_cpu_ns[a][p].push(Some(2 * value(a, p, r)));
                     samples.solo_energy_nj[a][p].push(Some(3 * value(a, p, r)));
                     let level = |cycles, time_ns| clocks::Level {
@@ -7140,7 +7228,7 @@ mod correctness_tests {
                 results[a][p] = Some(Cell {
                     solo: Mean::of(&samples.solo[a][p]),
                     shared: Scenario::Shared
-                        .measures(POINTS[p].use_case)
+                        .measures(roster.algorithms[a], POINTS[p].use_case)
                         .then(|| Mean::of(&samples.shared[a][p])),
                 });
             }
@@ -7290,7 +7378,7 @@ mod correctness_tests {
     fn samples_file_places_each_sample_in_the_load_windows() {
         blake3_servil::initialize();
         let roster = Roster::new(
-            vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring],
+            vec![Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt],
             true,
             Some(vec![
                 point("64 B", UseCase::OneMessage),
@@ -7318,7 +7406,7 @@ mod correctness_tests {
             },
         ];
         let tsv = generate_samples_tsv(&roster, &samples, &machine, "test");
-        assert!(tsv.starts_with("# bench-hashes samples v7\n"));
+        assert!(tsv.starts_with("# bench-hashes samples v8\n"));
         // The main run's own file carries the shared provenance first.
         assert_eq!(
             &harness_tests::header_keys(&tsv)[..harness_tests::PROVENANCE.len()],
@@ -7327,12 +7415,15 @@ mod correctness_tests {
         );
         assert!(tsv.contains("\n# load: busy: "), "{tsv}");
         assert!(tsv.contains("\n# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1:1200:0,1-3:100:7\n"), "{tsv}");
-        assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\n"));
-        assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\t30000,30003,30006\t10000:40000:0:0,10001:40004:0:0,10002:40008:0:0\n"), "{tsv}");
-        assert!(tsv.contains("\nblake3-servil-st\tshared\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\t-\t-\t-\n"), "{tsv}");
+        assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\tcpu\n"));
+        assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\t30000,30003,30006\t10000:40000:0:0,10001:40004:0:0,10002:40008:0:0\t3,3,3\n"), "{tsv}");
+        // The multithreaded contender's shared rows, the two copies in turn,
+        // each sample's CPU with it; a single-threaded contender has none.
+        assert!(tsv.contains("\nblake3-servil-mt\tshared\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\t-\t-\t-\t2,5,2,5,2,5\n"), "{tsv}");
         assert!(
-            !tsv.contains("\tshared\tOneMessage\t"),
-            "calls after a gap run alone: {tsv}"
+            !tsv.contains("\nblake3-servil-st\tshared\t")
+                && !tsv.contains("\tshared\tOneMessage\t"),
+            "the single-threaded contender, and every call after a gap, run alone: {tsv}"
         );
     }
 
@@ -7493,9 +7584,9 @@ mod correctness_tests {
     /// after a gap stays one sample a visit.
     #[test]
     fn nonstop_visits_take_trains() {
-        blake3_servil::initialize();
+        blake3_servil::initialize_multithreaded(None);
         let mut roster = Roster::new(
-            vec![Algorithm::Blake3ServilSt, Algorithm::Sha256Ring],
+            vec![Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt],
             true,
             Some({
                 let mut points = vec![
@@ -7518,7 +7609,14 @@ mod correctness_tests {
         for a in 0..roster.len() {
             // Two rounds, a visit each: two trains of three.
             assert_eq!(samples.solo[a][nonstop].len(), 2 * 3);
-            assert_eq!(samples.shared[a][nonstop].len(), 2 * 2 * 3);
+            // Two copies' trains for the multithreaded contender, none for
+            // the single-threaded one.
+            let copies = if roster.algorithms[a].multithreaded() {
+                2
+            } else {
+                0
+            };
+            assert_eq!(samples.shared[a][nonstop].len(), copies * 2 * 3);
             assert_eq!(samples.solo[a][gap].len(), 2);
             // Within a train, each sample starts after the one before.
             let starts = &samples.solo_started_ns[a][nonstop];
@@ -7641,6 +7739,21 @@ mod correctness_tests {
                             .collect::<Vec<[u64; 4]>>()
                     });
                     assert_eq!(cores, wanted, "{key}'s core counts");
+                    // The CPU each sample ended on, solo and shared alike.
+                    let cpus = read
+                        .cpus
+                        .iter()
+                        .find(|(k, _)| *k == key)
+                        .map(|(_, c)| c.clone());
+                    let wanted: Vec<u32> = if scenario == "solo" {
+                        samples.solo_cpu[a][p].iter().map(|c| c.unwrap()).collect()
+                    } else {
+                        samples.shared_cpu[a][p]
+                            .iter()
+                            .map(|c| c.unwrap())
+                            .collect()
+                    };
+                    assert_eq!(cpus, Some(wanted), "{key}'s CPUs");
                     checked += 1;
                 }
             }
