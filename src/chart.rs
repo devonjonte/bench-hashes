@@ -130,18 +130,10 @@ fn draw(file: &SamplesFile, title: &str, mut bars: Vec<Bar>) -> String {
         .unwrap_or("?")
         .to_owned();
     let subtitle = "faster →".to_owned();
-    let footer = format!(
-        "{}, {} CPUs · bench-hashes {} on {date}",
-        header("cpu type"),
-        header("cpu count"),
-        header("bench-hashes version")
-            .split('+')
-            .next()
-            .unwrap_or("?")
-    );
+    let footer = provenance(file, &date);
     let top = bars[0].centi as f64;
     let head = 78.0;
-    let height = head + bars.len() as f64 * (BAR + GAP) + 30.0;
+    let height = head + bars.len() as f64 * (BAR + GAP) + 18.0 + 15.0 * footer.len() as f64;
     let mut svg = String::new();
     writeln!(svg, r#"<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{height}" viewBox="0 0 {WIDTH} {height}" font-family="{FONT}">"#).unwrap();
     writeln!(
@@ -184,15 +176,97 @@ fn draw(file: &SamplesFile, title: &str, mut bars: Vec<Bar>) -> String {
         )
         .unwrap();
     }
-    writeln!(
-        svg,
-        r##"<text x="{LEFT}" y="{:.1}" font-size="11" fill="#9a9a9a">{}</text>"##,
-        height - 12.0,
-        super::xml_escape(&footer)
-    )
-    .unwrap();
+    let first = height - 15.0 * footer.len() as f64 + 3.0;
+    for (i, line) in footer.iter().enumerate() {
+        writeln!(
+            svg,
+            r##"<text x="16" y="{:.1}" font-size="11" fill="#9a9a9a">{}</text>"##,
+            first + 15.0 * i as f64,
+            super::xml_escape(line)
+        )
+        .unwrap();
+    }
     svg.push_str("</svg>\n");
     svg
+}
+
+/// The chart's own record, drawn in the image so that it goes wherever the
+/// chart is copied (bench-hashes #103; as bench-allocators' charts do): the
+/// machine and when it ran; the bench at its exact commit and clean status;
+/// the code under test (BLAKE3 servil's source, or b3sum's version); the
+/// compiler. The samples file beside it holds the rest.
+fn provenance(file: &SamplesFile, date: &str) -> Vec<String> {
+    let header = |key: &str| {
+        file.headers
+            .iter()
+            .find(|(k, _)| k == key)
+            .map_or("?", |(_, v)| v.as_str())
+    };
+    let field = |line: &str, name: &str| {
+        line.split("; ")
+            .find_map(|f| f.strip_prefix(name))
+            .map(str::to_owned)
+    };
+    let mut out = vec![
+        format!(
+            "{}, {} CPUs, {} · measured {}",
+            header("cpu type"),
+            header("cpu count"),
+            header("os type"),
+            if header("timestamp") == "?" {
+                date
+            } else {
+                header("timestamp")
+            }
+        ),
+        format!(
+            "bench-hashes {} · {} at {} · {}",
+            header("bench-hashes version")
+                .split('+')
+                .next()
+                .unwrap_or("?"),
+            header("bench-hashes source").trim_start_matches("https://"),
+            header("git commit"),
+            header("git clean status")
+        ),
+    ];
+    let servil = file
+        .headers
+        .iter()
+        .find(|(k, _)| k.starts_with("source blake3-servil"))
+        .map(|(_, v)| v.as_str());
+    let b3sum = file
+        .headers
+        .iter()
+        .find(|(k, v)| k == "contender" && v.starts_with("b3sum: "))
+        .and_then(|(_, v)| v.rsplit("; b3sums ").next())
+        .map(|v| v.trim_end_matches(')'));
+    if let Some(s) = servil {
+        out.push(format!(
+            "BLAKE3 servil {} · {} at {} · {}",
+            s.split([' ', ';'])
+                .nth(1)
+                .unwrap_or("?")
+                .split('+')
+                .next()
+                .unwrap_or("?"),
+            field(s, "source ")
+                .unwrap_or_default()
+                .trim_start_matches("https://"),
+            field(s, "commit ").unwrap_or_default(),
+            s.rsplit("; ").next().unwrap_or("?")
+        ));
+    } else if let Some(v) = b3sum {
+        out.push(format!(
+            "b3sum {v} (each build's BLAKE3 hash in b3sum.samples.tsv)"
+        ));
+    }
+    out.push(format!(
+        "{} · {}",
+        header("rust compiler"),
+        header("build target")
+    ));
+    out
 }
 
 /// `bench-hashes chart SAMPLES.tsv`: draw its chart beside the samples file
@@ -232,7 +306,7 @@ mod tests {
             format!("{key}\tsolo\tIdleOneMessage\t128 MiB\tB\t{ns}/134217728,{ns}/134217728\t1,2\t-\t-\t-\n")
         };
         let text = format!(
-            "{}\n# timestamp: 2026-10-02 12:00:00 UTC\n# bench-hashes version: 0.13.0+abc\n# cpu type: Test CPU\n# cpu count: 4\n# power: n/a\n# load: quiet\n{}\n{}{}{}",
+            "{}\n# timestamp: 2026-10-02 12:00:00 UTC\n# bench-hashes version: 0.13.0+abc\n# bench-hashes source: https://github.com/johnservil/bench-hashes\n# git commit: 0123456789abcdef0123456789abcdef01234567\n# git clean status: clean\n# rust compiler: rustc 1.0.0\n# build target: x86_64-unknown-linux-gnu\n# cpu type: Test CPU\n# cpu count: 4\n# os type: linux1\n# source blake3-servil-st: blake3-servil 0.8.0+b3c5; source https://github.com/johnservil/BLAKE3; commit b5b988d8982bea9490c38c79ec4b8c5c2428270c; clean\n# power: n/a\n# load: quiet\n{}\n{}{}{}",
             super::super::SAMPLES_VERSION,
             super::super::SAMPLES_COLUMNS,
             row("blake3-servil-mt", 10_000_000),
@@ -250,9 +324,14 @@ mod tests {
             svg.contains(">3.36 GB/s</text>") && svg.contains(">1.68 GB/s</text>"),
             "{svg}"
         );
-        assert!(
-            svg.contains("Test CPU, 4 CPUs · bench-hashes 0.13.0 on 2026-10-02"),
-            "{svg}"
-        );
+        // Its record, drawn in the image (bench-hashes #103).
+        for line in [
+            "Test CPU, 4 CPUs, linux1 · measured 2026-10-02 12:00:00 UTC",
+            "bench-hashes 0.13.0 · github.com/johnservil/bench-hashes at 0123456789abcdef0123456789abcdef01234567 · clean",
+            "BLAKE3 servil 0.8.0 · github.com/johnservil/BLAKE3 at b5b988d8982bea9490c38c79ec4b8c5c2428270c · clean",
+            "rustc 1.0.0 · x86_64-unknown-linux-gnu",
+        ] {
+            assert!(svg.contains(&format!(">{line}</text>")), "{line}\n{svg}");
+        }
     }
 }

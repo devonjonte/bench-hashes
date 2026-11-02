@@ -920,7 +920,7 @@ pub fn html(rows: &[Row]) -> String {
         let others = rows.iter().filter(|r| family(r) == family(row)).count() - 1;
         let _ = write!(
             body,
-            "<th {}><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span class=\"kind\">{}</span><span>{} CPUs, {} · {}</span><span>BLAKE3 servil {} · bench-hashes {}</span>{}{}</th>",
+            "<th {}><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span class=\"kind\">{}</span><span>{} CPUs, {} · {}</span><span><a class=\"run\" href=\"{}/bench-hashes.map.html#run\" title=\"the run's record: commits, compiler, power, load\">BLAKE3 servil {} · bench-hashes {}</a></span>{}{}</th>",
             col(i),
             escape(&row.link),
             escape(&row.machine),
@@ -928,6 +928,7 @@ pub fn html(rows: &[Row]) -> String {
             escape(&row.cpus),
             escape(&row.os),
             escape(&row.day),
+            escape(&row.link),
             escape(&row.fork),
             escape(&row.version),
             if row.stale { "<span class=\"stale\">that release's run is on its map; a run under this release is awaited</span>" } else { "" },

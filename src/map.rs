@@ -389,8 +389,14 @@ fn about(headers: &[(String, String)], load: &str) -> String {
 }
 
 /// The run's provenance, behind its door, for the readers who want it:
-/// when and where it ran, the software at its exact commits (links to
-/// them), the build, the power and the load, and the samples file.
+/// every line of the samples file's header (bench-hashes #103). The ones a
+/// reader asks about first come first, under plain labels: when and where
+/// it ran, the software at its exact commits (links to them), each
+/// contender's source as the run recorded it, the build, the power and the
+/// load; then every other header line under its own name (the CPU's
+/// identity, the target features, the clock, the sizes...), and the samples
+/// file. The load windows alone stay in the file: "Other programs" sums
+/// them up.
 fn details(
     headers: &[(String, String)],
     load: &str,
@@ -463,9 +469,11 @@ fn details(
             .nth(1)
             .and_then(|r| r.split(';').next())
             .expect("the blake3-servil source names its repository");
+        // Its source as the run recorded it (version, commit, clean status),
+        // linked to the commit.
         add(
             "BLAKE3 servil",
-            format!("{repo} at {fork}"),
+            servil.to_owned(),
             format!("https://{repo}/tree/{fork}"),
         );
     }
@@ -479,11 +487,7 @@ fn details(
             .into_iter()
             .find(|a| a.key() == key)
             .map_or(key.to_owned(), |a| a.name().to_owned());
-        add(
-            &name,
-            v.split(';').next().unwrap_or("").to_owned(),
-            String::new(),
-        );
+        add(&name, v.to_owned(), String::new());
     }
     for (label, key) in [
         ("Rust compiler", "rust compiler"),
@@ -504,6 +508,33 @@ fn details(
             how.rsplit('/').next().unwrap_or(how).to_owned(),
             String::new(),
         );
+    }
+    // Every header line not shown above, under its own name.
+    let shown = [
+        "timestamp",
+        "cpu type",
+        "cpu count",
+        "os type",
+        "bench-hashes version",
+        "bench-hashes source",
+        "git commit",
+        "git clean status",
+        "rust compiler",
+        "c compiler",
+        "rustflags",
+        "dependency lock",
+        "build target",
+        "files",
+        "contender",
+    ];
+    for (k, v) in headers.iter().filter(|(k, _)| {
+        !shown.contains(&k.as_str()) && !k.starts_with("source ") && !k.starts_with("load windows")
+    }) {
+        let mut label = k.replacen("cpu ", "CPU ", 1);
+        if let Some(first) = label.get_mut(0..1) {
+            first.make_ascii_uppercase();
+        }
+        add(&label, v.clone(), String::new());
     }
     add("Samples", samples.to_owned(), samples.to_owned());
     out

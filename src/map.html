@@ -288,6 +288,7 @@ const SHOW = { cost: false };
 const shown = nsPerByte => SHOW.cost ? nsPerByte : 1 / nsPerByte;
 /* The chart open now (its cell's key), so a chip that redraws the page keeps it open. */
 let OPEN = null;
+let RUN_OPEN = false; /* the first section's record open: a #run link */
 function render() {
   /* A redraw keeps the reader's place on the page. */
   const scrolled = window.scrollY;
@@ -335,7 +336,7 @@ function render() {
     const esc = t => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
     const rows = S.details.map(([k, v, a]) => `<dt>${esc(k)}</dt><dd>${a ? `<a href="${esc(a)}">${esc(v)}</a>` : esc(v)}</dd>`).join("");
     const vs = S.before[0] ? `<p class="about">Solid lines: ${esc(S.run)}. Dashed lines: ${esc(S.before[0])}, ${esc(S.before[1])}.</p>` : "";
-    box.innerHTML = `<h2>${S.title}</h2><p class="about">${esc(S.about)}</p>${vs}<details class="run"><summary>About this run</summary><dl>${rows}</dl></details>`;
+    box.innerHTML = `<h2>${S.title}</h2><p class="about">${esc(S.about)}</p>${vs}<details class="run"${si === 0 && RUN_OPEN ? " open" : ""}><summary>About this run</summary><dl>${rows}</dl></details>`;
     const legend = document.createElement("div"); legend.className = "legend";
     S.names.forEach((nm, i) => {
       const b = document.createElement("button"); b.textContent = nm; b.style.setProperty("--c", swatch(S, i));
@@ -507,6 +508,12 @@ function reopen() {
 /* A link to one chart (#solo|one|lent, or #1:solo|file|cached for a later section) opens it. */
 function openFromHash() {
   if (location.hash.length < 2) return;
+  // #run opens the run's record (the overview links each machine's line to it).
+  if (location.hash === "#run") {
+    RUN_OPEN = true; render();
+    document.querySelector("details.run").scrollIntoView({ block: "start" });
+    return;
+  }
   const want = decodeURIComponent(location.hash.slice(1)), key = want.includes(":") ? want : "0:" + want;
   const cell = document.querySelector(`.cell[data-key="${CSS.escape(key)}"]`);
   if (!cell || document.querySelector(".zoom")) return;
