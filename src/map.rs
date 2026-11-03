@@ -236,9 +236,10 @@ struct Chart {
     /// (a clock 0 where it spent no time on that kind); None where none.
     cores: Vec<Option<Vec<Option<[f64; 3]>>>>,
     /// The CPUs the samples' threads ended on at each point, by contender,
-    /// as "3,7" (distinct, ascending; the shared copies' together): what
-    /// two copies shared, a core's SMT pair, one L3 or one SME cluster, a
-    /// reader can tell from them (bench-hashes #108). None where none.
+    /// as "0,2" (distinct, ascending; the shared copies' together): the
+    /// placement the run chose (the header's `shared placements`), seen
+    /// from the samples themselves (bench-hashes #108, #116). None where
+    /// none.
     cpus: Vec<Option<Vec<Option<String>>>>,
 }
 
