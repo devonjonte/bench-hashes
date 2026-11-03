@@ -1,0 +1,83 @@
+bench-hashes b3sum: how long b3sum takes to hash files, from its start to its exit
+
+machine:   aarch64, 16 CPUs, linux6.18.52-0-virt
+files on:  ext4 (/dev/vda on /)
+load:      quiet: other programs kept 0.00 CPUs busy on average, 0.01 in the busiest window
+runs:      15 rounds, each contender once on each input in each
+
+contenders:
+  official       /tmp/b3sum-contenders-020/b3sum-official-1.8.7-L0    (b3sum 1.8.7, blake3 59997059d36a3f80)
+  official       /tmp/b3sum-contenders-020/b3sum-official-1.8.7-L1    (b3sum 1.8.7, blake3 d9608aba969a9569)
+  official       /tmp/b3sum-contenders-020/b3sum-official-1.8.7-L2    (b3sum 1.8.7, blake3 3d3c9434afc98a4f)
+  official       /tmp/b3sum-contenders-020/b3sum-official-1.8.7-L3    (b3sum 1.8.7, blake3 d415a46bbdd56bca)
+  official-1-thread /tmp/b3sum-contenders-020/b3sum-official-1.8.7-L0 --num-threads 1   (b3sum 1.8.7, blake3 59997059d36a3f80)
+  official-1-thread /tmp/b3sum-contenders-020/b3sum-official-1.8.7-L1 --num-threads 1   (b3sum 1.8.7, blake3 d9608aba969a9569)
+  official-1-thread /tmp/b3sum-contenders-020/b3sum-official-1.8.7-L2 --num-threads 1   (b3sum 1.8.7, blake3 3d3c9434afc98a4f)
+  official-1-thread /tmp/b3sum-contenders-020/b3sum-official-1.8.7-L3 --num-threads 1   (b3sum 1.8.7, blake3 d415a46bbdd56bca)
+  b3sum          /tmp/b3sum-contenders-020/b3sum-b5b988d-L0    (b3sums 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861, blake3 9a860c08fa24cd2f)
+  b3sum          /tmp/b3sum-contenders-020/b3sum-b5b988d-L1    (b3sums 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861, blake3 d91707ae7f37e2a1)
+  b3sum          /tmp/b3sum-contenders-020/b3sum-b5b988d-L2    (b3sums 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861, blake3 d126c2056d0c2be4)
+  b3sum          /tmp/b3sum-contenders-020/b3sum-b5b988d-L3    (b3sums 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861, blake3 58641164af65c4a3)
+  b3sum-1-thread /tmp/b3sum-contenders-020/b3sum-b5b988d-L0 --num-threads 1   (b3sums 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861, blake3 9a860c08fa24cd2f)
+  b3sum-1-thread /tmp/b3sum-contenders-020/b3sum-b5b988d-L1 --num-threads 1   (b3sums 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861, blake3 d91707ae7f37e2a1)
+  b3sum-1-thread /tmp/b3sum-contenders-020/b3sum-b5b988d-L2 --num-threads 1   (b3sums 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861, blake3 d126c2056d0c2be4)
+  b3sum-1-thread /tmp/b3sum-contenders-020/b3sum-b5b988d-L3 --num-threads 1   (b3sums 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861, blake3 58641164af65c4a3)
+  sha256sum      /usr/bin/sha256sum    (sha256sum (GNU coreutils) 9.1, blake3 44bd4619aabcc2a9)
+  sha1sum        /usr/bin/sha1sum    (sha1sum (GNU coreutils) 9.1, blake3 80e9cd8a0a30f558)
+  md5sum         /usr/bin/md5sum    (md5sum (GNU coreutils) 9.1, blake3 abc0d3f1c0b8c24e)
+
+Files in the page cache (warm: read moments before)
+mean time per run, lower is better; xN: against official, the ratio judged (the geometric mean of the rounds' ratios), marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 3%)
+input                            official             official-1-thread                  b3sum                              b3sum-1-thread                     sha256sum                           sha1sum                            md5sum
+4 KiB                            1.09 ms              460 us x0.421 faster               465 us x0.424 faster               464 us x0.423 faster               260 us x0.238 faster                253 us x0.231 faster               262 us x0.239 faster
+64 KiB                           1.62 ms              440 us x0.280 faster               409 us x0.261 faster               412 us x0.262 faster               355 us x0.227 faster                295 us x0.188 faster               345 us x0.220 faster
+1 MiB                            4.71 ms 0.223 GB/s   890 us 1.18 GB/s x0.370 faster     711 us 1.48 GB/s x0.294 faster     564 us 1.86 GB/s x0.234 faster     2.26 ms 0.464 GB/s x0.939           1.38 ms 0.758 GB/s x0.574 faster   2.14 ms 0.489 GB/s x0.891
+16 MiB                           2.90 ms 5.79 GB/s    8.12 ms 2.07 GB/s x2.910 slower    1.44 ms 11.7 GB/s x0.513 faster    6.47 ms 2.59 GB/s x2.319 slower    32.6 ms 0.515 GB/s x11.694 slower   18.9 ms 0.890 GB/s x6.761 slower   30.7 ms 0.546 GB/s x11.027 slower
+256 MiB                          11.5 ms 23.4 GB/s    121 ms 2.21 GB/s x10.610 slower    7.42 ms 36.2 GB/s x0.648 faster    100 ms 2.68 GB/s x8.754 slower     504 ms 0.533 GB/s x44.084 slower    289 ms 0.930 GB/s x25.261 slower   476 ms 0.564 GB/s x41.645 slower
+1 GiB                            39.2 ms 27.4 GB/s    475 ms 2.26 GB/s x12.159 slower    26.5 ms 40.4 GB/s x0.676 faster    395 ms 2.72 GB/s x10.121 slower    2.01 s 0.535 GB/s x51.396 slower    1.15 s 0.936 GB/s x29.378 slower   1.90 s 0.564 GB/s x48.759 slower
+1000 x 16 KiB                    97.6 ms 0.168 GB/s   14.3 ms 1.15 GB/s x0.146 faster    3.02 ms 5.42 GB/s x0.031 faster    8.85 ms 1.85 GB/s x0.091 faster    37.7 ms 0.435 GB/s x0.386 faster    22.4 ms 0.733 GB/s x0.229 faster   34.5 ms 0.475 GB/s x0.353 faster
+1000 x 16 KiB, a process each    979 ms 0.0167 GB/s   358 ms 0.0458 GB/s x0.366 faster   336 ms 0.0487 GB/s x0.343 faster   336 ms 0.0487 GB/s x0.344 faster   231 ms 0.0709 GB/s x0.236 faster    216 ms 0.0760 GB/s x0.220 faster   228 ms 0.0718 GB/s x0.233 faster
+mixed tree, 1000 files, 74 MiB   143 ms 0.542 GB/s    42.8 ms 1.81 GB/s x0.299 faster    5.77 ms 13.5 GB/s x0.040 faster    28.8 ms 2.70 GB/s x0.201 faster    154 ms 0.505 GB/s x1.072 slower     91.2 ms 0.852 GB/s x0.636 faster   144 ms 0.539 GB/s x1.005
+16 x 64 MiB                      47.8 ms 22.5 GB/s    482 ms 2.23 GB/s x10.126 slower    30.8 ms 34.9 GB/s x0.641 faster    397 ms 2.70 GB/s x8.349 slower     2.01 s 0.533 GB/s x42.341 slower    1.15 s 0.931 GB/s x24.241 slower   1.91 s 0.563 GB/s x40.129 slower
+
+CPUs busy (CPU time over wall time) and peak memory, medians
+input                            official               official-1-thread     b3sum                  b3sum-1-thread        sha256sum          sha1sum            md5sum
+4 KiB                            2.19 CPUs, 9 MiB       0.93 CPUs, 9 MiB      0.93 CPUs, 9 MiB       0.94 CPUs, 9 MiB      0.88 CPUs, 9 MiB   0.89 CPUs, 9 MiB   0.89 CPUs, 9 MiB
+64 KiB                           3.31 CPUs, 9 MiB       0.93 CPUs, 9 MiB      0.94 CPUs, 9 MiB       0.94 CPUs, 9 MiB      0.92 CPUs, 9 MiB   0.91 CPUs, 9 MiB   0.93 CPUs, 9 MiB
+1 MiB                            4.12 CPUs, 9 MiB       0.97 CPUs, 9 MiB      2.26 CPUs, 9 MiB       0.95 CPUs, 9 MiB      0.99 CPUs, 9 MiB   0.98 CPUs, 9 MiB   0.99 CPUs, 9 MiB
+16 MiB                           5.77 CPUs, 18 MiB      0.99 CPUs, 18 MiB     5.83 CPUs, 18 MiB      0.99 CPUs, 18 MiB     1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB
+256 MiB                          13.12 CPUs, 258 MiB    1.00 CPUs, 258 MiB    12.81 CPUs, 258 MiB    1.00 CPUs, 258 MiB    1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB
+1 GiB                            14.71 CPUs, 1026 MiB   1.00 CPUs, 1026 MiB   13.75 CPUs, 1027 MiB   1.00 CPUs, 1026 MiB   1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB
+1000 x 16 KiB                    3.49 CPUs, 9 MiB       1.00 CPUs, 9 MiB      5.88 CPUs, 9 MiB       0.99 CPUs, 9 MiB      1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB
+1000 x 16 KiB, a process each    2.77 CPUs, 9 MiB       0.93 CPUs, 9 MiB      0.92 CPUs, 9 MiB       0.92 CPUs, 9 MiB      0.89 CPUs, 9 MiB   0.88 CPUs, 9 MiB   0.89 CPUs, 9 MiB
+mixed tree, 1000 files, 74 MiB   4.88 CPUs, 18 MiB      1.00 CPUs, 18 MiB     8.18 CPUs, 52 MiB      1.00 CPUs, 50 MiB     1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB
+16 x 64 MiB                      13.01 CPUs, 66 MiB     1.00 CPUs, 66 MiB     12.14 CPUs, 1028 MiB   1.00 CPUs, 1026 MiB   1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB
+
+Files read from storage (cold: evicted from the page cache before each run)
+mean time per run, lower is better; xN: against official, the ratio judged (the geometric mean of the rounds' ratios), marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 3%)
+input                            official             official-1-thread                  b3sum                              b3sum-1-thread                     sha256sum                          sha1sum                            md5sum
+4 KiB                            1.27 ms              560 us x0.443 faster               544 us x0.431 faster               573 us x0.453 faster               344 us x0.273 faster               352 us x0.279 faster               344 us x0.270 faster
+64 KiB                           1.49 ms              535 us x0.357 faster               499 us x0.334 faster               504 us x0.336 faster               448 us x0.298 faster               371 us x0.248 faster               429 us x0.286 faster
+1 MiB                            1.92 ms 0.545 GB/s   1.16 ms 0.902 GB/s x0.632 faster   1.15 ms 0.913 GB/s x0.606 faster   893 us 1.17 GB/s x0.481 faster     2.40 ms 0.437 GB/s x1.310 slower   1.52 ms 0.688 GB/s x0.832 faster   2.25 ms 0.466 GB/s x1.229 slower
+16 MiB                           5.68 ms 2.95 GB/s    9.72 ms 1.73 GB/s x1.757 slower    5.67 ms 2.96 GB/s x0.949           8.29 ms 2.02 GB/s x1.493 slower    32.2 ms 0.520 GB/s x5.834 slower   18.5 ms 0.907 GB/s x3.347 slower   30.4 ms 0.552 GB/s x5.500 slower
+256 MiB                          25.3 ms 10.6 GB/s    123 ms 2.18 GB/s x4.873 slower     40.6 ms 6.61 GB/s x1.557 slower    100.0 ms 2.68 GB/s x3.961 slower   504 ms 0.533 GB/s x19.971 slower   290 ms 0.927 GB/s x11.471 slower   476 ms 0.564 GB/s x18.854 slower
+1 GiB                            65.1 ms 16.5 GB/s    483 ms 2.22 GB/s x7.448 slower     81.3 ms 13.2 GB/s x1.247 slower    390 ms 2.75 GB/s x6.010 slower     2.01 s 0.534 GB/s x31.008 slower   1.15 s 0.931 GB/s x17.774 slower   1.91 s 0.561 GB/s x29.498 slower
+1000 x 16 KiB                    125 ms 0.132 GB/s    63.9 ms 0.257 GB/s x0.513 faster   9.41 ms 1.74 GB/s x0.075 faster    18.2 ms 0.898 GB/s x0.146 faster   84.7 ms 0.193 GB/s x0.680 faster   71.4 ms 0.230 GB/s x0.573 faster   81.4 ms 0.201 GB/s x0.653 faster
+1000 x 16 KiB, a process each    1.01 s 0.0162 GB/s   415 ms 0.0395 GB/s x0.410 faster   400 ms 0.0409 GB/s x0.396 faster   402 ms 0.0408 GB/s x0.397 faster   289 ms 0.0568 GB/s x0.285 faster   275 ms 0.0597 GB/s x0.271 faster   284 ms 0.0576 GB/s x0.281 faster
+mixed tree, 1000 files, 74 MiB   186 ms 0.419 GB/s    97.0 ms 0.801 GB/s x0.523 faster   14.7 ms 5.29 GB/s x0.079 faster    43.8 ms 1.77 GB/s x0.236 faster    204 ms 0.380 GB/s x1.102 slower    139 ms 0.558 GB/s x0.751 faster    193 ms 0.402 GB/s x1.041 slower
+16 x 64 MiB                      159 ms 6.73 GB/s     512 ms 2.10 GB/s x3.214 slower     46.9 ms 22.9 GB/s x0.293 faster    416 ms 2.58 GB/s x2.612 slower     2.02 s 0.533 GB/s x12.658 slower   1.16 s 0.928 GB/s x7.261 slower    1.90 s 0.567 GB/s x11.897 slower
+
+CPUs busy (CPU time over wall time) and peak memory, medians
+input                            official               official-1-thread     b3sum                  b3sum-1-thread        sha256sum          sha1sum            md5sum
+4 KiB                            2.06 CPUs, 9 MiB       0.84 CPUs, 9 MiB      0.85 CPUs, 9 MiB       0.85 CPUs, 9 MiB      0.77 CPUs, 9 MiB   0.76 CPUs, 9 MiB   0.76 CPUs, 9 MiB
+64 KiB                           3.45 CPUs, 9 MiB       0.82 CPUs, 9 MiB      0.84 CPUs, 9 MiB       0.84 CPUs, 9 MiB      0.82 CPUs, 9 MiB   0.79 CPUs, 9 MiB   0.81 CPUs, 9 MiB
+1 MiB                            3.36 CPUs, 9 MiB       0.86 CPUs, 9 MiB      2.56 CPUs, 9 MiB       0.83 CPUs, 9 MiB      0.97 CPUs, 9 MiB   0.94 CPUs, 9 MiB   0.96 CPUs, 9 MiB
+16 MiB                           6.60 CPUs, 18 MiB      0.96 CPUs, 18 MiB     9.17 CPUs, 18 MiB      0.95 CPUs, 18 MiB     1.00 CPUs, 9 MiB   0.99 CPUs, 9 MiB   1.00 CPUs, 9 MiB
+256 MiB                          11.63 CPUs, 258 MiB    1.00 CPUs, 258 MiB    13.37 CPUs, 258 MiB    0.99 CPUs, 258 MiB    1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB
+1 GiB                            12.63 CPUs, 1026 MiB   1.00 CPUs, 1026 MiB   13.20 CPUs, 1026 MiB   1.00 CPUs, 1026 MiB   1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB
+1000 x 16 KiB                    3.14 CPUs, 9 MiB       0.42 CPUs, 9 MiB      5.90 CPUs, 9 MiB       1.00 CPUs, 9 MiB      0.55 CPUs, 9 MiB   0.46 CPUs, 9 MiB   0.53 CPUs, 9 MiB
+1000 x 16 KiB, a process each    2.68 CPUs, 9 MiB       0.84 CPUs, 9 MiB      0.83 CPUs, 9 MiB       0.83 CPUs, 9 MiB      0.77 CPUs, 9 MiB   0.76 CPUs, 9 MiB   0.77 CPUs, 9 MiB
+mixed tree, 1000 files, 74 MiB   4.11 CPUs, 18 MiB      0.58 CPUs, 18 MiB     8.36 CPUs, 56 MiB      0.93 CPUs, 50 MiB     0.81 CPUs, 9 MiB   0.73 CPUs, 9 MiB   0.80 CPUs, 9 MiB
+16 x 64 MiB                      12.26 CPUs, 66 MiB     0.99 CPUs, 66 MiB     10.37 CPUs, 1028 MiB   0.98 CPUs, 1026 MiB   1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB   1.00 CPUs, 9 MiB
+
+Every cold run read its files from storage (by the counts).
