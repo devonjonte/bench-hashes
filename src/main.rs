@@ -1694,8 +1694,19 @@ impl Topology {
 }
 
 fn topology() -> &'static Topology {
-    static T: std::sync::OnceLock<Topology> = std::sync::OnceLock::new();
-    T.get_or_init(Topology::read)
+    TOPOLOGY.get_or_init(Topology::read)
+}
+
+static TOPOLOGY: std::sync::OnceLock<Topology> = std::sync::OnceLock::new();
+
+/// A test's machine, set before anything reads the topology (each test
+/// is a process of its own): a Mac's or a one-core machine's, on Linux.
+#[cfg(test)]
+fn set_topology_for_tests(t: Topology) {
+    assert!(
+        TOPOLOGY.set(t).is_ok(),
+        "a test sets the topology before anything reads it"
+    );
 }
 
 struct MachineMetadata {
@@ -3138,7 +3149,7 @@ fn measure_all(
                 samples.solo_cpu_ns[a][p] = samples.solo_cpu_ns[a][t].clone();
                 samples.solo_energy_nj[a][p] = samples.solo_energy_nj[a][t].clone();
                 samples.solo_counts[a][p] = samples.solo_counts[a][t].clone();
-                for i in 0..2 {
+                for i in 0..PLACEMENTS {
                     samples.shared[i][a][p] = samples.shared[i][a][t].clone();
                     samples.shared_started_ns[i][a][p] = samples.shared_started_ns[i][a][t].clone();
                     samples.shared_counts[i][a][p] = samples.shared_counts[i][a][t].clone();
@@ -8200,6 +8211,51 @@ mod correctness_tests {
                 first.worked_until_ns,
                 second.worked_until_ns
             );
+        }
+    }
+
+    /// A machine that offers no pair (a Mac's empty table, set here on any
+    /// machine) measures the shared cells of its multithreaded contenders
+    /// in the OS's layer alone: servil mt's own stream, and official mt's
+    /// owned stream as its lent twin. 0.20.2 stopped twice on a Mac here
+    /// (runner jobs 1847 and 1848): the second input was sized for the
+    /// one-cache layer, and the lent twin's samples copied two layers.
+    #[test]
+    fn a_machine_with_no_pair_measures_the_os_layer() {
+        set_topology_for_tests(Topology::from_tables(
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        ));
+        blake3_servil::initialize_multithreaded(None);
+        let algorithms = vec![Algorithm::Blake3ServilMt, Algorithm::Blake3Rayon];
+        let mut points = vec![
+            point("64 KiB", UseCase::ContinuousMessages),
+            point("64 KiB", UseCase::LentMessages),
+        ];
+        points.sort_unstable();
+        let mut roster = Roster::new(algorithms, true, Some(points), Some(2), &TO_MEASURE_SPEED);
+        roster.train = Train {
+            warm_ns: 1_000_000,
+            samples: 2,
+        };
+        let (results, samples, _, _) = measure_all(&roster, &Sizes::Calibrate);
+        for a in 0..roster.len() {
+            for p in [
+                point("64 KiB", UseCase::ContinuousMessages),
+                point("64 KiB", UseCase::LentMessages),
+            ] {
+                assert!(results[a][p].as_ref().unwrap().shared[Placement::Os.index()].is_some());
+                assert_eq!(
+                    samples.shared[Placement::Os.index()][a][p].len(),
+                    2 * 2 * 2,
+                    "two copies' trains of two, two rounds"
+                );
+                for pinned in [Placement::OneCache, Placement::TwoCaches] {
+                    assert!(samples.shared[pinned.index()][a][p].is_empty());
+                }
+            }
         }
     }
 

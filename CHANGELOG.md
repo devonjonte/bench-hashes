@@ -1,4 +1,8 @@
-# bench-hashes 0.20.3+e1d7e91c397d7810d75aca9dc8ea84f86aa632d0
+# bench-hashes 0.20.4
+
+**0.20.3 still stopped on a Mac, a step further; this release runs there, and a test now runs a Mac's case on every computer.** It measures as 0.20.3 does elsewhere.
+
+## Earlier: 0.20.3+e1d7e91c397d7810d75aca9dc8ea84f86aa632d0
 
 **0.20.2 stopped on a Mac at its first two-program cell; this release runs there.** It measures as 0.20.2 does elsewhere.
 
