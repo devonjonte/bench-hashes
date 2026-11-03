@@ -423,6 +423,20 @@ fn working_tree_commit(fork: &Path) -> String {
     let copy = fork.join("target").join("check-index");
     std::fs::create_dir_all(copy.parent().unwrap()).unwrap();
     std::fs::copy(&real, &copy).expect("the index copies");
+    // With the original's modification time: git trusts an entry whose
+    // file's size and time match, unless the file changed in the second
+    // the index was written, which it tells from the index file's own
+    // time. A copy made later hid an edit of the same size made in that
+    // second (a_clean_working_tree_is_its_head, one run in three under
+    // load: one tree gave two commits).
+    let written = std::fs::metadata(&real)
+        .and_then(|m| m.modified())
+        .expect("the index has a time");
+    std::fs::File::options()
+        .write(true)
+        .open(&copy)
+        .and_then(|f| f.set_modified(written))
+        .expect("the copy takes the index's time");
     let with = |args: &[&str]| {
         let out = Command::new("git")
             .args(args)
