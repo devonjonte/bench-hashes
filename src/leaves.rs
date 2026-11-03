@@ -343,7 +343,7 @@ pub fn command(arguments: &[String]) {
         ("source blake3-servil-mt".to_owned(), super::BLAKE3_SERVIL_SOURCE_INFO.to_owned()),
         ("rounds".to_owned(), rounds.to_string()),
         ("leaves".to_owned(), format!("{MESSAGE_LEN}-byte messages from a counter; wall from producing the first to reading the last digest")),
-    ]);
+    ], &clocks::load::describe(&machine.load));
     tsv += SAMPLES_COLUMNS;
     tsv += "\n";
     let mut report = String::new();

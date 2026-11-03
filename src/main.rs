@@ -6898,7 +6898,7 @@ fn regress_command(arguments: &[String]) -> i32 {
  * machine; then `run`'s own keys, what this run measured; then the
  * machine's power and other programs' load over the run.
  */
-fn samples_header(machine: &MachineMetadata, run: &[(String, String)]) -> String {
+fn samples_header(machine: &MachineMetadata, run: &[(String, String)], load: &str) -> String {
     let mut out = String::new();
     writeln!(out, "{SAMPLES_VERSION}").unwrap();
     for (key, value) in [
@@ -6933,7 +6933,7 @@ fn samples_header(machine: &MachineMetadata, run: &[(String, String)]) -> String
     if let Some(allocator) = diag_alloc::DESCRIPTION {
         writeln!(out, "# global allocator: {allocator}").unwrap();
     }
-    writeln!(out, "# load: {}", clocks::load::describe(&machine.load)).unwrap();
+    writeln!(out, "# load: {load}").unwrap();
     let windows: Vec<String> = machine
         .load
         .iter()
@@ -6995,7 +6995,7 @@ fn generate_samples_tsv(
                 .join(","),
         ),
     ]);
-    let mut out = samples_header(machine, &run);
+    let mut out = samples_header(machine, &run, &clocks::load::describe(&machine.load));
     writeln!(out, "{SAMPLES_COLUMNS}").unwrap();
     for (algorithm_index, &algorithm) in roster.algorithms.iter().enumerate() {
         for scenario in Scenario::ALL {

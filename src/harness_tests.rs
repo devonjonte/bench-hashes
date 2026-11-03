@@ -167,6 +167,7 @@ fn every_samples_file_names_what_measured_and_where() {
             ("rounds".to_owned(), "3".to_owned()),
             ("contender".to_owned(), "a: /bin/a".to_owned()),
         ],
+        &clocks::load::describe(&machine.load),
     );
     let keys = header_keys(&header);
     assert_eq!(&keys[..PROVENANCE.len()], PROVENANCE, "{header}");
