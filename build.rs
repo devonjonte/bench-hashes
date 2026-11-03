@@ -365,20 +365,17 @@ fn git_state(repository: &Path, skip: &[&str]) -> GitState {
     }
 }
 
-/// The packages whose provenance has a line of its own (BLAKE3_SERVIL_ and
-/// CLOCKS_SOURCE_INFO), naming a local checkout and its state when a
-/// `--config` patch replaces their git source.
-const RECORDED_ELSEWHERE: [&str; 2] = ["blake3-servil", "clocks"];
+/// The packages whose provenance has a line of its own
+/// (BLAKE3_SERVIL_SOURCE_INFO), naming a local checkout and its state when
+/// a `--config` patch replaces their git source.
+const RECORDED_ELSEWHERE: [&str; 1] = ["blake3-servil"];
 
 /*
- * A `--config` patch that points blake3-servil or clocks at a local
- * checkout makes Cargo drop that package's `source` line from Cargo.lock.
- * Their provenance lines then name the checkout and its state, so a tree
- * whose only change is that line, in those packages' blocks alone, counts
- * as clean. Any other change to the lock is dirty: the comparison is by
- * package, since both come from the fork's repository (matching that
- * URL's lines once let a patched clocks pass as clean, with no record of
- * what timed the run).
+ * A `--config` patch that points blake3-servil at a local checkout makes
+ * Cargo drop that package's `source` line from Cargo.lock. Its provenance
+ * line then names the checkout and its state, so a tree whose only change
+ * is that line, in that package's block alone, counts as clean. Any other
+ * change to the lock is dirty: the comparison is by package.
  */
 fn only_recorded_patches(repository: &Path, status: &[u8]) -> bool {
     if status != b" M Cargo.lock\0" {
@@ -420,58 +417,21 @@ fn without_source(block: &str) -> String {
 }
 
 /*
- * clocks, the instrument: every timing in a run is its. Pinned, Cargo.lock
- * names its repository and commit. A `--config` patch replaces it with a
- * local checkout and drops that line; the checkout must then be named in
- * BENCH_CLOCKS_CHECKOUT (the clocks crate's directory), whose git state
- * (origin, branch, commit, and a clean flag or a hash of the uncommitted
- * changes under that directory) becomes the record. Without one the build
- * stops: a run must not say what timed it only as a lock fingerprint.
+ * clocks, the instrument: every timing in a run is its. It is this
+ * repository's own crate (clocks/), so the bench's commit and clean status,
+ * recorded beside it, name the one clocks that timed the run.
  */
 fn emit_clocks_package(lock: &str) {
-    println!("cargo:rerun-if-env-changed=BENCH_CLOCKS_CHECKOUT");
     let block = package_block(lock, "clocks").expect("clocks must be present in Cargo.lock");
     let version = quoted_field(block, "version").expect("Cargo.lock package must have a version");
-    let description = match quoted_field(block, "source") {
-        Some(source) => {
-            let (url, commit) = source
-                .strip_prefix("git+")
-                .and_then(|rest| rest.split_once("?rev="))
-                .and_then(|(url, rev)| Some((url, rev.split_once('#')?.1)))
-                .unwrap_or_else(|| panic!("clocks must come by git at a rev, or a local patch; Cargo.lock says {source}"));
-            format!("clocks {version}; source {url}; commit {commit}; clean")
-        }
-        None => {
-            let checkout = env::var_os("BENCH_CLOCKS_CHECKOUT").map(PathBuf::from).unwrap_or_else(|| {
-                panic!(
-                    "clocks is patched to a local path (Cargo.lock names no source): set BENCH_CLOCKS_CHECKOUT to that clocks \
-                     directory, so the run records the checkout that times it"
-                )
-            });
-            let manifest =
-                fs::read_to_string(checkout.join("Cargo.toml")).unwrap_or_else(|error| {
-                    panic!("BENCH_CLOCKS_CHECKOUT {}: {error}", checkout.display())
-                });
-            assert!(
-                manifest
-                    .lines()
-                    .any(|line| line.trim() == "name = \"clocks\""),
-                "BENCH_CLOCKS_CHECKOUT {} is not the clocks crate",
-                checkout.display()
-            );
-            watch_repository(&checkout);
-            let state = git_state(&checkout, &[]);
-            format!(
-                "clocks {version} (local checkout {}); source {}; branch {}; commit {}; {}",
-                checkout.display(),
-                state.source,
-                state.branch,
-                state.commit,
-                state.clean_status
-            )
-        }
-    };
-    emit_env("CLOCKS_SOURCE_INFO", &description);
+    assert!(
+        quoted_field(block, "source").is_none(),
+        "clocks comes from this repository's clocks/, never from elsewhere"
+    );
+    emit_env(
+        "CLOCKS_SOURCE_INFO",
+        &format!("clocks {version}; this repository's clocks/, at its commit"),
+    );
 }
 
 fn emit_git_metadata(repository: &Path) {

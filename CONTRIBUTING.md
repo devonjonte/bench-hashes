@@ -66,8 +66,10 @@ statistics, the report, and the map.
 The BLAKE3 servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
 the crate `blake3-servil`, a git dependency on
 [github.com/johnservil/BLAKE3](https://github.com/johnservil/BLAKE3) at
-the commit whose full hash `Cargo.toml` names (`rev`). The separate
-`clocks` pin names the instrument used on both sides of a comparison.
+the commit whose full hash `Cargo.toml` names (`rev`). The instrument,
+`clocks/` (every clock a measurement reads), is part of this repository,
+so a run's bench commit names the one that timed it, on both sides of a
+comparison.
 To measure your own checkout of the fork, keep this repository beside
 it (anywhere: neither holds the other) and name the fork's checkout:
 
@@ -96,23 +98,11 @@ build. The fork's `CONTRIBUTING.md` covers the
 fork's own tests and its performance-regression check, which runs this
 benchmark.
 
-To move either pin, set its `rev` in `Cargo.toml` to the full commit
+To move the fork's pin, set its `rev` in `Cargo.toml` to the full commit
 hash and build: Cargo updates the lock. `build-against`, relinking and
-coverage replace the fork while keeping the benchmark's clocks pin.
-
-To try a local clocks before moving its pin, patch it and name the
-checkout, so the run records what timed it:
-
-```sh
-BENCH_CLOCKS_CHECKOUT=/path/to/BLAKE3/clocks cargo build --release \
-  --config 'patch."https://github.com/johnservil/BLAKE3".clocks.path="/path/to/BLAKE3/clocks"'
-```
-
-The samples header's `clocks source` line then names that checkout, its
-commit, and whether its `clocks/` was clean; a patch without
-`BENCH_CLOCKS_CHECKOUT` stops the build. The repository's `git clean
-status` forgives the lock line such a patch drops, as it does
-blake3-servil's, and no other change to `Cargo.lock`.
+coverage replace the fork and keep this repository's `clocks/`. A change
+to `clocks/` is a change to this repository, its tests among the ones
+`cargo nextest run` runs.
 
 ## Rules that keep results comparable
 
@@ -171,8 +161,8 @@ The overview shows one release a page, so a release is the moment every
 machine runs again. In order:
 
 1. **What it carries:** each entry under FROZEN.md's "Changes for the next
-   release", and the two pins (BLAKE3 servil's commit, the clocks), each a
-   commit that passed the fork's own checks.
+   release", and the fork's pin (BLAKE3 servil's commit), a commit that
+   passed the fork's own checks.
 2. **Checks on main:** `cargo nextest run --release`, `cargo fmt --check`,
    and a `--quick` run that reports no busy window.
 3. **The tag:** `python3 tools/gen-ver.py X.Y.Z` from a clean tree: one

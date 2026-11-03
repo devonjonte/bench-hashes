@@ -1,0 +1,12 @@
+# cargo-nextest's settings for this repository.
+
+# clocks' tests that judge other programs' load run with the machine to
+# themselves: every other test running beside them is other load, and moved
+# the background a test measures first (a_sibling_beside_the_child_reads_as_load
+# failed beside the bench's tests, and passed alone). Inside one process
+# they take turns (clocks::load::exclusive); nextest runs each in its own.
+# (In the fork, clocks ran all its tests one at a time, October 26; a
+# workspace member's own nextest config is never read.)
+[[profile.default.overrides]]
+filter = 'package(clocks) & test(/^(child|load)::tests::/)'
+threads-required = "num-cpus"

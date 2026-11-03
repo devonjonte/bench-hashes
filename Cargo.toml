@@ -39,11 +39,8 @@ default-features = false
 version = "0.17"
 default-features = false
 
-# BLAKE3 servil, and the one place clocks are read (the fork's clocks/
-# crate: wall time, and the thread's counts per core kind). Each pin names
-# its full commit hash: the contender's code, and the instrument's clocks.
-# build-against replaces the contender and keeps the instrument pinned.
-# To measure a local checkout of the fork instead, build with
+# BLAKE3 servil, the contender, pinned by its full commit hash. To measure a
+# local checkout of the fork instead, build with
 # `bench-hashes build-against DIR` and run the executable it prints
 # (CONTRIBUTING.md); pass `--expect-servil COMMIT` to
 # have the run refuse any other servil. Not a bare `--config` patch: Cargo
@@ -56,9 +53,10 @@ rev = "b5b988d8982bea9490c38c79ec4b8c5c2428270c"
 default-features = false
 features = ["std"]
 
+# The one place clocks are read (wall time, and the thread's counts per
+# core kind): part of this repository, so the bench's commit names it.
 [dependencies.clocks]
-git = "https://github.com/johnservil/BLAKE3"
-rev = "ac9e6b7dbe400e77d61933373604a623e8b4a813"
+path = "clocks"
 
 # SHA-1 with collision detection (the SHA-1DC construction git uses), pure
 # Rust; there is no hardware path for the detection.
@@ -94,3 +92,8 @@ lto = "fat"
 codegen-units = 1
 panic = "abort"
 incremental = false
+
+# clocks is a member every plain `cargo nextest run` tests too.
+[workspace]
+members = ["clocks"]
+default-members = [".", "clocks"]

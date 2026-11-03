@@ -480,7 +480,7 @@ fn working_tree_commit(fork: &Path) -> String {
 /// One side's bench-hashes executable, built against the fork at `commit`:
 /// a worktree of the fork under the cache (moved only when the commit
 /// changes), this bench's sources copied beside it, Cargo pointed at the
-/// worktree for the fork, keeping the bench's pinned clocks, and a target
+/// worktree for the fork, keeping this bench's clocks, and a target
 /// directory of the side's own, so an unchanged side rebuilds nothing.
 fn side(fork: &Path, bench: &Path, cache: &Path, name: &str, commit: &str) -> PathBuf {
     let checkout = cache.join(name).join("src");
@@ -615,7 +615,7 @@ fn bench_copy(target: &Path) -> PathBuf {
 /// This bench, built against the fork checkout at `checkout` as it is:
 /// its sources copied into the build's target directory (bench_copy),
 /// Cargo pointed at the checkout for the fork (and build.rs told where it
-/// is, BENCH_HASHES_FORK), keeping the bench's pinned clocks, a lock and a
+/// is, BENCH_HASHES_FORK), keeping this bench's clocks, a lock and a
 /// target directory of the build's own (the committed lock is never
 /// written); the executable's path. `check`'s two sides and the Mac
 /// runner's benchmark jobs build this way, and so does a maintainer
@@ -1581,8 +1581,8 @@ fn llvm_tool(name: &str) -> PathBuf {
         })
 }
 
-/// Cargo's `--config` patch for a fork checkout. The bench keeps its pinned
-/// clocks on both sides, so their timing and summary rules stay the same.
+/// Cargo's `--config` patch for a fork checkout. Each side's bench keeps
+/// its own clocks, so their timing and summary rules are its.
 fn fork_patch(copy: &Path, checkout: &Path) -> String {
     let manifest =
         std::fs::read_to_string(copy.join("Cargo.toml")).expect("the bench's Cargo.toml");
