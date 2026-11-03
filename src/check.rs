@@ -410,7 +410,9 @@ fn git(cwd: &Path, args: &[&str]) -> String {
 
 /// A commit of the working tree as `git add -A` would stage it, HEAD its
 /// parent, through a copy of the index and with fixed dates, so one tree
-/// always gives one commit and nothing of the user's changes.
+/// always gives one commit and nothing of the user's changes; HEAD itself
+/// where the tree is HEAD's, so a clean checkout names its own commit (an
+/// A/A's two sides then read as one build).
 fn working_tree_commit(fork: &Path) -> String {
     let real = git(fork, &["rev-parse", "--git-path", "index"]);
     let real = if Path::new(&real).is_absolute() {
@@ -448,6 +450,9 @@ fn working_tree_commit(fork: &Path) -> String {
     };
     with(&["add", "-A"]);
     let tree = with(&["write-tree"]);
+    if tree == git(fork, &["rev-parse", "HEAD^{tree}"]) {
+        return git(fork, &["rev-parse", "HEAD"]);
+    }
     with(&[
         "commit-tree",
         &tree,
@@ -484,6 +489,9 @@ fn side(fork: &Path, bench: &Path, cache: &Path, name: &str, commit: &str) -> Pa
             &["checkout", "--quiet", "--force", "--detach", commit],
         );
     }
+    // The side is its commit: no file a build left behind (git's ignored
+    // files, the build's own, stay).
+    git(&checkout, &["clean", "-fdq"]);
     build_against(&checkout, bench, &cache.join(name).join("target"), name)
 }
 
@@ -1367,6 +1375,11 @@ fn coverage(side: Side, cache: &Path) -> Coverage {
         .current_dir(&copy)
         .env("CARGO_TARGET_DIR", &target)
         .env("RUSTFLAGS", "-C instrument-coverage")
+        // The instrumented build scripts write their profiles here, not into
+        // the directory each runs in: the fork's ran in the side's worktree,
+        // and its profraw files made that worktree read as dirty to every
+        // later build (both sides of the Mac's A/A, job 1857).
+        .env("LLVM_PROFILE_FILE", target.join("build-script-%p.profraw"))
         .env("BENCH_HASHES_CHECKOUT", bench)
         .env("BENCH_HASHES_FORK", &checkout)
         .output()
@@ -1720,6 +1733,47 @@ mod tests {
             got.starts_with(String::from_utf8(sysroot).unwrap().trim()),
             "took {got:?}: install llvm-tools (rustup component add llvm-tools)"
         );
+    }
+
+    /// A clean checkout's working tree is its HEAD (so an A/A's sides name
+    /// one commit and read as one build); a changed one is a commit of the
+    /// change on top of HEAD, the same commit each time for one tree.
+    #[test]
+    fn a_clean_working_tree_is_its_head() {
+        let repo = std::env::temp_dir().join(format!("wt-commit-test-{}", std::process::id()));
+        std::fs::create_dir_all(&repo).unwrap();
+        let run = |args: &[&str]| {
+            let out = std::process::Command::new("git")
+                .args(args)
+                .current_dir(&repo)
+                .env("GIT_AUTHOR_NAME", "t")
+                .env("GIT_AUTHOR_EMAIL", "t@t.invalid")
+                .env("GIT_COMMITTER_NAME", "t")
+                .env("GIT_COMMITTER_EMAIL", "t@t.invalid")
+                .output()
+                .unwrap();
+            assert!(out.status.success(), "git {args:?}");
+            String::from_utf8(out.stdout).unwrap().trim().to_string()
+        };
+        run(&["init", "-q"]);
+        std::fs::write(repo.join("a"), "one").unwrap();
+        // As every checkout of the fork, target/ ignored (the index copy
+        // lives there).
+        std::fs::write(repo.join(".gitignore"), "target\n").unwrap();
+        run(&["add", "a", ".gitignore"]);
+        run(&["commit", "-q", "-m", "one"]);
+        let head = run(&["rev-parse", "HEAD"]);
+        assert_eq!(super::working_tree_commit(&repo), head);
+        std::fs::write(repo.join("a"), "two").unwrap();
+        let changed = super::working_tree_commit(&repo);
+        assert_ne!(changed, head);
+        assert_eq!(run(&["rev-parse", &format!("{changed}^")]), head);
+        assert_eq!(
+            super::working_tree_commit(&repo),
+            changed,
+            "one tree, one commit"
+        );
+        std::fs::remove_dir_all(&repo).unwrap();
     }
 
     use super::touched_lines;
