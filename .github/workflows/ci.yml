@@ -7,7 +7,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+        # The platforms bench-hashes supports (README; Windows is not, since
+        # blake3-servil 0.8).
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     env:
@@ -16,6 +18,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          # check's coverage uses the toolchain's llvm-profdata and llvm-cov,
+          # and a test holds that it takes them (check::tests).
+          components: llvm-tools
       - uses: taiki-e/install-action@nextest
       - run: cargo build --release
       # Each test in its own process (AGENTS: "Tests run under nextest").

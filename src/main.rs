@@ -2818,10 +2818,11 @@ fn measure_all(
     let own = make_input_seeded(largest(&|_| true), 0);
     let other = make_input_seeded(
         largest(&|index| {
-            roster
-                .algorithms
-                .iter()
-                .any(|&a| Scenario::Shared(Placement::OneCache).measures(a, POINTS[index].use_case))
+            roster.algorithms.iter().any(|&a| {
+                Placement::ALL
+                    .into_iter()
+                    .any(|pl| Scenario::Shared(pl).measures(a, POINTS[index].use_case))
+            })
         }),
         1,
     );
