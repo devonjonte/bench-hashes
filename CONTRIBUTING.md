@@ -183,7 +183,11 @@ machine runs again. In order:
    - the fork's release check and, beside it, the same check with the same
      library on both sides (`--against` the measured commit, `--old-bench`
      the previous bench). A cell slower in the first and level in the
-     second is the library's; slower in both, the bench's;
+     second is the library's; slower in both, the bench's. When the
+     samples format changed since the previous bench (0.19 to 0.20: v7 to
+     v8), `--old-bench` stops and says so, since a bench reads its own
+     format alone: run the previous bench's own check of the same library
+     against itself, and read its verdict beside this bench's;
    - the full run, built against the fork's checkout, never through a
      `--config` patch (Cargo's lock can build the pin instead):
      `bench-hashes build-against ..`, then the executable it prints, with

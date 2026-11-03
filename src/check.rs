@@ -183,6 +183,19 @@ pub fn command(arguments: &[String]) -> i32 {
                 "--old-bench {rev}: a bench that builds beside the fork (BENCH_HASHES_FORK, from candidate/bench-0.18 1f4dfd63 on); \
                  0.18.3 and older build only inside the fork's checkout"
             );
+            // This bench reads the samples files of its own format alone
+            // (read_samples): an old bench of another format has its own
+            // check, read beside this one (CONTRIBUTING, "Releases").
+            let old_version = format!(
+                "const SAMPLES_VERSION: &str = {:?};",
+                super::SAMPLES_VERSION
+            );
+            assert!(
+                git(&bench, &["show", &format!("{commit}:src/main.rs")]).contains(&old_version),
+                "--old-bench {rev}: that bench writes samples files of another format than this one reads ({}); \
+                 across a format change, run each bench's own check of the same library (--against the commit) and read the two side by side (CONTRIBUTING.md, Releases)",
+                super::SAMPLES_VERSION
+            );
             // Made afresh each check (a second's checkout): a worktree left
             // by another bench checkout may point at a repository gone (a
             // check from before the separate checkouts left one inside the
