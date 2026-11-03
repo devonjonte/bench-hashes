@@ -13,7 +13,8 @@ a web browser.
 [The overview](https://johnservil.github.io/bench-hashes/) is one page
 for every machine measured: a column per machine, a row per way a program
 hashes, and in each row the hashes' speeds as bars, with how many times
-faster the fastest ran. Every size, on each machine measured so far:
+faster the fastest ran. Each machine's own map, every size, is a click
+away from there; four of the nine:
 
 - [Apple M4 Max, macOS](https://johnservil.github.io/bench-hashes/benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html)
 - [AMD EPYC 9255, Linux](https://johnservil.github.io/bench-hashes/benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html)
@@ -68,7 +69,8 @@ what the program hashes:
   store's files).
 
 Below the grid, a second grid shows the two multithreaded hashes as two
-programs running at once, sharing the machine.
+programs running at once on two cores under one cache; a computer with
+several caches adds a third, the two programs under two.
 
 Its columns say how the program calls: now and then, *after other work*
 or *after a pause*, and nonstop, *waiting for each call* or
@@ -126,7 +128,7 @@ the same cases, so each row's chart shows that call's measured speed here.
 
 ## How fast is b3sum?
 
-<img src="https://devonjonte.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/b3sum.chart.svg" alt="Hashing a tree of 1000 files on an Intel i7-12700K: b3sum, multi-core and on one thread, beside sha256sum, sha1sum and md5sum, in GB/s" width="720">
+<img src="benchmark-results/12thGenIntelRCoreTMi712700K.linux70042generic/b3sum.chart.svg" alt="Hashing a tree of 1000 files on an Intel i7-12700K: b3sum, multi-core and on one thread, beside sha256sum, sha1sum and md5sum, in GB/s" width="720">
 
 `bench-hashes b3sum` times builds of `b3sum`, the BLAKE3 command-line
 tool, as you run it: each run a new process, from its start to its exit.

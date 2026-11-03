@@ -360,7 +360,8 @@ function render() {
       if (layers.length > 1) {
         const lay = document.createElement("div");
         lay.className = "layer";
-        lay.innerHTML = glyph(layer, 18) + lname + `<span class="means">${lnote}</span>`;
+        // The two shared placements share the two-figures glyph.
+        lay.innerHTML = glyph(layer.startsWith("shared") ? "shared" : layer, 18) + lname + `<span class="means">${lnote}</span>`;
         lay.onclick = () => lay.classList.toggle("show");
         box.appendChild(lay);
       }

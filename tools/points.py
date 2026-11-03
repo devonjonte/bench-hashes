@@ -181,7 +181,7 @@ def main():
     print(f"# {len(args.runs)} runs, {len(series)} series")
     q = args.quantile / 100
     for use_case in args.axes:
-        for scenario in ["solo", "shared"]:
+        for scenario in ["solo", "shared-one-cache", "shared-two-caches"]:
             curves = {k: {x: ps for x, (_, ps) in v.items()} for k, v in series.items()
                       if k[2] == scenario and k[3] == use_case and len(v) >= 3}
             if not curves:

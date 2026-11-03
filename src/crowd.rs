@@ -310,6 +310,7 @@ pub fn command(arguments: &[String]) {
     // Other programs' load goes unmeasured here: the detector reads the
     // machine's CPU time beyond this process's, and the crowd's programs
     // are other processes, meant to fill the machine.
+    const LOAD: &str = "the programs themselves; other programs' load is not measured here";
     machine.power[1] = super::Power::read();
     let mut tsv = super::samples_header(
         &machine,
@@ -321,6 +322,7 @@ pub fn command(arguments: &[String]) {
                 format!("{programs} programs at once, each its own process and pool, released together, {SECONDS} s a round"),
             ),
         ],
+        LOAD,
     );
     tsv += SAMPLES_COLUMNS;
     tsv += "\n";
@@ -335,7 +337,7 @@ pub fn command(arguments: &[String]) {
     let path = directory.join("crowd.samples.tsv");
     fs::write(&path, tsv).unwrap();
     println!(
-        "bench-hashes crowd: {programs} programs at once, {}\nload: the programs themselves; other programs' load is not measured here\n\n{report}\n# Samples (TSV) are in {:?} .",
+        "bench-hashes crowd: {programs} programs at once, {}\nload: {LOAD}\n\n{report}\n# Samples (TSV) are in {:?} .",
         super::BLAKE3_SERVIL_SOURCE_INFO,
         path
     );

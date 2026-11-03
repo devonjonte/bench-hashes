@@ -106,7 +106,7 @@ def main(argv):
         per_run = []
         for r in runs:
             cell = r.cells[key]
-            steps = [(a[0] + b[0], a[1] + b[1]) for a, b in zip(cell[::2], cell[1::2])] if scenario == "shared" else cell
+            steps = [(a[0] + b[0], a[1] + b[1]) for a, b in zip(cell[::2], cell[1::2])] if scenario.startswith("shared") else cell
             per_run.append(steps)
         if any(len(x) != len(per_run[0]) or len(x) % s for x in per_run):
             continue
