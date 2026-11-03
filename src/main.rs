@@ -7901,6 +7901,16 @@ mod correctness_tests {
 
     #[test]
     fn samples_file_places_each_sample_in_the_load_windows() {
+        // A machine with one cache (the i7's table), so the shared rows read
+        // the same on every machine CI runs (a Mac offers no pair).
+        set_topology_for_tests(Topology::from_tables(
+            (0..20)
+                .map(|c| if c < 16 { c / 2 * 2 } else { c })
+                .collect(),
+            vec![0; 20],
+            vec![0; 20],
+            (0..16).collect(),
+        ));
         blake3_servil::initialize();
         let roster = Roster::new(
             vec![Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt],
