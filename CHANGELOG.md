@@ -1,4 +1,8 @@
-# bench-hashes 0.20.0+62ce6faea92dd151cddb1b5a3b89059d1f22d8b1
+# bench-hashes 0.20.1
+
+**Fixes; it measures as 0.20.0 does**, so results from either read alike. The Python study tools read 0.20's results files again. The map's two-programs rows show their two-figures mark again. A `crowd` run's results say that its programs are the load, where they said the run was too short to judge. The help lists every subcommand.
+
+## Earlier: 0.20.0+62ce6faea92dd151cddb1b5a3b89059d1f22d8b1
 
 **"Two programs at once" is measured for the multithreaded hashes alone.** Since September every nonstop cell was measured twice: alone, and as two copies of the program at once. For the single-threaded hashes the two always read the same, apart from where the operating system happened to put the two copies, so those 300 cells go. For the two multithreaded hashes the pair stays: it showed BLAKE3-Servil running faster beside a neighbour on a chip with several cache domains, which led to a fix, and two programs on one SME unit or one GPU are the same question. A full run on a one-cache computer is about a quarter shorter.
 
