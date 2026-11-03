@@ -1,4 +1,4 @@
-# bench-hashes 0.20.2
+# bench-hashes 0.20.2+5afd67ca61e26d9836b7184118d716ed0f57af2f
 
 **On a Mac, "two programs at once" is measured again.** 0.20.0 and 0.20.1 placed the two copies on chosen cores, which macOS doesn't allow, and so measured no two-program cells at all on a Mac. Now, where the computer lets no program choose its cores, the copies run wherever the operating system puts them, as a row of its own. Results from other computers are unchanged.
 
