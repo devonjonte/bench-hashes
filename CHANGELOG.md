@@ -1,4 +1,4 @@
-# bench-hashes 0.20.4
+# bench-hashes 0.20.4+6c91cfabef89d1bd52c4d73b7d2578f449689502
 
 **0.20.3 still stopped on a Mac, a step further; this release runs there, and a test now runs a Mac's case on every computer.** It measures as 0.20.3 does elsewhere.
 
