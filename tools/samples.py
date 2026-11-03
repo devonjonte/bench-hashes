@@ -13,8 +13,8 @@ A file of another version stops the reader (its own commit's tools read it).
 """
 import collections
 
-VERSION = "# bench-hashes samples v7"
-COLUMNS = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts"
+VERSION = "# bench-hashes samples v8"
+COLUMNS = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\tcpu"
 
 Run = collections.namedtuple("Run", "path headers cells")
 
@@ -37,7 +37,7 @@ def read(path):
             columns = True
         else:
             fields = line.split("\t")
-            assert len(fields) == 10, f"{path}: a row of ten fields: {line}"
+            assert len(fields) == 11, f"{path}: a row of eleven fields: {line}"
             key = tuple(fields[:4])
             assert key not in cells, f"{path}: {key} twice"
             cells[key] = [tuple(int(x) for x in s.split("/")) for s in fields[5].split(",")]

@@ -173,8 +173,7 @@ crate has no multithreaded batch entry point. The bencher writes no wrapper of i
 contender; the contenders' own entry points are the whole of what it
 calls.
 
-Both scenarios apply unchanged: in the shared one each copy hashes its
-own batch.
+In the shared scenario each copy hashes its own batch.
 
 ## Solo and shared, and the gap
 
@@ -196,13 +195,10 @@ interval takes two samples of the same batch:
   has two, also under **two**, a layer each (FROZEN.md, "Changes for
   0.20"); on a two-socket machine each copy's input is in its own
   socket's memory, as a program's own would be. The header's `shared placements` line names the CPUs, and each
-  sample records the CPU its thread ended on (the `cpu` column). They compete for
-  cores, memory bandwidth, and any shared execution unit (such as Apple
-  M4's SME unit). The calls after a gap run solo, since a second copy
-  would warm the cache the gap was meant to cool. Each copy runs its own train,
-  so the last sample of the slower copy's train can run partly alone:
-  about 1% optimistic on an i7-12700K, level on an EPYC 9255 and a pair
-  of Xeon Gold 6330s (bench-hashes #105).
+  sample records the CPU its thread ended on (the `cpu` column). They
+  compete for the cache, memory bandwidth, and any shared execution unit
+  (such as Apple M4's SME unit). The calls after a gap run solo, since a
+  second copy would warm the cache the gap was meant to cool.
 
 In the calls after a gap, each sample is one call (or enough calls to
 fill 2 µs when a single call is shorter than the clock tick), each
@@ -416,7 +412,8 @@ samples at each, long hashes included, so each meets every position and
 every predecessor equally often. A visit after a gap is one sample, and
 a shared one gives two, one per copy. A nonstop visit is a train: the
 cell's own load, untimed, for 100 ms, then 6 samples back to back, solo,
-then the same for the two shared copies together. So each sample meets
+then the same for the two shared copies together, once per placement
+the machine has. So each sample meets
 the machine as the cell's own sustained load leaves it: its cores'
 clocks, its threads' placement, a GPU's clock. The starting
 point's rotation is even only when the round count is a multiple of the
@@ -556,8 +553,9 @@ spares SHA-256 (as fast on either kind): bench #25.
 
 `bench-hashes.map.html` draws every cell the run's samples file holds as
 a small chart, its lines through each contender's means on log scales,
-higher faster. The charts sit in a grid, first for one program (solo) and then, for the
-multithreaded contenders, two at once (shared). Its rows are what the program hashes: one message, a
+higher faster. The charts sit in a grid, first for one program (solo)
+and then, for the multithreaded contenders, two at once (shared), a
+layer per placement the machine has. Its rows are what the program hashes: one message, a
 batch of short messages, a batch of longer ones, a Merkle tree, many
 messages at once in pieces, and a collection of messages. Its columns are how the program calls: after other work, after
 a pause, waiting for each call, or pipelined. A cell the run did not measure stays
@@ -796,8 +794,9 @@ result.
   bytes don't change. A defence, if one is ever needed: rotate among
   equal-size buffers, at a cache cost every contender would pay.
 - **Knowing the harness's thread count.** The shared scenario runs exactly
-  two copies; a multithreaded contender could detect that. More copies
-  (devonjonte/bench-hashes#1) would make it harder.
+  two copies, as threads of one process; a multithreaded contender could
+  detect that. `bench-hashes crowd` runs many programs, each a process
+  with its own pool, where a contender sees only its own.
 - **Workers that stay hot.** A contender whose workers keep polling
   between calls looks better in a tight loop than in a program that hashes
   once a second; the after-idling cells (a 1 ms sleep before each call)
