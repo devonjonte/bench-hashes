@@ -7,6 +7,8 @@ rule"): comparisons and verdicts stay in bench-hashes (`compare`,
     run = samples.read(path)
     run.headers["nonstop train"]          # a `# key: value` line
     run.cells[(contender, scenario, use_case, point)]   # [(ns, units), ...]
+    run.cpus[key]                         # the CPU each sample's thread ended on, or None
+    run.cores[key]                        # each sample's (P ns, P cycles, E ns, E cycles), or None
     samples.mean_ps(run.cells[key])       # picoseconds a unit, the cell's mean
 
 A file of another version stops the reader (its own commit's tools read it).
@@ -16,17 +18,19 @@ import collections
 VERSION = "# bench-hashes samples v8"
 COLUMNS = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\tcpu"
 
-Run = collections.namedtuple("Run", "path headers cells")
+Run = collections.namedtuple("Run", "path headers cells cpus cores")
 
 
 def read(path):
-    """A samples file: its `# key: value` header lines, and each cell's samples
+    """A samples file: its `# key: value` header lines, each cell's samples
     as (ns, units) in the order taken, keyed (contender, scenario, use case,
-    point)."""
+    point); and in the same order, the CPU each sample's thread ended on
+    (None where the platform names none: macOS) and its thread's time and
+    core cycles on each core kind (None where none was counted)."""
     with open(path) as f:
         lines = f.read().splitlines()
     assert lines and lines[0] == VERSION, f"{path}: a samples file begins with {VERSION!r}"
-    headers, cells, columns = {}, {}, False
+    headers, cells, cpus, cores, columns = {}, {}, {}, {}, False
     for line in lines[1:]:
         if line.startswith("#") or not line:
             if line.startswith("# ") and ": " in line:
@@ -41,7 +45,11 @@ def read(path):
             key = tuple(fields[:4])
             assert key not in cells, f"{path}: {key} twice"
             cells[key] = [tuple(int(x) for x in s.split("/")) for s in fields[5].split(",")]
-    return Run(path, headers, cells)
+            cpus[key] = None if fields[10] == "-" else [int(c) for c in fields[10].split(",")]
+            assert cpus[key] is None or len(cpus[key]) == len(cells[key]), f"{path}: {key}: a CPU for each sample"
+            cores[key] = None if fields[9] == "-" else [tuple(int(x) for x in c.split(":")) for c in fields[9].split(",")]
+            assert cores[key] is None or all(len(c) == 4 for c in cores[key]) and len(cores[key]) == len(cells[key]), f"{path}: {key}: four counts for each sample"
+    return Run(path, headers, cells, cpus, cores)
 
 
 def mean_ps(samples):
