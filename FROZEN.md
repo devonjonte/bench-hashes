@@ -19,8 +19,9 @@ of runs: `clocks::summary`), the load rule (`clocks::load`), the
 regression check (`bench-hashes regress`: its points, its pairs, its
 margin of 3%), and the
 presentation (the map and the report, their layout and
-their words). A change to any of these, a bug fix included, is Zooko's
-decision, recorded here with its date and reason, and it starts a new
+their words). A change to any of these, a bug fix included, is John
+Servil's decision (Zooko, November 2, 2026: a momentous, uncertain one
+waits for Zooko), recorded here with its date and reason, and it starts a new
 release, so results of different benchmarks are never read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
@@ -127,6 +128,51 @@ anything", John Servil releasing it):
 - **Studies read samples in Python** (`tools/samples.py`): `means` and
   `settle` left the program for `tools/points.py` and `tools/settle.py`,
   beside `tools/variance.py`; comparisons and verdicts stay in it.
+
+**Changes for 0.20** (Zooko, November 2, 2026, bench-hashes #108):
+- **The shared scenario measures the multithreaded contenders alone**,
+  and records where each copy ran. From September 23 every nonstop cell
+  was measured twice, alone and as two copies at once. In six weeks the
+  single-threaded contenders' shared cells read x1.00 at the median on
+  every machine, apart from where the scheduler placed the copies (an
+  SMT pair: x1.5, Sam Shackleton, EPYC 9255); they were 300 of the 381
+  shared cells and told nothing a solo cell did not. The multithreaded
+  contenders' shared cells told what nothing else could: servil mt ran
+  x0.59 beside a neighbour on the EPYC, its pool kept to one L3 domain
+  where alone it sprawled (BLAKE3 #196, found so). Two programs on one
+  SME cluster or one GPU are the same question, so the scenario stays
+  for them (Zooko: it revealed this and may reveal the next). Each
+  sample's row now records the CPU its thread ended on (`cpu`, read
+  after the timed call), so a reader can tell what two copies shared.
+  The samples format is v8.
+- **The shared copies are placed** (Zooko, November 2, 2026; bench-hashes
+  #116): until 0.20 the scheduler chose where the two copies ran, each
+  sample, and the figure followed it (an SMT pair x1.5, two L3 domains
+  x0.6 of one; 59 of the Xeon pair's 81 shared cells mixed placements).
+  Now each copy's thread is pinned to a chosen CPU for its job: two
+  physical cores, never one core's two hardware threads, performance
+  cores where the machine has two kinds, under **one last-level cache**
+  (what a busy machine most often gives two programs, and the case that
+  found #196), and, where the machine has two caches, also under **two**
+  (two L3 domains; on Apple silicon two clusters, so two SME units),
+  each a layer of its own. Both are measured because the pool's
+  placement work (#196) changes what each shows; a one-cache machine
+  measures the first alone. Where the two caches are two memory nodes
+  (two sockets), each copy moves its input's pages to its CPU's node
+  before it runs, as a program's own memory would be (Sam, November 2).
+  The header's `shared placements` line names the CPUs, and the nodes
+  where it applies. Where the machine offers no pair (macOS, whose
+  threads take no affinity; a one-core machine), the copies run wherever
+  the operating system puts them, as a layer of their own,
+  `shared-os` (0.20.2: 0.20.0 and 0.20.1 measured no shared cell there,
+  though this entry said the scheduler places them; John Servil,
+  November 3).
+- **Every shared sample is contended** (#105): the copy that finishes
+  its train first keeps hashing, unsampled, until the other has finished.
+  Before, the slower copy's last samples ran alone, about 1% optimistic
+  in 0.19 (7% in 0.18, whose copies were uneven). The pool's fairness
+  between two callers is the fork's `tests/pool_fairness.rs` (BLAKE3
+  #215) besides.
 
 **Changes for the next release** (Zooko, October 16, 2026):
 - **The batch calls take a `Batch`** (Zooko, October 28; BLAKE3 #205):
@@ -848,8 +894,10 @@ use case ContinuousCollection: git objects, Nix files
 use case MerkleTree: 1024, 4096, 16384, 65536, 262144
 use case InterleavedTurn: 256
 use case IdleInterleavedTurn: 256
-scenarios: solo, shared
+scenarios: solo, shared-one-cache, shared-two-caches, shared-os
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree
+shared placements: two cores under one last-level cache; two cores under two (where the machine has two); where it offers no pair (macOS), wherever the OS runs them
+shared contenders: blake3-official-mt, blake3-servil-mt
 blake3-servil-st InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each, then performance::finalize_each for the messages that ended in it
 blake3-servil-st IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: performance::update_each, then performance::finalize_each for the messages that ended in it
 blake3-servil-mt InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each_multithreaded, then performance::finalize_each for the messages that ended in it

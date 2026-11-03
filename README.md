@@ -13,7 +13,8 @@ a web browser.
 [The overview](https://johnservil.github.io/bench-hashes/) is one page
 for every machine measured: a column per machine, a row per way a program
 hashes, and in each row the hashes' speeds as bars, with how many times
-faster the fastest ran. Every size, on each machine measured so far:
+faster the fastest ran. Each machine's own map, every size, is a click
+away from there; four of the nine:
 
 - [Apple M4 Max, macOS](https://johnservil.github.io/bench-hashes/benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html)
 - [AMD EPYC 9255, Linux](https://johnservil.github.io/bench-hashes/benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html)
@@ -23,8 +24,8 @@ faster the fastest ran. Every size, on each machine measured so far:
 ## Run it on your computer
 
 You need [Rust](https://rustup.rs) and a C compiler: Xcode's command-line
-tools on macOS (`xcode-select --install`), gcc or clang on Linux, or the
-Visual Studio C++ build tools on Windows. Then:
+tools on macOS (`xcode-select --install`), or gcc or clang on Linux.
+(Windows is unsupported since blake3-servil 0.8.) Then:
 
 ```sh
 git clone https://github.com/johnservil/bench-hashes
@@ -38,8 +39,9 @@ that [Releases](https://github.com/johnservil/bench-hashes/releases)
 lists.
 
 The first build takes a minute or two; the run then measures for about
-two minutes (on an Apple M4 Max) and needs about 1 GB of free memory. The numbers come out most
-accurate when nothing else busy runs on the computer meanwhile.
+two minutes (on an Apple M4 Max; `--all`, every contender, about six)
+and needs about 1 GB of free memory. The numbers come out most accurate
+when nothing else busy runs on the computer meanwhile.
 
 ## Read your results
 
@@ -47,9 +49,9 @@ The run writes these files to `benchmark-results/`, in a folder named after
 your CPU and operating system:
 
 - `bench-hashes.map.html`: the map. Open it in a web browser.
-- `bench-hashes.chart.svg`: one 1 MiB message as bars, a picture to share
-  (a full run draws it; `bench-hashes chart` draws it again from a
-  samples file).
+- `bench-hashes.chart.svg`: one 128 MiB message after a pause, as bars,
+  a picture to share (a full run draws it; `bench-hashes chart` draws it
+  again from a samples file). It carries the run's record in its footer.
 - `bench-hashes.result.txt`: the same numbers as text tables.
 - `bench-hashes.samples.tsv`: every single measurement, for your own
   analysis.
@@ -58,12 +60,17 @@ The map has a small chart for each way a program hashes. Its rows say
 what the program hashes:
 
 - one message;
-- a batch of 64-byte messages (a Merkle tree's nodes);
+- a batch of short messages (64 bytes each, a Merkle tree's nodes), and
+  a batch of longer ones (4 KiB each, a store's blocks);
+- a Merkle tree over leaves just written, every layer kept (a prover's
+  commitment);
 - many messages at once, arriving in pieces (a server's uploads);
 - a collection of messages of every size (a repository's objects, a
-  store's files);
-- a message with its outboard, for verified streaming, and a message
-  received in that form, verified as it arrives.
+  store's files).
+
+Below the grid, a second grid shows the two multithreaded hashes as two
+programs running at once on two cores under one cache; a computer with
+several caches adds a third, the two programs under two.
 
 Its columns say how the program calls: now and then, *after other work*
 or *after a pause*, and nonstop, *waiting for each call* or
@@ -89,8 +96,9 @@ chart's values say where the program's thread ran (performance or
 efficiency cores, and at what clock).
 
 Under each section's title the map says where and when the run was made,
-and whether other programs kept the computer busy; "About this run" says
-the rest, the power source among it. If programs were busy, or the
+and whether other programs kept the computer busy; "About this run" lists
+the run's whole record: every program's exact version and commit, the
+compiler, the CPU and its idle states, the power source and the load. If programs were busy, or the
 computer ran on battery, run again quieter and plugged in: busy programs
 slow the results, and battery power changes which cores run them.
 
@@ -120,7 +128,7 @@ the same cases, so each row's chart shows that call's measured speed here.
 
 ## How fast is b3sum?
 
-<img src="https://devonjonte.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70038generic/b3sum.chart.svg" alt="Hashing a tree of 1000 files on an Intel i7-12700K: b3sum, multi-core and on one thread, beside sha256sum, sha1sum and md5sum, in GB/s" width="720">
+<img src="benchmark-results/12thGenIntelRCoreTMi712700K.linux70042generic/b3sum.chart.svg" alt="Hashing a tree of 1000 files on an Intel i7-12700K: b3sum, multi-core and on one thread, beside sha256sum, sha1sum and md5sum, in GB/s" width="720">
 
 `bench-hashes b3sum` times builds of `b3sum`, the BLAKE3 command-line
 tool, as you run it: each run a new process, from its start to its exit.
@@ -149,11 +157,24 @@ folder's map again from its samples files.
 `bench-hashes map NEW_FOLDER --beside OLD_FOLDER` compares two runs side
 by side in `bench-hashes.beside.map.html`. Each chart draws the older
 run's lines dashed under the newer run's, and the values under the
-pointer say how many times faster each hash runs now. The releases'
+pointer say how many times faster each hash runs now. Some such
 comparisons are in [`beside/`](beside/).
 
 The maps above hold b3sum's results too: official b3sum beside the
 fork's.
+
+## Many programs at once
+
+`bench-hashes crowd` runs many programs at once, one a CPU unless told
+`--programs N`: each is a process of its own with its own thread pool,
+hashing 1 KiB or 64 KiB messages one after another for two seconds, all
+released together. It prints, for each multithreaded hash, the time per
+byte a program saw, what the machine did in all, and how unevenly the
+operating system served the programs (the luckiest's rate over the
+unluckiest's). Twenty programs each starting a pool of twenty threads is
+the classic oversubscription, and the question is whether a hash's pool
+degrades gracefully there. The samples go to `crowd.samples.tsv` in
+`benchmark-results/`, in the format `bench-hashes compare` reads.
 
 ## Share your results
 

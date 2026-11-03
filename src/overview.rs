@@ -229,7 +229,7 @@ fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algo
         name: plain_name(a).to_owned(),
         id: a.key(),
         color: a.color(),
-        striped: a.striped(),
+        striped: a.multithreaded(),
         gbps: gbps(samples, per_unit),
         note,
     };
@@ -1223,7 +1223,7 @@ mod tests {
             name: name.to_owned(),
             id,
             color: a.color(),
-            striped: a.striped(),
+            striped: a.multithreaded(),
             gbps,
             note,
         }

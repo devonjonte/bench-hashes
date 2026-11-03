@@ -354,11 +354,14 @@ function render() {
       legend.appendChild(b);
     }
     box.appendChild(legend);
-    for (const [layer, lname, lnote] of S.layers) {
-      if (S.layers.length > 1) {
+    // The layers this run measured (a placement the machine lacks has no cells).
+    const layers = S.layers.filter(([layer]) => Object.keys(S.cells).some(k => k.startsWith(layer + "|")));
+    for (const [layer, lname, lnote] of layers) {
+      if (layers.length > 1) {
         const lay = document.createElement("div");
         lay.className = "layer";
-        lay.innerHTML = glyph(layer, 18) + lname + `<span class="means">${lnote}</span>`;
+        // The two shared placements share the two-figures glyph.
+        lay.innerHTML = glyph(layer.startsWith("shared") ? "shared" : layer, 18) + lname + `<span class="means">${lnote}</span>`;
         lay.onclick = () => lay.classList.toggle("show");
         box.appendChild(lay);
       }
@@ -416,7 +419,7 @@ function tipHTML(S, q, k) {
   const cpuOf = i => { const v = q.cpu[i] && q.cpu[i][k]; return v ? `${M.wall ? "; " : ""}CPU ${SHOW.cost ? v.toPrecision(3) + " ns/B · " : ""}${time(v * q.per[k])} ${q.what}` : M.wall ? "" : "no CPU time recorded"; };
   const energyOf = i => { const v = q.energy[i] && q.energy[i][k]; if (!v) return ""; const nj = v * q.per[k]; return `${M.wall || M.cpu ? "; " : ""}energy ${SHOW.cost ? v.toPrecision(3) + " nJ/B · " : (1 / v).toPrecision(3) + " GB/J · "}${nj >= 1e6 ? (nj / 1e6).toPrecision(3) + " mJ" : nj >= 1e3 ? (nj / 1e3).toPrecision(3) + " µJ" : nj.toPrecision(3) + " nJ"} ${q.what}`; };
   /* Where the caller ran: its E-core share and the clocks, where counted. */
-  const ran = i => { const c = q.cores && q.cores[i] && q.cores[i][k]; if (!c) return ""; const [e, p, ee] = c; return ` <span class="was">[${e < 0.005 ? `P cores, ${p.toFixed(2)} GHz` : e > 0.995 ? `E cores, ${ee.toFixed(2)} GHz` : `${(100 * e).toFixed(0)}% on E cores; P ${p.toFixed(2)}, E ${ee.toFixed(2)} GHz`}]</span>`; };
+  const ran = i => { const c = q.cores && q.cores[i] && q.cores[i][k]; const on = q.cpus && q.cpus[i] && q.cpus[i][k]; if (!c && !on) return ""; const where = c ? (([e, p, ee]) => e < 0.005 ? `P cores, ${p.toFixed(2)} GHz` : e > 0.995 ? `E cores, ${ee.toFixed(2)} GHz` : `${(100 * e).toFixed(0)}% on E cores; P ${p.toFixed(2)}, E ${ee.toFixed(2)} GHz`)(c) : ""; return ` <span class="was">[${where}${where && on ? "; " : ""}${on ? `CPU ${on}` : ""}]</span>`; };
   /* A contender a block: what wraps indents under its name. */
   return `${q.axis}: <b>${q.sizes[k]}</b>` + rows.map(([i, rate, t]) => `<div class="row"><span class="sw" style="background:${swatch(S, i)}"></span>${S.names[i]}: ` + (M.wall ? `${SHOW.cost ? t.toPrecision(3) + " ns/B" : rate.toPrecision(3) + " " + q.unit} · ${time(t * q.per[k])} ${q.what}${was(i)}${ran(i)}` : "") + (M.cpu ? cpuOf(i) : "") + (M.energy ? energyOf(i) : "") + "</div>").join("");
 }

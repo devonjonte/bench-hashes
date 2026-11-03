@@ -1,4 +1,30 @@
-# bench-hashes 0.19.7+d37df38c7c9e22f47e10d8e9adfc2e2359c8105f
+# bench-hashes 0.20.4+6c91cfabef89d1bd52c4d73b7d2578f449689502
+
+**0.20.3 still stopped on a Mac, a step further; this release runs there, and a test now runs a Mac's case on every computer.** It measures as 0.20.3 does elsewhere.
+
+## Earlier: 0.20.3+e1d7e91c397d7810d75aca9dc8ea84f86aa632d0
+
+**0.20.2 stopped on a Mac at its first two-program cell; this release runs there.** It measures as 0.20.2 does elsewhere.
+
+## Earlier: 0.20.2+5afd67ca61e26d9836b7184118d716ed0f57af2f
+
+**On a Mac, "two programs at once" is measured again.** 0.20.0 and 0.20.1 placed the two copies on chosen cores, which macOS doesn't allow, and so measured no two-program cells at all on a Mac. Now, where the computer lets no program choose its cores, the copies run wherever the operating system puts them, as a row of its own. Results from other computers are unchanged.
+
+## Earlier: 0.20.1+fb8e4df69d9dc80db735b6c8934beace93d50a8b
+
+**Fixes; it measures as 0.20.0 does**, so results from either read alike. The Python study tools read 0.20's results files again. The map's two-programs rows show their two-figures mark again. A `crowd` run's results say that its programs are the load, where they said the run was too short to judge. The help lists every subcommand.
+
+## Earlier: 0.20.0+62ce6faea92dd151cddb1b5a3b89059d1f22d8b1
+
+**"Two programs at once" is measured for the multithreaded hashes alone.** Since September every nonstop cell was measured twice: alone, and as two copies of the program at once. For the single-threaded hashes the two always read the same, apart from where the operating system happened to put the two copies, so those 300 cells go. For the two multithreaded hashes the pair stays: it showed BLAKE3-Servil running faster beside a neighbour on a chip with several cache domains, which led to a fix, and two programs on one SME unit or one GPU are the same question. A full run on a one-cache computer is about a quarter shorter.
+
+**The two copies are placed.** What two programs share decides what they cost each other, and until now the operating system chose it for every sample. Now the copies run on two cores under one cache, and, on computers with several caches, also under two, as a second row; on a two-socket computer each copy's input sits in its own socket's memory. Each sample records which CPU it ran on, and the copy that finishes first keeps working until the other has finished, so every sample is taken with its neighbour running.
+
+**`bench-hashes crowd` is new:** many programs at once, one a CPU, each with its own thread pool, for the question whether a hash's pool degrades gracefully when twenty programs each start twenty threads. The samples files gain a `cpu` column (format v8); files from earlier versions are read with those versions.
+
+**Every comparison names what it compares.** `bench-hashes compare` and `regress` print each side's builds: each one's bench-hashes and BLAKE3-Servil commits, and whether each tree was clean, a sigil standing for a changed tree. They say so when both sides are the same build. `build-against` puts each build in a folder named the same way, and `bench-hashes provenance` prints a build's name.
+
+## Earlier: 0.19.7+d37df38c7c9e22f47e10d8e9adfc2e2359c8105f
 
 **Two fixes to the map.** Each column now stays in its place through both halves of a map, so a reader scanning down a column finds the same way of calling in it. A run whose BLAKE3-Servil checkout was cloned from a local folder now writes its report and map, where it stopped after measuring.
 

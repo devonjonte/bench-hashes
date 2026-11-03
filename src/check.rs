@@ -410,7 +410,9 @@ fn git(cwd: &Path, args: &[&str]) -> String {
 
 /// A commit of the working tree as `git add -A` would stage it, HEAD its
 /// parent, through a copy of the index and with fixed dates, so one tree
-/// always gives one commit and nothing of the user's changes.
+/// always gives one commit and nothing of the user's changes; HEAD itself
+/// where the tree is HEAD's, so a clean checkout names its own commit (an
+/// A/A's two sides then read as one build).
 fn working_tree_commit(fork: &Path) -> String {
     let real = git(fork, &["rev-parse", "--git-path", "index"]);
     let real = if Path::new(&real).is_absolute() {
@@ -421,6 +423,20 @@ fn working_tree_commit(fork: &Path) -> String {
     let copy = fork.join("target").join("check-index");
     std::fs::create_dir_all(copy.parent().unwrap()).unwrap();
     std::fs::copy(&real, &copy).expect("the index copies");
+    // With the original's modification time: git trusts an entry whose
+    // file's size and time match, unless the file changed in the second
+    // the index was written, which it tells from the index file's own
+    // time. A copy made later hid an edit of the same size made in that
+    // second (a_clean_working_tree_is_its_head, one run in three under
+    // load: one tree gave two commits).
+    let written = std::fs::metadata(&real)
+        .and_then(|m| m.modified())
+        .expect("the index has a time");
+    std::fs::File::options()
+        .write(true)
+        .open(&copy)
+        .and_then(|f| f.set_modified(written))
+        .expect("the copy takes the index's time");
     let with = |args: &[&str]| {
         let out = Command::new("git")
             .args(args)
@@ -448,6 +464,9 @@ fn working_tree_commit(fork: &Path) -> String {
     };
     with(&["add", "-A"]);
     let tree = with(&["write-tree"]);
+    if tree == git(fork, &["rev-parse", "HEAD^{tree}"]) {
+        return git(fork, &["rev-parse", "HEAD"]);
+    }
     with(&[
         "commit-tree",
         &tree,
@@ -484,6 +503,9 @@ fn side(fork: &Path, bench: &Path, cache: &Path, name: &str, commit: &str) -> Pa
             &["checkout", "--quiet", "--force", "--detach", commit],
         );
     }
+    // The side is its commit: no file a build left behind (git's ignored
+    // files, the build's own, stay).
+    git(&checkout, &["clean", "-fdq"]);
     build_against(&checkout, bench, &cache.join(name).join("target"), name)
 }
 
@@ -545,8 +567,28 @@ pub fn build_against_command(arguments: &[String]) -> i32 {
         &build_against_dir(&target, &checkout, shared.is_some()),
         "build-against",
     );
-    println!("{}", exe.display());
+    println!("{}", named_for_provenance(&exe).display());
     0
+}
+
+/// `exe`, copied into a directory beside it named for its provenance
+/// (`bench-hashes provenance`: the bench's commit and the fork's, each with
+/// its tree's state): a path kept from an earlier build still runs what it
+/// names, and whoever holds the path can tell what it measures.
+fn named_for_provenance(exe: &Path) -> PathBuf {
+    let out = Command::new(exe)
+        .arg("provenance")
+        .output()
+        .expect("the build runs");
+    assert!(out.status.success(), "{} provenance failed", exe.display());
+    let line = String::from_utf8(out.stdout).expect("UTF-8");
+    let name = line.trim_end().replace("; ", "_").replace(' ', "-");
+    let dir = exe.parent().expect("a directory").join(&name);
+    std::fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("{}: {e}", dir.display()));
+    let named = dir.join("bench-hashes");
+    std::fs::copy(exe, &named).unwrap_or_else(|e| panic!("{}: {e}", named.display()));
+    eprintln!("build-against: {}", line.trim_end());
+    named
 }
 
 /// Where `build-against` builds for `checkout`, inside `target`: its
@@ -1347,6 +1389,11 @@ fn coverage(side: Side, cache: &Path) -> Coverage {
         .current_dir(&copy)
         .env("CARGO_TARGET_DIR", &target)
         .env("RUSTFLAGS", "-C instrument-coverage")
+        // The instrumented build scripts write their profiles here, not into
+        // the directory each runs in: the fork's ran in the side's worktree,
+        // and its profraw files made that worktree read as dirty to every
+        // later build (both sides of the Mac's A/A, job 1857).
+        .env("LLVM_PROFILE_FILE", target.join("build-script-%p.profraw"))
         .env("BENCH_HASHES_CHECKOUT", bench)
         .env("BENCH_HASHES_FORK", &checkout)
         .output()
@@ -1700,6 +1747,47 @@ mod tests {
             got.starts_with(String::from_utf8(sysroot).unwrap().trim()),
             "took {got:?}: install llvm-tools (rustup component add llvm-tools)"
         );
+    }
+
+    /// A clean checkout's working tree is its HEAD (so an A/A's sides name
+    /// one commit and read as one build); a changed one is a commit of the
+    /// change on top of HEAD, the same commit each time for one tree.
+    #[test]
+    fn a_clean_working_tree_is_its_head() {
+        let repo = std::env::temp_dir().join(format!("wt-commit-test-{}", std::process::id()));
+        std::fs::create_dir_all(&repo).unwrap();
+        let run = |args: &[&str]| {
+            let out = std::process::Command::new("git")
+                .args(args)
+                .current_dir(&repo)
+                .env("GIT_AUTHOR_NAME", "t")
+                .env("GIT_AUTHOR_EMAIL", "t@t.invalid")
+                .env("GIT_COMMITTER_NAME", "t")
+                .env("GIT_COMMITTER_EMAIL", "t@t.invalid")
+                .output()
+                .unwrap();
+            assert!(out.status.success(), "git {args:?}");
+            String::from_utf8(out.stdout).unwrap().trim().to_string()
+        };
+        run(&["init", "-q"]);
+        std::fs::write(repo.join("a"), "one").unwrap();
+        // As every checkout of the fork, target/ ignored (the index copy
+        // lives there).
+        std::fs::write(repo.join(".gitignore"), "target\n").unwrap();
+        run(&["add", "a", ".gitignore"]);
+        run(&["commit", "-q", "-m", "one"]);
+        let head = run(&["rev-parse", "HEAD"]);
+        assert_eq!(super::working_tree_commit(&repo), head);
+        std::fs::write(repo.join("a"), "two").unwrap();
+        let changed = super::working_tree_commit(&repo);
+        assert_ne!(changed, head);
+        assert_eq!(run(&["rev-parse", &format!("{changed}^")]), head);
+        assert_eq!(
+            super::working_tree_commit(&repo),
+            changed,
+            "one tree, one commit"
+        );
+        std::fs::remove_dir_all(&repo).unwrap();
     }
 
     use super::touched_lines;

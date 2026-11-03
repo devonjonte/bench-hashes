@@ -7,12 +7,23 @@ it measures, and keep your results comparable with ours.
 ## Layout
 
 - `src/main.rs`: the benchmark (contenders, timing, statistics, the text
-  report); `src/map.rs` and `src/map.html`, the map; `src/b3sum.rs`,
-  `bench-hashes b3sum`.
+  report, `compare` and `regress`); `src/check.rs`, `bench-hashes check`;
+  `src/map.rs` and `src/map.html`, the map; `src/overview.rs` and
+  `src/overview.html`, the overview page; `src/chart.rs`, the charts;
+  `src/b3sum.rs`, `bench-hashes b3sum`; `src/leaves.rs`, `bench-hashes
+  leaves`; `src/crowd.rs`, `bench-hashes crowd` (many programs at once); `src/fingerprint.rs`, a dirty tree's fingerprint, shared with
+  `build.rs`; `src/harness_tests.rs`, tests of the benchmark's own work
+  (zeroing, orders, the output directory); `src/diag_alloc.rs`,
+  diagnostic allocators for the cache-line study (#65), never a
+  measurement configuration.
 - `build.rs`: embeds the provenance (this repository's commit and state,
   and each contender crate's version and source).
-- `tools/graph-check/`: `map.js` drives the map in Chromium (its README
-  says how).
+- `tools/`: `samples.py` reads samples files for the Python studies
+  (`points.py`, `settle.py`, `variance.py`); `b3sum-contenders.py` builds
+  b3sum's contenders; `gen-ver.py` makes a release; `graph-check/map.js`
+  drives the map in Chromium (its README says how); `require_nextest.rs`,
+  included by every crate's tests, fails under plain `cargo test` and
+  says to use nextest.
 - `bench-hashes compare OLD.tsv... -- NEW.tsv...`: compares runs'
   samples files in pairs (the i-th old with the i-th new), each cell
   judged by its pairs' ratios as `regress` judges.
@@ -68,13 +79,20 @@ cd bench-hashes && "$(cargo run --release --quiet -- build-against ../BLAKE3)" -
 ```
 
 `check` builds in directories of its own (the fork's `target/check/`), and
-`build-against DIR` in DIR's `target/build-against/`, each from a copy of
+`build-against DIR` in DIR's `target/bench-hashes-build/` (a directory of
+DIR's own there, under a shared `CARGO_TARGET_DIR`), each from a copy of
 this repository whose `Cargo.lock` points at the fork checkout, and leaves
 your checkouts' files as they were. It chooses the cells a
 change touches from coverage, with the toolchain's `llvm-profdata` and
 `llvm-cov` (`rustup component add llvm-tools`). Run the executable from a
 scratch directory (it writes `benchmark-results/` there); the report
-names the fork checkout's commit and whether its tree was clean. The fork's `CONTRIBUTING.md` covers the
+names the fork checkout's commit and whether its tree was clean.
+`build-against` prints an executable in a directory named for both
+builds, as `bench-hashes provenance` prints them: each checkout's commit
+and its tree's state (`clean`, or a dirty tree's sigil). So a path kept
+from an earlier build runs what it names. `regress` and `compare` print
+each side's builds the same way, and say so when both sides are one
+build. The fork's `CONTRIBUTING.md` covers the
 fork's own tests and its performance-regression check, which runs this
 benchmark.
 
@@ -176,6 +194,9 @@ machine runs again. In order:
      read-from-storage cells as not measured. A VM's storage is a disk
      image on its host, which may serve the reads from its own memory;
      that is what a program in the VM meets.
+   - the crowd run, `bench-hashes crowd` from the same executable: one
+     program a CPU, so a release's number for the pool under
+     oversubscription is on record (`crowd.samples.tsv`).
 
    Check each report names the commit you meant, before you read its numbers.
 5. **The results:** each machine's folder under `benchmark-results/` as

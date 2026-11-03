@@ -163,6 +163,15 @@ fn per_unit(column: &[(String, Vec<u64>)], key: &str, samples: &[super::Measured
 }
 
 /// A cell's core counts summed over its samples: [E share, P GHz, E GHz].
+/// The distinct CPUs a cell's samples ended on, ascending, as "3,7".
+fn cpus_of(column: &[(String, Vec<u32>)], key: &str) -> Option<String> {
+    let (_, v) = column.iter().find(|(k, _)| k == key)?;
+    let mut c: Vec<u32> = v.clone();
+    c.sort_unstable();
+    c.dedup();
+    Some(c.iter().map(u32::to_string).collect::<Vec<_>>().join(","))
+}
+
 fn where_ran(column: &[(String, Vec<[u64; 4]>)], key: &str) -> Option<[f64; 3]> {
     let (_, v) = column.iter().find(|(k, _)| k == key)?;
     let [pt, pc, et, ec] = v.iter().fold([0u128; 4], |a, c| {
@@ -226,6 +235,12 @@ struct Chart {
     /// samples' core counts: [share of its time on E cores, P GHz, E GHz]
     /// (a clock 0 where it spent no time on that kind); None where none.
     cores: Vec<Option<Vec<Option<[f64; 3]>>>>,
+    /// The CPUs the samples' threads ended on at each point, by contender,
+    /// as "0,2" (distinct, ascending; the shared copies' together): the
+    /// placement the run chose (the header's `shared placements`), seen
+    /// from the samples themselves (bench-hashes #108, #116). None where
+    /// none.
+    cpus: Vec<Option<Vec<Option<String>>>>,
 }
 
 impl Chart {
@@ -262,10 +277,14 @@ impl Chart {
                 .collect::<Vec<String>>()
                 .join(",")
         };
-        format!("{{\"sizes\":[{}],\"unit\":{},\"call\":{},\"doc\":{},\"cases\":{},\"per\":[{}],\"what\":{},\"axis\":{},\"series\":[{}],\"before\":[{}],\"cpu\":[{}],\"energy\":[{}],\"cores\":[{}]}}",
+        format!("{{\"sizes\":[{}],\"unit\":{},\"call\":{},\"doc\":{},\"cases\":{},\"per\":[{}],\"what\":{},\"axis\":{},\"series\":[{}],\"before\":[{}],\"cpu\":[{}],\"energy\":[{}],\"cores\":[{}],\"cpus\":[{}]}}",
             sizes.join(","), json(self.unit), json(&self.call), json(&self.doc), self.cases, per.join(","), json(self.what), json(self.axis), series.join(","), optional(&self.before), optional(&self.cpu), optional(&self.energy),
             self.cores.iter().map(|c| match c {
                 Some(v) => format!("[{}]", v.iter().map(|x| x.map_or("null".to_owned(), |[e, p, q]| format!("[{e:.4},{p:.3},{q:.3}]"))).collect::<Vec<_>>().join(",")),
+                None => "null".to_owned(),
+            }).collect::<Vec<_>>().join(","),
+            self.cpus.iter().map(|c| match c {
+                Some(v) => format!("[{}]", v.iter().map(|x| x.as_ref().map_or("null".to_owned(), |s| json(s))).collect::<Vec<_>>().join(",")),
                 None => "null".to_owned(),
             }).collect::<Vec<_>>().join(","))
     }
@@ -437,6 +456,16 @@ fn details(
     add("Machine", machine, String::new());
     add("Power", power.to_owned(), String::new());
     add("Other programs", load.to_owned(), String::new());
+    add(
+        "Idle states",
+        header(headers, "idle states").to_owned(),
+        String::new(),
+    );
+    add(
+        "Shared placements",
+        header(headers, "shared placements").to_owned(),
+        String::new(),
+    );
     let version = header(headers, "bench-hashes version");
     let commit = header(headers, "git commit");
     let clean = header(headers, "git clean status");
@@ -528,6 +557,7 @@ fn details(
         "build target",
         "files",
         "idle states",
+        "shared placements",
         "contender",
     ];
     for (k, v) in headers.iter().filter(|(k, _)| {
@@ -557,7 +587,7 @@ fn hashing(path: &Path) -> Section {
     let mut cells = Vec::new();
     for use_case in UseCase::ALL {
         let (_, _, call, doc) = place(use_case);
-        for scenario in ["solo", "shared"] {
+        for scenario in crate::Scenario::ALL.map(|s| s.key()) {
             let points = &POINTS[use_case.points()];
             // Every chart in bytes per second, so one axis serves them all:
             // a batch's time per message over its message's bytes.
@@ -619,6 +649,21 @@ fn hashing(path: &Path) -> Section {
                     line.iter().any(Option::is_some).then_some(line)
                 })
                 .collect();
+            let cpus: Vec<Option<Vec<Option<String>>>> = algorithms
+                .iter()
+                .map(|a| {
+                    let line: Vec<Option<String>> = measured
+                        .iter()
+                        .map(|p| {
+                            cpus_of(
+                                &file.cpus,
+                                &format!("{}|{scenario}|{use_case:?}|{}", a.key(), p.label),
+                            )
+                        })
+                        .collect();
+                    line.iter().any(Option::is_some).then_some(line)
+                })
+                .collect();
             cells.push((
                 cell_key(scenario, use_case),
                 Chart {
@@ -642,6 +687,7 @@ fn hashing(path: &Path) -> Section {
                     cpu: cpu_lines,
                     energy: energy_lines,
                     cores,
+                    cpus,
                 },
             ));
         }
@@ -662,9 +708,13 @@ fn hashing(path: &Path) -> Section {
             ("lent", "nonstop, waiting for each call", "The program hashes input after input as fast as it can, reading each input once the hash before it has returned."),
             ("piped", "nonstop, pipelined", "The program hashes input after input as fast as it can, and reads the next inputs while earlier ones hash: it hands its inputs to BLAKE3 servil's stream, which hashes them on other threads. The other hashes have no such call and hash on the program's thread."),
         ],
+        // A layer the run did not measure (two caches on a one-cache
+        // machine) has no cells, and the page leaves it out.
         layers: vec![
             ("solo", "one program", "One program hashes; the machine is otherwise quiet."),
-            ("shared", "two programs at once", "Two programs hash at the same moment, nonstop, sharing the machine."),
+            ("shared-one-cache", "two programs at once, one cache", "Two programs hash at the same moment, nonstop, on two cores under one last-level cache: they share the cache and the memory path, as two programs on a busy machine most often do."),
+            ("shared-two-caches", "two programs at once, two caches", "Two programs hash at the same moment, nonstop, on two cores under different last-level caches: they share the memory path and little else."),
+            ("shared-os", "two programs at once, placed by the OS", "Two programs hash at the same moment, nonstop, wherever the operating system runs them: this machine lets no program choose its CPUs, so the two may share a cluster's cache or not, sample by sample."),
         ],
         // A run with --threads N names servil mt's count (its pool is the run's).
         names: {
@@ -675,7 +725,7 @@ fn hashing(path: &Path) -> Section {
             }).collect()
         },
         colors: algorithms.iter().map(|a| a.color()).map(str::to_owned).collect(),
-        striped: algorithms.iter().map(|a| a.striped()).collect(),
+        striped: algorithms.iter().map(|a| a.multithreaded()).collect(),
         ours: algorithms.iter().map(|a| matches!(a, Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt)).collect(),
         shown: algorithms.iter().map(|a| SHOWN_AT_FIRST.contains(a)).collect(),
         cells,
@@ -802,6 +852,7 @@ fn b3sum(path: &Path) -> Section {
                     cpu: lines(&file.cpu),
                     energy: lines(&file.energy),
                     cores: names.iter().map(|_| None).collect(),
+                    cpus: names.iter().map(|_| None).collect(),
                 },
             ));
         }

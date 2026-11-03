@@ -731,7 +731,7 @@ pub fn command(args: &[String]) {
             ));
         }
     }
-    let mut tsv = super::samples_header(&machine, &run);
+    let mut tsv = super::samples_header(&machine, &run, &clocks::load::describe(&machine.load));
     tsv += "# counts\tcontender\tcache\tinput\tround\twall_ns\tcpu_ns\tmax_rss_bytes\tstorage_read_bytes\tmajor_faults\tp_cycles\te_cycles\tp_time_ns\te_time_ns\n";
     for (ci, &cache) in caches.iter().enumerate() {
         for (i, input) in inputs.iter().enumerate() {
@@ -759,7 +759,7 @@ pub fn command(args: &[String]) {
                     .collect();
                 let cpu: Vec<Option<u64>> = runs.iter().map(|r| r.cpu_ns).collect();
                 tsv += &format!(
-                    "{}\t{}\tb3sum\t{}\tB\t{}\t{}\t{}\t{}\t{}\n",
+                    "{}\t{}\tb3sum\t{}\tB\t{}\t{}\t{}\t{}\t-\t-\n",
                     spec.name,
                     cache.name(),
                     input.label,
@@ -767,7 +767,6 @@ pub fn command(args: &[String]) {
                     starts.join(","),
                     super::cpu_field(&cpu),
                     super::cpu_field(&energy[ci][i][c]),
-                    "-"
                 );
             }
         }
