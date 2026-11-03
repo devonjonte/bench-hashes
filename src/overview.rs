@@ -585,8 +585,10 @@ fn family(row: &Row) -> &'static str {
 }
 
 /// The machine in each family's column, by index into `rows`, in the
-/// families' order: the chosen machine where measured, else the family's
-/// first real machine with cells, else its first.
+/// families' order: the chosen machine where measured under this release,
+/// else the family's first real machine with cells, else its first (a
+/// chosen machine whose run is another release's left its column empty:
+/// the 9700X at 0.20).
 pub fn shown(rows: &[Row]) -> Vec<usize> {
     FAMILIES
         .iter()
@@ -598,7 +600,11 @@ pub fn shown(rows: &[Row]) -> Vec<usize> {
             members
                 .iter()
                 .copied()
-                .find(|&i| Some(rows[i].machine.as_str()) == chosen && !rows[i].virtual_machine)
+                .find(|&i| {
+                    Some(rows[i].machine.as_str()) == chosen
+                        && !rows[i].virtual_machine
+                        && !rows[i].stale
+                })
                 .or_else(|| {
                     members
                         .iter()
@@ -1397,6 +1403,20 @@ mod tests {
         );
         assert_eq!(plain(&rows[1]), "Apple laptop or desktop, 2024");
         assert_eq!(plain(&rows[0]), "Linux in a virtual machine, 8 CPUs");
+        // A chosen machine whose run is another release's gives way to the
+        // family's first machine measured under this one.
+        let mut rows = [
+            row("AMD EPYC 7443P 24-Core Processor", false, none()),
+            row("AMD EPYC 9255 24-Core Processor", false, none()),
+            row("AMD Ryzen 7 9700X", false, none()),
+        ];
+        rows[0].stale = true;
+        rows[2].stale = true;
+        assert_eq!(
+            shown(&rows),
+            [1],
+            "the EPYC 9255, the 9700X's run being 0.18's"
+        );
     }
 
     #[test]
