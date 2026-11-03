@@ -67,7 +67,7 @@ def main(paths):
         for (contender, scenario, use_case, label), cell in run.cells.items():
             if use_case in AFTER_GAP:
                 continue
-            steps = [(a[0] + b[0], a[1] + b[1]) for a, b in zip(cell[::2], cell[1::2])] if scenario == "shared" else cell
+            steps = [(a[0] + b[0], a[1] + b[1]) for a, b in zip(cell[::2], cell[1::2])] if scenario.startswith("shared") else cell
             assert len(steps) % per_visit == 0, f"{path}: {contender} {use_case} {label}: whole trains"
             curves = [curve(steps[i:i + per_visit]) for i in range(0, len(steps), per_visit)]
             mean = []

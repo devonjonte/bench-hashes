@@ -139,16 +139,17 @@ const TO_CHECK_FOR_REGRESSIONS: Visits = Visits {
 };
 
 /*
- * A nonstop cell's visit (FROZEN.md, proposed October 31, 2026: continuous
- * means continuous): the cell's own load, untimed, for `warm_ns` (one batch
- * at least), then `samples` samples back to back, each sized as calibration
+ * A nonstop cell's visit (FROZEN.md, "Changes for 0.19": continuous means
+ * continuous): the cell's own load, untimed, for `warm_ns` (one batch at
+ * least), then `samples` samples back to back, each sized as calibration
  * sized it; solo, then the same for the two shared copies, each copy its
  * own train from one release. Each sample then meets the machine as the
- * cell's own continuous load leaves it, rather than as the contender
- * before it left it, which the 1 ms samples of a visit each (6 visits a
- * cell) measured: a GPU's clock (30-40 ms of load to settle, M4 Max), a
- * core's clock, thread placement. Provisional: the settling curves
- * (`--train 0,N`, read with tools/settle.py) on every machine set the values.
+ * cell's own continuous load leaves it, where the 1 ms samples of a visit
+ * each (6 visits a cell, to 0.18) met it as the contender before left it:
+ * a GPU's clock (30-40 ms of load to settle, M4 Max), a core's clock,
+ * thread placement. The settling curves (`--train 0,N`, read with
+ * tools/settle.py) on the M4 Max, the Linux VM and the EPYC 9255 set the
+ * values.
  */
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Train {
@@ -1709,7 +1710,7 @@ struct Roster {
     /// its visits of the rounds (cell_wants_sample).
     visits: &'static Visits,
     /// A nonstop cell's visit: its warm-up and its samples (NONSTOP_TRAIN,
-    /// or --train's, for the settling curves and old-against-new tests).
+    /// or --train's, for the settling and variance studies).
     train: Train,
     /// A nonstop cell's visits when --nonstop-visits sets them.
     nonstop_visits: Option<usize>,
@@ -1886,8 +1887,8 @@ enum Selection {
 }
 
 const USAGE: &str = "\
-bench-hashes: hash speed by input size and by messages per batch, alone and
-shared with a second copy of the same contender
+bench-hashes: hash speed by input size and by messages per batch, alone
+and, for the multithreaded contenders, as two programs at once
 
   bench-hashes                     BLAKE3 servil st and mt
                                    and SHA-256 (sha2 and ring)
@@ -1918,10 +1919,10 @@ cell sampled in a share of them.
                                    24 rounds, a nonstop cell in 6 (default:
                                    12 and 6, to measure speed)
   --train W_MS,S                   a nonstop visit's warm-up (ms) and samples
-                                   (default 100,6), for the tests of the
-                                   continuous-load proposal (FROZEN.md):
-                                   0,1 with --nonstop-visits 6 measures as
-                                   bench 0.18 did; 0,N gives settling curves
+                                   (default 100,6), for the settling and
+                                   variance studies (tools/settle.py,
+                                   tools/variance.py): 0,N gives settling
+                                   curves
   --nonstop-visits N               a nonstop cell's visits (default 2)
   --threads N                      BLAKE3 servil mt on N threads in all, its
                                    caller among them (default: one a CPU); the
@@ -1947,6 +1948,18 @@ cell sampled in a share of them.
                                    verdict); --full: every default cell;
                                    --contenders (and --points): the cells
                                    a run with them measures, every one judged
+
+  bench-hashes check --fork DIR    whether a change to the fork's checkout
+                                   is slower than its base (CONTRIBUTING.md)
+  bench-hashes build-against DIR   build against the fork's checkout at DIR
+  bench-hashes map DIR             draw a results folder's map again
+  bench-hashes chart SAMPLES.tsv   draw a run's chart again
+  bench-hashes overview OUT DIR    the overview page from every folder's run
+  bench-hashes b3sum ...           time b3sum builds on files (README.md)
+  bench-hashes crowd               many programs at once, one a CPU (README.md)
+  bench-hashes leaves              a Merkle tree's leaves, four ways to hand
+                                   them over (src/leaves.rs)
+  Each says its own usage when run without what it needs.
 ";
 
 struct Options {
@@ -1964,7 +1977,7 @@ struct Options {
     /// (regress passes it to the runs it starts), else TO_MEASURE_SPEED.
     visits: &'static Visits,
     /// A nonstop visit's warm-up and samples (--train W_MS,S), and a nonstop
-    /// cell's visits (--nonstop-visits N): for the tests of the proposal.
+    /// cell's visits (--nonstop-visits N): for the settling and variance studies.
     train: Train,
     nonstop_visits: Option<usize>,
 }
@@ -2324,7 +2337,7 @@ fn parse_arguments() -> Options {
     } else {
         &TO_MEASURE_SPEED
     };
-    /* --train W_MS,S and --nonstop-visits N: the proposal's tests. */
+    /* --train W_MS,S and --nonstop-visits N: the settling and variance studies. */
     let train = take_value("--train").map_or(NONSTOP_TRAIN, |value| {
         let (warm, samples) = value
             .split_once(',')
@@ -2582,8 +2595,8 @@ fn main() {
         Some(n) => format!("{selection_note}; --threads {n}"),
         None => selection_note,
     };
-    // A run measured another way than the frozen one says so (the tests of
-    // the proposal: --train, --nonstop-visits).
+    // A run measured another way than the frozen one says so (the settling
+    // and variance studies: --train, --nonstop-visits).
     let selection_note = if train != NONSTOP_TRAIN || nonstop_visits.is_some() {
         format!(
             "{selection_note}; nonstop visits: {} ms warm-up, {} samples a visit{}",
@@ -6039,18 +6052,21 @@ fn calibrate_batch(algorithm: Algorithm, input: &[u8], point: Point) -> (usize, 
  * Every sample, for tools that do their own statistics (the fork's
  * performance-regression check reads this file). Lines starting with '#'
  * carry the provenance and machine identity as `key: value`; then one row
- * per measured cell and scenario: contender key, scenario (`solo` or
- * `shared`), use case, point label, the unit a sample is per (`B` or
- * `msg`), and the samples as measured, comma-separated, each `ns/units`
- * (the nanoseconds the clock gave over the units they covered), in the
- * order taken (shared: the two copies of each interval in turn).
+ * per measured cell and scenario: contender key, scenario (`solo`,
+ * `shared-one-cache` or `shared-two-caches`), use case, point label, the
+ * unit a sample is per (`B` or `msg`), and the samples as measured,
+ * comma-separated, each `ns/units` (the nanoseconds the clock gave over
+ * the units they covered), in the order taken (shared: the two copies of
+ * each interval in turn); then each sample's start, CPU time, energy,
+ * core counts and CPU (SAMPLES_COLUMNS).
  */
 /// The samples file's first line and its column row, which the reader
 /// (read_samples) requires: a file in another format is read with the
 /// tools of the commit that wrote it.
 /// The samples format, and with it the rule the samples were taken under:
-/// v8 (0.20) adds each sample's CPU, and its shared rows are the
-/// multithreaded contenders' alone (bench-hashes #108); v7 marked samples
+/// v8 (0.20) adds each sample's CPU, its shared rows are the
+/// multithreaded contenders' alone, placed under one cache or two
+/// (bench-hashes #108, #116); v7 marked samples
 /// that 0.17's summary reads with the declared trim (Zooko, October 23).
 const SAMPLES_VERSION: &str = "# bench-hashes samples v8";
 const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\tcpu";
