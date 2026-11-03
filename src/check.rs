@@ -480,7 +480,7 @@ fn working_tree_commit(fork: &Path) -> String {
 /// One side's bench-hashes executable, built against the fork at `commit`:
 /// a worktree of the fork under the cache (moved only when the commit
 /// changes), this bench's sources copied beside it, Cargo pointed at the
-/// worktree for the fork, keeping this bench's clocks, and a target
+/// worktree for BLAKE3-Servil, keeping this bench's clocks, and a target
 /// directory of the side's own, so an unchanged side rebuilds nothing.
 fn side(fork: &Path, bench: &Path, cache: &Path, name: &str, commit: &str) -> PathBuf {
     let checkout = cache.join(name).join("src");

@@ -30,7 +30,7 @@
 //! sum counts: four readers of /dev/urandom (system time) read 4.0, as four
 //! spinners (user time) do. On macOS the difference is the one reading
 //! available; on an M4 Max the kernel's work for us read 0.1-0.25 CPUs
-//! beside a quiet machine's 0.3 (the fork's probe/mac-load, Mac jobs
+//! beside a quiet machine's 0.3 (BLAKE3-Servil's probe/mac-load, Mac jobs
 //! 1793-1795), under [`BUSY_MILLI_CPUS`], on 16 CPUs, whose ticks err by
 //! 0.16 CPUs at most. Inside a PID namespace the difference keeps #142's
 //! misreading.

@@ -98,9 +98,9 @@ build. The fork's `CONTRIBUTING.md` covers the
 fork's own tests and its performance-regression check, which runs this
 benchmark.
 
-To move the fork's pin, set its `rev` in `Cargo.toml` to the full commit
+To move the pin of BLAKE3-Servil, set its `rev` in `Cargo.toml` to the full commit
 hash and build: Cargo updates the lock. `build-against`, relinking and
-coverage replace the fork and keep this repository's `clocks/`. A change
+coverage replace BLAKE3-Servil and keep this repository's `clocks/`. A change
 to `clocks/` is a change to this repository, its tests among the ones
 `cargo nextest run` runs.
 
@@ -161,8 +161,8 @@ The overview shows one release a page, so a release is the moment every
 machine runs again. In order:
 
 1. **What it carries:** each entry under FROZEN.md's "Changes for the next
-   release", and the fork's pin (BLAKE3 servil's commit), a commit that
-   passed the fork's own checks.
+   release", and the pin of BLAKE3-Servil (its commit), a commit that
+   passed BLAKE3-Servil's own checks.
 2. **Checks on main:** `cargo nextest run --release`, `cargo fmt --check`,
    and a `--quick` run that reports no busy window.
 3. **The tag:** `python3 tools/gen-ver.py X.Y.Z` from a clean tree: one

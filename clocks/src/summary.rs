@@ -1,5 +1,5 @@
 //! The one way every measurement summarises and compares its samples, in
-//! the fork, bench-hashes, and every probe.
+//! BLAKE3-Servil, bench-hashes, and every probe.
 //!
 //! **A run's cost** for a cell is its mean: the total timed nanoseconds of
 //! its samples over the total work they did, every sample counted
