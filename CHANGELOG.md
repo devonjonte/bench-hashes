@@ -1,4 +1,4 @@
-# bench-hashes 0.20.1
+# bench-hashes 0.20.1+fb8e4df69d9dc80db735b6c8934beace93d50a8b
 
 **Fixes; it measures as 0.20.0 does**, so results from either read alike. The Python study tools read 0.20's results files again. The map's two-programs rows show their two-figures mark again. A `crowd` run's results say that its programs are the load, where they said the run was too short to judge. The help lists every subcommand.
 
