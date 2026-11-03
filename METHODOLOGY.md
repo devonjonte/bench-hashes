@@ -193,7 +193,9 @@ interval takes two samples of the same batch:
   each copy's thread is pinned for the job to a chosen CPU (Linux): two
   physical cores under **one last-level cache**, and where the machine
   has two, also under **two**, a layer each (FROZEN.md, "Changes for
-  0.20"); on a two-socket machine each copy's input is in its own
+  0.20"). Where the machine offers no pair (macOS, whose threads take no
+  affinity), the operating system places the two copies, a layer of its
+  own; on a two-socket machine each copy's input is in its own
   socket's memory, as a program's own would be. The header's `shared placements` line names the CPUs, and each
   sample records the CPU its thread ended on (the `cpu` column). They
   compete for the cache, memory bandwidth, and any shared execution unit

@@ -587,7 +587,7 @@ fn hashing(path: &Path) -> Section {
     let mut cells = Vec::new();
     for use_case in UseCase::ALL {
         let (_, _, call, doc) = place(use_case);
-        for scenario in ["solo", "shared-one-cache", "shared-two-caches"] {
+        for scenario in crate::Scenario::ALL.map(|s| s.key()) {
             let points = &POINTS[use_case.points()];
             // Every chart in bytes per second, so one axis serves them all:
             // a batch's time per message over its message's bytes.
@@ -714,6 +714,7 @@ fn hashing(path: &Path) -> Section {
             ("solo", "one program", "One program hashes; the machine is otherwise quiet."),
             ("shared-one-cache", "two programs at once, one cache", "Two programs hash at the same moment, nonstop, on two cores under one last-level cache: they share the cache and the memory path, as two programs on a busy machine most often do."),
             ("shared-two-caches", "two programs at once, two caches", "Two programs hash at the same moment, nonstop, on two cores under different last-level caches: they share the memory path and little else."),
+            ("shared-os", "two programs at once, placed by the OS", "Two programs hash at the same moment, nonstop, wherever the operating system runs them: this machine lets no program choose its CPUs, so the two may share a cluster's cache or not, sample by sample."),
         ],
         // A run with --threads N names servil mt's count (its pool is the run's).
         names: {

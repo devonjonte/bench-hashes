@@ -1,4 +1,8 @@
-# bench-hashes 0.20.1+fb8e4df69d9dc80db735b6c8934beace93d50a8b
+# bench-hashes 0.20.2
+
+**On a Mac, "two programs at once" is measured again.** 0.20.0 and 0.20.1 placed the two copies on chosen cores, which macOS doesn't allow, and so measured no two-program cells at all on a Mac. Now, where the computer lets no program choose its cores, the copies run wherever the operating system puts them, as a row of its own. Results from other computers are unchanged.
+
+## Earlier: 0.20.1+fb8e4df69d9dc80db735b6c8934beace93d50a8b
 
 **Fixes; it measures as 0.20.0 does**, so results from either read alike. The Python study tools read 0.20's results files again. The map's two-programs rows show their two-figures mark again. A `crowd` run's results say that its programs are the load, where they said the run was too short to judge. The help lists every subcommand.
 

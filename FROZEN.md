@@ -161,8 +161,12 @@ anything", John Servil releasing it):
   (two sockets), each copy moves its input's pages to its CPU's node
   before it runs, as a program's own memory would be (Sam, November 2).
   The header's `shared placements` line names the CPUs, and the nodes
-  where it applies. macOS offers no thread affinity, so there the
-  scheduler still places the copies and the line says none.
+  where it applies. Where the machine offers no pair (macOS, whose
+  threads take no affinity; a one-core machine), the copies run wherever
+  the operating system puts them, as a layer of their own,
+  `shared-os` (0.20.2: 0.20.0 and 0.20.1 measured no shared cell there,
+  though this entry said the scheduler places them; John Servil,
+  November 3).
 - **Every shared sample is contended** (#105): the copy that finishes
   its train first keeps hashing, unsampled, until the other has finished.
   Before, the slower copy's last samples ran alone, about 1% optimistic
@@ -890,9 +894,9 @@ use case ContinuousCollection: git objects, Nix files
 use case MerkleTree: 1024, 4096, 16384, 65536, 262144
 use case InterleavedTurn: 256
 use case IdleInterleavedTurn: 256
-scenarios: solo, shared-one-cache, shared-two-caches
+scenarios: solo, shared-one-cache, shared-two-caches, shared-os
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree
-shared placements: two cores under one last-level cache; two cores under two (where the machine has two)
+shared placements: two cores under one last-level cache; two cores under two (where the machine has two); where it offers no pair (macOS), wherever the OS runs them
 shared contenders: blake3-official-mt, blake3-servil-mt
 blake3-servil-st InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each, then performance::finalize_each for the messages that ended in it
 blake3-servil-st IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: performance::update_each, then performance::finalize_each for the messages that ended in it
