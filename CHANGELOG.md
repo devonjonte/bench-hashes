@@ -4,6 +4,8 @@
 
 **The wall clock is the raw hardware counter on Linux too.** Until now Linux runs read `CLOCK_MONOTONIC`, which the system's time daemon speeds up or slows down by up to 0.05% to track network time; a benchmark has no use for that, and the rate could be wrong or someone else's. Runs now read `CLOCK_MONOTONIC_RAW`, the counter itself, as Mac runs always did. Each result names its clock.
 
+**Every sample keeps its instructions beside its cycles.** The processor counts the instructions a call retired and the cycles it took, on each kind of core; results kept the cycles and now keep both (samples format v9). Instructions are the same count whatever the core's speed or its state after a pause, so they tell a change in the code apart from a change in the machine; files from earlier versions are read with those versions.
+
 ## Earlier: 0.20.4+6c91cfabef89d1bd52c4d73b7d2578f449689502
 
 **0.20.3 still stopped on a Mac, a step further; this release runs there, and a test now runs a Mac's case on every computer.** It measures as 0.20.3 does elsewhere.
