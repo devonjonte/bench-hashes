@@ -570,7 +570,7 @@ mod tests {
         for _ in 0..100_000 {
             let t = now();
             assert!(t >= last, "the clock went back");
-            let step = since_ns(last) - since_ns(t);
+            let step = t.0 - last.0;
             if t > last && step < smallest_step {
                 smallest_step = step;
             }
