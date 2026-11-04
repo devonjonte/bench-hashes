@@ -217,6 +217,12 @@ anything", John Servil releasing it):
   after-gap column on the map. Each samples file's `idle control` line
   says what the block kept, or why there is none (the i7-12700K in its
   sandbox: no root).
+- **A level cell whose instructions moved joins the second stage** (Zooko,
+  November 4, 2026, on John's rule; #127): instructions a unit moved
+  beyond 0.5% in the median of the pairs names a cell a suspect ahead of
+  the wall-ranked ones, with no verdict of its own; wall decides on the
+  fresh pairs. Where the machine counts none, the suspects are wall's
+  alone, and the run says so.
 - **Every sample keeps its instructions retired, and its last-level-cache
   references and misses, beside its cycles**, per core kind (Zooko,
   November 4, 2026: the most the counters give, kept whether or not a use
