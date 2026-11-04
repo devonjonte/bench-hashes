@@ -673,6 +673,12 @@ mod tests {
             describe(&[window(0, 1_000_000_000, 10, 0), window(1_000_000_000, 3_000_000_000, 0, 0)]),
             "quiet: other programs kept 0.00 CPUs busy on average, 0.01 in the busiest window"
         );
+        // 9 milli-CPU-seconds over 2 s: 4.5 milli-CPUs, rounded to 5, which
+        // reads 0.01 (4 would read 0.00).
+        assert_eq!(
+            describe(&[window(0, 1_000_000_000, 9, 0), window(1_000_000_000, 2_000_000_000, 0, 0)]),
+            "quiet: other programs kept 0.01 CPUs busy on average, 0.01 in the busiest window"
+        );
         // 15 milli-CPU-seconds over a 3 s span from 1 s to 4 s: 5 milli-CPUs,
         // which reads 0.01; a span counted from 0, or the rounding term
         // taken off, would read 0.00.
@@ -866,9 +872,9 @@ mod tests {
         crate::test_clock::advance(WINDOW_NS + WINDOW_NS / 4);
         assert_eq!(until_due_ns(), 0, "overdue");
         tick();
+        assert_eq!(until_due_ns(), WINDOW_NS, "the overdue tick closed the window and the next close is due a window from it");
         let third = *super::windows().last().unwrap();
         assert_eq!((third.start_ns, third.end_ns), (read_at, read_at + WINDOW_NS + WINDOW_NS / 4));
-        assert_eq!(until_due_ns(), WINDOW_NS, "the next close is due a window from this tick");
         crate::test_clock::thaw();
     }
 }

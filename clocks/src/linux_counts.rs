@@ -401,9 +401,9 @@ mod tests {
                 eprintln!("no counters offered here (pmus {:?}, perf_event_paranoid {paranoid}); nothing to require", pmus());
                 return;
             }
-            let before = read().expect("the machine offers counters: the thread counts");
+            let before = Counts::read().expect("the machine offers counters: the thread counts");
             crate::busy_work(2_000_000);
-            let after = read().unwrap().since(before);
+            let after = Counts::read().unwrap().since(before);
             let ran = if after.p.time_ns > 0 { after.p } else { after.e };
             assert!(ran.cycles > 1_000_000 && ran.instructions > 100_000 && ran.time_ns > 1_000_000, "2 ms of work counted: {after:?}");
             let allowed = ["cpu", "cpu_core"]
