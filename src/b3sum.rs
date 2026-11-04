@@ -33,7 +33,7 @@ struct Input {
 }
 
 /// The inputs: single files from a page to a gigabyte (b3sum maps files of
-/// 16 KiB and more; the fork's pool takes 1 MiB and more); a tree of small
+/// 16 KiB and more; BLAKE3-Servil's pool takes 1 MiB and more); a tree of small
 /// files of one size, as `b3sum $(find src -type f)` hashes one; and a
 /// tree of mixed sizes, a source checkout's range, one file after another
 /// in a single run as `find . -type f -print0 | xargs -0 b3sum` runs it;

@@ -1,16 +1,16 @@
-# What the benchmark asks of the servil fork (frozen)
+# What the benchmark asks of BLAKE3-Servil (frozen)
 
 The servil team's contract with itself (Zooko and John Servil): bench-hashes
-measures the fork through exactly the calls and usage patterns below, which
-are the API plan (the fork's `docs/api-design.md`) turned into
-measurements. The fork's work is to be as fast as possible under them.
+measures BLAKE3-Servil through exactly the calls and usage patterns below, which
+are the API plan (BLAKE3-Servil's `docs/api-design.md`) turned into
+measurements. BLAKE3-Servil's work is to be as fast as possible under them.
 Changing what the benchmark asks is a decision of Zooko's: edit this file
 with the change, the date, and the reason, and the code with it; the test
 `frozen_contract_matches_frozen_md` compares the block below with the
 code's own tables and fails when they differ.
 
 **The whole benchmark is frozen** (Zooko, October 1, 2026, at bench-hashes
-0.10.0, tag v0.10.0+e57316f, measuring the fork's `servil` at b132f8c), so
+0.10.0, tag v0.10.0+e57316f, measuring BLAKE3-Servil's `servil` at b132f8c), so
 that a number, a verdict, and a picture from later mean what they mean
 now, and people can compare results by eye: how samples are taken (the
 rounds, the sample lengths, the gaps, the contender orders), the
@@ -35,7 +35,7 @@ anything", John Servil releasing it):
   another, as fast as the program can") took each 1 ms sample in a visit
   of its own, between other contenders' samples. Whatever settles more
   slowly than a millisecond met every sample cold: a core's clock, thread
-  placement, a GPU's clock (30-40 ms of load on an M4 Max, the fork's
+  placement, a GPU's clock (30-40 ms of load on an M4 Max, BLAKE3-Servil's
   tmp/metal-night probes). Now a nonstop visit is a train: the cell's own
   load, untimed, for 100 ms, then 6 samples back to back, solo, then the
   same for the two shared copies; 2 visits a cell (`NONSTOP_TRAIN`,
@@ -51,7 +51,7 @@ anything", John Servil releasing it):
     no visit count shrinks, and the samples' part lead, so 4 visits of 3
     would cost twice the nonstop time for a p90 of 2.8% against 3.4%
     (Mac), 2.2% against 2.6% (EPYC). The widest cells are servil mt's own
-    two speeds (#196 in the fork), which no setting fixes.
+    two speeds (#196 in BLAKE3-Servil), which no setting fixes.
   - What changed in the results, old (0.18.3) against new, three pairs of
     full runs: the Mac (M4 Max) nonstop cells repeat better, median
     spread 1.5% to 1.1% (solo) and 1.2% to 0.8% (shared), p90 4.0% to
@@ -95,7 +95,7 @@ anything", John Servil releasing it):
   each check: one left by a check from before the separate checkouts
   pointed at a repository gone (job 1831). `check` alone changes.
 - **0.19.3: on Linux, other programs' load is their own CPU time,
-  summed** (the fork's clocks at ac9e6b7d): every other process's user
+  summed** (BLAKE3-Servil's clocks at ac9e6b7d): every other process's user
   and system time from `/proc`, where it lists the whole machine; the
   machine's busy time less ours, in one subtraction, in a PID namespace
   and on macOS. On 112 CPUs the machine's user time less ours read 1-6
@@ -171,7 +171,7 @@ anything", John Servil releasing it):
   its train first keeps hashing, unsampled, until the other has finished.
   Before, the slower copy's last samples ran alone, about 1% optimistic
   in 0.19 (7% in 0.18, whose copies were uneven). The pool's fairness
-  between two callers is the fork's `tests/pool_fairness.rs` (BLAKE3
+  between two callers is BLAKE3-Servil's `tests/pool_fairness.rs` (BLAKE3
   #215) besides.
 
 **Changes for the next release** (Zooko, October 16, 2026):
@@ -202,15 +202,15 @@ anything", John Servil releasing it):
   Max, AMD Ryzen 7 9700X, Intel Core i7-12700K). Every other machine
   waits behind a door, a card each in plain words, and a card puts its
   machine in its family's column. Every cell holds each form of each
-  library its run measured, and the page opens on BLAKE3 servil,
+  library its run measured, and the page opens on BLAKE3-Servil,
   multi-threaded, beside SHA-256; the legend shows the rest. So the rows
   "1 MiB, one thread" and "128 MiB, every core" become "1 MiB" and
   "128 MiB": the legend, not the row, says which forms are drawn.
 - **Official b3sum 1.8.7** (October 27, for 0.18.0): the b3sum run's
-  official contender is b3sum 1.8.7 (was 1.8.2), the release the fork
+  official contender is b3sum 1.8.7 (was 1.8.2), the release BLAKE3-Servil
   comes from and the one the hash cells' official crate already is
   (Cargo.lock). Zooko, October 25: official BLAKE3 1.8.7 is the one
-  reference point; a b3sum chart against 1.8.2 compared the fork with an
+  reference point; a b3sum chart against 1.8.2 compared BLAKE3-Servil with an
   older official than every other chart.
 - **A batch of 4 KiB messages** (Zooko, October 24, for 0.18.0): a use
   case of its own, ManyLongMessages, batches of 4, 16, 64 and 256
@@ -229,21 +229,21 @@ anything", John Servil releasing it):
 - **Streams and lent calls of 128 B and 512 B messages** (Zooko, October
   26): the ContinuousMessages and LentMessages axes gain 128 B and 512 B
   (64 B, 128 B, 256 B, 512 B, 1 KiB, then factors of four to 64 MiB),
-  the two axes keeping one set of sizes. Why: BLAKE3 servil's stream
+  the two axes keeping one set of sizes. Why: BLAKE3-Servil's stream
   gathers messages of one length into a task and hashes them side by
   side with a kernel for each length from 64 B to 1 KiB
   (`Task::run_members`); no cell streamed 128 B or 512 B messages, so
   those two kernels' speed went unmeasured (BLAKE3 #183).
-- **The fork's names made consistent** (Zooko, October 26): the plain
+- **BLAKE3-Servil's names made consistent** (Zooko, October 26): the plain
   hash's mode is `Mode::Plain` (was `Mode::Hash`), and a `Hasher` is made
   by `Hasher::new(mode)` alone. The calls and their work are unchanged:
   the same calls under their 0.8 names.
 - **Official's b3sum on one thread too** (Zooko, October 25, answering
   official BLAKE3's maintainer): `official-1-thread`, official's `b3sum`
-  with `--num-threads 1`, beside the fork's `b3sum-1-thread`, so every
+  with `--num-threads 1`, beside BLAKE3-Servil's `b3sum-1-thread`, so every
   b3sum cell compares the two on one thread as well as on every core.
   `tools/b3sum-contenders.py` adds it.
-- **The fork's two kinds of call** (Zooko, October 24): BLAKE3 servil
+- **BLAKE3-Servil's two kinds of call** (Zooko, October 24): BLAKE3-Servil
   splits its API into `convenience` (one call per hash, any slice) and
   `performance` (every way to hash fast, inputs as `Block`s; BLAKE3 #146).
   The benchmark's calls are the same calls under their new names, listed
@@ -252,12 +252,12 @@ anything", John Servil releasing it):
   message given to a performance call comes in its whole blocks
   ("Inputs in blocks" below).
 - **The outboard and verify use cases go** (Zooko, October 24, deleting
-  the fork's outboard and `Verifier` API): only BLAKE3 official (through
+  BLAKE3-Servil's outboard and `Verifier` API): only BLAKE3 official (through
   bao-tree) and servil took part, so without servil's cells they compare
   nothing of ours. bao-tree leaves the dependencies, and its line leaves
   the map.
 - **Inputs in blocks** (Zooko, October 24, deciding on BLAKE3 #141 and
-  #146): the fork's performance calls take their inputs as `Block`s, 64
+  #146): BLAKE3-Servil's performance calls take their inputs as `Block`s, 64
   bytes on a 64-byte boundary, so the bench aligns the inputs of every cell
   that has a performance-call contender, for every contender alike
   (`UseCase::in_blocks`): every batch, and the one-message, lent,
@@ -289,7 +289,7 @@ anything", John Servil releasing it):
   ten deterministic phases, each read as level, 10% of the raw cost
   gone), where the plain mean shows it, and a stall that the trim would
   have softened is what the pairs of runs and the load readings catch.
-  The rule lives in `clocks::summary::mean` (the fork's line, 7f9f1f7),
+  The rule lives in `clocks::summary::mean` (BLAKE3-Servil's line, 7f9f1f7),
   with the fixture as its test; every reader here passes raw samples to
   it through one `mean_totals`, so the report, the comparison, the
   regression check and the maps draw one figure. Reports of 0.16 and
@@ -340,7 +340,7 @@ anything", John Servil releasing it):
   as every call after a gap.
 - **A Merkle tree** (Zooko, October 19, for v0.8): a new use case,
   MerkleTree, the commitment a zero-knowledge prover makes to its
-  Reed-Solomon codeword (WHIR, the fork's docs/whir-merkle-trees.md). The
+  Reed-Solomon codeword (WHIR, BLAKE3-Servil's docs/whir-merkle-trees.md). The
   program writes its leaves (256 bytes each) into its buffer, then hashes
   them and each layer of parents (two children's digests) to the root,
   every layer kept, at 1024 to 262144 leaves, solo and shared. Leaves and
@@ -359,10 +359,10 @@ anything", John Servil releasing it):
   question): a new use case, ContinuousCollection, at the two collections
   (git objects, Nix files), solo and shared: the items one after another,
   each read into the program's buffer, then hashed, as a program reads a
-  store's files and hashes them. BLAKE3 servil mt streams them
+  store's files and hashes them. BLAKE3-Servil mt streams them
   (`submit_with`), every other hash hashes each on the program's thread.
   The map draws it in the collection's row, pipelined column.
-- **BLAKE3 servil st takes part in the pipelined (continuous) cells**
+- **BLAKE3-Servil st takes part in the pipelined (continuous) cells**
   (Devon Jonte's fork, October 18; Zooko's question): as every hash
   without a stream does, on the program's thread, one input after another
   read into the program's buffer. A program that keeps to one thread
@@ -407,10 +407,10 @@ anything", John Servil releasing it):
   raised about eight false alarms a run, while `compare` already judges
   every cell with the false-discovery rate controlled.
 - **The b3sum suite's contenders built as each project recommends**
-  (Devon Jonte, #32; Zooko, October 17): the fork's b3sum statically
+  (Devon Jonte, #32; Zooko, October 17): BLAKE3-Servil's b3sum statically
   linked on Linux, as its README recommends, official BLAKE3's from
   crates.io; METHODOLOGY says what linking alone is worth (a 64-byte file
-  in 0.49 against 0.74 ms on an i7-12700K), so part of the fork's lead in
+  in 0.49 against 0.74 ms on an i7-12700K), so part of BLAKE3-Servil's lead in
   the process-per-file cells is its linking.
 - **Fresh link layouts for the b3sum suite** (Devon Jonte, #33; Zooko,
   October 17): a contender may be several builds of one program, one a
@@ -435,7 +435,7 @@ anything", John Servil releasing it):
 - **`regress` with too few pairs for an interval says so** in place of
   stopping (Devon Jonte, #31; Zooko, October 17).
 - **The comparison rule judges every cell at once** (Devon Jonte, #11,
-  #13; fork #44, #45): `compare` and `regress` judge a comparison's cells
+  #13; BLAKE3-Servil #44, #45): `compare` and `regress` judge a comparison's cells
   together, their false discovery rate controlled at 5% with the 3%
   margin, by `clocks::summary::discoveries`, in place of a sign test per
   cell; and each pair of runs links each side afresh, its functions in a
@@ -481,7 +481,7 @@ anything", John Servil releasing it):
   at once are common, and no other input covered them.
 - **`bench-hashes leaves` measures produced Merkle leaves** (Devon Jonte,
   #14; a new use case, Zooko, October 18): 16384 and 1048576
-  64-byte leaves from a counter, handed to BLAKE3 servil four ways (lent to
+  64-byte leaves from a counter, handed to BLAKE3-Servil four ways (lent to
   `hash_many_multithreaded`, lent to a stream, copied into its ring, or
   produced straight into it by `submit_batch_with`), each job timed whole
   from the first leaf produced to the last digest read, solo and two
@@ -511,8 +511,8 @@ anything", John Servil releasing it):
   page of the file stays cached (a b3sum that leaves its mappings to exit
   can leave pages that cannot be dropped for 20-50 ms), so those cells no
   longer run partly from the page cache.
-- **The fork's queue retired; its stream measures the continuous cells.**
-  BLAKE3 servil mt's ContinuousMessages and ContinuousBatches call
+- **BLAKE3-Servil's queue retired; its stream measures the continuous cells.**
+  BLAKE3-Servil mt's ContinuousMessages and ContinuousBatches call
   `stream()`: each message or batch read straight into the stream's ring,
   its digests into places the program keeps and cycles through the
   stream's handler (the queue's buffers and digest space were cycled
@@ -520,7 +520,7 @@ anything", John Servil releasing it):
   shapes with one API, its cells measured faster than the queue's on an
   i7-12700K (streaming batches x0.62, messages x0.82 against servil
   beb9abe's queue, three pairs of default runs), and retiring the queue
-  leaves the fork one scheduler (fork #59). The guide's examples and the
+  leaves BLAKE3-Servil one scheduler (BLAKE3-Servil #59). The guide's examples and the
   map's calls for these cells name the stream's.
 
 **Changes in 0.16.0** (Zooko, October 6, 2026):
@@ -528,7 +528,7 @@ anything", John Servil releasing it):
   commonware-cryptography's BLAKE3 batch kernels from its pull request
   #4982 (commit 3aa183f0), which hash one message per SIMD lane (NEON 4
   on AArch64; AVX2 8 and AVX-512 16 on x86-64), so that their author can
-  compare them with BLAKE3 servil's on x86-64 machines we lack. It takes
+  compare them with BLAKE3-Servil's on x86-64 machines we lack. It takes
   part in the batch use cases alone (its other calls are BLAKE3
   official's), through `Blake3::hash_many` over the batch's 64-byte
   messages, its digests in a new `Vec` each call; on one thread. Its
@@ -540,7 +540,7 @@ anything", John Servil releasing it):
   provenance missing). The line: the machine, its OS, the day, and how
   many seconds other programs kept it busy. "About this run" opens on the
   time, the machine's cores, the power, the load in full, bench-hashes's
-  release and commit, BLAKE3 servil's commit, the crates' versions, the
+  release and commit, BLAKE3-Servil's commit, the crates' versions, the
   compiler and target, and the samples file, linked to the exact code.
 - **Escape puts an open chart back** (Zooko).
 - **Two runs side by side** (Zooko): `bench-hashes map NEW --beside OLD`
@@ -576,7 +576,7 @@ alone; the benchmark's measurements and the map are 0.15.0's:
   a verdict.
 
 **Changes in 0.15.0** (Zooko, October 5, 2026), the benchmark for the
-optimisation pass that follows it: its maps before and after the fork's
+optimisation pass that follows it: its maps before and after BLAKE3-Servil's
 changes are drawn by one benchmark.
 - **A message received, verified as it arrives** (Zooko, "14. Yes"): a
   receiver of iroh-blobs' wire format. Messages of 1 MiB and 64 MiB one
@@ -587,20 +587,20 @@ changes are drawn by one benchmark.
   verified against the message's hash as they arrive, each verified group
   copied into the message's kept buffer. BLAKE3 decodes with bao-tree
   0.16.1 (`decode_ranges`, no outboard kept), drawn as bao-tree
-  (iroh-blobs); both BLAKE3 servil contenders with a `Verifier`, on the
+  (iroh-blobs); both BLAKE3-Servil contenders with a `Verifier`, on the
   calling thread (it has no multithreaded form). Each copies
   every received byte in and every verified byte out once.
 - **Many messages at once arrive in turns** (Zooko, October 5: "add the
   lanes across messages before freezing the API"): the pieces come 64 at
   a time, as one wait of a server's event loop delivers them, each read
-  into its own kept buffer. BLAKE3 servil takes each turn in one call,
+  into its own kept buffer. BLAKE3-Servil takes each turn in one call,
   `Hasher::update_each` (one thread) or `Hasher::update_each_multithreaded`,
   then `Hasher::finalize_each` for the messages that ended in it; every
   other contender updates per piece and finishes per message, as before.
   The Hasher gathers each message's pieces into whole 16 KiB itself
   (Zooko, October 5), so no contender gathers. Every contender's numbers
   move from 0.14's: the pieces sit in 64 buffers instead of one.
-- **A collection, multithreaded, in one call:** BLAKE3 servil mt hashes a
+- **A collection, multithreaded, in one call:** BLAKE3-Servil mt hashes a
   collection with `hash_each_multithreaded_with`, the multithreaded twin
   of servil st's `hash_each_with` (Zooko, October 5: each servil
   contender makes the fastest call under its choice of threads, one
@@ -640,10 +640,10 @@ changes are drawn by one benchmark.
   written into a kept buffer, then hashed with its outboard: the tree's
   parent nodes above 16 KiB groups, in pre-order, as iroh-blobs stores
   them and as a server makes them when it adds a file. BLAKE3 builds it
-  with bao-tree 0.16.1 (`PreOrderMemOutboard::create`), BLAKE3 servil with
+  with bao-tree 0.16.1 (`PreOrderMemOutboard::create`), BLAKE3-Servil with
   `outboard_with` on one thread and `outboard_multithreaded_with` on
   several; all give the same bytes. Verifying a
-  range as it arrives costs about what building costs (the fork's
+  range as it arrives costs about what building costs (BLAKE3-Servil's
   `verify_range_with`), so one cell serves both.
 - **A collection of messages of different lengths, each hashed once**: a
   program naming every item of a collection by its hash, as git, Bazel,
@@ -653,8 +653,8 @@ changes are drawn by one benchmark.
   (`COLLECTIONS`): git/git's objects (422,404 at c46c1e3) and the files
   under 1 MiB of 1000 nixos-25.05 store paths (192,213 files); within an
   octave every item has one length, one and a half times its lower bound.
-  BLAKE3 servil on one thread hashes the whole collection in one call of
-  `hash_each_with` (the fork's call for this use case, short items side by
+  BLAKE3-Servil on one thread hashes the whole collection in one call of
+  `hash_each_with` (BLAKE3-Servil's call for this use case, short items side by
   side in the SIMD lanes); every other contender calls its one-message
   call once per item.
   No cell hashed many small items of different lengths, the main work of
@@ -675,7 +675,7 @@ changes are drawn by one benchmark.
   open message, each piece read into a kept buffer, then fed to its
   message. No other cell had messages open at once, and a program serving
   many connections meets it. One long message in 64 KiB pieces goes: with
-  no thread lingering between updates (the fork's candidate/no-linger),
+  no thread lingering between updates (BLAKE3-Servil's candidate/no-linger),
   pieces lent to an incremental call hash as one message of their length
   does, which the one-message cells show; the guide shows those for
   `update_multithreaded`. The regression check drops its "lent pieces
@@ -688,7 +688,7 @@ changes are drawn by one benchmark.
   from a stored file. The READMEs show the published records' charts.
 
 **Changes in 0.12.0** (Zooko, October 2, 2026),
-from the regression check's calibration (the fork's NOTES, "The
+from the regression check's calibration (BLAKE3-Servil's NOTES, "The
 regression check, calibrated"):
 - Every summary is a run's mean, the total time of its samples over the
   total work they did (`clocks::summary`); the two-speed rule, its
@@ -706,12 +706,12 @@ regression check, calibrated"):
   in place of the single-call retiming.
 - `compare` says so beside any run whose load was unmeasured, as well as
   busy (Devon Jonte's finding).
-- `bench-hashes b3sum` measures builds of b3sum (it was the fork's
+- `bench-hashes b3sum` measures builds of b3sum (it was BLAKE3-Servil's
   tools/b3sum-bench), in this samples format.
 
 **Changes in 0.11.0** (Zooko, October 2, 2026):
-- The fork's queue takes a mode and a handler (`Queue::messages(mode,
-  handler)`): the fork removed its time-or-energy choice, whose
+- BLAKE3-Servil's queue takes a mode and a handler (`Queue::messages(mode,
+  handler)`): BLAKE3-Servil removed its time-or-energy choice, whose
   complexity outweighed its likely use, and the benchmark called
   `Efficiency::Time`, the queue's only way of hashing now. The calls and
   their patterns are otherwise the same.
@@ -720,7 +720,7 @@ regression check, calibrated"):
   lent pieces' read buffer came from `vec![0; len]`, zeroed pages the
   system maps only at their first write, so they faulted inside each
   cell's first sample, a first-use cost no kept buffer of a real program
-  pays (330 against 217 us a queue batch in the fork's tmp/lentprobe).
+  pays (330 against 217 us a queue batch in BLAKE3-Servil's tmp/lentprobe).
 
 Why each piece is here (Zooko, September 28, 2026, replacing the contract
 of September 27, whose queue cells measured a round trip rather than
@@ -800,11 +800,11 @@ their users seldom make):
 
 (Zooko, October 22, 2026; its design as of October 24.) One page above
 the maps, built from every machine's published run, that answers "how
-does BLAKE3 servil do on my kind of machine?" and "how does it do for my
+does BLAKE3-Servil do on my kind of machine?" and "how does it do for my
 use, across machines?".
 
 - **The first view: three bars a machine** (the machines in the grid),
-  on one logarithmic scale for every machine: BLAKE3 servil's
+  on one logarithmic scale for every machine: BLAKE3-Servil's
   multi-threaded form, BLAKE3 official's (off until asked for) and the
   fastest SHA-256 the run measured (sha2, ring, or the OS's). A bar's full
   length is hashing nonstop on every core (ContinuousMessages 64 KiB:
@@ -835,7 +835,7 @@ use, across machines?".
   | 128 MiB | solo OneMessage 128 MiB | blake3-servil-mt | a download or a disk image |
   | 64 KiB messages, one after another | solo ContinuousMessages 64 KiB | blake3-servil-mt (the stream) | messages arriving one after another, as fast as the program can feed them |
   | 1024 messages of 64 B, batched | solo ManyMessages 1024 | blake3-servil-st | a Merkle layer, a content-addressed store, a database's keys |
-  | 1000 files, b3sum | b3sum, warm, mixed tree, 1000 files, 74 MiB | the fork's b3sum (against official b3sum and the system's sha256sum, sha1sum and md5sum: still what many people run on a download, whatever their security) | the command people actually run, process start to exit |
+  | 1000 files, b3sum | b3sum, warm, mixed tree, 1000 files, 74 MiB | BLAKE3-Servil's b3sum (against official b3sum and the system's sha256sum, sha1sum and md5sum: still what many people run on a download, whatever their security) | the command people actually run, process start to exit |
 
   Seven cells. **The budget is eight.** Adding one names the one it
   displaces, or argues the rare exception, here. Each cell is a card that
@@ -853,7 +853,7 @@ use, across machines?".
   forms one above the other, under "Show:", with a line saying a click
   shows or hides. A button hides or shows its hash's bars (in the first
   view, its form's part of a bar); an off button keeps its name readable
-  and its swatch hollow. The page opens on BLAKE3 servil, multi-threaded,
+  and its swatch hollow. The page opens on BLAKE3-Servil, multi-threaded,
   and SHA-256 (Zooko, October 27).
 - **Machines** are each one published run, the newest of the current
   benchmark release on that machine: its CPU name, core count and OS from

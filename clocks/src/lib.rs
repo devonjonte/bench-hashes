@@ -1,4 +1,4 @@
-//! The one place the servil fork and bench-hashes read clocks. A
+//! The one place BLAKE3-Servil and bench-hashes read clocks. A
 //! measurement reads these through it:
 //!
 //! - **Wall time**, what a caller waits for: the platform's hardware

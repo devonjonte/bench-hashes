@@ -80,7 +80,7 @@ where you tap; a hash's name hides or shows its lines; each call's name
 links to its documentation.
 
 Each library keeps one colour, its multi-threaded form drawn as a double
-line. At a chart's right end a bracket joins BLAKE3 servil's line (the
+line. At a chart's right end a bracket joins BLAKE3-Servil's line (the
 faster of its forms shown) and its strongest rival's, and says how many
 times faster the winner ran, in the winner's colour.
 
@@ -104,11 +104,11 @@ slow the results, and battery power changes which cores run them.
 
 The contenders:
 
-- **BLAKE3 servil mt**: [`blake3-servil`](https://github.com/johnservil/BLAKE3),
+- **BLAKE3-Servil mt**: [`blake3-servil`](https://github.com/johnservil/BLAKE3),
   faster than official BLAKE3 on 64-bit Arm (above all on Apple M4-class
   chips) and on x86-64, with its own threads to spread large inputs over
   your CPU cores and a stream for inputs that come one after another.
-- **BLAKE3 servil st**: the same on one thread.
+- **BLAKE3-Servil st**: the same on one thread.
 - **SHA-256** (the `sha2` crate) and **SHA-256 ring** (the `ring`
   crate): SHA-256 with the CPU's SHA-256 instructions where it has them;
   two implementations, since each is fastest at some sizes on some
@@ -142,7 +142,7 @@ macOS, evicted from it before each run (read from storage):
 A contender is `NAME=COMMAND`, a `b3sum` and its flags, or any program
 that hashes the files it is given (the files are appended);
 `tools/b3sum-contenders.py` builds official BLAKE3's `b3sum` 1.8.7 and
-the fork's at given commits, official's and (for one commit) the fork's
+BLAKE3-Servil's at given commits, official's and (for one commit) BLAKE3-Servil's
 on one thread too (`--num-threads 1`), and adds the system's `sha256sum`, `sha1sum` and
 `md5sum`, the programs a user chooses between. The first contender
 is the one the others are compared with. `--files` chooses where the files live:

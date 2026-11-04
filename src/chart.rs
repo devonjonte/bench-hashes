@@ -1,6 +1,6 @@
 //! Two charts drawn from a run's samples files, as bars in GB/s, for the
 //! READMEs: `bench-hashes.chart.svg`, one 128 MiB message after a pause,
-//! BLAKE3 servil multi-core and on one core beside the fastest of each other
+//! BLAKE3-Servil multi-core and on one core beside the fastest of each other
 //! family; and `b3sum.chart.svg`, the mixed tree of files in the page
 //! cache, `b3sum` beside the system's `sha256sum`, `sha1sum` and `md5sum`.
 //! A full run draws its chart; `bench-hashes chart SAMPLES.tsv` draws one
@@ -27,7 +27,7 @@ struct Bar {
 }
 
 /// The hashes' chart: one 128 MiB message, after a pause (a program that
-/// hashes now and then). None when the file lacks BLAKE3 servil's cells
+/// hashes now and then). None when the file lacks BLAKE3-Servil's cells
 /// there (a quick run stops below 1 MiB).
 pub fn from_samples(path: &str) -> Option<String> {
     const CELL: &str = "solo|IdleOneMessage|128 MiB";
@@ -193,7 +193,7 @@ fn draw(file: &SamplesFile, title: &str, mut bars: Vec<Bar>) -> String {
 /// The chart's own record, drawn in the image so that it goes wherever the
 /// chart is copied (bench-hashes #103; as bench-allocators' charts do): the
 /// machine and when it ran; the bench at its exact commit and clean status;
-/// the code under test (BLAKE3 servil's source, or b3sum's version); the
+/// the code under test (BLAKE3-Servil's source, or b3sum's version); the
 /// compiler. The samples file beside it holds the rest.
 fn provenance(file: &SamplesFile, date: &str) -> Vec<String> {
     let header = |key: &str| {
@@ -243,7 +243,7 @@ fn provenance(file: &SamplesFile, date: &str) -> Vec<String> {
         .map(|v| v.trim_end_matches(')'));
     if let Some(s) = servil {
         out.push(format!(
-            "BLAKE3 servil {} · {} at {} · {}",
+            "BLAKE3-Servil {} · {} at {} · {}",
             s.split([' ', ';'])
                 .nth(1)
                 .unwrap_or("?")
@@ -328,7 +328,7 @@ mod tests {
         for line in [
             "Test CPU, 4 CPUs, linux1 · measured 2026-10-02 12:00:00 UTC",
             "bench-hashes 0.13.0 · github.com/johnservil/bench-hashes at 0123456789abcdef0123456789abcdef01234567 · clean",
-            "BLAKE3 servil 0.8.0 · github.com/johnservil/BLAKE3 at b5b988d8982bea9490c38c79ec4b8c5c2428270c · clean",
+            "BLAKE3-Servil 0.8.0 · github.com/johnservil/BLAKE3 at b5b988d8982bea9490c38c79ec4b8c5c2428270c · clean",
             "rustc 1.0.0 · x86_64-unknown-linux-gnu",
         ] {
             assert!(svg.contains(&format!(">{line}</text>")), "{line}\n{svg}");

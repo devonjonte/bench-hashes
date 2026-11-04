@@ -49,7 +49,7 @@ every place, and the compiler names any match you miss.
 2. Add a variant to `Algorithm` and to `Algorithm::ALL`, with its key
    (for `--contenders`), name, one-line description, colour, provenance,
    and mode (single-threaded or multithreaded). A hash with both modes
-   is two contenders, as BLAKE3 servil st and mt are.
+   is two contenders, as BLAKE3-Servil st and mt are.
 3. Give it three calls, each the plain entry point your users call: one
    message (`one_message_call`), a batch of 64-byte messages
    (`hash_batch`; a loop over its one-message call when it has no batch
@@ -61,40 +61,40 @@ Then `cargo nextest run --release` and
 The harness does the rest: interleaving, the use cases and scenarios,
 statistics, the report, and the map.
 
-## Working on the fork alongside
+## Working on BLAKE3-Servil alongside
 
-The BLAKE3 servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
+The BLAKE3-Servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
 the crate `blake3-servil`, a git dependency on
 [github.com/johnservil/BLAKE3](https://github.com/johnservil/BLAKE3) at
 the commit whose full hash `Cargo.toml` names (`rev`). The instrument,
 `clocks/` (every clock a measurement reads), is part of this repository,
 so a run's bench commit names the one that timed it, on both sides of a
 comparison.
-To measure your own checkout of the fork, keep this repository beside
-it (anywhere: neither holds the other) and name the fork's checkout:
+To measure your own checkout of BLAKE3-Servil, keep this repository beside
+it (anywhere: neither holds the other) and name BLAKE3-Servil's checkout:
 
 ```sh
 git clone --branch servil https://github.com/johnservil/BLAKE3
 git clone https://github.com/johnservil/bench-hashes
-cd bench-hashes && cargo run --release -- check --fork ../BLAKE3   # the fork's working tree against its HEAD
+cd bench-hashes && cargo run --release -- check --fork ../BLAKE3   # BLAKE3-Servil's working tree against its HEAD
 cd bench-hashes && "$(cargo run --release --quiet -- build-against ../BLAKE3)" --quick   # one run of it
 ```
 
-`check` builds in directories of its own (the fork's `target/check/`), and
+`check` builds in directories of its own (BLAKE3-Servil's `target/check/`), and
 `build-against DIR` in DIR's `target/bench-hashes-build/` (a directory of
 DIR's own there, under a shared `CARGO_TARGET_DIR`), each from a copy of
-this repository whose `Cargo.lock` points at the fork checkout, and leaves
+this repository whose `Cargo.lock` points at a checkout of BLAKE3-Servil, and leaves
 your checkouts' files as they were. It chooses the cells a
 change touches from coverage, with the toolchain's `llvm-profdata` and
 `llvm-cov` (`rustup component add llvm-tools`). Run the executable from a
 scratch directory (it writes `benchmark-results/` there); the report
-names the fork checkout's commit and whether its tree was clean.
+names the BLAKE3-Servil checkout's commit and whether its tree was clean.
 `build-against` prints an executable in a directory named for both
 builds, as `bench-hashes provenance` prints them: each checkout's commit
 and its tree's state (`clean`, or a dirty tree's sigil). So a path kept
 from an earlier build runs what it names. `regress` and `compare` print
 each side's builds the same way, and say so when both sides are one
-build. The fork's `CONTRIBUTING.md` covers the
+build. BLAKE3-Servil's `CONTRIBUTING.md` covers the
 fork's own tests and its performance-regression check, which runs this
 benchmark.
 
@@ -108,11 +108,11 @@ to `clocks/` is a change to this repository, its tests among the ones
 
 - **Contenders are black boxes.** The benchmark lists a contender, calls
   its plain entry point (single-threaded, multithreaded, a batch call, or
-  its incremental API for messages in pieces; for the fork's multithreaded
+  its incremental API for messages in pieces; for BLAKE3-Servil's multithreaded
   contender, its stream for inputs one after another) with no pool, cap,
   or wrapper of its own. A contender without a batch entry point hashes a
   batch as `for m in batch { hash(m) }`.
-- **What the benchmark asks of the fork is frozen.** `FROZEN.md` lists
+- **What the benchmark asks of BLAKE3-Servil is frozen.** `FROZEN.md` lists
   each use case's calls and call pattern, and a test compares it with the
   code; changing it is Zooko's decision, recorded there.
 - **The benchmark checks no digests.** Each crate's own tests establish
@@ -123,7 +123,7 @@ to `clocks/` is a change to this repository, its tests among the ones
   hash, as a sigil) measured uncommitted code. Sigil's Python module
   turns one into hex: `python3 -c 'import sys, sigilcode; print(sigilcode.decode(sys.argv[1], 32).hex())' SIGIL`,
   from a checkout of johnservil/sigil's `python/`.
-- **The fork's regression check runs `bench-hashes regress OLD... -- NEW...`**,
+- **BLAKE3-Servil's regression check runs `bench-hashes regress OLD... -- NEW...`**,
   which runs the two executables with `--contenders`, `--points`, and
   `--rounds` and reads their samples files: the rule lives here, so a
   change to the format changes its reader in the same change.
@@ -170,11 +170,11 @@ machine runs again. In order:
 4. **Every machine runs again at the tag,** each on a quiet machine,
    plugged in, with the CPU governor at `performance` (a tuning service
    such as `tuned` can reset it mid-run). A machine's run is:
-   - the fork's release check and, beside it, the same check with the same
+   - BLAKE3-Servil's release check and, beside it, the same check with the same
      library on both sides (`--against` the measured commit, `--old-bench`
      the previous bench). A cell slower in the first and level in the
      second is the library's; slower in both, the bench's;
-   - the full run, built against the fork's checkout, never through a
+   - the full run, built against BLAKE3-Servil's checkout, never through a
      `--config` patch (Cargo's lock can build the pin instead):
      `bench-hashes build-against ..`, then the executable it prints, with
      `--all --expect-servil COMMIT`, from a scratch directory;

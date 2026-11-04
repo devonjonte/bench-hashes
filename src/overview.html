@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>How fast BLAKE3 servil runs, on each machine measured</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>How fast BLAKE3-Servil runs, on each machine measured</title>
 <style>
 body { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: #111827; margin: 24px; background: #fdfdfc; }
 h1 { font-size: 20px; margin: 0 0 4px; }
@@ -120,7 +120,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
   #tip { pointer-events: auto; }
 }
 </style></head><body>
-<h1>How fast BLAKE3 servil runs</h1>
+<h1>How fast BLAKE3-Servil runs</h1>
 <p class="sub">Longer is faster. The bracket: how many times faster the faster one ran. Hover over a bar for more information.</p>
 <div class="legend"><span class="show">Show:</span>@LEGEND@<span class="hint">click a name to show or hide it</span></div>
 <div class="fam-legend"><span><i class="lo"></i> one short message</span><span><i class="hi"></i> a stream of messages, every core</span></div>
@@ -129,7 +129,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
 @BODY@
 
 <div id="tip"></div>
-<details class="door"><summary>About the hashes compared</summary><p>BLAKE3 official is the <code>blake3</code> crate, the official implementation; BLAKE3 servil is this fork of it. SHA-256 is the fastest implementation measured on each machine (the <code>sha2</code> crate, <code>ring</code>, or the operating system's CommonCrypto); the tooltip names which. <b>sha1sum and md5sum</b>, drawn in grey, compute SHA-1 and MD5: both are broken as cryptographic hashes (collisions are cheap to make), and they appear here only because many people still run them as checksums; a comparison with them is a comparison with the tool in hand, not with a safe alternative.</p></details>
+<details class="door"><summary>About the hashes compared</summary><p>BLAKE3 official is the <code>blake3</code> crate, the official implementation; BLAKE3-Servil is this fork of it. SHA-256 is the fastest implementation measured on each machine (the <code>sha2</code> crate, <code>ring</code>, or the operating system's CommonCrypto); the tooltip names which. <b>sha1sum and md5sum</b>, drawn in grey, compute SHA-1 and MD5: both are broken as cryptographic hashes (collisions are cheap to make), and they appear here only because many people still run them as checksums; a comparison with them is a comparison with the tool in hand, not with a safe alternative.</p></details>
 <footer>Each bar is the average speed from one benchmark run on that machine; click a bar for its full results. Measured by <a href="https://github.com/johnservil/bench-hashes">bench-hashes</a>.</footer>
 <script>
 (function () {
@@ -138,7 +138,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
   const hidden = i => i.closest(".bar").classList.contains("off");
   const fmt = g => { if (g <= 0) return "0 GB/s"; const d = Math.max(0, 1 - Math.floor(Math.log10(g))); return g.toFixed(d) + " GB/s"; };
   const times = m => "×" + (m >= 10 ? m.toFixed(0) : m.toFixed(1));
-  // A bracket joins BLAKE3 servil's bar and its strongest rival's (the
+  // A bracket joins BLAKE3-Servil's bar and its strongest rival's (the
   // fastest of the others shown) and says how many times faster the
   // winner ran, in the winner's colour: every bracket is about servil
   // (Zooko, October 24). With servil hidden, or alone, there is none.
@@ -228,7 +228,7 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
   };
   spans();
   for (const b of document.querySelectorAll(".legend button")) b.addEventListener("click", () => apply(b, !b.classList.contains("off")));
-  // The page opens on BLAKE3 servil, multi-threaded, beside SHA-256
+  // The page opens on BLAKE3-Servil, multi-threaded, beside SHA-256
   // (Zooko, October 27); the other forms and hashes wait in the legend.
   const OPENS_ON = ["blake3-servil-mt", "sha256"];
   for (const b of document.querySelectorAll(".legend button")) if (!OPENS_ON.includes(b.dataset.k)) apply(b, true);

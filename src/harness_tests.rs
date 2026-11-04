@@ -194,7 +194,7 @@ fn every_samples_file_names_what_measured_and_where() {
 
 /// A pipelined collection hashes every item, in order, each to its own
 /// digest: for every contender taking part, the digests it hands on match
-/// each item hashed alone (BLAKE3 servil's stream included).
+/// each item hashed alone (BLAKE3-Servil's stream included).
 #[test]
 fn a_pipelined_collection_hashes_every_item() {
     blake3_servil::initialize_multithreaded(None);

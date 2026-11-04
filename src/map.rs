@@ -301,7 +301,7 @@ struct Section {
     /// Each contender's pattern: a library's multi-threaded form is drawn
     /// in its single-threaded form's colour, as a double line.
     striped: Vec<bool>,
-    /// Which contenders are BLAKE3 servil's: a bracket joins servil's line
+    /// Which contenders are BLAKE3-Servil's: a bracket joins servil's line
     /// and its strongest rival's.
     ours: Vec<bool>,
     shown: Vec<bool>,
@@ -503,7 +503,7 @@ fn details(
         // Its source as the run recorded it (version, commit, clean status),
         // linked to the commit where the repository is known.
         add(
-            "BLAKE3 servil",
+            "BLAKE3-Servil",
             servil.to_owned(),
             repo.map_or(String::new(), |repo| format!("https://{repo}/tree/{fork}")),
         );
@@ -706,7 +706,7 @@ fn hashing(path: &Path) -> Section {
             ("busy", "now and then, after other work", "The program hashes now and then and does other work in between, which pushes the hash's code and data out of the CPU's caches."),
             ("idle", "now and then, after a pause", "The program hashes now and then and waits in between (for the network, say), so the core rests and starts the next hash slowly."),
             ("lent", "nonstop, waiting for each call", "The program hashes input after input as fast as it can, reading each input once the hash before it has returned."),
-            ("piped", "nonstop, pipelined", "The program hashes input after input as fast as it can, and reads the next inputs while earlier ones hash: it hands its inputs to BLAKE3 servil's stream, which hashes them on other threads. The other hashes have no such call and hash on the program's thread."),
+            ("piped", "nonstop, pipelined", "The program hashes input after input as fast as it can, and reads the next inputs while earlier ones hash: it hands its inputs to BLAKE3-Servil's stream, which hashes them on other threads. The other hashes have no such call and hash on the program's thread."),
         ],
         // A layer the run did not measure (two caches on a one-cache
         // machine) has no cells, and the page leaves it out.
@@ -882,7 +882,7 @@ fn b3sum(path: &Path) -> Section {
 }
 
 /// Draw `directory`'s map from the samples files in it; true if it held any.
-/// BLAKE3 servil's source as the run recorded it (either servil contender's
+/// BLAKE3-Servil's source as the run recorded it (either servil contender's
 /// line: one crate), or "" where the run measured neither.
 fn servil_source(headers: &[(String, String)]) -> &str {
     headers
@@ -891,7 +891,7 @@ fn servil_source(headers: &[(String, String)]) -> &str {
         .map_or("", |(_, v)| v.as_str())
 }
 
-/// A run's name: its bench-hashes release and BLAKE3 servil's commit.
+/// A run's name: its bench-hashes release and BLAKE3-Servil's commit.
 fn run_name(headers: &[(String, String)]) -> String {
     let version = header(headers, "bench-hashes version")
         .split('+')
@@ -904,7 +904,7 @@ fn run_name(headers: &[(String, String)]) -> String {
     if fork.is_empty() {
         format!("bench-hashes {version}")
     } else {
-        format!("bench-hashes {version}, BLAKE3 servil {fork}")
+        format!("bench-hashes {version}, BLAKE3-Servil {fork}")
     }
 }
 
@@ -1030,7 +1030,7 @@ pub fn command(args: &[String]) {
 
 #[cfg(test)]
 mod tests {
-    /// The door's BLAKE3 servil row: linked to its commit where the source
+    /// The door's BLAKE3-Servil row: linked to its commit where the source
     /// names a repository, and unlinked, not a panic, where the checkout's
     /// origin is a local path.
     #[test]
@@ -1041,8 +1041,8 @@ mod tests {
             let headers = vec![("source blake3-servil-mt".to_owned(), line)];
             super::details(&headers, "", "", "bench-hashes.samples.tsv")
                 .into_iter()
-                .find(|(label, _, _)| label == "BLAKE3 servil")
-                .expect("a BLAKE3 servil row")
+                .find(|(label, _, _)| label == "BLAKE3-Servil")
+                .expect("a BLAKE3-Servil row")
         };
         let (_, text, link) = row("https://github.com/johnservil/BLAKE3");
         assert_eq!(

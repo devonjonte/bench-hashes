@@ -1,13 +1,13 @@
 //! `bench-hashes check --fork DIR [--against REV] [--old-bench REV] [--cells all] [--layouts N] [--keep DIR]`:
-//! did a change to the fork hurt its speed anywhere? Run from a checkout of
-//! bench-hashes inside a checkout of the fork (the fork at `..`), it
-//! compares the fork's working tree with a commit (`--against`, HEAD by
+//! did a change to BLAKE3-Servil hurt its speed anywhere? Run from a checkout of
+//! bench-hashes inside a checkout of BLAKE3-Servil (BLAKE3-Servil at `..`), it
+//! compares BLAKE3-Servil's working tree with a commit (`--against`, HEAD by
 //! default) and prints the cells judged slower or faster, with their
 //! ratios; exit 0 when no cell is slower, 1 when one is, 2 when a run's
 //! load left no verdict.
 //!
 //! What a check does, every time, with nothing to choose:
-//! 1. Builds bench-hashes twice, against the fork at each side (a commit
+//! 1. Builds bench-hashes twice, against BLAKE3-Servil at each side (a commit
 //!    of the working tree as `git add -A` would stage it, and the commit
 //!    checked against), in worktrees of its own under `target/check/`, and
 //!    relinks each side once per pair with its functions in a fresh random
@@ -16,12 +16,12 @@
 //!    sees it; two sides with different layouts each pair do, and their
 //!    seeds stay apart so identical code still meets a new layout in every run.
 //! 2. Chooses the cells: those whose code the change touches. A coverage
-//!    build of the new side runs each point once and records the fork's
+//!    build of the new side runs each point once and records BLAKE3-Servil's
 //!    lines each point executes (cached under `target/check/` by the
-//!    bench's source and the fork's commit); the change's diff names the
+//!    bench's source and BLAKE3-Servil's commit); the change's diff names the
 //!    lines it touches; the points that execute one are checked, the rest
 //!    skipped, since nothing they run changed. A change to assembly, the
-//!    build script, or what the fork's manifest builds (anything but
+//!    build script, or what BLAKE3-Servil's manifest builds (anything but
 //!    its tests, examples, benches and dev-dependencies)
 //!    checks every point (coverage cannot see into assembly or the build).
 //!    `--cells all` checks every point regardless.
@@ -36,17 +36,17 @@
 //!    themselves: judged among every cell, a slowdown at one point is
 //!    level unless it is many times its pairs' spread (bench-hashes #66).
 //!
-//! A change to the fork's API changes the bench with it, so one bench builds
+//! A change to BLAKE3-Servil's API changes the bench with it, so one bench builds
 //! against one side alone: `--old-bench REV` builds the old side with this
 //! bench at REV (a commit of this bench's repository, in a worktree under
-//! `target/check/`; a bench that builds beside the fork, so 1f4dfd63 or
+//! `target/check/`; a bench that builds beside BLAKE3-Servil, so 1f4dfd63 or
 //! later), the new side with the bench as it is. The cells are
 //! keyed by use case and point, not by call, so the two sides' cells meet.
 //!
-//! It replaces the fork's `tools/perf_regress.py` (October 19, 2026,
+//! It replaces BLAKE3-Servil's `tools/perf_regress.py` (October 19, 2026,
 //! Zooko: one tool that does everything a change needs, at no cost to the
 //! one who made it) and `REGRESS_POINTS`, a fixed list of five cells that
-//! was blind to the cells after a gap and to the stream, where the fork
+//! was blind to the cells after a gap and to the stream, where BLAKE3-Servil
 //! had regressed before.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -103,7 +103,7 @@ fn each_run(exes: Vec<String>, times: usize) -> Vec<String> {
         .cloned()
         .collect()
 }
-/// The two sides' contenders: the code a change to the fork changes.
+/// The two sides' contenders: the code a change to BLAKE3-Servil changes.
 const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
 pub fn command(arguments: &[String]) -> i32 {
@@ -117,7 +117,7 @@ pub fn command(arguments: &[String]) -> i32 {
         match name.as_str() {
             "--fork" => {
                 fork = Some(PathBuf::from(it.next().unwrap_or_else(|| {
-                    panic!("--fork needs the fork's checkout\n{usage}")
+                    panic!("--fork needs BLAKE3-Servil's checkout\n{usage}")
                 })))
             }
             "--against" => {
@@ -157,13 +157,14 @@ pub fn command(arguments: &[String]) -> i32 {
         }
     }
     let bench = bench_checkout("check", usage);
-    let fork = fork_checkout(
-        &fork.unwrap_or_else(|| panic!("check: --fork DIR names the fork's checkout\n{usage}")),
-    );
+    let fork =
+        fork_checkout(&fork.unwrap_or_else(|| {
+            panic!("check: --fork DIR names BLAKE3-Servil's checkout\n{usage}")
+        }));
     let old = git(&fork, &["rev-parse", &format!("{against}^{{commit}}")]);
     let new = working_tree_commit(&fork);
     eprintln!(
-        "check: the fork's working tree ({}) against {} ({})",
+        "check: BLAKE3-Servil's working tree ({}) against {} ({})",
         &new[..12],
         against,
         &old[..12]
@@ -175,18 +176,18 @@ pub fn command(arguments: &[String]) -> i32 {
         None => bench.clone(),
         Some(rev) => {
             let commit = git(&bench, &["rev-parse", &format!("{rev}^{{commit}}")]);
-            // A bench from before the bench and the fork became separate
-            // checkouts (0.18.3 and older) builds only inside the fork:
+            // A bench from before the bench and BLAKE3-Servil became separate
+            // checkouts (0.18.3 and older) builds only inside BLAKE3-Servil:
             // its results are read with its own tools.
             assert!(
                 git(&bench, &["show", &format!("{commit}:build.rs")]).contains("BENCH_HASHES_FORK"),
-                "--old-bench {rev}: a bench that builds beside the fork (BENCH_HASHES_FORK, from candidate/bench-0.18 1f4dfd63 on); \
-                 0.18.3 and older build only inside the fork's checkout"
+                "--old-bench {rev}: a bench that builds beside BLAKE3-Servil (BENCH_HASHES_FORK, from candidate/bench-0.18 1f4dfd63 on); \
+                 0.18.3 and older build only inside BLAKE3-Servil's checkout"
             );
             // Made afresh each check (a second's checkout): a worktree left
             // by another bench checkout may point at a repository gone (a
             // check from before the separate checkouts left one inside the
-            // fork's target/, whose .git named the fork's bench-hashes/:
+            // fork's target/, whose .git named BLAKE3-Servil's bench-hashes/:
             // the Mac's job 1831).
             let dir = cache.join("old-bench");
             if dir.exists() {
@@ -369,20 +370,20 @@ fn run_regress(exe: &Path, bench: &Path, arguments: &[String]) -> (i32, String) 
     (out.status.code().unwrap_or(2), text)
 }
 
-/// The fork's checkout that --fork names: a git repository holding
+/// BLAKE3-Servil's checkout that --fork names: a git repository holding
 /// `Cargo.toml` with `name = "blake3-servil"`, wherever it sits.
 fn fork_checkout(dir: &Path) -> PathBuf {
     let fork = std::fs::canonicalize(dir)
         .unwrap_or_else(|e| panic!("check: --fork {}: {e}", dir.display()));
     let manifest = std::fs::read_to_string(fork.join("Cargo.toml")).unwrap_or_else(|e| {
         panic!(
-            "check: {} holds no Cargo.toml: {e}; --fork names the fork's checkout",
+            "check: {} holds no Cargo.toml: {e}; --fork names BLAKE3-Servil's checkout",
             fork.display()
         )
     });
     assert!(
         manifest.contains("name = \"blake3-servil\""),
-        "check: {} is not the fork",
+        "check: {} is not BLAKE3-Servil",
         fork.display()
     );
     fork
@@ -477,8 +478,8 @@ fn working_tree_commit(fork: &Path) -> String {
     ])
 }
 
-/// One side's bench-hashes executable, built against the fork at `commit`:
-/// a worktree of the fork under the cache (moved only when the commit
+/// One side's bench-hashes executable, built against BLAKE3-Servil at `commit`:
+/// a worktree of BLAKE3-Servil under the cache (moved only when the commit
 /// changes), this bench's sources copied beside it, Cargo pointed at the
 /// worktree for BLAKE3-Servil, keeping this bench's clocks, and a target
 /// directory of the side's own, so an unchanged side rebuilds nothing.
@@ -534,18 +535,18 @@ fn is_bench_checkout(dir: &Path) -> Result<(), String> {
     }
 }
 
-/// `bench-hashes build-against DIR`: this bench built against the fork
-/// checkout at DIR as it is, into `bench-hashes-build/` of the fork's target directory; the
+/// `bench-hashes build-against DIR`: this bench built against BLAKE3-Servil
+/// checkout at DIR as it is, into `bench-hashes-build/` of BLAKE3-Servil's target directory; the
 /// executable's path on stdout (the Mac runner's benchmark jobs, and a
 /// maintainer measuring the working tree, run it from there). The two
 /// checkouts sit anywhere; neither holds the other.
 pub fn build_against_command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes build-against DIR    (DIR: a checkout of the fork)";
+    let usage = "usage: bench-hashes build-against DIR    (DIR: a checkout of BLAKE3-Servil)";
     let [dir] = arguments else { panic!("{usage}") };
     let checkout = std::fs::canonicalize(dir).unwrap_or_else(|e| panic!("{dir}: {e}\n{usage}"));
     assert!(
         checkout.join("Cargo.toml").exists() && checkout.join("c").is_dir(),
-        "{dir} is no checkout of the fork\n{usage}"
+        "{dir} is no checkout of BLAKE3-Servil\n{usage}"
     );
     let bench = bench_checkout("build-against", usage);
     // Where Cargo would build (CARGO_TARGET_DIR where set: the VM builds on
@@ -572,7 +573,7 @@ pub fn build_against_command(arguments: &[String]) -> i32 {
 }
 
 /// `exe`, copied into a directory beside it named for its provenance
-/// (`bench-hashes provenance`: the bench's commit and the fork's, each with
+/// (`bench-hashes provenance`: the bench's commit and BLAKE3-Servil's, each with
 /// its tree's state): a path kept from an earlier build still runs what it
 /// names, and whoever holds the path can tell what it measures.
 fn named_for_provenance(exe: &Path) -> PathBuf {
@@ -606,15 +607,15 @@ fn build_against_dir(target: &Path, checkout: &Path, shared: bool) -> PathBuf {
     dir.join(&blake3::hash(path).to_hex()[..16])
 }
 
-/// The copy of the bench a build against the fork compiles, in the build's
+/// The copy of the bench a build against BLAKE3-Servil compiles, in the build's
 /// target directory: outside both checkouts, so neither reads as changed.
 fn bench_copy(target: &Path) -> PathBuf {
     target.join("bench-src")
 }
 
-/// This bench, built against the fork checkout at `checkout` as it is:
+/// This bench, built against the BLAKE3-Servil checkout at `checkout` as it is:
 /// its sources copied into the build's target directory (bench_copy),
-/// Cargo pointed at the checkout for the fork (and build.rs told where it
+/// Cargo pointed at the checkout for BLAKE3-Servil (and build.rs told where it
 /// is, BENCH_HASHES_FORK), keeping this bench's clocks, a lock and a
 /// target directory of the build's own (the committed lock is never
 /// written); the executable's path. `check`'s two sides and the Mac
@@ -626,7 +627,7 @@ pub fn build_against(checkout: &Path, bench: &Path, target: &Path, name: &str) -
     copy_bench(bench, &copy);
     let target = target.to_path_buf();
     let patch_fork = fork_patch(&copy, &checkout);
-    // The side's lock: the bench's, with the fork taken from the worktree.
+    // The side's lock: the bench's, with BLAKE3-Servil taken from the worktree.
     // Cargo patches at the locked version only, so a version change wants
     // `cargo update -p blake3-servil`.
     let out = Command::new("cargo")
@@ -659,11 +660,11 @@ pub fn build_against(checkout: &Path, bench: &Path, target: &Path, name: &str) -
         .expect("cargo runs");
     assert!(
         out.status.success(),
-        "check: {name}: building bench-hashes against the fork at {}:\n{}",
+        "check: {name}: building bench-hashes against BLAKE3-Servil at {}:\n{}",
         &commit[..12],
         String::from_utf8_lossy(&out.stderr)
     );
-    // The fork must come from the side's checkout, never the commit the
+    // BLAKE3-Servil must come from the side's checkout, never the commit the
     // bench's lock pins: Cargo names each package's source as it builds.
     let lock = std::fs::read_to_string(copy.join("Cargo.lock")).expect("the side's lock");
     let entry = lock
@@ -680,7 +681,7 @@ pub fn build_against(checkout: &Path, bench: &Path, target: &Path, name: &str) -
     exe
 }
 
-/// On a CPU with SME2, the build must carry the SME2 kernel (the fork
+/// On a CPU with SME2, the build must carry the SME2 kernel (BLAKE3-Servil
 /// builds without it, with a warning, when the C compiler cannot assemble
 /// SME2): a check would measure NEON alone and miss every SME2 change. The
 /// kernel's own symbol in the executable says whether it is there.
@@ -701,7 +702,7 @@ fn require_sme2_kernel(exe: &Path) {
     let symbol = b"sme2_hash16_chunks_512";
     assert!(
         bytes.windows(symbol.len()).any(|w| w == symbol),
-        "check: this CPU has SME2, and the fork was built without its SME2 kernel: point CC at a compiler that assembles SME2 (CC=clang-19 on Debian 12)"
+        "check: this CPU has SME2, and BLAKE3-Servil was built without its SME2 kernel: point CC at a compiler that assembles SME2 (CC=clang-19 on Debian 12)"
     );
 }
 
@@ -898,7 +899,7 @@ fn shuffle(items: &mut [&str], seed: u64) {
     }
 }
 
-/// One side of a check: its bench, its name under the cache, the fork's
+/// One side of a check: its bench, its name under the cache, BLAKE3-Servil's
 /// commit it builds, and its executable.
 #[derive(Clone, Copy)]
 struct Side<'a> {
@@ -913,8 +914,8 @@ struct Side<'a> {
 /// deletes or changes, which the old side's executed (a deleted line has
 /// no new side: a change deleting a fast path still measures the cells
 /// that took it). A coverage build of each side runs each point once
-/// (servil st and mt) and keeps the lines each executes in the fork's
-/// `src/`, cached by the bench's source and the fork's commit; the diff
+/// (servil st and mt) and keeps the lines each executes in BLAKE3-Servil's
+/// `src/`, cached by the bench's source and BLAKE3-Servil's commit; the diff
 /// (old..new, `src/`) gives the lines. Assembly, the build script or a
 /// manifest changed: every point.
 ///
@@ -926,7 +927,7 @@ struct Side<'a> {
 /// region holds, can change any code that uses it, so it measures every
 /// point. (A `const SPIN` from 5 us to 0, which the old
 /// protocol measured 41% slower in servil mt's 16 KiB stream, once read as
-/// "nothing to measure": the fork's plant/spin0, Mac job 1801.)
+/// "nothing to measure": BLAKE3-Servil's plant/spin0, Mac job 1801.)
 fn touched_cells(
     fork: &Path,
     old_side: Side,
@@ -1233,7 +1234,7 @@ fn test_files(fork: &Path, commit: &str) -> BTreeSet<String> {
 
 /// One side's coverage: the lines each cell executes, the lines any
 /// coverage region holds (whether a cell ran them or not), and the source
-/// files the fork's crate compiles for this target (rustc's dep-info).
+/// files BLAKE3-Servil's crate compiles for this target (rustc's dep-info).
 #[derive(Default)]
 struct Coverage {
     cells: BTreeMap<(String, String), BTreeMap<String, BTreeSet<usize>>>,
@@ -1331,9 +1332,9 @@ fn all_cells(exe: &Path, bench: &Path) -> Vec<(String, String)> {
     cells.into_iter().collect()
 }
 
-/// Each point's executed lines of the fork's `src/`, from a coverage build
+/// Each point's executed lines of BLAKE3-Servil's `src/`, from a coverage build
 /// of `side` run one point at a time; cached as JSON-free TSV under the
-/// cache, keyed by the bench's source and the fork's commit.
+/// cache, keyed by the bench's source and BLAKE3-Servil's commit.
 fn coverage(side: Side, cache: &Path) -> Coverage {
     let (bench, new, new_exe) = (side.bench, side.commit, side.exe);
     let bench_source = {
@@ -1377,7 +1378,7 @@ fn coverage(side: Side, cache: &Path) -> Coverage {
         return cov;
     }
     eprintln!(
-        "check: recording which lines each point executes on the {} side (once per change to the bench or the fork)",
+        "check: recording which lines each point executes on the {} side (once per change to the bench or BLAKE3-Servil)",
         side.name
     );
     let checkout = cache.join(side.name).join("src");
@@ -1390,7 +1391,7 @@ fn coverage(side: Side, cache: &Path) -> Coverage {
         .env("CARGO_TARGET_DIR", &target)
         .env("RUSTFLAGS", "-C instrument-coverage")
         // The instrumented build scripts write their profiles here, not into
-        // the directory each runs in: the fork's ran in the side's worktree,
+        // the directory each runs in: BLAKE3-Servil's ran in the side's worktree,
         // and its profraw files made that worktree read as dirty to every
         // later build (both sides of the Mac's A/A, job 1857).
         .env("LLVM_PROFILE_FILE", target.join("build-script-%p.profraw"))
@@ -1404,7 +1405,7 @@ fn coverage(side: Side, cache: &Path) -> Coverage {
         String::from_utf8_lossy(&out.stderr)
     );
     let cov_exe = target.join("release").join("bench-hashes");
-    // The files rustc compiled into the fork's crate for this target: its
+    // The files rustc compiled into BLAKE3-Servil's crate for this target: its
     // dep-info, the newest of the crate's (this build's).
     let compiled: BTreeSet<String> = {
         let deps = target.join("release").join("deps");
@@ -1416,7 +1417,7 @@ fn coverage(side: Side, cache: &Path) -> Coverage {
                 n.starts_with("blake3_servil-") && n.ends_with(".d")
             })
             .max_by_key(|e| e.metadata().and_then(|m| m.modified()).ok())
-            .expect("the fork's crate's dep-info")
+            .expect("BLAKE3-Servil's crate's dep-info")
             .path();
         std::fs::read_to_string(&newest)
             .unwrap()
@@ -1432,7 +1433,7 @@ fn coverage(side: Side, cache: &Path) -> Coverage {
     };
     assert!(
         compiled.iter().any(|f| f == "src/lib.rs"),
-        "check: the fork's dep-info names its lib.rs: {compiled:?}"
+        "check: BLAKE3-Servil's dep-info names its lib.rs: {compiled:?}"
     );
     let mut instrumented: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
     let (profdata, llvm_cov) = (llvm_tool("llvm-profdata"), llvm_tool("llvm-cov"));
@@ -1602,7 +1603,7 @@ fn fork_patch(copy: &Path, checkout: &Path) -> String {
 }
 
 /// Whether `manifest`'s change between `old` and `new` touches what the
-/// bench's build of the fork uses: a changed line, on either side, in any
+/// bench's build of BLAKE3-Servil uses: a changed line, on either side, in any
 /// section but `[[test]]`, `[[example]]`, `[[bench]]` and
 /// `[dev-dependencies]` (a test's entry changes no cell).
 fn manifest_builds_differently(fork: &Path, old: &str, new: &str, manifest: &str) -> bool {
@@ -1771,7 +1772,7 @@ mod tests {
         };
         run(&["init", "-q"]);
         std::fs::write(repo.join("a"), "one").unwrap();
-        // As every checkout of the fork, target/ ignored (the index copy
+        // As every checkout of BLAKE3-Servil, target/ ignored (the index copy
         // lives there).
         std::fs::write(repo.join(".gitignore"), "target\n").unwrap();
         run(&["add", "a", ".gitignore"]);

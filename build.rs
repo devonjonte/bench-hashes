@@ -19,7 +19,7 @@ fn main() {
     );
 
     println!("cargo:rerun-if-changed=Cargo.toml");
-    // The fork's repository, for the map's links (Cargo.toml's one place).
+    // BLAKE3-Servil's repository, for the map's links (Cargo.toml's one place).
     println!("cargo:rustc-env=BENCH_SERVIL_GIT={}", servil_git());
     println!("cargo:rerun-if-changed=Cargo.lock");
     println!("cargo:rerun-if-changed=README.md");
@@ -43,8 +43,8 @@ fn main() {
 
     /*
      * The checkout whose git state is this build's provenance: this
-     * directory, or, for a copy built elsewhere (the fork's perf_regress
-     * builds one inside a fork worktree, where git would find the fork),
+     * directory, or, for a copy built elsewhere (BLAKE3-Servil's perf_regress
+     * builds one inside a fork worktree, where git would find BLAKE3-Servil),
      * the checkout BENCH_HASHES_CHECKOUT names.
      */
     println!("cargo:rerun-if-env-changed=BENCH_HASHES_CHECKOUT");
@@ -81,7 +81,7 @@ fn main() {
      * What else decides the machine code, beyond this commit and the
      * crates' sources: every dependency's exact version and checksum (a
      * BLAKE3 fingerprint of Cargo.lock), the C compiler that assembles the
-     * contenders' C and assembly (ring's, the fork's, through the cc crate:
+     * contenders' C and assembly (ring's, BLAKE3-Servil's, through the cc crate:
      * $CC or cc), and RUSTFLAGS.
      */
     emit_env(
@@ -160,12 +160,12 @@ fn git_text_allow_failure(repository: &Path, arguments: &[&str]) -> Option<Strin
     )
 }
 
-/// The environment variable naming the local checkout of the fork when a
+/// The environment variable naming the local checkout of BLAKE3-Servil when a
 /// `--config` patch replaces the git dependency: `bench-hashes
 /// build-against DIR` sets it to DIR, wherever the two checkouts sit.
 const SERVIL_CHECKOUT: &str = "BENCH_HASHES_FORK";
 
-/// The fork's repository, as Cargo.toml names it (its one place: a bench
+/// BLAKE3-Servil's repository, as Cargo.toml names it (its one place: a bench
 /// pinned to another fork changes that line alone) and Cargo.lock records it.
 fn servil_git() -> String {
     let manifest = std::fs::read_to_string(
@@ -245,7 +245,7 @@ fn watch_repository(repository: &Path) {
 }
 
 /// Reads the git state of `repository`, leaving out the path `skip` (the
-/// results directory, or this repository nested inside the fork's
+/// results directory, or this repository nested inside BLAKE3-Servil's
 /// checkout, where it is an untracked directory). A dirty tree is fingerprinted by hashing its status, its
 /// diff against HEAD, and every untracked file, with BLAKE3, the hash written as a sigil
 /// (`dirty-` and 25 letters: johnservil/sigil 0.1).
@@ -477,7 +477,7 @@ fn git_output(repository: &Path, arguments: &[&str]) -> Output {
 }
 
 /*
- * blake3-servil comes from the fork's repository at the commit Cargo.lock
+ * blake3-servil comes from BLAKE3-Servil's repository at the commit Cargo.lock
  * pins, with a line such as
  *   source = "git+https://github.com/johnservil/BLAKE3?rev=COMMIT#COMMIT"
  * A `--config` patch replaces it with the enclosing checkout at `..`, and
@@ -510,7 +510,7 @@ fn emit_servil_package(lock: &str) {
             }));
             assert!(
                 repository.join("Cargo.toml").is_file(),
-                "{SERVIL_CHECKOUT} names {}, which holds no checkout of the fork",
+                "{SERVIL_CHECKOUT} names {}, which holds no checkout of BLAKE3-Servil",
                 repository.display()
             );
             watch_repository(&repository);

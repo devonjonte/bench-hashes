@@ -70,7 +70,7 @@ const TARGET_SAMPLE_NS: u128 = 1_000_000;
  * a walk of GAP_WORK_BYTES, then integer work to 1 ms, as on a machine
  * busy with other programs; after idling, a 1 ms sleep, as a server
  * waiting for its next request. Longer than a pool keeps its workers
- * polling (the fork's, 200 us), so each call meets them asleep.
+ * polling (BLAKE3-Servil's, 200 us), so each call meets them asleep.
  */
 const GAP_NS: u64 = 1_000_000;
 /// The data the other work reads, per measuring thread: larger than the
@@ -93,7 +93,7 @@ const CALIBRATION_GAPS: u64 = 4;
  * sample and, where the use case is measured shared, two shared samples
  * beside it), and by what the run is for. A run that measures speed (the
  * map, the report) and a run inside a check for performance regressions
- * (`regress`, which the fork's perf_regress drives) spend their time
+ * (`regress`, which BLAKE3-Servil's perf_regress drives) spend their time
  * differently, and the two counts sit side by side so that a change to
  * one is made looking at the other (Zooko, October 19, 2026: the two had
  * drifted into one constant, tuned for the wrong one).
@@ -351,7 +351,7 @@ const INTERLEAVED: InterleavedSpec = InterleavedSpec {
 /*
  * A Merkle tree (UseCase::MerkleTree; Zooko, October 19, 2026): the
  * commitment a zero-knowledge prover makes to a Reed-Solomon codeword
- * (WHIR's, for one: the fork's docs/whir-merkle-trees.md): the program
+ * (WHIR's, for one: BLAKE3-Servil's docs/whir-merkle-trees.md): the program
  * writes the codeword's leaves into its buffer, then hashes them, a
  * digest each, and each layer of parents, two children's digests side by
  * side, to the root, keeping every layer for the openings. Leaves of 256
@@ -392,7 +392,7 @@ const CLOCKS_SOURCE_INFO: &str = env!("CLOCKS_SOURCE_INFO");
  * Every power of two from 64 B to 128 MiB, plus 3 KiB and 3 MiB. Between
  * 64 B and 1 KiB BLAKE3 is inside one chunk; from 2 KiB to 16 KiB its SIMD
  * paths fill up (4-way NEON at 4 KiB, a sixteen-lane SME2 group at 16
- * KiB); above that the bulk rate settles. 3 KiB is where the fork's integer
+ * KiB); above that the bulk rate settles. 3 KiB is where BLAKE3-Servil's integer
  * + NEON hybrid kernels first overtake hardware SHA-256: one chunk on the
  * integer ALUs beside a NEON pair costs the same as the pair alone. SHA-1DC
  * and SHA-256 are block-serial and have only the per-message overhead to
@@ -1091,7 +1091,7 @@ impl Point {
 
 /*
  * A contender is one hash implementation under test: which crate (the
- * crates.io blake3, the servil fork, sha2, ...) in which mode
+ * crates.io blake3, BLAKE3-Servil, sha2, ...) in which mode
  * (single-threaded or multithreaded). Adding a contender means a variant
  * here, an entry in ALL, a key, a name, a color, a provenance string, and
  * an arm in hash_batch; the harness handles selection, interleaving,
@@ -1102,7 +1102,7 @@ enum Algorithm {
     Blake3,
     Sha256,
     Sha1Dc,
-    /// The servil fork's single-threaded hash; its kernels are chosen at
+    /// BLAKE3-Servil's single-threaded hash; its kernels are chosen at
     /// run time (SME2 where the CPU has it, integer + NEON hybrids elsewhere).
     Blake3ServilSt,
     /// Apple's CommonCrypto SHA-256 through CC_SHA256_Init/Update/Final.
@@ -1112,8 +1112,8 @@ enum Algorithm {
     /// crates.io blake3 through Hasher::update_rayon, the crate's own
     /// multithreading, on Rayon's global pool as Rayon sizes it.
     Blake3Rayon,
-    /// The fork's multithreaded calls and its queue: the caller's thread
-    /// plus the fork's own workers, which sleep between calls.
+    /// BLAKE3-Servil's multithreaded calls and its queue: the caller's thread
+    /// plus BLAKE3-Servil's own workers, which sleep between calls.
     Blake3ServilMt,
     /// RustCrypto's SHA3-256 (the sha3 crate), with the ARMv8 SHA-3
     /// instructions where the CPU has them (keccak's run-time detection).
@@ -1160,7 +1160,7 @@ impl Algorithm {
     /// Whether this contender is measured in a use case. BLAKE3 mt stays
     /// out of the batch use cases: `update_rayon` exists for large inputs,
     /// and a 64-byte message is a call to it that no program would make.
-    /// The fork's multithreaded contender takes part through its batch
+    /// BLAKE3-Servil's multithreaded contender takes part through its batch
     /// entry point, `hash_many_multithreaded`, and its stream. BLAKE3
     /// servil st takes part in the continuous use cases as every hash
     /// without a stream does, on the program's thread: a program that keeps
@@ -1215,11 +1215,11 @@ impl Algorithm {
             Self::Blake3 => "BLAKE3 official",
             Self::Sha256 => "SHA-256",
             Self::Sha1Dc => "SHA-1DC",
-            Self::Blake3ServilSt => "BLAKE3 servil st",
+            Self::Blake3ServilSt => "BLAKE3-Servil st",
             Self::Sha256CommonCrypto => "SHA-256 CommonCrypto",
             Self::Sha256Ring => "SHA-256 ring",
             Self::Blake3Rayon => "BLAKE3 official mt",
-            Self::Blake3ServilMt => "BLAKE3 servil mt",
+            Self::Blake3ServilMt => "BLAKE3-Servil mt",
             Self::Sha3_256 => "SHA3-256",
         }
     }
@@ -1278,7 +1278,7 @@ impl Algorithm {
             | Self::Sha3_256 => "single-threaded",
             Self::Blake3ServilSt => "single-threaded; convenience::hash for one message, performance::hash_many for a batch, performance::Hasher::update per piece for many messages at once",
             Self::Blake3Rayon => "multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread",
-            Self::Blake3ServilMt => "multithreaded; performance::hash_multithreaded for one message, performance::hash_many_multithreaded for a batch, performance::Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: the fork chooses when to wake its worker threads",
+            Self::Blake3ServilMt => "multithreaded; performance::hash_multithreaded for one message, performance::hash_many_multithreaded for a batch, performance::Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: BLAKE3-Servil chooses when to wake its worker threads",
         }
     }
 }
@@ -1892,7 +1892,7 @@ fn williams_orders(n: usize) -> Vec<Vec<usize>> {
 /*
  * The default contenders: the fastest implementations of BLAKE3 and
  * SHA-256 on the machines this benchmark has measured. For BLAKE3 that is
- * the servil fork, single-threaded and multithreaded. For SHA-256 neither
+ * BLAKE3-Servil, single-threaded and multithreaded. For SHA-256 neither
  * crate wins everywhere: sha2 is faster for one and two blocks (and so for
  * every batch of 64-byte messages), ring from 256 B up, so both run.
  */
@@ -1933,7 +1933,7 @@ const USAGE: &str = "\
 bench-hashes: hash speed by input size and by messages per batch, alone
 and, for the multithreaded contenders, as two programs at once
 
-  bench-hashes                     BLAKE3 servil st and mt
+  bench-hashes                     BLAKE3-Servil st and mt
                                    and SHA-256 (sha2 and ring)
   bench-hashes --all               every contender this machine can run
   bench-hashes --contenders K,...  exactly these, in this column order
@@ -1967,11 +1967,11 @@ cell sampled in a share of them.
                                    tools/variance.py): 0,N gives settling
                                    curves
   --nonstop-visits N               a nonstop cell's visits (default 2)
-  --threads N                      BLAKE3 servil mt on N threads in all, its
+  --threads N                      BLAKE3-Servil mt on N threads in all, its
                                    caller among them (default: one a CPU); the
                                    results name the count
   --expect-servil COMMIT           stop before measuring unless this build's
-                                   BLAKE3 servil is the fork at COMMIT (a full
+                                   BLAKE3-Servil is BLAKE3-Servil at COMMIT (a full
                                    hash), from a clean tree: a run says what it
                                    measures, and refuses to measure anything else
 
@@ -1980,21 +1980,21 @@ cell sampled in a share of them.
                                    i-th old with the i-th new), each cell's
                                    verdict as regress gives it, after each
                                    side's builds (as provenance prints them)
-  bench-hashes provenance          this build's bench-hashes and BLAKE3 servil
+  bench-hashes provenance          this build's bench-hashes and BLAKE3-Servil
                                    commits, each with its tree's state
   bench-hashes regress [--full | --contenders A,B [--points P,Q]] OLD_EXE... -- NEW_EXE...
                                    whether the new build is slower: pair i
                                    runs the i-th of each side (fresh
-                                   layouts: the fork's tools/perf_regress.py),
+                                   layouts: BLAKE3-Servil's tools/perf_regress.py),
                                    in alternating order; all cells judged at
                                    once; exit 0, 1 (slower), or 2 (no
                                    verdict); --full: every default cell;
                                    --contenders (and --points): the cells
                                    a run with them measures, every one judged
 
-  bench-hashes check --fork DIR    whether a change to the fork's checkout
+  bench-hashes check --fork DIR    whether a change to BLAKE3-Servil's checkout
                                    is slower than its base (CONTRIBUTING.md)
-  bench-hashes build-against DIR   build against the fork's checkout at DIR
+  bench-hashes build-against DIR   build against BLAKE3-Servil's checkout at DIR
   bench-hashes map DIR             draw a results folder's map again
   bench-hashes chart SAMPLES.tsv   draw a run's chart again
   bench-hashes overview OUT DIR    the overview page from every folder's run
@@ -2014,7 +2014,7 @@ struct Options {
     sizes: Sizes,
     /// The file --sizes named, for the samples file's `sample sizes` line.
     sizes_file: Option<String>,
-    /// BLAKE3 servil mt's threads (--threads N; None: one a CPU).
+    /// BLAKE3-Servil mt's threads (--threads N; None: one a CPU).
     threads: Option<std::num::NonZeroUsize>,
     /// The run's visits: TO_CHECK_FOR_REGRESSIONS with --for-regression-check
     /// (regress passes it to the runs it starts), else TO_MEASURE_SPEED.
@@ -2331,7 +2331,7 @@ fn expect_servil(commit: &str, info: &str) {
     let clean = info.split("; ").any(|field| field == "clean");
     assert!(
         named && clean,
-        "--expect-servil {commit}: this build's BLAKE3 servil is not that commit from a clean tree; it is: {info}\n\
+        "--expect-servil {commit}: this build's BLAKE3-Servil is not that commit from a clean tree; it is: {info}\n\
          (build against a checkout with `bench-hashes build-against DIR`; a `--config` patch Cargo leaves unused builds the pin)"
     );
 }
@@ -2404,12 +2404,12 @@ fn parse_arguments() -> Options {
         nonstop_visits != Some(0),
         "--nonstop-visits takes one visit or more"
     );
-    /* --threads N: BLAKE3 servil mt's pool, N threads in all (its caller among them). */
+    /* --threads N: BLAKE3-Servil mt's pool, N threads in all (its caller among them). */
     let threads = take_value("--threads").map(|n| {
         n.parse::<std::num::NonZeroUsize>()
             .expect("--threads takes a whole number above 0")
     });
-    /* --expect-servil COMMIT: this build's servil is the fork at COMMIT,
+    /* --expect-servil COMMIT: this build's servil is BLAKE3-Servil at COMMIT,
     clean, or nothing is measured (a Cargo patch that goes unused builds the
     pin instead, and says so only in a warning: BLAKE3 #125, October 27). */
     if let Some(commit) = take_value("--expect-servil") {
@@ -2650,8 +2650,8 @@ fn main() {
     } else {
         selection_note
     };
-    // A program that calls the fork's multithreaded entry points or its
-    // queue starts their threads once, first: the fork's contract.
+    // A program that calls BLAKE3-Servil's multithreaded entry points or its
+    // queue starts their threads once, first: BLAKE3-Servil's contract.
     if algorithms.contains(&Algorithm::Blake3ServilMt) {
         blake3_servil::initialize_multithreaded(threads);
     }
@@ -3734,7 +3734,7 @@ thread_local! {
  *
  * `input` holds `messages` messages of the use case's length (for one
  * message, the whole slice). A contender with a batch entry point hands
- * it every batch of two messages or more: the fork's hash_many, the
+ * it every batch of two messages or more: BLAKE3-Servil's hash_many, the
  * blake3 crate's hidden Platform::hash_many sixteen messages per call.
  * Every other contender, and every contender for one message,
  * hashes the messages one call each through its plain entry point. The
@@ -4013,7 +4013,7 @@ fn input_len(point: Point) -> usize {
 /*
  * A collection pipelined (UseCase::ContinuousCollection): `iterations`
  * passes over its items, one after another, each read into a buffer of the
- * program's, then hashed, its digest into `consume`. BLAKE3 servil mt reads
+ * program's, then hashed, its digest into `consume`. BLAKE3-Servil mt reads
  * each straight into its stream's ring (submit_with) and hashes on its
  * workers while the next is read; every other hash, on the program's thread
  * after reading it, as it hashes one message in memory.
@@ -4086,7 +4086,7 @@ fn hash_collection(
         algorithm,
         Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt
     ) {
-        // The fork's call for a collection: every item in one call.
+        // BLAKE3-Servil's call for a collection: every item in one call.
         let each = if algorithm == Algorithm::Blake3ServilSt {
             blake3_servil::performance::hash_each
         } else {
@@ -4539,10 +4539,10 @@ fn free_place<'a, D: FnMut(&'a mut [blake3_servil::Hash])>(
  * The continuous messages use case: `iterations` messages, each a copy of
  * `input` read into a buffer of the program's (a memory copy, the
  * cheapest read) in pieces of up to PIECE_LEN, then hashed, its digest
- * into `consume`. Every contender but the servil fork's multithreaded one
+ * into `consume`. Every contender but BLAKE3-Servil's multithreaded one
  * hashes each message after reading it, one call for a message of up to
  * PIECE_LEN, its incremental API per piece for a longer one, so reading
- * and hashing take turns; the fork's queue takes the program's buffers
+ * and hashing take turns; BLAKE3-Servil's queue takes the program's buffers
  * and hashes while the next are read.
  */
 /// THE BENCHMARKS REPRESENT THIS IN TWO DIFFERENT WAYS TO USERS (the
@@ -4555,7 +4555,7 @@ fn free_place<'a, D: FnMut(&'a mut [blake3_servil::Hash])>(
 ///
 /// Whether a contender's continuous cell with buffers owned runs the same
 /// calls on the same input as its cell with buffers lent, at a message of
-/// `len` bytes (a batch: `None`): every contender but the fork's stream,
+/// `len` bytes (a batch: `None`): every contender but BLAKE3-Servil's stream,
 /// at messages that arrive in one buffer (up to PIECE_LEN) and at batches.
 /// The owned cells dispatch through it (hash_continuous_messages,
 /// hash_continuous_batches), so a contender that gains a path of its own
@@ -4642,9 +4642,9 @@ fn hash_continuous_messages(
 /*
  * The continuous batches use case: `iterations` batches, each a copy of
  * `input` read into a buffer of the program's, then hashed, the batch's
- * digests into `consume`. Every contender but the servil fork's
+ * digests into `consume`. Every contender but BLAKE3-Servil's
  * multithreaded one hashes each batch after reading it, as it hashes a
- * batch in memory (hash_batch); the fork's queue of fixed-length messages
+ * batch in memory (hash_batch); BLAKE3-Servil's queue of fixed-length messages
  * takes the program's buffers and hashes while the next are read.
  */
 fn hash_continuous_batches(
@@ -4942,7 +4942,7 @@ thread_local! {
      * of a large buffer would put its page faults inside the timed sample,
      * and one set shared by every cell had each cell free or grow the
      * last one's inside its own sample (SHA-256's 1 KiB messages took 2-5%
-     * more cycles per byte after the fork's queue's 1024 buffers,
+     * more cycles per byte after BLAKE3-Servil's queue's 1024 buffers,
      * September 28, 2026).
      */
     static INPUT_BUFFERS: std::cell::RefCell<crate::Map<(usize, usize), Vec<Vec<u8>>>> = std::cell::RefCell::new(crate::Map::default());
@@ -4984,7 +4984,7 @@ fn written<T: Clone>(len: usize, value: T) -> Vec<T> {
  * Inputs in blocks (UseCase::in_blocks): every batch, and every message of
  * a cell where servil's call is a performance call, starts at a 64-byte
  * boundary with whole 64-byte blocks behind it, for every contender alike
- * (Zooko, October 24: the fork's performance calls take their inputs as
+ * (Zooko, October 24: BLAKE3-Servil's performance calls take their inputs as
  * Blocks, and the bench aligns the inputs of every cell that has a
  * performance-call contender). A message of the other cells starts where
  * the allocator puts it (glibc places a large one 16 bytes into a line), as
@@ -5109,8 +5109,8 @@ thread_local! {
 }
 
 /*
- * What the benchmark asks of the servil fork, by contender and use case:
- * the fork's call and its usage pattern. FROZEN.md lists the same, with the
+ * What the benchmark asks of BLAKE3-Servil, by contender and use case:
+ * BLAKE3-Servil's call and its usage pattern. FROZEN.md lists the same, with the
  * reasons; a test compares them, so a change here needs FROZEN.md changed,
  * with Zooko's decision. Keep the dispatch (hash_batch) calling exactly
  * these.
@@ -5195,7 +5195,7 @@ fn frozen_contract() -> String {
     text
 }
 
-/// `iterations` passes over the batch through one of the fork's batch entry
+/// `iterations` passes over the batch through one of BLAKE3-Servil's batch entry
 /// points, which take the messages back to back in one buffer with their
 /// length and fill a slice of digests; the whole batch's digests go to
 /// `consume` per pass.
@@ -6086,7 +6086,7 @@ fn calibrate_batch(algorithm: Algorithm, input: &[u8], point: Point) -> (usize, 
 /// exact for display.
 
 /*
- * Every sample, for tools that do their own statistics (the fork's
+ * Every sample, for tools that do their own statistics (BLAKE3-Servil's
  * performance-regression check reads this file). Lines starting with '#'
  * carry the provenance and machine identity as `key: value`; then one row
  * per measured cell and scenario: contender key, scenario (`solo`,
@@ -6298,7 +6298,7 @@ fn read_samples(path: &str) -> SamplesFile {
  * side's mean (the geometric mean of its runs'), the ratio judged (the
  * geometric mean of the pairs' ratios, new over old, which is the two
  * sides' figures' ratio), the verdict, and how many pairs ran faster. At least
- * three pairs. For two builds, `regress` (through the fork's
+ * three pairs. For two builds, `regress` (through BLAKE3-Servil's
  * tools/perf_regress.py, which relinks each side with a fresh layout per
  * pair) runs and judges the pairs itself: link layout moves cold calls'
  * cells by itself (audit/variance-on-unchanged-code.md at aadeca9d).
@@ -7821,7 +7821,7 @@ mod correctness_tests {
         }
     }
 
-    /// The benchmark asks of the fork exactly what FROZEN.md says it does.
+    /// The benchmark asks of BLAKE3-Servil exactly what FROZEN.md says it does.
     #[test]
     fn frozen_contract_matches_frozen_md() {
         let manifest = include_str!("../FROZEN.md");
@@ -7836,7 +7836,7 @@ mod correctness_tests {
         assert_eq!(
             &manifest[start..end],
             frozen_contract(),
-            "the benchmark's contract with the fork changed: change FROZEN.md with it, with Zooko's decision and its reason"
+            "the benchmark's contract with BLAKE3-Servil changed: change FROZEN.md with it, with Zooko's decision and its reason"
         );
     }
 
@@ -8142,7 +8142,7 @@ mod correctness_tests {
     }
 
     /// An owned cell whose calls are its lent twin's (owned_runs_lent) is
-    /// measured once, as the twin: its samples are the twin's; the fork's
+    /// measured once, as the twin: its samples are the twin's; BLAKE3-Servil's
     /// stream, whose owned calls differ, is measured on its own.
     #[test]
     fn owned_cells_with_lent_calls_take_the_lent_samples() {
@@ -8624,7 +8624,7 @@ mod correctness_tests {
     }
 
     /// Every contender taking part hands `consume` a digest for every
-    /// message or batch on the continuous axes, the fork's queues
+    /// message or batch on the continuous axes, BLAKE3-Servil's queues
     /// included (one buffer per message, pieces, and batches), with fewer,
     /// as many, and more messages or batches than it keeps in flight. What
     /// the digests are is the contenders' tests' business (AGENTS.md,

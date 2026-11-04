@@ -4,7 +4,7 @@
  * and hashes each as a leaf. N 64-byte messages come from the simplest
  * producer there is, a counter (the buffer's 64-bit words count up from
  * 0, so message i holds 8i .. 8i + 7), the same in every variant; the
- * variants differ in how the program hands them to BLAKE3 servil:
+ * variants differ in how the program hands them to BLAKE3-Servil:
  *
  *   lend-oneshot   produced into the program's buffer, then lent to
  *                  hash_many_multithreaded
