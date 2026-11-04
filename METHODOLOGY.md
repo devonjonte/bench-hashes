@@ -8,9 +8,10 @@ Every run measures each contender in twenty-one use cases. Thirteen are
 calls made now and then, each after a gap of one of three kinds. **After other
 work** runs after the program has executed a fixed other program and read
 128 MiB of data, as a program hashes between its other tasks. **After a
-brief idle** runs after the program has slept 20 us, as a server answers
-a reply that arrives at once: the core keeps its clock and its shallowest
-idle state. **After idling** runs after the program has slept 5 ms, as a
+brief idle** runs after the program has slept 20 us (the bench sets its
+timer slack to 1 us, so the sleep lands at 23 us where Linux's default
+landed it at 72), as a server answers a reply that arrives at once: the
+core keeps its clock and its shallowest idle state. **After idling** runs after the program has slept 5 ms, as a
 server waits for its next request: every machine measured has settled
 into its deep idle states by then (FROZEN.md, "Changes for the next
 release"). Where the bench runs as root on Linux, the 5 ms cells run once

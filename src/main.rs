@@ -820,8 +820,10 @@ enum UseCase {
 /// measured has settled into its deep states (the i7-12700K's transition
 /// is at 1 ms, the pause until 0.20; the Xeon's and the EPYC's deep
 /// plateau begins before). Each is a real program's situation, and each
-/// is a stable one. A sleep of 20 us lands at 20-70 us on Linux (the
-/// timer's slack); the pause's own length is outside the interval.
+/// is a stable one. The bench sets its timer slack to 1 us
+/// (clocks::tight_timers), so a sleep of 20 us lands at 23 us on Linux
+/// where the default slack landed it at 72; the pause's own length is
+/// outside the interval.
 const BRIEF_PAUSE_NS: u64 = 20_000;
 const LONG_PAUSE_NS: u64 = 5_000_000;
 
@@ -2812,6 +2814,9 @@ impl std::hash::BuildHasher for Seeded {
 fn main() {
     // Once per process, before any other call: blake3-servil's contract.
     blake3_servil::initialize();
+    // The pauses before calls land when asked (clocks::tight_timers; the
+    // pool's threads, made later, inherit it).
+    clocks::tight_timers();
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     if arguments.first().map(String::as_str) == Some("compare") {
         return compare_command(&arguments[1..]);

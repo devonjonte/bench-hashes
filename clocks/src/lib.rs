@@ -420,6 +420,25 @@ pub fn set_qos(class: u32) {
     imp::set_qos(class)
 }
 
+/// Make the calling thread's sleeps land when asked (Linux: timer slack
+/// 1 us in place of the 50 us every normal thread gets, which landed a
+/// 20 us sleep at 72 us and a 5 ms one up to 300 us late on the
+/// i7-12700K; threads made after this inherit it). Elsewhere nothing.
+/// A pause before a call is the measurement's; its length should be the
+/// one the method names.
+pub fn tight_timers() {
+    #[cfg(target_os = "linux")]
+    {
+        unsafe extern "C" {
+            fn prctl(option: i32, a: std::ffi::c_long, b: std::ffi::c_long, c: std::ffi::c_long, d: std::ffi::c_long) -> i32;
+        }
+        const PR_SET_TIMERSLACK: i32 = 29;
+        // Sound: a plain prctl on the calling thread.
+        let set = unsafe { prctl(PR_SET_TIMERSLACK, 1_000, 0, 0, 0) };
+        assert_eq!(set, 0, "the kernel lets any thread set its own timer slack");
+    }
+}
+
 #[cfg(target_vendor = "apple")]
 mod imp {
     use super::{Counts, Level};
@@ -513,6 +532,36 @@ mod tests {
     /// as Darwin's CLOCK_MONOTONIC through clock_gettime does, would fail
     /// here), and it reads at the cost of a function call. A change of the
     /// clock behind `now` shows here.
+    /// On Linux a thread's sleeps land late by its timer slack (50 us by
+    /// default); after tight_timers a 20 us sleep lands within 10 us of
+    /// it, in the median of 200. Elsewhere the call is nothing and the
+    /// sleep lands as the OS lands it.
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn tight_timers_land_a_brief_sleep_on_time() {
+        let landing = || {
+            let mut v: Vec<u64> = (0..200)
+                .map(|_| {
+                    let t = now();
+                    std::thread::sleep(std::time::Duration::from_micros(20));
+                    since_ns(t)
+                })
+                .collect();
+            v.sort_unstable();
+            v[100]
+        };
+        std::thread::spawn(move || {
+            let loose = landing();
+            tight_timers();
+            let tight = landing();
+            eprintln!("a 20 us sleep lands at {loose} ns with the default slack, {tight} ns with 1 us");
+            assert!(tight < 30_000, "a 20 us sleep lands within 10 us: {tight} ns");
+            assert!(tight < loose, "tight timers land sooner than the default slack ({loose} ns)");
+        })
+        .join()
+        .unwrap();
+    }
+
     #[test]
     fn the_wall_clock_is_fine_and_forward() {
         let mut last = now();

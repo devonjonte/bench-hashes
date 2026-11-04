@@ -194,7 +194,10 @@ anything", John Servil releasing it):
   was the i7-12700K's transition between the two, bimodal (#117: the
   i7's 16 x 64 B batch x2.0 at 20 us, x2.6 at 1 ms with 24-49%
   detectable, x6.3 at 5 ms with 16%). Each pause is a real program's
-  situation, and each is stable. The pauses run in sets of rounds of
+  situation, and each is stable. The pauses land when asked: the bench
+  sets its threads' timer slack to 1 us (`clocks::tight_timers`; Linux
+  gives a thread 50 us by default, which landed the 20 us sleep at 72 us
+  and let the i7's core reach C6 in 39% of it; at 23 us it stays in C1). The pauses run in sets of rounds of
   their own, as the other ways of calling do. The run grows by the
   after-pause cells' share. Each samples file records, beside the
   configured idle states, the **effective** ones: the shares of the
