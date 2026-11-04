@@ -7541,6 +7541,7 @@ mod check;
 mod diag_alloc;
 #[cfg(test)]
 mod harness_tests;
+mod samecode;
 #[cfg(test)]
 mod require_nextest {
     include!("../tools/require_nextest.rs");
