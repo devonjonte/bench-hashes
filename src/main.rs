@@ -7786,6 +7786,101 @@ fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u1
     parts.join(", ")
 }
 
+/// The machine's idle states under the bench's control (bench-hashes #117,
+/// Sam Shackleton's protocol): where every cpuidle `disable` file is
+/// writable (the bench runs as root), the after-pause cells run once
+/// more with every state but POLL and C1 switched off, so a call meets
+/// the core awake and the cell measures the library alone; the shipped
+/// block, what users meet, stays the first. The states are chosen by
+/// name: POLL and C1 kept, or POLL alone where the machine has no plain
+/// C1 (the i7-12700K: C1E, C6, C8, C10). Applied as a guard that writes
+/// each file's old value back when it drops, so a run that ends early
+/// leaves the machine as it found it (a run killed outright cannot:
+/// `restore` lists what to write back).
+#[allow(dead_code)] // wired into the run once #117 settles the block's shape
+struct IdleControl {
+    /// Each state's `disable` file, with the value it held and whether
+    /// the block keeps the state.
+    files: Vec<(std::path::PathBuf, String, bool)>,
+    /// Whether the machine has a plain C1 (kept beside POLL).
+    has_c1: bool,
+}
+
+impl IdleControl {
+    /// The control for the cpuidle tree at `root` (`/sys/devices/system/cpu`):
+    /// None where there are no states, or any `disable` file is not
+    /// writable.
+    fn detect(root: &std::path::Path) -> Option<IdleControl> {
+        let mut files = Vec::new();
+        let mut names = std::collections::BTreeSet::new();
+        for cpu in fs::read_dir(root).ok()?.flatten() {
+            let name = cpu.file_name().to_string_lossy().into_owned();
+            let Some(number) = name.strip_prefix("cpu") else {
+                continue;
+            };
+            if number.parse::<u32>().is_err() {
+                continue;
+            }
+            let Ok(states) = fs::read_dir(cpu.path().join("cpuidle")) else {
+                continue;
+            };
+            for state in states.flatten() {
+                let state_name = fs::read_to_string(state.path().join("name"))
+                    .ok()?
+                    .trim()
+                    .to_owned();
+                let disable = state.path().join("disable");
+                let held = fs::read_to_string(&disable).ok()?.trim().to_owned();
+                // Writable: open for writing succeeds (nothing written).
+                fs::OpenOptions::new().write(true).open(&disable).ok()?;
+                let keep = state_name == "POLL" || state_name == "C1";
+                names.insert(state_name);
+                files.push((disable, held, keep));
+            }
+        }
+        let has_c1 = names.contains("C1");
+        (!files.is_empty() && files.iter().any(|(_, _, keep)| !keep))
+            .then_some(IdleControl { files, has_c1 })
+    }
+
+    /// The states the block keeps, "POLL and C1" or "POLL alone".
+    fn kept(&self) -> &'static str {
+        if self.has_c1 {
+            "POLL and C1"
+        } else {
+            "POLL alone"
+        }
+    }
+
+    /// Switch every other state off, until the guard drops.
+    fn apply(&self) -> IdleControlGuard<'_> {
+        for (path, _, keep) in &self.files {
+            if !keep {
+                fs::write(path, "1\n")
+                    .unwrap_or_else(|e| panic!("switching off {}: {e}", path.display()));
+            }
+        }
+        IdleControlGuard { control: self }
+    }
+
+    /// Write every file's old value back.
+    fn restore(&self) {
+        for (path, held, _) in &self.files {
+            let _ = fs::write(path, format!("{held}\n"));
+        }
+    }
+}
+
+struct IdleControlGuard<'a> {
+    control: &'a IdleControl,
+}
+
+impl Drop for IdleControlGuard<'_> {
+    fn drop(&mut self) {
+        self.control.restore();
+    }
+}
+
 fn describe_idle_states(read: &dyn Fn(&str) -> Option<String>) -> String {
     let dir = "/sys/devices/system/cpu";
     let Some(driver) = read(&format!("{dir}/cpuidle/current_driver")) else {
@@ -8560,6 +8655,85 @@ mod correctness_tests {
             xeon.describe(),
             "one cache: CPUs 0 and 1; two caches: CPUs 0 and 2; each copy's input on its CPU's memory node"
         );
+    }
+
+    /// The idle control on a faked cpuidle tree: every state but POLL and
+    /// C1 switched off while the guard lives, every file's value back when
+    /// it drops; none where a file is read-only, or no state is there to
+    /// switch off.
+    #[test]
+    fn idle_control_switches_the_deep_states_off_and_back() {
+        let root = std::env::temp_dir().join(format!("bench-cpuidle-{}", std::process::id()));
+        let make = |cpu: usize, states: &[(&str, &str)]| {
+            for (i, (name, disable)) in states.iter().enumerate() {
+                let dir = root.join(format!("cpu{cpu}/cpuidle/state{i}"));
+                fs::create_dir_all(&dir).unwrap();
+                fs::write(dir.join("name"), format!("{name}\n")).unwrap();
+                fs::write(dir.join("disable"), format!("{disable}\n")).unwrap();
+            }
+        };
+        // The i7's ladder on two CPUs (no plain C1), C6 already off on cpu1.
+        make(0, &[("POLL", "0"), ("C1E", "0"), ("C6", "0"), ("C8", "0")]);
+        make(1, &[("POLL", "0"), ("C1E", "0"), ("C6", "1"), ("C8", "0")]);
+        fs::create_dir_all(root.join("cpufreq")).unwrap(); // a sibling that is no CPU
+        let control = IdleControl::detect(&root).expect("writable states");
+        assert_eq!(control.kept(), "POLL alone");
+        let read = |cpu: usize, state: usize| {
+            fs::read_to_string(root.join(format!("cpu{cpu}/cpuidle/state{state}/disable")))
+                .unwrap()
+                .trim()
+                .to_owned()
+        };
+        {
+            let _guard = control.apply();
+            assert_eq!(
+                [read(0, 0), read(0, 1), read(0, 2), read(0, 3)],
+                ["0", "1", "1", "1"],
+                "POLL kept, the rest off"
+            );
+            assert_eq!([read(1, 1), read(1, 2)], ["1", "1"]);
+        }
+        assert_eq!(
+            [read(0, 0), read(0, 1), read(0, 2), read(0, 3)],
+            ["0", "0", "0", "0"],
+            "back as found"
+        );
+        assert_eq!(read(1, 2), "1", "cpu1's C6 was off before, and is again");
+        // A machine with a plain C1 keeps it.
+        let root2 = root.join("with-c1");
+        for (i, name) in ["POLL", "C1", "C6"].iter().enumerate() {
+            let dir = root2.join(format!("cpu0/cpuidle/state{i}"));
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("name"), format!("{name}\n")).unwrap();
+            fs::write(dir.join("disable"), "0\n").unwrap();
+        }
+        let control2 = IdleControl::detect(&root2).expect("writable states");
+        assert_eq!(control2.kept(), "POLL and C1");
+        {
+            let _guard = control2.apply();
+            let read2 = |state: usize| {
+                fs::read_to_string(root2.join(format!("cpu0/cpuidle/state{state}/disable")))
+                    .unwrap()
+                    .trim()
+                    .to_owned()
+            };
+            assert_eq!([read2(0), read2(1), read2(2)], ["0", "0", "1"]);
+        }
+        // A read-only disable file: no control (the bench lacks root).
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let locked = root.join("cpu0/cpuidle/state2/disable");
+            fs::set_permissions(&locked, fs::Permissions::from_mode(0o444)).unwrap();
+            assert!(
+                IdleControl::detect(&root).is_none(),
+                "a file the bench cannot write: no control"
+            );
+            fs::set_permissions(&locked, fs::Permissions::from_mode(0o644)).unwrap();
+        }
+        // No cpuidle at all: no control.
+        assert!(IdleControl::detect(&root.join("nowhere")).is_none());
+        fs::remove_dir_all(&root).unwrap();
     }
 
     /// The effective idle states' line: each state's share of the pause's
