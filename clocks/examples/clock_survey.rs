@@ -423,6 +423,19 @@ fn main() {
                     row(&format!("{name}, read()"), &|| counter.read_syscall(), 1.0);
                     if counter.rdpmc_allowed() {
                         row(&format!("{name}, rdpmc"), &|| counter.read_rdpmc(), 1.0);
+                        // Does rdpmc agree with the kernel's read of the same
+                        // counter? Over 200 calls: the difference the two ways
+                        // give, both bracketing the same work, the worst of them.
+                        let mut worst = 0i128;
+                        for _ in 0..200 {
+                            let (r0, p0) = (counter.read_syscall(), counter.read_rdpmc());
+                            black_box(work());
+                            let (p1, r1) = (counter.read_rdpmc(), counter.read_syscall());
+                            // read() brackets rdpmc, so its count is the larger by the reads' own work.
+                            let (by_read, by_rdpmc) = ((r1 - r0) as i128, (p1 - p0) as i128);
+                            worst = worst.max((by_read - by_rdpmc).abs());
+                        }
+                        println!("{:<28} {:>12}   rdpmc and read() agree within {worst} of the count over a call (read() brackets rdpmc, so a small excess is its own)", format!("{name}, agreement"), "");
                     } else {
                         println!(
                             "{:<28} {:>12}",
