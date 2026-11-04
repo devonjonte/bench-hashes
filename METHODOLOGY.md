@@ -87,8 +87,8 @@ three decimals or three significant digits, whichever shows more; lower
 is better. Each sample is kept as measured, the clock's nanoseconds over
 the units they covered, and the statistics work on it in fixed point with
 64 fractional bits, rounding only for the page. Every time is wall
-time on the platform's hardware counter (`CLOCK_UPTIME_RAW` on Darwin,
-`CLOCK_MONOTONIC` on Linux, via `std::time::Instant`), so a throttled
+time on the platform's hardware counter, read raw (`CLOCK_UPTIME_RAW` on
+Darwin, `CLOCK_MONOTONIC_RAW` on Linux: no time daemon adjusts it), so a throttled
 clock, a busy SME unit, or a GPU's latency counts as the user would
 feel it.
 

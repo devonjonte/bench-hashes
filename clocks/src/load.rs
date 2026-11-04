@@ -62,7 +62,6 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
-use std::time::Instant;
 
 /// Whether this platform's load is measured: Linux and macOS (the
 /// module's doc, "Where"). Elsewhere [`windows`] is always empty.
@@ -105,8 +104,8 @@ impl Window {
 /// Nanoseconds of wall time since this process's first measurement (its
 /// first call of this function, [`tick`], or a measurement in this crate).
 pub fn now_ns() -> u64 {
-    static ORIGIN: OnceLock<Instant> = OnceLock::new();
-    crate::since_ns(*ORIGIN.get_or_init(Instant::now))
+    static ORIGIN: OnceLock<crate::Stamp> = OnceLock::new();
+    crate::since_ns(*ORIGIN.get_or_init(crate::now))
 }
 
 /// A machine reading: when, the machine's CPU times, this process's user

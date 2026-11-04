@@ -2,6 +2,8 @@
 
 **One copy of the timing code.** The code that reads every clock and load measurement is now part of bench-hashes itself, so a result's bench-hashes version names exactly what timed it. It measures as before: the code is the same.
 
+**The wall clock is the raw hardware counter on Linux too.** Until now Linux runs read `CLOCK_MONOTONIC`, which the system's time daemon speeds up or slows down by up to 0.05% to track network time; a benchmark has no use for that, and the rate could be wrong or someone else's. Runs now read `CLOCK_MONOTONIC_RAW`, the counter itself, as Mac runs always did. Each result names its clock.
+
 ## Earlier: 0.20.4+6c91cfabef89d1bd52c4d73b7d2578f449689502
 
 **0.20.3 still stopped on a Mac, a step further; this release runs there, and a test now runs a Mac's case on every computer.** It measures as 0.20.3 does elsewhere.

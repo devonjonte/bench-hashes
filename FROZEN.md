@@ -175,6 +175,15 @@ anything", John Servil releasing it):
   #215) besides.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **The wall clock is the raw counter** (Zooko, November 4, 2026): on
+  Linux `CLOCK_MONOTONIC_RAW` in place of `CLOCK_MONOTONIC` (what
+  `std::time::Instant` reads there), which a time daemon slews by up to
+  500 ppm, a rate that could be in error or an adversary's, and helps no
+  measurement here (an i7-12700K had drifted 596 ms from its raw counter
+  8 hours after boot). On Darwin `CLOCK_UPTIME_RAW`, raw already. Same
+  cost a read (11 ns on the i7), same steps (1 ns; 41.67 ns on an M4
+  Max). A run's `sample clock` line names it. Zooko's measure-clocks3
+  (December 2025) compares the clocks on both platforms.
 - **The batch calls take a `Batch`** (Zooko, October 28; BLAKE3 #205):
   `hash_many`, `hash_many_multithreaded` and `Stream::submit_batch` take
   `&Batch`, whose bytes past each message the program cannot write, so a

@@ -3,7 +3,7 @@ use std::fmt::Write as _;
 use std::fs;
 use std::hint::black_box;
 use std::io::{IsTerminal, Write as _};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use sysinfo::{CpuRefreshKind, RefreshKind, System};
 
 #[cfg(target_arch = "wasm32")]
@@ -3218,8 +3218,8 @@ fn measure_all(
  */
 struct Progress<'a> {
     roster: &'a Roster,
-    started: Instant,
-    measuring_started: Option<Instant>,
+    started: clocks::Stamp,
+    measuring_started: Option<clocks::Stamp>,
     interactive: bool,
     last_width: usize,
 }
@@ -3244,7 +3244,9 @@ impl<'a> Progress<'a> {
         }
         self.draw(&format!(
             "[{:>5}s] {name}…",
-            tenths_of_seconds(self.started.elapsed())
+            tenths_of_seconds(std::time::Duration::from_nanos(clocks::since_ns(
+                self.started
+            )))
         ));
     }
 
@@ -3267,7 +3269,7 @@ impl<'a> Progress<'a> {
 
         /* The rounds left at the rate so far: elapsed × left / done, in whole seconds. */
         let remaining = if round > 0 {
-            let elapsed_ns = measuring_started.elapsed().as_nanos();
+            let elapsed_ns = u128::from(clocks::since_ns(measuring_started));
             let left_ns = elapsed_ns * (rounds - round) as u128 / round as u128;
             format!("{:>3}s left", (left_ns + 500_000_000) / 1_000_000_000)
         } else {
@@ -3276,7 +3278,9 @@ impl<'a> Progress<'a> {
 
         self.draw(&format!(
             "[{:>5}s] measuring {bar} {:>3}/{rounds} rounds · {remaining} · {medians}",
-            tenths_of_seconds(self.started.elapsed()),
+            tenths_of_seconds(std::time::Duration::from_nanos(clocks::since_ns(
+                self.started
+            ))),
             round,
         ));
     }
@@ -3294,7 +3298,9 @@ impl<'a> Progress<'a> {
         let rounds = self.roster.rounds;
         self.draw(&format!(
             "[{:>5}s] measured  {bar} {rounds}/{rounds} rounds · {medians}",
-            tenths_of_seconds(self.started.elapsed()),
+            tenths_of_seconds(std::time::Duration::from_nanos(clocks::since_ns(
+                self.started
+            ))),
         ));
         eprintln!();
     }
