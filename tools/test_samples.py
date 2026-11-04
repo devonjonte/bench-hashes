@@ -1,4 +1,4 @@
-"""tools/samples.py reads a v8 file's samples, CPUs and core counts, and
+"""tools/samples.py reads a v9 file's samples, CPUs and core counts, and
 stops on a row whose CPUs or counts don't match its samples."""
 import os
 import tempfile
@@ -21,11 +21,11 @@ def run(rows):
 
 class Read(unittest.TestCase):
     def test_samples_cpus_and_counts(self):
-        r = run(ROW.format(ns="300/64,200/64", cores="300:1290:0:0,200:860:0:0", cpus="9,42"))
+        r = run(ROW.format(ns="300/64,200/64", cores="300:1290:1700:0:0:0,200:860:1130:0:0:0", cpus="9,42"))
         key = ("blake3-servil-st", "solo", "ManyMessages", "64")
         self.assertEqual(r.cells[key], [(300, 64), (200, 64)])
         self.assertEqual(r.cpus[key], [9, 42])
-        self.assertEqual(r.cores[key], [(300, 1290, 0, 0), (200, 860, 0, 0)])
+        self.assertEqual(r.cores[key], [(300, 1290, 1700, 0, 0, 0), (200, 860, 1130, 0, 0, 0)])
         self.assertEqual(samples.mean_ps(r.cells[key]), 3906)
 
     def test_none_where_the_platform_names_none(self):

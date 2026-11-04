@@ -197,6 +197,13 @@ anything", John Servil releasing it):
   cost a read (11 ns on the i7), same steps (1 ns; 41.67 ns on an M4
   Max). A run's `sample clock` line names it. Zooko's measure-clocks3
   (December 2025) compares the clocks on both platforms.
+- **Every sample keeps its instructions retired beside its cycles**, per
+  core kind (Zooko, November 4, 2026: the most the counters give, kept
+  whether or not a use is known yet). The samples format is v9. On the
+  i7-12700K instructions are the same count on a P core and an E core
+  and after any pause (28719 for a fixed call, every time), where cycles
+  and wall time move with the core's clock (data branch,
+  2026-11-04/clock-survey).
 - **The batch calls take a `Batch`** (Zooko, October 28; BLAKE3 #205):
   `hash_many`, `hash_many_multithreaded` and `Stream::submit_batch` take
   `&Batch`, whose bytes past each message the program cannot write, so a
