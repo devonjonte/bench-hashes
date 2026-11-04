@@ -174,6 +174,12 @@ machine runs again. In order:
      library on both sides (`--against` the measured commit, `--old-bench`
      the previous bench). A cell slower in the first and level in the
      second is the library's; slower in both, the bench's;
+     the same-library check's "instructions moved" line must name no
+     cell: the same code retires the same instructions a unit in every
+     single-threaded solo cell (within 1% on the i7-12700K, the
+     sampler's own reads included), so a cell named there is the bench
+     measuring different work in two runs, its bug to find before the
+     release;
    - the full run, built against BLAKE3-Servil's checkout, never through a
      `--config` patch (Cargo's lock can build the pin instead):
      `bench-hashes build-against ..`, then the executable it prints, with
