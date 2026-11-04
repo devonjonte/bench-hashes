@@ -22,3 +22,32 @@ So: the raw clock costs nothing over the slewed one and removes a live
 read at the price of its own calibration; thread CPU time is the wrong
 instrument for short calls; instructions are deterministic and blind to
 a pause's cost, cycles see it as wall time does.
+
+## Second pass: perf's counters, rdpmc, a 5 ms pause, P and E cores
+
+`i7-cpu2-pcore.txt` (P core) and `i7-cpu16-ecore.txt` (E core), the
+probe extended (bench `candidate/devon-raw-clock`, second commit): perf's
+cycles, instructions, ref-cycles and task-clock, each by the `read`
+system call and by `rdpmc` through the event's mmap page; a 5 ms pause
+beside the 1 ms one; the core's clock (cycles over thread time) after
+each pause.
+
+| | P core (CPU 2) | E core (CPU 16) |
+|---|---|---|
+| a wall-clock read | 11-13 ns | 18-21 ns |
+| a perf read by `read()` | 183 ns (one counter), 437 (Counts, two PMUs) | 336-342, 796 |
+| **a perf read by `rdpmc`** | **10 ns** | **11 ns** |
+| the fixed call: wall / cycles / instructions | 4188 ns / 20634 / 28719 | 8174 ns / 31068 / 28719 |
+| the core's clock: back to back, after 1 ms, after 5 ms | 4504 MHz, 3890 (p10 3197), 3280 | 3486, 3373, 3370 |
+| wall after 5 ms, p90/p10 (median shift) | 1.026-1.044 (+2.8%) | 1.009-1.015 (+1.4%) |
+| user cycles by rdpmc after 5 ms, p90/p10 (median shift) | 1.005 (+0.4%) | 1.003 (+1.0%) |
+| instructions after any pause | 1.000, 28719 every time | 1.000, 28719 |
+| thread CPU time / task-clock after 1 ms | 1.178 / 1.108 | 1.109 / 1.070 |
+
+So: instructions are the same count on both kinds of core and after any
+pause; the P core's after-pause wall cost is its clock falling (the
+cycles stay); the E core's clock barely moves, so wall and cycles agree
+there; rdpmc makes a cycle count as cheap as a clock read; thread CPU
+time and perf's task-clock are the worst-dispersed instruments after a
+pause. Where a counter is read by the kernel's read(), the cost is 20-40
+times a clock read.
