@@ -390,6 +390,29 @@ mod tests {
         assert!(!Run::sum(&[run(1, 1, None, true), run(1, 1, None, false)]).success);
     }
 
+    /// A struct rusage's words: user then system timevals (seconds and
+    /// microseconds, as the OS pads them), peak memory in KiB on Linux and
+    /// bytes on macOS, major faults, blocks read.
+    #[test]
+    fn rusage_words_read_as_times_memory_and_faults() {
+        let mut w: rusage::Words = [0; 18];
+        w[0] = 2;
+        w[1] = 500_000;
+        w[2] = 1;
+        w[3] = 250_000;
+        w[4] = 3;
+        w[9] = 7;
+        assert_eq!(rusage::times_ns(&w), [2_500_000_000, 1_250_000_000]);
+        assert_eq!(rusage::cpu_ns(&w), 3_750_000_000);
+        assert_eq!(rusage::max_rss_bytes(&w), if cfg!(target_vendor = "apple") { 3 } else { 3 * 1024 });
+        assert_eq!(rusage::major_faults(&w), 7);
+        #[cfg(not(target_vendor = "apple"))]
+        {
+            w[11] = 11;
+            assert_eq!(rusage::inblock(&w), 11);
+        }
+    }
+
     /// A child's counts from its rusage_info words: the P-core cycles and
     /// instructions as given, the E-cores' the totals less the P-cores',
     /// and each kind's time its user and system time in nanoseconds.
