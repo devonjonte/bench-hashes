@@ -96,13 +96,19 @@ mod imp {
         pub fn read_nj(&self) -> u64 {
             let mut count = [0u8; 8];
             std::io::Read::read_exact(&mut &self.file, &mut count).expect("reading the package energy counter");
-            // count x mantissa x 10^(exponent + 9) nanojoules, rounded down.
-            let scaled = u128::from(u64::from_ne_bytes(count)) * self.mantissa;
-            let exponent = self.exponent + 9;
-            let nj = if exponent >= 0 { scaled * 10u128.pow(exponent as u32) } else { scaled / 10u128.pow(exponent.unsigned_abs()) };
-            u64::try_from(nj).expect("energy fits in u64")
+            super::scale_nj(u64::from_ne_bytes(count), self.mantissa, self.exponent)
         }
     }
+}
+
+/// A counter's `count` in nanojoules: count x mantissa x 10^(exponent + 9),
+/// rounded down (the scale "2.3283064365386962890625e-10" J a count, as
+/// parse_scale reads it, is mantissa 23283064365386962890625 at exponent -32).
+fn scale_nj(count: u64, mantissa: u128, exponent: i32) -> u64 {
+    let scaled = u128::from(count) * mantissa;
+    let exponent = exponent + 9;
+    let nj = if exponent >= 0 { scaled * 10u128.pow(exponent as u32) } else { scaled / 10u128.pow(exponent.unsigned_abs()) };
+    u64::try_from(nj).expect("energy fits in u64")
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -132,6 +138,17 @@ mod tests {
         assert_eq!(imp::parse_scale("1.52587890625e-5"), Some((152587890625, -16)));
         assert_eq!(imp::parse_scale("1"), Some((1, 0)));
         assert_eq!(imp::parse_scale("joules"), None);
+    }
+
+    /// A count scaled to nanojoules, exactly: Intel's 2^-32 J a count makes
+    /// 2^32 counts one joule, AMD's 2^-16 J makes 65536 counts one, and a
+    /// whole-joule scale multiplies by 10^9.
+    #[test]
+    fn counts_scale_to_nanojoules_exactly() {
+        assert_eq!(scale_nj(1 << 32, 23283064365386962890625, -32), 1_000_000_000);
+        assert_eq!(scale_nj(3, 23283064365386962890625, -32), 0, "under a nanojoule rounds down");
+        assert_eq!(scale_nj(65536, 152587890625, -16), 1_000_000_000);
+        assert_eq!(scale_nj(7, 1, 0), 7_000_000_000);
     }
 
     /// Where the package energy can be read, it counts up, and a second of

@@ -658,6 +658,19 @@ mod tests {
         let d = later.since(Counts::default());
         assert_eq!((d.mhz(), d.e_percent()), (4_400, 0));
     }
+
+    /// since takes each field of each kind off, plus adds each; the kinds
+    /// stay apart.
+    #[test]
+    fn counts_since_and_plus_act_on_every_field_of_each_kind() {
+        let level = |k: u64| Level { cycles: 10 * k, instructions: 20 * k, cache_references: 30 * k, cache_misses: 40 * k, time_ns: 50 * k };
+        let earlier = Counts { p: level(1), e: level(2) };
+        let later = Counts { p: level(4), e: level(9) };
+        assert_eq!(later.since(earlier), Counts { p: level(3), e: level(7) });
+        assert_eq!(earlier.plus(later), Counts { p: level(5), e: level(11) });
+        assert_eq!(Counts::default().plus(earlier), earlier);
+        assert_eq!(earlier.since(earlier), Counts::default());
+    }
     #[test]
     fn prepared_calls_follow_their_writes_and_exclude_gaps() {
         let mut input = 0;

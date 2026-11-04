@@ -28,7 +28,37 @@
 //! running child's own threads count as it runs; a process it starts in
 //! turn counts once the child reaps it.
 
-use crate::Counts;
+use crate::{Counts, Level};
+
+// macOS's rusage_info_v6 as u64 words (<sys/resource.h>): ri_uuid (2 words),
+// ri_user_time 2, ri_system_time 3, ..., ri_diskio_bytesread 18, ...,
+// ri_instructions 31, ri_cycles 32, ..., ri_user_ptime 38,
+// ri_system_ptime 39, ri_pinstructions 40, ri_pcycles 41. Named here, on
+// every platform, so the arithmetic over them is tested everywhere.
+const USER_TIME: usize = 2;
+const SYSTEM_TIME: usize = 3;
+#[cfg_attr(not(target_vendor = "apple"), allow(dead_code))]
+const DISKIO_BYTESREAD: usize = 18;
+const INSTRUCTIONS: usize = 31;
+const CYCLES: usize = 32;
+const USER_PTIME: usize = 38;
+const SYSTEM_PTIME: usize = 39;
+const PINSTRUCTIONS: usize = 40;
+const CYCLES_P: usize = 41;
+
+/// A child's counts from its rusage_info_v6 words, `ns` converting Mach
+/// time units: the P cores' cycles and instructions as given, the E
+/// cores' the totals less the P cores', each kind's time its user and
+/// system time. rusage gives no cache counts; those stay zero, and no
+/// b3sum record writes them.
+#[cfg_attr(not(target_vendor = "apple"), allow(dead_code))]
+fn counts_from_rusage(w: &[u64; 64], ns: impl Fn(u64) -> u64) -> Counts {
+    let (time, ptime) = (w[USER_TIME] + w[SYSTEM_TIME], w[USER_PTIME] + w[SYSTEM_PTIME]);
+    Counts {
+        p: Level { cycles: w[CYCLES_P], instructions: w[PINSTRUCTIONS], time_ns: ns(ptime), ..Level::default() },
+        e: Level { cycles: w[CYCLES] - w[CYCLES_P], instructions: w[INSTRUCTIONS] - w[PINSTRUCTIONS], time_ns: ns(time - ptime), ..Level::default() },
+    }
+}
 
 /// One run of another program.
 #[derive(Clone, Copy, Debug)]
@@ -261,19 +291,7 @@ mod imp {
         fn proc_pid_rusage(pid: i32, flavor: i32, buffer: *mut u64) -> i32;
     }
     const RUSAGE_INFO_V6: i32 = 6;
-    // rusage_info_v6 as u64 words (<sys/resource.h>): ri_uuid (2 words),
-    // ri_user_time 2, ri_system_time 3, ..., ri_diskio_bytesread 18, ...,
-    // ri_instructions 31, ri_cycles 32, ..., ri_user_ptime 38,
-    // ri_system_ptime 39, ri_pinstructions 40, ri_pcycles 41.
-    const USER_TIME: usize = 2;
-    const SYSTEM_TIME: usize = 3;
-    const DISKIO_BYTESREAD: usize = 18;
-    const INSTRUCTIONS: usize = 31;
-    const CYCLES: usize = 32;
-    const USER_PTIME: usize = 38;
-    const SYSTEM_PTIME: usize = 39;
-    const PINSTRUCTIONS: usize = 40;
-    const PCYCLES: usize = 41;
+    use super::{CYCLES, CYCLES_P, DISKIO_BYTESREAD, INSTRUCTIONS, PINSTRUCTIONS, SYSTEM_PTIME, SYSTEM_TIME, USER_PTIME, USER_TIME};
 
     /// A running (or exited, unreaped) process's user and system time
     /// (proc_pid_rusage, in Mach time units).
@@ -300,15 +318,7 @@ mod imp {
         let (status, rusage_words) = rusage::reap(pid);
         super::stop_watching();
         let ns = crate::imp::mach_to_ns;
-        let counts = usage.map(|w| {
-            let (time, ptime) = (w[USER_TIME] + w[SYSTEM_TIME], w[USER_PTIME] + w[SYSTEM_PTIME]);
-            // rusage gives cycles and instructions; the cache counts stay
-            // zero, and no b3sum record writes them.
-            Counts {
-                p: Level { cycles: w[PCYCLES], instructions: w[PINSTRUCTIONS], time_ns: ns(ptime), ..Level::default() },
-                e: Level { cycles: w[CYCLES] - w[PCYCLES], instructions: w[INSTRUCTIONS] - w[PINSTRUCTIONS], time_ns: ns(time - ptime), ..Level::default() },
-            }
-        });
+        let counts = usage.map(|w| super::counts_from_rusage(&w, ns));
         Run {
             started_ns,
             wall_ns,
@@ -481,5 +491,26 @@ mod tests {
         let child = run(std::process::Command::new("sh").args(["-c", "i=0; while [ $i -lt 50000 ]; do i=$((i+1)); done"]));
         let after = crate::process_cpu_ns();
         assert!(after - before >= child.cpu_ns.unwrap(), "{before} {after} {child:?}");
+        // And by no more than this process's own work around it: a second.
+        assert!(after - before < child.cpu_ns.unwrap() + 1_000_000_000, "{before} {after} {child:?}");
+    }
+
+    /// A child's counts from its rusage_info words: the P-core cycles and
+    /// instructions as given, the E-cores' the totals less the P-cores',
+    /// and each kind's time its user and system time in nanoseconds.
+    #[test]
+    fn a_childs_counts_split_the_kinds_from_its_rusage_words() {
+        let mut words = [0u64; 64];
+        words[USER_TIME] = 300;
+        words[SYSTEM_TIME] = 100;
+        words[USER_PTIME] = 120;
+        words[SYSTEM_PTIME] = 30;
+        words[INSTRUCTIONS] = 10_000;
+        words[CYCLES] = 20_000;
+        words[PINSTRUCTIONS] = 6_000;
+        words[CYCLES_P] = 11_000;
+        let counts = counts_from_rusage(&words, |mach| mach * 10);
+        assert_eq!(counts.p, Level { cycles: 11_000, instructions: 6_000, time_ns: 1_500, ..Level::default() });
+        assert_eq!(counts.e, Level { cycles: 9_000, instructions: 4_000, time_ns: 2_500, ..Level::default() });
     }
 }

@@ -349,7 +349,7 @@ mod imp {
         pub(super) others: Option<u64>,
     }
 
-    fn ticks_per_second() -> u64 {
+    pub(super) fn ticks_per_second() -> u64 {
         unsafe extern "C" {
             fn sysconf(name: i32) -> i64;
         }
@@ -606,6 +606,53 @@ mod tests {
             "busy: other programs kept 0.80 CPUs busy on average, 1.40 in the busiest window; \
             the hypervisor withheld 0.15 CPUs on average, 0.30 at most; busy in 1 of 2 windows (0.0-1.0 s)"
         );
+    }
+
+    /// One window's line names the hypervisor's share where it took any.
+    #[test]
+    fn a_windows_line_names_steal_where_there_is_any() {
+        assert_eq!(describe_window(&window(12_000_000_000, 13_000_000_000, 1400, 0)), "other programs kept 1.40 CPUs busy from 12.0 s to 13.0 s");
+        assert_eq!(
+            describe_window(&window(0, 500_000_000, 0, 250)),
+            "other programs kept 0.00 CPUs busy from 0.0 s to 0.5 s, the hypervisor withheld 0.25 CPUs"
+        );
+    }
+
+    /// The average weighs each window by its length over the whole span,
+    /// rounded to the nearest milli-CPU: 1 s at 100 and 3 s at 500 is
+    /// 400; 1 s at 1 and 2 s at 0 is 0.333, so 0 milli-CPUs read as 0.00,
+    /// and 2 s at 1 with 1 s at 0 is 0.667, read as 0.00 too but 0.01
+    /// once the windows reach 10 milli-CPUs.
+    #[test]
+    fn the_average_weighs_windows_by_length_and_rounds_to_nearest() {
+        assert_eq!(
+            describe(&[window(0, 1_000_000_000, 100, 0), window(1_000_000_000, 4_000_000_000, 500, 0)]),
+            "quiet: other programs kept 0.40 CPUs busy on average, 0.50 in the busiest window"
+        );
+        assert_eq!(
+            describe(&[window(0, 2_000_000_000, 10, 0), window(2_000_000_000, 3_000_000_000, 0, 0)]),
+            "quiet: other programs kept 0.01 CPUs busy on average, 0.01 in the busiest window"
+        );
+        assert_eq!(
+            describe(&[window(0, 1_000_000_000, 10, 0), window(1_000_000_000, 3_000_000_000, 0, 0)]),
+            "quiet: other programs kept 0.00 CPUs busy on average, 0.01 in the busiest window"
+        );
+    }
+
+    /// Linux: the other programs' time is their own ticks where every
+    /// process was read, else the machine's busy ticks less this
+    /// process's own time; the hypervisor's is its steal ticks; both from
+    /// the readings' differences.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn other_and_steal_come_from_the_readings_differences() {
+        let tick = 1_000_000_000 / imp::ticks_per_second();
+        let from = imp::CpuTimes { busy: 1000, steal: 10, others: Some(100) };
+        let to = imp::CpuTimes { busy: 1300, steal: 14, others: Some(130) };
+        assert_eq!(imp::other_and_steal_ns(from, to, [50 * tick, 0]), (30 * tick, 4 * tick));
+        let from = imp::CpuTimes { busy: 1000, steal: 10, others: None };
+        let to = imp::CpuTimes { busy: 1300, steal: 14, others: Some(130) };
+        assert_eq!(imp::other_and_steal_ns(from, to, [50 * tick, 20 * tick]), (230 * tick, 4 * tick));
     }
 
     /// A stat line's parent, kernel-thread flag and system time (stime +
