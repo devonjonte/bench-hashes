@@ -222,7 +222,7 @@ anything", John Servil releasing it):
   sandbox: no root).
 - **A level cell whose instructions moved joins the second stage** (Zooko,
   November 4, 2026, on John's rule; #127): instructions a unit moved
-  beyond 0.5% in the median of the pairs names a solo cell of a
+  beyond 0.5% the same way in every pair names a solo cell of a
   single-threaded contender a suspect ahead of the wall-ranked ones,
   the largest move first, with no verdict of its own; wall decides on
   the fresh pairs. A pool's caller spins while it waits, so a

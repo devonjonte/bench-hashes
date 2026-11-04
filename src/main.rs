@@ -7375,10 +7375,15 @@ fn regress_command(arguments: &[String]) -> i32 {
 }
 
 /// The cells whose instructions a unit moved beyond INSTRUCTIONS_MARGIN_
-/// PERMILLE, either way, in the median of their pairs, the largest move
-/// first: the solo cells of single-threaded contenders (whose calling
-/// thread does the whole work), each counted in every pair (a cell a
-/// side lacks counts for says nothing).
+/// PERMILLE the same way in every pair, the largest median move first:
+/// the solo cells of single-threaded contenders (whose calling thread
+/// does the whole work), each counted in every pair (a cell a side lacks
+/// counts for says nothing). Every pair, since a change in the code moves
+/// the count the same way whatever the layout (#119's cells: x1.0119 in
+/// five pairs to four places), where a count that moves with the link
+/// layout or the run (the interleaved turns, 0.95-1.02 between pairs of
+/// one build) moves both ways (data branch, 2026-11-04/judge3-i7 and
+/// judge-i7, aa_instructions.py).
 fn instructions_moved(
     ratios: &std::collections::BTreeMap<String, Vec<u64>>,
     pairs: usize,
@@ -7390,7 +7395,10 @@ fn instructions_moved(
             let mut sorted = r.clone();
             sorted.sort_unstable();
             let median = sorted[sorted.len() / 2];
-            (median.abs_diff(1000) > INSTRUCTIONS_MARGIN_PERMILLE).then(|| (key.clone(), median))
+            let (least, most) = (sorted[0], sorted[sorted.len() - 1]);
+            let all_more = least > 1000 + INSTRUCTIONS_MARGIN_PERMILLE;
+            let all_fewer = most < 1000 - INSTRUCTIONS_MARGIN_PERMILLE;
+            (all_more || all_fewer).then(|| (key.clone(), median))
         })
         .collect();
     moved.sort_by_key(|(key, median)| (std::cmp::Reverse(median.abs_diff(1000)), key.clone()));
@@ -8694,9 +8702,9 @@ mod correctness_tests {
     /// more instructions reads level by wall and by cycles and slower by
     /// instructions; a cell without counts is judged by wall alone.
     /// A level solo cell of a single-threaded contender whose instructions
-    /// moved beyond the margin in the median of its pairs is named (either
-    /// way, the larger move first); one at the margin, counted in fewer
-    /// pairs than the run had, multithreaded, or shared, is not.
+    /// moved beyond the margin the same way in every pair is named (either
+    /// way, the larger move first); one at the margin in any pair, counted
+    /// in fewer pairs than the run had, multithreaded, or shared, is not.
     /// A cell's visits spread over the rounds: `visits` of `rounds` slots
     /// take a sample, evenly, and a slot past the rounds (the round plus
     /// the point's offset) wraps; visits at or past the rounds take every
@@ -8791,6 +8799,12 @@ mod correctness_tests {
                 "blake3-servil-st|solo|OneMessage|2 KiB",
                 vec![1000, 1000, 1000, 1300],
             ),
+            // Beyond in the median, at the margin in one pair: a count that
+            // moves with the layout, no change in the code.
+            (
+                "blake3-servil-st|solo|InterleavedTurn|256",
+                vec![1012, 1011, 1004, 1013],
+            ),
             (
                 "blake3-servil-st|solo|OneMessage|4 KiB",
                 vec![1012, 1012, 1012],
@@ -8814,7 +8828,7 @@ mod correctness_tests {
                 ("blake3-servil-st|solo|OneMessage|3839 B".to_owned(), 1012),
                 ("blake3-servil-st|solo|OneMessage|64 B".to_owned(), 990),
             ],
-            "beyond the margin either way, the larger move first; st solo cells alone"
+            "beyond the margin the same way in every pair, the larger move first; st solo cells alone"
         );
         assert!(instructions_moved(&Default::default(), 4).is_empty());
     }
