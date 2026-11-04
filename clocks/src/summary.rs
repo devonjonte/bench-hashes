@@ -218,7 +218,7 @@ fn beta_fraction(a: f64, b: f64, x: f64) -> f64 {
     h
 }
 
-/// ln Gamma(x) for x > 0 (Lanczos, g = 7, 9 terms).
+/// ln Gamma(x) for x >= 1/2 (Lanczos, g = 7, 9 terms).
 fn ln_gamma(x: f64) -> f64 {
     const G: [f64; 9] = [
         0.999_999_999_999_809_9,
@@ -231,9 +231,9 @@ fn ln_gamma(x: f64) -> f64 {
         9.984_369_578_019_572e-6,
         1.505_632_735_149_311_6e-7,
     ];
-    if x < 0.5 {
-        return (core::f64::consts::PI / (core::f64::consts::PI * x).sin()).ln() - ln_gamma(1.0 - x);
-    }
+    // The callers' arguments are df / 2 (one or more: three pairs at
+    // least), 1/2 and their sum; the reflection for x below 1/2 is not needed.
+    debug_assert!(x >= 0.5, "ln_gamma below 1/2 would need the reflection formula");
     let x = x - 1.0;
     let mut a = G[0];
     let t = x + 7.5;
@@ -246,6 +246,89 @@ fn ln_gamma(x: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Student's t two-sided p-values at tabled points (Abramowitz and
+    /// Stegun's table 26.10, and the closed forms at one degree of freedom,
+    /// p = 1 - 2 arctan(t) / pi), within 1e-4: the incomplete beta's
+    /// continued fraction and its front factor, both ways round the
+    /// symmetry point.
+    #[test]
+    fn t_two_sided_matches_the_tables() {
+        let close = |t: f64, df: f64, p: f64| {
+            let got = t_two_sided(t, df);
+            assert!((got - p).abs() < 1e-4, "t {t} with {df} degrees: p {got}, the table says {p}");
+        };
+        close(1.0, 1.0, 0.5);
+        close(12.7062, 1.0, 0.05);
+        close(63.657, 1.0, 0.01);
+        close(2.0, 1.0, 1.0 - 2.0 * 2.0f64.atan() / std::f64::consts::PI);
+        close(3.1824, 3.0, 0.05);
+        close(2.3534, 3.0, 0.10);
+        close(2.2281, 10.0, 0.05);
+        close(3.1693, 10.0, 0.01);
+        close(0.7, 10.0, 0.4999);
+        close(2.0423, 30.0, 0.05);
+        close(1.96, 1000.0, 0.0503);
+        // Zero: every value as likely; huge: certain. The extremes take
+        // the incomplete beta's two branches at their far ends (x near 1
+        // and near 0), where the other branch's continued fraction would
+        // converge too slowly for 300 terms.
+        close(0.0, 5.0, 1.0);
+        assert!(t_two_sided(1000.0, 5.0) < 1e-12, "t 1000: certain, {}", t_two_sided(1000.0, 5.0));
+        let nearly_one = t_two_sided(0.001, 2.0);
+        assert!(
+            (nearly_one - (1.0 - 0.001 * std::f64::consts::FRAC_1_SQRT_2)).abs() < 1e-6,
+            "t 0.001 at 2 degrees: p = 1 - t / sqrt(2) to first order, {nearly_one}"
+        );
+    }
+
+    /// Benjamini-Hochberg at q: the largest k with p_(k) <= q k / m passes
+    /// the k smallest p-values. Three cells, p 0, about 0.03 and about 0.4,
+    /// at q = 0.05: k = 2 passes (0.03 <= 0.033), k = 3 does not
+    /// (0.4 > 0.05), so the certain and the 0.03 cells are judged and the
+    /// noisy +15% cell stays level however far its mean lies.
+    #[test]
+    fn discoveries_pass_the_largest_k_under_the_benjamini_hochberg_line() {
+        let e = |x: f64| (1_000_000.0 * x.exp()) as u128;
+        let cells = vec![
+            vec![(1_000_000, 1_100_000); 4],
+            vec![(1_000_000, e(0.1)), (1_000_000, e(0.2)), (1_000_000, e(0.3)), (1_000_000, e(0.4))],
+            vec![(1_000_000, e(0.6)), (1_000_000, e(-0.2)), (1_000_000, e(0.3)), (1_000_000, e(-0.1))],
+        ];
+        let verdicts: Vec<Verdict> = discoveries(&cells, 50, 30).into_iter().map(|j| j.verdict).collect();
+        assert_eq!(verdicts, [Verdict::Slower, Verdict::Slower, Verdict::Level]);
+        // At q = 0.02 the 0.03 cell fails k = 2 (0.03 > 0.0133) and the
+        // certain one alone passes.
+        let verdicts: Vec<Verdict> = discoveries(&cells, 20, 30).into_iter().map(|j| j.verdict).collect();
+        assert_eq!(verdicts, [Verdict::Slower, Verdict::Level, Verdict::Level]);
+    }
+
+    /// Pairs that all moved by the same ratio are certain (p 0, whatever
+    /// the direction); pairs that all read level are no evidence (p 1); the
+    /// variance is the sample's, over n - 1: four log ratios 0.1, 0.2, 0.3,
+    /// 0.4 give t = 0.25 / sqrt(0.016667 / 4) = 3.873 at 3 degrees, p 0.0305.
+    #[test]
+    fn a_cells_evidence_is_its_pairs_t_statistic() {
+        let e = |x: f64| (1_000_000.0 * x.exp()) as u128;
+        let cells = vec![
+            vec![(1_000_000, 1_100_000); 4],
+            vec![(1_000_000, 1_000_000); 4],
+            vec![(1_000_000, e(0.1)), (1_000_000, e(0.2)), (1_000_000, e(0.3)), (1_000_000, e(0.4))],
+            vec![(1_000_000, 900_000); 4],
+        ];
+        // q = 0.04: the cell at p 0.0305 passes alone when it is the only
+        // one near the threshold (Benjamini-Hochberg at k = 3 of 4 needs
+        // p <= 0.03), so judge it on its own.
+        let alone = discoveries(&cells[2..3], 31, 30);
+        assert_eq!(alone[0].verdict, Verdict::Slower, "p 0.0305 <= 0.031");
+        let alone = discoveries(&cells[2..3], 30, 30);
+        assert_eq!(alone[0].verdict, Verdict::Level, "p 0.0305 > 0.030");
+        let all = discoveries(&cells, 50, 30);
+        assert_eq!(all[0].verdict, Verdict::Slower, "identical +10% pairs: certain");
+        assert_eq!(all[1].verdict, Verdict::Level, "identical level pairs: no evidence");
+        assert_eq!(all[3].verdict, Verdict::Faster, "identical -10% pairs: certain");
+        assert!(all[0].rank < all[2].rank && all[2].rank < all[1].rank, "ranked by evidence: certain, then p 0.03, then p 1");
+    }
 
     #[test]
     fn exact_mean_totals_are_every_sample_summed() {
