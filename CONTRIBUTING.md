@@ -18,8 +18,7 @@ it measures, and keep your results comparable with ours.
   measurement configuration.
 - `build.rs`: embeds the provenance (this repository's commit and state,
   and each contender crate's version and source).
-- `tools/`: `samples.py` reads samples files for the Python studies
-  (`points.py`, `settle.py`, `variance.py`); `b3sum-contenders.py` builds
+- `tools/`: `b3sum-contenders.py` builds
   b3sum's contenders; `gen-ver.py` makes a release; `graph-check/map.js`
   drives the map in Chromium (its README says how); `require_nextest.rs`,
   included by every crate's tests, fails under plain `cargo test` and

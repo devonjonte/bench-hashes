@@ -53,14 +53,14 @@ anything", John Servil releasing it):
   load, untimed, for 100 ms, then 6 samples back to back, solo, then the
   same for the two shared copies; 2 visits a cell (`NONSTOP_TRAIN`,
   `Visits::nonstop`). The calls after a gap are unchanged.
-  - Why 100 ms: settling curves (samples back to back from cold,
-    `tools/settle.py`) put every solo cell within 3% by 100 ms on the M4
+  - Why 100 ms: settling curves (samples back to back from cold, the
+    study's `tools/settle.py`, in the tree until 0.21) put every solo cell within 3% by 100 ms on the M4
     Max, the Linux VM and the EPYC 9255, and the GPU path's engagement and
     ramp at about 50 ms; 50 ms reads about as well on the CPUs (the Mac's
     worst solo cell 1.106 against 1.080) and leaves the GPU no margin.
   - Why 2 visits of 6: the spread of a run's mean splits into the samples
     within a visit, the visits within a run, and the runs
-    (`tools/variance.py`): on the Mac and the EPYC the runs' part, which
+    (the study's `tools/variance.py`, in the tree until 0.21): on the Mac and the EPYC the runs' part, which
     no visit count shrinks, and the samples' part lead, so 4 visits of 3
     would cost twice the nonstop time for a p90 of 2.8% against 3.4%
     (Mac), 2.2% against 2.6% (EPYC). The widest cells are servil mt's own
@@ -140,7 +140,9 @@ anything", John Servil releasing it):
   What a run measures is as 0.19.0's.
 - **Studies read samples in Python** (`tools/samples.py`): `means` and
   `settle` left the program for `tools/points.py` and `tools/settle.py`,
-  beside `tools/variance.py`; comparisons and verdicts stay in it.
+  beside `tools/variance.py`; comparisons and verdicts stay in it. (The
+  studies done, the Python reader and the three tools left the tree for
+  0.21, Zooko, November 5: one reader of the format, the program's.)
 
 **Changes for 0.20** (Zooko, November 2, 2026, bench-hashes #108):
 - **The shared scenario measures the multithreaded contenders alone**,

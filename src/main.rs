@@ -147,9 +147,9 @@ const TO_CHECK_FOR_REGRESSIONS: Visits = Visits {
  * cell's own continuous load leaves it, where the 1 ms samples of a visit
  * each (6 visits a cell, to 0.18) met it as the contender before left it:
  * a GPU's clock (30-40 ms of load to settle, M4 Max), a core's clock,
- * thread placement. The settling curves (`--train 0,N`, read with
- * tools/settle.py) on the M4 Max, the Linux VM and the EPYC 9255 set the
- * values.
+ * thread placement. The settling curves (`--train 0,N`, read by the
+ * study's tools/settle.py, in the tree until 0.21) on the M4 Max, the
+ * Linux VM and the EPYC 9255 set the values.
  */
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Train {
@@ -2221,10 +2221,8 @@ cell sampled in a share of them.
                                    24 rounds, a nonstop cell in 6 (default:
                                    12 and 6, to measure speed)
   --train W_MS,S                   a nonstop visit's warm-up (ms) and samples
-                                   (default 100,6), for the settling and
-                                   variance studies (tools/settle.py,
-                                   tools/variance.py): 0,N gives settling
-                                   curves
+                                   (default 100,6), for settling and variance
+                                   studies: 0,N gives settling curves
   --nonstop-visits N               a nonstop cell's visits (default 2)
   --threads N                      BLAKE3-Servil mt on N threads in all, its
                                    caller among them (default: one a CPU); the
@@ -6645,58 +6643,15 @@ fn read_samples(path: &str) -> SamplesFile {
 /// cells it judges.
 const COMPARE_Q_PERMILLE: u64 = 50;
 
-/// What `compare` judges a cell by: its samples' wall time, or their
-/// thread's cycles or instructions retired (the core counts, summed over
-/// both kinds of core), each over the units the samples covered. Wall
-/// time is the rule (what a user waits); the counters are for the study
-/// of what each detects (bench-hashes #127: instructions are the same
-/// count after any pause on any core, cycles move with the cache and not
-/// the clock, wall time with everything).
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum JudgeBy {
-    Wall,
-    Cycles,
-    Instructions,
-}
-
-/// Each cell's mean of the judged quantity per unit (wall time, or the
-/// counter JudgeBy names, as fixed point), and where its samples carry
-/// them its CPU time and energy per unit: all the samples' time, or
-/// counts, over their units. A cell without the counter judged by is left
-/// out.
-fn cell_means(
-    file: SamplesFile,
-    judge_by: JudgeBy,
-) -> Vec<(String, u128, Option<u128>, Option<u128>)> {
+/// Each cell's mean wall time per unit (fixed point) and, where its
+/// samples carry them, its CPU time and energy per unit: all the
+/// samples' time over their units.
+fn cell_means(file: SamplesFile) -> Vec<(String, u128, Option<u128>, Option<u128>)> {
     let cpu: crate::Map<String, Vec<u64>> = file.cpu.into_iter().collect();
     let energy: crate::Map<String, Vec<u64>> = file.energy.into_iter().collect();
-    // The counter judged by, summed over both kinds of core, a sample.
-    let counter: crate::Map<String, Vec<u64>> = match judge_by {
-        JudgeBy::Wall => crate::Map::default(),
-        JudgeBy::Cycles => file
-            .cores
-            .iter()
-            .map(|(k, c)| {
-                (
-                    k.clone(),
-                    c.iter().map(|s| s[1] + s[LEVEL_FIELDS + 1]).collect(),
-                )
-            })
-            .collect(),
-        JudgeBy::Instructions => file
-            .cores
-            .iter()
-            .map(|(k, c)| {
-                (
-                    k.clone(),
-                    c.iter().map(|s| s[2] + s[LEVEL_FIELDS + 2]).collect(),
-                )
-            })
-            .collect(),
-    };
     file.cells
         .into_iter()
-        .filter_map(|(key, samples)| {
+        .map(|(key, samples)| {
             let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
             let per_unit = |column: &crate::Map<String, Vec<u64>>| {
                 column
@@ -6705,32 +6660,33 @@ fn cell_means(
                     .filter(|&v| v > 0)
             };
             let (c, e) = (per_unit(&cpu), per_unit(&energy));
-            let judged = match judge_by {
-                JudgeBy::Wall => Mean::of(&samples).fixed().0,
-                // A cell without counts (none on this platform) is left out.
-                _ => per_unit(&counter)?,
-            };
-            Some((key.clone(), judged, c, e))
+            (key, Mean::of(&samples).fixed().0, c, e)
         })
-        .collect::<Vec<(String, u128, Option<u128>, Option<u128>)>>()
+        .collect()
+}
+
+/// Each cell's instructions retired a unit (fixed point), both kinds of
+/// core summed over all its samples, for the cells whose samples carry
+/// counts: what names a level cell a suspect (instructions_moved).
+fn cell_instructions(file: &SamplesFile) -> crate::Map<String, u128> {
+    let cores: crate::Map<&String, &Vec<[u64; LEVEL_FIELDS * 2]>> =
+        file.cores.iter().map(|(k, c)| (k, c)).collect();
+    file.cells
+        .iter()
+        .filter_map(|(key, samples)| {
+            let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
+            let instructions: u128 = cores
+                .get(key)?
+                .iter()
+                .map(|s| u128::from(s[2] + s[LEVEL_FIELDS + 2]))
+                .sum();
+            Some((key.clone(), (instructions << 64) / units.max(1)))
+        })
+        .collect()
 }
 
 fn compare_command(arguments: &[String]) {
-    let usage = "usage: bench-hashes compare [--judge-by wall|cycles|instructions] OLD.tsv... -- NEW.tsv... (one new run for each old run, in the order they ran)";
-    let (judge_by, arguments): (JudgeBy, &[String]) = match arguments.first().map(String::as_str) {
-        Some("--judge-by") => (
-            match arguments.get(1).map(String::as_str) {
-                Some("wall") => JudgeBy::Wall,
-                Some("cycles") => JudgeBy::Cycles,
-                Some("instructions") => JudgeBy::Instructions,
-                other => {
-                    panic!("--judge-by takes wall, cycles or instructions, not {other:?}\n{usage}")
-                }
-            },
-            &arguments[2..],
-        ),
-        _ => (JudgeBy::Wall, arguments),
-    };
+    let usage = "usage: bench-hashes compare OLD.tsv... -- NEW.tsv... (one new run for each old run, in the order they ran)";
     let split = arguments
         .iter()
         .position(|argument| argument == "--")
@@ -6756,7 +6712,7 @@ fn compare_command(arguments: &[String]) {
                 file.load
             );
         }
-        cell_means(file, judge_by)
+        cell_means(file)
     };
     // Every cell's means a pair, wall time and (where both sides carry it)
     // CPU time, in the first old run's order.
@@ -6787,14 +6743,6 @@ fn compare_command(arguments: &[String]) {
         }
     }
     print_sides("compare", &old_builds, &new_builds);
-    let what = match judge_by {
-        JudgeBy::Wall => "ns/unit",
-        JudgeBy::Cycles => "cycles/unit",
-        JudgeBy::Instructions => "instructions/unit",
-    };
-    if judge_by != JudgeBy::Wall {
-        println!("compare: judging each cell by its thread's {what} (the rule judges wall time; this is the study's view, #127)");
-    }
     // Only cells every pair measured.
     order.retain(|key| cells[key].0.len() == old.len());
     let tested: Vec<Pairs> = order.iter().map(|key| cells[key].0.clone()).collect();
@@ -6826,7 +6774,7 @@ fn compare_command(arguments: &[String]) {
             geometric_mean(wall.iter().map(|p| p.1)),
         );
         println!(
-            "{key}: {} -> {} {what}  {} {verdict}, {faster} of {} pairs faster{cpu}",
+            "{key}: {} -> {} ns/unit  {} {verdict}, {faster} of {} pairs faster{cpu}",
             Fixed(a).format_ns(),
             Fixed(b).format_ns(),
             times(judgment.ratio_permille),
@@ -7217,10 +7165,7 @@ fn regress_command(arguments: &[String]) -> i32 {
         // line says "not measured", and the run is evidence: keep that
         // machine quiet by hand while it measures.
         let busy = (clocks::load::MEASURED && !load.starts_with("quiet")).then_some(load);
-        let instructions = cell_means(file.clone(), JudgeBy::Instructions)
-            .into_iter()
-            .map(|(key, per_unit, _, _)| (key, per_unit))
-            .collect();
+        let instructions = cell_instructions(&file);
         (
             file.cells
                 .into_iter()
@@ -8862,15 +8807,19 @@ mod correctness_tests {
         assert!(instructions_moved(&Default::default(), 4).is_empty());
     }
 
+    /// A cell's instructions a unit sum both kinds of core over every
+    /// sample, over the units; a cell without counts has none; the wall
+    /// mean is the samples' regardless.
     #[test]
-    fn cell_means_judge_by_wall_cycles_or_instructions() {
-        let dir = std::env::temp_dir().join(format!("bench-judge-by-{}", std::process::id()));
+    fn cell_instructions_sum_both_kinds_over_the_units() {
+        let dir =
+            std::env::temp_dir().join(format!("bench-cell-instructions-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let write = |name: &str, instructions: u64, counts: bool| -> String {
             let core = if counts {
                 (0..3)
                     .map(|i| {
-                        // P and E both counted: the judge sums the kinds.
+                        // P and E both counted: the reader sums the kinds.
                         format!(
                             "{}:{}:{}:7:1:{}:{}:{}:2:1",
                             1000 + i,
@@ -8893,55 +8842,26 @@ mod correctness_tests {
             std::fs::write(&path, text).unwrap();
             path.to_str().unwrap().to_owned()
         };
-        let old = read_samples(&write("old.tsv", 20_000, true));
-        let new = read_samples(&write("new.tsv", 21_000, true));
-        let judged = |file: SamplesFile, by: JudgeBy| {
-            cell_means(file, by)
-                .into_iter()
-                .map(|(_, m, _, _)| m)
-                .collect::<Vec<u128>>()
-        };
-        assert_eq!(
-            judged(read_samples(&write("o2.tsv", 20_000, true)), JudgeBy::Wall),
-            judged(read_samples(&write("n2.tsv", 21_000, true)), JudgeBy::Wall),
-            "the same wall time"
+        let key = "blake3-servil-st|solo|OneMessage|64 B";
+        let (old, new) = (
+            read_samples(&write("old.tsv", 20_000, true)),
+            read_samples(&write("new.tsv", 21_000, true)),
         );
-        assert_eq!(
-            judged(old, JudgeBy::Cycles)[0],
-            judged(new, JudgeBy::Cycles)[0],
-            "the same cycles"
-        );
-        let (o, n) = (
-            judged(
-                read_samples(&write("o3.tsv", 20_000, true)),
-                JudgeBy::Instructions,
-            )[0],
-            judged(
-                read_samples(&write("n3.tsv", 21_000, true)),
-                JudgeBy::Instructions,
-            )[0],
-        );
+        let (o, n) = (cell_instructions(&old)[key], cell_instructions(&new)[key]);
         assert!(
             n > o && (49..=51).contains(&((n - o) * 1000 / o)),
             "5% more instructions a unit: {o} to {n}"
         );
-        // Counts given, the counter is both kinds' counts summed over the
-        // units: P (20000 + 20001 + 20002) + E (3 x 2000), over 192 B.
+        // P (20000 + 20001 + 20002) + E (3 x 2000), over 192 B.
         assert_eq!(o >> 64, (60_003 + 6_000) / 192);
         assert_eq!(
-            judged(
-                read_samples(&write("o4.tsv", 20_000, true)),
-                JudgeBy::Cycles
-            )[0] >> 64,
-            (4_000 + 4_004 + 4_008 + 1_000 + 1_002 + 1_004) / 192,
-            "cycles: both kinds summed"
+            cell_means(old)[0].1,
+            cell_means(new)[0].1,
+            "the same wall time"
         );
         let none = read_samples(&write("none.tsv", 0, false));
-        assert_eq!(
-            cell_means(none, JudgeBy::Cycles).len(),
-            0,
-            "no counts: not judged by them"
-        );
+        assert!(cell_instructions(&none).is_empty(), "no counts: none");
+        assert_eq!(cell_means(none).len(), 1);
         // A CPU-time column of zeros (a platform that counts none writes
         // "-", but a zero is the same absence) reads as none.
         let zero_cpu = format!(
@@ -8949,13 +8869,8 @@ mod correctness_tests {
         );
         let path = dir.join("zero-cpu.tsv");
         std::fs::write(&path, zero_cpu).unwrap();
-        let (_, _, cpu, energy) =
-            cell_means(read_samples(path.to_str().unwrap()), JudgeBy::Wall).remove(0);
+        let (_, _, cpu, energy) = cell_means(read_samples(path.to_str().unwrap())).remove(0);
         assert_eq!((cpu, energy), (None, None), "zero CPU time a unit: none");
-        assert_eq!(
-            cell_means(read_samples(&write("none2.tsv", 0, false)), JudgeBy::Wall).len(),
-            1
-        );
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
