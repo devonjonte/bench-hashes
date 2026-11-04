@@ -151,18 +151,26 @@ mod tests {
         assert_eq!(scale_nj(7, 1, 0), 7_000_000_000);
     }
 
-    /// Where the package energy can be read, it counts up, and a second of
-    /// busy work costs the package between 0.1 and 500 J (a desktop's
-    /// package draws a few watts idle and a few hundred at most).
-    #[test]
-    fn package_energy_counts_up_by_a_plausible_amount() {
-        let Some(before) = package_nj() else {
-            eprintln!("no package energy here; nothing to check");
-            return;
-        };
-        crate::busy_work(1_000_000_000);
-        let millijoules = (package_nj().unwrap() - before) / 1_000_000;
-        eprintln!("package energy over a busy second: {millijoules} mJ");
-        assert!((100..=500_000).contains(&millijoules), "{millijoules} mJ over a busy second");
+    /// The machine's properties as this crate relies on them: timing, the
+    /// OS's counters, children. Seconds each and sensitive to other load,
+    /// so they run on purpose (`cargo nextest run -P machine`) before a
+    /// release and on a new machine, and not beside every change or mutant.
+    mod machine {
+        use super::*;
+
+        /// Where the package energy can be read, it counts up, and a second of
+        /// busy work costs the package between 0.1 and 500 J (a desktop's
+        /// package draws a few watts idle and a few hundred at most).
+        #[test]
+        fn package_energy_counts_up_by_a_plausible_amount() {
+            let Some(before) = package_nj() else {
+                eprintln!("no package energy here; nothing to check");
+                return;
+            };
+            crate::busy_work(1_000_000_000);
+            let millijoules = (package_nj().unwrap() - before) / 1_000_000;
+            eprintln!("package energy over a busy second: {millijoules} mJ");
+            assert!((100..=500_000).contains(&millijoules), "{millijoules} mJ over a busy second");
+        }
     }
 }

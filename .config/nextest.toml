@@ -10,3 +10,18 @@
 [[profile.default.overrides]]
 filter = 'package(clocks) & test(/^(child|load)::tests::/)'
 threads-required = "num-cpus"
+
+# The machine's properties (clocks' `machine` test modules: timing, the
+# OS's counters, children) run on purpose, `cargo nextest run -P machine`,
+# before a release and on a new machine; every other profile leaves them
+# out, so a change's tests and a mutant's run in under a second and other
+# load cannot fail them. In that profile they run one at a time.
+[profile.default]
+default-filter = 'not test(/::machine::/)'
+
+[profile.machine]
+default-filter = 'test(/::machine::/)'
+
+[[profile.machine.overrides]]
+filter = 'test(/::machine::/)'
+threads-required = "num-cpus"

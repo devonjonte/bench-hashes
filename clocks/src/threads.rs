@@ -71,26 +71,34 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_busy_thread_shows_its_time() {
-        let Some(before) = snapshot() else { return };
-        let t = crate::now();
-        let worker = std::thread::Builder::new().name("clocks-busy".into()).spawn(|| {
-            crate::busy_work(20_000_000);
-            snapshot().unwrap()
-        });
-        let during = worker.unwrap().join().unwrap();
-        let wall = crate::since_ns(t);
-        let busy = since(&before, &during);
-        let mine = busy.iter().find(|x| x.name == "clocks-busy").expect("the worker saw itself");
-        assert!(mine.cpu_ns >= 15_000_000 && mine.cpu_ns <= wall, "busy 20 ms: {} ns on a CPU in {wall} ns", mine.cpu_ns);
-        assert!(describe(&busy, wall).contains("clocks-busy/"));
-    }
-
-    #[test]
     fn since_counts_a_new_thread_from_zero() {
         let before = [Thread { id: 1, name: "a".into(), cpu_ns: 5 }];
         let after = [Thread { id: 1, name: "a".into(), cpu_ns: 9 }, Thread { id: 2, name: "b".into(), cpu_ns: 4 }];
         assert_eq!(since(&before, &after).iter().map(|t| t.cpu_ns).collect::<Vec<_>>(), [4, 4]);
         assert_eq!(describe(&since(&before, &after), 8), "a/1 50.0%, b/2 50.0%");
+    }
+
+    /// The machine's properties as this crate relies on them: timing, the
+    /// OS's counters, children. Seconds each and sensitive to other load,
+    /// so they run on purpose (`cargo nextest run -P machine`) before a
+    /// release and on a new machine, and not beside every change or mutant.
+    mod machine {
+        use super::*;
+
+        #[test]
+        fn a_busy_thread_shows_its_time() {
+            let Some(before) = snapshot() else { return };
+            let t = crate::now();
+            let worker = std::thread::Builder::new().name("clocks-busy".into()).spawn(|| {
+                crate::busy_work(20_000_000);
+                snapshot().unwrap()
+            });
+            let during = worker.unwrap().join().unwrap();
+            let wall = crate::since_ns(t);
+            let busy = since(&before, &during);
+            let mine = busy.iter().find(|x| x.name == "clocks-busy").expect("the worker saw itself");
+            assert!(mine.cpu_ns >= 15_000_000 && mine.cpu_ns <= wall, "busy 20 ms: {} ns on a CPU in {wall} ns", mine.cpu_ns);
+            assert!(describe(&busy, wall).contains("clocks-busy/"));
+        }
     }
 }

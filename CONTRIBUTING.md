@@ -34,7 +34,8 @@ The tests run under [cargo-nextest](https://nexte.st), each in its own
 process (`cargo test` stops at once and says so).
 
 ```sh
-cargo nextest run --release
+cargo nextest run --release              # the code's tests: under two seconds
+cargo nextest run --release -P machine   # the machine's: clocks, counters, children; seconds each
 cargo run --release -- --quick     # seconds; a full run takes minutes
 node tools/graph-check/map.js benchmark-results/FOLDER/bench-hashes.map.html
 ```
@@ -163,7 +164,8 @@ machine runs again. In order:
 1. **What it carries:** each entry under FROZEN.md's "Changes for the next
    release", and the pin of BLAKE3-Servil (its commit), a commit that
    passed BLAKE3-Servil's own checks.
-2. **Checks on main:** `cargo nextest run --release`, `cargo fmt --check`,
+2. **Checks on main:** `cargo nextest run --release`, `cargo nextest run
+   --release -P machine` on the release machines, `cargo fmt --check`,
    and a `--quick` run that reports no busy window.
 3. **The tag:** `python3 tools/gen-ver.py X.Y.Z` from a clean tree: one
    commit setting the version to X.Y.Z+<HEAD's hash>, and its tag.
