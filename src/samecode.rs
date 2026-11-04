@@ -170,10 +170,13 @@ pub enum Verdict {
     /// The same code and data, as masked.
     Same,
     /// The sections that differ, and the functions (by name, demangled, the
-    /// legacy hash suffix dropped) of another size or other bytes.
+    /// legacy hash suffix dropped): those of another size or on one side
+    /// alone, where a change lands; and those of the same size and other
+    /// bytes, among them every function whose calls' targets moved.
     Differs {
         sections: Vec<String>,
-        functions: Vec<String>,
+        resized: Vec<String>,
+        changed: Vec<String>,
     },
 }
 
@@ -259,17 +262,22 @@ pub fn compare(a: &Path, b: &Path, masks: &[&str], locations: bool) -> Option<Ve
         functions(a, ia.sections.get(".text")),
         functions(b, ib.sections.get(".text")),
     );
-    let functions = fa
-        .keys()
-        .chain(fb.keys())
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .filter(|n| fa.get(*n) != fb.get(*n))
-        .cloned()
-        .collect();
+    let sizes = |f: &BTreeMap<String, Vec<(u64, Vec<u8>)>>, n: &String| {
+        f.get(n)
+            .map(|v| v.iter().map(|(s, _)| *s).collect::<Vec<_>>())
+    };
+    let (mut resized, mut changed) = (Vec::new(), Vec::new());
+    for n in fa.keys().chain(fb.keys()).collect::<BTreeSet<_>>() {
+        if sizes(&fa, n) != sizes(&fb, n) {
+            resized.push(n.clone());
+        } else if fa.get(n) != fb.get(n) {
+            changed.push(n.clone());
+        }
+    }
     Some(Verdict::Differs {
         sections,
-        functions,
+        resized,
+        changed,
     })
 }
 
@@ -354,10 +362,12 @@ mod tests {
         match compare(&exe, &copy, &[], true) {
             Some(Verdict::Differs {
                 sections,
-                functions,
+                resized,
+                changed,
             }) => {
                 assert_eq!(sections, [".text"]);
-                assert_eq!(functions, [name.clone()]);
+                assert_eq!(resized, Vec::<String>::new());
+                assert_eq!(changed, [name.clone()]);
             }
             other => panic!("one changed byte reads {other:?}"),
         }

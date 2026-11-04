@@ -226,12 +226,27 @@ pub fn command(arguments: &[String]) -> i32 {
                 println!("check: same code: the change alters nothing the bench runs here");
                 return 0;
             }
-            Some(crate::samecode::Verdict::Differs { sections, functions }) => eprintln!(
-                "check: the change alters the bench's code here: {} (functions: {}{})",
-                sections.join(", "),
-                functions.iter().take(20).cloned().collect::<Vec<_>>().join("; "),
-                if functions.len() > 20 { format!("; and {} more", functions.len() - 20) } else { String::new() }
-            ),
+            Some(crate::samecode::Verdict::Differs {
+                sections,
+                resized,
+                changed,
+            }) => {
+                let list = |v: &[String]| {
+                    let mut s = v.iter().take(12).cloned().collect::<Vec<_>>().join("; ");
+                    if v.len() > 12 {
+                        s += &format!("; and {} more", v.len() - 12);
+                    }
+                    s
+                };
+                eprintln!(
+                    "check: the change alters the bench's code here: {}; {} functions of another size or on one side alone ({}); {} of other bytes ({})",
+                    sections.join(", "),
+                    resized.len(),
+                    list(&resized),
+                    changed.len(),
+                    list(&changed)
+                )
+            }
             None => eprintln!("check: no same-code comparison on this machine's executable format (ELF only); measuring"),
         }
     }
