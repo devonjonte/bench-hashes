@@ -445,8 +445,13 @@ pub fn process_cpu_ns() -> u64 {
         let mut children = [0i64; 18];
         // Sound: `children` is writable and as long as a struct rusage.
         assert_eq!(unsafe { getrusage(RUSAGE_CHILDREN, children.as_mut_ptr()) }, 0, "getrusage(RUSAGE_CHILDREN)");
-        ts.tv_sec as u64 * 1_000_000_000 + ts.tv_nsec as u64 + child::rusage_cpu_ns(&children) + child::running_cpu_ns()
+        timespec_ns(ts.tv_sec, ts.tv_nsec) + child::rusage_cpu_ns(&children) + child::running_cpu_ns()
     }
+}
+
+/// A timespec as nanoseconds.
+fn timespec_ns(sec: i64, nsec: i64) -> u64 {
+    sec as u64 * 1_000_000_000 + nsec as u64
 }
 
 /// macOS QoS classes: user-interactive runs on P-cores, background on E-cores.
@@ -603,6 +608,12 @@ mod tests {
         let later = Counts { p: Level { cycles: 4_400, instructions: 9_000, time_ns: 1_000, ..Level::default() }, e: Level::default() };
         let d = later.since(Counts::default());
         assert_eq!((d.mhz(), d.e_percent()), (4_400, 0));
+    }
+
+    #[test]
+    fn a_timespec_is_its_seconds_and_nanoseconds() {
+        assert_eq!(timespec_ns(2, 5), 2_000_000_005);
+        assert_eq!(timespec_ns(0, 999_999_999), 999_999_999);
     }
 
     /// The clock rate is both kinds' cycles over both kinds' time, rounded
