@@ -497,13 +497,24 @@ either way, so a cell's energy, all its samples' over all their units, is
 not biased by it. `compare` prints its ratio beside CPU time's, with no
 verdict.
 
-**Where each sample ran.** Every sample records the calling thread's
-counts per core kind across it (`clocks::Counts`) in the `core counts`
-column as `P time:P cycles:E time:E cycles`, or `-` where the platform
-counts none. On Apple silicon and Linux x86-64 CPUs with performance
-counters, the map's tooltip shows each point's core share and clock rate.
-On Linux, cycles cover user space while running time also covers kernel
-work, so the clock rate reads low across system calls. The pool's workers
+**Where each sample ran, and what it cost the core.** Every sample
+records the calling thread's counts per core kind across it
+(`clocks::Counts`) in the `core counts` column as `P time:P cycles:P
+instructions:P cache references:P cache misses`, then the same five for
+E cores, or `-` where the platform counts none. Cycles and instructions
+are user space's; the cache counts are perf's generic `cache-references`
+and `cache-misses`, requests that reached the last-level cache and
+those it missed (on Intel `LONGEST_LAT_CACHE.REFERENCE` and `.MISS`,
+demand and prefetch requests to L3 and the lines fetched from beyond it;
+AMD maps the pair by generation; a VM or a Mac counts none). On Linux
+x86-64 the counters are read in user space (`rdpmc`) where the kernel
+allows, else by a system call; the read sits between a cell's pause and
+its call, where a system call's microsecond reached the call (#127:
+the i7's 64 B call after 20 us read 13% slower with the system calls,
+1% with `rdpmc`). On Apple silicon and Linux x86-64 CPUs with
+performance counters, the map's tooltip shows each point's core share
+and clock rate. On Linux, running time also covers kernel work, so the
+clock rate reads low across system calls. The pool's workers
 are not counted yet.
 
 **Threads.** BLAKE3-Servil mt's pool holds one thread per CPU, its caller

@@ -374,11 +374,13 @@ mod tests {
                 time_ns: 10,
                 cycles: 20,
                 instructions: 0,
+                ..clocks::Level::default()
             },
             e: clocks::Level {
                 time_ns: 30,
                 cycles: 40,
                 instructions: 0,
+                ..clocks::Level::default()
             },
         };
         let mut batches = vec![
@@ -404,7 +406,7 @@ mod tests {
         assert_eq!(fields[6], "3,3,3,3,3,3");
         assert_eq!(fields[7], "6000,6000,6000,6000,6000,6000");
         assert_eq!(fields[8], "-");
-        assert_eq!(fields[9], ["10:20:0:30:40:0"; 6].join(","));
+        assert_eq!(fields[9], ["10:20:0:0:0:30:40:0:0:0"; 6].join(","));
         // All six samples count ((5 * 4000 + 4_000_000) ns / 24 messages = 167500ns/message).
         // All raw CPU time gives 36000ns/24 messages = 1500ns/message.
         assert!(report.contains("167500.000 ns 1500.000 CPU ns"), "{report}");

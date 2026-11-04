@@ -217,13 +217,19 @@ anything", John Servil releasing it):
   after-gap column on the map. Each samples file's `idle control` line
   says what the block kept, or why there is none (the i7-12700K in its
   sandbox: no root).
-- **Every sample keeps its instructions retired beside its cycles**, per
-  core kind (Zooko, November 4, 2026: the most the counters give, kept
-  whether or not a use is known yet). The samples format is v9. On the
-  i7-12700K instructions are the same count on a P core and an E core
-  and after any pause (28719 for a fixed call, every time), where cycles
-  and wall time move with the core's clock (data branch,
-  2026-11-04/clock-survey).
+- **Every sample keeps its instructions retired, and its last-level-cache
+  references and misses, beside its cycles**, per core kind (Zooko,
+  November 4, 2026: the most the counters give, kept whether or not a use
+  is known yet; the cache pair the same day, at a read cost of tens of
+  nanoseconds now that the counters are read in user space). The samples
+  format is v10. On the i7-12700K instructions are the same count on a P
+  core and an E core and after any pause (28719 for a fixed call, every
+  time), where cycles and wall time move with the core's clock (data
+  branch, 2026-11-04/clock-survey). The cache events are perf's generic
+  pair, whose hardware meaning METHODOLOGY names; the counters are read
+  by `rdpmc` where the kernel allows it, since a system call between the
+  pause and the call moved the i7's 64 B figure by 13% (data branch,
+  2026-11-04/precall-counts-i7).
 - **The batch calls take a `Batch`** (Zooko, October 28; BLAKE3 #205):
   `hash_many`, `hash_many_multithreaded` and `Stream::submit_batch` take
   `&Batch`, whose bytes past each message the program cannot write, so a

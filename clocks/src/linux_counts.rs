@@ -1,6 +1,6 @@
 //! The thread's counts on Linux x86-64 through `perf_event_open`. Hybrid
-//! CPUs use one counter group (cycles, instructions) on each core kind's
-//! PMU, `cpu_core` and `cpu_atom`. Homogeneous CPUs use the generic hardware
+//! CPUs use one counter group (cycles, instructions, cache references,
+//! cache misses) on each core kind's PMU, `cpu_core` and `cpu_atom`. Homogeneous CPUs use the generic hardware
 //! PMU, recorded in `p`, with `e` zero. Cycles and instructions are user
 //! space's; time is the group's running time, including kernel time, so
 //! MHz reads low across system calls. The generic path requires both
@@ -161,20 +161,27 @@ fn open(pmu: u32, event: u64, group: c_int) -> Option<OwnedFd> {
     (fd >= 0).then(|| unsafe { OwnedFd::from_raw_fd(c_int::try_from(fd).unwrap()) })
 }
 
-/// One core kind's group: cycles leading, instructions; each counter's
-/// page where user space may read them.
+/// The group's events, PERF_TYPE_HARDWARE's numbers: cycles leading, then
+/// instructions, cache references and cache misses (the last two one
+/// programmable counter each; the first two the fixed ones).
+const EVENTS: [u64; 4] = [0, 1, 2, 3];
+
+/// One core kind's group, and each counter's page where user space may
+/// read them.
 struct Group {
-    leader: OwnedFd,
-    _instructions: OwnedFd,
-    pages: Option<[Mapped; 2]>,
+    fds: [OwnedFd; 4],
+    pages: Option<[Mapped; 4]>,
 }
 
 impl Group {
     fn new(pmu: u32) -> Option<Group> {
-        let leader = open(pmu, 0, -1)?; // PERF_COUNT_HW_CPU_CYCLES
-        let instructions = open(pmu, 1, leader.as_raw_fd())?; // PERF_COUNT_HW_INSTRUCTIONS
-        let pages = Mapped::new(&leader).zip(Mapped::new(&instructions)).map(|(c, i)| [c, i]);
-        let group = Group { leader, _instructions: instructions, pages };
+        let leader = open(pmu, EVENTS[0], -1)?;
+        let rest: Vec<OwnedFd> = EVENTS[1..].iter().map(|&event| open(pmu, event, leader.as_raw_fd())).collect::<Option<_>>()?;
+        let [instructions, references, misses] = rest.try_into().ok()?;
+        let fds = [leader, instructions, references, misses];
+        let pages: Option<Vec<Mapped>> = fds.iter().map(Mapped::new).collect();
+        let pages = pages.and_then(|pages| pages.try_into().ok());
+        let group = Group { fds, pages };
         group.read_syscall()?;
         Some(group)
     }
@@ -183,10 +190,9 @@ impl Group {
     /// else by the system call.
     fn read(&self) -> Option<Level> {
         match &self.pages {
-            Some([cycles, instructions]) => {
+            Some([cycles, instructions, references, misses]) => {
                 let (cycles, time_ns) = cycles.read();
-                let (instructions, _) = instructions.read();
-                Some(Level { cycles, instructions, time_ns })
+                Some(Level { cycles, instructions: instructions.read().0, cache_references: references.read().0, cache_misses: misses.read().0, time_ns })
             }
             None => self.read_syscall(),
         }
@@ -195,16 +201,16 @@ impl Group {
     /// The group's counts by the system call; `None` once a pinned group
     /// could not be scheduled (its reads then return nothing).
     fn read_syscall(&self) -> Option<Level> {
-        // nr, time enabled, time running, cycles, instructions.
-        let mut words = [0u64; 5];
+        // nr, time enabled, time running, then each event's count.
+        let mut words = [0u64; 3 + EVENTS.len()];
         // Sound: `words` is writable for the size passed.
-        let n = unsafe { read_fd(self.leader.as_raw_fd(), words.as_mut_ptr().cast(), std::mem::size_of_val(&words)) };
+        let n = unsafe { read_fd(self.fds[0].as_raw_fd(), words.as_mut_ptr().cast(), std::mem::size_of_val(&words)) };
         if n == 0 {
             return None;
         }
         assert_eq!(n, std::mem::size_of_val(&words) as isize, "a perf group read gives its whole record");
-        assert_eq!(words[0], 2, "the group holds cycles and instructions");
-        Some(Level { cycles: words[3], instructions: words[4], time_ns: words[2] })
+        assert_eq!(words[0], EVENTS.len() as u64, "the group holds its four events");
+        Some(Level { cycles: words[3], instructions: words[4], cache_references: words[5], cache_misses: words[6], time_ns: words[2] })
     }
 }
 
@@ -316,40 +322,41 @@ mod tests {
             eprintln!("no user-space read here; the system call serves");
             return;
         }
-        let total = |c: Counts| (c.p.cycles + c.e.cycles, c.p.instructions + c.e.instructions, c.p.time_ns + c.e.time_ns);
-        let (s0, u0) = (total(read_with(Group::read_syscall).unwrap()), total(read().unwrap()));
-        crate::busy_work(20_000);
-        let (u1, s1) = (total(read().unwrap()), total(read_with(Group::read_syscall).unwrap()));
-        eprintln!(
-            "one call: by read() {} cycles {} instructions {} ns, by rdpmc {} cycles {} instructions {} ns",
-            s1.0 - s0.0,
-            s1.1 - s0.1,
-            s1.2 - s0.2,
-            u1.0 - u0.0,
-            u1.1 - u0.1,
-            u1.2 - u0.2
-        );
-        assert!(u1.0 > u0.0 + 1000 && u1.1 > u0.1 + 1000 && u1.2 > u0.2, "the user-space read counts the work: {u0:?} then {u1:?}");
-        let mut worst = (0i128, 0i128, 0i128);
+        const NAMES: [&str; 5] = ["cycles", "instructions", "cache references", "cache misses", "time ns"];
+        let total = |c: Counts| {
+            let sum = |f: fn(&Level) -> u64| f(&c.p) + f(&c.e);
+            [sum(|l| l.cycles), sum(|l| l.instructions), sum(|l| l.cache_references), sum(|l| l.cache_misses), sum(|l| l.time_ns)]
+        };
+        let by_syscall = || total(read_with(Group::read_syscall).unwrap());
+        let by_rdpmc = || total(read().unwrap());
+        // 4 MiB strided at cache lines: work with misses in it.
+        let buffer = vec![1u8; 4 << 20];
+        let mut worst = [0i128; 5];
+        let mut first = None;
         for _ in 0..200 {
-            let (s0, u0) = (total(read_with(Group::read_syscall).unwrap()), total(read().unwrap()));
-            crate::busy_work(20_000);
-            let (u1, s1) = (total(read().unwrap()), total(read_with(Group::read_syscall).unwrap()));
+            let (s0, u0) = (by_syscall(), by_rdpmc());
+            let mut sum = 0u64;
+            for i in (0..buffer.len()).step_by(64) {
+                sum += u64::from(std::hint::black_box(&buffer)[i]);
+            }
+            std::hint::black_box(sum);
+            let (u1, s1) = (by_rdpmc(), by_syscall());
+            let by_s: Vec<i128> = (0..5).map(|k| s1[k] as i128 - s0[k] as i128).collect();
+            let by_u: Vec<i128> = (0..5).map(|k| u1[k] as i128 - u0[k] as i128).collect();
+            if first.is_none() {
+                first = Some((by_s.clone(), by_u.clone()));
+            }
             // The system call brackets the user-space read, so its counts
             // are the larger by the reads' own work.
-            let by = |s: (u64, u64, u64), u: (u64, u64, u64), s_0: (u64, u64, u64), u_0: (u64, u64, u64)| {
-                (
-                    (s.0 as i128 - s_0.0 as i128) - (u.0 as i128 - u_0.0 as i128),
-                    (s.1 as i128 - s_0.1 as i128) - (u.1 as i128 - u_0.1 as i128),
-                    (s.2 as i128 - s_0.2 as i128) - (u.2 as i128 - u_0.2 as i128),
-                )
-            };
-            let d = by(s1, u1, s0, u0);
-            worst = (worst.0.max(d.0.abs()), worst.1.max(d.1.abs()), worst.2.max(d.2.abs()));
+            for k in 0..5 {
+                worst[k] = worst[k].max((by_s[k] - by_u[k]).abs());
+            }
         }
-        eprintln!("worst differences over 200: cycles {}, instructions {}, time {} ns", worst.0, worst.1, worst.2);
-        assert!(worst.0 < 5_000 && worst.1 < 5_000, "the counts agree within the reads' own work: {worst:?}");
-        assert!(worst.2 < 20_000, "the running time agrees within the reads' own time: {worst:?}");
+        let (by_s, by_u) = first.unwrap();
+        eprintln!("one pass: by read() {by_s:?}, by rdpmc {by_u:?} ({NAMES:?}); worst differences over 200: {worst:?}");
+        assert!(by_u[0] > 10_000 && by_u[1] > 10_000 && by_u[2] > 1_000 && by_u[4] > 0, "the user-space read counts the work: {by_u:?}");
+        assert!(worst[0] < 5_000 && worst[1] < 5_000 && worst[2] < 500 && worst[3] < 500, "the counts agree within the reads' own work: {worst:?} ({NAMES:?})");
+        assert!(worst[4] < 20_000, "the running time agrees within the reads' own time: {worst:?}");
     }
 
     #[test]

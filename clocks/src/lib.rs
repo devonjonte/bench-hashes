@@ -122,11 +122,19 @@ fn raw_ns() -> u64 {
     unsafe { clock_gettime_nsec_np(CLOCK_UPTIME_RAW) }
 }
 
-/// One core kind's share of a thread's counts.
+/// One core kind's share of a thread's counts: its cycles and
+/// instructions retired in user space, its requests that reached the
+/// last-level cache and those that missed it (perf's generic
+/// `cache-references` and `cache-misses`: on Intel
+/// `LONGEST_LAT_CACHE.REFERENCE` and `.MISS`, demand and prefetch
+/// requests to L3 and the lines fetched from beyond it; AMD maps them by
+/// generation), and the time its counters ran.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Level {
     pub cycles: u64,
     pub instructions: u64,
+    pub cache_references: u64,
+    pub cache_misses: u64,
     pub time_ns: u64,
 }
 
@@ -150,6 +158,8 @@ impl Counts {
         let level = |now: Level, then: Level| Level {
             cycles: now.cycles - then.cycles,
             instructions: now.instructions - then.instructions,
+            cache_references: now.cache_references - then.cache_references,
+            cache_misses: now.cache_misses - then.cache_misses,
             time_ns: now.time_ns - then.time_ns,
         };
         Counts { p: level(self.p, earlier.p), e: level(self.e, earlier.e) }
@@ -157,7 +167,13 @@ impl Counts {
 
     /// These counts and `other`'s together.
     pub fn plus(self, other: Counts) -> Counts {
-        let level = |a: Level, b: Level| Level { cycles: a.cycles + b.cycles, instructions: a.instructions + b.instructions, time_ns: a.time_ns + b.time_ns };
+        let level = |a: Level, b: Level| Level {
+            cycles: a.cycles + b.cycles,
+            instructions: a.instructions + b.instructions,
+            cache_references: a.cache_references + b.cache_references,
+            cache_misses: a.cache_misses + b.cache_misses,
+            time_ns: a.time_ns + b.time_ns,
+        };
         Counts { p: level(self.p, other.p), e: level(self.e, other.e) }
     }
 
@@ -589,7 +605,7 @@ mod tests {
 
     #[test]
     fn counts_subtract_and_rate() {
-        let later = Counts { p: Level { cycles: 4_400, instructions: 9_000, time_ns: 1_000 }, e: Level::default() };
+        let later = Counts { p: Level { cycles: 4_400, instructions: 9_000, time_ns: 1_000, ..Level::default() }, e: Level::default() };
         let d = later.since(Counts::default());
         assert_eq!((d.mhz(), d.e_percent()), (4_400, 0));
     }

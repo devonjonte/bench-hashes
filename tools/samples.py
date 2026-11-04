@@ -8,14 +8,14 @@ rule"): comparisons and verdicts stay in bench-hashes (`compare`,
     run.headers["nonstop train"]          # a `# key: value` line
     run.cells[(contender, scenario, use_case, point)]   # [(ns, units), ...]
     run.cpus[key]                         # the CPU each sample's thread ended on, or None
-    run.cores[key]                        # each sample's (P ns, P cycles, P instructions, E ns, E cycles, E instructions), or None
+    run.cores[key]                        # each sample's (P ns, P cycles, P instructions, P cache references, P cache misses, then E's five), or None
     samples.mean_ps(run.cells[key])       # picoseconds a unit, the cell's mean
 
 A file of another version stops the reader (its own commit's tools read it).
 """
 import collections
 
-VERSION = "# bench-hashes samples v9"
+VERSION = "# bench-hashes samples v10"
 COLUMNS = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\tcpu"
 
 Run = collections.namedtuple("Run", "path headers cells cpus cores")
@@ -48,7 +48,7 @@ def read(path):
             cpus[key] = None if fields[10] == "-" else [int(c) for c in fields[10].split(",")]
             assert cpus[key] is None or len(cpus[key]) == len(cells[key]), f"{path}: {key}: a CPU for each sample"
             cores[key] = None if fields[9] == "-" else [tuple(int(x) for x in c.split(":")) for c in fields[9].split(",")]
-            assert cores[key] is None or all(len(c) == 6 for c in cores[key]) and len(cores[key]) == len(cells[key]), f"{path}: {key}: six counts for each sample"
+            assert cores[key] is None or all(len(c) == 10 for c in cores[key]) and len(cores[key]) == len(cells[key]), f"{path}: {key}: ten counts for each sample"
     return Run(path, headers, cells, cpus, cores)
 
 

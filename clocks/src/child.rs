@@ -302,9 +302,11 @@ mod imp {
         let ns = crate::imp::mach_to_ns;
         let counts = usage.map(|w| {
             let (time, ptime) = (w[USER_TIME] + w[SYSTEM_TIME], w[USER_PTIME] + w[SYSTEM_PTIME]);
+            // rusage gives cycles and instructions; the cache counts stay
+            // zero, and no b3sum record writes them.
             Counts {
-                p: Level { cycles: w[PCYCLES], instructions: w[PINSTRUCTIONS], time_ns: ns(ptime) },
-                e: Level { cycles: w[CYCLES] - w[PCYCLES], instructions: w[INSTRUCTIONS] - w[PINSTRUCTIONS], time_ns: ns(time - ptime) },
+                p: Level { cycles: w[PCYCLES], instructions: w[PINSTRUCTIONS], time_ns: ns(ptime), ..Level::default() },
+                e: Level { cycles: w[CYCLES] - w[PCYCLES], instructions: w[INSTRUCTIONS] - w[PINSTRUCTIONS], time_ns: ns(time - ptime), ..Level::default() },
             }
         });
         Run {
