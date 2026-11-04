@@ -331,41 +331,59 @@ mod tests {
         let by_rdpmc = || total(read().unwrap());
         // 4 MiB strided at cache lines: work with misses in it.
         let buffer = vec![1u8; 4 << 20];
+        // The system call brackets the user-space read, so its counts are
+        // the larger by the reads' own work: measured on empty passes
+        // (thousands of instructions in a debug build, hundreds in
+        // release), and taken off each working pass's difference.
+        let bracket = |work: &dyn Fn()| -> ([i128; 5], [i128; 5]) {
+            let (s0, u0) = (by_syscall(), by_rdpmc());
+            work();
+            let (u1, s1) = (by_rdpmc(), by_syscall());
+            (std::array::from_fn(|k| s1[k] as i128 - s0[k] as i128), std::array::from_fn(|k| u1[k] as i128 - u0[k] as i128))
+        };
+        // The median: a thread preempted between two bracketing reads (the
+        // test suite runs beside) widens one pass's by the switch, which
+        // says nothing about the reads.
+        let median = |rows: &[[i128; 5]]| -> [i128; 5] {
+            std::array::from_fn(|k| {
+                let mut column: Vec<i128> = rows.iter().map(|d| d[k]).collect();
+                column.sort_unstable();
+                column[column.len() / 2]
+            })
+        };
+        let empty: Vec<[i128; 5]> = (0..200)
+            .map(|_| {
+                let (by_s, by_u) = bracket(&|| {});
+                std::array::from_fn(|k| by_s[k] - by_u[k])
+            })
+            .collect();
+        let own = median(&empty);
         let mut differences: Vec<[i128; 5]> = Vec::new();
         let mut first = None;
         for _ in 0..200 {
-            let (s0, u0) = (by_syscall(), by_rdpmc());
-            let mut sum = 0u64;
-            for i in (0..buffer.len()).step_by(64) {
-                sum += u64::from(std::hint::black_box(&buffer)[i]);
-            }
-            std::hint::black_box(sum);
-            let (u1, s1) = (by_rdpmc(), by_syscall());
-            let by_s: Vec<i128> = (0..5).map(|k| s1[k] as i128 - s0[k] as i128).collect();
-            let by_u: Vec<i128> = (0..5).map(|k| u1[k] as i128 - u0[k] as i128).collect();
+            let (by_s, by_u) = bracket(&|| {
+                let mut sum = 0u64;
+                for i in (0..buffer.len()).step_by(64) {
+                    sum += u64::from(std::hint::black_box(&buffer)[i]);
+                }
+                std::hint::black_box(sum);
+            });
             if first.is_none() {
-                first = Some((by_s.clone(), by_u.clone()));
+                first = Some((by_s, by_u));
             }
-            // The system call brackets the user-space read, so its counts
-            // are the larger by the reads' own work.
-            differences.push(std::array::from_fn(|k| (by_s[k] - by_u[k]).abs()));
+            differences.push(std::array::from_fn(|k| (by_s[k] - by_u[k] - own[k]).abs()));
         }
-        // The median difference: a thread preempted between two bracketing
-        // reads (the test suite runs beside) widens one pass's by the
-        // switch, which says nothing about the reads.
-        let median: [i128; 5] = std::array::from_fn(|k| {
-            let mut column: Vec<i128> = differences.iter().map(|d| d[k]).collect();
-            column.sort_unstable();
-            column[column.len() / 2]
-        });
+        let median = median(&differences);
         let (by_s, by_u) = first.unwrap();
-        eprintln!("one pass: by read() {by_s:?}, by rdpmc {by_u:?} ({NAMES:?}); median differences over 200: {median:?}");
+        eprintln!(
+            "one pass: by read() {by_s:?}, by rdpmc {by_u:?} ({NAMES:?}); the reads' own bracket {own:?}; median differences beyond it over 200: {median:?}"
+        );
         assert!(by_u[0] > 10_000 && by_u[1] > 10_000 && by_u[2] > 1_000 && by_u[4] > 0, "the user-space read counts the work: {by_u:?}");
         assert!(
-            median[0] < 5_000 && median[1] < 5_000 && median[2] < 500 && median[3] < 500,
-            "the counts agree within the reads' own work: {median:?} ({NAMES:?})"
+            median[0] < 5_000 && median[1] < 2_000 && median[2] < 500 && median[3] < 500,
+            "the counts agree beyond the reads' own work: {median:?} ({NAMES:?})"
         );
-        assert!(median[4] < 20_000, "the running time agrees within the reads' own time: {median:?}");
+        assert!(median[4] < 20_000, "the running time agrees beyond the reads' own time: {median:?}");
     }
 
     #[test]
