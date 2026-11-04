@@ -4,8 +4,8 @@ This file explains what a run measures, how it controls measurement
 noise, and what each contender runs. [README.md](README.md) says how to
 run it.
 
-Every run measures each contender in eighteen use cases. Ten are calls
-made now and then, each after a gap of one of three kinds. **After other
+Every run measures each contender in twenty-one use cases. Thirteen are
+calls made now and then, each after a gap of one of three kinds. **After other
 work** runs after the program has executed a fixed other program and read
 128 MiB of data, as a program hashes between its other tasks. **After a
 brief idle** runs after the program has slept 20 us, as a server answers
@@ -13,7 +13,11 @@ a reply that arrives at once: the core keeps its clock and its shallowest
 idle state. **After idling** runs after the program has slept 5 ms, as a
 server waits for its next request: every machine measured has settled
 into its deep idle states by then (FROZEN.md, "Changes for the next
-release"). Each kind measures **a message in one buffer** at
+release"). Where the bench runs as root on Linux, the 5 ms cells run once
+more **with the core's deep idle states switched off** (every cpuidle
+state but POLL and C1), so the call meets the core awake and the cell
+measures the library apart from the machine's rest; the states are put
+back when those rounds end. Each kind measures **a message in one buffer** at
 twenty-eight sizes from 64 B to 128 MiB (reported per byte), **a batch**
 of 64-byte messages at twenty-four counts from 1 to 262144 (reported per
 message), and **a turn of many messages' pieces** (below); after other

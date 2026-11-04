@@ -204,6 +204,19 @@ anything", John Servil releasing it):
   state may seldom happen within a pause (the Xeon Gold 6330's C6 within
   1 ms, #117) and the deepest may be one no software counter names (the
   i7's core C7).
+- **The controlled block** (John, November 4, 2026; #117, Sam
+  Shackleton's protocol): where the bench can write every cpuidle
+  state's `disable` file (Linux, run as root), the 5 ms cells run once
+  more as `ControlledIdleOneMessage`, `ControlledIdleManyMessages` and
+  `ControlledIdleInterleavedTurn`, in rounds of their own with every
+  state but POLL and C1 switched off (POLL alone where the machine has no
+  plain C1), so the call meets the core awake and the cell measures the
+  library apart from the machine's rest; the states are put back when
+  those rounds end. The shipped block, what users meet, stays the
+  figure users read; the controlled one stands beside it, a fifth
+  after-gap column on the map. Each samples file's `idle control` line
+  says what the block kept, or why there is none (the i7-12700K in its
+  sandbox: no root).
 - **Every sample keeps its instructions retired beside its cycles**, per
   core kind (Zooko, November 4, 2026: the most the counters give, kept
   whether or not a use is known yet). The samples format is v9. On the
@@ -922,6 +935,8 @@ use case IdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B
 use case IdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
 use case BriefIdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case BriefIdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
+use case ControlledIdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
+use case ControlledIdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
 use case ContinuousMessages: 64 B, 128 B, 256 B, 512 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case ContinuousBatches: 16, 64, 256, 1024, 4096, 16384, 65536
 use case LentMessages: 64 B, 128 B, 256 B, 512 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
@@ -933,6 +948,7 @@ use case MerkleTree: 1024, 4096, 16384, 65536, 262144
 use case InterleavedTurn: 256
 use case IdleInterleavedTurn: 256
 use case BriefIdleInterleavedTurn: 256
+use case ControlledIdleInterleavedTurn: 256
 scenarios: solo, shared-one-cache, shared-two-caches, shared-os
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree
 shared placements: two cores under one last-level cache; two cores under two (where the machine has two); where it offers no pair (macOS), wherever the OS runs them

@@ -34,6 +34,12 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
             "performance::hash_multithreaded",
             "performance/fn.hash_multithreaded.html",
         ),
+        UseCase::ControlledIdleOneMessage => (
+            "one",
+            "controlled",
+            "performance::hash_multithreaded",
+            "performance/fn.hash_multithreaded.html",
+        ),
         UseCase::LentMessages => (
             "one",
             "lent",
@@ -70,6 +76,12 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
             "performance::hash_many_multithreaded",
             "performance/fn.hash_many_multithreaded.html",
         ),
+        UseCase::ControlledIdleManyMessages => (
+            "batch",
+            "controlled",
+            "performance::hash_many_multithreaded",
+            "performance/fn.hash_many_multithreaded.html",
+        ),
         UseCase::LentBatches => (
             "batch",
             "lent",
@@ -103,6 +115,12 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
         UseCase::BriefIdleInterleavedTurn => (
             "many",
             "brief",
+            "performance::update_each_multithreaded",
+            "performance/fn.update_each_multithreaded.html",
+        ),
+        UseCase::ControlledIdleInterleavedTurn => (
+            "many",
+            "controlled",
             "performance::update_each_multithreaded",
             "performance/fn.update_each_multithreaded.html",
         ),
@@ -143,7 +161,8 @@ fn axis(use_case: UseCase) -> &'static str {
         UseCase::Interleaved
         | UseCase::InterleavedTurn
         | UseCase::IdleInterleavedTurn
-        | UseCase::BriefIdleInterleavedTurn => "messages open at once",
+        | UseCase::BriefIdleInterleavedTurn
+        | UseCase::ControlledIdleInterleavedTurn => "messages open at once",
         UseCase::MerkleTree => "leaves (256 B each)",
         UseCase::Collection | UseCase::ContinuousCollection => "collection",
         UseCase::ManyLongMessages => "messages in the batch (4 KiB each)",
@@ -159,7 +178,8 @@ fn what(use_case: UseCase) -> &'static str {
         UseCase::Interleaved => "a megabyte of pieces",
         UseCase::InterleavedTurn
         | UseCase::IdleInterleavedTurn
-        | UseCase::BriefIdleInterleavedTurn => "a turn",
+        | UseCase::BriefIdleInterleavedTurn
+        | UseCase::ControlledIdleInterleavedTurn => "a turn",
         UseCase::MerkleTree => "a tree",
         _ if use_case.batch() => "a batch",
         _ => "a message",
@@ -490,6 +510,11 @@ fn details(
         String::new(),
     );
     add(
+        "Idle control",
+        header(headers, "idle control").to_owned(),
+        String::new(),
+    );
+    add(
         "Shared placements",
         header(headers, "shared placements").to_owned(),
         String::new(),
@@ -587,6 +612,7 @@ fn details(
         "idle states",
         "shared placements",
         "effective idle states",
+        "idle control",
         "contender",
     ];
     for (k, v) in headers.iter().filter(|(k, _)| {
@@ -706,6 +732,7 @@ fn hashing(path: &Path) -> Section {
                             | UseCase::InterleavedTurn
                             | UseCase::IdleInterleavedTurn
                             | UseCase::BriefIdleInterleavedTurn
+                            | UseCase::ControlledIdleInterleavedTurn
                             | UseCase::Collection
                             | UseCase::ContinuousCollection
                     ),
@@ -736,6 +763,7 @@ fn hashing(path: &Path) -> Section {
             ("busy", "now and then, after other work", "The program hashes now and then and does other work in between, which pushes the hash's code and data out of the CPU's caches."),
             ("brief", "now and then, after a brief pause", "The program hashes now and then and waits 20 us in between (a reply arrives at once), so the core keeps its clock and its shallowest rest."),
             ("idle", "now and then, after a pause", "The program hashes now and then and waits 5 ms in between (for the network, say), so the core rests deeply and starts the next hash slowly."),
+            ("controlled", "now and then, after a pause, deep rest off", "The same 5 ms pause with the core's deep idle states switched off (the bench ran as root), so the call meets the core awake: the library's own cost, apart from the machine's rest."),
             ("lent", "nonstop, waiting for each call", "The program hashes input after input as fast as it can, reading each input once the hash before it has returned."),
             ("piped", "nonstop, pipelined", "The program hashes input after input as fast as it can, and reads the next inputs while earlier ones hash: it hands its inputs to BLAKE3-Servil's stream, which hashes them on other threads. The other hashes have no such call and hash on the program's thread."),
         ],
