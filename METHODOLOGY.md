@@ -4,12 +4,16 @@ This file explains what a run measures, how it controls measurement
 noise, and what each contender runs. [README.md](README.md) says how to
 run it.
 
-Every run measures each contender in fifteen use cases. Seven are calls
-made now and then, each after a gap of one of two kinds. **After other
+Every run measures each contender in eighteen use cases. Ten are calls
+made now and then, each after a gap of one of three kinds. **After other
 work** runs after the program has executed a fixed other program and read
-128 MiB of data, as a program hashes between its other tasks. **After
-idling** runs after the program has slept 1 ms, as a server waits for its
-next request. Each kind measures **a message in one buffer** at
+128 MiB of data, as a program hashes between its other tasks. **After a
+brief idle** runs after the program has slept 20 us, as a server answers
+a reply that arrives at once: the core keeps its clock and its shallowest
+idle state. **After idling** runs after the program has slept 5 ms, as a
+server waits for its next request: every machine measured has settled
+into its deep idle states by then (FROZEN.md, "Changes for the next
+release"). Each kind measures **a message in one buffer** at
 twenty-eight sizes from 64 B to 128 MiB (reported per byte), **a batch**
 of 64-byte messages at twenty-four counts from 1 to 262144 (reported per
 message), and **a turn of many messages' pieces** (below); after other
@@ -213,10 +217,12 @@ and spends any remaining millisecond on integer arithmetic. After idling,
 the thread sleeps 1 ms. In both cases the thread then writes the input
 into its buffer and hashes it, storing the digest in its output slot.
 
-In both gap kinds, any worker pool's threads have gone to sleep. After
+In every gap kind, any worker pool's threads have gone to sleep. After
 other work, the calling core is at full clock with its caches holding the
-other program's code and data. After idling, the operating system has often lowered the core's clock or
-moved the thread. On an Apple M4 Max, 1 ms of sleep lowers the clock
+other program's code and data. After a brief idle, the core has entered
+its shallowest idle state alone and kept its clock. After idling 5 ms,
+the operating system has lowered the core's clock, let it enter its deep
+states, or moved the thread. On an Apple M4 Max, 1 ms of sleep lowers the clock
 until roughly 85 µs of work raises it again, and multi-millisecond calls
 run near 3.8–4.0 GHz after idling against 4.5 GHz after other work. On
 Linux, what a call after idling costs follows how deeply the core slept,
@@ -801,5 +807,5 @@ result.
   with its own pool, where a contender sees only its own.
 - **Workers that stay hot.** A contender whose workers keep polling
   between calls looks better in a tight loop than in a program that hashes
-  once a second; the after-idling cells (a 1 ms sleep before each call)
+  once a second; the after-idling cells (a 5 ms sleep before each call)
   and CPU time and energy beside wall time show what it costs.

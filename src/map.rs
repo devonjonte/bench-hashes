@@ -28,6 +28,12 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
             "performance::hash_multithreaded",
             "performance/fn.hash_multithreaded.html",
         ),
+        UseCase::BriefIdleOneMessage => (
+            "one",
+            "brief",
+            "performance::hash_multithreaded",
+            "performance/fn.hash_multithreaded.html",
+        ),
         UseCase::LentMessages => (
             "one",
             "lent",
@@ -58,6 +64,12 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
             "performance::hash_many_multithreaded",
             "performance/fn.hash_many_multithreaded.html",
         ),
+        UseCase::BriefIdleManyMessages => (
+            "batch",
+            "brief",
+            "performance::hash_many_multithreaded",
+            "performance/fn.hash_many_multithreaded.html",
+        ),
         UseCase::LentBatches => (
             "batch",
             "lent",
@@ -85,6 +97,12 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
         UseCase::IdleInterleavedTurn => (
             "many",
             "idle",
+            "performance::update_each_multithreaded",
+            "performance/fn.update_each_multithreaded.html",
+        ),
+        UseCase::BriefIdleInterleavedTurn => (
+            "many",
+            "brief",
             "performance::update_each_multithreaded",
             "performance/fn.update_each_multithreaded.html",
         ),
@@ -122,9 +140,10 @@ const DOCS: &str = "https://servil-software-factory.github.io/BLAKE3/blake3_serv
 /// and the tooltip's heading.
 fn axis(use_case: UseCase) -> &'static str {
     match use_case {
-        UseCase::Interleaved | UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => {
-            "messages open at once"
-        }
+        UseCase::Interleaved
+        | UseCase::InterleavedTurn
+        | UseCase::IdleInterleavedTurn
+        | UseCase::BriefIdleInterleavedTurn => "messages open at once",
         UseCase::MerkleTree => "leaves (256 B each)",
         UseCase::Collection | UseCase::ContinuousCollection => "collection",
         UseCase::ManyLongMessages => "messages in the batch (4 KiB each)",
@@ -138,7 +157,9 @@ fn what(use_case: UseCase) -> &'static str {
     match use_case {
         UseCase::Collection | UseCase::ContinuousCollection => "the collection",
         UseCase::Interleaved => "a megabyte of pieces",
-        UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => "a turn",
+        UseCase::InterleavedTurn
+        | UseCase::IdleInterleavedTurn
+        | UseCase::BriefIdleInterleavedTurn => "a turn",
         UseCase::MerkleTree => "a tree",
         _ if use_case.batch() => "a batch",
         _ => "a message",
@@ -678,6 +699,7 @@ fn hashing(path: &Path) -> Section {
                         UseCase::Interleaved
                             | UseCase::InterleavedTurn
                             | UseCase::IdleInterleavedTurn
+                            | UseCase::BriefIdleInterleavedTurn
                             | UseCase::Collection
                             | UseCase::ContinuousCollection
                     ),
@@ -706,7 +728,8 @@ fn hashing(path: &Path) -> Section {
         ],
         cols: vec![
             ("busy", "now and then, after other work", "The program hashes now and then and does other work in between, which pushes the hash's code and data out of the CPU's caches."),
-            ("idle", "now and then, after a pause", "The program hashes now and then and waits in between (for the network, say), so the core rests and starts the next hash slowly."),
+            ("brief", "now and then, after a brief pause", "The program hashes now and then and waits 20 us in between (a reply arrives at once), so the core keeps its clock and its shallowest rest."),
+            ("idle", "now and then, after a pause", "The program hashes now and then and waits 5 ms in between (for the network, say), so the core rests deeply and starts the next hash slowly."),
             ("lent", "nonstop, waiting for each call", "The program hashes input after input as fast as it can, reading each input once the hash before it has returned."),
             ("piped", "nonstop, pipelined", "The program hashes input after input as fast as it can, and reads the next inputs while earlier ones hash: it hands its inputs to BLAKE3-Servil's stream, which hashes them on other threads. The other hashes have no such call and hash on the program's thread."),
         ],
