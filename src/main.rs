@@ -6422,20 +6422,26 @@ fn calibrate_batch(algorithm: Algorithm, input: &[u8], point: Point) -> (usize, 
 /// (read_samples) requires: a file in another format is read with the
 /// tools of the commit that wrote it.
 /// The samples format, and with it the rule the samples were taken under:
-/// v9 (0.21) adds each sample's instructions retired beside its cycles,
-/// per core kind, and reads the raw counter (Zooko, November 4: the most
-/// the counters give, kept, and no clock a time daemon slews); v8 (0.20)
+/// v10 (0.21) adds each sample's instructions retired, last-level-cache
+/// references and misses beside its cycles, per core kind, and reads the
+/// raw counter (Zooko, November 4: the most the counters give, kept, and
+/// no clock a time daemon slews); v8 (0.20)
 /// added each sample's CPU, its shared rows the multithreaded
 /// contenders' alone, placed under one cache or two (bench-hashes #108,
 /// #116); v7 marked samples that 0.17's summary reads with the declared
 /// trim (Zooko, October 23).
-const SAMPLES_VERSION: &str = "# bench-hashes samples v9";
+const SAMPLES_VERSION: &str = "# bench-hashes samples v10";
 const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\tcpu";
 
+/// The numbers one core kind contributes to a `core counts` sample:
+/// time, cycles, instructions, cache references, cache misses.
+const LEVEL_FIELDS: usize = 5;
+
 /// A row's `core counts` field: each sample's calling-thread counts per
-/// core kind, `P time ns:P cycles:P instructions:E time ns:E cycles:E
-/// instructions`, or `-` where a
-/// cell's samples carry none (a platform without per-thread counts).
+/// core kind, `P time ns:P cycles:P instructions:P cache references:P
+/// cache misses:E time ns:E cycles:E instructions:E cache references:E
+/// cache misses` (clocks::Level), or `-` where a cell's samples carry
+/// none (a platform without per-thread counts).
 fn counts_field(counts: &[Option<clocks::Counts>]) -> String {
     match counts
         .iter()
@@ -6446,13 +6452,17 @@ fn counts_field(counts: &[Option<clocks::Counts>]) -> String {
             .iter()
             .map(|c| {
                 format!(
-                    "{}:{}:{}:{}:{}:{}",
+                    "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
                     c.p.time_ns,
                     c.p.cycles,
                     c.p.instructions,
+                    c.p.cache_references,
+                    c.p.cache_misses,
                     c.e.time_ns,
                     c.e.cycles,
-                    c.e.instructions
+                    c.e.instructions,
+                    c.e.cache_references,
+                    c.e.cache_misses
                 )
             })
             .collect::<Vec<_>>()
@@ -6497,7 +6507,7 @@ struct SamplesFile {
     energy: Vec<(String, Vec<u64>)>,
     /// The cells whose samples carry the calling thread's counts per core
     /// kind: each sample's [P time ns, P cycles, E time ns, E cycles].
-    cores: Vec<(String, Vec<[u64; 6]>)>,
+    cores: Vec<(String, Vec<[u64; LEVEL_FIELDS * 2]>)>,
     /// The cells whose samples name the CPU each sample's thread ended on.
     cpus: Vec<(String, Vec<u32>)>,
 }
@@ -6575,7 +6585,7 @@ fn read_samples(path: &str) -> SamplesFile {
                 energy.push((key.clone(), nj));
             }
             if fields[9] != "-" {
-                let c: Vec<[u64; 6]> = fields[9]
+                let c: Vec<[u64; LEVEL_FIELDS * 2]> = fields[9]
                     .split(',')
                     .map(|sample| {
                         let v: Vec<u64> = sample
@@ -6583,7 +6593,7 @@ fn read_samples(path: &str) -> SamplesFile {
                             .map(|x| x.parse().expect("a count"))
                             .collect();
                         v.try_into().expect(
-                            "P time, P cycles, P instructions, E time, E cycles, E instructions",
+                            "P time, cycles, instructions, cache references, cache misses; then E's",
                         )
                     })
                     .collect();
@@ -6670,12 +6680,22 @@ fn cell_means(
         JudgeBy::Cycles => file
             .cores
             .iter()
-            .map(|(k, c)| (k.clone(), c.iter().map(|s| s[1] + s[4]).collect()))
+            .map(|(k, c)| {
+                (
+                    k.clone(),
+                    c.iter().map(|s| s[1] + s[LEVEL_FIELDS + 1]).collect(),
+                )
+            })
             .collect(),
         JudgeBy::Instructions => file
             .cores
             .iter()
-            .map(|(k, c)| (k.clone(), c.iter().map(|s| s[2] + s[5]).collect()))
+            .map(|(k, c)| {
+                (
+                    k.clone(),
+                    c.iter().map(|s| s[2] + s[LEVEL_FIELDS + 2]).collect(),
+                )
+            })
             .collect(),
     };
     file.cells
@@ -8409,14 +8429,16 @@ mod correctness_tests {
                     samples.solo_cpu[a][p].push(Some(3));
                     samples.solo_cpu_ns[a][p].push(Some(2 * value(a, p, r)));
                     samples.solo_energy_nj[a][p].push(Some(3 * value(a, p, r)));
-                    let level = |cycles, instructions, time_ns| clocks::Level {
-                        cycles,
-                        instructions,
-                        time_ns,
-                    };
+                    let v = value(a, p, r);
                     samples.solo_counts[a][p].push(Some(clocks::Counts {
-                        p: level(4 * value(a, p, r), 5 * value(a, p, r), value(a, p, r)),
-                        e: level(0, 0, 0),
+                        p: clocks::Level {
+                            cycles: 4 * v,
+                            instructions: 5 * v,
+                            cache_references: 6 * v,
+                            cache_misses: 7 * v,
+                            time_ns: v,
+                        },
+                        e: clocks::Level::default(),
                     }));
                 }
                 results[a][p] = Some(Cell {
@@ -8612,7 +8634,14 @@ mod correctness_tests {
         let write = |name: &str, instructions: u64, counts: bool| -> String {
             let core = if counts {
                 (0..3)
-                    .map(|i| format!("{}:{}:{}:0:0:0", 1000 + i, 4000 + 4 * i, instructions + i))
+                    .map(|i| {
+                        format!(
+                            "{}:{}:{}:7:1:0:0:0:0:0",
+                            1000 + i,
+                            4000 + 4 * i,
+                            instructions + i
+                        )
+                    })
                     .collect::<Vec<_>>()
                     .join(",")
             } else {
@@ -8715,7 +8744,7 @@ mod correctness_tests {
             },
         ];
         let tsv = generate_samples_tsv(&roster, &samples, &machine, "test");
-        assert!(tsv.starts_with("# bench-hashes samples v9\n"));
+        assert!(tsv.starts_with("# bench-hashes samples v10\n"));
         // The main run's own file carries the shared provenance first.
         assert_eq!(
             &harness_tests::header_keys(&tsv)[..harness_tests::PROVENANCE.len()],
@@ -8725,7 +8754,7 @@ mod correctness_tests {
         assert!(tsv.contains("\n# load: busy: "), "{tsv}");
         assert!(tsv.contains("\n# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1:1200:0,1-3:100:7\n"), "{tsv}");
         assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\tcpu\n"));
-        assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\t30000,30003,30006\t10000:40000:50000:0:0:0,10001:40004:50005:0:0:0,10002:40008:50010:0:0:0\t3,3,3\n"), "{tsv}");
+        assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\t30000,30003,30006\t10000:40000:50000:60000:70000:0:0:0:0:0,10001:40004:50005:60006:70007:0:0:0:0:0,10002:40008:50010:60012:70014:0:0:0:0:0\t3,3,3\n"), "{tsv}");
         // The multithreaded contender's shared rows, the two copies in turn,
         // each sample's CPU with it; a single-threaded contender has none.
         assert!(tsv.contains("\nblake3-servil-mt\tshared-one-cache\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\t-\t-\t-\t2,5,2,5,2,5\n"), "{tsv}");
@@ -9457,12 +9486,16 @@ mod correctness_tests {
                                     c.p.time_ns,
                                     c.p.cycles,
                                     c.p.instructions,
+                                    c.p.cache_references,
+                                    c.p.cache_misses,
                                     c.e.time_ns,
                                     c.e.cycles,
                                     c.e.instructions,
+                                    c.e.cache_references,
+                                    c.e.cache_misses,
                                 ]
                             })
-                            .collect::<Vec<[u64; 6]>>()
+                            .collect::<Vec<[u64; LEVEL_FIELDS * 2]>>()
                     });
                     assert_eq!(cores, wanted, "{key}'s core counts");
                     // The CPU each sample ended on, solo and shared alike.

@@ -213,16 +213,20 @@ fn cpus_of(column: &[(String, Vec<u32>)], key: &str) -> Option<String> {
     Some(c.iter().map(u32::to_string).collect::<Vec<_>>().join(","))
 }
 
-fn where_ran(column: &[(String, Vec<[u64; 6]>)], key: &str) -> Option<[f64; 3]> {
+fn where_ran(
+    column: &[(String, Vec<[u64; super::LEVEL_FIELDS * 2]>)],
+    key: &str,
+) -> Option<[f64; 3]> {
     let (_, v) = column.iter().find(|(k, _)| k == key)?;
-    // Time and cycles per kind; instructions (c[2], c[5]) are the samples'
-    // to keep, not this chart's to show.
+    // Time and cycles per kind; instructions and the cache counts are the
+    // samples' to keep, not this chart's to show.
+    const E: usize = super::LEVEL_FIELDS;
     let [pt, pc, et, ec] = v.iter().fold([0u128; 4], |a, c| {
         [
             a[0] + u128::from(c[0]),
             a[1] + u128::from(c[1]),
-            a[2] + u128::from(c[3]),
-            a[3] + u128::from(c[4]),
+            a[2] + u128::from(c[E]),
+            a[3] + u128::from(c[E + 1]),
         ]
     });
     let ghz = |cycles: u128, ns: u128| {
