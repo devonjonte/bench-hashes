@@ -1835,7 +1835,7 @@ struct MachineMetadata {
     /// How the OS lets a core sleep when a thread waits, which sets what a
     /// call after a pause costs: see idle_states.
     idle_states: String,
-    /// The idle states the core entered in fact over 100 ms idle at the
+    /// The idle states the core entered in fact under each pause at the
     /// run's start (effective_idle_states), beside the configured ones.
     effective_idle_states: String,
     /// Where the shared scenario's two copies ran, by placement
@@ -7557,20 +7557,22 @@ fn machine_metadata() -> MachineMetadata {
  * EPYC 9255 runs no cpuidle driver and has no such modes; the Xeon Gold
  * 6330 is 14 times slower than the EPYC in that cell, mostly this. Linux
  * reports the driver and governor, and CPU 0's states as "NAME latency
- * LAT us residency RES us" with "disabled" where a state is; "none" where
- * no driver runs; other systems report no states ("not reported by this
+ * LAT us residency RES us" with "disabled" where a state is; "none listed"
+ * where no driver runs (the kernel's default idle, the EPYC 9255); other systems report no states ("not reported by this
  * OS"), as the power line does.
  */
 fn idle_states() -> String {
     describe_idle_states(&|path| fs::read_to_string(path).ok())
 }
 
-/// The idle states a core enters in fact: this thread's CPU idled 100 ms
-/// at the run's start, and its core's hardware residency counters say
-/// what share of that it spent in each C-state (Linux, Intel's
-/// `cstate_core` events; bench-hashes #117: a Xeon Gold 6330 configured
-/// with C6 never entered it, and the i7-12700K's deep pauses sit in core
-/// C7, which no software counter shows). Elsewhere, "not measured".
+/// The idle states a core enters in fact under the after-pause cells'
+/// pauses: at the run's start this thread sleeps the brief pause and the
+/// long one, each many times over, and its core's hardware residency
+/// counters say what share of each it spent in each C-state (Linux,
+/// Intel's `cstate_core` events; bench-hashes #117 and #128: a Xeon Gold
+/// 6330 enters its C6 for 66% of a long idle and seldom within 1 ms,
+/// and the i7-12700K's deep pauses sit in core C7, which no software
+/// counter shows). Elsewhere, "not measured".
 fn effective_idle_states() -> String {
     #[cfg(target_os = "linux")]
     {
@@ -7580,6 +7582,18 @@ fn effective_idle_states() -> String {
     }
     "not measured (no cstate_core counters readable here)".to_owned()
 }
+
+/// A pause as the headings name it: "20 us", "5 ms".
+fn describe_pause(ns: u64) -> String {
+    if ns % 1_000_000 == 0 {
+        format!("{} ms", ns / 1_000_000)
+    } else {
+        format!("{} us", ns / 1_000)
+    }
+}
+
+/// The pauses the line measures, each repeated to about 100 ms of sleep.
+const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
 
 #[cfg(target_os = "linux")]
 fn effective_idle_states_linux() -> Option<String> {
@@ -7664,25 +7678,27 @@ fn effective_idle_states_linux() -> Option<String> {
             })
             .collect()
     };
-    let before = read_all(&fds);
-    let started = clocks::now();
-    std::thread::sleep(std::time::Duration::from_millis(100));
-    let elapsed_ns = clocks::since_ns(started);
-    let after = read_all(&fds);
+    // Each pause as the cells take it (clocks::Gap::Idle: a sleep of its
+    // length), repeated; the counters read around the whole.
+    let mut measured = Vec::new();
+    for (pause_ns, repeats) in EFFECTIVE_IDLE_PAUSES {
+        let before = read_all(&fds);
+        let started = clocks::now();
+        for _ in 0..repeats {
+            std::thread::sleep(std::time::Duration::from_nanos(pause_ns));
+        }
+        let elapsed_ns = clocks::since_ns(started);
+        let after = read_all(&fds);
+        let ticks: Vec<u64> = before
+            .iter()
+            .zip(&after)
+            .map(|(b, a)| a.saturating_sub(*b))
+            .collect();
+        measured.push((pause_ns, repeats, elapsed_ns, ticks));
+    }
     for fd in fds {
         unsafe { close(fd) };
     }
-    // The residency counters tick at the TSC's rate; the share is of the
-    // pause's TSC ticks, read as the sum of a state's ticks over the
-    // pause's nanoseconds times the TSC rate, which the shares need not
-    // know: each state's share of the total counted is what the reader
-    // wants, with the rest the core spent awake or in a state no counter
-    // names.
-    let ticks: Vec<u64> = before
-        .iter()
-        .zip(&after)
-        .map(|(b, a)| a.saturating_sub(*b))
-        .collect();
     // The counters tick at the TSC's rate: the pause in ticks from the
     // machine's rate where it says it (tsc_freq_khz, or the model name's
     // GHz), else from the states' sum, a core idle all along.
@@ -7707,15 +7723,22 @@ fn effective_idle_states_linux() -> Option<String> {
                     })
             })
         });
-    let total: u128 = ticks.iter().map(|&t| u128::from(t)).sum();
-    let pause_ticks = tsc_hz.map_or(total, |hz| {
-        u128::from(hz) * u128::from(elapsed_ns) / 1_000_000_000
-    });
-    Some(describe_effective_idle_states(
-        &names.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(),
-        &ticks,
-        pause_ticks,
-    ))
+    let names: Vec<&str> = names.iter().map(|(n, _)| n.as_str()).collect();
+    let lines: Vec<String> = measured
+        .iter()
+        .map(|(pause_ns, repeats, elapsed_ns, ticks)| {
+            let total: u128 = ticks.iter().map(|&t| u128::from(t)).sum();
+            let pause_ticks = tsc_hz.map_or(total, |hz| {
+                u128::from(hz) * u128::from(*elapsed_ns) / 1_000_000_000
+            });
+            format!(
+                "over {repeats} x {}: {}",
+                describe_pause(*pause_ns),
+                describe_effective_idle_states(&names, ticks, pause_ticks)
+            )
+        })
+        .collect();
+    Some(lines.join("; "))
 }
 
 /// The line: each state's share of the pause's ticks (the TSC's), and the
@@ -7731,7 +7754,7 @@ fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u1
         .map(|(n, &t)| format!("{n} {}%", share(u128::from(t))))
         .collect();
     parts.push(format!("awake or unnamed {}%", share(pause_ticks - total)));
-    format!("over 100 ms idle at the start: {}", parts.join(", "))
+    parts.join(", ")
 }
 
 fn describe_idle_states(read: &dyn Fn(&str) -> Option<String>) -> String {
@@ -7741,7 +7764,7 @@ fn describe_idle_states(read: &dyn Fn(&str) -> Option<String>) -> String {
     };
     let driver = driver.trim();
     if driver == "none" {
-        return "none".to_owned();
+        return "none listed (no cpuidle driver; the kernel's default idle)".to_owned();
     }
     let governor = read(&format!("{dir}/cpuidle/current_governor"))
         .map_or("?".to_owned(), |g| g.trim().to_owned());
@@ -8517,15 +8540,15 @@ mod correctness_tests {
     fn effective_idle_states_line_shares_the_pause() {
         assert_eq!(
             describe_effective_idle_states(&["C1", "C6", "C7"], &[5, 95, 0], 100),
-            "over 100 ms idle at the start: C1 5%, C6 95%, C7 0%, awake or unnamed 0%"
+            "C1 5%, C6 95%, C7 0%, awake or unnamed 0%"
         );
         assert_eq!(
             describe_effective_idle_states(&["C1", "C6"], &[20, 30], 100),
-            "over 100 ms idle at the start: C1 20%, C6 30%, awake or unnamed 50%"
+            "C1 20%, C6 30%, awake or unnamed 50%"
         );
         assert_eq!(
             describe_effective_idle_states(&["C1"], &[120], 100),
-            "over 100 ms idle at the start: C1 100%, awake or unnamed 0%"
+            "C1 100%, awake or unnamed 0%"
         );
     }
 
@@ -8575,7 +8598,10 @@ mod correctness_tests {
             path.ends_with("current_driver")
                 .then(|| "none\n".to_owned())
         };
-        assert_eq!(describe_idle_states(&epyc), "none");
+        assert_eq!(
+            describe_idle_states(&epyc),
+            "none listed (no cpuidle driver; the kernel's default idle)"
+        );
         let mac = |_: &str| -> Option<String> { None };
         assert_eq!(describe_idle_states(&mac), "not reported by this OS");
     }
