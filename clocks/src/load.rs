@@ -621,7 +621,7 @@ mod tests {
         let w = between(reading(1_000, 0, 0, Some(10), [5, 5]), reading(1_000 + 100 * tick, 1000, 3, Some(50), [20, 10]));
         assert_eq!((w.start_ns, w.end_ns, w.other_milli_cpus, w.steal_milli_cpus), (1_000, 1_000 + 100 * tick, 400, 30));
         // No per-process reading: the machine's 100 busy ticks less this process's 20 own.
-        let w = between(reading(0, 0, 0, None, [0, 0]), reading(100 * tick, 100, 0, None, [15 * tick, 5 * tick]));
+        let w = between(reading(0, 0, 0, None, [tick, tick]), reading(100 * tick, 100, 0, None, [16 * tick, 6 * tick]));
         assert_eq!(w.other_milli_cpus, 800);
     }
 
@@ -653,6 +653,13 @@ mod tests {
         assert_eq!(
             describe(&[window(0, 1_000_000_000, 10, 0), window(1_000_000_000, 3_000_000_000, 0, 0)]),
             "quiet: other programs kept 0.00 CPUs busy on average, 0.01 in the busiest window"
+        );
+        // 15 milli-CPU-seconds over a 3 s span from 1 s to 4 s: 5 milli-CPUs,
+        // which reads 0.01; a span counted from 0, or the rounding term
+        // taken off, would read 0.00.
+        assert_eq!(
+            describe(&[window(1_000_000_000, 2_000_000_000, 15, 0), window(2_000_000_000, 4_000_000_000, 0, 0)]),
+            "quiet: other programs kept 0.01 CPUs busy on average, 0.02 in the busiest window"
         );
     }
 
@@ -758,8 +765,8 @@ mod tests {
         assert_eq!(other, (20 + 2 + 20) * 10_000_000 - 300_000_000);
     }
 
-    /// On the test clock: a tick half a window in closes nothing; one after
-    /// a window and a tenth closes it, ending at that tick; a tail
+    /// On the test clock: a tick half a window in closes nothing; one
+    /// exactly a window in closes it, ending at that tick; a tail
     /// under half a window joins the last window when the windows are
     /// read, reaching the read, and once (a later read joins nothing more).
     #[cfg(any(target_os = "linux", target_vendor = "apple"))]
@@ -772,25 +779,33 @@ mod tests {
         crate::test_clock::advance(WINDOW_NS / 2);
         tick();
         assert_eq!(DUE_NS.load(Ordering::Relaxed), started + WINDOW_NS, "half a window: the next close is due a whole window after the first tick");
-        crate::test_clock::advance(WINDOW_NS / 2 + WINDOW_NS / 10);
+        crate::test_clock::advance(WINDOW_NS / 2);
         tick();
-        assert!(DUE_NS.load(Ordering::Relaxed) > started + WINDOW_NS, "the window closed at this tick and the next is due after it");
         let closed_at = now_ns();
+        assert_eq!(closed_at, started + WINDOW_NS);
+        assert_eq!(
+            DUE_NS.load(Ordering::Relaxed),
+            closed_at + WINDOW_NS,
+            "exactly a window after the first tick, the window closed and the next is due a window on"
+        );
         crate::test_clock::advance(WINDOW_NS / 10);
         let read_at = now_ns();
         let windows = windows();
         let last = *windows.last().expect("a window closed");
-        assert_eq!(last.start_ns, started, "the window began at the first tick");
-        for pair in windows.windows(2) {
-            assert_eq!(pair[0].end_ns, pair[1].start_ns, "windows follow one another");
-        }
-        assert!(closed_at - started >= WINDOW_NS, "the window closed after a whole window");
+        assert_eq!((last.start_ns, windows.len()), (started, 1), "the one window began at the first tick");
         assert!(
             last.busy() || last.end_ns == read_at,
             "the tail (a tenth of a window) joined the window up to the read, or a busy finding is preserved: {last:?}"
         );
         crate::test_clock::advance(WINDOW_NS / 10);
         assert_eq!(super::windows().last().copied(), Some(last), "a second read joins nothing more");
+        // A read half a window or more after the last close closes the
+        // running window itself, ending at the read.
+        crate::test_clock::advance(WINDOW_NS / 2);
+        let read_at = now_ns();
+        let windows = super::windows();
+        assert_eq!(windows.len(), 2, "the running window, half a window long, closed at the read");
+        assert_eq!((windows[1].start_ns, windows[1].end_ns), (last.end_ns, read_at));
         crate::test_clock::thaw();
     }
 }
