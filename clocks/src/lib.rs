@@ -2,10 +2,13 @@
 //! measurement reads these through it:
 //!
 //! - **Wall time**, what a caller waits for: the platform's hardware
-//!   counter through `std::time::Instant` ([`now`], [`since_ns`]):
-//!   `CLOCK_UPTIME_RAW` on Darwin, `CLOCK_MONOTONIC` on Linux. A counter
-//!   read can only
-//!   over-count, when the thread is interrupted.
+//!   counter, read raw ([`now`], [`since_ns`]): `CLOCK_MONOTONIC_RAW` on
+//!   Linux, `CLOCK_UPTIME_RAW` on Darwin. Raw means no NTP: Linux's
+//!   `CLOCK_MONOTONIC` (what `std::time::Instant` reads there) is slewed
+//!   by the time daemon, up to 500 ppm, which could be in error or
+//!   another's to control and helps no measurement here (Zooko, November
+//!   4, 2026; measure-clocks3 compares the clocks). A counter read can
+//!   only over-count, when the thread is interrupted.
 //! - **The thread's counts per core kind** ([`Counts`]): cycles,
 //!   instructions, and time on performance and efficiency cores, from
 //!   Apple's `thread_selfcounts(THSC_TIME_CPI_PER_PERF_LEVEL)`, and on
@@ -51,8 +54,6 @@
 //! ([`measure_after_gaps_prepared`]): the sum's rounding averages out. A median or
 //! a minimum of single short readings keeps the rounding; take neither.
 
-use std::time::Instant;
-
 // Unix's clocks (Linux and macOS); Windows is not supported (BLAKE3 #160).
 #[cfg(not(unix))]
 compile_error!("clocks reads Unix's clocks (Linux and macOS); Windows is not supported (https://github.com/servil-software-factory/BLAKE3/issues/160)");
@@ -66,20 +67,59 @@ pub mod threads;
 
 /// The wall clock, as reports name it.
 #[cfg(target_vendor = "apple")]
-pub const WALL_CLOCK: &str = "std::time::Instant → CLOCK_UPTIME_RAW (mach_absolute_time; stops during sleep, no NTP slew)";
+pub const WALL_CLOCK: &str = "CLOCK_UPTIME_RAW (mach_absolute_time; stops during sleep; the raw counter, no NTP)";
 #[cfg(all(unix, not(target_vendor = "apple")))]
-pub const WALL_CLOCK: &str = "std::time::Instant → CLOCK_MONOTONIC (stops during suspend, NTP slew only)";
+pub const WALL_CLOCK: &str = "CLOCK_MONOTONIC_RAW (stops during suspend; the raw counter, no NTP slew)";
 
-/// A point on the wall clock. Only differences are meaningful.
+/// A point on the wall clock: the raw counter's nanoseconds. Only
+/// differences are meaningful, and only within one boot.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Stamp(u64);
+
+/// The wall clock now.
 #[inline(always)]
-pub fn now() -> Instant {
-    Instant::now()
+pub fn now() -> Stamp {
+    Stamp(raw_ns())
 }
 
 /// Nanoseconds of wall time since `start`.
 #[inline(always)]
-pub fn since_ns(start: Instant) -> u64 {
-    u64::try_from(start.elapsed().as_nanos()).expect("an interval lasts well under 584 years")
+pub fn since_ns(start: Stamp) -> u64 {
+    raw_ns() - start.0
+}
+
+/// The raw counter in nanoseconds: `clock_gettime(CLOCK_MONOTONIC_RAW)`
+/// on Linux (the vDSO's, 11 ns a read on an i7-12700K, 1 ns steps),
+/// `clock_gettime_nsec_np(CLOCK_UPTIME_RAW)` on Darwin (41.67 ns steps on
+/// an M4 Max). Neither is adjusted by a time daemon.
+#[cfg(all(unix, not(target_vendor = "apple")))]
+#[inline(always)]
+fn raw_ns() -> u64 {
+    #[repr(C)]
+    struct Timespec {
+        sec: i64,
+        nsec: i64,
+    }
+    unsafe extern "C" {
+        fn clock_gettime(clock_id: i32, tp: *mut Timespec) -> i32;
+    }
+    const CLOCK_MONOTONIC_RAW: i32 = 4;
+    let mut ts = Timespec { sec: 0, nsec: 0 };
+    // Sound: clock_gettime writes the timespec it is given.
+    let r = unsafe { clock_gettime(CLOCK_MONOTONIC_RAW, &mut ts) };
+    debug_assert_eq!(r, 0, "clock_gettime(CLOCK_MONOTONIC_RAW)");
+    ts.sec as u64 * 1_000_000_000 + ts.nsec as u64
+}
+
+#[cfg(target_vendor = "apple")]
+#[inline(always)]
+fn raw_ns() -> u64 {
+    unsafe extern "C" {
+        fn clock_gettime_nsec_np(clock_id: u32) -> u64;
+    }
+    const CLOCK_UPTIME_RAW: u32 = 8;
+    // Sound: a plain libc call.
+    unsafe { clock_gettime_nsec_np(CLOCK_UPTIME_RAW) }
 }
 
 /// One core kind's share of a thread's counts.
@@ -451,6 +491,71 @@ mod imp {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The wall clock is the raw counter: it only goes forward, it steps
+    /// finely (under 100 ns a step: a clock stepping in whole microseconds,
+    /// as Darwin's CLOCK_MONOTONIC through clock_gettime does, would fail
+    /// here), and it reads at the cost of a function call. A change of the
+    /// clock behind `now` shows here.
+    #[test]
+    fn the_wall_clock_is_fine_and_forward() {
+        let mut last = now();
+        let mut smallest_step = u64::MAX;
+        let first = last;
+        for _ in 0..100_000 {
+            let t = now();
+            assert!(t >= last, "the clock went back");
+            let step = since_ns(last) - since_ns(t);
+            if t > last && step < smallest_step {
+                smallest_step = step;
+            }
+            last = t;
+        }
+        assert!(smallest_step <= 100, "the clock's smallest step: {smallest_step} ns");
+        let reads_ns = since_ns(first) / 100_000;
+        assert!(reads_ns < 1_000, "a read costs about {reads_ns} ns");
+    }
+
+    /// On Linux the wall clock is CLOCK_MONOTONIC_RAW itself: a reading sits
+    /// between two of that clock's, and away from CLOCK_MONOTONIC by the
+    /// slew the time daemon has applied since boot (zero on a machine with
+    /// none), which stays put across a short interval.
+    #[test]
+    #[cfg(all(unix, not(target_vendor = "apple")))]
+    fn on_linux_the_wall_clock_is_the_raw_counter() {
+        #[repr(C)]
+        struct Timespec {
+            sec: i64,
+            nsec: i64,
+        }
+        unsafe extern "C" {
+            fn clock_gettime(clock_id: i32, tp: *mut Timespec) -> i32;
+        }
+        let read = |clock: i32| {
+            let mut ts = Timespec { sec: 0, nsec: 0 };
+            assert_eq!(unsafe { clock_gettime(clock, &mut ts) }, 0);
+            ts.sec as u64 * 1_000_000_000 + ts.nsec as u64
+        };
+        const CLOCK_MONOTONIC: i32 = 1;
+        const CLOCK_MONOTONIC_RAW: i32 = 4;
+        let before = read(CLOCK_MONOTONIC_RAW);
+        let ours = now();
+        let after = read(CLOCK_MONOTONIC_RAW);
+        assert!(before <= ours.0 && ours.0 <= after, "a reading of ours lies between two of CLOCK_MONOTONIC_RAW's: {before} {} {after}", ours.0);
+        // The slewed clock and ours differ by what the daemon has applied
+        // since boot; the difference moves by at most the slew (500 ppm)
+        // over 10 ms, under 5 us, while a wrong clock behind `now` would
+        // make it the full offset or a jump.
+        let offset = || read(CLOCK_MONOTONIC) as i128 - now().0 as i128;
+        let o1 = offset();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        let o2 = offset();
+        assert!(
+            (o1 - o2).abs() < 5_000 + 20_000,
+            "the offset to CLOCK_MONOTONIC moved by {} ns in 10 ms (slew is under 5 us; the rest a read's own time)",
+            o1 - o2
+        );
+    }
 
     #[test]
     fn a_measurement_counts_its_calls_and_time() {

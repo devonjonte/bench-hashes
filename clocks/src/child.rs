@@ -231,7 +231,7 @@ mod imp {
         [ns(fields[11]), ns(fields[12])]
     }
 
-    pub fn finish(child: std::process::Child, started: std::time::Instant, started_ns: u64) -> Run {
+    pub fn finish(child: std::process::Child, started: crate::Stamp, started_ns: u64) -> Run {
         let pid = child.id() as i32;
         let wall_ns = super::watch_until(pid, || {
             super::wait_exited(pid);
@@ -286,7 +286,7 @@ mod imp {
         [crate::imp::mach_to_ns(words[USER_TIME]), crate::imp::mach_to_ns(words[SYSTEM_TIME])]
     }
 
-    pub fn finish(child: std::process::Child, started: std::time::Instant, started_ns: u64) -> Run {
+    pub fn finish(child: std::process::Child, started: crate::Stamp, started_ns: u64) -> Run {
         let pid = child.id() as i32;
         // Wait for the exit under the watcher, leaving the process to read
         // before it is reaped.
