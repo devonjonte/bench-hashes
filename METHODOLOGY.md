@@ -232,8 +232,10 @@ after C6, 58.2 after C8; a machine with no cpuidle driver (an EPYC 9255)
 has no such modes, and a Xeon Gold 6330 pays 14 times the EPYC in that
 cell (bench-hashes #106). Each samples file records the machine's idle
 states (`idle states`: driver, governor, each state's latency and
-residency), so a reader can tell two machines', or two runs', states
-apart. The cell's mean weighs these
+residency) and, where the machine counts them, the states its core
+entered in fact over 100 ms idle at the run's start (`effective idle
+states`: each hardware C-state's share), so a reader can tell two
+machines', or two runs', states apart. The cell's mean weighs these
 states by how often they occur.
 
 A single-threaded hash costs about the same in both. A multithreaded one

@@ -1835,6 +1835,9 @@ struct MachineMetadata {
     /// How the OS lets a core sleep when a thread waits, which sets what a
     /// call after a pause costs: see idle_states.
     idle_states: String,
+    /// The idle states the core entered in fact over 100 ms idle at the
+    /// run's start (effective_idle_states), beside the configured ones.
+    effective_idle_states: String,
     /// Where the shared scenario's two copies ran, by placement
     /// (Topology::describe): "one cache: CPUs 0 and 2; two caches: none".
     placements: String,
@@ -7168,6 +7171,10 @@ fn samples_header(machine: &MachineMetadata, run: &[(String, String)], load: &st
         ("os type", machine.os_type.as_str()),
         ("cpu identity", machine.cpu_identity.as_str()),
         ("idle states", machine.idle_states.as_str()),
+        (
+            "effective idle states",
+            machine.effective_idle_states.as_str(),
+        ),
         ("shared placements", machine.placements.as_str()),
     ]
     .into_iter()
@@ -7527,6 +7534,7 @@ fn machine_metadata() -> MachineMetadata {
         os_type,
         cpu_identity: cpu_identity(),
         idle_states: idle_states(),
+        effective_idle_states: effective_idle_states(),
         placements: topology().describe(),
         load: Vec::new(),
         power: [Power::read(), None],
@@ -7555,6 +7563,175 @@ fn machine_metadata() -> MachineMetadata {
  */
 fn idle_states() -> String {
     describe_idle_states(&|path| fs::read_to_string(path).ok())
+}
+
+/// The idle states a core enters in fact: this thread's CPU idled 100 ms
+/// at the run's start, and its core's hardware residency counters say
+/// what share of that it spent in each C-state (Linux, Intel's
+/// `cstate_core` events; bench-hashes #117: a Xeon Gold 6330 configured
+/// with C6 never entered it, and the i7-12700K's deep pauses sit in core
+/// C7, which no software counter shows). Elsewhere, "not measured".
+fn effective_idle_states() -> String {
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(text) = effective_idle_states_linux() {
+            return text;
+        }
+    }
+    "not measured (no cstate_core counters readable here)".to_owned()
+}
+
+#[cfg(target_os = "linux")]
+fn effective_idle_states_linux() -> Option<String> {
+    use std::ffi::{c_int, c_long, c_void};
+    #[repr(C)]
+    struct Attr {
+        kind: u32,
+        size: u32,
+        config: u64,
+        sample_period: u64,
+        sample_type: u64,
+        read_format: u64,
+        flags: u64,
+        reserved: [u64; 2],
+    }
+    unsafe extern "C" {
+        fn syscall(number: c_long, ...) -> c_long;
+        fn read(fd: c_int, buffer: *mut c_void, size: usize) -> isize;
+        fn close(fd: c_int) -> c_int;
+        fn sched_getcpu() -> c_int;
+    }
+    let dir = "/sys/bus/event_source/devices/cstate_core";
+    let kind: u32 = fs::read_to_string(format!("{dir}/type"))
+        .ok()?
+        .trim()
+        .parse()
+        .ok()?;
+    let cpu = unsafe { sched_getcpu() };
+    if cpu < 0 {
+        return None;
+    }
+    let mut names = Vec::new();
+    for entry in fs::read_dir(format!("{dir}/events")).ok()?.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if let Some(state) = name.strip_suffix("-residency") {
+            let spec = fs::read_to_string(entry.path()).ok()?;
+            let config = u64::from_str_radix(spec.trim().strip_prefix("event=0x")?, 16).ok()?;
+            names.push((state.to_uppercase(), config));
+        }
+    }
+    names.sort();
+    // A counter of each state on this CPU, system-wide (the core's time
+    // in the state, whoever idles it).
+    let mut fds = Vec::new();
+    for &(_, config) in &names {
+        let attr = Attr {
+            kind,
+            size: 64,
+            config,
+            sample_period: 0,
+            sample_type: 0,
+            read_format: 0,
+            flags: 0,
+            reserved: [0; 2],
+        };
+        // Sound: perf_event_open reads the attr given; any pid, this CPU, no group, CLOEXEC.
+        let fd = unsafe {
+            syscall(
+                298,
+                &attr as *const Attr,
+                -1 as c_long,
+                c_long::from(cpu),
+                -1 as c_long,
+                8 as c_long,
+            )
+        } as c_int;
+        if fd < 0 {
+            for fd in fds {
+                unsafe { close(fd) };
+            }
+            return None;
+        }
+        fds.push(fd);
+    }
+    let read_all = |fds: &[c_int]| -> Vec<u64> {
+        fds.iter()
+            .map(|&fd| {
+                let mut v = 0u64;
+                // Sound: reads 8 bytes into v.
+                unsafe { read(fd, &mut v as *mut u64 as *mut c_void, 8) };
+                v
+            })
+            .collect()
+    };
+    let before = read_all(&fds);
+    let started = clocks::now();
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    let elapsed_ns = clocks::since_ns(started);
+    let after = read_all(&fds);
+    for fd in fds {
+        unsafe { close(fd) };
+    }
+    // The residency counters tick at the TSC's rate; the share is of the
+    // pause's TSC ticks, read as the sum of a state's ticks over the
+    // pause's nanoseconds times the TSC rate, which the shares need not
+    // know: each state's share of the total counted is what the reader
+    // wants, with the rest the core spent awake or in a state no counter
+    // names.
+    let ticks: Vec<u64> = before
+        .iter()
+        .zip(&after)
+        .map(|(b, a)| a.saturating_sub(*b))
+        .collect();
+    // The counters tick at the TSC's rate: the pause in ticks from the
+    // machine's rate where it says it (tsc_freq_khz, or the model name's
+    // GHz), else from the states' sum, a core idle all along.
+    let tsc_hz: Option<u64> = fs::read_to_string("/sys/devices/system/cpu/cpu0/tsc_freq_khz")
+        .ok()
+        .and_then(|k| k.trim().parse::<u64>().ok())
+        .map(|k| k * 1000)
+        .or_else(|| {
+            fs::read_to_string("/proc/cpuinfo").ok().and_then(|info| {
+                info.lines()
+                    .find(|l| l.starts_with("model name"))
+                    .and_then(|l| {
+                        let ghz = l
+                            .rsplit('@')
+                            .next()?
+                            .trim()
+                            .strip_suffix("GHz")?
+                            .trim()
+                            .parse::<f64>()
+                            .ok()?;
+                        Some((ghz * 1e9) as u64)
+                    })
+            })
+        });
+    let total: u128 = ticks.iter().map(|&t| u128::from(t)).sum();
+    let pause_ticks = tsc_hz.map_or(total, |hz| {
+        u128::from(hz) * u128::from(elapsed_ns) / 1_000_000_000
+    });
+    Some(describe_effective_idle_states(
+        &names.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>(),
+        &ticks,
+        pause_ticks,
+    ))
+}
+
+/// The line: each state's share of the pause's ticks (the TSC's), and the
+/// rest, which the core spent awake or in a state no counter names:
+/// "C1 5%, C6 95%, C7 0%, awake or unnamed 0%".
+fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
+    let total: u128 = ticks.iter().map(|&t| u128::from(t)).sum();
+    let pause_ticks = pause_ticks.max(total).max(1);
+    let share = |t: u128| (t * 100 + pause_ticks / 2) / pause_ticks;
+    let mut parts: Vec<String> = names
+        .iter()
+        .zip(ticks)
+        .map(|(n, &t)| format!("{n} {}%", share(u128::from(t))))
+        .collect();
+    parts.push(format!("awake or unnamed {}%", share(pause_ticks - total)));
+    format!("over 100 ms idle at the start: {}", parts.join(", "))
 }
 
 fn describe_idle_states(read: &dyn Fn(&str) -> Option<String>) -> String {
@@ -8330,6 +8507,25 @@ mod correctness_tests {
         assert_eq!(
             xeon.describe(),
             "one cache: CPUs 0 and 1; two caches: CPUs 0 and 2; each copy's input on its CPU's memory node"
+        );
+    }
+
+    /// The effective idle states' line: each state's share of the pause's
+    /// ticks, and the rest awake or unnamed; a sum past the pause (a
+    /// rate read low) is the whole.
+    #[test]
+    fn effective_idle_states_line_shares_the_pause() {
+        assert_eq!(
+            describe_effective_idle_states(&["C1", "C6", "C7"], &[5, 95, 0], 100),
+            "over 100 ms idle at the start: C1 5%, C6 95%, C7 0%, awake or unnamed 0%"
+        );
+        assert_eq!(
+            describe_effective_idle_states(&["C1", "C6"], &[20, 30], 100),
+            "over 100 ms idle at the start: C1 20%, C6 30%, awake or unnamed 50%"
+        );
+        assert_eq!(
+            describe_effective_idle_states(&["C1"], &[120], 100),
+            "over 100 ms idle at the start: C1 100%, awake or unnamed 0%"
         );
     }
 
