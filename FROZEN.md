@@ -184,6 +184,19 @@ anything", John Servil releasing it):
   cost a read (11 ns on the i7), same steps (1 ns; 41.67 ns on an M4
   Max). A run's `sample clock` line names it. Zooko's measure-clocks3
   (December 2025) compares the clocks on both platforms.
+- **Two pauses before a call "after idling"** (Zooko and John, November
+  4, 2026; bench-hashes #117, Sam Shackleton's protocol): 20 us (the use
+  cases `BriefIdleOneMessage`, `BriefIdleManyMessages`,
+  `BriefIdleInterleavedTurn`) and 5 ms (`IdleOneMessage`,
+  `IdleManyMessages`, `IdleInterleavedTurn`, until 0.20 at 1 ms). After
+  20 us a core keeps its clock and its shallowest idle state; after 5 ms
+  every machine measured has settled into its deep states, where 1 ms
+  was the i7-12700K's transition between the two, bimodal (#117: the
+  i7's 16 x 64 B batch x2.0 at 20 us, x2.6 at 1 ms with 24-49%
+  detectable, x6.3 at 5 ms with 16%). Each pause is a real program's
+  situation, and each is stable. The pauses run in sets of rounds of
+  their own, as the other ways of calling do. The run grows by the
+  after-pause cells' share.
 - **Every sample keeps its instructions retired beside its cycles**, per
   core kind (Zooko, November 4, 2026: the most the counters give, kept
   whether or not a use is known yet). The samples format is v9. On the
@@ -900,6 +913,8 @@ use case ManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 
 use case ManyLongMessages: 4, 16, 64, 256
 use case IdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case IdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
+use case BriefIdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
+use case BriefIdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
 use case ContinuousMessages: 64 B, 128 B, 256 B, 512 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case ContinuousBatches: 16, 64, 256, 1024, 4096, 16384, 65536
 use case LentMessages: 64 B, 128 B, 256 B, 512 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
@@ -910,6 +925,7 @@ use case ContinuousCollection: git objects, Nix files
 use case MerkleTree: 1024, 4096, 16384, 65536, 262144
 use case InterleavedTurn: 256
 use case IdleInterleavedTurn: 256
+use case BriefIdleInterleavedTurn: 256
 scenarios: solo, shared-one-cache, shared-two-caches, shared-os
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree
 shared placements: two cores under one last-level cache; two cores under two (where the machine has two); where it offers no pair (macOS), wherever the OS runs them

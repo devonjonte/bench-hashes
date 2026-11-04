@@ -72,9 +72,9 @@ Below the grid, a second grid shows the two multithreaded hashes as two
 programs running at once on two cores under one cache; a computer with
 several caches adds a third, the two programs under two.
 
-Its columns say how the program calls: now and then, *after other work*
-or *after a pause*, and nonstop, *waiting for each call* or
-*pipelined*. Point at a row's or a column's name, or tap it, to see
+Its columns say how the program calls: now and then, *after other work*,
+*after a brief pause* (20 µs) or *after a pause* (5 ms), and nonstop,
+*waiting for each call* or *pipelined*. Point at a row's or a column's name, or tap it, to see
 what it means. Open a chart to read its values under the pointer or
 where you tap; a hash's name hides or shows its lines; each call's name
 links to its documentation.

@@ -176,14 +176,14 @@ const LONG_MESSAGE_LEN: usize = 4096;
 const INTERLEAVED_COUNT: usize = 1;
 /// Collections: git's objects, and the files of Nix store paths (FROZEN.md).
 const COLLECTION_COUNT: usize = 2;
-const POINT_COUNT: usize = 2 * (INPUT_COUNT + BATCH_COUNT)
+const POINT_COUNT: usize = 3 * (INPUT_COUNT + BATCH_COUNT)
     + 2 * CONTINUOUS_MESSAGE_COUNT
     + INTERLEAVED_COUNT
     + 2 * COLLECTION_COUNT
     + 2 * CONTINUOUS_BATCH_COUNT
     + LONG_BATCH_COUNT
     + MERKLE_COUNT
-    + 2 * INTERLEAVED_COUNT;
+    + 3 * INTERLEAVED_COUNT;
 /// A long message reaches a contender in pieces of this many bytes (a
 /// typical read buffer), the last one shorter.
 const PIECE_LEN: usize = 64 * 1024;
@@ -546,6 +546,58 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::many("65536", 65536).idle(),
     Point::many("131072", 131072).idle(),
     Point::many("262144", 262144).idle(),
+    Point::one("64 B", 64).brief_idle(),
+    Point::one("128 B", 128).brief_idle(),
+    Point::one("256 B", 256).brief_idle(),
+    Point::one("512 B", 512).brief_idle(),
+    Point::one("1 KiB", 1024).brief_idle(),
+    Point::one("1536 B", 1536).brief_idle(),
+    Point::one("2 KiB", 2 * 1024).brief_idle(),
+    Point::one("2304 B", 2304).brief_idle(),
+    Point::one("3 KiB", 3 * 1024).brief_idle(),
+    Point::one("3839 B", 3839).brief_idle(),
+    Point::one("4 KiB", 4 * 1024).brief_idle(),
+    Point::one("4470 B", 4470).brief_idle(),
+    Point::one("7935 B", 7935).brief_idle(),
+    Point::one("8 KiB", 8 * 1024).brief_idle(),
+    Point::one("16 KiB", 16 * 1024).brief_idle(),
+    Point::one("32 KiB", 32 * 1024).brief_idle(),
+    Point::one("64 KiB", 64 * 1024).brief_idle(),
+    Point::one("128 KiB", 128 * 1024).brief_idle(),
+    Point::one("256 KiB", 256 * 1024).brief_idle(),
+    Point::one("512 KiB", 512 * 1024).brief_idle(),
+    Point::one("1 MiB", 1024 * 1024).brief_idle(),
+    Point::one("2 MiB", 2 * 1024 * 1024).brief_idle(),
+    Point::one("3 MiB", 3 * 1024 * 1024).brief_idle(),
+    Point::one("4 MiB", 4 * 1024 * 1024).brief_idle(),
+    Point::one("8 MiB", 8 * 1024 * 1024).brief_idle(),
+    Point::one("32 MiB", 32 * 1024 * 1024).brief_idle(),
+    Point::one("64 MiB", 64 * 1024 * 1024).brief_idle(),
+    Point::one("128 MiB", 128 * 1024 * 1024).brief_idle(),
+    Point::many("1", 1).brief_idle(),
+    Point::many("2", 2).brief_idle(),
+    Point::many("3", 3).brief_idle(),
+    Point::many("4", 4).brief_idle(),
+    Point::many("6", 6).brief_idle(),
+    Point::many("8", 8).brief_idle(),
+    Point::many("12", 12).brief_idle(),
+    Point::many("16", 16).brief_idle(),
+    Point::many("24", 24).brief_idle(),
+    Point::many("32", 32).brief_idle(),
+    Point::many("48", 48).brief_idle(),
+    Point::many("64", 64).brief_idle(),
+    Point::many("128", 128).brief_idle(),
+    Point::many("256", 256).brief_idle(),
+    Point::many("512", 512).brief_idle(),
+    Point::many("1024", 1024).brief_idle(),
+    Point::many("2048", 2048).brief_idle(),
+    Point::many("4096", 4096).brief_idle(),
+    Point::many("8192", 8192).brief_idle(),
+    Point::many("16384", 16384).brief_idle(),
+    Point::many("32768", 32768).brief_idle(),
+    Point::many("65536", 65536).brief_idle(),
+    Point::many("131072", 131072).brief_idle(),
+    Point::many("262144", 262144).brief_idle(),
     Point::continuous("64 B", 64),
     // 128 B and 512 B too: the stream's kernels for tasks of one member
     // length run at 64 B, 128 B, 256 B, 512 B and 1 KiB (Zooko, October 26;
@@ -601,6 +653,7 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::merkle("262144", 1 << 18),
     Point::interleaved_turn("256"),
     Point::interleaved_turn("256").idle(),
+    Point::interleaved_turn("256").brief_idle(),
 ];
 
 /// results[contender_index][point_index], contenders in the roster's
@@ -656,10 +709,13 @@ enum UseCase {
     ManyMessages,
     /// Batches of LONG_MESSAGE_LEN-byte messages, after other work.
     ManyLongMessages,
-    /// The same two calls, each after the program idled (the first
-    /// two: each after other work; clocks::Gap).
+    /// The same two calls, each after the program idled LONG_PAUSE_NS
+    /// (the first two: each after other work; clocks::Gap).
     IdleOneMessage,
     IdleManyMessages,
+    /// The same two calls, each after the program idled BRIEF_PAUSE_NS.
+    BriefIdleOneMessage,
+    BriefIdleManyMessages,
     /// Messages of the point's length, one after another, each read into
     /// a buffer in pieces of up to PIECE_LEN, then hashed.
     ContinuousMessages,
@@ -693,15 +749,30 @@ enum UseCase {
     InterleavedTurn,
     /// The same turns, each after idling, as a server waits on the network.
     IdleInterleavedTurn,
+    /// The same turns, each after a brief idle.
+    BriefIdleInterleavedTurn,
 }
 
+/// The two pauses before a call "after idling" (Zooko, November 4, 2026;
+/// bench-hashes #117): a brief one, where a core keeps its shallowest
+/// idle state and its clock, and a long one, where every machine
+/// measured has settled into its deep states (the i7-12700K's transition
+/// is at 1 ms, the pause until 0.20; the Xeon's and the EPYC's deep
+/// plateau begins before). Each is a real program's situation, and each
+/// is a stable one. A sleep of 20 us lands at 20-70 us on Linux (the
+/// timer's slack); the pause's own length is outside the interval.
+const BRIEF_PAUSE_NS: u64 = 20_000;
+const LONG_PAUSE_NS: u64 = 5_000_000;
+
 impl UseCase {
-    const ALL: [UseCase; 15] = [
+    const ALL: [UseCase; 18] = [
         UseCase::OneMessage,
         UseCase::ManyMessages,
         UseCase::ManyLongMessages,
         UseCase::IdleOneMessage,
         UseCase::IdleManyMessages,
+        UseCase::BriefIdleOneMessage,
+        UseCase::BriefIdleManyMessages,
         UseCase::ContinuousMessages,
         UseCase::ContinuousBatches,
         UseCase::LentMessages,
@@ -712,6 +783,7 @@ impl UseCase {
         UseCase::MerkleTree,
         UseCase::InterleavedTurn,
         UseCase::IdleInterleavedTurn,
+        UseCase::BriefIdleInterleavedTurn,
     ];
 
     /// Whether each call comes after a gap (the synchronous use cases:
@@ -726,7 +798,9 @@ impl UseCase {
 
     /// How the program calls, as the graph's chips name it.
     fn pattern_key(self) -> &'static str {
-        if self.idle() {
+        if self.pause_ns() == Some(BRIEF_PAUSE_NS) {
+            "brief"
+        } else if self.idle() {
             "idle"
         } else if self.after_gap() {
             "busy"
@@ -737,19 +811,29 @@ impl UseCase {
 
     /// Whether the program idles before each call.
     fn idle(self) -> bool {
-        matches!(
-            self,
-            Self::IdleOneMessage | Self::IdleManyMessages | Self::IdleInterleavedTurn
-        )
+        self.pause_ns().is_some()
+    }
+
+    /// How long the program idles before each call, where it idles.
+    fn pause_ns(self) -> Option<u64> {
+        match self {
+            Self::IdleOneMessage | Self::IdleManyMessages | Self::IdleInterleavedTurn => {
+                Some(LONG_PAUSE_NS)
+            }
+            Self::BriefIdleOneMessage
+            | Self::BriefIdleManyMessages
+            | Self::BriefIdleInterleavedTurn => Some(BRIEF_PAUSE_NS),
+            _ => None,
+        }
     }
 
     /// The use case whose call this one makes: an idle use case makes its
     /// twin's (the same call, after another gap), every other its own.
     fn call(self) -> UseCase {
         match self {
-            Self::IdleOneMessage => Self::OneMessage,
-            Self::IdleManyMessages => Self::ManyMessages,
-            Self::IdleInterleavedTurn => Self::InterleavedTurn,
+            Self::IdleOneMessage | Self::BriefIdleOneMessage => Self::OneMessage,
+            Self::IdleManyMessages | Self::BriefIdleManyMessages => Self::ManyMessages,
+            Self::IdleInterleavedTurn | Self::BriefIdleInterleavedTurn => Self::InterleavedTurn,
             other => other,
         }
     }
@@ -818,8 +902,10 @@ impl UseCase {
             Self::OneMessage => "A message in one buffer, after other work",
             Self::ManyMessages => "A batch of 64-byte messages, after other work",
             Self::ManyLongMessages => "A batch of 4 KiB messages, after other work",
-            Self::IdleOneMessage => "A message in one buffer, after idling",
-            Self::IdleManyMessages => "A batch of 64-byte messages, after idling",
+            Self::IdleOneMessage => "A message in one buffer, after idling 5 ms",
+            Self::IdleManyMessages => "A batch of 64-byte messages, after idling 5 ms",
+            Self::BriefIdleOneMessage => "A message in one buffer, after idling 20 us",
+            Self::BriefIdleManyMessages => "A batch of 64-byte messages, after idling 20 us",
             Self::ContinuousMessages => "Messages one after another, buffers owned",
             Self::ContinuousBatches => "Batches one after another, buffers owned",
             Self::LentMessages => "Messages one after another, buffers lent",
@@ -828,7 +914,10 @@ impl UseCase {
                 "Many messages at once, a turn of their pieces after other work"
             }
             Self::IdleInterleavedTurn => {
-                "Many messages at once, a turn of their pieces after idling"
+                "Many messages at once, a turn of their pieces after idling 5 ms"
+            }
+            Self::BriefIdleInterleavedTurn => {
+                "Many messages at once, a turn of their pieces after idling 20 us"
             }
             Self::Collection => "A collection's messages, each hashed once, in memory",
             Self::LentBatches => "Batches one after another, buffers lent",
@@ -846,15 +935,18 @@ impl UseCase {
         match self {
             Self::OneMessage
             | Self::IdleOneMessage
+            | Self::BriefIdleOneMessage
             | Self::ContinuousMessages
             | Self::LentMessages => "size",
-            Self::Interleaved | Self::InterleavedTurn | Self::IdleInterleavedTurn => {
-                "messages open"
-            }
+            Self::Interleaved
+            | Self::InterleavedTurn
+            | Self::IdleInterleavedTurn
+            | Self::BriefIdleInterleavedTurn => "messages open",
             Self::Collection | Self::ContinuousCollection => "collection",
             Self::MerkleTree => "leaves",
             Self::ManyMessages
             | Self::IdleManyMessages
+            | Self::BriefIdleManyMessages
             | Self::ManyLongMessages
             | Self::ContinuousBatches
             | Self::LentBatches => "messages",
@@ -871,6 +963,7 @@ impl UseCase {
         match self {
             Self::OneMessage
             | Self::IdleOneMessage
+            | Self::BriefIdleOneMessage
             | Self::ContinuousMessages
             | Self::LentMessages
             | Self::Interleaved
@@ -878,9 +971,11 @@ impl UseCase {
             | Self::ContinuousCollection
             | Self::MerkleTree
             | Self::InterleavedTurn
-            | Self::IdleInterleavedTurn => point.bytes as u64 * iterations as u64,
+            | Self::IdleInterleavedTurn
+            | Self::BriefIdleInterleavedTurn => point.bytes as u64 * iterations as u64,
             Self::ManyMessages
             | Self::IdleManyMessages
+            | Self::BriefIdleManyMessages
             | Self::ManyLongMessages
             | Self::ContinuousBatches
             | Self::LentBatches => point.messages as u64 * iterations as u64,
@@ -908,8 +1003,10 @@ impl UseCase {
     /// How the program calls, for the report's opening: the clause after
     /// the tables' names.
     fn pattern(self) -> &'static str {
-        if self.idle() {
-            "the program hashes, sleeps 1 ms, and hashes again, as a server handles a request, waits, and handles the next; the second call, with the write of its input, is timed"
+        if self.pause_ns() == Some(BRIEF_PAUSE_NS) {
+            "the program hashes, sleeps 20 us, and hashes again, as a server handles a request, waits a moment, and handles the next; the second call, with the write of its input, is timed"
+        } else if self.idle() {
+            "the program hashes, sleeps 5 ms, and hashes again, as a server handles a request, waits, and handles the next; the second call, with the write of its input, is timed"
         } else if self.after_gap() {
             "the program hashes, runs other code and reads 128 MiB of memory (at least 1 ms), and hashes again, as a program hashes between its other tasks; the second call, with the write of its input, is timed"
         } else {
@@ -924,12 +1021,14 @@ impl UseCase {
             Self::OneMessage | Self::ManyMessages => "",
             Self::ManyLongMessages => "4 KiB batch ",
             Self::IdleOneMessage | Self::IdleManyMessages => "idle ",
+            Self::BriefIdleOneMessage | Self::BriefIdleManyMessages => "brief idle ",
             Self::ContinuousMessages => "continuous ",
             Self::ContinuousBatches => "continuous batch ",
             Self::LentMessages => "lent ",
             Self::Interleaved => "interleaved ",
             Self::InterleavedTurn => "turn ",
             Self::IdleInterleavedTurn => "idle turn ",
+            Self::BriefIdleInterleavedTurn => "brief idle turn ",
             Self::Collection => "collection ",
             Self::LentBatches => "lent batch ",
             Self::ContinuousCollection => "continuous collection ",
@@ -958,12 +1057,23 @@ impl Point {
         }
     }
 
-    /// The same point, its call made after idling.
+    /// The same point, its call made after idling LONG_PAUSE_NS.
     const fn idle(self) -> Self {
         let use_case = match self.use_case {
             UseCase::OneMessage => UseCase::IdleOneMessage,
             UseCase::ManyMessages => UseCase::IdleManyMessages,
             UseCase::InterleavedTurn => UseCase::IdleInterleavedTurn,
+            _ => panic!("only the calls after other work have idle twins"),
+        };
+        Self { use_case, ..self }
+    }
+
+    /// The same point, its call made after idling BRIEF_PAUSE_NS.
+    const fn brief_idle(self) -> Self {
+        let use_case = match self.use_case {
+            UseCase::OneMessage => UseCase::BriefIdleOneMessage,
+            UseCase::ManyMessages => UseCase::BriefIdleManyMessages,
+            UseCase::InterleavedTurn => UseCase::BriefIdleInterleavedTurn,
             _ => panic!("only the calls after other work have idle twins"),
         };
         Self { use_case, ..self }
@@ -1171,18 +1281,22 @@ impl Algorithm {
             UseCase::ManyMessages
             | UseCase::ManyLongMessages
             | UseCase::IdleManyMessages
+            | UseCase::BriefIdleManyMessages
             | UseCase::LentBatches => !matches!(self, Self::Blake3Rayon),
             UseCase::ContinuousBatches => !matches!(self, Self::Blake3Rayon),
             UseCase::ContinuousMessages => true,
             UseCase::OneMessage
             | UseCase::IdleOneMessage
+            | UseCase::BriefIdleOneMessage
             | UseCase::LentMessages
             | UseCase::Interleaved
             | UseCase::Collection
             | UseCase::ContinuousCollection => true,
             /* A tree's layers are batches: BLAKE3 official mt has no batch call. */
             UseCase::MerkleTree => !matches!(self, Self::Blake3Rayon),
-            UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => true,
+            UseCase::InterleavedTurn
+            | UseCase::IdleInterleavedTurn
+            | UseCase::BriefIdleInterleavedTurn => true,
         }
     }
 
@@ -2929,7 +3043,10 @@ fn measure_all(
      * September 30). A program that hashes one input after another does not
      * sleep between them, and one that idles between calls mostly sleeps.
      */
-    for pattern in ["nonstop", "busy", "idle"] {
+    // Each way of calling its own set of rounds (the brief pause and the
+    // long one apart too: a core's clock after 20 us differs from after 5 ms).
+    const PATTERNS: [&str; 4] = ["nonstop", "busy", "brief", "idle"];
+    for pattern in PATTERNS {
         progress.phase("calibrating");
 
         for (point_index, point) in POINTS.iter().enumerate() {
@@ -2991,7 +3108,7 @@ fn measure_all(
         }
 
         if let Sizes::CalibrateOnly(path) = sizes {
-            if pattern == "idle" {
+            if pattern == PATTERNS[PATTERNS.len() - 1] {
                 Sizes::write(path, &[], roster, &batch_iterations);
                 std::process::exit(0);
             }
@@ -3015,6 +3132,7 @@ fn measure_all(
         progress.phase(match pattern {
             "nonstop" => "measuring one after another",
             "busy" => "measuring after other work",
+            "brief" => "measuring after a brief idle",
             _ => "measuring after idling",
         });
 
@@ -3530,12 +3648,12 @@ fn current_cpu() -> Option<u32> {
  */
 fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize) -> DuoCopy {
     if point.use_case.after_gap() {
-        let idle = point.use_case.idle();
+        let pause_ns = point.use_case.pause_ns();
         if point.use_case.call() == UseCase::OneMessage {
             // Select the API before the gap and clocks. A cold call should
             // pay for its API, rather than the benchmark's dispatch tree.
             let call = one_message_call(algorithm);
-            return take_prepared_sample(input, true, iterations, idle, |input| {
+            return take_prepared_sample(input, true, iterations, pause_ns, |input| {
                 // The door, for every contender alike (UseCase::in_blocks).
                 assert_blocks_aligned(input);
                 call(input, point.bytes)
@@ -3564,7 +3682,7 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
             };
             if let Some(hash_many) = hash_many {
                 let mut digests = take_batch_digests(point.messages);
-                let measured = take_prepared_sample(input, true, iterations, idle, |input| {
+                let measured = take_prepared_sample(input, true, iterations, pause_ns, |input| {
                     #[cfg(test)]
                     observe_call("hash_many");
                     assert_blocks_aligned(input);
@@ -3583,7 +3701,7 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
             input,
             point.use_case.in_blocks(),
             iterations,
-            idle,
+            pause_ns,
             |input| run_batch(algorithm, input, point, 1),
         );
     }
@@ -3621,7 +3739,7 @@ fn take_prepared_sample(
     input: &[u8],
     in_blocks: bool,
     iterations: usize,
-    idle: bool,
+    pause_ns: Option<u64>,
     mut call: impl FnMut(&[u8]),
 ) -> DuoCopy {
     GAP_BUFFERS.with(|kept| {
@@ -3637,16 +3755,17 @@ fn take_prepared_sample(
             produced.resize(input.len(), 0);
             0
         };
-        let gap = if idle {
-            clocks::Gap::Idle
-        } else {
-            clocks::Gap::Busy(work)
+        // The pause before each call: the use case's idle (brief or long),
+        // or GAP_NS of other work.
+        let (gap, gap_ns) = match pause_ns {
+            Some(ns) => (clocks::Gap::Idle, ns),
+            None => (clocks::Gap::Busy(work), GAP_NS),
         };
         let started_ns = clocks::load::now_ns();
         let measured = clocks::measure_after_gaps_prepared(
             iterations as u64,
             gap,
-            GAP_NS,
+            gap_ns,
             // An input in blocks reaches the call with its whole blocks.
             &mut produced[at..],
             |produced| produced[..input.len()].copy_from_slice(black_box(input)),
@@ -3777,7 +3896,10 @@ fn hash_batch(
     );
 
     match point.use_case {
-        UseCase::Interleaved | UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => {
+        UseCase::Interleaved
+        | UseCase::InterleavedTurn
+        | UseCase::IdleInterleavedTurn
+        | UseCase::BriefIdleInterleavedTurn => {
             return hash_interleaved(algorithm, input, point.bytes, iterations, consume)
         }
         UseCase::Collection => {
@@ -3798,9 +3920,13 @@ fn hash_batch(
         UseCase::MerkleTree => return hash_merkle(algorithm, input, point, iterations, consume),
         UseCase::OneMessage
         | UseCase::IdleOneMessage
+        | UseCase::BriefIdleOneMessage
         | UseCase::ManyMessages
         | UseCase::ManyLongMessages
-        | UseCase::IdleManyMessages => hash_in_memory(algorithm, input, point, iterations, consume),
+        | UseCase::IdleManyMessages
+        | UseCase::BriefIdleManyMessages => {
+            hash_in_memory(algorithm, input, point, iterations, consume)
+        }
     }
 }
 
@@ -6000,16 +6126,19 @@ fn continuous_min_inputs(input: &[u8], point: Point) -> usize {
         UseCase::ContinuousBatches => 2 * in_flight(input.len()),
         UseCase::OneMessage
         | UseCase::IdleOneMessage
+        | UseCase::BriefIdleOneMessage
         | UseCase::ManyMessages
         | UseCase::ManyLongMessages
         | UseCase::IdleManyMessages
+        | UseCase::BriefIdleManyMessages
         | UseCase::LentMessages
         | UseCase::Interleaved
         | UseCase::Collection
         | UseCase::LentBatches
         | UseCase::MerkleTree
         | UseCase::InterleavedTurn
-        | UseCase::IdleInterleavedTurn => 1,
+        | UseCase::IdleInterleavedTurn
+        | UseCase::BriefIdleInterleavedTurn => 1,
         /* A pass over the collection keeps its many items in flight. */
         UseCase::ContinuousCollection => 1,
     }
@@ -7213,7 +7342,7 @@ fn generate_text(
     writeln!(output).unwrap();
 
     /* How the program calls, for the tables this run shows. */
-    for key in ["busy", "idle", "nonstop"] {
+    for key in ["busy", "brief", "idle", "nonstop"] {
         let names: Vec<String> = UseCase::ALL
             .into_iter()
             .filter(|&use_case| {
@@ -8629,13 +8758,20 @@ mod correctness_tests {
             INPUT_COUNT + BATCH_COUNT..INPUT_COUNT + BATCH_COUNT + LONG_BATCH_COUNT
         );
         let idle = INPUT_COUNT + BATCH_COUNT + LONG_BATCH_COUNT;
-        for use_case in [UseCase::IdleOneMessage, UseCase::IdleManyMessages] {
+        let brief = idle + INPUT_COUNT + BATCH_COUNT;
+        for (use_case, offset) in [
+            (UseCase::IdleOneMessage, idle),
+            (UseCase::IdleManyMessages, idle),
+            (UseCase::BriefIdleOneMessage, brief),
+            (UseCase::BriefIdleManyMessages, brief),
+        ] {
             let (twin, mine) = (use_case.call().points(), use_case.points());
             assert_eq!(
                 mine,
                 // The idle axes follow the axes after other work and the
-                // long batches, which have no idle twin.
-                twin.start + idle..twin.end + idle,
+                // long batches, which have no idle twin; the brief ones
+                // follow the idle ones.
+                twin.start + offset..twin.end + offset,
                 "each idle axis follows its twin's pattern"
             );
             for (a, b) in POINTS[twin].iter().zip(&POINTS[mine]) {
@@ -8646,7 +8782,7 @@ mod correctness_tests {
                 );
             }
         }
-        let continuous = 2 * idle - LONG_BATCH_COUNT;
+        let continuous = brief + INPUT_COUNT + BATCH_COUNT;
         assert_eq!(
             UseCase::ContinuousMessages.points(),
             continuous..continuous + CONTINUOUS_MESSAGE_COUNT
@@ -8690,7 +8826,11 @@ mod correctness_tests {
         );
         assert_eq!(
             UseCase::IdleInterleavedTurn.points(),
-            turn + INTERLEAVED_COUNT..POINT_COUNT
+            turn + INTERLEAVED_COUNT..turn + 2 * INTERLEAVED_COUNT
+        );
+        assert_eq!(
+            UseCase::BriefIdleInterleavedTurn.points(),
+            turn + 2 * INTERLEAVED_COUNT..POINT_COUNT
         );
         for (k, point) in POINTS[UseCase::ContinuousCollection.points()]
             .iter()
