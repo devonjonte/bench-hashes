@@ -163,7 +163,14 @@ mod tests {
         /// package draws a few watts idle and a few hundred at most).
         #[test]
         fn package_energy_counts_up_by_a_plausible_amount() {
+            // Offered: the power PMU's energy-pkg event in sysfs, and the
+            // kernel letting a user open a CPU's event (perf_event_paranoid
+            // at most 0, or root).
+            let offered = std::path::Path::new("/sys/bus/event_source/devices/power/events/energy-pkg").exists()
+                && (std::fs::read_to_string("/proc/sys/kernel/perf_event_paranoid").map(|s| s.trim().parse::<i64>().unwrap_or(4)).unwrap_or(4) <= 0
+                    || std::fs::read_to_string("/proc/self/status").map_or(false, |s| s.lines().any(|l| l.starts_with("Uid:\t0\t"))));
             let Some(before) = package_nj() else {
+                assert!(!offered, "the machine offers the package energy counter: it is read");
                 eprintln!("no package energy here; nothing to check");
                 return;
             };

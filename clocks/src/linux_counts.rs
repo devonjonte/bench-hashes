@@ -104,14 +104,11 @@ impl Mapped {
                     let (lo, hi): (u32, u32);
                     core::arch::asm!("rdpmc", in("ecx") index - 1, out("eax") lo, out("edx") hi, options(nomem, nostack, preserves_flags));
                     let raw = (u64::from(hi) << 32) | u64::from(lo);
-                    let shift = 64 - u32::from(width);
                     let cycles = core::arch::x86_64::_rdtsc();
                     let (time_shift, time_mult, time_offset) =
                         (std::ptr::read_volatile(&p.time_shift), std::ptr::read_volatile(&p.time_mult), std::ptr::read_volatile(&p.time_offset));
-                    let quot = cycles >> time_shift;
-                    let rem = cycles & ((1u64 << time_shift) - 1);
-                    running = running.wrapping_add(time_offset.wrapping_add(quot * u64::from(time_mult) + ((rem * u64::from(time_mult)) >> time_shift)));
-                    offset.wrapping_add(((raw << shift) as i64) >> shift) as u64
+                    running = running.wrapping_add(tsc_to_ns(cycles, time_shift, time_mult, time_offset));
+                    count_from_pmc(raw, width, offset)
                 } else {
                     offset as u64
                 };
@@ -122,6 +119,23 @@ impl Mapped {
             }
         }
     }
+}
+
+/// The counter's value from its register: the register holds the low
+/// `width` bits, sign-extended (perf's documented formula), added to the
+/// page's offset.
+fn count_from_pmc(raw: u64, width: u16, offset: i64) -> u64 {
+    let shift = 64 - u32::from(width);
+    offset.wrapping_add(((raw << shift) as i64) >> shift) as u64
+}
+
+/// TSC cycles as nanoseconds since the page's time base, as perf
+/// documents: offset + quot * mult + (rem * mult) >> shift, the quotient
+/// and remainder of the cycles by 2^shift.
+fn tsc_to_ns(cycles: u64, shift: u16, mult: u32, offset: u64) -> u64 {
+    let quot = cycles >> shift;
+    let rem = cycles & ((1u64 << shift) - 1);
+    offset.wrapping_add(quot * u64::from(mult) + ((rem * u64::from(mult)) >> shift))
 }
 
 impl Drop for Mapped {
@@ -284,6 +298,28 @@ mod tests {
         assert_eq!(attr(8, 0, true).flags & (1 << 2), 1 << 2);
     }
 
+    /// A 48-bit register's low bits, sign-extended and added to the offset:
+    /// a value past 2^47 is a negative to perf (the kernel sets offset to
+    /// make the sum right); a 40-bit register the same at 2^39.
+    #[test]
+    fn a_count_is_the_registers_low_bits_sign_extended_plus_the_offset() {
+        assert_eq!(count_from_pmc(1000, 48, 500), 1500);
+        assert_eq!(count_from_pmc(1 << 47, 48, 1 << 47), 0, "the sign bit set: -(2^47), which the offset cancels");
+        assert_eq!(count_from_pmc((1 << 48) - 1, 48, 10), 9, "all ones: -1");
+        assert_eq!(count_from_pmc(1 << 39, 40, 1 << 40), 1 << 39);
+        assert_eq!(count_from_pmc(0xFFFF_0000_0000_0007, 48, 0), 7, "bits above the width are not the register's");
+    }
+
+    /// Perf's TSC scaling: at shift 10 and mult 1024 a cycle is a
+    /// nanosecond; the remainder's share is kept.
+    #[test]
+    fn tsc_cycles_scale_to_nanoseconds_by_perfs_formula() {
+        assert_eq!(tsc_to_ns(5_000, 10, 1024, 7), 5_007);
+        assert_eq!(tsc_to_ns(5_000, 10, 512, 0), 2_500, "a 2 GHz TSC: half a nanosecond a cycle");
+        assert_eq!(tsc_to_ns(1023, 10, 3, 0), (1023 * 3) >> 10, "under one quotient step: the remainder's share alone");
+        assert_eq!(tsc_to_ns(3 << 10, 10, 3, 100), 109);
+    }
+
     /// The PMUs the thread's groups open are this machine's, read once.
     #[test]
     fn the_pmus_are_this_machines() {
@@ -350,6 +386,33 @@ mod tests {
     /// release and on a new machine, and not beside every change or mutant.
     mod machine {
         use super::*;
+
+        /// Where the kernel lets a user open its CPU's counters (a PMU in
+        /// sysfs and perf_event_paranoid at most 2, or root), this thread
+        /// counts: cycles and instructions advance over work, on one kind
+        /// of core, with running time; and where the kernel allows rdpmc
+        /// (`cpu/rdpmc` or `cpu_core/rdpmc` reads 1), the read is in user
+        /// space. A machine that offers counts and gets none is a bug.
+        #[test]
+        fn the_counts_the_machine_offers_are_read() {
+            let paranoid: i64 = std::fs::read_to_string("/proc/sys/kernel/perf_event_paranoid").map(|s| s.trim().parse().unwrap_or(4)).unwrap_or(4);
+            let root = std::fs::read_to_string("/proc/self/status").map_or(false, |s| s.lines().any(|l| l.starts_with("Uid:\t0\t")));
+            if pmus().is_none() || (paranoid > 2 && !root) {
+                eprintln!("no counters offered here (pmus {:?}, perf_event_paranoid {paranoid}); nothing to require", pmus());
+                return;
+            }
+            let before = read().expect("the machine offers counters: the thread counts");
+            crate::busy_work(2_000_000);
+            let after = read().unwrap().since(before);
+            let ran = if after.p.time_ns > 0 { after.p } else { after.e };
+            assert!(ran.cycles > 1_000_000 && ran.instructions > 100_000 && ran.time_ns > 1_000_000, "2 ms of work counted: {after:?}");
+            let allowed = ["cpu", "cpu_core"]
+                .iter()
+                .any(|pmu| std::fs::read_to_string(format!("/sys/bus/event_source/devices/{pmu}/rdpmc")).map_or(false, |s| s.trim() == "1"));
+            if allowed {
+                assert!(reads_in_user_space(), "the kernel allows rdpmc here: the read is in user space");
+            }
+        }
 
         /// The user-space read agrees with the system call's over the same
         /// work: each count within the bracketing reads' own cost, the running
