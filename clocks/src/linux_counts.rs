@@ -284,6 +284,13 @@ mod tests {
         assert_eq!(attr(8, 0, true).flags & (1 << 2), 1 << 2);
     }
 
+    /// The PMUs the thread's groups open are this machine's, read once.
+    #[test]
+    fn the_pmus_are_this_machines() {
+        assert_eq!(pmus(), pmus_at(std::path::Path::new("/sys/bus/event_source/devices")));
+        assert_eq!(pmus(), pmus(), "read once, the same after");
+    }
+
     #[test]
     fn pmu_selection_requires_a_complete_readable_hybrid_pair() {
         let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target");
