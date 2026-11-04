@@ -178,6 +178,10 @@ machine runs again. In order:
      `--config` patch (Cargo's lock can build the pin instead):
      `bench-hashes build-against ..`, then the executable it prints, with
      `--all --expect-servil COMMIT`, from a scratch directory;
+     on Linux, as root where you can (`sudo` on the executable, the
+     scratch directory writable by root), so the run holds the cpuidle
+     switch and measures the controlled after-pause cells; its header's
+     `idle control` line says whether it did;
    - the b3sum run, `LAYOUTS=4 python3 tools/b3sum-contenders.py`, with
      `--files` on the machine's own storage. On tmpfs (a VM's `/tmp`, for
      one) nothing is read from storage, and the run reports its
