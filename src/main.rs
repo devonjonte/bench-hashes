@@ -7797,7 +7797,7 @@ fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u1
 /// each file's old value back when it drops, so a run that ends early
 /// leaves the machine as it found it (a run killed outright cannot:
 /// `restore` lists what to write back).
-#[allow(dead_code)] // wired into the run once #117 settles the block's shape
+#[cfg_attr(not(test), allow(dead_code))] // the run calls it once #117 settles the block's shape
 struct IdleControl {
     /// Each state's `disable` file, with the value it held and whether
     /// the block keeps the state.
@@ -7806,6 +7806,7 @@ struct IdleControl {
     has_c1: bool,
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 impl IdleControl {
     /// The control for the cpuidle tree at `root` (`/sys/devices/system/cpu`):
     /// None where there are no states, or any `disable` file is not
@@ -7871,6 +7872,7 @@ impl IdleControl {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 struct IdleControlGuard<'a> {
     control: &'a IdleControl,
 }
