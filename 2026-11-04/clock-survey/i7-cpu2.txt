@@ -1,0 +1,20 @@
+clock_survey on linux x86_64 (1 CPUs); the raw counter: CLOCK_MONOTONIC_RAW
+
+clock                 read ns  step ns   slew ppm      offset ms   note
+Instant                  13.6       12        5.7              -   std reads CLOCK_MONOTONIC here
+REALTIME                 11.6       10        5.7 1793741094748.2   the offset is since the epoch: the whole date
+MONOTONIC                11.5        9        5.7          597.1   the offset is the time daemon's slew since boot
+MONOTONIC_RAW            11.7       10       -0.0              -   raw
+THREAD_CPUTIME          134.4      130  -999999.2              -   this thread's CPU time: the sleep is not counted (a slew of about -1e6)
+rdtscp                    8.2        7       -0.0              -   raw
+
+timing one fixed call (4268 ns of integer work) 2000 times: median, then p90 / p10
+clock                  back to back    p90/p10       after 1 ms    p90/p10
+Instant                        4190      1.004             4239      1.032
+REALTIME                       4188      1.004             4211      1.018
+MONOTONIC                      4188      1.004             4212      1.019
+MONOTONIC_RAW                  4188      1.004             4213      1.020
+THREAD_CPUTIME                 4312      1.004             4689      1.167
+rdtscp                         4184      1.004             4216      1.022
+cycles                        20775      1.000            21046      1.024   (a counts read costs 437 ns, a system call)
+instructions                  28810      1.000            28811      1.000   (a counts read costs 437 ns, a system call)
