@@ -580,6 +580,9 @@ mod tests {
             assert!(b.calls > 0 && b.wall_ns > 0, "{b:?}");
             assert_eq!(b.calls, batches[0].calls);
             assert_eq!(b.cpu_ns.is_some(), total_cpu.is_some());
+            // The batch's CPU time is the process's over the batch: at
+            // most the whole measurement's, and its work took some.
+            assert!(b.cpu_ns.unwrap() <= total_cpu.unwrap() && b.cpu_ns.unwrap() >= b.wall_ns / 10, "{b:?} within {total_cpu:?}");
             assert!(b.show().contains("ns/call"));
         }
         if let Some(total) = total_cpu {
@@ -615,10 +618,11 @@ mod tests {
         assert_eq!(mixed.e_percent(), 75);
         assert_eq!(Counts { p: level(4_001, 1_000), e: level(0, 1_000) }.mhz(), 2_001, "8002 / 4 = 2000.5 rounds up");
         assert_eq!(Counts { p: level(0, 2), e: level(0, 1) }.e_percent(), 33);
+        assert_eq!(Counts { p: level(0, 5), e: level(0, 3) }.e_percent(), 38, "37.5 rounds up");
         let batch = |calls, wall_ns, counts| Batch { calls, wall_ns, cpu_ns: None, counts, started_ns: 0 };
         assert_eq!(batch(4, 50, Some(mixed)).show(), "12.5 ns/call, 1000 MHz 75% E");
         assert_eq!(batch(3, 10, Some(Counts { p: level(4_400, 1_000), e: level(0, 40) })).show(), "3.3 ns/call, 4231 MHz P");
-        assert_eq!(batch(1, 7, Some(Counts { p: level(0, 1), e: level(2_000, 99) })).show(), "7.0 ns/call, 20000 MHz E");
+        assert_eq!(batch(1, 7, Some(Counts { p: level(0, 0), e: level(2_000, 100) })).show(), "7.0 ns/call, 20000 MHz E");
         assert_eq!(batch(2, 3, None).show(), "1.5 ns/call, no cycle counts");
         assert_eq!(batch(2, 3, Some(Counts::default())).show(), "1.5 ns/call, no cycle counts", "counts with no time: none");
     }
