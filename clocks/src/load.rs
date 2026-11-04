@@ -608,6 +608,23 @@ mod tests {
         );
     }
 
+    /// The window between two readings: from the first's time to the
+    /// second's, the other programs' and the hypervisor's CPU time over
+    /// that span in milli-CPUs, this process's own time taken off where the
+    /// machine's total stands in for the others'.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_window_between_two_readings_is_their_differences_over_the_span() {
+        let tick = 1_000_000_000 / imp::ticks_per_second();
+        let reading = |at_ns, busy, steal, others, own| Reading { at_ns, machine: imp::CpuTimes { busy, steal, others }, own_ns: own };
+        // Others read directly: 40 ticks of others' time over 100 ticks of wall.
+        let w = between(reading(1_000, 0, 0, Some(10), [5, 5]), reading(1_000 + 100 * tick, 1000, 3, Some(50), [20, 10]));
+        assert_eq!((w.start_ns, w.end_ns, w.other_milli_cpus, w.steal_milli_cpus), (1_000, 1_000 + 100 * tick, 400, 30));
+        // No per-process reading: the machine's 100 busy ticks less this process's 20 own.
+        let w = between(reading(0, 0, 0, None, [0, 0]), reading(100 * tick, 100, 0, None, [15 * tick, 5 * tick]));
+        assert_eq!(w.other_milli_cpus, 800);
+    }
+
     /// One window's line names the hypervisor's share where it took any.
     #[test]
     fn a_windows_line_names_steal_where_there_is_any() {
