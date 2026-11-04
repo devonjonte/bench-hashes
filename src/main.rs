@@ -4983,12 +4983,9 @@ fn hash_continuous_batches(
         return keep_places(places);
     }
     // The lent cell's calls (owned_runs_lent): each batch read into a kept
-    // buffer, then hashed through the batch call.
-    let lent = Point {
-        use_case: UseCase::LentBatches,
-        ..point
-    };
-    hash_lent(algorithm, input, lent, iterations, consume)
+    // buffer, then hashed through the batch call (the point's own use
+    // case: in blocks and a batch, as the lent one is).
+    hash_lent(algorithm, input, point, iterations, consume)
 }
 
 /// The producer lends a whole message or batch for one synchronous call.
@@ -5001,15 +4998,8 @@ fn hash_lent(
     iterations: usize,
     mut consume: impl FnMut(&[u8]),
 ) {
-    let in_memory = Point {
-        use_case: if point.use_case.batch() {
-            UseCase::ManyMessages
-        } else {
-            UseCase::OneMessage
-        },
-        ..point
-    };
-    // Messages and batches lent alike are in blocks (UseCase::in_blocks).
+    // Messages and batches lent alike are in blocks (UseCase::in_blocks),
+    // and hash_in_memory reads nothing else of the use case.
     let mut buffers = take_buffers(1, input.len() + BLOCK_SPARE);
     for _ in 0..iterations {
         let buffer = &mut buffers[0];
@@ -5017,7 +5007,7 @@ fn hash_lent(
         hash_in_memory(
             algorithm,
             &buffer[at..][..input.len().next_multiple_of(BLOCK_LEN)],
-            in_memory,
+            point,
             1,
             &mut consume,
         );
@@ -6263,7 +6253,7 @@ impl MachineMetadata {
 fn cell_wants_sample(slot: usize, rounds: usize, visits: usize) -> bool {
     assert!(rounds > 0);
     let target = visits.min(rounds);
-    (slot % rounds) * target % rounds < target
+    slot * target % rounds < target
 }
 
 /// (iterations per sample, nanoseconds per iteration measured).
@@ -8707,6 +8697,81 @@ mod correctness_tests {
     /// moved beyond the margin in the median of its pairs is named (either
     /// way, the larger move first); one at the margin, counted in fewer
     /// pairs than the run had, multithreaded, or shared, is not.
+    /// A cell's visits spread over the rounds: `visits` of `rounds` slots
+    /// take a sample, evenly, and a slot past the rounds (the round plus
+    /// the point's offset) wraps; visits at or past the rounds take every
+    /// slot.
+    #[test]
+    fn cell_visits_spread_over_the_rounds() {
+        let taken = |rounds: usize, visits: usize| -> Vec<usize> {
+            (0..rounds)
+                .filter(|&slot| cell_wants_sample(slot, rounds, visits))
+                .collect()
+        };
+        assert_eq!(taken(12, 4), vec![0, 3, 6, 9]);
+        assert_eq!(taken(12, 5), vec![0, 3, 5, 8, 10]);
+        assert_eq!(taken(12, 12).len(), 12);
+        assert_eq!(taken(12, 40).len(), 12);
+        assert_eq!(taken(7, 1), vec![0]);
+        for slot in 0..36 {
+            assert_eq!(
+                cell_wants_sample(slot, 12, 5),
+                cell_wants_sample(slot % 12, 12, 5),
+                "slot {slot} wraps"
+            );
+        }
+    }
+
+    /// The sizes cache's context names the power source and mode, and
+    /// leaves the battery's charge out: it changes by the minute and sizes
+    /// nothing.
+    #[test]
+    fn the_sizes_context_ignores_the_batterys_charge() {
+        let roster = Roster::new(
+            vec![Algorithm::Sha256],
+            true,
+            None,
+            Some(1),
+            &TO_MEASURE_SPEED,
+            None,
+        );
+        let mut machine = machine_metadata();
+        let power = |percent| {
+            Some(Power {
+                on_battery: true,
+                battery_percent: percent,
+                mode: Some("Low Power Mode".to_owned()),
+                low_power: true,
+            })
+        };
+        machine.power = [power(Some(80)), None];
+        let at_80 = sizes_context(&roster, &machine, None);
+        machine.power = [power(Some(35)), None];
+        let at_35 = sizes_context(&roster, &machine, None);
+        assert_eq!(at_80, at_35, "the charge sizes nothing");
+        let power_line = |context: &[(String, String)]| {
+            context
+                .iter()
+                .find(|(k, _)| k == "power")
+                .unwrap()
+                .1
+                .clone()
+        };
+        assert_eq!(power_line(&at_80), "battery power, Low Power Mode");
+        machine.power = [
+            power(Some(80)).map(|p| Power {
+                on_battery: false,
+                ..p
+            }),
+            None,
+        ];
+        assert_ne!(
+            power_line(&sizes_context(&roster, &machine, None)),
+            power_line(&at_80),
+            "the source sizes"
+        );
+    }
+
     #[test]
     fn instructions_moved_names_cells_beyond_the_margin_in_every_pair() {
         let ratios: std::collections::BTreeMap<String, Vec<u64>> = [
@@ -8762,11 +8827,15 @@ mod correctness_tests {
             let core = if counts {
                 (0..3)
                     .map(|i| {
+                        // P and E both counted: the judge sums the kinds.
                         format!(
-                            "{}:{}:{}:7:1:0:0:0:0:0",
+                            "{}:{}:{}:7:1:{}:{}:{}:2:1",
                             1000 + i,
                             4000 + 4 * i,
-                            instructions + i
+                            instructions + i,
+                            500 + i,
+                            1000 + 2 * i,
+                            instructions / 10
                         )
                     })
                     .collect::<Vec<_>>()
@@ -8813,14 +8882,33 @@ mod correctness_tests {
             n > o && (49..=51).contains(&((n - o) * 1000 / o)),
             "5% more instructions a unit: {o} to {n}"
         );
-        // Counts given, the counter is the summed counts over the units: (20000 + 20001 + 20002) / 192.
-        assert_eq!(o >> 64, 60_003 / 192);
+        // Counts given, the counter is both kinds' counts summed over the
+        // units: P (20000 + 20001 + 20002) + E (3 x 2000), over 192 B.
+        assert_eq!(o >> 64, (60_003 + 6_000) / 192);
+        assert_eq!(
+            judged(
+                read_samples(&write("o4.tsv", 20_000, true)),
+                JudgeBy::Cycles
+            )[0] >> 64,
+            (4_000 + 4_004 + 4_008 + 1_000 + 1_002 + 1_004) / 192,
+            "cycles: both kinds summed"
+        );
         let none = read_samples(&write("none.tsv", 0, false));
         assert_eq!(
             cell_means(none, JudgeBy::Cycles).len(),
             0,
             "no counts: not judged by them"
         );
+        // A CPU-time column of zeros (a platform that counts none writes
+        // "-", but a zero is the same absence) reads as none.
+        let zero_cpu = format!(
+            "{SAMPLES_VERSION}\n# bench-hashes version: test\n# load: quiet\n# power: mains power\n{SAMPLES_COLUMNS}\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t1000/64,1001/64,1002/64\t0,1,2\t0,0,0\t-\t-\t3,3,3\n"
+        );
+        let path = dir.join("zero-cpu.tsv");
+        std::fs::write(&path, zero_cpu).unwrap();
+        let (_, _, cpu, energy) =
+            cell_means(read_samples(path.to_str().unwrap()), JudgeBy::Wall).remove(0);
+        assert_eq!((cpu, energy), (None, None), "zero CPU time a unit: none");
         assert_eq!(
             cell_means(read_samples(&write("none2.tsv", 0, false)), JudgeBy::Wall).len(),
             1
@@ -9062,6 +9150,31 @@ mod correctness_tests {
         }
         // No cpuidle at all: no control.
         assert!(IdleControl::detect(&root.join("nowhere")).is_none());
+        // Only the states the block keeps: nothing to switch off, no control.
+        let shallow = root.join("shallow");
+        for (i, name) in ["POLL", "C1"].iter().enumerate() {
+            let dir = shallow.join(format!("cpu0/cpuidle/state{i}"));
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("name"), format!("{name}\n")).unwrap();
+            fs::write(dir.join("disable"), "0\n").unwrap();
+        }
+        assert!(
+            IdleControl::detect(&shallow).is_none(),
+            "POLL and C1 alone: nothing to switch off"
+        );
+        // The header's line, with the switch and without.
+        assert_eq!(
+            IdleControl::describe(Some(&control2)),
+            "the controlled cells keep POLL and C1 and switch the other states off; run as root"
+        );
+        assert_eq!(
+            IdleControl::describe(Some(&control)),
+            "the controlled cells keep POLL alone and switch the other states off; run as root"
+        );
+        assert_eq!(
+            IdleControl::describe(None),
+            "none (no cpuidle states the bench can switch off: run as root for the controlled cells)"
+        );
         fs::remove_dir_all(&root).unwrap();
     }
 
@@ -9081,6 +9194,11 @@ mod correctness_tests {
         assert_eq!(
             describe_effective_idle_states(&["C1"], &[120], 100),
             "C1 100%, awake or unnamed 0%"
+        );
+        // Rounded to the nearest percent: 1 of 200 is 1%, 199 of 200 is 100%.
+        assert_eq!(
+            describe_effective_idle_states(&["C1"], &[1], 200),
+            "C1 1%, awake or unnamed 100%"
         );
     }
 
