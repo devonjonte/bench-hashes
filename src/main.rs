@@ -8916,14 +8916,19 @@ mod correctness_tests {
             };
             assert_eq!([read2(0), read2(1), read2(2)], ["0", "0", "1"]);
         }
-        // A read-only disable file: no control (the bench lacks root).
+        // A read-only disable file: no control (the bench lacks root). Root
+        // writes a read-only file anyway, so under root (Sam's machines,
+        // the switch's only user) the file stays writable and detect
+        // rightly finds control; the check holds where the mode binds.
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             let locked = root.join("cpu0/cpuidle/state2/disable");
             fs::set_permissions(&locked, fs::Permissions::from_mode(0o444)).unwrap();
-            assert!(
+            let mode_binds = fs::OpenOptions::new().write(true).open(&locked).is_err();
+            assert_eq!(
                 IdleControl::detect(&root).is_none(),
+                mode_binds,
                 "a file the bench cannot write: no control"
             );
             fs::set_permissions(&locked, fs::Permissions::from_mode(0o644)).unwrap();
