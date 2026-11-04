@@ -545,10 +545,11 @@ When the pairs find no cell slower, `check` takes a second stage. The
 cells `regress` names as suspects run again on 64 fresh pairs, 16 new
 links a side each run 4 times, and are judged among themselves. The
 suspects, at most 8: first the level solo cells of single-threaded
-contenders whose **instructions retired a unit moved beyond 0.5%** in
-the median of the pairs, the largest move first (the count is the same
-whatever the core's clock or state, so a move is the code's; #119's
-cold code moved it 1.2% in every pair where wall missed it three times;
+contenders whose **instructions retired a unit moved beyond 0.5% the
+same way in every pair**, the largest move first (the count is the same
+whatever the core's clock or state, so a move in every pair is the
+code's, where a count that moves with the link layout moves both ways;
+#119's cold code moved it 1.2% in every pair where wall missed it three times;
 Zooko, November 4, on John's rule, #127; a pool's caller spins while it
 waits, so its count moved 1-9% between two runs of the same code and is
 no evidence), then the level cells whose
