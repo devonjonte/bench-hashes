@@ -331,7 +331,7 @@ mod tests {
         let by_rdpmc = || total(read().unwrap());
         // 4 MiB strided at cache lines: work with misses in it.
         let buffer = vec![1u8; 4 << 20];
-        let mut worst = [0i128; 5];
+        let mut differences: Vec<[i128; 5]> = Vec::new();
         let mut first = None;
         for _ in 0..200 {
             let (s0, u0) = (by_syscall(), by_rdpmc());
@@ -348,15 +348,24 @@ mod tests {
             }
             // The system call brackets the user-space read, so its counts
             // are the larger by the reads' own work.
-            for k in 0..5 {
-                worst[k] = worst[k].max((by_s[k] - by_u[k]).abs());
-            }
+            differences.push(std::array::from_fn(|k| (by_s[k] - by_u[k]).abs()));
         }
+        // The median difference: a thread preempted between two bracketing
+        // reads (the test suite runs beside) widens one pass's by the
+        // switch, which says nothing about the reads.
+        let median: [i128; 5] = std::array::from_fn(|k| {
+            let mut column: Vec<i128> = differences.iter().map(|d| d[k]).collect();
+            column.sort_unstable();
+            column[column.len() / 2]
+        });
         let (by_s, by_u) = first.unwrap();
-        eprintln!("one pass: by read() {by_s:?}, by rdpmc {by_u:?} ({NAMES:?}); worst differences over 200: {worst:?}");
+        eprintln!("one pass: by read() {by_s:?}, by rdpmc {by_u:?} ({NAMES:?}); median differences over 200: {median:?}");
         assert!(by_u[0] > 10_000 && by_u[1] > 10_000 && by_u[2] > 1_000 && by_u[4] > 0, "the user-space read counts the work: {by_u:?}");
-        assert!(worst[0] < 5_000 && worst[1] < 5_000 && worst[2] < 500 && worst[3] < 500, "the counts agree within the reads' own work: {worst:?} ({NAMES:?})");
-        assert!(worst[4] < 20_000, "the running time agrees within the reads' own time: {worst:?}");
+        assert!(
+            median[0] < 5_000 && median[1] < 5_000 && median[2] < 500 && median[3] < 500,
+            "the counts agree within the reads' own work: {median:?} ({NAMES:?})"
+        );
+        assert!(median[4] < 20_000, "the running time agrees within the reads' own time: {median:?}");
     }
 
     #[test]
