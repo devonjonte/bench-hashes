@@ -6324,8 +6324,36 @@ fn read_samples(path: &str) -> SamplesFile {
 /// cells it judges.
 const COMPARE_Q_PERMILLE: u64 = 50;
 
+/// What `compare` judges a cell by: its samples' wall time, or their
+/// thread's cycles or instructions retired (the core counts, summed over
+/// both kinds of core), each over the units the samples covered. Wall
+/// time is the rule (what a user waits); the counters are for the study
+/// of what each detects (bench-hashes #127: instructions are the same
+/// count after any pause on any core, cycles move with the cache and not
+/// the clock, wall time with everything).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum JudgeBy {
+    Wall,
+    Cycles,
+    Instructions,
+}
+
 fn compare_command(arguments: &[String]) {
-    let usage = "usage: bench-hashes compare OLD.tsv... -- NEW.tsv... (one new run for each old run, in the order they ran)";
+    let usage = "usage: bench-hashes compare [--judge-by wall|cycles|instructions] OLD.tsv... -- NEW.tsv... (one new run for each old run, in the order they ran)";
+    let (judge_by, arguments): (JudgeBy, &[String]) = match arguments.first().map(String::as_str) {
+        Some("--judge-by") => (
+            match arguments.get(1).map(String::as_str) {
+                Some("wall") => JudgeBy::Wall,
+                Some("cycles") => JudgeBy::Cycles,
+                Some("instructions") => JudgeBy::Instructions,
+                other => {
+                    panic!("--judge-by takes wall, cycles or instructions, not {other:?}\n{usage}")
+                }
+            },
+            &arguments[2..],
+        ),
+        _ => (JudgeBy::Wall, arguments),
+    };
     let split = arguments
         .iter()
         .position(|argument| argument == "--")
@@ -6353,9 +6381,23 @@ fn compare_command(arguments: &[String]) {
         }
         let cpu: crate::Map<String, Vec<u64>> = file.cpu.into_iter().collect();
         let energy: crate::Map<String, Vec<u64>> = file.energy.into_iter().collect();
+        // The counter judged by, summed over both kinds of core, a sample.
+        let counter: crate::Map<String, Vec<u64>> = match judge_by {
+            JudgeBy::Wall => crate::Map::default(),
+            JudgeBy::Cycles => file
+                .cores
+                .iter()
+                .map(|(k, c)| (k.clone(), c.iter().map(|s| s[1] + s[4]).collect()))
+                .collect(),
+            JudgeBy::Instructions => file
+                .cores
+                .iter()
+                .map(|(k, c)| (k.clone(), c.iter().map(|s| s[2] + s[5]).collect()))
+                .collect(),
+        };
         file.cells
             .into_iter()
-            .map(|(key, samples)| {
+            .filter_map(|(key, samples)| {
                 let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
                 let per_unit = |column: &crate::Map<String, Vec<u64>>| {
                     column
@@ -6366,7 +6408,12 @@ fn compare_command(arguments: &[String]) {
                         .filter(|&v| v > 0)
                 };
                 let (c, e) = (per_unit(&cpu), per_unit(&energy));
-                (key.clone(), Mean::of(&samples).fixed().0, c, e)
+                let judged = match judge_by {
+                    JudgeBy::Wall => Mean::of(&samples).fixed().0,
+                    // A cell without counts (none on this platform) is left out.
+                    _ => per_unit(&counter)?,
+                };
+                Some((key.clone(), judged, c, e))
             })
             .collect::<Vec<(String, u128, Option<u128>, Option<u128>)>>()
     };
@@ -6399,6 +6446,14 @@ fn compare_command(arguments: &[String]) {
         }
     }
     print_sides("compare", &old_builds, &new_builds);
+    let what = match judge_by {
+        JudgeBy::Wall => "ns/unit",
+        JudgeBy::Cycles => "cycles/unit",
+        JudgeBy::Instructions => "instructions/unit",
+    };
+    if judge_by != JudgeBy::Wall {
+        println!("compare: judging each cell by its thread's {what} (the rule judges wall time; this is the study's view, #127)");
+    }
     // Only cells every pair measured.
     order.retain(|key| cells[key].0.len() == old.len());
     let tested: Vec<Pairs> = order.iter().map(|key| cells[key].0.clone()).collect();
@@ -6430,7 +6485,7 @@ fn compare_command(arguments: &[String]) {
             geometric_mean(wall.iter().map(|p| p.1)),
         );
         println!(
-            "{key}: {} -> {} ns/unit  {} {verdict}, {faster} of {} pairs faster{cpu}",
+            "{key}: {} -> {} {what}  {} {verdict}, {faster} of {} pairs faster{cpu}",
             Fixed(a).format_ns(),
             Fixed(b).format_ns(),
             times(judgment.ratio_permille),
