@@ -541,9 +541,17 @@ calibration. Giving each pair a fresh link layout averages out code
 placement, which alone can move calls after a gap by several percent.
 
 When the pairs find no cell slower, `check` takes a second stage. The
-cells `regress` names as suspects (level, but the pairs' mean beyond the
-margin; at most 8, the strongest evidence of change first) run again on 64 fresh pairs, 16 new links a side each
-run 4 times, and are judged among themselves. Judged among every cell a
+cells `regress` names as suspects run again on 64 fresh pairs, 16 new
+links a side each run 4 times, and are judged among themselves. The
+suspects, at most 8: first the level cells whose **instructions retired
+a unit moved beyond 0.5%** in the median of the pairs (the count is the
+same whatever the core's clock or state, so a move is the code's; #119's
+cold code moved it 1.2% in every pair where wall missed it three times;
+Zooko, November 4, on John's rule, #127), then the level cells whose
+wall-time mean lies beyond the margin, the strongest evidence of change
+first. Where the machine counts no instructions (a VM without a PMU, a
+Mac), the suspects are wall's alone and the run says so. Wall still
+decides, on the second stage's fresh pairs. Judged among every cell a
 change reaches, a slowdown at one point passes unseen unless it is many
 times its pairs' spread; among 8 cells on 64 pairs it shows once it
 reaches about a third of one pair's spread. The stage adds about eight

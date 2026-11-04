@@ -6492,6 +6492,7 @@ fn cpu_field(cpu: &[Option<u64>]) -> String {
 /// A samples file read back: its `# load:` line (the run's own verdict,
 /// "quiet: ..." or "busy: ..."), and each cell's samples as measured,
 /// keyed "contender|scenario|use_case|point", in the file's order.
+#[derive(Clone)]
 struct SamplesFile {
     /// Its `# key: value` lines, in order.
     headers: Vec<(String, String)>,
@@ -6901,6 +6902,13 @@ const REGRESS_MARGIN_PERMILLE: u64 = 30;
 /// The most level cells a regression run names as suspects for a second
 /// stage, and so the largest family that stage judges (bench-hashes #66).
 const REGRESS_SUSPECTS: usize = 8;
+/// The margin beyond which a level cell's instructions, moved, name it a
+/// suspect ahead of the wall-ranked ones (Zooko, November 4, 2026, on
+/// John's rule; bench-hashes #127): instructions retired are the same
+/// count whatever the core's clock or state, so a move is the code's,
+/// and #119's cold code moved them 1.2% in every pair where wall missed
+/// it three times. Wall still decides, on the second stage's fresh pairs.
+const INSTRUCTIONS_MARGIN_PERMILLE: u64 = 5;
 
 /// What each of the check's runs measures, and which of its cells are
 /// judged: the regress points' solo cells; a default run's every cell
@@ -7176,7 +7184,18 @@ fn regress_command(arguments: &[String]) -> i32 {
         std::collections::BTreeMap::new();
     // A run's means, and its load line when clocks found it no evidence
     // (other programs busy, or no load window).
-    let mut means = |exe: &str, side: &str| -> (crate::Map<String, u128>, Option<String>) {
+    let mut instruction_ratios: std::collections::BTreeMap<String, Vec<u64>> =
+        std::collections::BTreeMap::new();
+    // A run's means (wall, and instructions a unit where the machine
+    // counts them), and its load line when clocks found it no evidence
+    // (other programs busy, or no load window).
+    let mut means = |exe: &str,
+                     side: &str|
+     -> (
+        crate::Map<String, u128>,
+        crate::Map<String, u128>,
+        Option<String>,
+    ) {
         run_index += 1;
         let kept = keep
             .as_ref()
@@ -7199,11 +7218,16 @@ fn regress_command(arguments: &[String]) -> i32 {
         // line says "not measured", and the run is evidence: keep that
         // machine quiet by hand while it measures.
         let busy = (clocks::load::MEASURED && !load.starts_with("quiet")).then_some(load);
+        let instructions = cell_means(file.clone(), JudgeBy::Instructions)
+            .into_iter()
+            .map(|(key, per_unit, _, _)| (key, per_unit))
+            .collect();
         (
             file.cells
                 .into_iter()
                 .map(|(key, samples)| (key, Mean::of(&samples).fixed().0))
                 .collect(),
+            instructions,
             busy,
         )
     };
@@ -7218,8 +7242,8 @@ fn regress_command(arguments: &[String]) -> i32 {
             &old_exes[pair % old_exes.len()],
             &new_exes[pair % new_exes.len()],
         );
-        let (old, new) = loop {
-            let ((old, a), (new, b)) = if pair % 2 == 0 {
+        let (old, old_instructions, new, new_instructions) = loop {
+            let ((old, oi, a), (new, ni, b)) = if pair % 2 == 0 {
                 let o = means(old_exe, "old");
                 (o, means(new_exe, "new"))
             } else {
@@ -7228,15 +7252,23 @@ fn regress_command(arguments: &[String]) -> i32 {
             };
             let busy: Vec<String> = a.into_iter().chain(b).collect();
             if busy.is_empty() {
-                break (old, new);
+                break (old, oi, new, ni);
             }
             attempt += 1;
             if attempt > REGRESS_REPEATS {
                 unreliable.extend(busy);
-                break (old, new);
+                break (old, oi, new, ni);
             }
             eprintln!("regress: pair {} again: {}", pair + 1, busy.join("; "));
         };
+        for (key, old_count) in &old_instructions {
+            if let Some(new_count) = new_instructions.get(key) {
+                instruction_ratios
+                    .entry(key.clone())
+                    .or_default()
+                    .push(clocks::summary::ratio_permille(*new_count, *old_count));
+            }
+        }
         for (key, old_mean) in &old {
             let Some(&new_mean) = new.get(key) else {
                 continue;
@@ -7298,12 +7330,18 @@ fn regress_command(arguments: &[String]) -> i32 {
     let (judgments, measurement) = judge_once(&tested);
     let mut slower = 0;
     let mut suspects: Vec<(usize, &String)> = Vec::new();
+    // The level cells whose instructions moved beyond their margin: the
+    // code's doing, so the strongest suspects (rank 0), ahead of the
+    // wall-ranked ones.
+    let moved = instructions_moved(&instruction_ratios, pairs);
     for (i, (key, judgment)) in judged.into_iter().zip(judgments).enumerate() {
         // A row whose measurement an earlier row holds (an owned cell
         // measured as its lent twin): its verdict printed, not counted again.
         let first = measurement[i] == i;
         if judgment.verdict == clocks::summary::Verdict::Level {
-            if first && judgment.ratio_permille > 1000 + REGRESS_MARGIN_PERMILLE {
+            if first && moved.contains_key(key) {
+                suspects.push((0, key));
+            } else if first && judgment.ratio_permille > 1000 + REGRESS_MARGIN_PERMILLE {
                 suspects.push((judgment.rank, key));
             }
             continue;
@@ -7332,6 +7370,25 @@ fn regress_command(arguments: &[String]) -> i32 {
         // 42 resamplings of 55, ranked by evidence in 52 (the data branch,
         // 2026-10-31/check-errors-i7).
         suspects.sort();
+        if instruction_ratios.is_empty() {
+            println!("regress: this machine counts no instructions; the suspects are wall's alone");
+        } else if moved.is_empty() {
+            println!(
+                "regress: no level cell's instructions moved beyond {}",
+                percent(1000 + INSTRUCTIONS_MARGIN_PERMILLE)
+            );
+        } else {
+            let listed: Vec<String> = moved
+                .iter()
+                .map(|(k, r)| format!("{k} {}", percent(*r)))
+                .collect();
+            println!(
+                "regress: instructions moved beyond {} in {} level cells, suspects first: {}",
+                percent(1000 + INSTRUCTIONS_MARGIN_PERMILLE),
+                moved.len(),
+                listed.join("; ")
+            );
+        }
         if !suspects.is_empty() {
             let named: Vec<&str> = suspects
                 .iter()
@@ -7343,6 +7400,26 @@ fn regress_command(arguments: &[String]) -> i32 {
     }
     println!("{power}");
     i32::from(slower > 0)
+}
+
+/// The cells whose instructions a unit moved beyond INSTRUCTIONS_MARGIN_
+/// PERMILLE, either way, in the median of their pairs, with that median:
+/// a cell counted in every pair alone (a cell a side lacks counts for
+/// says nothing).
+fn instructions_moved(
+    ratios: &std::collections::BTreeMap<String, Vec<u64>>,
+    pairs: usize,
+) -> std::collections::BTreeMap<String, u64> {
+    ratios
+        .iter()
+        .filter(|(_, r)| r.len() == pairs)
+        .filter_map(|(key, r)| {
+            let mut sorted = r.clone();
+            sorted.sort_unstable();
+            let median = sorted[sorted.len() / 2];
+            (median.abs_diff(1000) > INSTRUCTIONS_MARGIN_PERMILLE).then(|| (key.clone(), median))
+        })
+        .collect()
 }
 
 /*
@@ -8627,6 +8704,29 @@ mod correctness_tests {
     /// cell took the same wall time and cycles a unit as another's but
     /// more instructions reads level by wall and by cycles and slower by
     /// instructions; a cell without counts is judged by wall alone.
+    /// A level cell whose instructions moved beyond the margin in the
+    /// median of its pairs is named (either way); one at the margin, or
+    /// counted in fewer pairs than the run had, is not.
+    #[test]
+    fn instructions_moved_names_cells_beyond_the_margin_in_every_pair() {
+        let ratios: std::collections::BTreeMap<String, Vec<u64>> = [
+            ("more", vec![1012, 1011, 1013, 1012]),
+            ("fewer", vec![990, 991, 989, 990]),
+            ("at the margin", vec![1005, 1005, 1005, 1005]),
+            ("one pair wild", vec![1000, 1000, 1000, 1300]),
+            ("short", vec![1012, 1012, 1012]),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_owned(), v))
+        .collect();
+        let moved = instructions_moved(&ratios, 4);
+        assert_eq!(
+            moved.into_iter().collect::<Vec<_>>(),
+            vec![("fewer".to_owned(), 990), ("more".to_owned(), 1012)]
+        );
+        assert!(instructions_moved(&Default::default(), 4).is_empty());
+    }
+
     #[test]
     fn cell_means_judge_by_wall_cycles_or_instructions() {
         let dir = std::env::temp_dir().join(format!("bench-judge-by-{}", std::process::id()));
