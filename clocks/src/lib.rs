@@ -79,13 +79,51 @@ pub struct Stamp(u64);
 /// The wall clock now.
 #[inline(always)]
 pub fn now() -> Stamp {
-    Stamp(raw_ns())
+    Stamp(clock_ns())
 }
 
 /// Nanoseconds of wall time since `start`.
 #[inline(always)]
 pub fn since_ns(start: Stamp) -> u64 {
-    raw_ns() - start.0
+    clock_ns() - start.0
+}
+
+/// The clock every stamp reads: the raw counter, or in a test that froze
+/// it, the test clock (test_clock), so a window's or an interval's
+/// bookkeeping is checked against exact times in microseconds instead of
+/// against real time and its noise. A release build has no test clock.
+#[inline(always)]
+fn clock_ns() -> u64 {
+    #[cfg(test)]
+    if let Some(ns) = test_clock::reading() {
+        return ns;
+    }
+    raw_ns()
+}
+
+/// A clock a test holds (Zooko and John, November 3, 2026, for
+/// BLAKE3-Servil's pool: a test-only clock, where the code reads time
+/// through one function): `freeze` stops this thread's stamps at the real
+/// clock's present value, `advance` moves them; `thaw` gives the real
+/// clock back. Other threads keep the real clock.
+#[cfg(test)]
+pub(crate) mod test_clock {
+    use std::cell::Cell;
+    thread_local! {
+        static HELD: Cell<Option<u64>> = const { Cell::new(None) };
+    }
+    pub fn reading() -> Option<u64> {
+        HELD.with(Cell::get)
+    }
+    pub fn freeze() {
+        HELD.with(|h| h.set(Some(super::raw_ns())));
+    }
+    pub fn advance(ns: u64) {
+        HELD.with(|h| h.set(Some(h.get().expect("a frozen clock advances") + ns)));
+    }
+    pub fn thaw() {
+        HELD.with(|h| h.set(None));
+    }
 }
 
 /// The raw counter in nanoseconds: `clock_gettime(CLOCK_MONOTONIC_RAW)`
@@ -527,101 +565,6 @@ mod imp {
 mod tests {
     use super::*;
 
-    /// The wall clock is the raw counter: it only goes forward, it steps
-    /// finely (under 100 ns a step: a clock stepping in whole microseconds,
-    /// as Darwin's CLOCK_MONOTONIC through clock_gettime does, would fail
-    /// here), and it reads at the cost of a function call. A change of the
-    /// clock behind `now` shows here.
-    /// On Linux a thread's sleeps land late by its timer slack (50 us by
-    /// default); after tight_timers a 20 us sleep lands within 10 us of
-    /// it, in the median of 200. Elsewhere the call is nothing and the
-    /// sleep lands as the OS lands it.
-    #[test]
-    #[cfg(target_os = "linux")]
-    fn tight_timers_land_a_brief_sleep_on_time() {
-        let landing = || {
-            let mut v: Vec<u64> = (0..200)
-                .map(|_| {
-                    let t = now();
-                    std::thread::sleep(std::time::Duration::from_micros(20));
-                    since_ns(t)
-                })
-                .collect();
-            v.sort_unstable();
-            v[100]
-        };
-        std::thread::spawn(move || {
-            let loose = landing();
-            tight_timers();
-            let tight = landing();
-            eprintln!("a 20 us sleep lands at {loose} ns with the default slack, {tight} ns with 1 us");
-            assert!(tight < 30_000, "a 20 us sleep lands within 10 us: {tight} ns");
-            assert!(tight < loose, "tight timers land sooner than the default slack ({loose} ns)");
-        })
-        .join()
-        .unwrap();
-    }
-
-    #[test]
-    fn the_wall_clock_is_fine_and_forward() {
-        let mut last = now();
-        let mut smallest_step = u64::MAX;
-        let first = last;
-        for _ in 0..100_000 {
-            let t = now();
-            assert!(t >= last, "the clock went back");
-            let step = t.0 - last.0;
-            if t > last && step < smallest_step {
-                smallest_step = step;
-            }
-            last = t;
-        }
-        assert!(smallest_step <= 100, "the clock's smallest step: {smallest_step} ns");
-        let reads_ns = since_ns(first) / 100_000;
-        assert!(reads_ns < 1_000, "a read costs about {reads_ns} ns");
-    }
-
-    /// On Linux the wall clock is CLOCK_MONOTONIC_RAW itself: a reading sits
-    /// between two of that clock's, and away from CLOCK_MONOTONIC by the
-    /// slew the time daemon has applied since boot (zero on a machine with
-    /// none), which stays put across a short interval.
-    #[test]
-    #[cfg(all(unix, not(target_vendor = "apple")))]
-    fn on_linux_the_wall_clock_is_the_raw_counter() {
-        #[repr(C)]
-        struct Timespec {
-            sec: i64,
-            nsec: i64,
-        }
-        unsafe extern "C" {
-            fn clock_gettime(clock_id: i32, tp: *mut Timespec) -> i32;
-        }
-        let read = |clock: i32| {
-            let mut ts = Timespec { sec: 0, nsec: 0 };
-            assert_eq!(unsafe { clock_gettime(clock, &mut ts) }, 0);
-            ts.sec as u64 * 1_000_000_000 + ts.nsec as u64
-        };
-        const CLOCK_MONOTONIC: i32 = 1;
-        const CLOCK_MONOTONIC_RAW: i32 = 4;
-        let before = read(CLOCK_MONOTONIC_RAW);
-        let ours = now();
-        let after = read(CLOCK_MONOTONIC_RAW);
-        assert!(before <= ours.0 && ours.0 <= after, "a reading of ours lies between two of CLOCK_MONOTONIC_RAW's: {before} {} {after}", ours.0);
-        // The slewed clock and ours differ by what the daemon has applied
-        // since boot; the difference moves by at most the slew (500 ppm)
-        // over 10 ms, under 5 us, while a wrong clock behind `now` would
-        // make it the full offset or a jump.
-        let offset = || read(CLOCK_MONOTONIC) as i128 - now().0 as i128;
-        let o1 = offset();
-        std::thread::sleep(std::time::Duration::from_millis(10));
-        let o2 = offset();
-        assert!(
-            (o1 - o2).abs() < 5_000 + 20_000,
-            "the offset to CLOCK_MONOTONIC moved by {} ns in 10 ms (slew is under 5 us; the rest a read's own time)",
-            o1 - o2
-        );
-    }
-
     #[test]
     fn a_measurement_counts_its_calls_and_time() {
         let before = process_cpu_ns();
@@ -723,6 +666,109 @@ mod tests {
             elapsed >= measured.calls.wall_ns + measured.preparation.wall_ns + 6_000_000,
             "the sleeps stay out of the sum: {elapsed} ns in all, {measured:?}"
         );
+    }
+
+    /// The machine's properties as this crate relies on them: timing, the
+    /// OS's counters, children. Seconds each and sensitive to other load,
+    /// so they run on purpose (`cargo nextest run -P machine`) before a
+    /// release and on a new machine, and not beside every change or mutant.
+    mod machine {
+        use super::*;
+
+        /// The wall clock is the raw counter: it only goes forward, it steps
+        /// finely (under 100 ns a step: a clock stepping in whole microseconds,
+        /// as Darwin's CLOCK_MONOTONIC through clock_gettime does, would fail
+        /// here), and it reads at the cost of a function call. A change of the
+        /// clock behind `now` shows here.
+        /// On Linux a thread's sleeps land late by its timer slack (50 us by
+        /// default); after tight_timers a 20 us sleep lands within 10 us of
+        /// it, in the median of 200. Elsewhere the call is nothing and the
+        /// sleep lands as the OS lands it.
+        #[test]
+        #[cfg(target_os = "linux")]
+        fn tight_timers_land_a_brief_sleep_on_time() {
+            let landing = || {
+                let mut v: Vec<u64> = (0..200)
+                    .map(|_| {
+                        let t = now();
+                        std::thread::sleep(std::time::Duration::from_micros(20));
+                        since_ns(t)
+                    })
+                    .collect();
+                v.sort_unstable();
+                v[100]
+            };
+            std::thread::spawn(move || {
+                let loose = landing();
+                tight_timers();
+                let tight = landing();
+                eprintln!("a 20 us sleep lands at {loose} ns with the default slack, {tight} ns with 1 us");
+                assert!(tight < 30_000, "a 20 us sleep lands within 10 us: {tight} ns");
+                assert!(tight < loose, "tight timers land sooner than the default slack ({loose} ns)");
+            })
+            .join()
+            .unwrap();
+        }
+
+        #[test]
+        fn the_wall_clock_is_fine_and_forward() {
+            let mut last = now();
+            let mut smallest_step = u64::MAX;
+            let first = last;
+            for _ in 0..100_000 {
+                let t = now();
+                assert!(t >= last, "the clock went back");
+                let step = t.0 - last.0;
+                if t > last && step < smallest_step {
+                    smallest_step = step;
+                }
+                last = t;
+            }
+            assert!(smallest_step <= 100, "the clock's smallest step: {smallest_step} ns");
+            let reads_ns = since_ns(first) / 100_000;
+            assert!(reads_ns < 1_000, "a read costs about {reads_ns} ns");
+        }
+
+        /// On Linux the wall clock is CLOCK_MONOTONIC_RAW itself: a reading sits
+        /// between two of that clock's, and away from CLOCK_MONOTONIC by the
+        /// slew the time daemon has applied since boot (zero on a machine with
+        /// none), which stays put across a short interval.
+        #[test]
+        #[cfg(all(unix, not(target_vendor = "apple")))]
+        fn on_linux_the_wall_clock_is_the_raw_counter() {
+            #[repr(C)]
+            struct Timespec {
+                sec: i64,
+                nsec: i64,
+            }
+            unsafe extern "C" {
+                fn clock_gettime(clock_id: i32, tp: *mut Timespec) -> i32;
+            }
+            let read = |clock: i32| {
+                let mut ts = Timespec { sec: 0, nsec: 0 };
+                assert_eq!(unsafe { clock_gettime(clock, &mut ts) }, 0);
+                ts.sec as u64 * 1_000_000_000 + ts.nsec as u64
+            };
+            const CLOCK_MONOTONIC: i32 = 1;
+            const CLOCK_MONOTONIC_RAW: i32 = 4;
+            let before = read(CLOCK_MONOTONIC_RAW);
+            let ours = now();
+            let after = read(CLOCK_MONOTONIC_RAW);
+            assert!(before <= ours.0 && ours.0 <= after, "a reading of ours lies between two of CLOCK_MONOTONIC_RAW's: {before} {} {after}", ours.0);
+            // The slewed clock and ours differ by what the daemon has applied
+            // since boot; the difference moves by at most the slew (500 ppm)
+            // over 10 ms, under 5 us, while a wrong clock behind `now` would
+            // make it the full offset or a jump.
+            let offset = || read(CLOCK_MONOTONIC) as i128 - now().0 as i128;
+            let o1 = offset();
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            let o2 = offset();
+            assert!(
+                (o1 - o2).abs() < 5_000 + 20_000,
+                "the offset to CLOCK_MONOTONIC moved by {} ns in 10 ms (slew is under 5 us; the rest a read's own time)",
+                o1 - o2
+            );
+        }
     }
 }
 

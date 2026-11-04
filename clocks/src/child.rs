@@ -351,100 +351,6 @@ mod tests {
         crate::load::other_milli_cpus_over(1_000_000_000)
     }
 
-    /// A shell that spins briefly: it succeeds, its wall time covers its
-    /// CPU time, and a failing one reports failure.
-    #[test]
-    fn a_child_is_timed_and_counted() {
-        let _one = one();
-        let ok = run(std::process::Command::new("sh").args(["-c", "i=0; while [ $i -lt 20000 ]; do i=$((i+1)); done"]));
-        assert!(ok.success, "{ok:?}");
-        let cpu = ok.cpu_ns.expect("unix counts CPU time");
-        assert!(cpu > 0 && cpu <= ok.wall_ns + 20_000_000, "{ok:?}");
-        assert!(ok.max_rss_bytes.unwrap() > 100_000, "{ok:?}");
-        if let Some(counts) = ok.counts {
-            let ns = counts.p.time_ns + counts.e.time_ns;
-            assert!(ns * 2 >= cpu && ns <= cpu * 2, "the per-kind times add up to the CPU time: {ok:?}");
-        }
-        assert!(!run(std::process::Command::new("sh").args(["-c", "exit 3"])).success);
-    }
-
-    /// A child running across several windows leaves them a second long,
-    /// its CPU time this process's own in each (none reads as other
-    /// programs' load), the watcher's work done by its exit.
-    #[test]
-    fn a_running_childs_windows_stay_a_second_long() {
-        let _one = one();
-        let background = background_milli_cpus();
-        let before = crate::load::windows().len();
-        // One process spinning 3 s (a grandchild's CPU time would reach
-        // this process only when the child reaps it; Time::HiRes, since
-        // whole seconds would stop it anywhere from 2 s on).
-        let child = run(std::process::Command::new("perl").args(["-e", "use Time::HiRes qw(time); my $t = time; 1 while time - $t < 3"]));
-        assert!(child.wall_ns > 2_200_000_000, "the child ran long enough to span windows: {child:?}");
-        let windows = crate::load::windows();
-        let during: Vec<_> = windows[before..].iter().filter(|w| w.end_ns > child.started_ns && w.start_ns < child.started_ns + child.wall_ns).collect();
-        assert!(during.len() >= 2, "windows closed while it ran: {windows:?}");
-        assert!(during.iter().all(|w| w.end_ns - w.start_ns < 2 * crate::load::WINDOW_NS), "{during:?}");
-        assert!(
-            during.iter().all(|w| w.other_milli_cpus < background + 500),
-            "the child's own CPU is this process's (other load before it: {background}): {during:?}"
-        );
-        assert_eq!(running_cpu_ns(), 0, "none running after the reaping");
-    }
-
-    /// The check above can fail: a program spinning beside the child, one
-    /// this process did not start, reads as other programs' load in the
-    /// windows while the child runs. (Started through a shell that exits at
-    /// once, so it leaves this process's tree: on Linux a process this one
-    /// started is its own.)
-    #[test]
-    fn a_sibling_beside_the_child_reads_as_load() {
-        let _one = one();
-        let background = background_milli_cpus();
-        let before = crate::load::windows().len();
-        let out =
-            std::process::Command::new("sh").args(["-c", "perl -e 'my $t = time; 1 while time - $t < 4' >/dev/null 2>&1 & echo $!"]).output().expect("sh");
-        let sibling: i32 = String::from_utf8_lossy(&out.stdout).trim().parse().expect("the orphan's pid");
-        let child = run(std::process::Command::new("sleep").arg("3"));
-        unsafe extern "C" {
-            fn kill(pid: i32, sig: i32) -> i32;
-        }
-        // Sound: a signal to the orphan this test started.
-        unsafe { kill(sibling, 9) };
-        let windows = crate::load::windows();
-        let during: Vec<_> = windows[before..].iter().filter(|w| w.end_ns > child.started_ns && w.start_ns < child.started_ns + child.wall_ns).collect();
-        assert!(
-            during.iter().any(|w| w.other_milli_cpus >= background + 700),
-            "a spinning sibling is other load (other load before it: {background}): {during:?}"
-        );
-    }
-
-    /// A child's threads that exit while it runs still count as its own:
-    /// the child (this test binary again, running the helper below) burns
-    /// about 1.2 CPU-seconds in four threads that then exit, and sleeps on
-    /// past the next window; no window while it runs reads that CPU as
-    /// other programs'. On Linux /proc/PID/stat counts a process's exited
-    /// threads; on macOS proc_pid_rusage's task times are to count them.
-    #[test]
-    #[cfg(unix)]
-    fn a_childs_exited_threads_count_as_its_own() {
-        let _one = one();
-        let background = background_milli_cpus();
-        let before = crate::load::windows().len();
-        let child = run(std::process::Command::new(std::env::current_exe().expect("the test binary"))
-            .args(["--exact", "child::tests::exiting_threads_helper", "--test-threads=1", "--quiet"])
-            .env("CLOCKS_EXITING_THREADS_HELPER", "1")
-            .stdout(std::process::Stdio::null()));
-        assert!(child.success, "{child:?}");
-        let windows = crate::load::windows();
-        let during: Vec<_> = windows[before..].iter().filter(|w| w.end_ns > child.started_ns && w.start_ns < child.started_ns + child.wall_ns).collect();
-        assert!(!during.is_empty(), "{windows:?}");
-        assert!(
-            during.iter().all(|w| w.other_milli_cpus < background + 500),
-            "a child's exited threads are this process's (other load before it: {background}): {during:?}"
-        );
-    }
-
     /// The helper for the test above: does nothing unless that test set
     /// CLOCKS_EXITING_THREADS_HELPER.
     #[test]
@@ -484,17 +390,6 @@ mod tests {
         assert!(!Run::sum(&[run(1, 1, None, true), run(1, 1, None, false)]).success);
     }
 
-    #[test]
-    fn a_reaped_childs_cpu_time_is_this_processs() {
-        let _one = one();
-        let before = crate::process_cpu_ns();
-        let child = run(std::process::Command::new("sh").args(["-c", "i=0; while [ $i -lt 50000 ]; do i=$((i+1)); done"]));
-        let after = crate::process_cpu_ns();
-        assert!(after - before >= child.cpu_ns.unwrap(), "{before} {after} {child:?}");
-        // And by no more than this process's own work around it: a second.
-        assert!(after - before < child.cpu_ns.unwrap() + 1_000_000_000, "{before} {after} {child:?}");
-    }
-
     /// A child's counts from its rusage_info words: the P-core cycles and
     /// instructions as given, the E-cores' the totals less the P-cores',
     /// and each kind's time its user and system time in nanoseconds.
@@ -512,5 +407,118 @@ mod tests {
         let counts = counts_from_rusage(&words, |mach| mach * 10);
         assert_eq!(counts.p, Level { cycles: 11_000, instructions: 6_000, time_ns: 1_500, ..Level::default() });
         assert_eq!(counts.e, Level { cycles: 9_000, instructions: 4_000, time_ns: 2_500, ..Level::default() });
+    }
+
+    /// The machine's properties as this crate relies on them: timing, the
+    /// OS's counters, children. Seconds each and sensitive to other load,
+    /// so they run on purpose (`cargo nextest run -P machine`) before a
+    /// release and on a new machine, and not beside every change or mutant.
+    mod machine {
+        use super::*;
+
+        /// A shell that spins briefly: it succeeds, its wall time covers its
+        /// CPU time, and a failing one reports failure.
+        #[test]
+        fn a_child_is_timed_and_counted() {
+            let _one = one();
+            let ok = run(std::process::Command::new("sh").args(["-c", "i=0; while [ $i -lt 20000 ]; do i=$((i+1)); done"]));
+            assert!(ok.success, "{ok:?}");
+            let cpu = ok.cpu_ns.expect("unix counts CPU time");
+            assert!(cpu > 0 && cpu <= ok.wall_ns + 20_000_000, "{ok:?}");
+            assert!(ok.max_rss_bytes.unwrap() > 100_000, "{ok:?}");
+            if let Some(counts) = ok.counts {
+                let ns = counts.p.time_ns + counts.e.time_ns;
+                assert!(ns * 2 >= cpu && ns <= cpu * 2, "the per-kind times add up to the CPU time: {ok:?}");
+            }
+            assert!(!run(std::process::Command::new("sh").args(["-c", "exit 3"])).success);
+        }
+
+        /// A child running across several windows leaves them a second long,
+        /// its CPU time this process's own in each (none reads as other
+        /// programs' load), the watcher's work done by its exit.
+        #[test]
+        fn a_running_childs_windows_stay_a_second_long() {
+            let _one = one();
+            let background = background_milli_cpus();
+            let before = crate::load::windows().len();
+            // One process spinning 3 s (a grandchild's CPU time would reach
+            // this process only when the child reaps it; Time::HiRes, since
+            // whole seconds would stop it anywhere from 2 s on).
+            let child = run(std::process::Command::new("perl").args(["-e", "use Time::HiRes qw(time); my $t = time; 1 while time - $t < 3"]));
+            assert!(child.wall_ns > 2_200_000_000, "the child ran long enough to span windows: {child:?}");
+            let windows = crate::load::windows();
+            let during: Vec<_> = windows[before..].iter().filter(|w| w.end_ns > child.started_ns && w.start_ns < child.started_ns + child.wall_ns).collect();
+            assert!(during.len() >= 2, "windows closed while it ran: {windows:?}");
+            assert!(during.iter().all(|w| w.end_ns - w.start_ns < 2 * crate::load::WINDOW_NS), "{during:?}");
+            assert!(
+                during.iter().all(|w| w.other_milli_cpus < background + 500),
+                "the child's own CPU is this process's (other load before it: {background}): {during:?}"
+            );
+            assert_eq!(running_cpu_ns(), 0, "none running after the reaping");
+        }
+
+        /// The check above can fail: a program spinning beside the child, one
+        /// this process did not start, reads as other programs' load in the
+        /// windows while the child runs. (Started through a shell that exits at
+        /// once, so it leaves this process's tree: on Linux a process this one
+        /// started is its own.)
+        #[test]
+        fn a_sibling_beside_the_child_reads_as_load() {
+            let _one = one();
+            let background = background_milli_cpus();
+            let before = crate::load::windows().len();
+            let out =
+                std::process::Command::new("sh").args(["-c", "perl -e 'my $t = time; 1 while time - $t < 4' >/dev/null 2>&1 & echo $!"]).output().expect("sh");
+            let sibling: i32 = String::from_utf8_lossy(&out.stdout).trim().parse().expect("the orphan's pid");
+            let child = run(std::process::Command::new("sleep").arg("3"));
+            unsafe extern "C" {
+                fn kill(pid: i32, sig: i32) -> i32;
+            }
+            // Sound: a signal to the orphan this test started.
+            unsafe { kill(sibling, 9) };
+            let windows = crate::load::windows();
+            let during: Vec<_> = windows[before..].iter().filter(|w| w.end_ns > child.started_ns && w.start_ns < child.started_ns + child.wall_ns).collect();
+            assert!(
+                during.iter().any(|w| w.other_milli_cpus >= background + 700),
+                "a spinning sibling is other load (other load before it: {background}): {during:?}"
+            );
+        }
+
+        /// A child's threads that exit while it runs still count as its own:
+        /// the child (this test binary again, running the helper below) burns
+        /// about 1.2 CPU-seconds in four threads that then exit, and sleeps on
+        /// past the next window; no window while it runs reads that CPU as
+        /// other programs'. On Linux /proc/PID/stat counts a process's exited
+        /// threads; on macOS proc_pid_rusage's task times are to count them.
+        #[test]
+        #[cfg(unix)]
+        fn a_childs_exited_threads_count_as_its_own() {
+            let _one = one();
+            let background = background_milli_cpus();
+            let before = crate::load::windows().len();
+            let child = run(std::process::Command::new(std::env::current_exe().expect("the test binary"))
+                .args(["--exact", "child::tests::exiting_threads_helper", "--test-threads=1", "--quiet"])
+                .env("CLOCKS_EXITING_THREADS_HELPER", "1")
+                .stdout(std::process::Stdio::null()));
+            assert!(child.success, "{child:?}");
+            let windows = crate::load::windows();
+            let during: Vec<_> = windows[before..].iter().filter(|w| w.end_ns > child.started_ns && w.start_ns < child.started_ns + child.wall_ns).collect();
+            assert!(!during.is_empty(), "{windows:?}");
+            assert!(
+                during.iter().all(|w| w.other_milli_cpus < background + 500),
+                "a child's exited threads are this process's (other load before it: {background}): {during:?}"
+            );
+        }
+
+        #[test]
+        fn a_reaped_childs_cpu_time_is_this_processs() {
+            let _one = one();
+            let before = crate::process_cpu_ns();
+            let child = run(std::process::Command::new("sh").args(["-c", "i=0; while [ $i -lt 50000 ]; do i=$((i+1)); done"]));
+            let after = crate::process_cpu_ns();
+            assert!(after - before >= child.cpu_ns.unwrap(), "{before} {after} {child:?}");
+            // And by no more than this process's own work around it: a second.
+            assert!(after - before < child.cpu_ns.unwrap() + 1_000_000_000, "{before} {after} {child:?}");
+        }
     }
 }

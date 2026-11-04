@@ -741,32 +741,40 @@ mod tests {
         assert_eq!(other, (20 + 2 + 20) * 10_000_000 - 300_000_000);
     }
 
+    /// On the test clock: a tick half a window in closes nothing; one after
+    /// a window and a tenth closes it, ending at that tick; a tail
+    /// under half a window joins the last window when the windows are
+    /// read, reaching the read, and once (a later read joins nothing more).
     #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     #[test]
     fn ticks_close_a_window_after_a_window_of_time() {
         let _turn = exclusive();
+        crate::test_clock::freeze();
         tick();
         let started = now_ns();
-        while now_ns() - started < WINDOW_NS + WINDOW_NS / 10 {
-            crate::busy_work(10_000_000);
-            tick();
-        }
-        let ended = now_ns();
+        crate::test_clock::advance(WINDOW_NS / 2);
+        tick();
+        assert_eq!(DUE_NS.load(Ordering::Relaxed), started + WINDOW_NS, "half a window: the next close is due a whole window after the first tick");
+        crate::test_clock::advance(WINDOW_NS / 2 + WINDOW_NS / 10);
+        tick();
+        assert!(DUE_NS.load(Ordering::Relaxed) > started + WINDOW_NS, "the window closed at this tick and the next is due after it");
+        let closed_at = now_ns();
+        crate::test_clock::advance(WINDOW_NS / 10);
+        let read_at = now_ns();
         let windows = windows();
-        assert!(!windows.is_empty(), "a window closed");
+        let last = *windows.last().expect("a window closed");
+        assert_eq!(last.start_ns, started, "the window began at the first tick");
         for pair in windows.windows(2) {
             assert_eq!(pair[0].end_ns, pair[1].start_ns, "windows follow one another");
         }
-        assert!(windows.iter().all(|w| w.end_ns - w.start_ns >= WINDOW_NS / 2), "each window lasts half a window or more");
-        // The tail under half a window joined the last window: it reaches the call.
-        let last = *windows.last().unwrap();
-        assert!(last.busy() || last.end_ns >= ended, "the tail is covered or the last busy finding is preserved");
-        // Once: a later call joins nothing more to it.
-        let tail = now_ns();
-        while now_ns() - tail < WINDOW_NS / 10 {
-            crate::busy_work(10_000_000);
-        }
-        assert_eq!(super::windows().last().copied(), Some(last), "a second call joins nothing more");
+        assert!(closed_at - started >= WINDOW_NS, "the window closed after a whole window");
+        assert!(
+            last.busy() || last.end_ns == read_at,
+            "the tail (a tenth of a window) joined the window up to the read, or a busy finding is preserved: {last:?}"
+        );
+        crate::test_clock::advance(WINDOW_NS / 10);
+        assert_eq!(super::windows().last().copied(), Some(last), "a second read joins nothing more");
+        crate::test_clock::thaw();
     }
 }
 
