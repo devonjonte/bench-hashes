@@ -8,6 +8,14 @@
 //! counts, even on a homogeneous CPU: one missing PMU alone does not
 //! establish the CPU's topology. A kernel that refuses perf access also
 //! gives no counts.
+//!
+//! Each counter is read in user space where the kernel allows it
+//! (`rdpmc`, with the counter's mmap page giving its index, offset and
+//! the running time's TSC scale; 10-20 ns a read), else by the `read`
+//! system call (180-490 ns). A read sits between a cell's pause and its
+//! call, so its cost reaches the call: on the i7-12700K the system calls
+//! made a 64 B call after 20 us read 12% slower and after 5 ms 14% faster
+//! than with no reads at all (bench-hashes #127, November 4, 2026).
 use super::{Counts, Level};
 use std::ffi::{c_int, c_long, c_void};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
@@ -30,6 +38,97 @@ unsafe extern "C" {
     fn syscall(number: c_long, ...) -> c_long;
     #[link_name = "read"]
     fn read_fd(fd: c_int, buffer: *mut c_void, size: usize) -> isize;
+    fn mmap(addr: *mut c_void, len: usize, prot: c_int, flags: c_int, fd: c_int, offset: i64) -> *mut c_void;
+    fn munmap(addr: *mut c_void, len: usize) -> c_int;
+}
+
+/// The head of a counter's mmap page (`perf_event_mmap_page`): the fields
+/// user space reads under its seqlock.
+#[repr(C)]
+struct Page {
+    version: u32,
+    compat_version: u32,
+    lock: u32,
+    index: u32,
+    offset: i64,
+    time_enabled: u64,
+    time_running: u64,
+    capabilities: u64,
+    pmc_width: u16,
+    time_shift: u16,
+    time_mult: u32,
+    time_offset: u64,
+}
+
+const CAP_USER_RDPMC: u64 = 1 << 2;
+const CAP_USER_TIME: u64 = 1 << 3;
+const PAGE_LEN: usize = 4096;
+
+/// A counter's mmap page, mapped while the counter is open.
+struct Mapped(*const Page);
+
+impl Mapped {
+    /// The page of `fd`, where the kernel lets this process read the
+    /// counter and its running time in user space.
+    fn new(fd: &OwnedFd) -> Option<Mapped> {
+        // Sound: one page of the event's mmap, read-only and shared; perf
+        // keeps it while the descriptor lives, and Drop unmaps it first.
+        let page = unsafe { mmap(std::ptr::null_mut(), PAGE_LEN, 1, 1, fd.as_raw_fd(), 0) };
+        if page as isize == -1 {
+            return None;
+        }
+        let mapped = Mapped(page as *const Page);
+        // Sound: the page is mapped.
+        let capabilities = unsafe { std::ptr::read_volatile(&(*mapped.0).capabilities) };
+        (capabilities & CAP_USER_RDPMC != 0 && capabilities & CAP_USER_TIME != 0).then_some(mapped)
+    }
+
+    /// The count and the running time by rdpmc, as perf documents: under
+    /// the page's seqlock, the index, offset and width, the counter
+    /// register, and the running time with the TSC's advance since the
+    /// kernel last wrote it. A counter not on this CPU (the other core
+    /// kind's) has index 0: its count is its offset, its time stands.
+    fn read(&self) -> (u64, u64) {
+        // Sound: the page is mapped while self lives; rdpmc of an index the
+        // page gives is allowed by its capabilities (checked in new).
+        unsafe {
+            let p = &*self.0;
+            loop {
+                let seq = std::ptr::read_volatile(&p.lock);
+                core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
+                let index = std::ptr::read_volatile(&p.index);
+                let offset = std::ptr::read_volatile(&p.offset);
+                let width = std::ptr::read_volatile(&p.pmc_width);
+                let mut running = std::ptr::read_volatile(&p.time_running);
+                let count = if index > 0 {
+                    let (lo, hi): (u32, u32);
+                    core::arch::asm!("rdpmc", in("ecx") index - 1, out("eax") lo, out("edx") hi, options(nomem, nostack, preserves_flags));
+                    let raw = (u64::from(hi) << 32) | u64::from(lo);
+                    let shift = 64 - u32::from(width);
+                    let cycles = core::arch::x86_64::_rdtsc();
+                    let (time_shift, time_mult, time_offset) =
+                        (std::ptr::read_volatile(&p.time_shift), std::ptr::read_volatile(&p.time_mult), std::ptr::read_volatile(&p.time_offset));
+                    let quot = cycles >> time_shift;
+                    let rem = cycles & ((1u64 << time_shift) - 1);
+                    running = running.wrapping_add(time_offset.wrapping_add(quot * u64::from(time_mult) + ((rem * u64::from(time_mult)) >> time_shift)));
+                    offset.wrapping_add(((raw << shift) as i64) >> shift) as u64
+                } else {
+                    offset as u64
+                };
+                core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
+                if std::ptr::read_volatile(&p.lock) == seq {
+                    return (count, running);
+                }
+            }
+        }
+    }
+}
+
+impl Drop for Mapped {
+    fn drop(&mut self) {
+        // Sound: the page this mapped, unmapped once.
+        unsafe { munmap(self.0 as *mut c_void, PAGE_LEN) };
+    }
 }
 
 const SYS_PERF_EVENT_OPEN: c_long = 298;
@@ -62,24 +161,40 @@ fn open(pmu: u32, event: u64, group: c_int) -> Option<OwnedFd> {
     (fd >= 0).then(|| unsafe { OwnedFd::from_raw_fd(c_int::try_from(fd).unwrap()) })
 }
 
-/// One core kind's group: cycles leading, instructions.
+/// One core kind's group: cycles leading, instructions; each counter's
+/// page where user space may read them.
 struct Group {
     leader: OwnedFd,
     _instructions: OwnedFd,
+    pages: Option<[Mapped; 2]>,
 }
 
 impl Group {
     fn new(pmu: u32) -> Option<Group> {
         let leader = open(pmu, 0, -1)?; // PERF_COUNT_HW_CPU_CYCLES
         let instructions = open(pmu, 1, leader.as_raw_fd())?; // PERF_COUNT_HW_INSTRUCTIONS
-        let group = Group { leader, _instructions: instructions };
-        group.read()?;
+        let pages = Mapped::new(&leader).zip(Mapped::new(&instructions)).map(|(c, i)| [c, i]);
+        let group = Group { leader, _instructions: instructions, pages };
+        group.read_syscall()?;
         Some(group)
     }
 
-    /// The group's counts so far; `None` once a pinned group could not be
-    /// scheduled (its reads then return nothing).
+    /// The group's counts so far: in user space where the pages allow,
+    /// else by the system call.
     fn read(&self) -> Option<Level> {
+        match &self.pages {
+            Some([cycles, instructions]) => {
+                let (cycles, time_ns) = cycles.read();
+                let (instructions, _) = instructions.read();
+                Some(Level { cycles, instructions, time_ns })
+            }
+            None => self.read_syscall(),
+        }
+    }
+
+    /// The group's counts by the system call; `None` once a pinned group
+    /// could not be scheduled (its reads then return nothing).
+    fn read_syscall(&self) -> Option<Level> {
         // nr, time enabled, time running, cycles, instructions.
         let mut words = [0u64; 5];
         // Sound: `words` is writable for the size passed.
@@ -116,6 +231,12 @@ fn pmus_at(root: &std::path::Path) -> Option<(u32, Option<u32>)> {
 }
 
 pub fn read() -> Option<Counts> {
+    read_with(Group::read)
+}
+
+/// The thread's counts, each group through `read_group` (the user-space
+/// read where allowed, or the system call for the test that compares them).
+fn read_with(read_group: fn(&Group) -> Option<Level>) -> Option<Counts> {
     // Opened on the thread's first read; they count that thread alone and
     // close when it exits.
     std::thread_local! {
@@ -126,13 +247,19 @@ pub fn read() -> Option<Counts> {
     GROUPS.with(|groups| {
         let (p, e) = groups.as_ref()?;
         Some(Counts {
-            p: p.read()?,
+            p: read_group(p)?,
             e: match e {
-                Some(e) => e.read()?,
+                Some(e) => read_group(e)?,
                 None => Level::default(),
             },
         })
     })
+}
+
+/// Whether this thread's groups read in user space.
+#[cfg(test)]
+fn reads_in_user_space() -> bool {
+    read_with(|group| group.pages.as_ref().map(|_| Level::default())).is_some()
 }
 
 #[cfg(test)]
@@ -175,6 +302,54 @@ mod tests {
             std::fs::remove_dir_all(root.join(second)).unwrap();
         }
         std::fs::remove_dir(&root).unwrap();
+    }
+
+    /// The user-space read agrees with the system call's over the same
+    /// work: each count within the bracketing reads' own cost, the running
+    /// time within a few microseconds; both kinds' groups together, so a
+    /// thread that moves between an i7's core kinds still counts. Where
+    /// the kernel allows no user-space read (a VM without one), the
+    /// groups read by the system call and the test has nothing to compare.
+    #[test]
+    fn rdpmc_agrees_with_the_system_call() {
+        if read().is_none() || !reads_in_user_space() {
+            eprintln!("no user-space read here; the system call serves");
+            return;
+        }
+        let total = |c: Counts| (c.p.cycles + c.e.cycles, c.p.instructions + c.e.instructions, c.p.time_ns + c.e.time_ns);
+        let (s0, u0) = (total(read_with(Group::read_syscall).unwrap()), total(read().unwrap()));
+        crate::busy_work(20_000);
+        let (u1, s1) = (total(read().unwrap()), total(read_with(Group::read_syscall).unwrap()));
+        eprintln!(
+            "one call: by read() {} cycles {} instructions {} ns, by rdpmc {} cycles {} instructions {} ns",
+            s1.0 - s0.0,
+            s1.1 - s0.1,
+            s1.2 - s0.2,
+            u1.0 - u0.0,
+            u1.1 - u0.1,
+            u1.2 - u0.2
+        );
+        assert!(u1.0 > u0.0 + 1000 && u1.1 > u0.1 + 1000 && u1.2 > u0.2, "the user-space read counts the work: {u0:?} then {u1:?}");
+        let mut worst = (0i128, 0i128, 0i128);
+        for _ in 0..200 {
+            let (s0, u0) = (total(read_with(Group::read_syscall).unwrap()), total(read().unwrap()));
+            crate::busy_work(20_000);
+            let (u1, s1) = (total(read().unwrap()), total(read_with(Group::read_syscall).unwrap()));
+            // The system call brackets the user-space read, so its counts
+            // are the larger by the reads' own work.
+            let by = |s: (u64, u64, u64), u: (u64, u64, u64), s_0: (u64, u64, u64), u_0: (u64, u64, u64)| {
+                (
+                    (s.0 as i128 - s_0.0 as i128) - (u.0 as i128 - u_0.0 as i128),
+                    (s.1 as i128 - s_0.1 as i128) - (u.1 as i128 - u_0.1 as i128),
+                    (s.2 as i128 - s_0.2 as i128) - (u.2 as i128 - u_0.2 as i128),
+                )
+            };
+            let d = by(s1, u1, s0, u0);
+            worst = (worst.0.max(d.0.abs()), worst.1.max(d.1.abs()), worst.2.max(d.2.abs()));
+        }
+        eprintln!("worst differences over 200: cycles {}, instructions {}, time {} ns", worst.0, worst.1, worst.2);
+        assert!(worst.0 < 5_000 && worst.1 < 5_000, "the counts agree within the reads' own work: {worst:?}");
+        assert!(worst.2 < 20_000, "the running time agrees within the reads' own time: {worst:?}");
     }
 
     #[test]
