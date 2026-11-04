@@ -209,7 +209,13 @@ anything", John Servil releasing it):
   detectable, x6.3 at 5 ms with 16%). Each pause is a real program's
   situation, and each is stable. The pauses run in sets of rounds of
   their own, as the other ways of calling do. The run grows by the
-  after-pause cells' share.
+  after-pause cells' share. Each samples file records, beside the
+  configured idle states, the **effective** ones: the shares of the
+  core's hardware C-state residency over 100 ms idle at the run's start
+  (Linux, Intel's `cstate_core` counters; elsewhere "not measured"),
+  since a configured state may never happen (the Xeon Gold 6330's C6,
+  #117) and the deepest may be one no software counter names (the
+  i7's core C7).
 - **Every sample keeps its instructions retired beside its cycles**, per
   core kind (Zooko, November 4, 2026: the most the counters give, kept
   whether or not a use is known yet). The samples format is v9. On the

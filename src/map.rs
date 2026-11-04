@@ -485,6 +485,11 @@ fn details(
         String::new(),
     );
     add(
+        "Effective idle states",
+        header(headers, "effective idle states").to_owned(),
+        String::new(),
+    );
+    add(
         "Shared placements",
         header(headers, "shared placements").to_owned(),
         String::new(),
@@ -581,6 +586,7 @@ fn details(
         "files",
         "idle states",
         "shared placements",
+        "effective idle states",
         "contender",
     ];
     for (k, v) in headers.iter().filter(|(k, _)| {
