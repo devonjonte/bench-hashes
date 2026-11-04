@@ -543,11 +543,14 @@ placement, which alone can move calls after a gap by several percent.
 When the pairs find no cell slower, `check` takes a second stage. The
 cells `regress` names as suspects run again on 64 fresh pairs, 16 new
 links a side each run 4 times, and are judged among themselves. The
-suspects, at most 8: first the level cells whose **instructions retired
-a unit moved beyond 0.5%** in the median of the pairs (the count is the
-same whatever the core's clock or state, so a move is the code's; #119's
+suspects, at most 8: first the level solo cells of single-threaded
+contenders whose **instructions retired a unit moved beyond 0.5%** in
+the median of the pairs, the largest move first (the count is the same
+whatever the core's clock or state, so a move is the code's; #119's
 cold code moved it 1.2% in every pair where wall missed it three times;
-Zooko, November 4, on John's rule, #127), then the level cells whose
+Zooko, November 4, on John's rule, #127; a pool's caller spins while it
+waits, so its count moved 1-9% between two runs of the same code and is
+no evidence), then the level cells whose
 wall-time mean lies beyond the margin, the strongest evidence of change
 first. Where the machine counts no instructions (a VM without a PMU, a
 Mac), the suspects are wall's alone and the run says so. Wall still

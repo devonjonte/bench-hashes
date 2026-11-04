@@ -232,9 +232,12 @@ anything", John Servil releasing it):
   sandbox: no root).
 - **A level cell whose instructions moved joins the second stage** (Zooko,
   November 4, 2026, on John's rule; #127): instructions a unit moved
-  beyond 0.5% in the median of the pairs names a cell a suspect ahead of
-  the wall-ranked ones, with no verdict of its own; wall decides on the
-  fresh pairs. Where the machine counts none, the suspects are wall's
+  beyond 0.5% in the median of the pairs names a solo cell of a
+  single-threaded contender a suspect ahead of the wall-ranked ones,
+  the largest move first, with no verdict of its own; wall decides on
+  the fresh pairs. A pool's caller spins while it waits, so a
+  multithreaded cell's count is no evidence (it moved 1-9% between two
+  runs of the same code; data branch, 2026-11-04/judge2-i7). Where the machine counts none, the suspects are wall's
   alone, and the run says so.
 - **Every sample keeps its instructions retired, and its last-level-cache
   references and misses, beside its cycles**, per core kind (Zooko,

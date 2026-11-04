@@ -6908,6 +6908,10 @@ const REGRESS_SUSPECTS: usize = 8;
 /// count whatever the core's clock or state, so a move is the code's,
 /// and #119's cold code moved them 1.2% in every pair where wall missed
 /// it three times. Wall still decides, on the second stage's fresh pairs.
+/// The rule reads the solo cells of the single-threaded contenders
+/// alone, where the calling thread does the whole work: a pool's caller
+/// spins while it waits, and its count moved 1-9% between two runs of
+/// the same code (data branch, 2026-11-04/judge2-i7).
 const INSTRUCTIONS_MARGIN_PERMILLE: u64 = 5;
 
 /// What each of the check's runs measures, and which of its cells are
@@ -7339,10 +7343,12 @@ fn regress_command(arguments: &[String]) -> i32 {
         // measured as its lent twin): its verdict printed, not counted again.
         let first = measurement[i] == i;
         if judgment.verdict == clocks::summary::Verdict::Level {
-            if first && moved.contains_key(key) {
-                suspects.push((0, key));
+            if first && moved.iter().any(|(k, _)| k == key) {
+                // Its place among the moved, the largest move first.
+                let place = moved.iter().position(|(k, _)| k == key).unwrap();
+                suspects.push((place, key));
             } else if first && judgment.ratio_permille > 1000 + REGRESS_MARGIN_PERMILLE {
-                suspects.push((judgment.rank, key));
+                suspects.push((moved.len() + judgment.rank, key));
             }
             continue;
         }
@@ -7403,23 +7409,40 @@ fn regress_command(arguments: &[String]) -> i32 {
 }
 
 /// The cells whose instructions a unit moved beyond INSTRUCTIONS_MARGIN_
-/// PERMILLE, either way, in the median of their pairs, with that median:
-/// a cell counted in every pair alone (a cell a side lacks counts for
-/// says nothing).
+/// PERMILLE, either way, in the median of their pairs, the largest move
+/// first: the solo cells of single-threaded contenders (whose calling
+/// thread does the whole work), each counted in every pair (a cell a
+/// side lacks counts for says nothing).
 fn instructions_moved(
     ratios: &std::collections::BTreeMap<String, Vec<u64>>,
     pairs: usize,
-) -> std::collections::BTreeMap<String, u64> {
-    ratios
+) -> Vec<(String, u64)> {
+    let mut moved: Vec<(String, u64)> = ratios
         .iter()
-        .filter(|(_, r)| r.len() == pairs)
+        .filter(|(key, r)| r.len() == pairs && instructions_tell(key))
         .filter_map(|(key, r)| {
             let mut sorted = r.clone();
             sorted.sort_unstable();
             let median = sorted[sorted.len() / 2];
             (median.abs_diff(1000) > INSTRUCTIONS_MARGIN_PERMILLE).then(|| (key.clone(), median))
         })
-        .collect()
+        .collect();
+    moved.sort_by_key(|(key, median)| (std::cmp::Reverse(median.abs_diff(1000)), key.clone()));
+    moved
+}
+
+/// Whether a cell's calling-thread instructions are the code's alone: a
+/// solo cell of a contender without a pool.
+fn instructions_tell(key: &str) -> bool {
+    let mut fields = key.split('|');
+    let (Some(contender), Some(scenario)) = (fields.next(), fields.next()) else {
+        return false;
+    };
+    scenario == "solo"
+        && Algorithm::ALL
+            .into_iter()
+            .find(|a| a.key() == contender)
+            .is_some_and(|a| !a.multithreaded())
 }
 
 /*
@@ -8704,25 +8727,53 @@ mod correctness_tests {
     /// cell took the same wall time and cycles a unit as another's but
     /// more instructions reads level by wall and by cycles and slower by
     /// instructions; a cell without counts is judged by wall alone.
-    /// A level cell whose instructions moved beyond the margin in the
-    /// median of its pairs is named (either way); one at the margin, or
-    /// counted in fewer pairs than the run had, is not.
+    /// A level solo cell of a single-threaded contender whose instructions
+    /// moved beyond the margin in the median of its pairs is named (either
+    /// way, the larger move first); one at the margin, counted in fewer
+    /// pairs than the run had, multithreaded, or shared, is not.
     #[test]
     fn instructions_moved_names_cells_beyond_the_margin_in_every_pair() {
         let ratios: std::collections::BTreeMap<String, Vec<u64>> = [
-            ("more", vec![1012, 1011, 1013, 1012]),
-            ("fewer", vec![990, 991, 989, 990]),
-            ("at the margin", vec![1005, 1005, 1005, 1005]),
-            ("one pair wild", vec![1000, 1000, 1000, 1300]),
-            ("short", vec![1012, 1012, 1012]),
+            (
+                "blake3-servil-st|solo|OneMessage|3839 B",
+                vec![1012, 1011, 1013, 1012],
+            ),
+            (
+                "blake3-servil-st|solo|OneMessage|64 B",
+                vec![990, 991, 989, 990],
+            ),
+            (
+                "blake3-servil-st|solo|OneMessage|1 KiB",
+                vec![1005, 1005, 1005, 1005],
+            ),
+            (
+                "blake3-servil-st|solo|OneMessage|2 KiB",
+                vec![1000, 1000, 1000, 1300],
+            ),
+            (
+                "blake3-servil-st|solo|OneMessage|4 KiB",
+                vec![1012, 1012, 1012],
+            ),
+            // A pool's caller spins while it waits: its count is no evidence.
+            (
+                "blake3-servil-mt|solo|OneMessage|1 MiB",
+                vec![1030, 1040, 1050, 1060],
+            ),
+            (
+                "blake3-servil-st|shared-one-cache|LentMessages|64 B",
+                vec![1030, 1040, 1050, 1060],
+            ),
         ]
         .into_iter()
         .map(|(k, v)| (k.to_owned(), v))
         .collect();
-        let moved = instructions_moved(&ratios, 4);
         assert_eq!(
-            moved.into_iter().collect::<Vec<_>>(),
-            vec![("fewer".to_owned(), 990), ("more".to_owned(), 1012)]
+            instructions_moved(&ratios, 4),
+            vec![
+                ("blake3-servil-st|solo|OneMessage|3839 B".to_owned(), 1012),
+                ("blake3-servil-st|solo|OneMessage|64 B".to_owned(), 990),
+            ],
+            "beyond the margin either way, the larger move first; st solo cells alone"
         );
         assert!(instructions_moved(&Default::default(), 4).is_empty());
     }
