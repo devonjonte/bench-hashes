@@ -93,6 +93,12 @@ const SECOND_PAIRS: usize = SECOND_LAYOUTS * SECOND_RUNS;
 /// 2026-11-01/links-019-i7; Zooko, November 1: "I love saving 12 minutes
 /// without losing sensitivity").
 const FIRST_RUNS: usize = 1;
+/// A probe's layouts a side: three pairs, the least the rule reads, with
+/// the points named rather than found. About five minutes with the builds
+/// cached: the measurement before a change is built, in place of the hour
+/// of a check after (Zooko, November 5, 2026: measure first, and make the
+/// measurement cheap).
+const PROBE_LAYOUTS: usize = 3;
 
 /// `exes`, each `times` times, in turn: the same layouts run again cost a
 /// run each, where a new layout costs a relink.
@@ -107,10 +113,11 @@ fn each_run(exes: Vec<String>, times: usize) -> Vec<String> {
 const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
 pub fn command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--old-bench REV] [--cells all] [--layouts N] [--keep DIR] [--when-quiet]";
+    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--old-bench REV] [--cells all | --probe POINTS] [--layouts N] [--keep DIR] [--when-quiet]";
     let (mut against, mut all, mut layouts_a_side, mut keep) =
         ("HEAD".to_string(), false, LAYOUTS, None::<PathBuf>);
     let mut when_quiet = false;
+    let mut probe = None::<String>;
     let mut old_bench_rev = None::<String>;
     let mut fork = None::<PathBuf>;
     let mut it = arguments.iter();
@@ -155,9 +162,21 @@ pub fn command(arguments: &[String]) -> i32 {
                     })))
             }
             "--when-quiet" => when_quiet = true,
+            "--probe" => {
+                probe = Some(it.next().unwrap_or_else(|| {
+                    panic!("--probe takes the points to measure, as --points names them (\"3 KiB,brief idle 3 KiB\")\n{usage}")
+                }).clone());
+                // Three fresh pairs: the least the rule reads, the most a
+                // probe needs to say whether an idea is worth building.
+                layouts_a_side = PROBE_LAYOUTS;
+            }
             other => panic!("unknown option {other}\n{usage}"),
         }
     }
+    assert!(
+        !(all && probe.is_some()),
+        "--cells all or --probe, not both\n{usage}"
+    );
     // The machine first, before a build: a check on a busy machine measures
     // for an hour and abstains. --when-quiet waits for one instead.
     if when_quiet {
@@ -229,6 +248,11 @@ pub fn command(arguments: &[String]) -> i32 {
     // coverage; a run measures their contenders over their points.
     let (contenders, points): (Vec<String>, Option<Vec<String>>) = if all {
         (SUBJECTS.iter().map(|s| s.to_string()).collect(), None)
+    } else if let Some(points) = &probe {
+        (
+            SUBJECTS.iter().map(|s| s.to_string()).collect(),
+            Some(points.split(',').map(|p| p.trim().to_string()).collect()),
+        )
     } else {
         let cells = touched_cells(
             &fork,
@@ -288,6 +312,9 @@ pub fn command(arguments: &[String]) -> i32 {
     if let Some(points) = &points {
         regress.extend(["--points".to_string(), points.join(",")]);
     }
+    // A probe keeps its runs (in the cache unless --keep says where), to
+    // read each cell's ratio from them afterwards.
+    let keep = keep.or_else(|| probe.as_ref().map(|_| cache.join("probe")));
     if let Some(keep) = &keep {
         regress.extend(["--keep".to_string(), keep.display().to_string()]);
     }
@@ -295,6 +322,36 @@ pub fn command(arguments: &[String]) -> i32 {
     regress.push("--".into());
     regress.extend(news);
     let (code, out) = run_regress(&new_exe, &bench, &regress);
+    if probe.is_some() && code == 2 {
+        return 2;
+    }
+    if probe.is_some() {
+        // The numbers, no verdict: each cell's old and new means over the
+        // pairs and their ratio (compare), for the question "is this idea
+        // worth building"; the verdict is the full check's, on the change
+        // once built.
+        let keep = keep.as_ref().unwrap();
+        let mut runs: Vec<PathBuf> = std::fs::read_dir(keep)
+            .expect("the probe's kept runs")
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| {
+                p.file_name()
+                    .is_some_and(|n| n.to_string_lossy().starts_with("run-"))
+            })
+            .collect();
+        runs.sort();
+        let (olds, news): (Vec<_>, Vec<_>) = runs
+            .iter()
+            .partition(|p| p.to_string_lossy().ends_with("-old.tsv"));
+        let mut compare: Vec<String> = vec!["compare".into()];
+        compare.extend(olds.iter().map(|p| p.display().to_string()));
+        compare.push("--".into());
+        compare.extend(news.iter().map(|p| p.display().to_string()));
+        println!("check: the probe's cells over {} pairs (compare; no verdict: the full check's is the gate)", olds.len());
+        run_regress(&new_exe, &bench, &compare);
+        return 0;
+    }
     let suspects: Vec<String> = out
         .lines()
         .find_map(|l| l.strip_prefix("regress: suspects: "))
