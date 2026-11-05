@@ -116,7 +116,7 @@ pub fn cell_key(scenario: &str, use_case: UseCase) -> String {
     format!("{scenario}|{row}|{col}")
 }
 
-const DOCS: &str = "https://johnservil.github.io/BLAKE3/blake3_servil/";
+const DOCS: &str = "https://servil-software-factory.github.io/BLAKE3/blake3_servil/";
 
 /// What a chart's points are, with their unit: the opened chart's x axis
 /// and the tooltip's heading.

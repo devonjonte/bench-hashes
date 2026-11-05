@@ -284,7 +284,7 @@ mod imp {
     pub const EVICTS: bool = true;
 
     /// Evict `file`'s pages, and check that none stays: a program that
-    /// leaves its mappings for exit to reclaim (b3sum since johnservil/BLAKE3
+    /// leaves its mappings for exit to reclaim (b3sum since servil-software-factory/BLAKE3
     /// #56) leaves pages DONTNEED cannot drop for 20-50 ms after it exits
     /// (i7-12700K: every first try failed, a try 20-50 ms later took them),
     /// so the advice is given again, 5 ms apart, until the page cache holds

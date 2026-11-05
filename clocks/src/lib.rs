@@ -55,7 +55,7 @@ use std::time::Instant;
 
 // Unix's clocks (Linux and macOS); Windows is not supported (BLAKE3 #160).
 #[cfg(not(unix))]
-compile_error!("clocks reads Unix's clocks (Linux and macOS); Windows is not supported (https://github.com/johnservil/BLAKE3/issues/160)");
+compile_error!("clocks reads Unix's clocks (Linux and macOS); Windows is not supported (https://github.com/servil-software-factory/BLAKE3/issues/160)");
 
 pub mod child;
 pub mod energy;

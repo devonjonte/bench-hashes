@@ -260,7 +260,7 @@ blocks. The two kernels are the two sides of one design trade-off, so
 the crossover near 128–256 B is structural.
 
 BLAKE3-Servil is the same crate from the `servil` branch of
-github.com/johnservil/BLAKE3, at the commit `Cargo.lock` pins, under
+github.com/servil-software-factory/BLAKE3, at the commit `Cargo.lock` pins, under
 the crate name `blake3-servil` so it links beside the crates.io crate.
 On AArch64 Linux and macOS the build includes the SME2 kernel when the
 C compiler assembles SME2 (Clang 17 or later, Xcode 15 or later, or GCC

@@ -479,7 +479,7 @@ fn git_output(repository: &Path, arguments: &[&str]) -> Output {
 /*
  * blake3-servil comes from BLAKE3-Servil's repository at the commit Cargo.lock
  * pins, with a line such as
- *   source = "git+https://github.com/johnservil/BLAKE3?rev=COMMIT#COMMIT"
+ *   source = "git+https://github.com/servil-software-factory/BLAKE3?rev=COMMIT#COMMIT"
  * A `--config` patch replaces it with the enclosing checkout at `..`, and
  * Cargo.lock then records no source; the checkout's own git state
  * identifies the code: origin URL, branch, exact commit, and a clean flag

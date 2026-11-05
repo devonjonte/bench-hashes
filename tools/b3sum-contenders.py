@@ -1,6 +1,6 @@
 """Build b3sum contenders for `bench-hashes b3sum` into DIR, each named for what it is:
     python3 tools/b3sum-contenders.py FORK DIR [COMMIT...]
-FORK is a checkout of github.com/johnservil/BLAKE3.
+FORK is a checkout of github.com/servil-software-factory/BLAKE3.
   DIR/b3sum-official-1.8.7  official BLAKE3's b3sum from crates.io (also as
                             official-1-thread, the same build with
                             --num-threads 1)

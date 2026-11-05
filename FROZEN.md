@@ -622,7 +622,7 @@ changes are drawn by one benchmark.
   (Zooko, October 5, 2026): `bench-hashes.map.html`, every cell a small
   chart placed by what the program hashes and how it calls, opening in
   place with its values under the pointer, each call's name a link to its
-  documentation (johnservil.github.io/BLAKE3), b3sum's results a section
+  documentation (servil-software-factory.github.io/BLAKE3), b3sum's results a section
   in the same form. Every run, and every b3sum run, draws it from the
   samples files in its folder; `bench-hashes map FOLDER` draws it again.
   The guide's answers link to their charts on the map. The README's 1 MiB

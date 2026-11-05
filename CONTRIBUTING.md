@@ -65,7 +65,7 @@ statistics, the report, and the map.
 
 The BLAKE3-Servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
 the crate `blake3-servil`, a git dependency on
-[github.com/johnservil/BLAKE3](https://github.com/johnservil/BLAKE3) at
+[github.com/servil-software-factory/BLAKE3](https://github.com/servil-software-factory/BLAKE3) at
 the commit whose full hash `Cargo.toml` names (`rev`). The instrument,
 `clocks/` (every clock a measurement reads), is part of this repository,
 so a run's bench commit names the one that timed it, on both sides of a
@@ -74,8 +74,8 @@ To measure your own checkout of BLAKE3-Servil, keep this repository beside
 it (anywhere: neither holds the other) and name BLAKE3-Servil's checkout:
 
 ```sh
-git clone --branch servil https://github.com/johnservil/BLAKE3
-git clone https://github.com/johnservil/bench-hashes
+git clone --branch servil https://github.com/servil-software-factory/BLAKE3
+git clone https://github.com/servil-software-factory/bench-hashes
 cd bench-hashes && cargo run --release -- check --fork ../BLAKE3   # BLAKE3-Servil's working tree against its HEAD
 cd bench-hashes && "$(cargo run --release --quiet -- build-against ../BLAKE3)" --quick   # one run of it
 ```

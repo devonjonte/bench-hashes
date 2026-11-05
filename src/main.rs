@@ -6026,7 +6026,7 @@ fn calibrate_batch(algorithm: Algorithm, input: &[u8], point: Point) -> (usize, 
      * untimed batch and one probe left Interleaved 256 still warming
      * in some builds (i7-12700K: probes 0.57-0.79 ms against 0.28 ms an
      * iteration steady), which halved its samples and read it 4-10% slower
-     * with no slower hashing (johnservil/bench-hashes#11).
+     * with no slower hashing (servil-software-factory/bench-hashes#11).
      */
     for _ in 0..CALIBRATION_WARMUPS {
         run_batch(algorithm, input, point, fewest);
