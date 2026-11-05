@@ -1,0 +1,36 @@
+# bench-hashes consistency checks (for maintainers): relations that hold for every contender when the benchmark measures what it means to, judged on fast speeds, intervals apart and over 10% between them.
+# 1. Nonstop no slower than after other work, 64 B-4 KiB. 2. Shared no faster than solo. 3. A hash on the cores alone no slower shared. 4. No slower per unit than a size that divides the work, up to 32 KiB, outside the idle use cases.
+shared faster than solo: BLAKE3 servil mt, batches, lent buffers, 16384: solo 6.929 against shared 5.640 ns/msg: x1.229
+a hash on the cores alone slowed by a second copy: SHA-256 ring, messages, lent buffers, 16 MiB: shared 0.528 against solo 0.476 ns/B: x1.110
+a hash on the cores alone slowed by a second copy: SHA-256 ring, messages, lent buffers, 64 MiB: shared 0.520 against solo 0.472 ns/B: x1.101
+more work, slower per unit: BLAKE3 official, messages, owned buffers (solo), 256 B against 64 B: 0.773 against 0.699 ns/B: x1.105
+more work, slower per unit: BLAKE3 official, messages, owned buffers (shared), 256 B against 64 B: 0.771 against 0.693 ns/B: x1.113
+a hash on the cores alone slowed by a second copy: BLAKE3 official, batches, owned buffers, 65536: shared 17.327 against solo 15.552 ns/msg: x1.114
+a hash on the cores alone slowed by a second copy: BLAKE3 official, messages, lent buffers, 16 MiB: shared 0.298 against solo 0.259 ns/B: x1.150
+a hash on the cores alone slowed by a second copy: BLAKE3 official, messages, lent buffers, 64 MiB: shared 0.303 against solo 0.260 ns/B: x1.168
+more work, slower per unit: BLAKE3 official mt, one buffer, after other work (solo), 16 KiB against 512 B: 3.187 against 2.787 ns/B: x1.144
+more work, slower per unit: BLAKE3 official mt, one buffer, after other work (solo), 16 KiB against 1 KiB: 3.187 against 1.867 ns/B: x1.707
+more work, slower per unit: BLAKE3 official mt, one buffer, after other work (solo), 16 KiB against 2 KiB: 3.187 against 0.949 ns/B: x3.357
+more work, slower per unit: BLAKE3 official mt, one buffer, after other work (solo), 16 KiB against 4 KiB: 3.187 against 0.578 ns/B: x5.515
+more work, slower per unit: BLAKE3 official mt, one buffer, after other work (solo), 16 KiB against 8 KiB: 3.187 against 0.360 ns/B: x8.864
+more work, slower per unit: BLAKE3 official mt, one buffer, after other work (solo), 32 KiB against 4 KiB: 1.566 against 0.578 ns/B: x2.710
+more work, slower per unit: BLAKE3 official mt, one buffer, after other work (solo), 32 KiB against 8 KiB: 1.566 against 0.360 ns/B: x4.356
+shared faster than solo: BLAKE3 official mt, messages, owned buffers, 16 KiB: solo 1.090 against shared 0.639 ns/B: x1.706
+shared faster than solo: BLAKE3 official mt, messages, owned buffers, 64 KiB: solo 0.337 against shared 0.235 ns/B: x1.433
+shared faster than solo: BLAKE3 official mt, messages, owned buffers, 256 KiB: solo 0.309 against shared 0.234 ns/B: x1.321
+shared faster than solo: BLAKE3 official mt, messages, owned buffers, 1 MiB: solo 0.326 against shared 0.256 ns/B: x1.271
+shared faster than solo: BLAKE3 official mt, messages, owned buffers, 4 MiB: solo 0.303 against shared 0.242 ns/B: x1.251
+shared faster than solo: BLAKE3 official mt, messages, owned buffers, 16 MiB: solo 0.286 against shared 0.253 ns/B: x1.132
+more work, slower per unit: BLAKE3 official mt, messages, owned buffers (solo), 16 KiB against 64 B: 1.090 against 0.722 ns/B: x1.510
+more work, slower per unit: BLAKE3 official mt, messages, owned buffers (solo), 16 KiB against 256 B: 1.090 against 0.720 ns/B: x1.515
+more work, slower per unit: BLAKE3 official mt, messages, owned buffers (solo), 16 KiB against 1 KiB: 1.090 against 0.727 ns/B: x1.501
+more work, slower per unit: BLAKE3 official mt, messages, owned buffers (solo), 16 KiB against 4 KiB: 1.090 against 0.270 ns/B: x4.037
+more work, slower per unit: BLAKE3 official mt, messages, owned buffers (shared), 16 KiB against 4 KiB: 0.639 against 0.265 ns/B: x2.416
+shared faster than solo: BLAKE3 official mt, messages, lent buffers, 16 KiB: solo 2.022 against shared 0.745 ns/B: x2.714
+shared faster than solo: BLAKE3 official mt, messages, lent buffers, 64 KiB: solo 0.332 against shared 0.245 ns/B: x1.357
+more work, slower per unit: BLAKE3 official mt, messages, lent buffers (solo), 16 KiB against 64 B: 2.022 against 0.730 ns/B: x2.770
+more work, slower per unit: BLAKE3 official mt, messages, lent buffers (solo), 16 KiB against 256 B: 2.022 against 0.718 ns/B: x2.815
+more work, slower per unit: BLAKE3 official mt, messages, lent buffers (solo), 16 KiB against 1 KiB: 2.022 against 0.726 ns/B: x2.786
+more work, slower per unit: BLAKE3 official mt, messages, lent buffers (solo), 16 KiB against 4 KiB: 2.022 against 0.266 ns/B: x7.613
+more work, slower per unit: BLAKE3 official mt, messages, lent buffers (shared), 16 KiB against 4 KiB: 0.745 against 0.264 ns/B: x2.820
+shared faster than solo: BLAKE3 official mt, pieces, lent buffers, 64 MiB: solo 0.295 against shared 0.261 ns/B: x1.130
