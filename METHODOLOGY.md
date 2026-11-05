@@ -541,6 +541,13 @@ so both sides perform the same work per sample and no timed run pays for
 calibration. Giving each pair a fresh link layout averages out code
 placement, which alone can move calls after a gap by several percent.
 
+Before it builds anything, `check` reads the machine for ten seconds and
+stops at once if other programs kept a CPU busy in any of them (the
+windows' own rule): a run on a busy machine measures for an hour and
+then abstains, so asking first costs the seconds. `--when-quiet` waits
+for a quiet machine instead, for a run queued for the night. `regress`
+asks the same before it measures.
+
 When the pairs find no cell slower, `check` takes a second stage. The
 cells `regress` names as suspects run again on 64 fresh pairs, 16 new
 links a side each run 4 times, and are judged among themselves. The

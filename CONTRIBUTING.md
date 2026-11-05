@@ -168,7 +168,9 @@ machine runs again. In order:
    and a `--quick` run that reports no busy window.
 3. **The tag:** `python3 tools/gen-ver.py X.Y.Z` from a clean tree: one
    commit setting the version to X.Y.Z+<HEAD's hash>, and its tag.
-4. **Every machine runs again at the tag,** each on a quiet machine,
+4. **Every machine runs again at the tag,** each on a quiet machine
+   (`check` and `regress` refuse a busy one before they start;
+   `--when-quiet` waits for it),
    plugged in, with the CPU governor at `performance` (a tuning service
    such as `tuned` can reset it mid-run). A machine's run is:
    - BLAKE3-Servil's release check and, beside it, the same check with the same

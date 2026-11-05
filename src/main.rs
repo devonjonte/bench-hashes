@@ -7052,6 +7052,14 @@ fn regress_command(arguments: &[String]) -> i32 {
         pairs >= 3,
         "--pairs: the rule needs at least three pairs\n{usage}"
     );
+    // The machine first: a run on a busy machine abstains at its end; ten
+    // seconds now say so before it (check asks the same before its build).
+    if let Err(reason) = clocks::load::quiet_for(10) {
+        println!(
+            "regress: {reason}. No verdict (exit 2); run when nothing else runs on the machine."
+        );
+        return 2;
+    }
     if let Some(keep) = &keep {
         fs::create_dir_all(keep)
             .unwrap_or_else(|error| panic!("cannot create {}: {error}", keep.display()));

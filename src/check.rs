@@ -107,9 +107,10 @@ fn each_run(exes: Vec<String>, times: usize) -> Vec<String> {
 const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
 pub fn command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--old-bench REV] [--cells all] [--layouts N] [--keep DIR]";
+    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--old-bench REV] [--cells all] [--layouts N] [--keep DIR] [--when-quiet]";
     let (mut against, mut all, mut layouts_a_side, mut keep) =
         ("HEAD".to_string(), false, LAYOUTS, None::<PathBuf>);
+    let mut when_quiet = false;
     let mut old_bench_rev = None::<String>;
     let mut fork = None::<PathBuf>;
     let mut it = arguments.iter();
@@ -153,8 +154,17 @@ pub fn command(arguments: &[String]) -> i32 {
                         panic!("--keep needs a directory\n{usage}")
                     })))
             }
+            "--when-quiet" => when_quiet = true,
             other => panic!("unknown option {other}\n{usage}"),
         }
+    }
+    // The machine first, before a build: a check on a busy machine measures
+    // for an hour and abstains. --when-quiet waits for one instead.
+    if when_quiet {
+        clocks::load::wait_until_quiet();
+    } else if let Err(reason) = clocks::load::quiet_for(10) {
+        println!("check: {reason}. No verdict (exit 2); run when nothing else runs on the machine, or with --when-quiet to wait for that.");
+        return 2;
     }
     let bench = bench_checkout("check", usage);
     let fork =
