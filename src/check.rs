@@ -204,7 +204,10 @@ pub fn command(arguments: &[String]) -> i32 {
     // time cannot put another change on the scale: November 5, 2026, a
     // check meant for one branch measured the one checked out).
     let (new, new_name) = match &new_rev {
-        Some(rev) => (git(&fork, &["rev-parse", &format!("{rev}^{{commit}}")]), rev.clone()),
+        Some(rev) => (
+            git(&fork, &["rev-parse", &format!("{rev}^{{commit}}")]),
+            rev.clone(),
+        ),
         None => (working_tree_commit(&fork), "working tree".to_string()),
     };
     eprintln!(
@@ -329,7 +332,18 @@ pub fn command(arguments: &[String]) -> i32 {
     }
     // A probe keeps its runs (in the cache unless --keep says where), to
     // read each cell's ratio from them afterwards.
-    let keep = keep.or_else(|| probe.as_ref().map(|_| cache.join("probe")));
+    let keep = keep.or_else(|| {
+        probe.as_ref().map(|_| {
+            // Fresh each probe: a run kept from the last probe, of other
+            // commits, would be read as one of this one's pairs.
+            let dir = cache.join("probe");
+            if dir.exists() {
+                std::fs::remove_dir_all(&dir)
+                    .unwrap_or_else(|e| panic!("clearing {}: {e}", dir.display()));
+            }
+            dir
+        })
+    });
     if let Some(keep) = &keep {
         regress.extend(["--keep".to_string(), keep.display().to_string()]);
     }
