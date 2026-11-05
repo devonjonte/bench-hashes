@@ -148,12 +148,29 @@ impl Drop for Mapped {
 const SYS_PERF_EVENT_OPEN: c_long = 298;
 const PERF_FLAG_FD_CLOEXEC: c_long = 8;
 
+/// The probe's two code-side events, Intel's raw codes (umask << 8 | event):
+/// ICACHE_64B.IFTAG_MISS (0x83, umask 0x02) and ITLB_MISSES.WALK_COMPLETED
+/// (0x85, umask 0x0e), in the cache references' and misses' places
+/// (bench-hashes #128: official's first-visit cost on the Xeon Gold 6330).
+const CODE_SIDE: [u64; 2] = [0x0283, 0x0e85];
+
 fn attr(pmu: u32, event: u64, leader: bool) -> Attr {
+    // A raw event (CODE_SIDE) names its PMU as the type: PERF_TYPE_RAW on
+    // a homogeneous machine, the kind's PMU on a hybrid one; a hardware
+    // event names it in config's upper word.
+    let raw = CODE_SIDE.contains(&event);
     Attr {
-        // PERF_TYPE_HARDWARE, with the PMU in config's upper word.
-        kind: 0,
+        kind: if raw {
+            if pmu == 0 {
+                4
+            } else {
+                pmu
+            }
+        } else {
+            0
+        },
         size: std::mem::size_of::<Attr>() as u32,
-        config: (u64::from(pmu) << 32) | event,
+        config: if raw { event } else { (u64::from(pmu) << 32) | event },
         sample_period: 0,
         sample_type: 0,
         // PERF_FORMAT_TOTAL_TIME_ENABLED | _RUNNING | _GROUP.
@@ -178,7 +195,7 @@ fn open(pmu: u32, event: u64, group: c_int) -> Option<OwnedFd> {
 /// The group's events, PERF_TYPE_HARDWARE's numbers: cycles leading, then
 /// instructions, cache references and cache misses (the last two one
 /// programmable counter each; the first two the fixed ones).
-const EVENTS: [u64; 4] = [0, 1, 2, 3];
+const EVENTS: [u64; 4] = [0, 1, CODE_SIDE[0], CODE_SIDE[1]];
 
 /// One core kind's group, and each counter's page where user space may
 /// read them.
@@ -296,6 +313,10 @@ mod tests {
         assert_eq!(a.read_format, 11);
         assert_eq!(a.flags, (1 << 5) | (1 << 6));
         assert_eq!(attr(8, 0, true).flags & (1 << 2), 1 << 2);
+        // The probe's raw events: PERF_TYPE_RAW on a homogeneous machine,
+        // the kind's PMU type on a hybrid one, the code as config.
+        assert_eq!((attr(0, CODE_SIDE[0], false).kind, attr(0, CODE_SIDE[0], false).config), (4, 0x0283));
+        assert_eq!((attr(8, CODE_SIDE[1], false).kind, attr(8, CODE_SIDE[1], false).config), (8, 0x0e85));
     }
 
     /// A 48-bit register's low bits, sign-extended and added to the offset:
@@ -482,7 +503,7 @@ mod tests {
             eprintln!(
                 "one pass: by read() {by_s:?}, by rdpmc {by_u:?} ({NAMES:?}); the reads' own bracket {own:?}; median differences beyond it over 200: {median:?}"
             );
-            assert!(by_u[0] > 10_000 && by_u[1] > 10_000 && by_u[2] > 1_000 && by_u[4] > 0, "the user-space read counts the work: {by_u:?}");
+            assert!(by_u[0] > 10_000 && by_u[1] > 10_000 && by_u[4] > 0, "the user-space read counts the work: {by_u:?}");
             assert!(
                 median[0] < 5_000 && median[1] < 2_000 && median[2] < 500 && median[3] < 500,
                 "the counts agree beyond the reads' own work: {median:?} ({NAMES:?})"

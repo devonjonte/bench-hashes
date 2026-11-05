@@ -1,3 +1,15 @@
+# PROBE BRANCH (bench-hashes #128): code-side counters
+
+This branch is `candidate/devon-raw-clock` with the two cache counters of
+samples v10 replaced by Intel's `ICACHE_64B.IFTAG_MISS` (0x83/0x02) and
+`ITLB_MISSES.WALK_COMPLETED` (0x85/0x0e), in the `cache references` and
+`cache misses` places of the `core counts` field, per core kind. Nothing
+else differs. It exists for one question: whether official's first-visit
+cost at 1 KiB on the Xeon Gold 6330 is instruction-side. Read a sample's
+ninth field as `P time:P cycles:P instructions:P iftag misses:P itlb
+walks:E ...`. Intel only (AMD's codes differ; the counters open and read
+something else there).
+
 # bench-hashes
 
 Written by AI at Zooko's request and to his specifications.
