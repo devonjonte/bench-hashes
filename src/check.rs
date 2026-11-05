@@ -113,11 +113,12 @@ fn each_run(exes: Vec<String>, times: usize) -> Vec<String> {
 const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
 pub fn command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--old-bench REV] [--cells all | --probe POINTS] [--layouts N] [--keep DIR] [--when-quiet]";
+    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--cells all | --probe POINTS] [--layouts N] [--keep DIR] [--when-quiet]";
     let (mut against, mut all, mut layouts_a_side, mut keep) =
         ("HEAD".to_string(), false, LAYOUTS, None::<PathBuf>);
     let mut when_quiet = false;
     let mut probe = None::<String>;
+    let mut new_rev = None::<String>;
     let mut old_bench_rev = None::<String>;
     let mut fork = None::<PathBuf>;
     let mut it = arguments.iter();
@@ -162,6 +163,13 @@ pub fn command(arguments: &[String]) -> i32 {
                     })))
             }
             "--when-quiet" => when_quiet = true,
+            "--new" => {
+                new_rev = Some(
+                    it.next()
+                        .unwrap_or_else(|| panic!("--new needs a revision\n{usage}"))
+                        .clone(),
+                )
+            }
             "--probe" => {
                 probe = Some(it.next().unwrap_or_else(|| {
                     panic!("--probe takes the points to measure, as --points names them (\"3 KiB,brief idle 3 KiB\")\n{usage}")
@@ -191,9 +199,16 @@ pub fn command(arguments: &[String]) -> i32 {
             panic!("check: --fork DIR names BLAKE3-Servil's checkout\n{usage}")
         }));
     let old = git(&fork, &["rev-parse", &format!("{against}^{{commit}}")]);
-    let new = working_tree_commit(&fork);
+    // The new side: the revision --new names, else the working tree as it
+    // stands (a check of a branch names it, so the tree's checkout at the
+    // time cannot put another change on the scale: November 5, 2026, a
+    // check meant for one branch measured the one checked out).
+    let (new, new_name) = match &new_rev {
+        Some(rev) => (git(&fork, &["rev-parse", &format!("{rev}^{{commit}}")]), rev.clone()),
+        None => (working_tree_commit(&fork), "working tree".to_string()),
+    };
     eprintln!(
-        "check: BLAKE3-Servil's working tree ({}) against {} ({})",
+        "check: BLAKE3-Servil's {new_name} ({}) against {} ({})",
         &new[..12],
         against,
         &old[..12]

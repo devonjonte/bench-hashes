@@ -83,6 +83,7 @@ it (anywhere: neither holds the other) and name BLAKE3-Servil's checkout:
 git clone --branch servil https://github.com/servil-software-factory/BLAKE3
 git clone https://github.com/servil-software-factory/bench-hashes
 cd bench-hashes && cargo run --release -- check --fork ../BLAKE3   # BLAKE3-Servil's working tree against its HEAD
+cd bench-hashes && cargo run --release -- check --fork ../BLAKE3 --new my-branch --against servil   # a branch by name, whatever the tree has checked out
 cd bench-hashes && "$(cargo run --release --quiet -- build-against ../BLAKE3)" --quick   # one run of it
 ```
 
