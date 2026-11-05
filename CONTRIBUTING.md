@@ -63,6 +63,12 @@ statistics, the report, and the map.
 
 ## Working on BLAKE3-Servil alongside
 
+Measure before building: `bench-hashes check --fork ../BLAKE3 --against
+servil --probe "3 KiB,brief idle 3 KiB"` gives each named cell's ratio in
+about three minutes (three fresh pairs, no verdict); the full `check` is
+the gate once the change is built. A change to the library carries its
+probe's line in its pull request.
+
 The BLAKE3-Servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
 the crate `blake3-servil`, a git dependency on
 [github.com/johnservil/BLAKE3](https://github.com/johnservil/BLAKE3) at

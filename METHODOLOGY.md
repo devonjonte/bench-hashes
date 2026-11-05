@@ -541,6 +541,14 @@ so both sides perform the same work per sample and no timed run pays for
 calibration. Giving each pair a fresh link layout averages out code
 placement, which alone can move calls after a gap by several percent.
 
+**`check --probe POINTS`** is the measurement before a change is built:
+the same two builds, three fresh pairs over the points named (as
+`--points` names them), and each cell's ratio printed (`compare`), no
+verdict and no second stage. About three minutes with the builds cached,
+most of it the relinks. An idea gets its number from the same tool that
+later gates it, so the probe cannot drift from the gate; a change's pull
+request carries its probe's line.
+
 Before it builds anything, `check` reads the machine for ten seconds and
 stops at once if other programs kept a CPU busy in any of them (the
 windows' own rule): a run on a busy machine measures for an hour and
