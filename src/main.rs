@@ -1669,6 +1669,55 @@ impl Topology {
         }
     }
 
+    /// The CPU pair `pair` of a comparison (regress) pins its measuring
+    /// thread to (bench-hashes #69, John Servil's design): one CPU a core,
+    /// the fast cores alone, of those `allowed`; pair i takes a core whose
+    /// place among them has the parity of i (odd cores pay the busy gap's
+    /// DRAM fills that even ones do not, so a change that helps one parity
+    /// and hurts the other still shows in half the pairs), the pairs of a
+    /// parity turning through the cache domains and their cores. None where
+    /// the machine names no cores (no topology, or no thread affinity).
+    fn measuring_cpu(&self, pair: usize, allowed: impl Fn(usize) -> bool) -> Option<usize> {
+        // Each fast core once, by its lowest allowed CPU, in order.
+        let mut cores: Vec<(usize, usize)> = Vec::new(); // (core, CPU)
+        for &cpu in &self.fast {
+            if allowed(cpu) && !cores.iter().any(|&(core, _)| core == self.core[cpu]) {
+                cores.push((self.core[cpu], cpu));
+            }
+        }
+        cores.sort();
+        let parity = pair % 2;
+        let mut candidates: Vec<(usize, usize)> = cores
+            .iter()
+            .enumerate()
+            .filter(|&(place, _)| place % 2 == parity)
+            .map(|(_, &(_, cpu))| (self.cache[cpu], cpu))
+            .collect();
+        if candidates.is_empty() {
+            candidates = cores
+                .iter()
+                .map(|&(_, cpu)| (self.cache[cpu], cpu))
+                .collect();
+        }
+        if candidates.is_empty() {
+            return None;
+        }
+        // The cache domains in order, each with its cores in order; the
+        // pairs of a parity take domain k % domains, and within it, its
+        // core (k / domains) % its cores.
+        let mut domains: Vec<usize> = candidates.iter().map(|&(cache, _)| cache).collect();
+        domains.sort();
+        domains.dedup();
+        let k = pair / 2;
+        let domain = domains[k % domains.len()];
+        let in_domain: Vec<usize> = candidates
+            .iter()
+            .filter(|&&(cache, _)| cache == domain)
+            .map(|&(_, cpu)| cpu)
+            .collect();
+        Some(in_domain[(k / domains.len()) % in_domain.len()])
+    }
+
     /// The header's line: each placement's pair, or "none".
     fn describe(&self) -> String {
         let one = |p: Placement| {
@@ -1691,6 +1740,28 @@ impl Topology {
             one(Placement::TwoCaches)
         )
     }
+}
+
+/// Whether this process may run on `cpu` (its thread's affinity mask,
+/// Linux; elsewhere every CPU).
+fn allowed_cpu() -> impl Fn(usize) -> bool {
+    #[cfg(target_os = "linux")]
+    let mask = {
+        unsafe extern "C" {
+            fn sched_getaffinity(pid: i32, size: usize, set: *mut u64) -> i32;
+        }
+        let mut mask = [0u64; 16];
+        // Sound: `mask` is a cpu_set_t of 1024 bits, the calling thread (0).
+        assert_eq!(
+            unsafe { sched_getaffinity(0, core::mem::size_of_val(&mask), mask.as_mut_ptr()) },
+            0,
+            "read this process's mask"
+        );
+        Some(mask)
+    };
+    #[cfg(not(target_os = "linux"))]
+    let mask: Option<[u64; 16]> = None;
+    move |cpu: usize| mask.map_or(true, |m| cpu < 1024 && m[cpu / 64] >> (cpu % 64) & 1 == 1)
 }
 
 fn topology() -> &'static Topology {
@@ -3612,6 +3683,97 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
 /// `in_blocks` is written from a 64-byte boundary of the producer's buffer,
 /// whole blocks behind it (BLOCK_SPARE).
 fn take_prepared_sample(
+    input: &[u8],
+    in_blocks: bool,
+    iterations: usize,
+    idle: bool,
+    call: impl FnMut(&[u8]),
+) -> DuoCopy {
+    let mask = pin_measuring_thread();
+    let sample = take_prepared_sample_here(input, in_blocks, iterations, idle, call);
+    restore_mask(mask);
+    sample
+}
+
+/// The environment variable by which `regress` names the CPU a run's
+/// measuring thread takes each sample after a gap on (bench-hashes #69):
+/// a pair's old and new runs on one core.
+const PIN_CPU_VARIABLE: &str = "BENCH_HASHES_PIN_CPU";
+
+/// The CPU this run pins its measuring thread to around each sample after
+/// a gap (PIN_CPU_VARIABLE; Linux), if any.
+fn pinned_cpu() -> Option<usize> {
+    if !cfg!(target_os = "linux") {
+        return None;
+    }
+    let value = std::env::var(PIN_CPU_VARIABLE).ok()?;
+    Some(
+        value
+            .parse()
+            .unwrap_or_else(|_| panic!("{PIN_CPU_VARIABLE}={value}: not a CPU number")),
+    )
+}
+
+/// The samples header's line: where the measuring thread took its samples
+/// after a gap.
+fn describe_pinning() -> String {
+    match pinned_cpu() {
+        Some(cpu) => {
+            format!("pinned to CPU {cpu} around each sample after a gap (bench-hashes regress)")
+        }
+        None => "placed by the OS".to_owned(),
+    }
+}
+
+/// Pin the main thread to the run's CPU (pinned_cpu) for one sample: its
+/// mask, to restore after. The main thread alone, and only around the
+/// sample: pinned for the run, it would hand the pool's workers, started
+/// later, its one CPU.
+fn pin_measuring_thread() -> Option<[u64; 16]> {
+    let cpu = pinned_cpu()?;
+    if std::thread::current().name() != Some("main") {
+        return None;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        unsafe extern "C" {
+            fn sched_getaffinity(pid: i32, size: usize, set: *mut u64) -> i32;
+        }
+        let mut mask = [0u64; 16];
+        // Sound: `mask` is a cpu_set_t of 1024 bits, the calling thread (0).
+        assert_eq!(
+            unsafe { sched_getaffinity(0, core::mem::size_of_val(&mask), mask.as_mut_ptr()) },
+            0,
+            "read the measuring thread's mask"
+        );
+        pin_to_cpu(cpu);
+        return Some(mask);
+    }
+    #[allow(unreachable_code)]
+    {
+        let _ = cpu;
+        None
+    }
+}
+
+/// The measuring thread's mask as it was before pin_measuring_thread.
+fn restore_mask(mask: Option<[u64; 16]>) {
+    #[cfg(target_os = "linux")]
+    if let Some(mask) = mask {
+        unsafe extern "C" {
+            fn sched_setaffinity(pid: i32, size: usize, set: *const u64) -> i32;
+        }
+        // Sound: as pin_measuring_thread.
+        assert_eq!(
+            unsafe { sched_setaffinity(0, core::mem::size_of_val(&mask), mask.as_ptr()) },
+            0,
+            "restore the measuring thread's mask"
+        );
+    }
+    let _ = mask;
+}
+
+fn take_prepared_sample_here(
     input: &[u8],
     in_blocks: bool,
     iterations: usize,
@@ -6573,6 +6735,7 @@ fn regress_run(
     scope: &RegressScope,
     sizes: &std::path::Path,
     keep: Option<&std::path::Path>,
+    pin: Option<usize>,
 ) -> (SamplesFile, String) {
     let directory = std::env::temp_dir().join(format!(
         "bench-hashes-regress-{}-{}",
@@ -6582,8 +6745,13 @@ fn regress_run(
     fs::create_dir_all(&directory).unwrap();
     let stderr_path = directory.join("stderr.txt");
     let stderr = fs::File::create(&stderr_path).unwrap();
+    let mut command = std::process::Command::new(exe);
+    match pin {
+        Some(cpu) => command.env(PIN_CPU_VARIABLE, cpu.to_string()),
+        None => command.env_remove(PIN_CPU_VARIABLE),
+    };
     let run = clocks::child::run(
-        std::process::Command::new(exe)
+        command
             .args(scope.arguments(rounds))
             .arg("--sizes")
             .arg(sizes)
@@ -6605,6 +6773,20 @@ fn regress_run(
         .collect();
     assert_eq!(found.len(), 1, "one samples file");
     let file = read_samples(found[0].to_str().unwrap());
+    // Both sides of a pair on its CPU, or neither: a build that ignores the
+    // variable (one older than pinning) would measure unpinned beside a
+    // pinned one, a difference between the sides that is no change of theirs.
+    if let Some(cpu) = pin {
+        let text = fs::read_to_string(&found[0]).unwrap();
+        let line = text
+            .lines()
+            .find_map(|l| l.strip_prefix("# measuring thread: "))
+            .unwrap_or("not stated");
+        assert!(
+            line.starts_with(&format!("pinned to CPU {cpu} ")),
+            "{exe}: asked to pin its measuring thread to CPU {cpu}, its samples say \"{line}\" (a bench older than pinning: run regress with --unpinned)"
+        );
+    }
     let load = regress_load(run.started_ns, run.started_ns + run.wall_ns);
     if let Some(keep) = keep {
         // The kept file says what regress judged the run by: its load line
@@ -6647,15 +6829,21 @@ fn regress_load(start_ns: u64, end_ns: u64) -> String {
 }
 
 fn regress_command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes regress [--contenders A,B [--points P,Q]] [--judge CELL;CELL] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE... (pair i runs the i-th of each, round robin; bench-hashes check builds the sides and chooses the cells)";
+    let usage = "usage: bench-hashes regress [--contenders A,B [--points P,Q]] [--judge CELL;CELL] [--pairs N] [--rounds K] [--keep DIR] [--unpinned] OLD_EXE... -- NEW_EXE... (pair i runs the i-th of each, round robin; bench-hashes check builds the sides and chooses the cells; each pair's runs take their samples after a gap on one CPU, pairs alternating core parity, unless --unpinned)";
     let mut arguments = arguments;
     let (mut contenders, mut points, mut pairs, mut chosen_rounds, mut keep) =
         (None, None, REGRESS_PAIRS, None, None);
     let mut only: Option<Vec<String>> = None;
+    let mut unpinned = false;
     while let Some(name) = arguments
         .first()
         .filter(|a| a.starts_with("--") && *a != "--")
     {
+        if name == "--unpinned" {
+            unpinned = true;
+            arguments = &arguments[1..];
+            continue;
+        }
         assert!(arguments.len() > 1, "{name} needs a value\n{usage}");
         let value = arguments[1].clone();
         let count = || {
@@ -6696,6 +6884,28 @@ fn regress_command(arguments: &[String]) -> i32 {
     let (old_exes, new_exes) = (&arguments[..split], &arguments[split + 1..]);
     assert!(!old_exes.is_empty() && !new_exes.is_empty(), "{usage}");
     let rounds = chosen_rounds.unwrap_or(REGRESS_ROUNDS);
+    // Each pair's CPU (bench-hashes #69): its two runs take their samples
+    // after a gap there, so the core is no difference between the sides.
+    let allowed = allowed_cpu();
+    let pins: Vec<Option<usize>> = (0..pairs)
+        .map(|pair| {
+            if unpinned {
+                None
+            } else {
+                topology().measuring_cpu(pair, &allowed)
+            }
+        })
+        .collect();
+    match (unpinned, pins.iter().flatten().count()) {
+        (true, _) => eprintln!("regress: --unpinned: the OS places every run's measuring thread"),
+        (false, 0) => eprintln!("regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread"),
+        (false, _) => {
+            let mut cpus: Vec<usize> = pins.iter().flatten().copied().collect();
+            cpus.sort();
+            cpus.dedup();
+            eprintln!("regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs {}", cpus.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(","));
+        }
+    }
     eprintln!(
         "regress: {} new builds against {} old, {pairs} pairs over {}{}",
         new_exes.len(),
@@ -6759,37 +6969,38 @@ fn regress_command(arguments: &[String]) -> i32 {
         std::collections::BTreeMap::new();
     // A run's means, and its load line when clocks found it no evidence
     // (other programs busy, or no load window).
-    let mut means = |exe: &str, side: &str| -> (crate::Map<String, u128>, Option<String>) {
-        run_index += 1;
-        let kept = keep
-            .as_ref()
-            .map(|dir| dir.join(format!("run-{run_index:03}-{side}.tsv")));
-        let side_sizes = if side == "old" { &old_sizes } else { &sizes };
-        let (file, load) = regress_run(exe, rounds, &scope, side_sizes, kept.as_deref());
-        let builds = if side == "old" {
-            &mut old_builds
-        } else {
-            &mut new_builds
+    let mut means =
+        |exe: &str, side: &str, pin: Option<usize>| -> (crate::Map<String, u128>, Option<String>) {
+            run_index += 1;
+            let kept = keep
+                .as_ref()
+                .map(|dir| dir.join(format!("run-{run_index:03}-{side}.tsv")));
+            let side_sizes = if side == "old" { &old_sizes } else { &sizes };
+            let (file, load) = regress_run(exe, rounds, &scope, side_sizes, kept.as_deref(), pin);
+            let builds = if side == "old" {
+                &mut old_builds
+            } else {
+                &mut new_builds
+            };
+            let build = file_provenance(&file);
+            if !builds.contains(&build) {
+                builds.push(build);
+            }
+            if !powers.contains(&file.power) {
+                powers.push(file.power.clone());
+            }
+            // Where clocks measures no load (macOS: clocks::load's doc), a run's
+            // line says "not measured", and the run is evidence: keep that
+            // machine quiet by hand while it measures.
+            let busy = (clocks::load::MEASURED && !load.starts_with("quiet")).then_some(load);
+            (
+                file.cells
+                    .into_iter()
+                    .map(|(key, samples)| (key, Mean::of(&samples).fixed().0))
+                    .collect(),
+                busy,
+            )
         };
-        let build = file_provenance(&file);
-        if !builds.contains(&build) {
-            builds.push(build);
-        }
-        if !powers.contains(&file.power) {
-            powers.push(file.power.clone());
-        }
-        // Where clocks measures no load (macOS: clocks::load's doc), a run's
-        // line says "not measured", and the run is evidence: keep that
-        // machine quiet by hand while it measures.
-        let busy = (clocks::load::MEASURED && !load.starts_with("quiet")).then_some(load);
-        (
-            file.cells
-                .into_iter()
-                .map(|(key, samples)| (key, Mean::of(&samples).fixed().0))
-                .collect(),
-            busy,
-        )
-    };
     for pair in 0..pairs {
         let began = clocks::now();
         // A pair with a run that is no evidence runs again, in the same
@@ -6802,12 +7013,13 @@ fn regress_command(arguments: &[String]) -> i32 {
             &new_exes[pair % new_exes.len()],
         );
         let (old, new) = loop {
+            let pin = pins[pair];
             let ((old, a), (new, b)) = if pair % 2 == 0 {
-                let o = means(old_exe, "old");
-                (o, means(new_exe, "new"))
+                let o = means(old_exe, "old", pin);
+                (o, means(new_exe, "new", pin))
             } else {
-                let n = means(new_exe, "new");
-                (means(old_exe, "old"), n)
+                let n = means(new_exe, "new", pin);
+                (means(old_exe, "old", pin), n)
             };
             let busy: Vec<String> = a.into_iter().chain(b).collect();
             if busy.is_empty() {
@@ -7009,6 +7221,7 @@ fn generate_samples_tsv(
     run.extend([
         ("contenders".to_owned(), selection_note.to_owned()),
         ("rounds".to_owned(), roster.rounds.to_string()),
+        ("measuring thread".to_owned(), describe_pinning()),
         ("sample sizes".to_owned(), roster.sample_sizes.clone()),
         (
             "buffers owned".to_owned(),
@@ -7993,6 +8206,48 @@ mod correctness_tests {
     /// two-caches pair), an EPYC 9255 cut to two L3 domains of 6 cores
     /// with SMT (0 and 1 under one, 0 and 6 under two), and one core alone
     /// (no pair at all).
+    /// A comparison's pairs pin their measuring thread one CPU a core, the
+    /// fast cores alone, alternating the core's parity (its place among
+    /// the cores) and turning through the cache domains (bench-hashes #69),
+    /// on the tables above; within the CPUs this process may use; and
+    /// nowhere where the machine names no cores (macOS).
+    #[test]
+    fn a_comparisons_pairs_alternate_core_parity_over_the_cache_domains() {
+        let epyc = Topology::from_tables(
+            (0..24).map(|c| c % 12).collect(),
+            (0..24).map(|c| (c % 12) / 6 * 6).collect(),
+            vec![0; 24],
+            (0..24).collect(),
+        );
+        let all = |_: usize| true;
+        let seq = |t: &Topology, allowed: &dyn Fn(usize) -> bool, n: usize| -> Vec<Option<usize>> {
+            (0..n).map(|pair| t.measuring_cpu(pair, allowed)).collect()
+        };
+        // Even cores in one domain, odd there, then the other domain's.
+        assert_eq!(
+            seq(&epyc, &all, 14),
+            [0, 1, 6, 7, 2, 3, 8, 9, 4, 5, 10, 11, 0, 1].map(Some)
+        );
+        // Its hardware threads' second CPUs alone: each core by them.
+        let siblings = |cpu: usize| cpu >= 12;
+        assert_eq!(seq(&epyc, &siblings, 4), [12, 13, 18, 19].map(Some));
+        // The i7: its P cores (CPUs 0-15, two a core), never an E core.
+        let i7 = Topology::from_tables(
+            (0..20)
+                .map(|c| if c < 16 { c / 2 * 2 } else { c })
+                .collect(),
+            vec![0; 20],
+            vec![0; 20],
+            (0..16).collect(),
+        );
+        assert_eq!(seq(&i7, &all, 9), [0, 2, 4, 6, 8, 10, 12, 14, 0].map(Some));
+        // One core: both parities take it.
+        let one_core = Topology::from_tables(vec![0, 0], vec![0, 0], vec![0, 0], vec![0, 1]);
+        assert_eq!(seq(&one_core, &all, 2), [Some(0), Some(0)]);
+        let mac = Topology::from_tables(Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        assert_eq!(seq(&mac, &all, 2), [None, None]);
+    }
+
     #[test]
     fn placements_take_two_cores_never_a_hardware_thread_pair() {
         let i7 = Topology::from_tables(

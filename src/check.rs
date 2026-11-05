@@ -268,6 +268,15 @@ pub fn command(arguments: &[String]) -> i32 {
         ),
         FIRST_RUNS,
     );
+    // Each pair's runs on one CPU (regress's default, bench-hashes #69),
+    // where both sides are this bench's; an older bench at --old-bench may
+    // predate pinning, so its comparison leaves both sides to the OS.
+    let pinning: Vec<String> = if old_bench_rev.is_some() {
+        eprintln!("check: --old-bench: the sides' benches differ, and the older may predate pinning; regress --unpinned");
+        vec!["--unpinned".into()]
+    } else {
+        Vec::new()
+    };
     let mut regress: Vec<String> = vec![
         "regress".into(),
         "--pairs".into(),
@@ -281,6 +290,7 @@ pub fn command(arguments: &[String]) -> i32 {
     if let Some(keep) = &keep {
         regress.extend(["--keep".to_string(), keep.display().to_string()]);
     }
+    regress.extend(pinning.iter().cloned());
     regress.extend(olds);
     regress.push("--".into());
     regress.extend(news);
@@ -341,6 +351,7 @@ pub fn command(arguments: &[String]) -> i32 {
             keep.join("second").display().to_string(),
         ]);
     }
+    second.extend(pinning);
     second.extend(olds);
     second.push("--".into());
     second.extend(news);
