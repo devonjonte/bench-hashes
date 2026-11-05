@@ -259,12 +259,50 @@ pub fn windows() -> Vec<Window> {
 /// from two readings of its own (the windows' rule, apart from their
 /// state): the tests' measure of the load beside them. 0 where the
 /// platform gives no CPU times.
-#[cfg(all(test, unix))]
-pub(crate) fn other_milli_cpus_over(ns: u64) -> u64 {
+#[cfg(unix)]
+pub fn other_milli_cpus_over(ns: u64) -> u64 {
     let Some(before) = Reading::take() else { return 0 };
     std::thread::sleep(std::time::Duration::from_nanos(ns));
     let after = Reading::take().expect("CPU times read a moment ago");
     between(before, after).other_milli_cpus
+}
+
+#[cfg(not(unix))]
+pub fn other_milli_cpus_over(_ns: u64) -> u64 {
+    0
+}
+
+/// Whether the machine is quiet enough to measure on, read over `seconds`
+/// one-second windows before a measurement begins: Ok where no window
+/// was busy (the windows' own rule, BUSY_MILLI_CPUS), else the busiest
+/// window's load as the reason. A check that measured for an hour and
+/// then abstained because other programs were busy cost the hour (eight
+/// such runs on an i7-12700K, November 4-5, 2026, while its user worked
+/// at it); asking first costs the seconds.
+pub fn quiet_for(seconds: u64) -> Result<(), String> {
+    let mut busiest = 0;
+    for _ in 0..seconds {
+        busiest = busiest.max(other_milli_cpus_over(1_000_000_000));
+    }
+    if busiest >= BUSY_MILLI_CPUS {
+        Err(format!("other programs kept {} CPUs busy in one of the last {seconds} seconds", cpus(busiest)))
+    } else {
+        Ok(())
+    }
+}
+
+/// Wait until [`quiet_for`] 10 seconds passes, reading again every 30 s
+/// and saying so once a minute on stderr: for a run queued for a time
+/// when nobody is at the machine.
+pub fn wait_until_quiet() {
+    let mut waited = 0u64;
+    while let Err(reason) = quiet_for(10) {
+        if waited % 60 == 0 {
+            eprintln!("waiting for a quiet machine ({reason}); reading again in 30 s");
+        }
+        std::thread::sleep(std::time::Duration::from_secs(30));
+        waited += 40;
+    }
 }
 
 /// The tests that use this process's windows (they tick, read, or run a
@@ -876,6 +914,23 @@ mod tests {
         let third = *super::windows().last().unwrap();
         assert_eq!((third.start_ns, third.end_ns), (read_at, read_at + WINDOW_NS + WINDOW_NS / 4));
         crate::test_clock::thaw();
+    }
+
+    /// The machine's properties this module relies on, run on purpose
+    /// (`cargo nextest run -P machine`).
+    mod machine {
+        use super::*;
+
+        /// A machine with nobody at it is quiet for a second (the gate a
+        /// check asks before it builds); a thread of our own busy for that
+        /// second is ours, not other programs', and leaves it quiet.
+        #[test]
+        fn a_quiet_machine_passes_the_gate() {
+            let _turn = exclusive();
+            let ours = std::thread::spawn(|| crate::busy_work(1_200_000_000));
+            assert_eq!(quiet_for(1), Ok(()), "our own work is not other programs'");
+            ours.join().unwrap();
+        }
     }
 }
 
