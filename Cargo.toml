@@ -19,6 +19,14 @@ features = ["std", "rayon"]
 version = "=0.16.1"
 default-features = false
 
+# With `--features smalloc`, smalloc (crates.io's smmalloc) is the global
+# allocator: an allocator programs may run under, and one whose slots sit at
+# page offsets that follow only their own size class's allocations.
+[dependencies.smalloc]
+package = "smmalloc"
+version = "7.6"
+optional = true
+
 # Seeded hashing for every map (crate::Map): runs lay out alike.
 [dependencies.wyhash]
 version = "0.6"
@@ -81,3 +89,14 @@ lto = "fat"
 codegen-units = 1
 panic = "abort"
 incremental = false
+
+[features]
+smalloc = ["dep:smalloc"]
+# Diagnostic only: the system allocator with every allocation of 64 bytes
+# or more aligned to 64 (a cache line), to test whether placement within a
+# line decides #65's states. Never a measurement configuration.
+diag-align64 = []
+# Diagnostic only: the system allocator with every allocation of 64 bytes or
+# more (alignment 16 or less) placed BENCH_DIAG_LINE_OFFSET bytes (build
+# time) into a cache line. The converse of diag-align64.
+diag-line-offset = []

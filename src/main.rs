@@ -1953,6 +1953,109 @@ impl std::hash::BuildHasher for Seeded {
     }
 }
 
+/// Diagnostic (`--features diag-align64`): the system allocator, each
+/// allocation of 64 bytes or more aligned to 64. Not for measurements.
+#[cfg(feature = "diag-align64")]
+struct Align64;
+#[cfg(feature = "diag-align64")]
+unsafe impl std::alloc::GlobalAlloc for Align64 {
+    unsafe fn alloc(&self, l: std::alloc::Layout) -> *mut u8 {
+        unsafe { std::alloc::System.alloc(Self::up(l)) }
+    }
+    unsafe fn dealloc(&self, p: *mut u8, l: std::alloc::Layout) {
+        unsafe { std::alloc::System.dealloc(p, Self::up(l)) }
+    }
+    unsafe fn alloc_zeroed(&self, l: std::alloc::Layout) -> *mut u8 {
+        unsafe { std::alloc::System.alloc_zeroed(Self::up(l)) }
+    }
+}
+#[cfg(feature = "diag-align64")]
+impl Align64 {
+    fn up(l: std::alloc::Layout) -> std::alloc::Layout {
+        if l.size() >= 64 {
+            l.align_to(64).unwrap()
+        } else {
+            l
+        }
+    }
+}
+#[cfg(feature = "diag-align64")]
+#[global_allocator]
+static DIAG_ALLOC: Align64 = Align64;
+
+/// Diagnostic (`--features diag-line-offset`): the system allocator, each
+/// allocation of 64 bytes or more with alignment 16 or less placed
+/// `BENCH_DIAG_LINE_OFFSET` (16, 32 or 48; set at build time) bytes into a
+/// cache line. Not for measurements.
+#[cfg(feature = "diag-line-offset")]
+struct LineOffset;
+#[cfg(feature = "diag-line-offset")]
+const LINE_OFFSET: usize = {
+    let digits = match option_env!("BENCH_DIAG_LINE_OFFSET") {
+        Some(digits) => digits.as_bytes(),
+        None => panic!("diag-line-offset needs BENCH_DIAG_LINE_OFFSET"),
+    };
+    let mut value = 0;
+    let mut i = 0;
+    while i < digits.len() {
+        value = value * 10 + (digits[i] - b'0') as usize;
+        i += 1;
+    }
+    assert!(value % 16 == 0 && value < 64);
+    value
+};
+#[cfg(feature = "diag-line-offset")]
+impl LineOffset {
+    fn moved(l: std::alloc::Layout) -> Option<std::alloc::Layout> {
+        (l.size() >= 64 && l.align() <= 16)
+            .then(|| std::alloc::Layout::from_size_align(l.size() + 64, 64).unwrap())
+    }
+}
+#[cfg(feature = "diag-line-offset")]
+unsafe impl std::alloc::GlobalAlloc for LineOffset {
+    unsafe fn alloc(&self, l: std::alloc::Layout) -> *mut u8 {
+        match Self::moved(l) {
+            Some(m) => unsafe {
+                let p = std::alloc::System.alloc(m);
+                if p.is_null() {
+                    p
+                } else {
+                    p.add(LINE_OFFSET)
+                }
+            },
+            None => unsafe { std::alloc::System.alloc(l) },
+        }
+    }
+    unsafe fn alloc_zeroed(&self, l: std::alloc::Layout) -> *mut u8 {
+        match Self::moved(l) {
+            Some(m) => unsafe {
+                let p = std::alloc::System.alloc_zeroed(m);
+                if p.is_null() {
+                    p
+                } else {
+                    p.add(LINE_OFFSET)
+                }
+            },
+            None => unsafe { std::alloc::System.alloc_zeroed(l) },
+        }
+    }
+    unsafe fn dealloc(&self, p: *mut u8, l: std::alloc::Layout) {
+        match Self::moved(l) {
+            Some(m) => unsafe { std::alloc::System.dealloc(p.sub(LINE_OFFSET), m) },
+            None => unsafe { std::alloc::System.dealloc(p, l) },
+        }
+    }
+}
+#[cfg(feature = "diag-line-offset")]
+#[global_allocator]
+static DIAG_LINE_ALLOC: LineOffset = LineOffset;
+
+/// With `--features smalloc`, smalloc is the global allocator (Cargo.toml):
+/// samples and report then say so; without it, nothing changes.
+#[cfg(feature = "smalloc")]
+#[global_allocator]
+static ALLOC: smalloc::Smalloc = smalloc::Smalloc::new();
+
 fn main() {
     // Once per process, before any other call: blake3-servil's contract.
     blake3_servil::initialize();
@@ -5842,6 +5945,9 @@ fn samples_header(machine: &MachineMetadata, run: &[(String, String)]) -> String
         run.iter()
             .map(|(key, value)| (key.as_str(), value.as_str())),
     ) {
+    if cfg!(feature = "smalloc") {
+        writeln!(out, "# global allocator: smalloc").unwrap();
+    }
         writeln!(out, "# {key}: {value}").unwrap();
     }
     writeln!(out, "# power: {}", machine.describe_power()).unwrap();
@@ -6052,6 +6158,9 @@ fn generate_text(
         .unwrap();
     }
     writeln!(output, "  CPU: {}", machine.cpu_identity).unwrap();
+    if cfg!(feature = "smalloc") {
+        writeln!(output, "  global allocator: smalloc").unwrap();
+    }
     writeln!(
         output,
         "  {RUSTC_VERSION}; target {BUILD_TARGET}; features {TARGET_FEATURES}"
