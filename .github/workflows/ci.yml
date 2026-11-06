@@ -26,11 +26,9 @@ jobs:
       - run: cargo build --release
       # Each test in its own process (AGENTS: "Tests run under nextest").
       - run: cargo nextest run --release
-      # Machine properties run one at a time. The quiet-host assertion
-      # belongs on our quiet benchmark machines: hosted runners may have
-      # other work (macOS measured 1.68 other CPUs during this assertion).
-      # Counter subtraction and wrapping have deterministic tests below.
-      - run: cargo nextest run --release -P machine -E 'not test(a_quiet_machine_passes_the_gate)'
+      # The default suite checks the instrument's logic. The machine
+      # profile runs on quiet benchmark hosts; hosted macOS CI has shown
+      # 1.68-3.01 CPUs of unrelated work, which invalidates its load checks.
       # A quick run takes about a minute. On Linux, one that is still
       # running after ten prints every thread's stack and fails, so a hang
       # shows where it is.
