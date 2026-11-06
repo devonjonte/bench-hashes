@@ -108,6 +108,22 @@ the notes) may still change, to say it better.
   performance call takes the integer-register chunk root for a chunk or
   less (BLAKE3-Servil #252: 19-35% less time back to back).
 
+- **A comparison's pairs each run on one core** (John Servil, November 5,
+  2026; bench-hashes #69). `regress`, and so `check`, pins each pair's two
+  runs' measuring thread to one CPU around each sample after a gap, the
+  pool's workers untouched; pair i takes a core of the parity of i, the
+  pairs of a parity turning through the cache domains, one CPU a core,
+  performance cores where there are two kinds. The reason: after the
+  busy gap, odd cores fill the call's L2 misses from DRAM where even ones
+  fill them from the L3 (EPYC 9255, `b069-oddeven`), so the core a run
+  happened on was a difference between the sides of a pair: unpinned, a
+  small cell after other work swung 1.3-1.8x with its core. Pinned, a
+  pair's sides share the core, and the alternation keeps a change that
+  helps one parity and hurts the other visible in half the pairs. Each
+  run's samples header says where (`measuring thread`). Records stay
+  unpinned: a record reports what a caller meets wherever the OS puts
+  it. How comparisons are judged is unchanged. Where the machine takes
+  no thread affinity (macOS), every run is the OS's, as before.
 - **`check` measures the cells its author names** (Zooko, November 6,
   2026; Devon Jonte, bench-hashes #128). `check` first prints the diff's
   files, its added and deleted lines, and the items its hunks sit in.
