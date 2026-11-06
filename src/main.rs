@@ -4624,8 +4624,7 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             input,
             iterations,
             |pieces| {
-                let mut hasher =
-                    blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain);
+                let mut hasher = blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain);
                 pieces(&mut |piece| {
                     hasher.update(piece);
                 });
@@ -4637,8 +4636,7 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             input,
             iterations,
             |pieces| {
-                let mut hasher =
-                    blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain);
+                let mut hasher = blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain);
                 pieces(&mut |piece| {
                     hasher.update_multithreaded(piece);
                 });
