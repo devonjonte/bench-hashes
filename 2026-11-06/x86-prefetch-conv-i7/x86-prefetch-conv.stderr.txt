@@ -1,0 +1,10 @@
+check: BLAKE3-Servil's exp/devon-x86-prefetch-conv (84790fb97151) against servil-tip (8d6525c3a4a6)
+check: the change touches 42 added and 1 deleted lines in 2 files: src/lib.rs (+27/-1), src/platform.rs (+15/-0)
+check: its hunks sit in: fn hash_serial_from(platform: Platform, input: &[u8], key: &CVWords, flags: u8,, fn prefetch_update_kernels(len: usize, platform: Platform) {, pub(crate) fn prefetch_code((start, end): (usize, usize)) {
+check: measuring the 9 named points (9 of 266 points; the rest unmeasured in this check): idle 2 KiB, idle 3 KiB, idle 4 KiB, idle 8 KiB, 2 KiB, 3 KiB, 4 KiB, 8 KiB, brief idle 3 KiB
+check: the change alters the bench's code here: .dynamic, .eh_frame, .eh_frame_hdr, .gcc_except_table, .got.plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .text; 3 functions of another size or on one side alone (<bench_hashes::one_message_call::{closure#1} as core::ops::function::FnOnce<(&[u8], usize)>>::call_once; bench_hashes::b3sum::command; blake3_servil::prefetch_cold_x86); 1323 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&[u8; 32] as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Display>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; and 1311 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4
+regress: 3 new builds against 3 old, 3 pairs over --contenders blake3-servil-st,blake3-servil-mt --points "idle 2 KiB,idle 3 KiB,idle 4 KiB,idle 8 KiB,2 KiB,3 KiB,4 KiB,8 KiB,brief idle 3 KiB"
+regress: pair 1 of 3 in 8.3 s
+regress: pair 2 of 3 in 8.3 s
+regress: pair 3 of 3 in 8.3 s
