@@ -1,3 +1,5 @@
+mod receive;
+
 use sha2::{Digest, Sha256};
 use std::fmt::Write as _;
 use std::fs;
@@ -183,7 +185,8 @@ const POINT_COUNT: usize = 4 * (INPUT_COUNT + BATCH_COUNT)
     + 2 * CONTINUOUS_BATCH_COUNT
     + LONG_BATCH_COUNT
     + MERKLE_COUNT
-    + 4 * INTERLEAVED_COUNT;
+    + 4 * INTERLEAVED_COUNT
+    + 3;
 /// A long message reaches a contender in pieces of this many bytes (a
 /// typical read buffer), the last one shorter.
 const PIECE_LEN: usize = 64 * 1024;
@@ -707,6 +710,9 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::interleaved_turn("256").idle(),
     Point::interleaved_turn("256").brief_idle(),
     Point::interleaved_turn("256").controlled_idle(),
+    Point::receiving("64 KiB", 64 * 1024),
+    Point::receiving("1 MiB", 1 << 20),
+    Point::receiving("16 MiB", 16 << 20),
 ];
 
 /// results[contender_index][point_index], contenders in the roster's
@@ -812,6 +818,9 @@ enum UseCase {
     BriefIdleInterleavedTurn,
     /// The same turns, each after idling with the deep states off.
     ControlledIdleInterleavedTurn,
+    /// One message in irregular fragments, with the producer waiting 20 us
+    /// between arrivals. The complete receive and hash are timed together.
+    ReceivingMessage,
 }
 
 /// The two pauses before a call "after idling" (Zooko, November 4, 2026;
@@ -827,8 +836,19 @@ enum UseCase {
 const BRIEF_PAUSE_NS: u64 = 20_000;
 const LONG_PAUSE_NS: u64 = 5_000_000;
 
+/// Ways of producing work run in separate phases, preserving each one's
+/// clock state. Receiving includes idle time within its measured operation.
+const PATTERNS: [&str; 6] = [
+    "nonstop",
+    "busy",
+    "brief",
+    "idle",
+    "controlled",
+    "receiving",
+];
+
 impl UseCase {
-    const ALL: [UseCase; 21] = [
+    const ALL: [UseCase; 22] = [
         UseCase::OneMessage,
         UseCase::ManyMessages,
         UseCase::ManyLongMessages,
@@ -850,6 +870,7 @@ impl UseCase {
         UseCase::IdleInterleavedTurn,
         UseCase::BriefIdleInterleavedTurn,
         UseCase::ControlledIdleInterleavedTurn,
+        UseCase::ReceivingMessage,
     ];
 
     /// Whether each call comes after a gap (the synchronous use cases:
@@ -864,7 +885,9 @@ impl UseCase {
 
     /// How the program calls, as the graph's chips name it.
     fn pattern_key(self) -> &'static str {
-        if self.controlled() {
+        if self == Self::ReceivingMessage {
+            "receiving"
+        } else if self.controlled() {
             "controlled"
         } else if self.pause_ns() == Some(BRIEF_PAUSE_NS) {
             "brief"
@@ -1002,6 +1025,7 @@ impl UseCase {
             Self::ContinuousMessages => "Messages one after another, buffers owned",
             Self::ContinuousBatches => "Batches one after another, buffers owned",
             Self::LentMessages => "Messages one after another, buffers lent",
+            Self::ReceivingMessage => "A message received in fragments, timed end to end",
             Self::Interleaved => "Many messages at once, each arriving in pieces, buffers lent",
             Self::InterleavedTurn => {
                 "Many messages at once, a turn of their pieces after other work"
@@ -1034,7 +1058,8 @@ impl UseCase {
             | Self::BriefIdleOneMessage
             | Self::ControlledIdleOneMessage
             | Self::ContinuousMessages
-            | Self::LentMessages => "size",
+            | Self::LentMessages
+            | Self::ReceivingMessage => "size",
             Self::Interleaved
             | Self::InterleavedTurn
             | Self::IdleInterleavedTurn
@@ -1066,6 +1091,7 @@ impl UseCase {
             | Self::ControlledIdleOneMessage
             | Self::ContinuousMessages
             | Self::LentMessages
+            | Self::ReceivingMessage
             | Self::Interleaved
             | Self::Collection
             | Self::ContinuousCollection
@@ -1104,8 +1130,11 @@ impl UseCase {
     /// How the program calls, for a reader of the results.
     /// How the program calls, for the report's opening: the clause after
     /// the tables' names.
-    fn pattern(self) -> &'static str {
-        if self.controlled() {
+    fn pattern(self) -> String {
+        if self == Self::ReceivingMessage {
+            return receive::description();
+        }
+        let description = if self.controlled() {
             "the program hashes, sleeps 5 ms, and hashes again, with every idle state but the shallowest switched off (the bench runs as root), so the call meets the core awake and the cell measures the library alone; the second call, with the write of its input, is timed"
         } else if self.pause_ns() == Some(BRIEF_PAUSE_NS) {
             "the program hashes, sleeps 20 us, and hashes again, as a server handles a request, waits a moment, and handles the next; the second call, with the write of its input, is timed"
@@ -1115,7 +1144,8 @@ impl UseCase {
             "the program hashes, runs other code and reads 128 MiB of memory (at least 1 ms), and hashes again, as a program hashes between its other tasks; the second call, with the write of its input, is timed"
         } else {
             "the program hashes one input after another, as fast as it can, alone and with a second program doing the same at once"
-        }
+        };
+        description.to_owned()
     }
 
     /// The prefix that names this use case's points on the command line
@@ -1130,6 +1160,7 @@ impl UseCase {
             Self::ContinuousMessages => "continuous ",
             Self::ContinuousBatches => "continuous batch ",
             Self::LentMessages => "lent ",
+            Self::ReceivingMessage => "receive ",
             Self::Interleaved => "interleaved ",
             Self::InterleavedTurn => "turn ",
             Self::IdleInterleavedTurn => "idle turn ",
@@ -1203,6 +1234,15 @@ impl Point {
             bytes,
             messages: 1,
             use_case: UseCase::ContinuousMessages,
+        }
+    }
+
+    const fn receiving(label: &'static str, bytes: usize) -> Self {
+        Self {
+            label,
+            bytes,
+            messages: 1,
+            use_case: UseCase::ReceivingMessage,
         }
     }
 
@@ -1403,7 +1443,7 @@ impl Algorithm {
             | UseCase::ControlledIdleManyMessages
             | UseCase::LentBatches => !matches!(self, Self::Blake3Rayon),
             UseCase::ContinuousBatches => !matches!(self, Self::Blake3Rayon),
-            UseCase::ContinuousMessages => true,
+            UseCase::ContinuousMessages | UseCase::ReceivingMessage => true,
             UseCase::OneMessage
             | UseCase::IdleOneMessage
             | UseCase::BriefIdleOneMessage
@@ -3264,7 +3304,6 @@ fn measure_all(
      */
     // Each way of calling its own set of rounds (the brief pause and the
     // long one apart too: a core's clock after 20 us differs from after 5 ms).
-    const PATTERNS: [&str; 5] = ["nonstop", "busy", "brief", "idle", "controlled"];
     for pattern in PATTERNS {
         progress.phase("calibrating");
 
@@ -3351,6 +3390,7 @@ fn measure_all(
          */
         progress.phase(match pattern {
             "nonstop" => "measuring one after another",
+            "receiving" => "measuring receive and hash",
             "busy" => "measuring after other work",
             "brief" => "measuring after a brief idle",
             "controlled" => "measuring after idling, deep states off",
@@ -4213,6 +4253,11 @@ fn hash_batch(
     );
 
     match point.use_case {
+        UseCase::ReceivingMessage => {
+            return hash_stream_from::<true>(algorithm, input, iterations, consume, || {
+                clocks::Gap::Idle.spend(receive::PAUSE_NS)
+            })
+        }
         UseCase::Interleaved
         | UseCase::InterleavedTurn
         | UseCase::IdleInterleavedTurn
@@ -4593,12 +4638,25 @@ fn hash_collection(
  * it through its incremental API, so reading and hashing take turns.
  */
 fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: impl FnMut(&[u8])) {
+    hash_stream_from::<false>(algorithm, input, iterations, consume, || {});
+}
+
+/// The same incremental calls, with either the uniform read trace or the
+/// receiving trace. The constant chooses the producer before the timed loop.
+fn hash_stream_from<const RECEIVING: bool>(
+    algorithm: Algorithm,
+    input: &[u8],
+    iterations: usize,
+    consume: impl FnMut(&[u8]),
+    between: impl Fn(),
+) {
     use sha1_checked::digest::Update as _;
     use sha2::Digest as _;
     match algorithm {
-        Algorithm::Blake3 => each_stream(
+        Algorithm::Blake3 => each_stream::<RECEIVING, _>(
             input,
             iterations,
+            &between,
             |pieces| {
                 let mut hasher = blake3::Hasher::new();
                 pieces(&mut |piece| {
@@ -4608,9 +4666,10 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             },
             consume,
         ),
-        Algorithm::Blake3Rayon => each_stream(
+        Algorithm::Blake3Rayon => each_stream::<RECEIVING, _>(
             input,
             iterations,
+            &between,
             |pieces| {
                 let mut hasher = blake3::Hasher::new();
                 pieces(&mut |piece| {
@@ -4620,9 +4679,10 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             },
             consume,
         ),
-        Algorithm::Blake3ServilSt => each_stream(
+        Algorithm::Blake3ServilSt => each_stream::<RECEIVING, _>(
             input,
             iterations,
+            &between,
             |pieces| {
                 let mut hasher = blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain);
                 pieces(&mut |piece| {
@@ -4632,9 +4692,10 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             },
             consume,
         ),
-        Algorithm::Blake3ServilMt => each_stream(
+        Algorithm::Blake3ServilMt => each_stream::<RECEIVING, _>(
             input,
             iterations,
+            &between,
             |pieces| {
                 let mut hasher = blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain);
                 pieces(&mut |piece| {
@@ -4644,9 +4705,10 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             },
             consume,
         ),
-        Algorithm::Sha256 => each_stream(
+        Algorithm::Sha256 => each_stream::<RECEIVING, _>(
             input,
             iterations,
+            &between,
             |pieces| {
                 let mut hasher = Sha256::new();
                 pieces(&mut |piece| hasher.update(piece));
@@ -4655,9 +4717,10 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             },
             consume,
         ),
-        Algorithm::Sha256Ring => each_stream(
+        Algorithm::Sha256Ring => each_stream::<RECEIVING, _>(
             input,
             iterations,
+            &between,
             |pieces| {
                 let mut context = ring::digest::Context::new(&ring::digest::SHA256);
                 pieces(&mut |piece| context.update(piece));
@@ -4667,15 +4730,17 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             },
             consume,
         ),
-        Algorithm::Sha256CommonCrypto => each_stream(
+        Algorithm::Sha256CommonCrypto => each_stream::<RECEIVING, _>(
             input,
             iterations,
+            &between,
             |pieces| common_crypto::sha256_pieces(pieces),
             consume,
         ),
-        Algorithm::Sha1Dc => each_stream(
+        Algorithm::Sha1Dc => each_stream::<RECEIVING, _>(
             input,
             iterations,
+            &between,
             |pieces| {
                 let mut hasher = sha1_checked::Sha1::new();
                 pieces(&mut |piece| hasher.update(piece));
@@ -4685,9 +4750,10 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             },
             consume,
         ),
-        Algorithm::Sha3_256 => each_stream(
+        Algorithm::Sha3_256 => each_stream::<RECEIVING, _>(
             input,
             iterations,
+            &between,
             |pieces| {
                 let mut hasher = sha3::Sha3_256::new();
                 pieces(&mut |piece| sha3::Digest::update(&mut hasher, piece));
@@ -5546,9 +5612,10 @@ type Pieces<'a> = &'a mut dyn FnMut(&mut dyn FnMut(&[u8]));
 /// `iterations` streams of `input` through `hash`, which receives the
 /// pieces, copied, in order; the digest of each goes to `consume`.
 #[inline(always)]
-fn each_stream<D: AsRef<[u8]>>(
+fn each_stream<const RECEIVING: bool, D: AsRef<[u8]>>(
     input: &[u8],
     iterations: usize,
+    between: &impl Fn(),
     hash: impl Fn(Pieces) -> D,
     mut consume: impl FnMut(&[u8]),
 ) {
@@ -5561,9 +5628,16 @@ fn each_stream<D: AsRef<[u8]>>(
     }
     for _ in 0..iterations {
         let mut pieces = |each: &mut dyn FnMut(&[u8])| {
-            for piece in black_box(input).chunks(PIECE_LEN) {
+            let mut copied = |piece: &[u8]| {
                 buffer[..piece.len()].copy_from_slice(piece);
                 each(black_box(&buffer[..piece.len()]));
+            };
+            if RECEIVING {
+                receive::arrivals(black_box(input), copied, between);
+            } else {
+                for piece in black_box(input).chunks(PIECE_LEN) {
+                    copied(piece);
+                }
             }
         };
         consume(hash(&mut pieces).as_ref());
@@ -5584,7 +5658,9 @@ thread_local! {
  * these.
  */
 #[cfg(test)]
-const SERVIL_CALLS: [(Algorithm, UseCase, &str); 30] = [
+const SERVIL_CALLS: [(Algorithm, UseCase, &str); 32] = [
+    (Algorithm::Blake3ServilSt, UseCase::ReceivingMessage, "throughput::Hasher::new(Mode::Plain), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; 20 us idle between arrivals; reads, waits, updates and finalization timed together"),
+    (Algorithm::Blake3ServilMt, UseCase::ReceivingMessage, "throughput::Hasher::new(Mode::Plain), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; 20 us idle between arrivals; reads, waits, updates and finalization timed together"),
     (Algorithm::Blake3ServilSt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it"),
     (Algorithm::Blake3ServilSt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: throughput::update_each, then throughput::finalize_each for the messages that ended in it"),
     (Algorithm::Blake3ServilMt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it"),
@@ -5637,6 +5713,7 @@ fn frozen_contract() -> String {
             .collect::<Vec<_>>()
             .join(", ")
     };
+    text += &format!("receive trace: {}\n", receive::description());
     text += &format!("scenarios: {}\n", keys(&Scenario::ALL));
     let shared: Vec<String> = UseCase::ALL
         .into_iter()
@@ -6470,6 +6547,7 @@ fn continuous_min_inputs(input: &[u8], point: Point) -> usize {
         | UseCase::BriefIdleManyMessages
         | UseCase::ControlledIdleManyMessages
         | UseCase::LentMessages
+        | UseCase::ReceivingMessage
         | UseCase::Interleaved
         | UseCase::Collection
         | UseCase::LentBatches
@@ -7723,6 +7801,13 @@ fn generate_samples_tsv(
                 .join(","),
         ),
     ]);
+    if roster
+        .points
+        .iter()
+        .any(|&p| POINTS[p].use_case == UseCase::ReceivingMessage)
+    {
+        run.push(("receive trace".to_owned(), receive::description()));
+    }
     let mut out = samples_header(machine, &run, &clocks::load::describe(&machine.load));
     writeln!(out, "{SAMPLES_COLUMNS}").unwrap();
     for (algorithm_index, &algorithm) in roster.algorithms.iter().enumerate() {
@@ -7822,7 +7907,7 @@ fn generate_text(
     writeln!(output).unwrap();
 
     /* How the program calls, for the tables this run shows. */
-    for key in ["busy", "brief", "idle", "controlled", "nonstop"] {
+    for key in PATTERNS {
         let names: Vec<String> = UseCase::ALL
             .into_iter()
             .filter(|&use_case| {
@@ -9852,6 +9937,7 @@ mod correctness_tests {
                 point("64 B", UseCase::OneMessage),
                 point("64 B", UseCase::LentMessages),
                 point("16", UseCase::LentBatches),
+                point("64 KiB", UseCase::ReceivingMessage),
             ]),
             Some(20),
             &TO_CHECK_FOR_REGRESSIONS,
@@ -9880,6 +9966,12 @@ mod correctness_tests {
             std::env::temp_dir().join(format!("bench-hashes-readback-{}.tsv", std::process::id()));
         fs::write(&path, &tsv).unwrap();
         let read = read_samples(path.to_str().unwrap());
+        assert!(
+            read.headers
+                .iter()
+                .any(|(key, value)| key == "receive trace" && *value == receive::description()),
+            "the samples retain their actual arrival trace"
+        );
         fs::remove_file(&path).unwrap();
         let figures = |cell: &[Measured]| Mean::of(cell).format_ns(1);
         let mut checked = 0;
@@ -10077,7 +10169,7 @@ mod correctness_tests {
         );
         assert_eq!(
             UseCase::ControlledIdleInterleavedTurn.points(),
-            turn + 3 * INTERLEAVED_COUNT..POINT_COUNT
+            turn + 3 * INTERLEAVED_COUNT..turn + 4 * INTERLEAVED_COUNT
         );
         for (k, point) in POINTS[UseCase::ContinuousCollection.points()]
             .iter()
@@ -10099,6 +10191,10 @@ mod correctness_tests {
                 "each collection is 2048 items"
             );
         }
+        assert_eq!(
+            UseCase::ReceivingMessage.points(),
+            turn + 4 * INTERLEAVED_COUNT..POINT_COUNT
+        );
         let covered: Vec<_> = UseCase::ALL.into_iter().flat_map(UseCase::points).collect();
         assert_eq!(covered, (0..POINT_COUNT).collect::<Vec<_>>());
         for (owned, lent) in POINTS[UseCase::ContinuousMessages.points()]

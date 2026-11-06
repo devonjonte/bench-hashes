@@ -40,6 +40,12 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
             "throughput::hash_multithreaded",
             "performance/fn.hash_multithreaded.html",
         ),
+        UseCase::ReceivingMessage => (
+            "one",
+            "receiving",
+            "throughput::Hasher::update_multithreaded",
+            "throughput/struct.Hasher.html#method.update_multithreaded",
+        ),
         UseCase::LentMessages => (
             "one",
             "lent",
@@ -756,7 +762,7 @@ fn hashing(path: &Path) -> Section {
     Section {
         title: "How fast each hash runs, by what a program hashes and how it calls",
         rows: vec![
-            ("one", "one message", "One message in memory, of the length along the chart's axis."),
+            ("one", "one message", "One message, of the length along the chart's axis."),
             ("batch", "a batch of short messages", "Many 64-byte messages hashed together, such as a Merkle tree's nodes; the axis counts the messages."),
             ("long", "a batch of longer messages", "Many 4 KiB messages hashed together, such as a store's blocks or a backup's chunks; the axis counts the messages."),
             ("merkle", "a Merkle tree", "A Merkle tree over 256-byte leaves the program has just written into place, leaves and parents hashed apart, every layer kept, as a zero-knowledge prover commits to its Reed-Solomon codeword (WHIR); the axis counts the leaves."),
@@ -764,6 +770,7 @@ fn hashing(path: &Path) -> Section {
             ("coll", "a collection of messages", "A collection of messages of every size, such as a repository's objects or a store's files, hashed together."),
         ],
         cols: vec![
+            ("receiving", "receive + hash, including waits", "A message arrives in fragments, with idle time between arrivals. The time includes receiving, waiting, hashing and finalization; its rate is end-to-end reception, not hashing alone."),
             ("busy", "now and then, after other work", "The program hashes now and then and does other work in between, which pushes the hash's code and data out of the CPU's caches."),
             ("brief", "now and then, after a brief pause", "The program hashes now and then and waits 20 us in between (a reply arrives at once), so the core keeps its clock and its shallowest rest."),
             ("idle", "now and then, after a pause", "The program hashes now and then and waits 5 ms in between (for the network, say), so the core rests deeply and starts the next hash slowly."),
