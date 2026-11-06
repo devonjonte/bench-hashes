@@ -22,3 +22,8 @@ bound in pair 4; the second completed four pairs (~928 s each) and abstained:
 eight runs met external busy windows (1-2 CPUs, recurring all evening), exit 2,
 no verdict. On this machine tonight a 62-minute stage cannot stay clean; the
 14-point gate above (8-second pairs) stands as the tip-vs-0.8 evidence.
+
+Prospective (tip + #248's lane rounding, de330a74, against 0.8, same scope and
+old bench): **no cell slower** in either stage. One-message 3 KiB x0.79 (st) and
+x0.85 (mt), 6 of 6 pairs; idle 3 KiB x0.84; 4 KiB x0.94-0.96; the rest level.
+That is what the merge buys this machine on the road to 0.9.
