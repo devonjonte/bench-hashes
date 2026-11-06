@@ -7,6 +7,11 @@
 //! run's load left no verdict.
 //!
 //! What a check does, every time, with nothing to choose:
+//! 0. Builds bench-hashes against both sides in turn from one path and
+//!    compares the two builds (src/samecode.rs): where they hold the same
+//!    code, the commits and the panic locations' line numbers aside, the
+//!    verdict is "same code", exit 0, and nothing is measured (bench-hashes
+//!    #125). Otherwise it names the functions that differ and goes on.
 //! 1. Builds bench-hashes twice, against BLAKE3-Servil at each side (a commit
 //!    of the working tree as `git add -A` would stage it, and the commit
 //!    checked against), in worktrees of its own under `target/check/`, and
@@ -312,6 +317,39 @@ pub fn command(arguments: &[String]) -> i32 {
             dir
         }
     };
+    // The first verdict (bench-hashes #125): both sides built from one path,
+    // compared; the same code is the change's verdict, and nothing runs. One
+    // bench for both sides only: with --old-bench the benches differ.
+    if old_bench_rev.is_none() {
+        match same_path_verdict(&fork, &bench, &cache, &old, &new) {
+            Some(crate::samecode::Verdict::Same) => {
+                println!("check: same code: the change alters nothing the bench runs here");
+                return 0;
+            }
+            Some(crate::samecode::Verdict::Differs {
+                sections,
+                resized,
+                changed,
+            }) => {
+                let list = |v: &[String]| {
+                    let mut s = v.iter().take(12).cloned().collect::<Vec<_>>().join("; ");
+                    if v.len() > 12 {
+                        s += &format!("; and {} more", v.len() - 12);
+                    }
+                    s
+                };
+                eprintln!(
+                    "check: the change alters the bench's code here: {}; {} functions of another size or on one side alone ({}); {} of other bytes ({})",
+                    sections.join(", "),
+                    resized.len(),
+                    list(&resized),
+                    changed.len(),
+                    list(&changed)
+                )
+            }
+            None => eprintln!("check: no same-code comparison on this machine's executable format (ELF only); measuring"),
+        }
+    }
     let old_exe = side(&fork, &old_bench, &cache, "old", &old);
     let new_exe = side(&fork, &bench, &cache, "new", &new);
     // The scope: every point, or the points named before the builds.
@@ -695,6 +733,29 @@ fn side(fork: &Path, bench: &Path, cache: &Path, name: &str, commit: &str) -> Pa
     // files, the build's own, stay).
     git(&checkout, &["clean", "-fdq"]);
     build_against(&checkout, bench, &cache.join(name).join("target"), name)
+}
+
+/// Both sides built in turn from one worktree, `target/check/same/src`, into
+/// one target directory, and compared (crate::samecode, with the commits
+/// and the panic locations' lines masked): at two paths every build
+/// differs, at one only what the change alters (bench-hashes #125). None
+/// where the executable is not ELF.
+fn same_path_verdict(
+    fork: &Path,
+    bench: &Path,
+    cache: &Path,
+    old: &str,
+    new: &str,
+) -> Option<crate::samecode::Verdict> {
+    let mut exes = Vec::new();
+    for (name, commit) in [("old", old), ("new", new)] {
+        let exe = side(fork, bench, cache, "same", commit);
+        let kept = cache.join("same").join(format!("bench-hashes-{name}"));
+        std::fs::copy(&exe, &kept).unwrap_or_else(|e| panic!("{}: {e}", kept.display()));
+        exes.push(kept);
+    }
+    let masks = [old, new, &old[..12], &new[..12]];
+    crate::samecode::compare(&exes[0], &exes[1], &masks, true)
 }
 
 /// The bench `check` and `build-against` copy and build: the current
