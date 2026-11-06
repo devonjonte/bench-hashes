@@ -9281,6 +9281,7 @@ mod correctness_tests {
             Some(points),
             Some(2),
             &TO_MEASURE_SPEED,
+            None,
         );
         let (owned, lent, small) = (
             point("4 KiB", UseCase::ContinuousMessages),
