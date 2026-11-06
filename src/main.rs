@@ -7241,8 +7241,10 @@ fn regress_command(arguments: &[String]) -> i32 {
         "--pairs: the rule needs at least three pairs\n{usage}"
     );
     // The machine first: a run on a busy machine abstains at its end; ten
-    // seconds now say so before it (check asks the same before its build).
-    if let Err(reason) = clocks::load::quiet_for(10) {
+    // quiet seconds now say so before it (check asks the same before its
+    // build), tried for up to two minutes, since check's builds leave load
+    // behind them for a few seconds.
+    if let Err(reason) = clocks::load::quiet_within(120) {
         println!(
             "regress: {reason}. No verdict (exit 2); run when nothing else runs on the machine."
         );

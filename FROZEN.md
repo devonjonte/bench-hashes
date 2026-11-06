@@ -124,6 +124,13 @@ the notes) may still change, to say it better.
   unpinned: a record reports what a caller meets wherever the OS puts
   it. How comparisons are judged is unchanged. Where the machine takes
   no thread affinity (macOS), every run is the OS's, as before.
+- **`check` and `regress` ask the machine first** (Devon Jonte, November
+  5, 2026, bench-hashes #128): ten quiet seconds before a build or a
+  measurement, or no verdict at once. A busy machine had cost whole
+  checks that abstained at their end. `regress` tries for up to two
+  minutes, since a check's own builds leave load behind for a few
+  seconds (John Servil, November 6). `check --when-quiet` waits as long
+  as it takes. What a run measures is unchanged.
 - **`check` measures the cells its author names** (Zooko, November 6,
   2026; Devon Jonte, bench-hashes #128). `check` first prints the diff's
   files, its added and deleted lines, and the items its hunks sit in.

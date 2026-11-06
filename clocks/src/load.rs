@@ -291,6 +291,23 @@ pub fn quiet_for(seconds: u64) -> Result<(), String> {
     }
 }
 
+/// [`quiet_for`] 10 seconds, tried again until it passes or `limit`
+/// seconds have gone: the reason of the last try when none passed. For the
+/// seconds right after a program's own builds, which leave load behind
+/// them (on macOS a scan of each new executable; the build's tail): a
+/// check whose regress looked once refused there (runner job 1946,
+/// November 6, 2026: 3.38 CPUs, rustc and XprotectService).
+pub fn quiet_within(limit: u64) -> Result<(), String> {
+    let started = crate::now();
+    loop {
+        match quiet_for(10) {
+            Ok(()) => return Ok(()),
+            Err(reason) if crate::since_ns(started) >= limit * 1_000_000_000 => return Err(reason),
+            Err(_) => {}
+        }
+    }
+}
+
 /// Wait until [`quiet_for`] 10 seconds passes, reading again every 30 s
 /// and saying so once a minute on stderr: for a run queued for a time
 /// when nobody is at the machine.
