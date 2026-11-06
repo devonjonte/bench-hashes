@@ -11,11 +11,21 @@ mod require_nextest {
 fn calibrate_only_gives_twins_their_twins_sizes() {
     let path = std::env::temp_dir().join(format!("calibrate-twins-{}.tsv", std::process::id()));
     let out = std::process::Command::new(env!("CARGO_BIN_EXE_bench-hashes"))
-        .args(["--contenders", "blake3-servil-st", "--points", "continuous 4 KiB,lent 4 KiB", "--calibrate-only"])
+        .args([
+            "--contenders",
+            "blake3-servil-st",
+            "--points",
+            "continuous 4 KiB,lent 4 KiB",
+            "--calibrate-only",
+        ])
         .arg(&path)
         .output()
         .expect("bench-hashes runs");
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let text = std::fs::read_to_string(&path).expect("the sizes file");
     std::fs::remove_file(&path).unwrap();
     let size = |cell: &str| -> usize {
@@ -26,5 +36,9 @@ fn calibrate_only_gives_twins_their_twins_sizes() {
             .unwrap()
     };
     assert!(size("lent 4 KiB") > 1, "the lent cell calibrated:\n{text}");
-    assert_eq!(size("continuous 4 KiB"), size("lent 4 KiB"), "the owned cell takes its twin's size:\n{text}");
+    assert_eq!(
+        size("continuous 4 KiB"),
+        size("lent 4 KiB"),
+        "the owned cell takes its twin's size:\n{text}"
+    );
 }
