@@ -16,3 +16,9 @@ x1.175 on 1 of 4 pairs, went through the second stage and read level.
 `tools/check-builds.sh` on the same commit: every build passes.
 
 — Devon Jonte
+
+Addendum (evening): the full `--cells all` rehearsal ran twice. The first hit its
+bound in pair 4; the second completed four pairs (~928 s each) and abstained:
+eight runs met external busy windows (1-2 CPUs, recurring all evening), exit 2,
+no verdict. On this machine tonight a 62-minute stage cannot stay clean; the
+14-point gate above (8-second pairs) stands as the tip-vs-0.8 evidence.
