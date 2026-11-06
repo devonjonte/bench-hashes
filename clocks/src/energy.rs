@@ -104,6 +104,7 @@ mod imp {
 /// A counter's `count` in nanojoules: count x mantissa x 10^(exponent + 9),
 /// rounded down (the scale "2.3283064365386962890625e-10" J a count, as
 /// parse_scale reads it, is mantissa 23283064365386962890625 at exponent -32).
+#[cfg(any(target_os = "linux", test))]
 fn scale_nj(count: u64, mantissa: u128, exponent: i32) -> u64 {
     let scaled = u128::from(count) * mantissa;
     let exponent = exponent + 9;

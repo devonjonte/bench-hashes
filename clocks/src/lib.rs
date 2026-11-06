@@ -525,7 +525,13 @@ mod imp {
             ok.then_some((u64::from(info.numer), u64::from(info.denom)))
         }))?;
         let levels = levels().expect("thread_selfcounts failed after succeeding once");
-        let level = |l: ThscTimeCpi| Level { cycles: l.cycles, instructions: l.instructions, time_ns: (l.user_time_mach + l.system_time_mach) * numer / denom };
+        // A Mac counts no cache events (METHODOLOGY): zero.
+        let level = |l: ThscTimeCpi| Level {
+            cycles: l.cycles,
+            instructions: l.instructions,
+            time_ns: (l.user_time_mach + l.system_time_mach) * numer / denom,
+            ..Level::default()
+        };
         Some(Counts { p: level(levels[0]), e: level(levels[1]) })
     }
 

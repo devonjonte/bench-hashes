@@ -285,13 +285,12 @@ mod imp {
 #[cfg(target_vendor = "apple")]
 mod imp {
     use super::{rusage, Run};
-    use crate::{Counts, Level};
 
     unsafe extern "C" {
         fn proc_pid_rusage(pid: i32, flavor: i32, buffer: *mut u64) -> i32;
     }
     const RUSAGE_INFO_V6: i32 = 6;
-    use super::{CYCLES, CYCLES_P, DISKIO_BYTESREAD, INSTRUCTIONS, PINSTRUCTIONS, SYSTEM_PTIME, SYSTEM_TIME, USER_PTIME, USER_TIME};
+    use super::{DISKIO_BYTESREAD, SYSTEM_TIME, USER_TIME};
 
     /// A running (or exited, unreaped) process's user and system time
     /// (proc_pid_rusage, in Mach time units).
