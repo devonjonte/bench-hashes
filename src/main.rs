@@ -200,7 +200,7 @@ const PIECE_LEN: usize = 64 * 1024;
  * messages: many short, a few long. The pieces arrive in turns of TURN,
  * as one wait of a server's event loop delivers them, each read into its
  * own buffer; a contender with calls for many messages at once (the
- * servil fork's performance::update_each and finalize_each) makes one of each per
+ * servil fork's throughput::update_each and finalize_each) makes one of each per
  * turn, every other one update per piece and one finish per message. The
  * schedule carries over from sample to sample, so samples see the steady
  * state. A sample's unit of work is `chunk` bytes of pieces.
@@ -937,7 +937,7 @@ impl UseCase {
     /// Whether the cell's inputs are laid out in blocks, each message
     /// starting a 64-byte boundary with whole 64-byte blocks behind it, for
     /// every contender alike: the batches, and every cell where servil's
-    /// call is a performance call that takes blocks (Zooko, October 24:
+    /// call is a throughput call that takes blocks (Zooko, October 24:
     /// align the inputs of every cell that has a performance-call
     /// contender). The pieces cells and the interleaved ones feed servil's
     /// Hasher, which takes any slice.
@@ -1511,9 +1511,9 @@ impl Algorithm {
             | Self::Sha256CommonCrypto
             | Self::Sha256Ring
             | Self::Sha3_256 => "single-threaded",
-            Self::Blake3ServilSt => "single-threaded; convenience::hash for one message after a gap and performance::hash for one after another, performance::hash_many for a batch, performance::Hasher::update per piece for many messages at once",
+            Self::Blake3ServilSt => "single-threaded; convenience::hash for one message after a gap and throughput::hash for one after another, throughput::hash_many for a batch, throughput::Hasher::update per piece for many messages at once",
             Self::Blake3Rayon => "multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread",
-            Self::Blake3ServilMt => "multithreaded; performance::hash_multithreaded for one message, performance::hash_many_multithreaded for a batch, performance::Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: BLAKE3-Servil chooses when to wake its worker threads",
+            Self::Blake3ServilMt => "multithreaded; throughput::hash_multithreaded for one message, throughput::hash_many_multithreaded for a batch, throughput::Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: BLAKE3-Servil chooses when to wake its worker threads",
         }
     }
 }
@@ -3891,16 +3891,16 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
         ) {
             let hash_many: Option<fn(&[u8], usize, &mut [[u8; 32]])> = match algorithm {
                 Algorithm::Blake3ServilSt => Some(|i, l, o| {
-                    blake3_servil::performance::hash_many(
+                    blake3_servil::throughput::hash_many(
                         blake3_servil::Mode::Plain,
-                        &blake3_servil::performance::Batch::from_blocks(servil_blocks(i), l),
+                        &blake3_servil::throughput::Batch::from_blocks(servil_blocks(i), l),
                         o,
                     )
                 }),
                 Algorithm::Blake3ServilMt => Some(|i, l, o| {
-                    blake3_servil::performance::hash_many_multithreaded(
+                    blake3_servil::throughput::hash_many_multithreaded(
                         blake3_servil::Mode::Plain,
-                        &blake3_servil::performance::Batch::from_blocks(servil_blocks(i), l),
+                        &blake3_servil::throughput::Batch::from_blocks(servil_blocks(i), l),
                         o,
                     )
                 }),
@@ -4118,7 +4118,7 @@ fn observe_call(call: &'static str) {
 
 /// One whole message through the contender's plain API: the message's
 /// `len` bytes, from the whole blocks it comes in (UseCase::in_blocks), which
-/// servil's performance call takes as they are. Selection happens
+/// servil's throughput call takes as they are. Selection happens
 /// once, before the gap; every result remains observable to the optimizer.
 fn one_message_call(algorithm: Algorithm) -> fn(&[u8], usize) {
     match algorithm {
@@ -4131,7 +4131,7 @@ fn one_message_call(algorithm: Algorithm) -> fn(&[u8], usize) {
         },
         Algorithm::Blake3ServilMt => |blocks, len| {
             use_digest(
-                blake3_servil::performance::hash_multithreaded(
+                blake3_servil::throughput::hash_multithreaded(
                     blake3_servil::Mode::Plain,
                     servil_blocks(blocks),
                     len,
@@ -4292,10 +4292,10 @@ fn hash_messages(
     mut consume: impl FnMut(&[u8]),
 ) {
     // A single message comes in its whole blocks (UseCase::in_blocks):
-    // BLAKE3-Servil's performance calls take them as they are, every other
+    // BLAKE3-Servil's throughput calls take them as they are, every other
     // contender the message's bytes. These are the calls made one after
     // another (lent messages, a pipelined collection's items), so servil st
-    // makes its performance call, the one for call after call (John
+    // makes its throughput call, the one for call after call (John
     // Servil, November 6, 2026, BLAKE3-Servil #253; Zooko, November 5,
     // "Cold calls and warm calls, by their API"); the calls after a gap keep
     // convenience::hash (one_message_call).
@@ -4308,13 +4308,13 @@ fn hash_messages(
         let blocks = servil_blocks(input);
         for _ in 0..iterations {
             let hash = if algorithm == Algorithm::Blake3ServilMt {
-                blake3_servil::performance::hash_multithreaded(
+                blake3_servil::throughput::hash_multithreaded(
                     blake3_servil::Mode::Plain,
                     black_box(blocks),
                     message_len,
                 )
             } else {
-                blake3_servil::performance::hash(
+                blake3_servil::throughput::hash(
                     blake3_servil::Mode::Plain,
                     black_box(blocks),
                     message_len,
@@ -4370,16 +4370,16 @@ fn hash_messages(
             },
             consume,
         ),
-        // A batch: a single message took its performance call above.
+        // A batch: a single message took its throughput call above.
         Algorithm::Blake3ServilSt => servil_batch(
             input,
             messages,
             message_len,
             iterations,
             |i, l, o| {
-                blake3_servil::performance::hash_many(
+                blake3_servil::throughput::hash_many(
                     blake3_servil::Mode::Plain,
-                    &blake3_servil::performance::Batch::from_blocks(servil_blocks(i), l),
+                    &blake3_servil::throughput::Batch::from_blocks(servil_blocks(i), l),
                     o,
                 )
             },
@@ -4418,9 +4418,9 @@ fn hash_messages(
             message_len,
             iterations,
             |i, l, o| {
-                blake3_servil::performance::hash_many_multithreaded(
+                blake3_servil::throughput::hash_many_multithreaded(
                     blake3_servil::Mode::Plain,
-                    &blake3_servil::performance::Batch::from_blocks(servil_blocks(i), l),
+                    &blake3_servil::throughput::Batch::from_blocks(servil_blocks(i), l),
                     o,
                 )
             },
@@ -4488,7 +4488,7 @@ fn hash_continuous_collection(
     if algorithm == Algorithm::Blake3ServilMt {
         let mut places = take_places(STREAM_PLACES_PER_MESSAGE);
         let free = std::cell::RefCell::new(places.chunks_mut(1).collect::<Vec<_>>());
-        blake3_servil::performance::stream(
+        blake3_servil::throughput::stream(
             blake3_servil::Mode::Plain,
             |place: &mut [blake3_servil::Hash]| {
                 consume(place[0].as_bytes());
@@ -4547,13 +4547,13 @@ fn hash_collection(
     ) {
         // BLAKE3-Servil's call for a collection: every item in one call.
         let each = if algorithm == Algorithm::Blake3ServilSt {
-            blake3_servil::performance::hash_each
+            blake3_servil::throughput::hash_each
         } else {
-            blake3_servil::performance::hash_each_multithreaded
+            blake3_servil::throughput::hash_each_multithreaded
         };
         // Each item in its whole blocks (the collection's layout).
         assert_blocks_aligned(input);
-        let slices: Vec<(&[blake3_servil::performance::Block], usize)> = items
+        let slices: Vec<(&[blake3_servil::throughput::Block], usize)> = items
             .iter()
             .map(|&(offset, len)| {
                 (
@@ -4625,7 +4625,7 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             iterations,
             |pieces| {
                 let mut hasher =
-                    blake3_servil::performance::Hasher::new(blake3_servil::Mode::Plain);
+                    blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain);
                 pieces(&mut |piece| {
                     hasher.update(piece);
                 });
@@ -4638,7 +4638,7 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             iterations,
             |pieces| {
                 let mut hasher =
-                    blake3_servil::performance::Hasher::new(blake3_servil::Mode::Plain);
+                    blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain);
                 pieces(&mut |piece| {
                     hasher.update_multithreaded(piece);
                 });
@@ -4745,9 +4745,9 @@ fn hash_interleaved(
         ),
         Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt => {
             let update = if algorithm == Algorithm::Blake3ServilSt {
-                blake3_servil::performance::update_each
+                blake3_servil::throughput::update_each
             } else {
-                blake3_servil::performance::update_each_multithreaded
+                blake3_servil::throughput::update_each_multithreaded
             };
             let mut digests = Vec::new();
             each_interleaved(
@@ -4755,13 +4755,13 @@ fn hash_interleaved(
                 input,
                 budget,
                 iterations,
-                || blake3_servil::performance::Hasher::new(blake3_servil::Mode::Plain),
+                || blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain),
                 update,
-                move |hashers: &mut [blake3_servil::performance::Hasher],
+                move |hashers: &mut [blake3_servil::throughput::Hasher],
                       ended: &[usize],
                       consume: &mut dyn FnMut(&[u8])| {
                     digests.resize(ended.len(), [0u8; 32]);
-                    blake3_servil::performance::finalize_each(hashers, ended, &mut digests);
+                    blake3_servil::throughput::finalize_each(hashers, ended, &mut digests);
                     for (&i, digest) in ended.iter().zip(&digests) {
                         consume(digest);
                         hashers[i].reset();
@@ -4984,7 +4984,7 @@ fn keep_places(places: Vec<blake3_servil::Hash>) {
 /// A free place from `free`, handing places back (collect) until one is.
 fn free_place<'a, D: FnMut(&'a mut [blake3_servil::Hash])>(
     free: &std::cell::RefCell<Vec<&'a mut [blake3_servil::Hash]>>,
-    s: &mut blake3_servil::performance::Stream<'a, D>,
+    s: &mut blake3_servil::throughput::Stream<'a, D>,
 ) -> &'a mut [blake3_servil::Hash] {
     loop {
         if let Some(place) = free.borrow_mut().pop() {
@@ -5080,7 +5080,7 @@ fn hash_continuous_messages(
         // the place used again.
         let mut places = take_places(STREAM_PLACES_PER_MESSAGE);
         let free = std::cell::RefCell::new(places.chunks_mut(1).collect::<Vec<_>>());
-        blake3_servil::performance::stream(
+        blake3_servil::throughput::stream(
             blake3_servil::Mode::Plain,
             |place: &mut [blake3_servil::Hash]| {
                 consume(place[0].as_bytes());
@@ -5144,7 +5144,7 @@ fn hash_continuous_batches(
         let mut places = take_places(batches * point.messages);
         let free =
             std::cell::RefCell::new(places.chunks_mut(point.messages.max(1)).collect::<Vec<_>>());
-        blake3_servil::performance::stream(
+        blake3_servil::throughput::stream(
             blake3_servil::Mode::Plain,
             |place: &mut [blake3_servil::Hash]| {
                 consume(unsafe {
@@ -5266,9 +5266,9 @@ fn hash_tree_layer(
             message_len,
             1,
             |i, l, o| {
-                blake3_servil::performance::hash_many(
+                blake3_servil::throughput::hash_many(
                     blake3_servil::Mode::Keyed(node.key()),
-                    &blake3_servil::performance::Batch::from_blocks(servil_blocks(i), l),
+                    &blake3_servil::throughput::Batch::from_blocks(servil_blocks(i), l),
                     o,
                 )
             },
@@ -5280,9 +5280,9 @@ fn hash_tree_layer(
             message_len,
             1,
             |i, l, o| {
-                blake3_servil::performance::hash_many_multithreaded(
+                blake3_servil::throughput::hash_many_multithreaded(
                     blake3_servil::Mode::Keyed(node.key()),
-                    &blake3_servil::performance::Batch::from_blocks(servil_blocks(i), l),
+                    &blake3_servil::throughput::Batch::from_blocks(servil_blocks(i), l),
                     o,
                 )
             },
@@ -5452,9 +5452,9 @@ fn written<T: Clone>(len: usize, value: T) -> Vec<T> {
 
 /*
  * Inputs in blocks (UseCase::in_blocks): every batch, and every message of
- * a cell where servil's call is a performance call, starts at a 64-byte
+ * a cell where servil's call is a throughput call, starts at a 64-byte
  * boundary with whole 64-byte blocks behind it, for every contender alike
- * (Zooko, October 24: BLAKE3-Servil's performance calls take their inputs as
+ * (Zooko, October 24: BLAKE3-Servil's throughput calls take their inputs as
  * Blocks, and the bench aligns the inputs of every cell that has a
  * performance-call contender). A message of the other cells starts where
  * the allocator puts it (glibc places a large one 16 bytes into a line), as
@@ -5506,12 +5506,12 @@ fn assert_blocks_aligned(input: &[u8]) {
 }
 
 /// An input in blocks (a batch, or a message with its whole blocks) as
-/// servil's performance calls take it, Blocks: the door
+/// servil's throughput calls take it, Blocks: the door
 /// (assert_blocks_aligned) has checked its placement for every contender
 /// alike, so servil's calls carry no check of their own.
-fn servil_blocks(blocks: &[u8]) -> &[blake3_servil::performance::Block] {
+fn servil_blocks(blocks: &[u8]) -> &[blake3_servil::throughput::Block] {
     debug_assert!(
-        blake3_servil::performance::Block::from_bytes(blocks).is_some(),
+        blake3_servil::throughput::Block::from_bytes(blocks).is_some(),
         "an input in whole aligned blocks"
     );
     if blocks.is_empty() {
@@ -5587,36 +5587,36 @@ thread_local! {
  */
 #[cfg(test)]
 const SERVIL_CALLS: [(Algorithm, UseCase, &str); 30] = [
-    (Algorithm::Blake3ServilSt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each, then performance::finalize_each for the messages that ended in it"),
-    (Algorithm::Blake3ServilSt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: performance::update_each, then performance::finalize_each for the messages that ended in it"),
-    (Algorithm::Blake3ServilMt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each_multithreaded, then performance::finalize_each for the messages that ended in it"),
-    (Algorithm::Blake3ServilMt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: performance::update_each_multithreaded, then performance::finalize_each for the messages that ended in it"),
-    (Algorithm::Blake3ServilSt, UseCase::MerkleTree, "performance::hash_many(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root"),
-    (Algorithm::Blake3ServilMt, UseCase::MerkleTree, "performance::hash_many_multithreaded(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root"),
+    (Algorithm::Blake3ServilSt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilSt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: throughput::update_each, then throughput::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilMt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilMt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilSt, UseCase::MerkleTree, "throughput::hash_many(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root"),
+    (Algorithm::Blake3ServilMt, UseCase::MerkleTree, "throughput::hash_many_multithreaded(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root"),
     (Algorithm::Blake3ServilSt, UseCase::OneMessage, "convenience::hash(input), each call after other work"),
-    (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work"),
-    (Algorithm::Blake3ServilMt, UseCase::OneMessage, "performance::hash_multithreaded(Mode::Plain, blocks, len), each call after other work"),
-    (Algorithm::Blake3ServilMt, UseCase::ManyMessages, "performance::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work"),
-    (Algorithm::Blake3ServilSt, UseCase::ManyLongMessages, "performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work"),
-    (Algorithm::Blake3ServilMt, UseCase::ManyLongMessages, "performance::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work"),
-    (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "performance::stream(Mode::Plain, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
-    (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "performance::stream(Mode::Plain, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again"),
-    (Algorithm::Blake3ServilSt, UseCase::ContinuousMessages, "performance::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)"),
-    (Algorithm::Blake3ServilSt, UseCase::ContinuousBatches, "performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, one batch after another, each read into a kept buffer of the program's and hashed on its thread"),
-    (Algorithm::Blake3ServilMt, UseCase::ContinuousCollection, "performance::stream(Mode::Plain, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
-    (Algorithm::Blake3ServilSt, UseCase::ContinuousCollection, "performance::hash(Mode::Plain, blocks, len), the collection's messages one after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread"),
-    (Algorithm::Blake3ServilSt, UseCase::LentMessages, "performance::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer in whole blocks and lent until the call returns"),
-    (Algorithm::Blake3ServilSt, UseCase::Interleaved, "a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; performance::update_each per turn, then performance::finalize_each for the messages that ended in it, each buffer lent until the calls return"),
-    (Algorithm::Blake3ServilSt, UseCase::Collection, "performance::hash_each(Mode::Plain, items, out), every item of the collection in one call, in memory"),
-    (Algorithm::Blake3ServilSt, UseCase::LentBatches, "performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, batches one after another, each read into a kept buffer and lent with kept digests until the call returns"),
-    (Algorithm::Blake3ServilMt, UseCase::LentMessages, "performance::hash_multithreaded(Mode::Plain, blocks, len), one message after another, each read into a kept buffer and lent until the call returns"),
-    (Algorithm::Blake3ServilMt, UseCase::Interleaved, "a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; performance::update_each_multithreaded per turn, then performance::finalize_each for the messages that ended in it, each buffer lent until the calls return"),
-    (Algorithm::Blake3ServilMt, UseCase::Collection, "performance::hash_each_multithreaded(Mode::Plain, items, out), every item of the collection in one call, in memory"),
-    (Algorithm::Blake3ServilMt, UseCase::LentBatches, "performance::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, batches one after another, each read into a kept buffer and lent with kept digests until the call returns"),
+    (Algorithm::Blake3ServilSt, UseCase::ManyMessages, "throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work"),
+    (Algorithm::Blake3ServilMt, UseCase::OneMessage, "throughput::hash_multithreaded(Mode::Plain, blocks, len), each call after other work"),
+    (Algorithm::Blake3ServilMt, UseCase::ManyMessages, "throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work"),
+    (Algorithm::Blake3ServilSt, UseCase::ManyLongMessages, "throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work"),
+    (Algorithm::Blake3ServilMt, UseCase::ManyLongMessages, "throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "throughput::stream(Mode::Plain, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "throughput::stream(Mode::Plain, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again"),
+    (Algorithm::Blake3ServilSt, UseCase::ContinuousMessages, "throughput::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)"),
+    (Algorithm::Blake3ServilSt, UseCase::ContinuousBatches, "throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, one batch after another, each read into a kept buffer of the program's and hashed on its thread"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousCollection, "throughput::stream(Mode::Plain, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
+    (Algorithm::Blake3ServilSt, UseCase::ContinuousCollection, "throughput::hash(Mode::Plain, blocks, len), the collection's messages one after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread"),
+    (Algorithm::Blake3ServilSt, UseCase::LentMessages, "throughput::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer in whole blocks and lent until the call returns"),
+    (Algorithm::Blake3ServilSt, UseCase::Interleaved, "a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; throughput::update_each per turn, then throughput::finalize_each for the messages that ended in it, each buffer lent until the calls return"),
+    (Algorithm::Blake3ServilSt, UseCase::Collection, "throughput::hash_each(Mode::Plain, items, out), every item of the collection in one call, in memory"),
+    (Algorithm::Blake3ServilSt, UseCase::LentBatches, "throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, batches one after another, each read into a kept buffer and lent with kept digests until the call returns"),
+    (Algorithm::Blake3ServilMt, UseCase::LentMessages, "throughput::hash_multithreaded(Mode::Plain, blocks, len), one message after another, each read into a kept buffer and lent until the call returns"),
+    (Algorithm::Blake3ServilMt, UseCase::Interleaved, "a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; throughput::update_each_multithreaded per turn, then throughput::finalize_each for the messages that ended in it, each buffer lent until the calls return"),
+    (Algorithm::Blake3ServilMt, UseCase::Collection, "throughput::hash_each_multithreaded(Mode::Plain, items, out), every item of the collection in one call, in memory"),
+    (Algorithm::Blake3ServilMt, UseCase::LentBatches, "throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, batches one after another, each read into a kept buffer and lent with kept digests until the call returns"),
     (Algorithm::Blake3ServilSt, UseCase::IdleOneMessage, "convenience::hash(input), each call after idling"),
-    (Algorithm::Blake3ServilSt, UseCase::IdleManyMessages, "performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling"),
-    (Algorithm::Blake3ServilMt, UseCase::IdleOneMessage, "performance::hash_multithreaded(Mode::Plain, blocks, len), each call after idling"),
-    (Algorithm::Blake3ServilMt, UseCase::IdleManyMessages, "performance::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling"),
+    (Algorithm::Blake3ServilSt, UseCase::IdleManyMessages, "throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling"),
+    (Algorithm::Blake3ServilMt, UseCase::IdleOneMessage, "throughput::hash_multithreaded(Mode::Plain, blocks, len), each call after idling"),
+    (Algorithm::Blake3ServilMt, UseCase::IdleManyMessages, "throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling"),
 ];
 
 /// The frozen contract as text, from the code's own tables: FROZEN.md's

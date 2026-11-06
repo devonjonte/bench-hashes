@@ -302,7 +302,7 @@ two callers in one process sharing that one pool, the same situation
 BLAKE3-Servil's fair sharing addresses, so the two multithreaded
 columns compare like for like.
 
-BLAKE3-Servil mt is BLAKE3-Servil's `performance::hash_multithreaded`,
+BLAKE3-Servil mt is BLAKE3-Servil's `throughput::hash_multithreaded`,
 which returns the same hash as `convenience::hash`. Inputs below
 its split (512 KiB) stay on the calling thread.
 Larger inputs can split at subtree

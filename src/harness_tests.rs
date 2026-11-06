@@ -348,7 +348,7 @@ fn visits_follow_what_the_run_is_for() {
 /// Every cell whose inputs come in blocks (UseCase::in_blocks) hashes each
 /// message's own bytes: the three BLAKE3 contenders' digests equal
 /// official BLAKE3's of the message alone, whether a contender gets the
-/// message cut from its blocks or, as servil's performance calls, the
+/// message cut from its blocks or, as servil's throughput calls, the
 /// blocks and the length. The benchmark checks no digest in a run, so this
 /// holds the layouts' lengths (lengths off a block, and a collection's
 /// items each in their own blocks).

@@ -131,6 +131,12 @@ the notes) may still change, to say it better.
   minutes, since a check's own builds leave load behind for a few
   seconds (John Servil, November 6). `check --when-quiet` waits as long
   as it takes. What a run measures is unchanged.
+- **BLAKE3-Servil's throughput calls** (Zooko, November 6, 2026): the
+  library's `performance` module is `throughput`, a name for what its calls
+  are for, many hashes one after another; a caller hashing now and then
+  had read `performance::hash` as the faster call, where
+  `convenience::hash` is. The same calls, measured the same way; the
+  contract below, the report and the map name them so.
 - **`check` measures the cells its author names** (Zooko, November 6,
   2026; Devon Jonte, bench-hashes #128). `check` first prints the diff's
   files, its added and deleted lines, and the items its hunks sit in.
@@ -1030,36 +1036,36 @@ scenarios: solo, shared-one-cache, shared-two-caches, shared-os
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree
 shared placements: two cores under one last-level cache; two cores under two (where the machine has two); where it offers no pair (macOS), wherever the OS runs them
 shared contenders: blake3-official-mt, blake3-servil-mt
-blake3-servil-st InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each, then performance::finalize_each for the messages that ended in it
-blake3-servil-st IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: performance::update_each, then performance::finalize_each for the messages that ended in it
-blake3-servil-mt InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each_multithreaded, then performance::finalize_each for the messages that ended in it
-blake3-servil-mt IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: performance::update_each_multithreaded, then performance::finalize_each for the messages that ended in it
-blake3-servil-st MerkleTree: performance::hash_many(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root
-blake3-servil-mt MerkleTree: performance::hash_many_multithreaded(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root
+blake3-servil-st InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it
+blake3-servil-st IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: throughput::update_each, then throughput::finalize_each for the messages that ended in it
+blake3-servil-mt InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it
+blake3-servil-mt IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it
+blake3-servil-st MerkleTree: throughput::hash_many(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root
+blake3-servil-mt MerkleTree: throughput::hash_many_multithreaded(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root
 blake3-servil-st OneMessage: convenience::hash(input), each call after other work
-blake3-servil-st ManyMessages: performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work
-blake3-servil-mt OneMessage: performance::hash_multithreaded(Mode::Plain, blocks, len), each call after other work
-blake3-servil-mt ManyMessages: performance::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work
-blake3-servil-st ManyLongMessages: performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work
-blake3-servil-mt ManyLongMessages: performance::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work
-blake3-servil-mt ContinuousMessages: performance::stream(Mode::Plain, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
-blake3-servil-mt ContinuousBatches: performance::stream(Mode::Plain, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again
-blake3-servil-st ContinuousMessages: performance::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)
-blake3-servil-st ContinuousBatches: performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, one batch after another, each read into a kept buffer of the program's and hashed on its thread
-blake3-servil-mt ContinuousCollection: performance::stream(Mode::Plain, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
-blake3-servil-st ContinuousCollection: performance::hash(Mode::Plain, blocks, len), the collection's messages one after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread
-blake3-servil-st LentMessages: performance::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer in whole blocks and lent until the call returns
-blake3-servil-st Interleaved: a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; performance::update_each per turn, then performance::finalize_each for the messages that ended in it, each buffer lent until the calls return
-blake3-servil-st Collection: performance::hash_each(Mode::Plain, items, out), every item of the collection in one call, in memory
-blake3-servil-st LentBatches: performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, batches one after another, each read into a kept buffer and lent with kept digests until the call returns
-blake3-servil-mt LentMessages: performance::hash_multithreaded(Mode::Plain, blocks, len), one message after another, each read into a kept buffer and lent until the call returns
-blake3-servil-mt Interleaved: a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; performance::update_each_multithreaded per turn, then performance::finalize_each for the messages that ended in it, each buffer lent until the calls return
-blake3-servil-mt Collection: performance::hash_each_multithreaded(Mode::Plain, items, out), every item of the collection in one call, in memory
-blake3-servil-mt LentBatches: performance::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, batches one after another, each read into a kept buffer and lent with kept digests until the call returns
+blake3-servil-st ManyMessages: throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work
+blake3-servil-mt OneMessage: throughput::hash_multithreaded(Mode::Plain, blocks, len), each call after other work
+blake3-servil-mt ManyMessages: throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work
+blake3-servil-st ManyLongMessages: throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work
+blake3-servil-mt ManyLongMessages: throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work
+blake3-servil-mt ContinuousMessages: throughput::stream(Mode::Plain, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
+blake3-servil-mt ContinuousBatches: throughput::stream(Mode::Plain, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again
+blake3-servil-st ContinuousMessages: throughput::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)
+blake3-servil-st ContinuousBatches: throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, one batch after another, each read into a kept buffer of the program's and hashed on its thread
+blake3-servil-mt ContinuousCollection: throughput::stream(Mode::Plain, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
+blake3-servil-st ContinuousCollection: throughput::hash(Mode::Plain, blocks, len), the collection's messages one after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread
+blake3-servil-st LentMessages: throughput::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer in whole blocks and lent until the call returns
+blake3-servil-st Interleaved: a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; throughput::update_each per turn, then throughput::finalize_each for the messages that ended in it, each buffer lent until the calls return
+blake3-servil-st Collection: throughput::hash_each(Mode::Plain, items, out), every item of the collection in one call, in memory
+blake3-servil-st LentBatches: throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, batches one after another, each read into a kept buffer and lent with kept digests until the call returns
+blake3-servil-mt LentMessages: throughput::hash_multithreaded(Mode::Plain, blocks, len), one message after another, each read into a kept buffer and lent until the call returns
+blake3-servil-mt Interleaved: a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; throughput::update_each_multithreaded per turn, then throughput::finalize_each for the messages that ended in it, each buffer lent until the calls return
+blake3-servil-mt Collection: throughput::hash_each_multithreaded(Mode::Plain, items, out), every item of the collection in one call, in memory
+blake3-servil-mt LentBatches: throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, batches one after another, each read into a kept buffer and lent with kept digests until the call returns
 blake3-servil-st IdleOneMessage: convenience::hash(input), each call after idling
-blake3-servil-st IdleManyMessages: performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling
-blake3-servil-mt IdleOneMessage: performance::hash_multithreaded(Mode::Plain, blocks, len), each call after idling
-blake3-servil-mt IdleManyMessages: performance::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling
+blake3-servil-st IdleManyMessages: throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling
+blake3-servil-mt IdleOneMessage: throughput::hash_multithreaded(Mode::Plain, blocks, len), each call after idling
+blake3-servil-mt IdleManyMessages: throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling
 overview cell: solo OneMessage 64 B, blake3-servil-st (64 B)
 overview cell: solo OneMessage 1 KiB, blake3-servil-st (1 KiB)
 overview cell: solo OneMessage 1 MiB, blake3-servil-st (1 MiB)
