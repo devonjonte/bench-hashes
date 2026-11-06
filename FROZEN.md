@@ -26,7 +26,76 @@ release, so results of different benchmarks are never read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
-**Changes for 0.21** (Zooko, November 5-6, 2026; John Servil to word):
+**Changes for the next release**: none yet.
+
+**Changes for 0.21** (Zooko and John Servil, November 4-6, 2026):
+- **The wall clock is the raw counter** (Zooko, November 4, 2026): on
+  Linux `CLOCK_MONOTONIC_RAW` in place of `CLOCK_MONOTONIC` (what
+  `std::time::Instant` reads there), which a time daemon slews by up to
+  500 ppm, a rate that could be in error or an adversary's, and helps no
+  measurement here (an i7-12700K had drifted 596 ms from its raw counter
+  8 hours after boot). On Darwin `CLOCK_UPTIME_RAW`, raw already. Same
+  cost a read (11 ns on the i7), same steps (1 ns; 41.67 ns on an M4
+  Max). A run's `sample clock` line names it. Zooko's measure-clocks3
+  (December 2025) compares the clocks on both platforms.
+- **Two pauses before a call "after idling"** (Zooko and John, November
+  4, 2026; bench-hashes #117, Sam Shackleton's protocol): 20 us (the use
+  cases `BriefIdleOneMessage`, `BriefIdleManyMessages`,
+  `BriefIdleInterleavedTurn`) and 5 ms (`IdleOneMessage`,
+  `IdleManyMessages`, `IdleInterleavedTurn`, until 0.20 at 1 ms). After
+  20 us a core keeps its clock and its shallowest idle state; after 5 ms
+  every machine measured has settled into its deep states, where 1 ms
+  was the i7-12700K's transition between the two, bimodal (#117: the
+  i7's 16 x 64 B batch x2.0 at 20 us, x2.6 at 1 ms with 24-49%
+  detectable, x6.3 at 5 ms with 16%). Each pause is a real program's
+  situation, and each is stable. The pauses land when asked: the bench
+  sets its threads' timer slack to 1 us (`clocks::tight_timers`; Linux
+  gives a thread 50 us by default, which landed the 20 us sleep at 72 us
+  and let the i7's core reach C6 in 39% of it; at 23 us it stays in C1). The pauses run in sets of rounds of
+  their own, as the other ways of calling do. The run grows by the
+  after-pause cells' share. Each samples file records, beside the
+  configured idle states, the **effective** ones: the shares of the
+  core's hardware C-state residency under each pause, slept at the run's
+  start as the cells sleep it (1000 x 20 us, 20 x 5 ms; Linux, Intel's
+  `cstate_core` counters; elsewhere "not measured"), since a configured
+  state may seldom happen within a pause (the Xeon Gold 6330's C6 within
+  1 ms, #117) and the deepest may be one no software counter names (the
+  i7's core C7).
+- **The controlled block** (John, November 4, 2026; #117, Sam
+  Shackleton's protocol): where the bench can write every cpuidle
+  state's `disable` file (Linux, run as root), the 5 ms cells run once
+  more as `ControlledIdleOneMessage`, `ControlledIdleManyMessages` and
+  `ControlledIdleInterleavedTurn`, in rounds of their own with every
+  state but POLL and C1 switched off (POLL alone where the machine has no
+  plain C1), so the call meets the core awake and the cell measures the
+  library apart from the machine's rest; the states are put back when
+  those rounds end. The shipped block, what users meet, stays the
+  figure users read; the controlled one stands beside it, a fifth
+  after-gap column on the map. Each samples file's `idle control` line
+  says what the block kept, or why there is none (the i7-12700K in its
+  sandbox: no root).
+- **A level cell whose instructions moved joins the second stage** (Zooko,
+  November 4, 2026, on John's rule; #127): instructions a unit moved
+  beyond 0.5% the same way in every pair names a solo cell of a
+  single-threaded contender a suspect ahead of the wall-ranked ones,
+  the largest move first, with no verdict of its own; wall decides on
+  the fresh pairs. A pool's caller spins while it waits, so a
+  multithreaded cell's count is no evidence (it moved 1-9% between two
+  runs of the same code; data branch, 2026-11-04/judge2-i7). Where the machine counts none, the suspects are wall's
+  alone, and the run says so.
+- **Every sample keeps its instructions retired, and its last-level-cache
+  references and misses, beside its cycles**, per core kind (Zooko,
+  November 4, 2026: the most the counters give, kept whether or not a use
+  is known yet; the cache pair the same day, at a read cost of tens of
+  nanoseconds now that the counters are read in user space). The samples
+  format is v10. On the i7-12700K instructions are the same count on a P
+  core and an E core and after any pause (28719 for a fixed call, every
+  time), where cycles and wall time move with the core's clock (data
+  branch, 2026-11-04/clock-survey). The cache events are perf's generic
+  pair, whose hardware meaning METHODOLOGY names; the counters are read
+  by `rdpmc` where the kernel allows it, since a system call between the
+  pause and the call moved the i7's 64 B figure by 13% (data branch,
+  2026-11-04/precall-counts-i7).
 - **servil st's calls made one after another are its performance call**
   (Zooko, November 5, 2026, "Cold calls and warm calls, by their API":
   convenience is for a hash now and then, amid other work; performance for
@@ -38,6 +107,67 @@ the notes) may still change, to say it better.
   other work, after idling) keep `convenience::hash`. On AMD Zen 5 the
   performance call takes the integer-register chunk root for a chunk or
   less (BLAKE3-Servil #252: 19-35% less time back to back).
+
+- **`check` measures the cells its author names** (Zooko, November 6,
+  2026; Devon Jonte, bench-hashes #128). `check` first prints the diff's
+  files, its added and deleted lines, and the items its hunks sit in.
+  Then it measures the points its author names: `--points` for the gate,
+  `--probe` for a three-pair survey before the change is built, `--cells
+  all` for every point. With none named, it stops before a build, and
+  each check records how many points it left unmeasured. Until 0.21,
+  coverage chose the cells, and a declaration that no coverage region
+  holds made a check measure every cell: three checks of November 5-6
+  spent 18 minutes on 426 cells, each for one such line.
+- **An owned cell measured as its lent twin takes the twin's sample size**
+  in a sizes file (Sam Shackleton, bench-hashes #134, a bug fix):
+  `--calibrate-only` wrote 1 for those cells, and `regress` gave that
+  size to both sides, so a new side that measured such a cell itself
+  timed one call a sample (#133: +72% read where the cell was -93%).
+
+**Changes for 0.20** (Zooko, November 2, 2026, bench-hashes #108):
+- **The shared scenario measures the multithreaded contenders alone**,
+  and records where each copy ran. From September 23 every nonstop cell
+  was measured twice, alone and as two copies at once. In six weeks the
+  single-threaded contenders' shared cells read x1.00 at the median on
+  every machine, apart from where the scheduler placed the copies (an
+  SMT pair: x1.5, Sam Shackleton, EPYC 9255); they were 300 of the 381
+  shared cells and told nothing a solo cell did not. The multithreaded
+  contenders' shared cells told what nothing else could: servil mt ran
+  x0.59 beside a neighbour on the EPYC, its pool kept to one L3 domain
+  where alone it sprawled (BLAKE3 #196, found so). Two programs on one
+  SME cluster or one GPU are the same question, so the scenario stays
+  for them (Zooko: it revealed this and may reveal the next). Each
+  sample's row now records the CPU its thread ended on (`cpu`, read
+  after the timed call), so a reader can tell what two copies shared.
+  The samples format is v8.
+- **The shared copies are placed** (Zooko, November 2, 2026; bench-hashes
+  #116): until 0.20 the scheduler chose where the two copies ran, each
+  sample, and the figure followed it (an SMT pair x1.5, two L3 domains
+  x0.6 of one; 59 of the Xeon pair's 81 shared cells mixed placements).
+  Now each copy's thread is pinned to a chosen CPU for its job: two
+  physical cores, never one core's two hardware threads, performance
+  cores where the machine has two kinds, under **one last-level cache**
+  (what a busy machine most often gives two programs, and the case that
+  found #196), and, where the machine has two caches, also under **two**
+  (two L3 domains; on Apple silicon two clusters, so two SME units),
+  each a layer of its own. Both are measured because the pool's
+  placement work (#196) changes what each shows; a one-cache machine
+  measures the first alone. Where the two caches are two memory nodes
+  (two sockets), each copy moves its input's pages to its CPU's node
+  before it runs, as a program's own memory would be (Sam, November 2).
+  The header's `shared placements` line names the CPUs, and the nodes
+  where it applies. Where the machine offers no pair (macOS, whose
+  threads take no affinity; a one-core machine), the copies run wherever
+  the operating system puts them, as a layer of their own,
+  `shared-os` (0.20.2: 0.20.0 and 0.20.1 measured no shared cell there,
+  though this entry said the scheduler places them; John Servil,
+  November 3).
+- **Every shared sample is contended** (#105): the copy that finishes
+  its train first keeps hashing, unsampled, until the other has finished.
+  Before, the slower copy's last samples ran alone, about 1% optimistic
+  in 0.19 (7% in 0.18, whose copies were uneven). The pool's fairness
+  between two callers is BLAKE3-Servil's `tests/pool_fairness.rs` (BLAKE3
+  #215) besides.
 
 **Changes for 0.19** (Zooko, October 31, 2026: "the new protocol is worth
 it for accuracy under sustained load, which the GPU work needs, even if it
@@ -144,139 +274,28 @@ anything", John Servil releasing it):
   studies done, the Python reader and the three tools left the tree for
   0.21, Zooko, November 5: one reader of the format, the program's.)
 
-**Changes for 0.20** (Zooko, November 2, 2026, bench-hashes #108):
-- **The shared scenario measures the multithreaded contenders alone**,
-  and records where each copy ran. From September 23 every nonstop cell
-  was measured twice, alone and as two copies at once. In six weeks the
-  single-threaded contenders' shared cells read x1.00 at the median on
-  every machine, apart from where the scheduler placed the copies (an
-  SMT pair: x1.5, Sam Shackleton, EPYC 9255); they were 300 of the 381
-  shared cells and told nothing a solo cell did not. The multithreaded
-  contenders' shared cells told what nothing else could: servil mt ran
-  x0.59 beside a neighbour on the EPYC, its pool kept to one L3 domain
-  where alone it sprawled (BLAKE3 #196, found so). Two programs on one
-  SME cluster or one GPU are the same question, so the scenario stays
-  for them (Zooko: it revealed this and may reveal the next). Each
-  sample's row now records the CPU its thread ended on (`cpu`, read
-  after the timed call), so a reader can tell what two copies shared.
-  The samples format is v8.
-- **The shared copies are placed** (Zooko, November 2, 2026; bench-hashes
-  #116): until 0.20 the scheduler chose where the two copies ran, each
-  sample, and the figure followed it (an SMT pair x1.5, two L3 domains
-  x0.6 of one; 59 of the Xeon pair's 81 shared cells mixed placements).
-  Now each copy's thread is pinned to a chosen CPU for its job: two
-  physical cores, never one core's two hardware threads, performance
-  cores where the machine has two kinds, under **one last-level cache**
-  (what a busy machine most often gives two programs, and the case that
-  found #196), and, where the machine has two caches, also under **two**
-  (two L3 domains; on Apple silicon two clusters, so two SME units),
-  each a layer of its own. Both are measured because the pool's
-  placement work (#196) changes what each shows; a one-cache machine
-  measures the first alone. Where the two caches are two memory nodes
-  (two sockets), each copy moves its input's pages to its CPU's node
-  before it runs, as a program's own memory would be (Sam, November 2).
-  The header's `shared placements` line names the CPUs, and the nodes
-  where it applies. Where the machine offers no pair (macOS, whose
-  threads take no affinity; a one-core machine), the copies run wherever
-  the operating system puts them, as a layer of their own,
-  `shared-os` (0.20.2: 0.20.0 and 0.20.1 measured no shared cell there,
-  though this entry said the scheduler places them; John Servil,
-  November 3).
-- **Every shared sample is contended** (#105): the copy that finishes
-  its train first keeps hashing, unsampled, until the other has finished.
-  Before, the slower copy's last samples ran alone, about 1% optimistic
-  in 0.19 (7% in 0.18, whose copies were uneven). The pool's fairness
-  between two callers is BLAKE3-Servil's `tests/pool_fairness.rs` (BLAKE3
-  #215) besides.
-
-**Changes for the next release** (Zooko, October 16, 2026):
-- **The wall clock is the raw counter** (Zooko, November 4, 2026): on
-  Linux `CLOCK_MONOTONIC_RAW` in place of `CLOCK_MONOTONIC` (what
-  `std::time::Instant` reads there), which a time daemon slews by up to
-  500 ppm, a rate that could be in error or an adversary's, and helps no
-  measurement here (an i7-12700K had drifted 596 ms from its raw counter
-  8 hours after boot). On Darwin `CLOCK_UPTIME_RAW`, raw already. Same
-  cost a read (11 ns on the i7), same steps (1 ns; 41.67 ns on an M4
-  Max). A run's `sample clock` line names it. Zooko's measure-clocks3
-  (December 2025) compares the clocks on both platforms.
-- **Two pauses before a call "after idling"** (Zooko and John, November
-  4, 2026; bench-hashes #117, Sam Shackleton's protocol): 20 us (the use
-  cases `BriefIdleOneMessage`, `BriefIdleManyMessages`,
-  `BriefIdleInterleavedTurn`) and 5 ms (`IdleOneMessage`,
-  `IdleManyMessages`, `IdleInterleavedTurn`, until 0.20 at 1 ms). After
-  20 us a core keeps its clock and its shallowest idle state; after 5 ms
-  every machine measured has settled into its deep states, where 1 ms
-  was the i7-12700K's transition between the two, bimodal (#117: the
-  i7's 16 x 64 B batch x2.0 at 20 us, x2.6 at 1 ms with 24-49%
-  detectable, x6.3 at 5 ms with 16%). Each pause is a real program's
-  situation, and each is stable. The pauses land when asked: the bench
-  sets its threads' timer slack to 1 us (`clocks::tight_timers`; Linux
-  gives a thread 50 us by default, which landed the 20 us sleep at 72 us
-  and let the i7's core reach C6 in 39% of it; at 23 us it stays in C1). The pauses run in sets of rounds of
-  their own, as the other ways of calling do. The run grows by the
-  after-pause cells' share. Each samples file records, beside the
-  configured idle states, the **effective** ones: the shares of the
-  core's hardware C-state residency under each pause, slept at the run's
-  start as the cells sleep it (1000 x 20 us, 20 x 5 ms; Linux, Intel's
-  `cstate_core` counters; elsewhere "not measured"), since a configured
-  state may seldom happen within a pause (the Xeon Gold 6330's C6 within
-  1 ms, #117) and the deepest may be one no software counter names (the
-  i7's core C7).
-- **The controlled block** (John, November 4, 2026; #117, Sam
-  Shackleton's protocol): where the bench can write every cpuidle
-  state's `disable` file (Linux, run as root), the 5 ms cells run once
-  more as `ControlledIdleOneMessage`, `ControlledIdleManyMessages` and
-  `ControlledIdleInterleavedTurn`, in rounds of their own with every
-  state but POLL and C1 switched off (POLL alone where the machine has no
-  plain C1), so the call meets the core awake and the cell measures the
-  library apart from the machine's rest; the states are put back when
-  those rounds end. The shipped block, what users meet, stays the
-  figure users read; the controlled one stands beside it, a fifth
-  after-gap column on the map. Each samples file's `idle control` line
-  says what the block kept, or why there is none (the i7-12700K in its
-  sandbox: no root).
-- **A level cell whose instructions moved joins the second stage** (Zooko,
-  November 4, 2026, on John's rule; #127): instructions a unit moved
-  beyond 0.5% the same way in every pair names a solo cell of a
-  single-threaded contender a suspect ahead of the wall-ranked ones,
-  the largest move first, with no verdict of its own; wall decides on
-  the fresh pairs. A pool's caller spins while it waits, so a
-  multithreaded cell's count is no evidence (it moved 1-9% between two
-  runs of the same code; data branch, 2026-11-04/judge2-i7). Where the machine counts none, the suspects are wall's
-  alone, and the run says so.
-- **Every sample keeps its instructions retired, and its last-level-cache
-  references and misses, beside its cycles**, per core kind (Zooko,
-  November 4, 2026: the most the counters give, kept whether or not a use
-  is known yet; the cache pair the same day, at a read cost of tens of
-  nanoseconds now that the counters are read in user space). The samples
-  format is v10. On the i7-12700K instructions are the same count on a P
-  core and an E core and after any pause (28719 for a fixed call, every
-  time), where cycles and wall time move with the core's clock (data
-  branch, 2026-11-04/clock-survey). The cache events are perf's generic
-  pair, whose hardware meaning METHODOLOGY names; the counters are read
-  by `rdpmc` where the kernel allows it, since a system call between the
-  pause and the call moved the i7's 64 B figure by 13% (data branch,
-  2026-11-04/precall-counts-i7).
+**Changes for 0.18** (Zooko, October 24-28, 2026; a patch release's
+entries name it):
 - **The batch calls take a `Batch`** (Zooko, October 28; BLAKE3 #205):
   `hash_many`, `hash_many_multithreaded` and `Stream::submit_batch` take
   `&Batch`, whose bytes past each message the program cannot write, so a
   nonzero one, which the AArch64 kernels would hash into a wrong digest,
   cannot be written. The bench's batches fill their blocks (64 B and
   4 KiB messages, 256 B leaves, 64 B nodes) and are borrowed in place
-  with `Batch::from_blocks`: the same blocks, read the same way.
+  with `Batch::from_blocks`: the same blocks, read the same way. (0.18.3)
 - **A stream's fill returns the bytes it wrote** (Zooko, October 28;
   BLAKE3 #204). `submit_with` and `submit_batch_with` now call `fill`
   as `Read::read_exact` calls `read`, until each piece is full, so a
   fill that writes less is never hashed with stale bytes. The bench's
   fills write all of each room and return its length: the same calls,
-  writing the same bytes.
+  writing the same bytes. (0.18.2)
 - **BLAKE3 official, multi-threaded, in every `--all` run** (Zooko,
   October 27). Since September 26 it ran only when named, on the ground
   that servil's multi-threaded form beat it at every point. The one run
   since that named it (EPYC 9255, October 23) read 128 MiB level, and
   without it every "times official" on an every-core cell compared
   servil on every core with official on one. Each library is measured
-  in both its forms, so every comparison is like for like.
+  in both its forms, so every comparison is like for like. (0.18.1)
 - **The overview: a column a kind of machine** (Zooko, October 27). Nine
   machines have runs, and a column each did not fit. The grid shows
   three columns, Arm, AMD and Intel, each the machine most like its
@@ -287,7 +306,7 @@ anything", John Servil releasing it):
   library its run measured, and the page opens on BLAKE3-Servil,
   multi-threaded, beside SHA-256; the legend shows the rest. So the rows
   "1 MiB, one thread" and "128 MiB, every core" become "1 MiB" and
-  "128 MiB": the legend, not the row, says which forms are drawn.
+  "128 MiB": the legend, not the row, says which forms are drawn. (0.18.1)
 - **Official b3sum 1.8.7** (October 27, for 0.18.0): the b3sum run's
   official contender is b3sum 1.8.7 (was 1.8.2), the release BLAKE3-Servil
   comes from and the one the hash cells' official crate already is
@@ -355,6 +374,17 @@ anything", John Servil releasing it):
   holds each kind of copying cell to it, with a control. 0.17's cells
   measured inputs at the allocator's placement: compare them with 0.18's
   only with that difference stated.
+- **Produced leaves use the shared sampler** (Zooko, October 22, approval
+  to proceed with sampler consolidation): whole jobs, 5 ms sizing and
+  three samples per cell per round stay unchanged. `clocks::measure`
+  owns calibration, wall time, process CPU time and caller thread counts.
+  Shared rows keep process CPU time absent; solo rows retain it. The
+  existing v6 core-count field now records available caller counts, with
+  energy absent. The wall report uses the same shared mean selection as
+  compare and the map; it had its own plain sum. Hash calls, generated
+  input, checksum work and stored digests stay unchanged.
+
+**Changes for 0.17** (Zooko, October 16-23, 2026):
 - **The overview** (Zooko, October 22): one page above the maps, built
   from every machine's published run; its representative cells and rules
   are the section "The overview" below, and the frozen block's
@@ -391,15 +421,6 @@ anything", John Servil releasing it):
   shape on which a generated x86 kernel ran 34.6% slower (1,152 to 1,984
   bytes) while no single-message cell could show it: the points went from
   1 KiB to 2 KiB. Every run now carries it.
-- **Produced leaves use the shared sampler** (Zooko, October 22, approval
-  to proceed with sampler consolidation): whole jobs, 5 ms sizing and
-  three samples per cell per round stay unchanged. `clocks::measure`
-  owns calibration, wall time, process CPU time and caller thread counts.
-  Shared rows keep process CPU time absent; solo rows retain it. The
-  existing v6 core-count field now records available caller counts, with
-  energy absent. The wall report uses the same shared mean selection as
-  compare and the map; it had its own plain sum. Hash calls, generated
-  input, checksum work and stored digests stay unchanged.
 - **BLAKE3 commonware retires** (Zooko, October 20): its kernels were
   commonware's pull request #4982, which closed unmerged; commonware's
   shipped BLAKE3 is the official `blake3` crate (a thread-pool split of
