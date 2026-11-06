@@ -132,7 +132,7 @@ A highly desirable property of an interface and its contract: the user learns th
 The part above (Philosophy, Strategy, Style) reads the same in the `AGENTS.md` of BLAKE3-Servil, of bench-hashes, and of Ode; a change goes into all three. This part, the rules of BLAKE3-Servil and its benchmark, reads the same in BLAKE3-Servil's and bench-hashes'.
 
 - Name Zooko as "Zooko" alone, in every document, commit, issue, pull request, and message (his wish, September 26, 2026).
-- Call the library **BLAKE3-Servil**, never "BLAKE3-Servil": it has outgrown its origin and stands on its own (Zooko, November 3, 2026).
+- Call the library **BLAKE3-Servil**, never "the fork": it has outgrown its origin and stands on its own (Zooko, November 3, 2026).
 - Sam Shackleton is a woman: she, her.
 - Stage the paths a commit is about, by name, and read `git status` before committing: a checkout may hold someone's work in progress.
 
