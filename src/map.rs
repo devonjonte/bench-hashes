@@ -170,6 +170,7 @@ fn axis(use_case: UseCase) -> &'static str {
         | UseCase::BriefIdleInterleavedTurn
         | UseCase::ControlledIdleInterleavedTurn => "messages open at once",
         UseCase::MerkleTree => "leaves (256 B each)",
+        UseCase::ReceivingMessage => "arrival spacing",
         UseCase::Collection | UseCase::ContinuousCollection => "collection",
         UseCase::ManyLongMessages => "messages in the batch (4 KiB each)",
         _ if use_case.batch() => "messages in the batch (64 B each)",
@@ -745,6 +746,7 @@ fn hashing(path: &Path) -> Section {
                             | UseCase::ControlledIdleInterleavedTurn
                             | UseCase::Collection
                             | UseCase::ContinuousCollection
+                            | UseCase::ReceivingMessage
                     ),
                     per: measured.iter().map(|p| p.bytes as u64).collect(),
                     what: what(use_case),
@@ -762,7 +764,7 @@ fn hashing(path: &Path) -> Section {
     Section {
         title: "How fast each hash runs, by what a program hashes and how it calls",
         rows: vec![
-            ("one", "one message", "One message, of the length along the chart's axis."),
+            ("one", "one message", "One logical message."),
             ("batch", "a batch of short messages", "Many 64-byte messages hashed together, such as a Merkle tree's nodes; the axis counts the messages."),
             ("long", "a batch of longer messages", "Many 4 KiB messages hashed together, such as a store's blocks or a backup's chunks; the axis counts the messages."),
             ("merkle", "a Merkle tree", "A Merkle tree over 256-byte leaves the program has just written into place, leaves and parents hashed apart, every layer kept, as a zero-knowledge prover commits to its Reed-Solomon codeword (WHIR); the axis counts the leaves."),
@@ -770,7 +772,7 @@ fn hashing(path: &Path) -> Section {
             ("coll", "a collection of messages", "A collection of messages of every size, such as a repository's objects or a store's files, hashed together."),
         ],
         cols: vec![
-            ("receiving", "receive + hash, including waits", "A message arrives in fragments, with idle time between arrivals. The time includes receiving, waiting, hashing and finalization; its rate is end-to-end reception, not hashing alone."),
+            ("receiving", "receive + hash, including waits", "A message arrives in fragments on a fixed schedule, independent of the hash calls. A saturated source supplies the next fragment immediately. The time includes receiving, waiting, hashing and finalization; its rate is end-to-end reception, not hashing alone."),
             ("busy", "now and then, after other work", "The program hashes now and then and does other work in between, which pushes the hash's code and data out of the CPU's caches."),
             ("brief", "now and then, after a brief pause", "The program hashes now and then and waits 20 us in between (a reply arrives at once), so the core keeps its clock and its shallowest rest."),
             ("idle", "now and then, after a pause", "The program hashes now and then and waits 5 ms in between (for the network, say), so the core rests deeply and starts the next hash slowly."),

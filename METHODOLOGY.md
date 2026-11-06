@@ -123,13 +123,18 @@ is per byte of pieces.
 
 ## Receiving one message
 
-This case times a message from its first arriving fragment to its completed
-hash, at 64 KiB, 1 MiB and 16 MiB. Fragments cycle through 1448 B, 4 KiB,
-16 KiB and 64 KiB, cut at the message's end. The producer receives each
-fragment into its kept 64 KiB buffer (a memory copy), calls the incremental
-API, and sleeps 20 us before the next arrival. Each contender uses its
-ordinary incremental API, including `update_multithreaded` for
-BLAKE3-Servil mt. The finalization follows the last fragment immediately.
+This case times a 16 MiB message from its first arriving fragment to its
+completed hash. Fragments cycle through 1448 B, 4 KiB, 16 KiB and 64 KiB,
+cut at the message's end. The axis is arrival spacing: saturated input,
+2 us or 20 us. Scheduled arrivals are fixed offsets from the first,
+independent of consumer work. `clocks::sleep_until` waits only for the
+remaining time. A late consumer finds data ready, as with buffered I/O.
+The saturated producer makes no clock reads or waits between fragments.
+
+Each contender receives fragments into its kept 64 KiB buffer (a memory
+copy) and uses its incremental API, including `update_multithreaded` for
+BLAKE3-Servil mt. Finalization follows the final fragment. The consumer
+receives no length declaration before the message ends.
 
 The result includes the reads, arrival waits, updates and finalization.
 Its rate describes end-to-end reception and hashing. This differs from a
@@ -137,7 +142,8 @@ call after an idle gap, whose gap is outside its measured interval. The
 samples retain wall time, calling-thread counts and whole-process CPU time.
 The map gives this case its own "receive + hash, including waits" column.
 
-The producer schedule lets background hashing use the time between
+The saturated case exposes hashing/production throughput. Paced arrivals
+show the cost beside I/O and let background hashing use the time between
 callbacks. The synchronous incremental calls establish the baseline for
 the incremental background pipeline.
 
@@ -451,11 +457,12 @@ clocks, its threads' placement, a GPU's clock. The starting
 point's rotation is even only when the round count is a multiple of the
 point count.
 
-With `--contenders ... --rounds N`, every cell samples every round.
-Choose N as a multiple of each measured use case's order count for
-complete balance; other counts give a partial design. For example, a
-roster of eight has eight orders for messages, while seven participants
-in its batch use case have fourteen: 56 rounds completes both designs.
+With `--contenders ... --rounds N`, N sets the rounds available for the
+visits. Cells retain their visit budgets. `--nonstop-visits N` takes one
+nonstop visit each round. Each visit advances through the participating
+contenders' Williams orders. Choose a visit count that completes their
+order cycle: n visits for an even n contenders, 2n for odd n. Other counts
+leave a partial cycle.
 
 Shorter samples (0.5 ms) were tried and rejected: every cell read 1.6%
 slower, since a sample's fixed cost weighs twice as much. Before it sizes

@@ -6,15 +6,31 @@
 
 /// A TCP payload, a page, a TLS record and a coalesced read, in a fixed cycle.
 pub(crate) const FRAGMENTS: [usize; 4] = [1448, 4096, 16 * 1024, 64 * 1024];
-pub(crate) const PAUSE_NS: u64 = 20_000;
+pub(crate) const MESSAGE_LEN: usize = 16 << 20;
+pub(crate) const CASES: [(&str, u64); 3] = [("saturated", 0), ("2 us", 2_000), ("20 us", 20_000)];
 
 /// The producer schedule and timed work, generated from the trace itself.
 pub(crate) fn description() -> String {
     format!(
-        "each message arrives in {} B fragments in a repeating cycle, cut at its end; the producer sleeps {} ns between arrivals; reads, waits, updates and finalization are timed together",
+        "{} B per message; fragment cycle {} B; arrival spacing {}; deadlines fixed from the first arrival, independent of consumer work; receiving through finalization timed together",
+        MESSAGE_LEN,
         FRAGMENTS.iter().map(usize::to_string).collect::<Vec<_>>().join(", "),
-        PAUSE_NS,
+        CASES.iter().map(|(label, ns)| format!("{label}: {ns} ns")).collect::<Vec<_>>().join(", "),
     )
+}
+
+/// Scheduled arrivals are offsets from the first arrival.
+/// A saturated source needs neither clock reads nor sleeps between fragments.
+pub(crate) fn paced(input: &[u8], receive: &mut dyn FnMut(&[u8]), spacing_ns: u64) {
+    if spacing_ns == 0 {
+        return arrivals(input, receive, || {});
+    }
+    let start = clocks::now();
+    let mut next = 0;
+    arrivals(input, receive, || {
+        next += spacing_ns;
+        clocks::sleep_until(start, next);
+    });
 }
 
 /// Deliver every byte once, cutting the final fragment at the message's end.
@@ -103,7 +119,7 @@ mod tests {
                     assert_eq!(digest.len(), algorithm.digest_len());
                     digests += 1;
                 },
-                || waits.set(waits.get() + 1),
+                |input, receive| arrivals(input, receive, || waits.set(waits.get() + 1)),
             );
             assert_eq!(
                 waits.get(),
@@ -120,9 +136,12 @@ mod tests {
         let points = &POINTS[UseCase::ReceivingMessage.points()];
         assert_eq!(
             points.iter().map(|p| p.bytes).collect::<Vec<_>>(),
-            [64 << 10, 1 << 20, 16 << 20]
+            [MESSAGE_LEN; 3]
         );
-        assert_eq!(PAUSE_NS, crate::BRIEF_PAUSE_NS);
+        assert_eq!(CASES[2].1, crate::BRIEF_PAUSE_NS);
+        for &(label, ns) in &CASES[1..] {
+            assert_eq!(label, format!("{} us", ns / 1_000));
+        }
         assert!(FRAGMENTS.iter().all(|&n| n <= crate::PIECE_LEN));
         for &point in points {
             assert_eq!(point.messages, 1);
@@ -153,6 +172,6 @@ mod tests {
                     .unwrap()
             );
         }
-        assert_eq!(Point::receiving("", 0).use_case, UseCase::ReceivingMessage);
+        assert_eq!(Point::receiving(0).use_case, UseCase::ReceivingMessage);
     }
 }

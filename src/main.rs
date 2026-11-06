@@ -710,9 +710,9 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::interleaved_turn("256").idle(),
     Point::interleaved_turn("256").brief_idle(),
     Point::interleaved_turn("256").controlled_idle(),
-    Point::receiving("64 KiB", 64 * 1024),
-    Point::receiving("1 MiB", 1 << 20),
-    Point::receiving("16 MiB", 16 << 20),
+    Point::receiving(0),
+    Point::receiving(1),
+    Point::receiving(2),
 ];
 
 /// results[contender_index][point_index], contenders in the roster's
@@ -818,8 +818,8 @@ enum UseCase {
     BriefIdleInterleavedTurn,
     /// The same turns, each after idling with the deep states off.
     ControlledIdleInterleavedTurn,
-    /// One message in irregular fragments, with the producer waiting 20 us
-    /// between arrivals. The complete receive and hash are timed together.
+    /// One message in irregular fragments, with an independent arrival
+    /// schedule. The complete receive and hash are timed together.
     ReceivingMessage,
 }
 
@@ -1058,8 +1058,8 @@ impl UseCase {
             | Self::BriefIdleOneMessage
             | Self::ControlledIdleOneMessage
             | Self::ContinuousMessages
-            | Self::LentMessages
-            | Self::ReceivingMessage => "size",
+            | Self::LentMessages => "size",
+            Self::ReceivingMessage => "arrival spacing",
             Self::Interleaved
             | Self::InterleavedTurn
             | Self::IdleInterleavedTurn
@@ -1237,10 +1237,10 @@ impl Point {
         }
     }
 
-    const fn receiving(label: &'static str, bytes: usize) -> Self {
+    const fn receiving(index: usize) -> Self {
         Self {
-            label,
-            bytes,
+            label: receive::CASES[index].0,
+            bytes: receive::MESSAGE_LEN,
             messages: 1,
             use_case: UseCase::ReceivingMessage,
         }
@@ -4254,9 +4254,20 @@ fn hash_batch(
 
     match point.use_case {
         UseCase::ReceivingMessage => {
-            return hash_stream_from::<true>(algorithm, input, iterations, consume, || {
-                clocks::Gap::Idle.spend(receive::PAUSE_NS)
-            })
+            let spacing = receive::CASES
+                .iter()
+                .find(|(label, _)| *label == point.label)
+                .expect("the receiving case")
+                .1;
+            return hash_stream_from::<true>(
+                algorithm,
+                input,
+                iterations,
+                consume,
+                |input, each| {
+                    receive::paced(input, each, spacing);
+                },
+            );
         }
         UseCase::Interleaved
         | UseCase::InterleavedTurn
@@ -4638,7 +4649,7 @@ fn hash_collection(
  * it through its incremental API, so reading and hashing take turns.
  */
 fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: impl FnMut(&[u8])) {
-    hash_stream_from::<false>(algorithm, input, iterations, consume, || {});
+    hash_stream_from::<false>(algorithm, input, iterations, consume, |_, _| {});
 }
 
 /// The same incremental calls, with either the uniform read trace or the
@@ -4648,7 +4659,7 @@ fn hash_stream_from<const RECEIVING: bool>(
     input: &[u8],
     iterations: usize,
     consume: impl FnMut(&[u8]),
-    between: impl Fn(),
+    arrivals: impl Fn(&[u8], &mut dyn FnMut(&[u8])),
 ) {
     use sha1_checked::digest::Update as _;
     use sha2::Digest as _;
@@ -4656,7 +4667,7 @@ fn hash_stream_from<const RECEIVING: bool>(
         Algorithm::Blake3 => each_stream::<RECEIVING, _>(
             input,
             iterations,
-            &between,
+            &arrivals,
             |pieces| {
                 let mut hasher = blake3::Hasher::new();
                 pieces(&mut |piece| {
@@ -4669,7 +4680,7 @@ fn hash_stream_from<const RECEIVING: bool>(
         Algorithm::Blake3Rayon => each_stream::<RECEIVING, _>(
             input,
             iterations,
-            &between,
+            &arrivals,
             |pieces| {
                 let mut hasher = blake3::Hasher::new();
                 pieces(&mut |piece| {
@@ -4682,7 +4693,7 @@ fn hash_stream_from<const RECEIVING: bool>(
         Algorithm::Blake3ServilSt => each_stream::<RECEIVING, _>(
             input,
             iterations,
-            &between,
+            &arrivals,
             |pieces| {
                 let mut hasher = blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain);
                 pieces(&mut |piece| {
@@ -4695,7 +4706,7 @@ fn hash_stream_from<const RECEIVING: bool>(
         Algorithm::Blake3ServilMt => each_stream::<RECEIVING, _>(
             input,
             iterations,
-            &between,
+            &arrivals,
             |pieces| {
                 let mut hasher = blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain);
                 pieces(&mut |piece| {
@@ -4708,7 +4719,7 @@ fn hash_stream_from<const RECEIVING: bool>(
         Algorithm::Sha256 => each_stream::<RECEIVING, _>(
             input,
             iterations,
-            &between,
+            &arrivals,
             |pieces| {
                 let mut hasher = Sha256::new();
                 pieces(&mut |piece| hasher.update(piece));
@@ -4720,7 +4731,7 @@ fn hash_stream_from<const RECEIVING: bool>(
         Algorithm::Sha256Ring => each_stream::<RECEIVING, _>(
             input,
             iterations,
-            &between,
+            &arrivals,
             |pieces| {
                 let mut context = ring::digest::Context::new(&ring::digest::SHA256);
                 pieces(&mut |piece| context.update(piece));
@@ -4733,14 +4744,14 @@ fn hash_stream_from<const RECEIVING: bool>(
         Algorithm::Sha256CommonCrypto => each_stream::<RECEIVING, _>(
             input,
             iterations,
-            &between,
+            &arrivals,
             |pieces| common_crypto::sha256_pieces(pieces),
             consume,
         ),
         Algorithm::Sha1Dc => each_stream::<RECEIVING, _>(
             input,
             iterations,
-            &between,
+            &arrivals,
             |pieces| {
                 let mut hasher = sha1_checked::Sha1::new();
                 pieces(&mut |piece| hasher.update(piece));
@@ -4753,7 +4764,7 @@ fn hash_stream_from<const RECEIVING: bool>(
         Algorithm::Sha3_256 => each_stream::<RECEIVING, _>(
             input,
             iterations,
-            &between,
+            &arrivals,
             |pieces| {
                 let mut hasher = sha3::Sha3_256::new();
                 pieces(&mut |piece| sha3::Digest::update(&mut hasher, piece));
@@ -5615,7 +5626,7 @@ type Pieces<'a> = &'a mut dyn FnMut(&mut dyn FnMut(&[u8]));
 fn each_stream<const RECEIVING: bool, D: AsRef<[u8]>>(
     input: &[u8],
     iterations: usize,
-    between: &impl Fn(),
+    arrivals: &impl Fn(&[u8], &mut dyn FnMut(&[u8])),
     hash: impl Fn(Pieces) -> D,
     mut consume: impl FnMut(&[u8]),
 ) {
@@ -5633,7 +5644,7 @@ fn each_stream<const RECEIVING: bool, D: AsRef<[u8]>>(
                 each(black_box(&buffer[..piece.len()]));
             };
             if RECEIVING {
-                receive::arrivals(black_box(input), copied, between);
+                arrivals(black_box(input), &mut copied);
             } else {
                 for piece in black_box(input).chunks(PIECE_LEN) {
                     copied(piece);
@@ -5659,8 +5670,8 @@ thread_local! {
  */
 #[cfg(test)]
 const SERVIL_CALLS: [(Algorithm, UseCase, &str); 32] = [
-    (Algorithm::Blake3ServilSt, UseCase::ReceivingMessage, "throughput::Hasher::new(Mode::Plain), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; 20 us idle between arrivals; reads, waits, updates and finalization timed together"),
-    (Algorithm::Blake3ServilMt, UseCase::ReceivingMessage, "throughput::Hasher::new(Mode::Plain), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; 20 us idle between arrivals; reads, waits, updates and finalization timed together"),
+    (Algorithm::Blake3ServilSt, UseCase::ReceivingMessage, "throughput::Hasher::new(Mode::Plain), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together"),
+    (Algorithm::Blake3ServilMt, UseCase::ReceivingMessage, "throughput::Hasher::new(Mode::Plain), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together"),
     (Algorithm::Blake3ServilSt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it"),
     (Algorithm::Blake3ServilSt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: throughput::update_each, then throughput::finalize_each for the messages that ended in it"),
     (Algorithm::Blake3ServilMt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it"),
@@ -9937,7 +9948,7 @@ mod correctness_tests {
                 point("64 B", UseCase::OneMessage),
                 point("64 B", UseCase::LentMessages),
                 point("16", UseCase::LentBatches),
-                point("64 KiB", UseCase::ReceivingMessage),
+                point("saturated", UseCase::ReceivingMessage),
             ]),
             Some(20),
             &TO_CHECK_FOR_REGRESSIONS,

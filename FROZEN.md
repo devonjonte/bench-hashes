@@ -30,23 +30,23 @@ the notes) may still change, to say it better.
 - **Receive and hash one message in fragments** (John Servil, November 6,
   2026, following Zooko's API direction in
   [BLAKE3 #267](https://github.com/servil-software-factory/BLAKE3/issues/267),
-  convenience and throughput contracts). `ReceivingMessage` measures
-  64 KiB, 1 MiB and 16 MiB messages, each arriving in a repeating cycle of
-  1448 B, 4 KiB, 16 KiB and 64 KiB fragments, cut at the message's end.
-  There is a 20 us idle between arrivals, through `clocks::Gap::Idle`,
-  and no idle before the first or after the last. Receiving runs in its
-  own phase so its waits leave the nonstop phases' clock states as they
-  were. The trace's description is computed from its constants and stored
-  in the samples' `receive trace` header, shown in the map's run details.
-  Each fragment is read
-  into a kept 64 KiB receive buffer before its incremental update. The
-  reads, waits, updates and finalization are timed together, solo and
-  shared under the existing sampling and comparison rules. Current
-  incremental APIs establish the baseline; the same producer schedule
-  will exercise the background pipeline. The map names its column
-  "receive + hash, including waits", separating it from hash-call times
-  whose preceding gaps are outside the interval. Existing axes retain
-  their calls and schedules.
+  convenience and throughput contracts). `ReceivingMessage` measures a
+  16 MiB message at three arrival spacings: saturated, 2 us and 20 us.
+  Fragments cycle through 1448 B, 4 KiB, 16 KiB and 64 KiB, cut at the
+  message's end. Each scheduled arrival is a fixed offset from the first.
+  Consumer work and sleep overshoot leave later deadlines unchanged.
+  `clocks::sleep_until` waits only for the remaining time; a late consumer
+  finds the next fragment ready, as it would with buffered I/O. Saturated
+  input needs no clock reads or waits between fragments.
+  Receiving runs in its own phase. The trace description comes from its
+  constants and is stored in the samples' `receive trace` header, shown
+  in the map's run details. Each fragment is read into a kept 64 KiB
+  buffer before its incremental update. Reads, waits, updates and
+  finalization are timed together, solo and shared under the existing
+  sampling and comparison rules. Current incremental APIs establish the
+  baseline for the background pipeline. The map names its column
+  "receive + hash, including waits" and its axis is arrival spacing.
+  Existing axes retain their calls and schedules.
 
 **Changes for 0.21** (Zooko and John Servil, November 4-6, 2026):
 - **The wall clock is the raw counter** (Zooko, November 4, 2026): on
@@ -1052,14 +1052,14 @@ use case InterleavedTurn: 256
 use case IdleInterleavedTurn: 256
 use case BriefIdleInterleavedTurn: 256
 use case ControlledIdleInterleavedTurn: 256
-use case ReceivingMessage: 64 KiB, 1 MiB, 16 MiB
-receive trace: each message arrives in 1448, 4096, 16384, 65536 B fragments in a repeating cycle, cut at its end; the producer sleeps 20000 ns between arrivals; reads, waits, updates and finalization are timed together
+use case ReceivingMessage: saturated, 2 us, 20 us
+receive trace: 16777216 B per message; fragment cycle 1448, 4096, 16384, 65536 B; arrival spacing saturated: 0 ns, 2 us: 2000 ns, 20 us: 20000 ns; deadlines fixed from the first arrival, independent of consumer work; receiving through finalization timed together
 scenarios: solo, shared-one-cache, shared-two-caches, shared-os
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree, ReceivingMessage
 shared placements: two cores under one last-level cache; two cores under two (where the machine has two); where it offers no pair (macOS), wherever the OS runs them
 shared contenders: blake3-official-mt, blake3-servil-mt
-blake3-servil-st ReceivingMessage: throughput::Hasher::new(Mode::Plain), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; 20 us idle between arrivals; reads, waits, updates and finalization timed together
-blake3-servil-mt ReceivingMessage: throughput::Hasher::new(Mode::Plain), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; 20 us idle between arrivals; reads, waits, updates and finalization timed together
+blake3-servil-st ReceivingMessage: throughput::Hasher::new(Mode::Plain), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together
+blake3-servil-mt ReceivingMessage: throughput::Hasher::new(Mode::Plain), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together
 blake3-servil-st InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it
 blake3-servil-st IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: throughput::update_each, then throughput::finalize_each for the messages that ended in it
 blake3-servil-mt InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it

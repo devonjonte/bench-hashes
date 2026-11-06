@@ -404,6 +404,20 @@ pub fn measure_after_gaps_prepared<T: ?Sized>(
     measured
 }
 
+/// Sleep until `elapsed_ns` after `start`. A late caller proceeds directly.
+/// Fixed arrival schedules use this so consumer work leaves later deadlines
+/// unchanged. Sleep overshoot is carried into the next call, as queued I/O is.
+pub fn sleep_until(start: Stamp, elapsed_ns: u64) {
+    sleep_until_with(start, elapsed_ns, |ns| Gap::Idle.spend(ns));
+}
+
+fn sleep_until_with(start: Stamp, elapsed_ns: u64, sleep: impl FnOnce(u64)) {
+    let left = elapsed_ns.saturating_sub(since_ns(start));
+    if left != 0 {
+        sleep(left);
+    }
+}
+
 /// Keep the calling thread busy for `ns` of wall time with integer
 /// arithmetic in registers (a multiply-add chain), touching no memory: the
 /// program's own work between calls, which leaves the caches as the call
@@ -817,4 +831,30 @@ mod tests {
 #[cfg(test)]
 mod require_nextest {
     include!("../../tools/require_nextest.rs");
+}
+
+#[cfg(test)]
+mod arrival_tests {
+    use super::*;
+
+    #[test]
+    fn consumer_work_preserves_the_arrival_deadlines() {
+        test_clock::freeze();
+        let start = now();
+        let mut sleeps = Vec::new();
+        test_clock::advance(5_000);
+        sleep_until_with(start, 20_000, |ns| {
+            sleeps.push(ns);
+            test_clock::advance(ns);
+        });
+        test_clock::advance(7_000);
+        sleep_until_with(start, 40_000, |ns| {
+            sleeps.push(ns);
+            test_clock::advance(ns);
+        });
+        test_clock::advance(100_000);
+        sleep_until_with(start, 60_000, |ns| sleeps.push(ns));
+        test_clock::thaw();
+        assert_eq!(sleeps, [15_000, 13_000], "late arrivals are already queued");
+    }
 }
