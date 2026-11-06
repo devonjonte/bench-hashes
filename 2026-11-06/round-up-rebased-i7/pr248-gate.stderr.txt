@@ -1,0 +1,123 @@
+check: BLAKE3-Servil's candidate/devon-round-up-lanes (de330a7463f3) against origin/servil (8d6525c3a4a6)
+check: the change touches 233 added and 2 deleted lines in 3 files: src/lib.rs (+109/-2), src/test.rs (+122/-0), tools/mutants/known-x86_64.txt (+2/-0)
+check: its hunks sit in: pub(crate) enum Ran {, std::thread_local! {, fn spare_lane(platform: Platform, whole: usize, partial: usize) -> Option<usize>, fn compress_chunks_parallel(input: &[u8], key: &CVWords, chunk_counter: u64, fla, fn compress_parents_parallel(child_chaining_values: &[u8], key: &CVWords, flags:, pub(crate) fn every_platform() -> Vec<crate::platform::Platform> {, fn test_the_paths_chosen_exactly() {, src/lib.rs	replace || with && in compress_chunks_parallel	1	same code: every tes
+check: measuring the 15 named points (15 of 266 points; the rest unmeasured in this check): 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 8 KiB, 16 KiB, idle 3 KiB, idle 3839 B, brief idle 3 KiB, brief idle 3839 B, lent 64 B, turn 256, interleaved 256
+check: the change alters the bench's code here: .data.rel.ro, .dynamic, .eh_frame, .eh_frame_hdr, .got.plt, .init, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .text; 4 functions of another size or on one side alone (blake3_servil::compress_chunks_parallel; blake3_servil::compress_parents_parallel; blake3_servil::tree::children::<blake3_servil::tree::PlatformKernels>; blake3_servil::tree::wide::<blake3_servil::tree::PlatformKernels>); 1282 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&[u8; 32] as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Display>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; and 1270 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt --points "1536 B,2 KiB,2304 B,3 KiB,3839 B,4 KiB,8 KiB,16 KiB,idle 3 KiB,idle 3839 B,brief idle 3 KiB,brief idle 3839 B,lent 64 B,turn 256,interleaved 256"
+clocks: other programs kept 1.18 CPUs busy from 18.1 s to 19.1 s (the busiest: pi 0.04 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 1 again: busy: other programs kept 0.42 CPUs busy on average, 1.18 in the busiest window; busy in 1 of 7 windows (18.1-19.1 s)
+regress: pair 1 of 4 in 26.5 s
+regress: pair 2 of 4 in 13.2 s
+clocks: other programs kept 1.66 CPUs busy from 63.7 s to 64.2 s (the busiest: pi 0.02 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 3 again: busy: other programs kept 0.29 CPUs busy on average, 1.66 in the busiest window; busy in 1 of 7 windows (63.7-64.2 s)
+regress: pair 3 of 4 in 26.3 s
+clocks: other programs kept 1.18 CPUs busy from 80.4 s to 81.4 s (the busiest: pi 0.05 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 4 again: busy: other programs kept 0.41 CPUs busy on average, 1.18 in the busiest window; busy in 1 of 7 windows (80.4-81.4 s)
+regress: pair 4 of 4 in 26.3 s
+check: a second stage for 8 suspects on 64 fresh pairs: blake3-servil-st|solo|IdleOneMessage|3 KiB, blake3-servil-st|solo|OneMessage|3 KiB, blake3-servil-mt|solo|OneMessage|1536 B, blake3-servil-mt|solo|OneMessage|4 KiB, blake3-servil-st|solo|OneMessage|2304 B, blake3-servil-st|solo|OneMessage|4 KiB, blake3-servil-mt|solo|OneMessage|2304 B, blake3-servil-st|solo|OneMessage|2 KiB
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6,8,10,12,14,16,17,18,19
+regress: 64 new builds against 64 old, 64 pairs over --contenders blake3-servil-mt,blake3-servil-st --points "1536 B,2 KiB,2304 B,3 KiB,4 KiB,idle 3 KiB"
+regress: pair 1 of 64 in 6.8 s
+regress: pair 2 of 64 in 6.7 s
+regress: pair 3 of 64 in 6.7 s
+regress: pair 4 of 64 in 6.7 s
+regress: pair 5 of 64 in 6.7 s
+regress: pair 6 of 64 in 6.8 s
+regress: pair 7 of 64 in 6.8 s
+regress: pair 8 of 64 in 6.9 s
+regress: pair 9 of 64 in 8.1 s
+regress: pair 10 of 64 in 8.1 s
+regress: pair 11 of 64 in 8.1 s
+clocks: other programs kept 1.08 CPUs busy from 96.5 s to 97.6 s; measurements in that time may read slower than this machine runs
+regress: pair 12 again: busy: other programs kept 0.46 CPUs busy on average, 1.08 in the busiest window; busy in 1 of 4 windows (96.5-97.6 s)
+regress: pair 12 of 64 in 16.3 s
+clocks: other programs kept 1.14 CPUs busy from 105.7 s to 106.7 s (the busiest: pi 0.25 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 13 again: busy: other programs kept 0.80 CPUs busy on average, 1.14 in the busiest window; busy in 1 of 4 windows (105.7-106.7 s)
+clocks: other programs kept 1.22 CPUs busy from 116.1 s to 117.1 s (the busiest: pi 0.03 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 13 again: busy: other programs kept 0.55 CPUs busy on average, 1.22 in the busiest window; busy in 1 of 3 windows (116.1-117.1 s)
+regress: pair 13 of 64 in 20.7 s
+clocks: other programs kept 1.22 CPUs busy from 129.8 s to 130.8 s (the busiest: pi 0.05 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 14 again: busy: other programs kept 0.54 CPUs busy on average, 1.22 in the busiest window; busy in 1 of 3 windows (129.8-130.8 s)
+regress: pair 14 of 64 in 13.5 s
+regress: pair 15 of 64 in 6.7 s
+clocks: other programs kept 1.22 CPUs busy from 150.1 s to 151.1 s (the busiest: pi 0.23 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 16 again: busy: other programs kept 0.48 CPUs busy on average, 1.22 in the busiest window; busy in 1 of 3 windows (150.1-151.1 s)
+regress: pair 16 of 64 in 13.6 s
+clocks: other programs kept 1.13 CPUs busy from 163.7 s to 164.7 s (the busiest: pi 0.03 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 17 again: busy: other programs kept 0.43 CPUs busy on average, 1.13 in the busiest window; busy in 1 of 3 windows (163.7-164.7 s)
+regress: pair 17 of 64 in 13.6 s
+regress: pair 18 of 64 in 6.8 s
+clocks: other programs kept 1.14 CPUs busy from 184.1 s to 185.1 s (the busiest: pi 0.03 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 19 again: busy: other programs kept 0.54 CPUs busy on average, 1.14 in the busiest window; busy in 1 of 3 windows (184.1-185.1 s)
+regress: pair 19 of 64 in 13.6 s
+regress: pair 20 of 64 in 6.8 s
+clocks: other programs kept 1.29 CPUs busy from 201.2 s to 202.2 s (the busiest: pi 0.03 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 21 again: busy: other programs kept 0.54 CPUs busy on average, 1.29 in the busiest window; busy in 1 of 4 windows (201.2-202.2 s)
+clocks: other programs kept 1.22 CPUs busy from 213.4 s to 214.4 s (the busiest: pi 0.04 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 21 again: busy: other programs kept 0.45 CPUs busy on average, 1.22 in the busiest window; busy in 1 of 4 windows (213.4-214.4 s)
+regress: pair 21 of 64 in 24.5 s
+regress: pair 22 of 64 in 8.1 s
+regress: pair 23 of 64 in 8.2 s
+regress: pair 24 of 64 in 8.1 s
+clocks: other programs kept 1.14 CPUs busy from 252.1 s to 253.1 s (the busiest: pi 0.05 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 25 again: busy: other programs kept 0.45 CPUs busy on average, 1.14 in the busiest window; busy in 1 of 4 windows (252.1-253.1 s)
+regress: pair 25 of 64 in 13.7 s
+regress: pair 26 of 64 in 6.8 s
+regress: pair 27 of 64 in 6.8 s
+regress: pair 28 of 64 in 6.7 s
+clocks: other programs kept 1.31 CPUs busy from 289.5 s to 290.5 s (the busiest: pi 0.04 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 29 again: busy: other programs kept 0.58 CPUs busy on average, 1.31 in the busiest window; busy in 1 of 4 windows (289.5-290.5 s)
+regress: pair 29 of 64 in 13.7 s
+regress: pair 30 of 64 in 6.9 s
+regress: pair 31 of 64 in 6.9 s
+regress: pair 32 of 64 in 6.9 s
+regress: pair 33 of 64 in 8.1 s
+clocks: other programs kept 1.42 CPUs busy from 327.5 s to 328.5 s (the busiest: pi 0.04 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 34 again: busy: other programs kept 0.52 CPUs busy on average, 1.42 in the busiest window; busy in 1 of 4 windows (327.5-328.5 s)
+clocks: other programs kept 1.21 CPUs busy from 340.7 s to 341.7 s (the busiest: pi 0.05 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 34 again: busy: other programs kept 0.48 CPUs busy on average, 1.21 in the busiest window; busy in 1 of 4 windows (340.7-341.7 s)
+regress: pair 34 of 64 in 24.5 s
+regress: pair 35 of 64 in 8.1 s
+clocks: other programs kept 1.39 CPUs busy from 361.0 s to 362.0 s (the busiest: pi 0.24 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 36 again: busy: other programs kept 0.49 CPUs busy on average, 1.39 in the busiest window; busy in 1 of 4 windows (361.0-362.0 s)
+regress: pair 36 of 64 in 16.2 s
+clocks: other programs kept 1.37 CPUs busy from 378.7 s to 379.7 s (the busiest: pi 0.25 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 37 again: busy: other programs kept 0.52 CPUs busy on average, 1.37 in the busiest window; busy in 1 of 3 windows (378.7-379.7 s)
+regress: pair 37 of 64 in 13.6 s
+regress: pair 38 of 64 in 6.8 s
+clocks: other programs kept 1.25 CPUs busy from 396.8 s to 397.8 s (the busiest: pi 0.26 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.03 CPUs busy from 400.2 s to 401.2 s (the busiest: pi 0.04 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.35 CPUs busy from 401.2 s to 402.2 s (the busiest: pi 0.03 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 39 again: busy: other programs kept 0.55 CPUs busy on average, 1.25 in the busiest window; busy in 1 of 3 windows (396.8-397.8 s); busy: other programs kept 0.96 CPUs busy on average, 1.35 in the busiest window; busy in 2 of 4 windows (400.2-401.2 s, 401.2-402.2 s)
+regress: pair 39 of 64 in 13.8 s
+regress: pair 40 of 64 in 6.7 s
+regress: pair 41 of 64 in 6.9 s
+regress: pair 42 of 64 in 6.9 s
+regress: pair 43 of 64 in 6.8 s
+clocks: other programs kept 1.15 CPUs busy from 436.9 s to 437.9 s (the busiest: pi 0.04 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 44 again: busy: other programs kept 0.45 CPUs busy on average, 1.15 in the busiest window; busy in 1 of 3 windows (436.9-437.9 s)
+regress: pair 44 of 64 in 13.8 s
+clocks: other programs kept 1.08 CPUs busy from 453.7 s to 454.7 s (the busiest: pi 0.03 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 45 again: busy: other programs kept 0.59 CPUs busy on average, 1.08 in the busiest window; busy in 1 of 5 windows (453.7-454.7 s)
+regress: pair 45 of 64 in 16.7 s
+clocks: other programs kept 1.08 CPUs busy from 474.4 s to 475.4 s (the busiest: pi 0.03 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 46 again: busy: other programs kept 0.44 CPUs busy on average, 1.08 in the busiest window; busy in 1 of 5 windows (474.4-475.4 s)
+regress: pair 46 of 64 in 16.6 s
+regress: pair 47 of 64 in 8.1 s
+clocks: other programs kept 1.22 CPUs busy from 492.0 s to 493.0 s (the busiest: pi 0.03 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 48 again: busy: other programs kept 0.46 CPUs busy on average, 1.22 in the busiest window; busy in 1 of 4 windows (492.0-493.0 s)
+regress: pair 48 of 64 in 16.3 s
+clocks: other programs kept 1.34 CPUs busy from 510.3 s to 511.3 s (the busiest: pi 0.25 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 49 again: busy: other programs kept 0.59 CPUs busy on average, 1.34 in the busiest window; busy in 1 of 4 windows (510.3-511.3 s)
+regress: pair 49 of 64 in 13.7 s
+regress: pair 50 of 64 in 6.7 s
+clocks: other programs kept 1.02 CPUs busy from 529.7 s to 530.7 s (the busiest: pi 0.04 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 51 again: busy: other programs kept 0.45 CPUs busy on average, 1.02 in the busiest window; busy in 1 of 3 windows (529.7-530.7 s)
+regress: pair 51 of 64 in 13.4 s
+clocks: other programs kept 1.23 CPUs busy from 546.5 s to 547.5 s (the busiest: pi 0.04 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 52 again: busy: other programs kept 0.52 CPUs busy on average, 1.23 in the busiest window; busy in 1 of 3 windows (546.5-547.5 s)
+regress: pair 52 of 64 in 13.5 s
+regress: pair 53 of 64 in 6.7 s
+regress: pair 54 of 64 in 6.9 s
+regress: pair 55 of 64 in 6.8 s
