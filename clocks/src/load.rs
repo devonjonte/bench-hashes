@@ -699,6 +699,22 @@ mod tests {
         assert_eq!(w.other_milli_cpus, 800);
     }
 
+    /// Darwin's host counters wrap individually, and the process's own
+    /// nanoseconds are removed after converting their ticks. Synthetic
+    /// readings hold both properties independently of other programs.
+    #[cfg(target_vendor = "apple")]
+    #[test]
+    fn darwin_removes_own_time_and_wraps_each_host_counter() {
+        use imp::CpuTimes;
+        let zero = CpuTimes([0; 4]);
+        let now = CpuTimes([20, 10, 1000, 2]);
+        let total = imp::other_and_steal_ns(zero, now, [0, 0]);
+        let own = imp::other_and_steal_ns(zero, now, [7, 11]);
+        assert_eq!(own, (total.0 - 18, 0), "own nanoseconds are removed exactly");
+        let wrapped = imp::other_and_steal_ns(CpuTimes([u32::MAX - 9, u32::MAX - 4, 0, u32::MAX - 1]), CpuTimes([10, 5, 1000, 0]), [7, 11]);
+        assert_eq!(wrapped, own, "each busy counter wraps before they are summed");
+    }
+
     /// One window's line names the hypervisor's share where it took any.
     #[test]
     fn a_windows_line_names_steal_where_there_is_any() {
