@@ -125,7 +125,7 @@ fn use_digest_stores_each_digest_in_its_slot() {
 /// The provenance every samples file's header carries, in order (the main
 /// run's, b3sum's and leaves' all write theirs with samples_header): the
 /// keys before the run's own.
-pub(crate) const PROVENANCE: [&str; 19] = [
+pub(crate) const PROVENANCE: [&str; 21] = [
     "timestamp",
     "bench-hashes version",
     "bench-hashes source",
@@ -144,6 +144,8 @@ pub(crate) const PROVENANCE: [&str; 19] = [
     "os type",
     "cpu identity",
     "idle states",
+    "effective idle states",
+    "idle control",
     "shared placements",
 ];
 
@@ -394,27 +396,4 @@ fn every_message_in_blocks_hashes_its_own_bytes() {
             );
         }
     }
-}
-
-/// The Python studies' one reader of samples files (tools/samples.py)
-/// reads exactly the format this program writes: its version line and
-/// its column row.
-#[test]
-fn the_python_reader_reads_this_format() {
-    let reader =
-        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tools/samples.py")).unwrap();
-    assert!(
-        reader.contains(&format!("VERSION = {SAMPLES_VERSION:?}")),
-        "tools/samples.py reads {SAMPLES_VERSION}"
-    );
-    let columns = SAMPLES_COLUMNS.replace('\t', "\\t");
-    assert!(
-        reader.contains(&format!("COLUMNS = \"{columns}\"")),
-        "tools/samples.py reads the columns {SAMPLES_COLUMNS:?}"
-    );
-    let fields = SAMPLES_COLUMNS.split('\t').count();
-    assert!(
-        reader.contains(&format!("len(fields) == {fields}")),
-        "tools/samples.py expects {fields} fields a row"
-    );
 }

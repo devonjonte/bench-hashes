@@ -2,10 +2,13 @@
 //! measurement reads these through it:
 //!
 //! - **Wall time**, what a caller waits for: the platform's hardware
-//!   counter through `std::time::Instant` ([`now`], [`since_ns`]):
-//!   `CLOCK_UPTIME_RAW` on Darwin, `CLOCK_MONOTONIC` on Linux. A counter
-//!   read can only
-//!   over-count, when the thread is interrupted.
+//!   counter, read raw ([`now`], [`since_ns`]): `CLOCK_MONOTONIC_RAW` on
+//!   Linux, `CLOCK_UPTIME_RAW` on Darwin. Raw means no NTP: Linux's
+//!   `CLOCK_MONOTONIC` (what `std::time::Instant` reads there) is slewed
+//!   by the time daemon, up to 500 ppm, which could be in error or
+//!   another's to control and helps no measurement here (Zooko, November
+//!   4, 2026; measure-clocks3 compares the clocks). A counter read can
+//!   only over-count, when the thread is interrupted.
 //! - **The thread's counts per core kind** ([`Counts`]): cycles,
 //!   instructions, and time on performance and efficiency cores, from
 //!   Apple's `thread_selfcounts(THSC_TIME_CPI_PER_PERF_LEVEL)`, and on
@@ -51,8 +54,6 @@
 //! ([`measure_after_gaps_prepared`]): the sum's rounding averages out. A median or
 //! a minimum of single short readings keeps the rounding; take neither.
 
-use std::time::Instant;
-
 // Unix's clocks (Linux and macOS); Windows is not supported (BLAKE3 #160).
 #[cfg(not(unix))]
 compile_error!("clocks reads Unix's clocks (Linux and macOS); Windows is not supported (https://github.com/servil-software-factory/BLAKE3/issues/160)");
@@ -66,27 +67,112 @@ pub mod threads;
 
 /// The wall clock, as reports name it.
 #[cfg(target_vendor = "apple")]
-pub const WALL_CLOCK: &str = "std::time::Instant → CLOCK_UPTIME_RAW (mach_absolute_time; stops during sleep, no NTP slew)";
+pub const WALL_CLOCK: &str = "CLOCK_UPTIME_RAW (mach_absolute_time; stops during sleep; the raw counter, no NTP)";
 #[cfg(all(unix, not(target_vendor = "apple")))]
-pub const WALL_CLOCK: &str = "std::time::Instant → CLOCK_MONOTONIC (stops during suspend, NTP slew only)";
+pub const WALL_CLOCK: &str = "CLOCK_MONOTONIC_RAW (stops during suspend; the raw counter, no NTP slew)";
 
-/// A point on the wall clock. Only differences are meaningful.
+/// A point on the wall clock: the raw counter's nanoseconds. Only
+/// differences are meaningful, and only within one boot.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Stamp(u64);
+
+/// The wall clock now.
 #[inline(always)]
-pub fn now() -> Instant {
-    Instant::now()
+pub fn now() -> Stamp {
+    Stamp(clock_ns())
 }
 
 /// Nanoseconds of wall time since `start`.
 #[inline(always)]
-pub fn since_ns(start: Instant) -> u64 {
-    u64::try_from(start.elapsed().as_nanos()).expect("an interval lasts well under 584 years")
+pub fn since_ns(start: Stamp) -> u64 {
+    clock_ns() - start.0
 }
 
-/// One core kind's share of a thread's counts.
+/// The clock every stamp reads: the raw counter, or in a test that froze
+/// it, the test clock (test_clock), so a window's or an interval's
+/// bookkeeping is checked against exact times in microseconds instead of
+/// against real time and its noise. A release build has no test clock.
+#[inline(always)]
+fn clock_ns() -> u64 {
+    #[cfg(test)]
+    if let Some(ns) = test_clock::reading() {
+        return ns;
+    }
+    raw_ns()
+}
+
+/// A clock a test holds (Zooko and John, November 3, 2026, for
+/// BLAKE3-Servil's pool: a test-only clock, where the code reads time
+/// through one function): `freeze` stops this thread's stamps at the real
+/// clock's present value, `advance` moves them; `thaw` gives the real
+/// clock back. Other threads keep the real clock.
+#[cfg(test)]
+pub(crate) mod test_clock {
+    use std::cell::Cell;
+    thread_local! {
+        static HELD: Cell<Option<u64>> = const { Cell::new(None) };
+    }
+    pub fn reading() -> Option<u64> {
+        HELD.with(Cell::get)
+    }
+    pub fn freeze() {
+        HELD.with(|h| h.set(Some(super::raw_ns())));
+    }
+    pub fn advance(ns: u64) {
+        HELD.with(|h| h.set(Some(h.get().expect("a frozen clock advances") + ns)));
+    }
+    pub fn thaw() {
+        HELD.with(|h| h.set(None));
+    }
+}
+
+/// The raw counter in nanoseconds: `clock_gettime(CLOCK_MONOTONIC_RAW)`
+/// on Linux (the vDSO's, 11 ns a read on an i7-12700K, 1 ns steps),
+/// `clock_gettime_nsec_np(CLOCK_UPTIME_RAW)` on Darwin (41.67 ns steps on
+/// an M4 Max). Neither is adjusted by a time daemon.
+#[cfg(all(unix, not(target_vendor = "apple")))]
+#[inline(always)]
+fn raw_ns() -> u64 {
+    #[repr(C)]
+    struct Timespec {
+        sec: i64,
+        nsec: i64,
+    }
+    unsafe extern "C" {
+        fn clock_gettime(clock_id: i32, tp: *mut Timespec) -> i32;
+    }
+    const CLOCK_MONOTONIC_RAW: i32 = 4;
+    let mut ts = Timespec { sec: 0, nsec: 0 };
+    // Sound: clock_gettime writes the timespec it is given.
+    let r = unsafe { clock_gettime(CLOCK_MONOTONIC_RAW, &mut ts) };
+    debug_assert_eq!(r, 0, "clock_gettime(CLOCK_MONOTONIC_RAW)");
+    ts.sec as u64 * 1_000_000_000 + ts.nsec as u64
+}
+
+#[cfg(target_vendor = "apple")]
+#[inline(always)]
+fn raw_ns() -> u64 {
+    unsafe extern "C" {
+        fn clock_gettime_nsec_np(clock_id: u32) -> u64;
+    }
+    const CLOCK_UPTIME_RAW: u32 = 8;
+    // Sound: a plain libc call.
+    unsafe { clock_gettime_nsec_np(CLOCK_UPTIME_RAW) }
+}
+
+/// One core kind's share of a thread's counts: its cycles and
+/// instructions retired in user space, its requests that reached the
+/// last-level cache and those that missed it (perf's generic
+/// `cache-references` and `cache-misses`: on Intel
+/// `LONGEST_LAT_CACHE.REFERENCE` and `.MISS`, demand and prefetch
+/// requests to L3 and the lines fetched from beyond it; AMD maps them by
+/// generation), and the time its counters ran.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Level {
     pub cycles: u64,
     pub instructions: u64,
+    pub cache_references: u64,
+    pub cache_misses: u64,
     pub time_ns: u64,
 }
 
@@ -110,6 +196,8 @@ impl Counts {
         let level = |now: Level, then: Level| Level {
             cycles: now.cycles - then.cycles,
             instructions: now.instructions - then.instructions,
+            cache_references: now.cache_references - then.cache_references,
+            cache_misses: now.cache_misses - then.cache_misses,
             time_ns: now.time_ns - then.time_ns,
         };
         Counts { p: level(self.p, earlier.p), e: level(self.e, earlier.e) }
@@ -117,7 +205,13 @@ impl Counts {
 
     /// These counts and `other`'s together.
     pub fn plus(self, other: Counts) -> Counts {
-        let level = |a: Level, b: Level| Level { cycles: a.cycles + b.cycles, instructions: a.instructions + b.instructions, time_ns: a.time_ns + b.time_ns };
+        let level = |a: Level, b: Level| Level {
+            cycles: a.cycles + b.cycles,
+            instructions: a.instructions + b.instructions,
+            cache_references: a.cache_references + b.cache_references,
+            cache_misses: a.cache_misses + b.cache_misses,
+            time_ns: a.time_ns + b.time_ns,
+        };
         Counts { p: level(self.p, other.p), e: level(self.e, other.e) }
     }
 
@@ -351,8 +445,13 @@ pub fn process_cpu_ns() -> u64 {
         let mut children = [0i64; 18];
         // Sound: `children` is writable and as long as a struct rusage.
         assert_eq!(unsafe { getrusage(RUSAGE_CHILDREN, children.as_mut_ptr()) }, 0, "getrusage(RUSAGE_CHILDREN)");
-        ts.tv_sec as u64 * 1_000_000_000 + ts.tv_nsec as u64 + child::rusage_cpu_ns(&children) + child::running_cpu_ns()
+        timespec_ns(ts.tv_sec, ts.tv_nsec) + child::rusage_cpu_ns(&children) + child::running_cpu_ns()
     }
+}
+
+/// A timespec as nanoseconds.
+fn timespec_ns(sec: i64, nsec: i64) -> u64 {
+    sec as u64 * 1_000_000_000 + nsec as u64
 }
 
 /// macOS QoS classes: user-interactive runs on P-cores, background on E-cores.
@@ -362,6 +461,25 @@ pub const BACKGROUND: u32 = 0x09;
 /// Put the calling thread in QoS class `class` (macOS; elsewhere nothing).
 pub fn set_qos(class: u32) {
     imp::set_qos(class)
+}
+
+/// Make the calling thread's sleeps land when asked (Linux: timer slack
+/// 1 us in place of the 50 us every normal thread gets, which landed a
+/// 20 us sleep at 72 us and a 5 ms one up to 300 us late on the
+/// i7-12700K; threads made after this inherit it). Elsewhere nothing.
+/// A pause before a call is the measurement's; its length should be the
+/// one the method names.
+pub fn tight_timers() {
+    #[cfg(target_os = "linux")]
+    {
+        unsafe extern "C" {
+            fn prctl(option: i32, a: std::ffi::c_long, b: std::ffi::c_long, c: std::ffi::c_long, d: std::ffi::c_long) -> i32;
+        }
+        const PR_SET_TIMERSLACK: i32 = 29;
+        // Sound: a plain prctl on the calling thread.
+        let set = unsafe { prctl(PR_SET_TIMERSLACK, 1_000, 0, 0, 0) };
+        assert_eq!(set, 0, "the kernel lets any thread set its own timer slack");
+    }
 }
 
 #[cfg(target_vendor = "apple")]
@@ -467,6 +585,9 @@ mod tests {
             assert!(b.calls > 0 && b.wall_ns > 0, "{b:?}");
             assert_eq!(b.calls, batches[0].calls);
             assert_eq!(b.cpu_ns.is_some(), total_cpu.is_some());
+            // The batch's CPU time is the process's over the batch: at
+            // most the whole measurement's, and its work took some.
+            assert!(b.cpu_ns.unwrap() <= total_cpu.unwrap() && b.cpu_ns.unwrap() >= b.wall_ns / 10, "{b:?} within {total_cpu:?}");
             assert!(b.show().contains("ns/call"));
         }
         if let Some(total) = total_cpu {
@@ -484,9 +605,50 @@ mod tests {
 
     #[test]
     fn counts_subtract_and_rate() {
-        let later = Counts { p: Level { cycles: 4_400, instructions: 9_000, time_ns: 1_000 }, e: Level::default() };
+        let later = Counts { p: Level { cycles: 4_400, instructions: 9_000, time_ns: 1_000, ..Level::default() }, e: Level::default() };
         let d = later.since(Counts::default());
         assert_eq!((d.mhz(), d.e_percent()), (4_400, 0));
+    }
+
+    #[test]
+    fn a_timespec_is_its_seconds_and_nanoseconds() {
+        assert_eq!(timespec_ns(2, 5), 2_000_000_005);
+        assert_eq!(timespec_ns(0, 999_999_999), 999_999_999);
+    }
+
+    /// The clock rate is both kinds' cycles over both kinds' time, rounded
+    /// to the nearest MHz; the E share is the E time's share of the time,
+    /// rounded to the nearest percent; the batch's line rounds its ns a
+    /// call to tenths and names the kind by the share (P under 5%, E over
+    /// 95%, the percentage between), or says it has no counts.
+    #[test]
+    fn rates_shares_and_the_batch_line_round_to_nearest() {
+        let level = |cycles, time_ns| Level { cycles, time_ns, ..Level::default() };
+        let mixed = Counts { p: level(3_000, 1_000), e: level(1_000, 3_000) };
+        assert_eq!(mixed.mhz(), 1_000, "4000 cycles over 4000 ns");
+        assert_eq!(mixed.e_percent(), 75);
+        assert_eq!(Counts { p: level(4_001, 1_000), e: level(0, 1_000) }.mhz(), 2_001, "8002 / 4 = 2000.5 rounds up");
+        assert_eq!(Counts { p: level(0, 2), e: level(0, 1) }.e_percent(), 33);
+        assert_eq!(Counts { p: level(0, 5), e: level(0, 3) }.e_percent(), 38, "37.5 rounds up");
+        let batch = |calls, wall_ns, counts| Batch { calls, wall_ns, cpu_ns: None, counts, started_ns: 0 };
+        assert_eq!(batch(4, 50, Some(mixed)).show(), "12.5 ns/call, 1000 MHz 75% E");
+        assert_eq!(batch(3, 10, Some(Counts { p: level(4_400, 1_000), e: level(0, 40) })).show(), "3.3 ns/call, 4231 MHz P");
+        assert_eq!(batch(1, 7, Some(Counts { p: level(0, 0), e: level(2_000, 100) })).show(), "7.0 ns/call, 20000 MHz E");
+        assert_eq!(batch(2, 3, None).show(), "1.5 ns/call, no cycle counts");
+        assert_eq!(batch(2, 3, Some(Counts::default())).show(), "1.5 ns/call, no cycle counts", "counts with no time: none");
+    }
+
+    /// since takes each field of each kind off, plus adds each; the kinds
+    /// stay apart.
+    #[test]
+    fn counts_since_and_plus_act_on_every_field_of_each_kind() {
+        let level = |k: u64| Level { cycles: 10 * k, instructions: 20 * k, cache_references: 30 * k, cache_misses: 40 * k, time_ns: 50 * k };
+        let earlier = Counts { p: level(1), e: level(2) };
+        let later = Counts { p: level(4), e: level(9) };
+        assert_eq!(later.since(earlier), Counts { p: level(3), e: level(7) });
+        assert_eq!(earlier.plus(later), Counts { p: level(5), e: level(11) });
+        assert_eq!(Counts::default().plus(earlier), earlier);
+        assert_eq!(earlier.since(earlier), Counts::default());
     }
     #[test]
     fn prepared_calls_follow_their_writes_and_exclude_gaps() {
@@ -540,6 +702,109 @@ mod tests {
             elapsed >= measured.calls.wall_ns + measured.preparation.wall_ns + 6_000_000,
             "the sleeps stay out of the sum: {elapsed} ns in all, {measured:?}"
         );
+    }
+
+    /// The machine's properties as this crate relies on them: timing, the
+    /// OS's counters, children. Seconds each and sensitive to other load,
+    /// so they run on purpose (`cargo nextest run -P machine`) before a
+    /// release and on a new machine, and not beside every change or mutant.
+    mod machine {
+        use super::*;
+
+        /// The wall clock is the raw counter: it only goes forward, it steps
+        /// finely (under 100 ns a step: a clock stepping in whole microseconds,
+        /// as Darwin's CLOCK_MONOTONIC through clock_gettime does, would fail
+        /// here), and it reads at the cost of a function call. A change of the
+        /// clock behind `now` shows here.
+        /// On Linux a thread's sleeps land late by its timer slack (50 us by
+        /// default); after tight_timers a 20 us sleep lands within 10 us of
+        /// it, in the median of 200. Elsewhere the call is nothing and the
+        /// sleep lands as the OS lands it.
+        #[test]
+        #[cfg(target_os = "linux")]
+        fn tight_timers_land_a_brief_sleep_on_time() {
+            let landing = || {
+                let mut v: Vec<u64> = (0..200)
+                    .map(|_| {
+                        let t = now();
+                        std::thread::sleep(std::time::Duration::from_micros(20));
+                        since_ns(t)
+                    })
+                    .collect();
+                v.sort_unstable();
+                v[100]
+            };
+            std::thread::spawn(move || {
+                let loose = landing();
+                tight_timers();
+                let tight = landing();
+                eprintln!("a 20 us sleep lands at {loose} ns with the default slack, {tight} ns with 1 us");
+                assert!(tight < 30_000, "a 20 us sleep lands within 10 us: {tight} ns");
+                assert!(tight < loose, "tight timers land sooner than the default slack ({loose} ns)");
+            })
+            .join()
+            .unwrap();
+        }
+
+        #[test]
+        fn the_wall_clock_is_fine_and_forward() {
+            let mut last = now();
+            let mut smallest_step = u64::MAX;
+            let first = last;
+            for _ in 0..100_000 {
+                let t = now();
+                assert!(t >= last, "the clock went back");
+                let step = t.0 - last.0;
+                if t > last && step < smallest_step {
+                    smallest_step = step;
+                }
+                last = t;
+            }
+            assert!(smallest_step <= 100, "the clock's smallest step: {smallest_step} ns");
+            let reads_ns = since_ns(first) / 100_000;
+            assert!(reads_ns < 1_000, "a read costs about {reads_ns} ns");
+        }
+
+        /// On Linux the wall clock is CLOCK_MONOTONIC_RAW itself: a reading sits
+        /// between two of that clock's, and away from CLOCK_MONOTONIC by the
+        /// slew the time daemon has applied since boot (zero on a machine with
+        /// none), which stays put across a short interval.
+        #[test]
+        #[cfg(all(unix, not(target_vendor = "apple")))]
+        fn on_linux_the_wall_clock_is_the_raw_counter() {
+            #[repr(C)]
+            struct Timespec {
+                sec: i64,
+                nsec: i64,
+            }
+            unsafe extern "C" {
+                fn clock_gettime(clock_id: i32, tp: *mut Timespec) -> i32;
+            }
+            let read = |clock: i32| {
+                let mut ts = Timespec { sec: 0, nsec: 0 };
+                assert_eq!(unsafe { clock_gettime(clock, &mut ts) }, 0);
+                ts.sec as u64 * 1_000_000_000 + ts.nsec as u64
+            };
+            const CLOCK_MONOTONIC: i32 = 1;
+            const CLOCK_MONOTONIC_RAW: i32 = 4;
+            let before = read(CLOCK_MONOTONIC_RAW);
+            let ours = now();
+            let after = read(CLOCK_MONOTONIC_RAW);
+            assert!(before <= ours.0 && ours.0 <= after, "a reading of ours lies between two of CLOCK_MONOTONIC_RAW's: {before} {} {after}", ours.0);
+            // The slewed clock and ours differ by what the daemon has applied
+            // since boot; the difference moves by at most the slew (500 ppm)
+            // over 10 ms, under 5 us, while a wrong clock behind `now` would
+            // make it the full offset or a jump.
+            let offset = || read(CLOCK_MONOTONIC) as i128 - now().0 as i128;
+            let o1 = offset();
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            let o2 = offset();
+            assert!(
+                (o1 - o2).abs() < 5_000 + 20_000,
+                "the offset to CLOCK_MONOTONIC moved by {} ns in 10 ms (slew is under 5 us; the rest a read's own time)",
+                o1 - o2
+            );
+        }
     }
 }
 

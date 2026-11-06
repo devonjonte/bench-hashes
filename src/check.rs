@@ -1,10 +1,10 @@
-//! `bench-hashes check --fork DIR [--against REV] [--old-bench REV] [--cells all] [--layouts N] [--keep DIR]`:
-//! did a change to BLAKE3-Servil hurt its speed anywhere? Run from a checkout of
-//! bench-hashes inside a checkout of BLAKE3-Servil (BLAKE3-Servil at `..`), it
-//! compares BLAKE3-Servil's working tree with a commit (`--against`, HEAD by
-//! default) and prints the cells judged slower or faster, with their
-//! ratios; exit 0 when no cell is slower, 1 when one is, 2 when a run's
-//! load left no verdict.
+//! `bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS | --cells all] [--layouts N] [--keep DIR] [--when-quiet]`:
+//! did a change to BLAKE3-Servil hurt its speed in the cells its author names?
+//! Run from a checkout of bench-hashes, it compares BLAKE3-Servil's working
+//! tree (or `--new REV`) with a commit (`--against`, HEAD by default) and
+//! prints the cells judged slower or faster, with their ratios; exit 0 when
+//! no named cell is slower, 1 when one is, 2 when no scope was named or a
+//! run's load left no verdict.
 //!
 //! What a check does, every time, with nothing to choose:
 //! 1. Builds bench-hashes twice, against BLAKE3-Servil at each side (a commit
@@ -15,16 +15,19 @@
 //!    the same for every run of that binary, so no sampling of one binary
 //!    sees it; two sides with different layouts each pair do, and their
 //!    seeds stay apart so identical code still meets a new layout in every run.
-//! 2. Chooses the cells: those whose code the change touches. A coverage
-//!    build of the new side runs each point once and records BLAKE3-Servil's
-//!    lines each point executes (cached under `target/check/` by the
-//!    bench's source and BLAKE3-Servil's commit); the change's diff names the
-//!    lines it touches; the points that execute one are checked, the rest
-//!    skipped, since nothing they run changed. A change to assembly, the
-//!    build script, or what BLAKE3-Servil's manifest builds (anything but
-//!    its tests, examples, benches and dev-dependencies)
-//!    checks every point (coverage cannot see into assembly or the build).
-//!    `--cells all` checks every point regardless.
+//! 2. Takes its scope from its caller. The check first prints a short
+//!    summary of the diff (its files, its added and deleted lines, and the
+//!    items its hunks sit in). Its author reads that summary, thinks through
+//!    which cells the change can move, and names them with `--points`, in
+//!    the labels `--points` takes ("2 KiB,idle 2 KiB,brief idle 3 KiB").
+//!    `--probe POINTS` names the same scope for a three-pair survey with no
+//!    verdict, before the change is built. `--cells all` measures every
+//!    point, for a release or a change whose author judges it can act
+//!    anywhere. With no scope named, the check prints the summary and
+//!    stops before any build: choosing cells is the author's judgment, and
+//!    the check carries no second guess at it. It prints how many points
+//!    it measured and how many it left unmeasured, so the choice stays in
+//!    the record.
 //! 3. Runs `bench-hashes regress` over the pairs (LAYOUTS new links a side,
 //!    each run FIRST_RUNS times): servil st and servil mt
 //!    (the code that changes) at the regression check's visits
@@ -49,7 +52,7 @@
 //! was blind to the cells after a gap and to the stream, where BLAKE3-Servil
 //! had regressed before.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -93,6 +96,12 @@ const SECOND_PAIRS: usize = SECOND_LAYOUTS * SECOND_RUNS;
 /// 2026-11-01/links-019-i7; Zooko, November 1: "I love saving 12 minutes
 /// without losing sensitivity").
 const FIRST_RUNS: usize = 1;
+/// A probe's layouts a side: three pairs, the least the rule reads, with
+/// the points named rather than found. About five minutes with the builds
+/// cached: the measurement before a change is built, in place of the hour
+/// of a check after (Zooko, November 5, 2026: measure first, and make the
+/// measurement cheap).
+const PROBE_LAYOUTS: usize = 3;
 
 /// `exes`, each `times` times, in turn: the same layouts run again cost a
 /// run each, where a new layout costs a relink.
@@ -107,9 +116,13 @@ fn each_run(exes: Vec<String>, times: usize) -> Vec<String> {
 const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
 pub fn command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--old-bench REV] [--cells all] [--layouts N] [--keep DIR]";
+    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS | --cells all] [--layouts N] [--keep DIR] [--when-quiet]";
     let (mut against, mut all, mut layouts_a_side, mut keep) =
         ("HEAD".to_string(), false, LAYOUTS, None::<PathBuf>);
+    let mut when_quiet = false;
+    let mut probe = None::<String>;
+    let mut named = None::<String>;
+    let mut new_rev = None::<String>;
     let mut old_bench_rev = None::<String>;
     let mut fork = None::<PathBuf>;
     let mut it = arguments.iter();
@@ -153,8 +166,45 @@ pub fn command(arguments: &[String]) -> i32 {
                         panic!("--keep needs a directory\n{usage}")
                     })))
             }
+            "--when-quiet" => when_quiet = true,
+            "--new" => {
+                new_rev = Some(
+                    it.next()
+                        .unwrap_or_else(|| panic!("--new needs a revision\n{usage}"))
+                        .clone(),
+                )
+            }
+            "--points" => {
+                named = Some(it.next().unwrap_or_else(|| {
+                    panic!("--points takes the points to measure, as --points names them (\"3 KiB,brief idle 3 KiB\")\n{usage}")
+                }).clone());
+            }
+            "--probe" => {
+                probe = Some(it.next().unwrap_or_else(|| {
+                    panic!("--probe takes the points to measure, as --points names them (\"3 KiB,brief idle 3 KiB\")\n{usage}")
+                }).clone());
+                // Three fresh pairs: the least the rule reads, the most a
+                // probe needs to say whether an idea is worth building.
+                layouts_a_side = PROBE_LAYOUTS;
+            }
             other => panic!("unknown option {other}\n{usage}"),
         }
+    }
+    assert!(
+        [all, named.is_some(), probe.is_some()]
+            .into_iter()
+            .filter(|&set| set)
+            .count()
+            <= 1,
+        "--points, --probe or --cells all: one scope\n{usage}"
+    );
+    // The machine first, before a build: a check on a busy machine measures
+    // for an hour and abstains. --when-quiet waits for one instead.
+    if when_quiet {
+        clocks::load::wait_until_quiet();
+    } else if let Err(reason) = clocks::load::quiet_for(10) {
+        println!("check: {reason}. No verdict (exit 2); run when nothing else runs on the machine, or with --when-quiet to wait for that.");
+        return 2;
     }
     let bench = bench_checkout("check", usage);
     let fork =
@@ -162,13 +212,63 @@ pub fn command(arguments: &[String]) -> i32 {
             panic!("check: --fork DIR names BLAKE3-Servil's checkout\n{usage}")
         }));
     let old = git(&fork, &["rev-parse", &format!("{against}^{{commit}}")]);
-    let new = working_tree_commit(&fork);
+    // The new side: the revision --new names, else the working tree as it
+    // stands (a check of a branch names it, so the tree's checkout at the
+    // time cannot put another change on the scale: November 5, 2026, a
+    // check meant for one branch measured the one checked out).
+    let (new, new_name) = match &new_rev {
+        Some(rev) => (
+            git(&fork, &["rev-parse", &format!("{rev}^{{commit}}")]),
+            rev.clone(),
+        ),
+        None => (working_tree_commit(&fork), "working tree".to_string()),
+    };
     eprintln!(
-        "check: BLAKE3-Servil's working tree ({}) against {} ({})",
+        "check: BLAKE3-Servil's {new_name} ({}) against {} ({})",
         &new[..12],
         against,
         &old[..12]
     );
+    if !change_summary(&fork, &old, &new) {
+        println!("check: the two sides' trees are the same; nothing to measure");
+        return 0;
+    }
+    if !all && named.is_none() && probe.is_none() {
+        println!(
+            "check: name the cells this change can move, from the summary above: --points POINTS for the gate, --probe POINTS for three pairs and no verdict, or --cells all for every point. No build or measurement ran."
+        );
+        return 2;
+    }
+    // The named scope, read and checked before a build: a name this
+    // bench has no point for stops here, in seconds.
+    let named_points: Option<Vec<String>> = if all {
+        None
+    } else {
+        let points: Vec<String> = scope_points(
+            probe
+                .as_ref()
+                .or(named.as_ref())
+                .expect("a scope, checked above"),
+        );
+        assert!(
+            !points.is_empty(),
+            "a scope names a point at least\n{usage}"
+        );
+        for point in &points {
+            assert!(
+                super::point_if_named(point).is_some(),
+                "--points: no point {point:?}; as --points names them, \"idle 2 KiB\" is the 2 KiB call after a pause\n{usage}"
+            );
+        }
+        eprintln!(
+            "check: measuring the {} named points ({} of {} points; the rest unmeasured in this check): {}",
+            points.len(),
+            points.len(),
+            super::POINTS.len(),
+            points.join(", ")
+        );
+        Some(points)
+    };
     let cache = fork.join("target").join("check");
     std::fs::create_dir_all(&cache).expect("the check's cache directory");
     // The old side's bench: this one, or this repository at --old-bench.
@@ -214,44 +314,14 @@ pub fn command(arguments: &[String]) -> i32 {
     };
     let old_exe = side(&fork, &old_bench, &cache, "old", &old);
     let new_exe = side(&fork, &bench, &cache, "new", &new);
-    // The cells a change touches, from the new side's coverage.
-    // The cells a change touches: (contender, point), from the new side's
-    // coverage; a run measures their contenders over their points.
+    // The scope: every point, or the points named before the builds.
+    // The contenders are the two the change can move.
     let (contenders, points): (Vec<String>, Option<Vec<String>>) = if all {
         (SUBJECTS.iter().map(|s| s.to_string()).collect(), None)
     } else {
-        let cells = touched_cells(
-            &fork,
-            Side {
-                bench: &old_bench,
-                name: "old",
-                commit: &old,
-                exe: &old_exe,
-            },
-            Side {
-                bench: &bench,
-                name: "new",
-                commit: &new,
-                exe: &new_exe,
-            },
-            &cache,
-        );
-        if cells.is_empty() {
-            println!("check: the change touches no line a cell executes; nothing to measure");
-            return 0;
-        }
-        let contenders: BTreeSet<String> = cells.iter().map(|(c, _)| c.clone()).collect();
-        let points: BTreeSet<String> = cells.iter().map(|(_, p)| p.clone()).collect();
-        eprintln!(
-            "check: {} cells execute a changed line: {} at {} points: {}",
-            cells.len(),
-            contenders.iter().cloned().collect::<Vec<_>>().join(" and "),
-            points.len(),
-            points.iter().cloned().collect::<Vec<_>>().join(", ")
-        );
         (
-            contenders.into_iter().collect(),
-            Some(points.into_iter().collect()),
+            SUBJECTS.iter().map(|s| s.to_string()).collect(),
+            named_points,
         )
     };
     let olds = each_run(
@@ -278,6 +348,20 @@ pub fn command(arguments: &[String]) -> i32 {
     if let Some(points) = &points {
         regress.extend(["--points".to_string(), points.join(",")]);
     }
+    // A probe keeps its runs (in the cache unless --keep says where), to
+    // read each cell's ratio from them afterwards.
+    let keep = keep.or_else(|| {
+        probe.as_ref().map(|_| {
+            // Fresh each probe: a run kept from the last probe, of other
+            // commits, would be read as one of this one's pairs.
+            let dir = cache.join("probe");
+            if dir.exists() {
+                std::fs::remove_dir_all(&dir)
+                    .unwrap_or_else(|e| panic!("clearing {}: {e}", dir.display()));
+            }
+            dir
+        })
+    });
     if let Some(keep) = &keep {
         regress.extend(["--keep".to_string(), keep.display().to_string()]);
     }
@@ -285,6 +369,36 @@ pub fn command(arguments: &[String]) -> i32 {
     regress.push("--".into());
     regress.extend(news);
     let (code, out) = run_regress(&new_exe, &bench, &regress);
+    if probe.is_some() && code == 2 {
+        return 2;
+    }
+    if probe.is_some() {
+        // The numbers, no verdict: each cell's old and new means over the
+        // pairs and their ratio (compare), for the question "is this idea
+        // worth building"; the verdict is the full check's, on the change
+        // once built.
+        let keep = keep.as_ref().unwrap();
+        let mut runs: Vec<PathBuf> = std::fs::read_dir(keep)
+            .expect("the probe's kept runs")
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| {
+                p.file_name()
+                    .is_some_and(|n| n.to_string_lossy().starts_with("run-"))
+            })
+            .collect();
+        runs.sort();
+        let (olds, news): (Vec<_>, Vec<_>) = runs
+            .iter()
+            .partition(|p| p.to_string_lossy().ends_with("-old.tsv"));
+        let mut compare: Vec<String> = vec!["compare".into()];
+        compare.extend(olds.iter().map(|p| p.display().to_string()));
+        compare.push("--".into());
+        compare.extend(news.iter().map(|p| p.display().to_string()));
+        println!("check: the probe's cells over {} pairs (compare; no verdict: the full check's is the gate)", olds.len());
+        run_regress(&new_exe, &bench, &compare);
+        return 0;
+    }
     let suspects: Vec<String> = out
         .lines()
         .find_map(|l| l.strip_prefix("regress: suspects: "))
@@ -345,6 +459,68 @@ pub fn command(arguments: &[String]) -> i32 {
     second.push("--".into());
     second.extend(news);
     run_regress(&new_exe, &bench, &second).0
+}
+
+/// A scope's points, as its caller names them: comma-separated, each
+/// trimmed, empties dropped.
+fn scope_points(scope: &String) -> Vec<String> {
+    scope
+        .split(',')
+        .map(|p| p.trim().to_string())
+        .filter(|p| !p.is_empty())
+        .collect()
+}
+
+/// A short summary of the change for the reader who names its cells:
+/// each file the diff touches with its added and deleted lines, and the
+/// items its hunks sit in (the context `git diff` prints after each hunk
+/// header). True where the two trees differ at all. This summary informs
+/// the choice of cells; it chooses none.
+fn change_summary(fork: &Path, old: &str, new: &str) -> bool {
+    let numstat = git(fork, &["diff", "--numstat", &format!("{old}..{new}")]);
+    if numstat.trim().is_empty() {
+        return false;
+    }
+    let mut files: Vec<String> = Vec::new();
+    let (mut added, mut deleted) = (0usize, 0usize);
+    for line in numstat.lines() {
+        let mut fields = line.split('\t');
+        let (a, d, file) = (
+            fields.next().unwrap_or("0"),
+            fields.next().unwrap_or("0"),
+            fields.next().unwrap_or(""),
+        );
+        added += a.parse().unwrap_or(0);
+        deleted += d.parse().unwrap_or(0);
+        files.push(format!("{file} (+{a}/-{d})"));
+    }
+    eprintln!(
+        "check: the change touches {added} added and {deleted} deleted lines in {} files: {}",
+        files.len(),
+        first_of(&files, 12)
+    );
+    let diff = git(fork, &["diff", "--unified=0", &format!("{old}..{new}")]);
+    let mut items: Vec<String> = Vec::new();
+    for line in diff.lines().filter(|l| l.starts_with("@@")) {
+        if let Some(context) = line.split("@@").nth(2).map(str::trim) {
+            if !context.is_empty() && !items.iter().any(|i| i == context) {
+                items.push(context.to_string());
+            }
+        }
+    }
+    if !items.is_empty() {
+        eprintln!("check: its hunks sit in: {}", first_of(&items, 12));
+    }
+    true
+}
+
+/// The first `n` of a list, joined, with how many more follow.
+fn first_of(items: &[String], n: usize) -> String {
+    let mut out = items[..items.len().min(n)].join(", ");
+    if items.len() > n {
+        out += &format!(", and {} more", items.len() - n);
+    }
+    out
 }
 
 /// The `--points` label of a cell's point, from the use case's name and the
@@ -899,689 +1075,6 @@ fn shuffle(items: &mut [&str], seed: u64) {
     }
 }
 
-/// One side of a check: its bench, its name under the cache, BLAKE3-Servil's
-/// commit it builds, and its executable.
-#[derive(Clone, Copy)]
-struct Side<'a> {
-    bench: &'a Path,
-    name: &'a str,
-    commit: &'a str,
-    exe: &'a Path,
-}
-
-/// The points whose cells execute a line the change touches: the lines it
-/// adds or changes, which the new side's cells execute, and the lines it
-/// deletes or changes, which the old side's executed (a deleted line has
-/// no new side: a change deleting a fast path still measures the cells
-/// that took it). A coverage build of each side runs each point once
-/// (servil st and mt) and keeps the lines each executes in BLAKE3-Servil's
-/// `src/`, cached by the bench's source and BLAKE3-Servil's commit; the diff
-/// (old..new, `src/`) gives the lines. Assembly, the build script or a
-/// manifest changed: every point.
-///
-/// A touched line no cell can be seen to execute is either inert or acts
-/// from where it stands: a comment, a blank line, punctuation, test code
-/// (an item under `#[cfg(test)]`) and a file this target does not compile
-/// change nothing here; an attribute acts on its item, and measures the
-/// cells that execute it; a constant, a type or a `use`, which no coverage
-/// region holds, can change any code that uses it, so it measures every
-/// point. (A `const SPIN` from 5 us to 0, which the old
-/// protocol measured 41% slower in servil mt's 16 KiB stream, once read as
-/// "nothing to measure": BLAKE3-Servil's plant/spin0, Mac job 1801.)
-fn touched_cells(
-    fork: &Path,
-    old_side: Side,
-    new_side: Side,
-    cache: &Path,
-) -> Vec<(String, String)> {
-    let (bench, old, new, new_exe) = (
-        new_side.bench,
-        old_side.commit,
-        new_side.commit,
-        new_side.exe,
-    );
-    let changed_files = git(fork, &["diff", "--name-only", &format!("{old}..{new}")]);
-    let every = || all_cells(new_exe, bench);
-    if changed_files.lines().any(|f| {
-        f.starts_with("c/")
-            || f == "build.rs"
-            || f.ends_with(".S")
-            || f.ends_with(".asm")
-            || (f == "Cargo.toml" && manifest_builds_differently(fork, old, new, f))
-    }) {
-        eprintln!("check: assembly, the build script or the build's manifest changed: every point");
-        return every();
-    }
-    let (added, deleted) = touched_lines(&git(
-        fork,
-        &[
-            "diff",
-            "--unified=0",
-            &format!("{old}..{new}"),
-            "--",
-            "src",
-            "capi/src",
-        ],
-    ));
-    if added.is_empty() && deleted.is_empty() {
-        return Vec::new();
-    }
-    let new_cov = coverage(new_side, cache);
-    let old_cov = if deleted.is_empty() {
-        Coverage::default()
-    } else {
-        coverage(old_side, cache)
-    };
-    let mut sides = Vec::new();
-    for (touched, cov, commit) in [(&added, &new_cov, new), (&deleted, &old_cov, old)] {
-        match seen_lines(fork, commit, touched, cov) {
-            Ok(lines) => sides.push(lines),
-            Err(at) => {
-                eprintln!(
-                    "check: the change touches code no coverage region holds ({at}): it can act anywhere, so every point"
-                );
-                return every();
-            }
-        }
-    }
-    let deleted = sides.pop().unwrap();
-    let added = sides.pop().unwrap();
-    let reaches = |reached: &BTreeMap<String, BTreeSet<usize>>,
-                   touched: &BTreeMap<String, BTreeSet<usize>>| {
-        reached
-            .iter()
-            .any(|(f, lines)| touched.get(f).is_some_and(|t| !t.is_disjoint(lines)))
-    };
-    new_cov
-        .cells
-        .iter()
-        .filter(|(cell, files)| {
-            reaches(files, &added)
-                || old_cov
-                    .cells
-                    .get(*cell)
-                    .is_some_and(|f| reaches(f, &deleted))
-        })
-        .map(|(cell, _)| cell.clone())
-        .collect()
-}
-
-/// The touched lines, on the side at `commit`, that cells can be seen to
-/// execute, by file: each line a coverage region holds, and for any other
-/// line of code the first held line of its item (an attribute's: the item
-/// it is attached to, on which alone it acts). Err names the first
-/// touched line that is code this target compiles but no region holds
-/// ("src/lanes.rs:760: const SPIN ..."), which can act anywhere.
-fn seen_lines(
-    fork: &Path,
-    commit: &str,
-    touched: &BTreeMap<String, BTreeMap<usize, String>>,
-    cov: &Coverage,
-) -> Result<BTreeMap<String, BTreeSet<usize>>, String> {
-    let test_files = test_files(fork, commit);
-    let mut seen = BTreeMap::new();
-    for (file, lines) in touched {
-        if !cov.compiled.contains(file) || test_files.contains(file) {
-            continue;
-        }
-        let text = git(fork, &["show", &format!("{commit}:{file}")]);
-        let source: Vec<&str> = text.lines().collect();
-        let tests = test_lines(&text);
-        let comments = block_comment_lines(&text);
-        let held = |n: usize| cov.instrumented.get(file).is_some_and(|h| h.contains(&n));
-        let into: &mut BTreeSet<usize> = seen.entry(file.clone()).or_default();
-        for (&n, line) in lines {
-            if inert(line) || tests.contains(&n) || comments.contains(&n) {
-                continue;
-            }
-            if held(n) {
-                into.insert(n);
-                continue;
-            }
-            // Code no region holds: the first held line of the item it
-            // is, or is attached to (an attribute), to the item's `;` or
-            // the brace closing its first. `#[cfg(...)]` on an `unsafe {
-            // asm!(...) }`, whose `unsafe {` no region holds, stands for
-            // its asm! line; a `const`, a `use` or a type holds none.
-            match item_lines(&source, n).into_iter().find(|&m| held(m)) {
-                Some(m) => {
-                    into.insert(m);
-                }
-                None => return Err(format!("{file}:{n}: {}", line.trim())),
-            }
-        }
-    }
-    Ok(seen)
-}
-
-/// The lines (from 1) of the item at or after line `from`: past
-/// attributes and comments, from its first line to the line ending it,
-/// one ending in `;` before any brace or the one closing its first brace
-/// (braces counted as `test_lines` counts them, literals aside).
-fn item_lines(source: &[&str], from: usize) -> Vec<usize> {
-    let Some(start) = (from..=source.len()).find(|&m| {
-        let t = source[m - 1].trim();
-        !(t.starts_with("#[") || inert(t))
-    }) else {
-        return Vec::new();
-    };
-    let mut depth = 0i64;
-    let mut opened = false;
-    for m in start..=source.len() {
-        let t = source[m - 1].trim();
-        let mut in_str = false;
-        let mut chars = t.chars().peekable();
-        while let Some(c) = chars.next() {
-            match c {
-                '\\' if in_str => {
-                    chars.next();
-                }
-                '"' => in_str = !in_str,
-                '/' if !in_str && chars.peek() == Some(&'/') => break,
-                '{' if !in_str => {
-                    depth += 1;
-                    opened = true;
-                }
-                '}' if !in_str => depth -= 1,
-                ';' if !in_str && !opened => return (start..=m).collect(),
-                _ => {}
-            }
-        }
-        if opened && depth <= 0 {
-            return (start..=m).collect();
-        }
-    }
-    (start..=source.len()).collect()
-}
-
-/// A line that is no code: blank, a line comment, or punctuation alone (a
-/// closing brace). A block comment's lines are `block_comment_lines`'s:
-/// a line beginning `* ` may be code (rustfmt's `    * CHUNK_LEN`).
-fn inert(text: &str) -> bool {
-    let t = text.trim();
-    t.is_empty() || t.starts_with("//") || t.chars().all(|c| "{}()[];,".contains(c))
-}
-
-/// The lines (from 1) of a source file's block comments that begin a line:
-/// from a line beginning `/*` to the line holding its `*/`.
-fn block_comment_lines(text: &str) -> BTreeSet<usize> {
-    let mut out = BTreeSet::new();
-    let mut open = false;
-    for (i, line) in text.lines().enumerate() {
-        let t = line.trim();
-        if !open && t.starts_with("/*") {
-            open = true;
-        }
-        if open {
-            out.insert(i + 1);
-            if t.contains("*/") {
-                open = false;
-            }
-        }
-    }
-    out
-}
-
-/// Whether an attribute line makes the item after it test code alone.
-fn test_only(attribute: &str) -> bool {
-    let t = attribute.trim();
-    t.starts_with("#[cfg(test)]")
-        || t.starts_with("#[cfg(all(test,")
-        || t.starts_with("#[cfg(all(test ,")
-}
-
-/// The lines (from 1) of a source file's test items: each item under
-/// `#[cfg(test)]` (or `cfg(all(test, ...))`), from its attribute to its end,
-/// a line ending in `;` before any brace or the brace that closes its
-/// first one. Braces in string and character literals and comments are
-/// skipped.
-fn test_lines(text: &str) -> BTreeSet<usize> {
-    let lines: Vec<&str> = text.lines().collect();
-    let mut out = BTreeSet::new();
-    let mut i = 0;
-    while i < lines.len() {
-        if !test_only(lines[i]) {
-            i += 1;
-            continue;
-        }
-        let start = i;
-        let mut depth = 0i64;
-        let mut opened = false;
-        let mut end = i;
-        'item: for (j, line) in lines.iter().enumerate().skip(i + 1) {
-            end = j;
-            let t = line.trim();
-            if !opened && (t.starts_with("#[") || t.starts_with("//") || t.is_empty()) {
-                continue;
-            }
-            let mut chars = t.chars().peekable();
-            let mut in_str = false;
-            while let Some(c) = chars.next() {
-                match c {
-                    '\\' if in_str => {
-                        chars.next();
-                    }
-                    '"' => in_str = !in_str,
-                    '/' if !in_str && chars.peek() == Some(&'/') => break,
-                    '\'' if !in_str => {
-                        // A character literal ('{', '\''), or a lifetime.
-                        let rest: String = chars.clone().take(3).collect();
-                        if rest.starts_with("\\") {
-                            chars.nth(2);
-                        } else if rest.chars().nth(1) == Some('\'') {
-                            chars.nth(1);
-                        }
-                    }
-                    '{' if !in_str => {
-                        depth += 1;
-                        opened = true;
-                    }
-                    '}' if !in_str => depth -= 1,
-                    ';' if !in_str && !opened => break 'item,
-                    _ => {}
-                }
-            }
-            if opened && depth == 0 {
-                break;
-            }
-        }
-        out.extend(start + 1..=end + 1);
-        i = end + 1;
-    }
-    out
-}
-
-/// The files that are test modules at `commit`: each `mod NAME;` under
-/// `#[cfg(test)]`, as `src/NAME.rs` beside the declaring file (or in its
-/// directory, for `lib.rs` and `mod.rs`).
-fn test_files(fork: &Path, commit: &str) -> BTreeSet<String> {
-    let mut out = BTreeSet::new();
-    for file in git(
-        fork,
-        &["ls-tree", "-r", "--name-only", commit, "src", "capi/src"],
-    )
-    .lines()
-    {
-        if !file.ends_with(".rs") {
-            continue;
-        }
-        let text = git(fork, &["show", &format!("{commit}:{file}")]);
-        let lines: Vec<&str> = text.lines().collect();
-        for (i, line) in lines.iter().enumerate() {
-            if !test_only(line) {
-                continue;
-            }
-            let Some(next) = lines[i + 1..].iter().find(|l| !l.trim().starts_with("#[")) else {
-                continue;
-            };
-            let t = next
-                .trim()
-                .trim_start_matches("pub ")
-                .trim_start_matches("pub(crate) ");
-            if let Some(name) = t.strip_prefix("mod ").and_then(|r| r.strip_suffix(';')) {
-                let path = Path::new(file);
-                let dir = match path.file_name().and_then(|n| n.to_str()) {
-                    Some("lib.rs" | "mod.rs" | "main.rs") => path.parent().unwrap().to_path_buf(),
-                    _ => path.with_extension(""),
-                };
-                out.insert(dir.join(format!("{name}.rs")).display().to_string());
-                out.insert(dir.join(name).join("mod.rs").display().to_string());
-            }
-        }
-    }
-    out
-}
-
-/// One side's coverage: the lines each cell executes, the lines any
-/// coverage region holds (whether a cell ran them or not), and the source
-/// files BLAKE3-Servil's crate compiles for this target (rustc's dep-info).
-#[derive(Default)]
-struct Coverage {
-    cells: BTreeMap<(String, String), BTreeMap<String, BTreeSet<usize>>>,
-    instrumented: BTreeMap<String, BTreeSet<usize>>,
-    compiled: BTreeSet<String>,
-}
-
-/// A `--unified=0` diff's touched lines, by file, each with its text: the
-/// new side's (each hunk's `+c,d`) and the old side's (`-a,b`). A hunk
-/// that adds nothing (`+c,0`) touches no new line, and one that deletes
-/// nothing no old one. A hunk's lines are counted, so a deleted line that
-/// reads "-- x" is no file header.
-#[allow(clippy::type_complexity)]
-fn touched_lines(
-    diff: &str,
-) -> (
-    BTreeMap<String, BTreeMap<usize, String>>,
-    BTreeMap<String, BTreeMap<usize, String>>,
-) {
-    let (mut added, mut deleted) = (BTreeMap::new(), BTreeMap::new());
-    let (mut old_file, mut new_file) = (None::<String>, None::<String>);
-    let range = |r: &str| -> (usize, usize) {
-        r.split_once(',')
-            .map(|(s, c)| (s.parse().unwrap(), c.parse().unwrap()))
-            .unwrap_or_else(|| (r.parse().unwrap(), 1))
-    };
-    let (mut old_at, mut old_left, mut new_at, mut new_left) = (0, 0, 0, 0);
-    for line in diff.lines() {
-        if old_left > 0 && line.starts_with('-') {
-            let f: &String = old_file.as_ref().expect("a hunk's old file");
-            deleted
-                .entry(f.clone())
-                .or_insert_with(BTreeMap::new)
-                .insert(old_at, line[1..].to_string());
-            old_at += 1;
-            old_left -= 1;
-        } else if new_left > 0 && line.starts_with('+') {
-            let f: &String = new_file.as_ref().expect("a hunk's new file");
-            added
-                .entry(f.clone())
-                .or_insert_with(BTreeMap::new)
-                .insert(new_at, line[1..].to_string());
-            new_at += 1;
-            new_left -= 1;
-        } else if let Some(f) = line.strip_prefix("--- ") {
-            old_file = f.strip_prefix("a/").map(str::to_string);
-        } else if let Some(f) = line.strip_prefix("+++ ") {
-            new_file = f.strip_prefix("b/").map(str::to_string);
-        } else if line.starts_with("@@") {
-            // "@@ -a,b +c,d @@ context"
-            let mut parts = line.split_whitespace().skip(1);
-            let (a, b) = range(parts.next().unwrap().trim_start_matches('-'));
-            let (c, d) = range(parts.next().unwrap().trim_start_matches('+'));
-            (old_at, old_left, new_at, new_left) = (a, b, c, d);
-        }
-    }
-    (added, deleted)
-}
-
-/// Every cell of the check's contenders, (contender, point as `--points`
-/// takes it), as a one-round run measures them (a contender takes part
-/// in its use cases alone).
-fn all_cells(exe: &Path, bench: &Path) -> Vec<(String, String)> {
-    let dir = bench.join("target").join("check").join("points");
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    let out = Command::new(exe)
-        .args(["--contenders", &SUBJECTS.join(","), "--rounds", "1"])
-        .current_dir(&dir)
-        .output()
-        .expect("the bench runs");
-    assert!(
-        out.status.success(),
-        "check: a one-round run failed: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let results = std::fs::read_dir(dir.join("benchmark-results"))
-        .expect("the run's results")
-        .flatten()
-        .next()
-        .expect("one machine's results")
-        .path();
-    let samples = results.join("bench-hashes.samples.tsv");
-    let text = std::fs::read_to_string(samples).unwrap();
-    let mut cells = BTreeSet::new();
-    for line in text
-        .lines()
-        .filter(|l| !l.starts_with('#') && !l.starts_with("contender"))
-    {
-        let f: Vec<&str> = line.split('\t').collect();
-        if let Some(label) = point_label(f[2], f[3]) {
-            cells.insert((f[0].to_string(), label));
-        }
-    }
-    cells.into_iter().collect()
-}
-
-/// Each point's executed lines of BLAKE3-Servil's `src/`, from a coverage build
-/// of `side` run one point at a time; cached as JSON-free TSV under the
-/// cache, keyed by the bench's source and BLAKE3-Servil's commit.
-fn coverage(side: Side, cache: &Path) -> Coverage {
-    let (bench, new, new_exe) = (side.bench, side.commit, side.exe);
-    let bench_source = {
-        let mut h = blake3_servil::performance::Hasher::new(blake3_servil::Mode::Plain);
-        for f in walk(&bench.join("src")) {
-            h.update(&std::fs::read(&f).unwrap());
-        }
-        h.finalize().to_hex().to_string()
-    };
-    // The cache's rows: a cell's lines, or "*instrumented*" (every line a
-    // region holds) and "*compiled*" (a file the crate compiles) for the
-    // side.
-    let cached =
-        cache
-            .join("coverage")
-            .join(format!("{}-{}-v2.tsv", &new[..12], &bench_source[..12]));
-    if let Ok(text) = std::fs::read_to_string(&cached) {
-        let mut cov = Coverage::default();
-        for line in text.lines() {
-            let f: Vec<&str> = line.split('\t').collect();
-            let lines: BTreeSet<usize> = f[3]
-                .split(',')
-                .filter(|s| !s.is_empty())
-                .map(|s| s.parse().unwrap())
-                .collect();
-            match f[0] {
-                "*instrumented*" => {
-                    cov.instrumented.insert(f[2].to_string(), lines);
-                }
-                "*compiled*" => {
-                    cov.compiled.insert(f[2].to_string());
-                }
-                _ => {
-                    cov.cells
-                        .entry((f[0].to_string(), f[1].to_string()))
-                        .or_default()
-                        .insert(f[2].to_string(), lines);
-                }
-            }
-        }
-        return cov;
-    }
-    eprintln!(
-        "check: recording which lines each point executes on the {} side (once per change to the bench or BLAKE3-Servil)",
-        side.name
-    );
-    let checkout = cache.join(side.name).join("src");
-    let copy = bench_copy(&cache.join(side.name).join("target"));
-    let target = cache.join(side.name).join("target-coverage");
-    let patch_fork = fork_patch(&copy, &checkout);
-    let out = Command::new("cargo")
-        .args(["--config", &patch_fork, "build", "--release", "--quiet"])
-        .current_dir(&copy)
-        .env("CARGO_TARGET_DIR", &target)
-        .env("RUSTFLAGS", "-C instrument-coverage")
-        // The instrumented build scripts write their profiles here, not into
-        // the directory each runs in: BLAKE3-Servil's ran in the side's worktree,
-        // and its profraw files made that worktree read as dirty to every
-        // later build (both sides of the Mac's A/A, job 1857).
-        .env("LLVM_PROFILE_FILE", target.join("build-script-%p.profraw"))
-        .env("BENCH_HASHES_CHECKOUT", bench)
-        .env("BENCH_HASHES_FORK", &checkout)
-        .output()
-        .expect("cargo runs");
-    assert!(
-        out.status.success(),
-        "check: the coverage build:\n{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let cov_exe = target.join("release").join("bench-hashes");
-    // The files rustc compiled into BLAKE3-Servil's crate for this target: its
-    // dep-info, the newest of the crate's (this build's).
-    let compiled: BTreeSet<String> = {
-        let deps = target.join("release").join("deps");
-        let newest = std::fs::read_dir(&deps)
-            .unwrap_or_else(|e| panic!("{}: {e}", deps.display()))
-            .flatten()
-            .filter(|e| {
-                let n = e.file_name().to_string_lossy().into_owned();
-                n.starts_with("blake3_servil-") && n.ends_with(".d")
-            })
-            .max_by_key(|e| e.metadata().and_then(|m| m.modified()).ok())
-            .expect("BLAKE3-Servil's crate's dep-info")
-            .path();
-        std::fs::read_to_string(&newest)
-            .unwrap()
-            .split_whitespace()
-            .filter_map(|w| {
-                Path::new(w.trim_end_matches(':'))
-                    .strip_prefix(&checkout)
-                    .ok()
-                    .filter(|r| r.starts_with("src") || r.starts_with("capi"))
-                    .map(|r| r.display().to_string())
-            })
-            .collect()
-    };
-    assert!(
-        compiled.iter().any(|f| f == "src/lib.rs"),
-        "check: BLAKE3-Servil's dep-info names its lib.rs: {compiled:?}"
-    );
-    let mut instrumented: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
-    let (profdata, llvm_cov) = (llvm_tool("llvm-profdata"), llvm_tool("llvm-cov"));
-    let work = cache.join("coverage-work");
-    let mut map: BTreeMap<(String, String), BTreeMap<String, BTreeSet<usize>>> = BTreeMap::new();
-    for (contender, label) in all_cells(new_exe, bench) {
-        let _ = std::fs::remove_dir_all(&work);
-        std::fs::create_dir_all(&work).unwrap();
-        let raw = work.join("p.profraw");
-        let out = Command::new(&cov_exe)
-            .args([
-                "--contenders",
-                &contender,
-                "--points",
-                &label,
-                "--rounds",
-                "1",
-            ])
-            .current_dir(&work)
-            .env("LLVM_PROFILE_FILE", &raw)
-            .output()
-            .expect("the bench runs");
-        assert!(
-            out.status.success(),
-            "check: coverage run of {contender} at {label}: {}",
-            String::from_utf8_lossy(&out.stderr)
-        );
-        let merged = work.join("p.profdata");
-        let out = Command::new(&profdata)
-            .args(["merge", "-sparse", "-o"])
-            .arg(&merged)
-            .arg(&raw)
-            .output()
-            .expect("llvm-profdata runs");
-        assert!(
-            out.status.success(),
-            "llvm-profdata: {}",
-            String::from_utf8_lossy(&out.stderr)
-        );
-        let out = Command::new(&llvm_cov)
-            .args(["export", "--format=lcov", "--instr-profile"])
-            .arg(&merged)
-            .arg(&cov_exe)
-            .output()
-            .expect("llvm-cov runs");
-        assert!(
-            out.status.success(),
-            "llvm-cov: {}",
-            String::from_utf8_lossy(&out.stderr)
-        );
-        let mut files: BTreeMap<String, BTreeSet<usize>> = BTreeMap::new();
-        let mut current: Option<String> = None;
-        for line in String::from_utf8_lossy(&out.stdout).lines() {
-            if let Some(path) = line.strip_prefix("SF:") {
-                current = Path::new(path)
-                    .strip_prefix(&checkout)
-                    .ok()
-                    .filter(|r| r.starts_with("src") || r.starts_with("capi"))
-                    .map(|r| r.display().to_string());
-            } else if let (Some(f), Some(rest)) = (&current, line.strip_prefix("DA:")) {
-                let mut parts = rest.split(',');
-                let (number, count) = (
-                    parts.next().unwrap().parse::<usize>().unwrap(),
-                    parts.next().unwrap().parse::<u64>().unwrap(),
-                );
-                instrumented.entry(f.clone()).or_default().insert(number);
-                if count > 0 {
-                    files.entry(f.clone()).or_default().insert(number);
-                }
-            }
-        }
-        map.insert((contender, label), files);
-    }
-    let mut text = String::new();
-    for ((contender, label), files) in &map {
-        for (f, lines) in files {
-            text += &format!(
-                "{contender}\t{label}\t{f}\t{}\n",
-                lines
-                    .iter()
-                    .map(|n| n.to_string())
-                    .collect::<Vec<_>>()
-                    .join(",")
-            );
-        }
-    }
-    for (f, lines) in &instrumented {
-        text += &format!(
-            "*instrumented*\t\t{f}\t{}\n",
-            lines
-                .iter()
-                .map(|n| n.to_string())
-                .collect::<Vec<_>>()
-                .join(",")
-        );
-    }
-    for f in &compiled {
-        text += &format!("*compiled*\t\t{f}\t\n");
-    }
-    std::fs::create_dir_all(cached.parent().unwrap()).unwrap();
-    std::fs::write(&cached, text).unwrap();
-    Coverage {
-        cells: map,
-        instrumented,
-        compiled,
-    }
-}
-
-/// llvm-profdata or llvm-cov: the toolchain's own llvm-tools first
-/// (`rustup component add llvm-tools`: its profile format is always the
-/// compiler's), else on PATH, else the newest in /usr/lib/llvm-*/bin. An
-/// LLVM on PATH older than the compiler's cannot read its profiles (Ubuntu
-/// 26.04's LLVM 21 beside Rust 1.99's LLVM 23, EPYC 9255: bench-hashes #87).
-fn llvm_tool(name: &str) -> PathBuf {
-    let sysroot = Command::new("rustc")
-        .args(["--print", "sysroot"])
-        .output()
-        .expect("rustc runs");
-    let rustlib = Path::new(String::from_utf8_lossy(&sysroot.stdout).trim()).join("lib/rustlib");
-    let in_bins = |dir: &Path| -> Vec<PathBuf> {
-        let mut found: Vec<PathBuf> = std::fs::read_dir(dir)
-            .into_iter()
-            .flatten()
-            .flatten()
-            .map(|e| e.path().join("bin").join(name))
-            .filter(|p| p.exists())
-            .collect();
-        found.sort();
-        found
-    };
-    let on_path = || {
-        std::env::var_os("PATH").and_then(|p| {
-            std::env::split_paths(&p)
-                .map(|d| d.join(name))
-                .find(|p| p.exists())
-        })
-    };
-    in_bins(&rustlib)
-        .pop()
-        .or_else(on_path)
-        .or_else(|| in_bins(Path::new("/usr/lib")).pop())
-        .unwrap_or_else(|| {
-            panic!(
-                "check: choosing cells by coverage needs {name}: `rustup component add llvm-tools` (or, on Linux, apt install llvm); --cells all skips it"
-            )
-        })
-}
-
 /// Cargo's `--config` patch for a fork checkout. Each side's bench keeps
 /// its own clocks, so their timing and summary rules are its.
 fn fork_patch(copy: &Path, checkout: &Path) -> String {
@@ -1600,68 +1093,6 @@ fn fork_patch(copy: &Path, checkout: &Path) -> String {
         "patch.\"{git}\".blake3-servil.path=\"{}\"",
         checkout.display()
     )
-}
-
-/// Whether `manifest`'s change between `old` and `new` touches what the
-/// bench's build of BLAKE3-Servil uses: a changed line, on either side, in any
-/// section but `[[test]]`, `[[example]]`, `[[bench]]` and
-/// `[dev-dependencies]` (a test's entry changes no cell).
-fn manifest_builds_differently(fork: &Path, old: &str, new: &str, manifest: &str) -> bool {
-    let unused = |section: &str| {
-        matches!(
-            section,
-            "[[test]]" | "[[example]]" | "[[bench]]" | "[dev-dependencies]"
-        )
-    };
-    // Each line's section, in one side's file.
-    let sections = |rev: &str| -> Vec<String> {
-        let text = Command::new("git")
-            .args(["show", &format!("{rev}:{manifest}")])
-            .current_dir(fork)
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
-            .unwrap_or_default();
-        let mut current = String::new();
-        text.lines()
-            .map(|l| {
-                let t = l.trim();
-                if t.starts_with('[') {
-                    current = t.to_string();
-                }
-                current.clone()
-            })
-            .collect()
-    };
-    let (before, after) = (sections(old), sections(new));
-    let diff = git(
-        fork,
-        &[
-            "diff",
-            "--unified=0",
-            &format!("{old}..{new}"),
-            "--",
-            manifest,
-        ],
-    );
-    for line in diff.lines().filter(|l| l.starts_with("@@")) {
-        let fields: Vec<&str> = line.split_whitespace().collect();
-        for (field, side) in [
-            (fields[1].trim_start_matches('-'), &before),
-            (fields[2].trim_start_matches('+'), &after),
-        ] {
-            let (start, count) = field
-                .split_once(',')
-                .map(|(s, c)| (s.parse::<usize>().unwrap(), c.parse::<usize>().unwrap()))
-                .unwrap_or_else(|| (field.parse().unwrap(), 1));
-            // A pure insertion or deletion names the line before it (count 0).
-            for n in start.max(1)..=(start + count.max(1) - 1) {
-                if side.get(n - 1).is_none_or(|s| !unused(s)) {
-                    return true;
-                }
-            }
-        }
-    }
-    false
 }
 
 #[cfg(test)]
@@ -1720,36 +1151,6 @@ mod tests {
         assert_eq!(super::each_run(links, 2), ["a", "b", "c", "a", "b", "c"]);
     }
 
-    /// The toolchain's llvm-profdata wins over one on PATH: an older LLVM
-    /// there cannot read the compiler's profiles (bench-hashes #87, Sam's
-    /// EPYC). Needs `rustup component add llvm-tools`, which the release
-    /// machines have; without it the test fails, saying so.
-    #[test]
-    fn llvm_tool_takes_the_toolchains_copy_before_path() {
-        let fake = std::env::temp_dir().join(format!("llvm-tool-test-{}", std::process::id()));
-        std::fs::create_dir_all(&fake).unwrap();
-        std::fs::write(fake.join("llvm-profdata"), "#!/bin/sh\nexit 1\n").unwrap();
-        let path = std::env::var_os("PATH").unwrap_or_default();
-        let joined =
-            std::env::join_paths(std::iter::once(fake.clone()).chain(std::env::split_paths(&path)))
-                .unwrap();
-        // Sound: nextest runs each test in its own process, so no other
-        // thread reads the environment meanwhile.
-        unsafe { std::env::set_var("PATH", &joined) };
-        let got = super::llvm_tool("llvm-profdata");
-        unsafe { std::env::set_var("PATH", &path) };
-        std::fs::remove_dir_all(&fake).unwrap();
-        let sysroot = std::process::Command::new("rustc")
-            .args(["--print", "sysroot"])
-            .output()
-            .unwrap()
-            .stdout;
-        assert!(
-            got.starts_with(String::from_utf8(sysroot).unwrap().trim()),
-            "took {got:?}: install llvm-tools (rustup component add llvm-tools)"
-        );
-    }
-
     /// A clean checkout's working tree is its HEAD (so an A/A's sides name
     /// one commit and read as one build); a changed one is a commit of the
     /// change on top of HEAD, the same commit each time for one tree.
@@ -1791,94 +1192,21 @@ mod tests {
         std::fs::remove_dir_all(&repo).unwrap();
     }
 
-    use super::touched_lines;
-    use std::collections::BTreeSet;
-    /// Every point the bench measures survives the trip through a cell key
-    /// and back to the label that selects it: a second stage's suspects
-    /// are cell keys, and "256 B" alone selects the call after other work,
-    /// not the one after a pause (an IdleOneMessage suspect once went
-    /// unmeasured so).
+    /// A named scope reads as its points, and a long summary list says
+    /// how many it left out.
     #[test]
-    fn a_deleted_line_is_touched_on_the_old_side() {
-        let diff = "diff --git a/src/lanes.rs b/src/lanes.rs\n--- a/src/lanes.rs\n+++ b/src/lanes.rs\n\
-                    @@ -1247 +1246,0 @@ fn run_members\n-                128 => return,\n\
-                    @@ -1300,2 +1299,2 @@\n-a\n-b\n+c\n+d\n\
-                    diff --git a/src/new.rs b/src/new.rs\n--- /dev/null\n+++ b/src/new.rs\n@@ -0,0 +1,3 @@\n+x\n+y\n+z\n";
-        let (added, deleted) = touched_lines(diff);
-        // The deleted arm: no new line, but its old one (the case the new
-        // side alone missed: "nothing to measure", BLAKE3 #183).
-        let keys = |m: &std::collections::BTreeMap<usize, String>| {
-            m.keys().copied().collect::<BTreeSet<_>>()
-        };
+    fn named_scopes_and_summaries_read_as_written() {
         assert_eq!(
-            keys(&deleted["src/lanes.rs"]),
-            BTreeSet::from([1247, 1300, 1301])
+            super::scope_points(&" 2 KiB, idle 2 KiB,,brief idle 3 KiB ".to_string()),
+            ["2 KiB", "idle 2 KiB", "brief idle 3 KiB"]
         );
-        assert_eq!(keys(&added["src/lanes.rs"]), BTreeSet::from([1299, 1300]));
         assert_eq!(
-            deleted["src/lanes.rs"][&1247],
-            "                128 => return,"
+            super::first_of(&["a".to_string(), "b".to_string()], 12),
+            "a, b"
         );
-        assert_eq!(added["src/lanes.rs"][&1300], "d");
-        // A new file has no old side.
-        assert_eq!(keys(&added["src/new.rs"]), BTreeSet::from([1, 2, 3]));
-        assert!(!deleted.contains_key("src/new.rs"));
-    }
-
-    /// A deleted line that reads "-- x" is a hunk's line, not a file
-    /// header: the hunk's counts say where it ends.
-    #[test]
-    fn a_hunk_line_like_a_header_is_the_hunks() {
-        let diff = "--- a/src/a.rs\n+++ b/src/a.rs\n@@ -3 +3 @@\n--- x\n+++ y\n";
-        let (added, deleted) = touched_lines(diff);
-        assert_eq!(deleted["src/a.rs"][&3], "-- x");
-        assert_eq!(added["src/a.rs"][&3], "++ y");
-    }
-
-    /// What can act unseen: code outside every coverage region; and what
-    /// cannot: comments, blank lines, punctuation, test items.
-    #[test]
-    fn inert_lines_and_test_items() {
-        use super::{block_comment_lines, inert, test_lines};
-        for t in ["", "   ", "// x", "/// doc", "//! m", "}", "    });", "],"] {
-            assert!(inert(t), "{t:?}");
-        }
-        for t in [
-            "const SPIN: Duration = Duration::from_micros(0);",
-            "#[inline(always)]",
-            "use crate::x;",
-            "*p = 1;",
-            "pub struct A;",
-            "    * CHUNK_LEN;",
-        ] {
-            assert!(!inert(t), "{t:?}");
-        }
-        // An attribute's item: to its `;`, or to the brace closing its first.
-        let src = [
-            "#[cfg(x)]",
-            "// Sound: ...",
-            "unsafe {",
-            "    asm!(\"x\");",
-            "}",
-            "f();",
-        ];
-        assert_eq!(super::item_lines(&src, 1), vec![3, 4, 5]);
-        assert_eq!(super::item_lines(&src, 3), vec![3, 4, 5]);
         assert_eq!(
-            super::item_lines(&["#[inline]", "use a::b;", "x"], 2),
-            vec![2]
-        );
-        // A block comment's lines, and a continuation line outside one.
-        let block = "/*\n * x\n */\nlet n = a\n    * CHUNK_LEN;\n/* one line */\n";
-        assert_eq!(block_comment_lines(block), BTreeSet::from([1, 2, 3, 6]));
-        let text = "fn a() {}\n#[cfg(test)]\nmod test {\n    fn b() { let c = '{'; let s = \"}\"; }\n}\nconst X: u8 = 1;\n\
-                    #[cfg(test)]\nuse std::x;\n#[cfg(all(test, target_arch = \"aarch64\"))]\n#[test]\nfn t() {\n    x();\n}\n\
-                    #[cfg(any(test, feature = \"f\"))]\nfn both() {}\n";
-        let got = test_lines(text);
-        assert_eq!(
-            got,
-            BTreeSet::from([2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13]),
-            "{got:?}"
+            super::first_of(&(0..15).map(|n| n.to_string()).collect::<Vec<_>>(), 12),
+            "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, and 3 more"
         );
     }
 

@@ -18,8 +18,7 @@ it measures, and keep your results comparable with ours.
   measurement configuration.
 - `build.rs`: embeds the provenance (this repository's commit and state,
   and each contender crate's version and source).
-- `tools/`: `samples.py` reads samples files for the Python studies
-  (`points.py`, `settle.py`, `variance.py`); `b3sum-contenders.py` builds
+- `tools/`: `b3sum-contenders.py` builds
   b3sum's contenders; `gen-ver.py` makes a release; `graph-check/map.js`
   drives the map in Chromium (its README says how); `require_nextest.rs`,
   included by every crate's tests, fails under plain `cargo test` and
@@ -34,7 +33,8 @@ The tests run under [cargo-nextest](https://nexte.st), each in its own
 process (`cargo test` stops at once and says so).
 
 ```sh
-cargo nextest run --release
+cargo nextest run --release              # the code's tests: under two seconds
+cargo nextest run --release -P machine   # the machine's: clocks, counters, children; seconds each
 cargo run --release -- --quick     # seconds; a full run takes minutes
 node tools/graph-check/map.js benchmark-results/FOLDER/bench-hashes.map.html
 ```
@@ -63,6 +63,17 @@ statistics, the report, and the map.
 
 ## Working on BLAKE3-Servil alongside
 
+Measure before building: `bench-hashes check --fork ../BLAKE3 --against
+servil --probe "3 KiB,brief idle 3 KiB"` gives each named cell's ratio in
+about three minutes (three fresh pairs, no verdict). Once the change is
+built, the same names with `--points` are its gate (four pairs, then the
+second stage on its suspects). `check` prints the diff's files and the
+items its hunks sit in first; its author reads that summary and names the
+cells the change can move. With no scope named it stops there, before any
+build. `--cells all` measures every point, for a release or a change its
+author judges can act anywhere. A change to the library carries its
+probe's line in its pull request.
+
 The BLAKE3-Servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
 the crate `blake3-servil`, a git dependency on
 [github.com/servil-software-factory/BLAKE3](https://github.com/servil-software-factory/BLAKE3) at
@@ -76,7 +87,8 @@ it (anywhere: neither holds the other) and name BLAKE3-Servil's checkout:
 ```sh
 git clone --branch servil https://github.com/servil-software-factory/BLAKE3
 git clone https://github.com/servil-software-factory/bench-hashes
-cd bench-hashes && cargo run --release -- check --fork ../BLAKE3   # BLAKE3-Servil's working tree against its HEAD
+cd bench-hashes && cargo run --release -- check --fork ../BLAKE3 --points "3 KiB,brief idle 3 KiB"   # the named cells of BLAKE3-Servil's working tree against its HEAD
+cd bench-hashes && cargo run --release -- check --fork ../BLAKE3 --new my-branch --against servil --points "3 KiB"   # a branch by name, whatever the tree has checked out
 cd bench-hashes && "$(cargo run --release --quiet -- build-against ../BLAKE3)" --quick   # one run of it
 ```
 
@@ -84,9 +96,7 @@ cd bench-hashes && "$(cargo run --release --quiet -- build-against ../BLAKE3)" -
 `build-against DIR` in DIR's `target/bench-hashes-build/` (a directory of
 DIR's own there, under a shared `CARGO_TARGET_DIR`), each from a copy of
 this repository whose `Cargo.lock` points at a checkout of BLAKE3-Servil, and leaves
-your checkouts' files as they were. It chooses the cells a
-change touches from coverage, with the toolchain's `llvm-profdata` and
-`llvm-cov` (`rustup component add llvm-tools`). Run the executable from a
+your checkouts' files as they were. Run the executable from a
 scratch directory (it writes `benchmark-results/` there); the report
 names the BLAKE3-Servil checkout's commit and whether its tree was clean.
 `build-against` prints an executable in a directory named for both
@@ -99,8 +109,8 @@ fork's own tests and its performance-regression check, which runs this
 benchmark.
 
 To move the pin of BLAKE3-Servil, set its `rev` in `Cargo.toml` to the full commit
-hash and build: Cargo updates the lock. `build-against`, relinking and
-coverage replace BLAKE3-Servil and keep this repository's `clocks/`. A change
+hash and build: Cargo updates the lock. `build-against` and relinking
+replace BLAKE3-Servil and keep this repository's `clocks/`. A change
 to `clocks/` is a change to this repository, its tests among the ones
 `cargo nextest run` runs.
 
@@ -163,21 +173,34 @@ machine runs again. In order:
 1. **What it carries:** each entry under FROZEN.md's "Changes for the next
    release", and the pin of BLAKE3-Servil (its commit), a commit that
    passed BLAKE3-Servil's own checks.
-2. **Checks on main:** `cargo nextest run --release`, `cargo fmt --check`,
+2. **Checks on main:** `cargo nextest run --release`, `cargo nextest run
+   --release -P machine` on the release machines, `cargo fmt --check`,
    and a `--quick` run that reports no busy window.
 3. **The tag:** `python3 tools/gen-ver.py X.Y.Z` from a clean tree: one
    commit setting the version to X.Y.Z+<HEAD's hash>, and its tag.
-4. **Every machine runs again at the tag,** each on a quiet machine,
+4. **Every machine runs again at the tag,** each on a quiet machine
+   (`check` and `regress` refuse a busy one before they start;
+   `--when-quiet` waits for it),
    plugged in, with the CPU governor at `performance` (a tuning service
    such as `tuned` can reset it mid-run). A machine's run is:
    - BLAKE3-Servil's release check and, beside it, the same check with the same
      library on both sides (`--against` the measured commit, `--old-bench`
      the previous bench). A cell slower in the first and level in the
      second is the library's; slower in both, the bench's;
+     the same-library check's "instructions moved" line must name no
+     cell: the same code retires the same instructions a unit in every
+     single-threaded solo cell (within 1% on the i7-12700K, the
+     sampler's own reads included), so a cell named there is the bench
+     measuring different work in two runs, its bug to find before the
+     release;
    - the full run, built against BLAKE3-Servil's checkout, never through a
      `--config` patch (Cargo's lock can build the pin instead):
      `bench-hashes build-against ..`, then the executable it prints, with
      `--all --expect-servil COMMIT`, from a scratch directory;
+     on Linux, as root where you can (`sudo` on the executable, the
+     scratch directory writable by root), so the run holds the cpuidle
+     switch and measures the controlled after-pause cells; its header's
+     `idle control` line says whether it did;
    - the b3sum run, `LAYOUTS=4 python3 tools/b3sum-contenders.py`, with
      `--files` on the machine's own storage. On tmpfs (a VM's `/tmp`, for
      one) nothing is read from storage, and the run reports its

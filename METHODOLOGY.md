@@ -4,12 +4,21 @@ This file explains what a run measures, how it controls measurement
 noise, and what each contender runs. [README.md](README.md) says how to
 run it.
 
-Every run measures each contender in fifteen use cases. Seven are calls
-made now and then, each after a gap of one of two kinds. **After other
+Every run measures each contender in twenty-one use cases. Thirteen are
+calls made now and then, each after a gap of one of three kinds. **After other
 work** runs after the program has executed a fixed other program and read
-128 MiB of data, as a program hashes between its other tasks. **After
-idling** runs after the program has slept 1 ms, as a server waits for its
-next request. Each kind measures **a message in one buffer** at
+128 MiB of data, as a program hashes between its other tasks. **After a
+brief idle** runs after the program has slept 20 us (the bench sets its
+timer slack to 1 us, so the sleep lands at 23 us where Linux's default
+landed it at 72), as a server answers a reply that arrives at once: the
+core keeps its clock and its shallowest idle state. **After idling** runs after the program has slept 5 ms, as a
+server waits for its next request: every machine measured has settled
+into its deep idle states by then (FROZEN.md, "Changes for the next
+release"). Where the bench runs as root on Linux, the 5 ms cells run once
+more **with the core's deep idle states switched off** (every cpuidle
+state but POLL and C1), so the call meets the core awake and the cell
+measures the library apart from the machine's rest; the states are put
+back when those rounds end. Each kind measures **a message in one buffer** at
 twenty-eight sizes from 64 B to 128 MiB (reported per byte), **a batch**
 of 64-byte messages at twenty-four counts from 1 to 262144 (reported per
 message), and **a turn of many messages' pieces** (below); after other
@@ -87,8 +96,8 @@ three decimals or three significant digits, whichever shows more; lower
 is better. Each sample is kept as measured, the clock's nanoseconds over
 the units they covered, and the statistics work on it in fixed point with
 64 fractional bits, rounding only for the page. Every time is wall
-time on the platform's hardware counter (`CLOCK_UPTIME_RAW` on Darwin,
-`CLOCK_MONOTONIC` on Linux, via `std::time::Instant`), so a throttled
+time on the platform's hardware counter, read raw (`CLOCK_UPTIME_RAW` on
+Darwin, `CLOCK_MONOTONIC_RAW` on Linux: no time daemon adjusts it), so a throttled
 clock, a busy SME unit, or a GPU's latency counts as the user would
 feel it.
 
@@ -213,10 +222,12 @@ and spends any remaining millisecond on integer arithmetic. After idling,
 the thread sleeps 1 ms. In both cases the thread then writes the input
 into its buffer and hashes it, storing the digest in its output slot.
 
-In both gap kinds, any worker pool's threads have gone to sleep. After
+In every gap kind, any worker pool's threads have gone to sleep. After
 other work, the calling core is at full clock with its caches holding the
-other program's code and data. After idling, the operating system has often lowered the core's clock or
-moved the thread. On an Apple M4 Max, 1 ms of sleep lowers the clock
+other program's code and data. After a brief idle, the core has entered
+its shallowest idle state alone and kept its clock. After idling 5 ms,
+the operating system has lowered the core's clock, let it enter its deep
+states, or moved the thread. On an Apple M4 Max, 1 ms of sleep lowers the clock
 until roughly 85 µs of work raises it again, and multi-millisecond calls
 run near 3.8–4.0 GHz after idling against 4.5 GHz after other work. On
 Linux, what a call after idling costs follows how deeply the core slept,
@@ -226,7 +237,11 @@ after C6, 58.2 after C8; a machine with no cpuidle driver (an EPYC 9255)
 has no such modes, and a Xeon Gold 6330 pays 14 times the EPYC in that
 cell (bench-hashes #106). Each samples file records the machine's idle
 states (`idle states`: driver, governor, each state's latency and
-residency), so a reader can tell two machines', or two runs', states
+residency) and, where the machine counts them, the states its core
+entered in fact under each pause, slept at the run's start as the cells
+sleep it (`effective idle states`: each hardware C-state's share of
+1000 brief pauses and of 20 long ones; the i7 reads C6 for 99% of the
+long pause), so a reader can tell two machines', or two runs', states
 apart. The cell's mean weighs these
 states by how often they occur.
 
@@ -483,13 +498,24 @@ either way, so a cell's energy, all its samples' over all their units, is
 not biased by it. `compare` prints its ratio beside CPU time's, with no
 verdict.
 
-**Where each sample ran.** Every sample records the calling thread's
-counts per core kind across it (`clocks::Counts`) in the `core counts`
-column as `P time:P cycles:E time:E cycles`, or `-` where the platform
-counts none. On Apple silicon and Linux x86-64 CPUs with performance
-counters, the map's tooltip shows each point's core share and clock rate.
-On Linux, cycles cover user space while running time also covers kernel
-work, so the clock rate reads low across system calls. The pool's workers
+**Where each sample ran, and what it cost the core.** Every sample
+records the calling thread's counts per core kind across it
+(`clocks::Counts`) in the `core counts` column as `P time:P cycles:P
+instructions:P cache references:P cache misses`, then the same five for
+E cores, or `-` where the platform counts none. Cycles and instructions
+are user space's; the cache counts are perf's generic `cache-references`
+and `cache-misses`, requests that reached the last-level cache and
+those it missed (on Intel `LONGEST_LAT_CACHE.REFERENCE` and `.MISS`,
+demand and prefetch requests to L3 and the lines fetched from beyond it;
+AMD maps the pair by generation; a VM or a Mac counts none). On Linux
+x86-64 the counters are read in user space (`rdpmc`) where the kernel
+allows, else by a system call; the read sits between a cell's pause and
+its call, where a system call's microsecond reached the call (#127:
+the i7's 64 B call after 20 us read 13% slower with the system calls,
+1% with `rdpmc`). On Apple silicon and Linux x86-64 CPUs with
+performance counters, the map's tooltip shows each point's core share
+and clock rate. On Linux, running time also covers kernel work, so the
+clock rate reads low across system calls. The pool's workers
 are not counted yet.
 
 **Threads.** BLAKE3-Servil mt's pool holds one thread per CPU, its caller
@@ -499,11 +525,16 @@ and the map names the contender "BLAKE3-Servil mt, N threads". `--threads 2`
 measures the smallest pipeline, one worker beside the program's thread.
 
 `bench-hashes check --fork DIR [--against REV]` checks whether a change to
-`blake3-servil` slowed any cell. It builds the working tree and the
-target commit, relinks each side with fresh random function orders (each
-link run twice), and runs the cells whose code the change touches
-(`--cells all` runs every cell). A change to assembly or to the build
-runs every cell.
+`blake3-servil` slowed the cells its author names. It first prints the
+diff's files, added and deleted lines, and the items its hunks sit in.
+Its author reads that summary and names the scope: `--points` for the
+gate, `--probe` for a three-pair survey before the change is built, or
+`--cells all` for every point. With no scope named, the check stops
+before any build. It then builds the working tree and the target commit,
+relinks each side with fresh random function orders (each link run
+twice), and runs the named cells. The check records how many points it
+measured and how many it left unmeasured; choosing them is the author's
+judgment, from the summary and the change itself.
 
 Underneath, `bench-hashes regress` runs the pairs back to back in
 alternating order (four pairs by default in `check`, a link a side
@@ -515,10 +546,37 @@ so both sides perform the same work per sample and no timed run pays for
 calibration. Giving each pair a fresh link layout averages out code
 placement, which alone can move calls after a gap by several percent.
 
+**`check --probe POINTS`** is the measurement before a change is built:
+the same two builds, three fresh pairs over the points named (as
+`--points` names them), and each cell's ratio printed (`compare`), no
+verdict and no second stage. About three minutes with the builds cached,
+most of it the relinks. An idea gets its number from the same tool that
+later gates it, so the probe cannot drift from the gate; a change's pull
+request carries its probe's line.
+
+Before it builds anything, `check` reads the machine for ten seconds and
+stops at once if other programs kept a CPU busy in any of them (the
+windows' own rule): a run on a busy machine measures for an hour and
+then abstains, so asking first costs the seconds. `--when-quiet` waits
+for a quiet machine instead, for a run queued for the night. `regress`
+asks the same before it measures.
+
 When the pairs find no cell slower, `check` takes a second stage. The
-cells `regress` names as suspects (level, but the pairs' mean beyond the
-margin; at most 8, the strongest evidence of change first) run again on 64 fresh pairs, 16 new links a side each
-run 4 times, and are judged among themselves. Judged among every cell a
+cells `regress` names as suspects run again on 64 fresh pairs, 16 new
+links a side each run 4 times, and are judged among themselves. The
+suspects, at most 8: first the level solo cells of single-threaded
+contenders whose **instructions retired a unit moved beyond 0.5% the
+same way in every pair**, the largest move first (the count is the same
+whatever the core's clock or state, so a move in every pair is the
+code's, where a count that moves with the link layout moves both ways;
+#119's cold code moved it 1.2% in every pair where wall missed it three times;
+Zooko, November 4, on John's rule, #127; a pool's caller spins while it
+waits, so its count moved 1-9% between two runs of the same code and is
+no evidence), then the level cells whose
+wall-time mean lies beyond the margin, the strongest evidence of change
+first. Where the machine counts no instructions (a VM without a PMU, a
+Mac), the suspects are wall's alone and the run says so. Wall still
+decides, on the second stage's fresh pairs. Judged among every cell a
 change reaches, a slowdown at one point passes unseen unless it is many
 times its pairs' spread; among 8 cells on 64 pairs it shows once it
 reaches about a third of one pair's spread. The stage adds about eight
@@ -535,7 +593,7 @@ minutes, most of it the relinks.
 | **A second stage** for the suspects, the strongest evidence first, 64 fresh pairs (16 links a side, each run 4 times), judged among themselves (Zooko, October 24; bench #66; October 31) | One input length planted slower in `hash()` (`data` branch, `2026-10-24/check-one-point` and `check-second-stage`): judged among 75 cells, +20% of calls (the cell +23% to +77% in every pair) was level. With the stage, +20% and +10% were caught, +6% not (cells after a gap swing 10-25% a pair); three A/A checks found no cell slower. A real slowdown, #119's +3% to +11% in 8 cold one-message cells (`2026-10-31/check-errors-i7`), passed 4 of 5 checks at 4 and 16 pairs, by ratio; with 8 pairs, suspects by evidence and 64 pairs, it was caught 3 of 3, and 3 A/A checks found no cell slower. | About eight minutes a check; one cell beside the planted ones judged slower at +10%. |
 | **A 3% margin** (October 2) | +3% planted was caught about half the time, +6% nearly always; one layout-only change in eight sat near 3% at lent 64 B. | Changes under 3% pass one commit at a time; the release check (`--against` the last release) sees their sum. |
 | **One calibration a side a check** (October 17) | Each run calibrating its own sizes cost 18 s of a 41-s run; shared sizes judged every group of cells more narrowly in less time (about 2.2 times the information per minute), and both sides do the same work a sample. | Sizes chosen on the old side's build. |
-| **Cells chosen by what the change touches** (October 20; code outside every coverage region, October 31) | Coverage names the lines each cell executes; a change to `hash()` chose 73 points, a stream change 13, a comment none. The fixed five-cell list this replaced was blind to the cells after a gap, where #80's +18% sat, and to the stream. A constant's line is in no coverage region: `const SPIN` from 5 µs to 0, measured 41% slower in servil mt's 16 KiB stream, read "nothing to measure" (BLAKE3-Servil's `plant/spin0`, Mac jobs 1801 and 1802, under 0.19 and 0.18). So a touched line of code that no region holds and that is no attribute of an item a region holds (a constant, a type, a `use`) measures every point; comments, test code and files the target does not compile measure none. | A coverage build once per contender (cached); a change to assembly, the build, or code outside every coverage region checks every cell. |
+| **Cells named by the change's author** (November 6) | The earlier rule chose cells from coverage: the lines each cell executes, from an instrumented build of each side. It read a change's unattributable line as able to act anywhere and measured every cell: three checks of November 5-6 spent 18 minutes on 426 cells for one declaration each, where the changes' own cells numbered about a dozen. The rule now prints the diff (files, lines, the items its hunks sit in) and its author names the cells, as `--probe` already did when it retired three library ideas in four minutes each that week; `--cells all` stays for releases and changes judged able to act anywhere. | A named scope can miss a cell the change moves; the check prints the count it left unmeasured, its author names the scope in the change's record, and a release measures every cell. |
 | **No intervals as verdicts** (October 1) | 95% median bands held for a quarter of the cells across runs of identical code. | A printed range is a reading aid only. |
 
 **What the SHA-256 cells can tell.** SHA-256's code is identical on both
@@ -801,5 +859,5 @@ result.
   with its own pool, where a contender sees only its own.
 - **Workers that stay hot.** A contender whose workers keep polling
   between calls looks better in a tight loop than in a program that hashes
-  once a second; the after-idling cells (a 1 ms sleep before each call)
+  once a second; the after-idling cells (a 5 ms sleep before each call)
   and CPU time and energy beside wall time show what it costs.

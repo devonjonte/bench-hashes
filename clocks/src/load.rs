@@ -62,7 +62,6 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
-use std::time::Instant;
 
 /// Whether this platform's load is measured: Linux and macOS (the
 /// module's doc, "Where"). Elsewhere [`windows`] is always empty.
@@ -105,8 +104,8 @@ impl Window {
 /// Nanoseconds of wall time since this process's first measurement (its
 /// first call of this function, [`tick`], or a measurement in this crate).
 pub fn now_ns() -> u64 {
-    static ORIGIN: OnceLock<Instant> = OnceLock::new();
-    crate::since_ns(*ORIGIN.get_or_init(Instant::now))
+    static ORIGIN: OnceLock<crate::Stamp> = OnceLock::new();
+    crate::since_ns(*ORIGIN.get_or_init(crate::now))
 }
 
 /// A machine reading: when, the machine's CPU times, this process's user
@@ -260,12 +259,50 @@ pub fn windows() -> Vec<Window> {
 /// from two readings of its own (the windows' rule, apart from their
 /// state): the tests' measure of the load beside them. 0 where the
 /// platform gives no CPU times.
-#[cfg(all(test, unix))]
-pub(crate) fn other_milli_cpus_over(ns: u64) -> u64 {
+#[cfg(unix)]
+pub fn other_milli_cpus_over(ns: u64) -> u64 {
     let Some(before) = Reading::take() else { return 0 };
     std::thread::sleep(std::time::Duration::from_nanos(ns));
     let after = Reading::take().expect("CPU times read a moment ago");
     between(before, after).other_milli_cpus
+}
+
+#[cfg(not(unix))]
+pub fn other_milli_cpus_over(_ns: u64) -> u64 {
+    0
+}
+
+/// Whether the machine is quiet enough to measure on, read over `seconds`
+/// one-second windows before a measurement begins: Ok where no window
+/// was busy (the windows' own rule, BUSY_MILLI_CPUS), else the busiest
+/// window's load as the reason. A check that measured for an hour and
+/// then abstained because other programs were busy cost the hour (eight
+/// such runs on an i7-12700K, November 4-5, 2026, while its user worked
+/// at it); asking first costs the seconds.
+pub fn quiet_for(seconds: u64) -> Result<(), String> {
+    let mut busiest = 0;
+    for _ in 0..seconds {
+        busiest = busiest.max(other_milli_cpus_over(1_000_000_000));
+    }
+    if busiest >= BUSY_MILLI_CPUS {
+        Err(format!("other programs kept {} CPUs busy in one of the last {seconds} seconds", cpus(busiest)))
+    } else {
+        Ok(())
+    }
+}
+
+/// Wait until [`quiet_for`] 10 seconds passes, reading again every 30 s
+/// and saying so once a minute on stderr: for a run queued for a time
+/// when nobody is at the machine.
+pub fn wait_until_quiet() {
+    let mut waited = 0u64;
+    while let Err(reason) = quiet_for(10) {
+        if waited % 60 == 0 {
+            eprintln!("waiting for a quiet machine ({reason}); reading again in 30 s");
+        }
+        std::thread::sleep(std::time::Duration::from_secs(30));
+        waited += 40;
+    }
 }
 
 /// The tests that use this process's windows (they tick, read, or run a
@@ -350,7 +387,7 @@ mod imp {
         pub(super) others: Option<u64>,
     }
 
-    fn ticks_per_second() -> u64 {
+    pub(super) fn ticks_per_second() -> u64 {
         unsafe extern "C" {
             fn sysconf(name: i32) -> i64;
         }
@@ -361,15 +398,43 @@ mod imp {
 
     pub fn read() -> Option<CpuTimes> {
         let stat = std::fs::read_to_string("/proc/stat").ok()?;
-        let fields: Vec<u64> =
-            stat.lines().next()?.strip_prefix("cpu ")?.split_whitespace().map(|field| field.parse().expect("/proc/stat counts are integers")).collect();
-        // user nice system idle iowait irq softirq steal (guest time is inside user).
-        assert!(fields.len() >= 8, "/proc/stat's cpu line has at least eight fields");
+        let (busy, steal) = machine_ticks(&stat)?;
         let (procs, whole) = scan()?;
         let me = std::process::id();
-        let others = whole.then(|| procs.iter().filter(|&(&pid, _)| !ours(me, pid, &procs)).map(|(_, p)| p.user + p.system).sum());
-        note_busiest(&procs, me);
-        Some(CpuTimes { busy: fields[0] + fields[1] + fields[2] + fields[5] + fields[6], steal: fields[7], others })
+        let others = whole.then(|| others_ticks(&procs, me));
+        let mut last = LAST.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let now: HashMap<u32, (String, u64)> =
+            procs.iter().filter(|&(&pid, _)| !ours(me, pid, &procs)).map(|(&pid, p)| (pid, (p.name.clone(), p.user + p.system))).collect();
+        if let Some(was) = &last.0 {
+            last.1 = took_most(was, &now);
+        }
+        last.0 = Some(now);
+        Some(CpuTimes { busy, steal, others })
+    }
+
+    /// The machine's busy ticks (user, nice, system, irq, softirq; a guest's
+    /// time is inside user) and its steal ticks, from /proc/stat's first
+    /// line: "cpu user nice system idle iowait irq softirq steal ...".
+    pub(super) fn machine_ticks(stat: &str) -> Option<(u64, u64)> {
+        let fields: Vec<u64> =
+            stat.lines().next()?.strip_prefix("cpu ")?.split_whitespace().map(|field| field.parse().expect("/proc/stat counts are integers")).collect();
+        assert!(fields.len() >= 8, "/proc/stat's cpu line has at least eight fields");
+        Some((fields[0] + fields[1] + fields[2] + fields[5] + fields[6], fields[7]))
+    }
+
+    /// The other programs' ticks: every process outside this one's tree.
+    pub(super) fn others_ticks(procs: &HashMap<u32, Proc>, me: u32) -> u64 {
+        procs.iter().filter(|&(&pid, _)| !ours(me, pid, procs)).map(|(_, p)| p.user + p.system).sum()
+    }
+
+    /// The three processes that took the most CPU time from one reading to
+    /// the next, the most first, those that took none left out.
+    pub(super) fn took_most(was: &HashMap<u32, (String, u64)>, now: &HashMap<u32, (String, u64)>) -> Vec<(String, u64)> {
+        let mut took: Vec<(String, u64)> =
+            now.iter().filter_map(|(pid, (name, t))| Some((name.clone(), t.checked_sub(was.get(pid)?.1)?))).filter(|(_, d)| *d > 0).collect();
+        took.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        took.truncate(3);
+        took
     }
 
     /// Each other process's CPU time at the last reading (name, ticks), and
@@ -378,27 +443,18 @@ mod imp {
     /// bench-hashes #98: a 112-CPU machine's busy windows, unexplained).
     static LAST: std::sync::Mutex<(Option<HashMap<u32, (String, u64)>>, Vec<(String, u64)>)> = std::sync::Mutex::new((None, Vec::new()));
 
-    fn note_busiest(procs: &HashMap<u32, Proc>, me: u32) {
-        let now: HashMap<u32, (String, u64)> =
-            procs.iter().filter(|&(&pid, _)| !ours(me, pid, procs)).map(|(&pid, p)| (pid, (p.name.clone(), p.user + p.system))).collect();
-        let mut last = LAST.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(was) = &last.0 {
-            let mut took: Vec<(String, u64)> =
-                now.iter().filter_map(|(pid, (name, t))| Some((name.clone(), t.checked_sub(was.get(pid)?.1)?))).filter(|(_, d)| *d > 0).collect();
-            took.sort_by(|a, b| b.1.cmp(&a.1));
-            took.truncate(3);
-            last.1 = took;
-        }
-        last.0 = Some(now);
-    }
-
     /// The three processes that took the most CPU time between the last two
     /// readings, over `window_ns`: "kswapd0 1.20 CPUs, python3 0.40 CPUs".
     pub fn busiest(window_ns: u64) -> String {
         let last = LAST.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        let ns = |ticks: u64| ticks * 1_000_000_000 / ticks_per_second();
-        last.1
-            .iter()
+        describe_busiest(&last.1, window_ns, ticks_per_second())
+    }
+
+    /// `took` (name, ticks) over `window_ns`, each as CPUs: "kswapd0 1.20
+    /// CPUs, python3 0.40 CPUs".
+    pub(super) fn describe_busiest(took: &[(String, u64)], window_ns: u64, ticks_per_second: u64) -> String {
+        let ns = |ticks: u64| ticks * 1_000_000_000 / ticks_per_second;
+        took.iter()
             .map(|(name, t)| {
                 format!("{name} {} CPUs", super::cpus(u64::try_from(u128::from(ns(*t)) * 1000 / u128::from(window_ns.max(1))).unwrap_or(u64::MAX)))
             })
@@ -609,6 +665,83 @@ mod tests {
         );
     }
 
+    /// The window between two readings: from the first's time to the
+    /// second's, the other programs' and the hypervisor's CPU time over
+    /// that span in milli-CPUs, this process's own time taken off where the
+    /// machine's total stands in for the others'.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_window_between_two_readings_is_their_differences_over_the_span() {
+        let tick = 1_000_000_000 / imp::ticks_per_second();
+        let reading = |at_ns, busy, steal, others, own| Reading { at_ns, machine: imp::CpuTimes { busy, steal, others }, own_ns: own };
+        // Others read directly: 40 ticks of others' time over 100 ticks of wall.
+        let w = between(reading(1_000, 0, 0, Some(10), [5, 5]), reading(1_000 + 100 * tick, 1000, 3, Some(50), [20, 10]));
+        assert_eq!((w.start_ns, w.end_ns, w.other_milli_cpus, w.steal_milli_cpus), (1_000, 1_000 + 100 * tick, 400, 30));
+        // No per-process reading: the machine's 100 busy ticks less this process's 20 own.
+        let w = between(reading(0, 0, 0, None, [tick, tick]), reading(100 * tick, 100, 0, None, [16 * tick, 6 * tick]));
+        assert_eq!(w.other_milli_cpus, 800);
+    }
+
+    /// One window's line names the hypervisor's share where it took any.
+    #[test]
+    fn a_windows_line_names_steal_where_there_is_any() {
+        assert_eq!(describe_window(&window(12_000_000_000, 13_000_000_000, 1400, 0)), "other programs kept 1.40 CPUs busy from 12.0 s to 13.0 s");
+        assert_eq!(
+            describe_window(&window(0, 500_000_000, 0, 250)),
+            "other programs kept 0.00 CPUs busy from 0.0 s to 0.5 s, the hypervisor withheld 0.25 CPUs"
+        );
+    }
+
+    /// The average weighs each window by its length over the whole span,
+    /// rounded to the nearest milli-CPU: 1 s at 100 and 3 s at 500 is
+    /// 400; 1 s at 1 and 2 s at 0 is 0.333, so 0 milli-CPUs read as 0.00,
+    /// and 2 s at 1 with 1 s at 0 is 0.667, read as 0.00 too but 0.01
+    /// once the windows reach 10 milli-CPUs.
+    #[test]
+    fn the_average_weighs_windows_by_length_and_rounds_to_nearest() {
+        assert_eq!(
+            describe(&[window(0, 1_000_000_000, 100, 0), window(1_000_000_000, 4_000_000_000, 500, 0)]),
+            "quiet: other programs kept 0.40 CPUs busy on average, 0.50 in the busiest window"
+        );
+        assert_eq!(
+            describe(&[window(0, 2_000_000_000, 10, 0), window(2_000_000_000, 3_000_000_000, 0, 0)]),
+            "quiet: other programs kept 0.01 CPUs busy on average, 0.01 in the busiest window"
+        );
+        assert_eq!(
+            describe(&[window(0, 1_000_000_000, 10, 0), window(1_000_000_000, 3_000_000_000, 0, 0)]),
+            "quiet: other programs kept 0.00 CPUs busy on average, 0.01 in the busiest window"
+        );
+        // 9 milli-CPU-seconds over 2 s: 4.5 milli-CPUs, rounded to 5, which
+        // reads 0.01 (4 would read 0.00).
+        assert_eq!(
+            describe(&[window(0, 1_000_000_000, 9, 0), window(1_000_000_000, 2_000_000_000, 0, 0)]),
+            "quiet: other programs kept 0.01 CPUs busy on average, 0.01 in the busiest window"
+        );
+        // 15 milli-CPU-seconds over a 3 s span from 1 s to 4 s: 5 milli-CPUs,
+        // which reads 0.01; a span counted from 0, or the rounding term
+        // taken off, would read 0.00.
+        assert_eq!(
+            describe(&[window(1_000_000_000, 2_000_000_000, 15, 0), window(2_000_000_000, 4_000_000_000, 0, 0)]),
+            "quiet: other programs kept 0.01 CPUs busy on average, 0.02 in the busiest window"
+        );
+    }
+
+    /// Linux: the other programs' time is their own ticks where every
+    /// process was read, else the machine's busy ticks less this
+    /// process's own time; the hypervisor's is its steal ticks; both from
+    /// the readings' differences.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn other_and_steal_come_from_the_readings_differences() {
+        let tick = 1_000_000_000 / imp::ticks_per_second();
+        let from = imp::CpuTimes { busy: 1000, steal: 10, others: Some(100) };
+        let to = imp::CpuTimes { busy: 1300, steal: 14, others: Some(130) };
+        assert_eq!(imp::other_and_steal_ns(from, to, [50 * tick, 0]), (30 * tick, 4 * tick));
+        let from = imp::CpuTimes { busy: 1000, steal: 10, others: None };
+        let to = imp::CpuTimes { busy: 1300, steal: 14, others: Some(130) };
+        assert_eq!(imp::other_and_steal_ns(from, to, [50 * tick, 20 * tick]), (230 * tick, 4 * tick));
+    }
+
     /// A stat line's parent, kernel-thread flag and system time (stime +
     /// cstime), past a command name holding ") (".
     #[cfg(target_os = "linux")]
@@ -618,6 +751,42 @@ mod tests {
         assert_eq!(imp::parse_stat(line), Some(imp::Proc { name: "a) (b".into(), parent: 7, kernel_thread: false, user: 11 + 33, system: 22 + 44 }));
         let kthread = "2 (kthreadd) S 0 0 0 0 -1 2129984 0 0 0 0 0 9 0 0 20 0 1 0 1 0 0";
         assert!(imp::parse_stat(kthread).unwrap().kernel_thread);
+    }
+
+    /// /proc/stat's cpu line: busy is user, nice, system, irq and softirq
+    /// (idle and iowait are rest, guest time is inside user); steal is the
+    /// eighth field.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn the_machines_ticks_come_from_the_cpu_line() {
+        let stat = "cpu  100 20 30 5000 40 3 7 11 0 0\ncpu0 1 2 3 4 5 6 7 8 9 10\n";
+        assert_eq!(imp::machine_ticks(stat), Some((100 + 20 + 30 + 3 + 7, 11)));
+        assert_eq!(imp::machine_ticks("intr 5 6\n"), None, "no cpu line first: no reading");
+    }
+
+    /// The other programs' ticks leave this process's tree out; the three
+    /// that took the most between two readings, the most first, a process
+    /// that took none or is new left out; and the line names each as CPUs
+    /// over the window.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn the_busiest_other_programs_are_named_as_cpus_over_the_window() {
+        let p = |parent, name: &str, user, system| imp::Proc { name: name.into(), parent, kernel_thread: false, user, system };
+        let procs = std::collections::HashMap::from([
+            (1, p(0, "init", 5, 5)),
+            (10, p(1, "me", 100, 0)),
+            (11, p(10, "mine", 50, 0)),
+            (20, p(1, "other", 7, 3)),
+            (21, p(1, "busy", 90, 10)),
+        ]);
+        assert_eq!(imp::others_ticks(&procs, 10), 10 + 10 + 100);
+        let at = |pairs: &[(u32, &str, u64)]| pairs.iter().map(|&(pid, n, t)| (pid, (n.to_string(), t))).collect::<std::collections::HashMap<_, _>>();
+        let was = at(&[(1, "init", 10), (20, "other", 10), (21, "busy", 100), (22, "gone", 5)]);
+        let now = at(&[(1, "init", 10), (20, "other", 40), (21, "busy", 300), (23, "new", 50), (24, "a", 60), (25, "b", 60)]);
+        let took = imp::took_most(&was, &now);
+        assert_eq!(took, vec![("busy".to_string(), 200), ("other".to_string(), 30)], "the most first; init took none, gone and new have no two readings");
+        assert_eq!(imp::describe_busiest(&took, 1_000_000_000, 100), "busy 2.00 CPUs, other 0.30 CPUs");
+        assert_eq!(imp::describe_busiest(&[], 1_000_000_000, 100), "");
     }
 
     /// This process's tree is ours; a sibling, and init, are not.
@@ -695,32 +864,73 @@ mod tests {
         assert_eq!(other, (20 + 2 + 20) * 10_000_000 - 300_000_000);
     }
 
+    /// On the test clock: a tick half a window in closes nothing; one
+    /// exactly a window in closes it, ending at that tick; a tail
+    /// under half a window joins the last window when the windows are
+    /// read, reaching the read, and once (a later read joins nothing more).
     #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     #[test]
     fn ticks_close_a_window_after_a_window_of_time() {
         let _turn = exclusive();
+        crate::test_clock::freeze();
         tick();
         let started = now_ns();
-        while now_ns() - started < WINDOW_NS + WINDOW_NS / 10 {
-            crate::busy_work(10_000_000);
-            tick();
-        }
-        let ended = now_ns();
+        crate::test_clock::advance(WINDOW_NS / 2);
+        tick();
+        assert_eq!(DUE_NS.load(Ordering::Relaxed), started + WINDOW_NS, "half a window: the next close is due a whole window after the first tick");
+        crate::test_clock::advance(WINDOW_NS / 2);
+        tick();
+        let closed_at = now_ns();
+        assert_eq!(closed_at, started + WINDOW_NS);
+        assert_eq!(
+            DUE_NS.load(Ordering::Relaxed),
+            closed_at + WINDOW_NS,
+            "exactly a window after the first tick, the window closed and the next is due a window on"
+        );
+        crate::test_clock::advance(WINDOW_NS / 10);
+        let read_at = now_ns();
         let windows = windows();
-        assert!(!windows.is_empty(), "a window closed");
-        for pair in windows.windows(2) {
-            assert_eq!(pair[0].end_ns, pair[1].start_ns, "windows follow one another");
+        let last = *windows.last().expect("a window closed");
+        assert_eq!((last.start_ns, windows.len()), (started, 1), "the one window began at the first tick");
+        assert!(
+            last.busy() || last.end_ns == read_at,
+            "the tail (a tenth of a window) joined the window up to the read, or a busy finding is preserved: {last:?}"
+        );
+        crate::test_clock::advance(WINDOW_NS / 10);
+        assert_eq!(super::windows().last().copied(), Some(last), "a second read joins nothing more");
+        // A read half a window or more after the last close closes the
+        // running window itself, ending at the read.
+        crate::test_clock::advance(WINDOW_NS / 2);
+        let read_at = now_ns();
+        let windows = super::windows();
+        assert_eq!(windows.len(), 2, "the running window, half a window long, closed at the read");
+        assert_eq!((windows[1].start_ns, windows[1].end_ns), (last.end_ns, read_at));
+        // A tick past its due time (the program was busy) closes the window
+        // then, and until_due_ns counts down to the next.
+        crate::test_clock::advance(WINDOW_NS + WINDOW_NS / 4);
+        assert_eq!(until_due_ns(), 0, "overdue");
+        tick();
+        assert_eq!(until_due_ns(), WINDOW_NS, "the overdue tick closed the window and the next close is due a window from it");
+        let third = *super::windows().last().unwrap();
+        assert_eq!((third.start_ns, third.end_ns), (read_at, read_at + WINDOW_NS + WINDOW_NS / 4));
+        crate::test_clock::thaw();
+    }
+
+    /// The machine's properties this module relies on, run on purpose
+    /// (`cargo nextest run -P machine`).
+    mod machine {
+        use super::*;
+
+        /// A machine with nobody at it is quiet for a second (the gate a
+        /// check asks before it builds); a thread of our own busy for that
+        /// second is ours, not other programs', and leaves it quiet.
+        #[test]
+        fn a_quiet_machine_passes_the_gate() {
+            let _turn = exclusive();
+            let ours = std::thread::spawn(|| crate::busy_work(1_200_000_000));
+            assert_eq!(quiet_for(1), Ok(()), "our own work is not other programs'");
+            ours.join().unwrap();
         }
-        assert!(windows.iter().all(|w| w.end_ns - w.start_ns >= WINDOW_NS / 2), "each window lasts half a window or more");
-        // The tail under half a window joined the last window: it reaches the call.
-        let last = *windows.last().unwrap();
-        assert!(last.busy() || last.end_ns >= ended, "the tail is covered or the last busy finding is preserved");
-        // Once: a later call joins nothing more to it.
-        let tail = now_ns();
-        while now_ns() - tail < WINDOW_NS / 10 {
-            crate::busy_work(10_000_000);
-        }
-        assert_eq!(super::windows().last().copied(), Some(last), "a second call joins nothing more");
     }
 }
 

@@ -3,7 +3,7 @@ use std::fmt::Write as _;
 use std::fs;
 use std::hint::black_box;
 use std::io::{IsTerminal, Write as _};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use sysinfo::{CpuRefreshKind, RefreshKind, System};
 
 #[cfg(target_arch = "wasm32")]
@@ -147,9 +147,9 @@ const TO_CHECK_FOR_REGRESSIONS: Visits = Visits {
  * cell's own continuous load leaves it, where the 1 ms samples of a visit
  * each (6 visits a cell, to 0.18) met it as the contender before left it:
  * a GPU's clock (30-40 ms of load to settle, M4 Max), a core's clock,
- * thread placement. The settling curves (`--train 0,N`, read with
- * tools/settle.py) on the M4 Max, the Linux VM and the EPYC 9255 set the
- * values.
+ * thread placement. The settling curves (`--train 0,N`, read by the
+ * study's tools/settle.py, in the tree until 0.21) on the M4 Max, the
+ * Linux VM and the EPYC 9255 set the values.
  */
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Train {
@@ -176,14 +176,14 @@ const LONG_MESSAGE_LEN: usize = 4096;
 const INTERLEAVED_COUNT: usize = 1;
 /// Collections: git's objects, and the files of Nix store paths (FROZEN.md).
 const COLLECTION_COUNT: usize = 2;
-const POINT_COUNT: usize = 2 * (INPUT_COUNT + BATCH_COUNT)
+const POINT_COUNT: usize = 4 * (INPUT_COUNT + BATCH_COUNT)
     + 2 * CONTINUOUS_MESSAGE_COUNT
     + INTERLEAVED_COUNT
     + 2 * COLLECTION_COUNT
     + 2 * CONTINUOUS_BATCH_COUNT
     + LONG_BATCH_COUNT
     + MERKLE_COUNT
-    + 2 * INTERLEAVED_COUNT;
+    + 4 * INTERLEAVED_COUNT;
 /// A long message reaches a contender in pieces of this many bytes (a
 /// typical read buffer), the last one shorter.
 const PIECE_LEN: usize = 64 * 1024;
@@ -546,6 +546,110 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::many("65536", 65536).idle(),
     Point::many("131072", 131072).idle(),
     Point::many("262144", 262144).idle(),
+    Point::one("64 B", 64).brief_idle(),
+    Point::one("128 B", 128).brief_idle(),
+    Point::one("256 B", 256).brief_idle(),
+    Point::one("512 B", 512).brief_idle(),
+    Point::one("1 KiB", 1024).brief_idle(),
+    Point::one("1536 B", 1536).brief_idle(),
+    Point::one("2 KiB", 2 * 1024).brief_idle(),
+    Point::one("2304 B", 2304).brief_idle(),
+    Point::one("3 KiB", 3 * 1024).brief_idle(),
+    Point::one("3839 B", 3839).brief_idle(),
+    Point::one("4 KiB", 4 * 1024).brief_idle(),
+    Point::one("4470 B", 4470).brief_idle(),
+    Point::one("7935 B", 7935).brief_idle(),
+    Point::one("8 KiB", 8 * 1024).brief_idle(),
+    Point::one("16 KiB", 16 * 1024).brief_idle(),
+    Point::one("32 KiB", 32 * 1024).brief_idle(),
+    Point::one("64 KiB", 64 * 1024).brief_idle(),
+    Point::one("128 KiB", 128 * 1024).brief_idle(),
+    Point::one("256 KiB", 256 * 1024).brief_idle(),
+    Point::one("512 KiB", 512 * 1024).brief_idle(),
+    Point::one("1 MiB", 1024 * 1024).brief_idle(),
+    Point::one("2 MiB", 2 * 1024 * 1024).brief_idle(),
+    Point::one("3 MiB", 3 * 1024 * 1024).brief_idle(),
+    Point::one("4 MiB", 4 * 1024 * 1024).brief_idle(),
+    Point::one("8 MiB", 8 * 1024 * 1024).brief_idle(),
+    Point::one("32 MiB", 32 * 1024 * 1024).brief_idle(),
+    Point::one("64 MiB", 64 * 1024 * 1024).brief_idle(),
+    Point::one("128 MiB", 128 * 1024 * 1024).brief_idle(),
+    Point::many("1", 1).brief_idle(),
+    Point::many("2", 2).brief_idle(),
+    Point::many("3", 3).brief_idle(),
+    Point::many("4", 4).brief_idle(),
+    Point::many("6", 6).brief_idle(),
+    Point::many("8", 8).brief_idle(),
+    Point::many("12", 12).brief_idle(),
+    Point::many("16", 16).brief_idle(),
+    Point::many("24", 24).brief_idle(),
+    Point::many("32", 32).brief_idle(),
+    Point::many("48", 48).brief_idle(),
+    Point::many("64", 64).brief_idle(),
+    Point::many("128", 128).brief_idle(),
+    Point::many("256", 256).brief_idle(),
+    Point::many("512", 512).brief_idle(),
+    Point::many("1024", 1024).brief_idle(),
+    Point::many("2048", 2048).brief_idle(),
+    Point::many("4096", 4096).brief_idle(),
+    Point::many("8192", 8192).brief_idle(),
+    Point::many("16384", 16384).brief_idle(),
+    Point::many("32768", 32768).brief_idle(),
+    Point::many("65536", 65536).brief_idle(),
+    Point::many("131072", 131072).brief_idle(),
+    Point::many("262144", 262144).brief_idle(),
+    Point::one("64 B", 64).controlled_idle(),
+    Point::one("128 B", 128).controlled_idle(),
+    Point::one("256 B", 256).controlled_idle(),
+    Point::one("512 B", 512).controlled_idle(),
+    Point::one("1 KiB", 1024).controlled_idle(),
+    Point::one("1536 B", 1536).controlled_idle(),
+    Point::one("2 KiB", 2 * 1024).controlled_idle(),
+    Point::one("2304 B", 2304).controlled_idle(),
+    Point::one("3 KiB", 3 * 1024).controlled_idle(),
+    Point::one("3839 B", 3839).controlled_idle(),
+    Point::one("4 KiB", 4 * 1024).controlled_idle(),
+    Point::one("4470 B", 4470).controlled_idle(),
+    Point::one("7935 B", 7935).controlled_idle(),
+    Point::one("8 KiB", 8 * 1024).controlled_idle(),
+    Point::one("16 KiB", 16 * 1024).controlled_idle(),
+    Point::one("32 KiB", 32 * 1024).controlled_idle(),
+    Point::one("64 KiB", 64 * 1024).controlled_idle(),
+    Point::one("128 KiB", 128 * 1024).controlled_idle(),
+    Point::one("256 KiB", 256 * 1024).controlled_idle(),
+    Point::one("512 KiB", 512 * 1024).controlled_idle(),
+    Point::one("1 MiB", 1024 * 1024).controlled_idle(),
+    Point::one("2 MiB", 2 * 1024 * 1024).controlled_idle(),
+    Point::one("3 MiB", 3 * 1024 * 1024).controlled_idle(),
+    Point::one("4 MiB", 4 * 1024 * 1024).controlled_idle(),
+    Point::one("8 MiB", 8 * 1024 * 1024).controlled_idle(),
+    Point::one("32 MiB", 32 * 1024 * 1024).controlled_idle(),
+    Point::one("64 MiB", 64 * 1024 * 1024).controlled_idle(),
+    Point::one("128 MiB", 128 * 1024 * 1024).controlled_idle(),
+    Point::many("1", 1).controlled_idle(),
+    Point::many("2", 2).controlled_idle(),
+    Point::many("3", 3).controlled_idle(),
+    Point::many("4", 4).controlled_idle(),
+    Point::many("6", 6).controlled_idle(),
+    Point::many("8", 8).controlled_idle(),
+    Point::many("12", 12).controlled_idle(),
+    Point::many("16", 16).controlled_idle(),
+    Point::many("24", 24).controlled_idle(),
+    Point::many("32", 32).controlled_idle(),
+    Point::many("48", 48).controlled_idle(),
+    Point::many("64", 64).controlled_idle(),
+    Point::many("128", 128).controlled_idle(),
+    Point::many("256", 256).controlled_idle(),
+    Point::many("512", 512).controlled_idle(),
+    Point::many("1024", 1024).controlled_idle(),
+    Point::many("2048", 2048).controlled_idle(),
+    Point::many("4096", 4096).controlled_idle(),
+    Point::many("8192", 8192).controlled_idle(),
+    Point::many("16384", 16384).controlled_idle(),
+    Point::many("32768", 32768).controlled_idle(),
+    Point::many("65536", 65536).controlled_idle(),
+    Point::many("131072", 131072).controlled_idle(),
+    Point::many("262144", 262144).controlled_idle(),
     Point::continuous("64 B", 64),
     // 128 B and 512 B too: the stream's kernels for tasks of one member
     // length run at 64 B, 128 B, 256 B, 512 B and 1 KiB (Zooko, October 26;
@@ -601,6 +705,8 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::merkle("262144", 1 << 18),
     Point::interleaved_turn("256"),
     Point::interleaved_turn("256").idle(),
+    Point::interleaved_turn("256").brief_idle(),
+    Point::interleaved_turn("256").controlled_idle(),
 ];
 
 /// results[contender_index][point_index], contenders in the roster's
@@ -656,10 +762,19 @@ enum UseCase {
     ManyMessages,
     /// Batches of LONG_MESSAGE_LEN-byte messages, after other work.
     ManyLongMessages,
-    /// The same two calls, each after the program idled (the first
-    /// two: each after other work; clocks::Gap).
+    /// The same two calls, each after the program idled LONG_PAUSE_NS
+    /// (the first two: each after other work; clocks::Gap).
     IdleOneMessage,
     IdleManyMessages,
+    /// The same two calls, each after the program idled BRIEF_PAUSE_NS.
+    BriefIdleOneMessage,
+    BriefIdleManyMessages,
+    /// The same two calls, each after the program idled LONG_PAUSE_NS with
+    /// the core's deep idle states switched off (IdleControl), so the
+    /// call meets the core awake and the cell measures the library alone;
+    /// measured where the bench holds the switch (root).
+    ControlledIdleOneMessage,
+    ControlledIdleManyMessages,
     /// Messages of the point's length, one after another, each read into
     /// a buffer in pieces of up to PIECE_LEN, then hashed.
     ContinuousMessages,
@@ -693,15 +808,36 @@ enum UseCase {
     InterleavedTurn,
     /// The same turns, each after idling, as a server waits on the network.
     IdleInterleavedTurn,
+    /// The same turns, each after a brief idle.
+    BriefIdleInterleavedTurn,
+    /// The same turns, each after idling with the deep states off.
+    ControlledIdleInterleavedTurn,
 }
 
+/// The two pauses before a call "after idling" (Zooko, November 4, 2026;
+/// bench-hashes #117): a brief one, where a core keeps its shallowest
+/// idle state and its clock, and a long one, where every machine
+/// measured has settled into its deep states (the i7-12700K's transition
+/// is at 1 ms, the pause until 0.20; the Xeon's and the EPYC's deep
+/// plateau begins before). Each is a real program's situation, and each
+/// is a stable one. The bench sets its timer slack to 1 us
+/// (clocks::tight_timers), so a sleep of 20 us lands at 23 us on Linux
+/// where the default slack landed it at 72; the pause's own length is
+/// outside the interval.
+const BRIEF_PAUSE_NS: u64 = 20_000;
+const LONG_PAUSE_NS: u64 = 5_000_000;
+
 impl UseCase {
-    const ALL: [UseCase; 15] = [
+    const ALL: [UseCase; 21] = [
         UseCase::OneMessage,
         UseCase::ManyMessages,
         UseCase::ManyLongMessages,
         UseCase::IdleOneMessage,
         UseCase::IdleManyMessages,
+        UseCase::BriefIdleOneMessage,
+        UseCase::BriefIdleManyMessages,
+        UseCase::ControlledIdleOneMessage,
+        UseCase::ControlledIdleManyMessages,
         UseCase::ContinuousMessages,
         UseCase::ContinuousBatches,
         UseCase::LentMessages,
@@ -712,6 +848,8 @@ impl UseCase {
         UseCase::MerkleTree,
         UseCase::InterleavedTurn,
         UseCase::IdleInterleavedTurn,
+        UseCase::BriefIdleInterleavedTurn,
+        UseCase::ControlledIdleInterleavedTurn,
     ];
 
     /// Whether each call comes after a gap (the synchronous use cases:
@@ -726,7 +864,11 @@ impl UseCase {
 
     /// How the program calls, as the graph's chips name it.
     fn pattern_key(self) -> &'static str {
-        if self.idle() {
+        if self.controlled() {
+            "controlled"
+        } else if self.pause_ns() == Some(BRIEF_PAUSE_NS) {
+            "brief"
+        } else if self.idle() {
             "idle"
         } else if self.after_gap() {
             "busy"
@@ -735,21 +877,50 @@ impl UseCase {
         }
     }
 
-    /// Whether the program idles before each call.
-    fn idle(self) -> bool {
+    /// Whether the call is made with the core's deep idle states off.
+    fn controlled(self) -> bool {
         matches!(
             self,
-            Self::IdleOneMessage | Self::IdleManyMessages | Self::IdleInterleavedTurn
+            Self::ControlledIdleOneMessage
+                | Self::ControlledIdleManyMessages
+                | Self::ControlledIdleInterleavedTurn
         )
+    }
+
+    /// Whether the program idles before each call.
+    fn idle(self) -> bool {
+        self.pause_ns().is_some()
+    }
+
+    /// How long the program idles before each call, where it idles.
+    fn pause_ns(self) -> Option<u64> {
+        match self {
+            Self::IdleOneMessage
+            | Self::IdleManyMessages
+            | Self::IdleInterleavedTurn
+            | Self::ControlledIdleOneMessage
+            | Self::ControlledIdleManyMessages
+            | Self::ControlledIdleInterleavedTurn => Some(LONG_PAUSE_NS),
+            Self::BriefIdleOneMessage
+            | Self::BriefIdleManyMessages
+            | Self::BriefIdleInterleavedTurn => Some(BRIEF_PAUSE_NS),
+            _ => None,
+        }
     }
 
     /// The use case whose call this one makes: an idle use case makes its
     /// twin's (the same call, after another gap), every other its own.
     fn call(self) -> UseCase {
         match self {
-            Self::IdleOneMessage => Self::OneMessage,
-            Self::IdleManyMessages => Self::ManyMessages,
-            Self::IdleInterleavedTurn => Self::InterleavedTurn,
+            Self::IdleOneMessage | Self::BriefIdleOneMessage | Self::ControlledIdleOneMessage => {
+                Self::OneMessage
+            }
+            Self::IdleManyMessages
+            | Self::BriefIdleManyMessages
+            | Self::ControlledIdleManyMessages => Self::ManyMessages,
+            Self::IdleInterleavedTurn
+            | Self::BriefIdleInterleavedTurn
+            | Self::ControlledIdleInterleavedTurn => Self::InterleavedTurn,
             other => other,
         }
     }
@@ -818,8 +989,16 @@ impl UseCase {
             Self::OneMessage => "A message in one buffer, after other work",
             Self::ManyMessages => "A batch of 64-byte messages, after other work",
             Self::ManyLongMessages => "A batch of 4 KiB messages, after other work",
-            Self::IdleOneMessage => "A message in one buffer, after idling",
-            Self::IdleManyMessages => "A batch of 64-byte messages, after idling",
+            Self::IdleOneMessage => "A message in one buffer, after idling 5 ms",
+            Self::IdleManyMessages => "A batch of 64-byte messages, after idling 5 ms",
+            Self::BriefIdleOneMessage => "A message in one buffer, after idling 20 us",
+            Self::BriefIdleManyMessages => "A batch of 64-byte messages, after idling 20 us",
+            Self::ControlledIdleOneMessage => {
+                "A message in one buffer, after idling 5 ms, deep idle states off"
+            }
+            Self::ControlledIdleManyMessages => {
+                "A batch of 64-byte messages, after idling 5 ms, deep idle states off"
+            }
             Self::ContinuousMessages => "Messages one after another, buffers owned",
             Self::ContinuousBatches => "Batches one after another, buffers owned",
             Self::LentMessages => "Messages one after another, buffers lent",
@@ -828,7 +1007,13 @@ impl UseCase {
                 "Many messages at once, a turn of their pieces after other work"
             }
             Self::IdleInterleavedTurn => {
-                "Many messages at once, a turn of their pieces after idling"
+                "Many messages at once, a turn of their pieces after idling 5 ms"
+            }
+            Self::BriefIdleInterleavedTurn => {
+                "Many messages at once, a turn of their pieces after idling 20 us"
+            }
+            Self::ControlledIdleInterleavedTurn => {
+                "Many messages at once, a turn of their pieces after idling 5 ms, deep idle states off"
             }
             Self::Collection => "A collection's messages, each hashed once, in memory",
             Self::LentBatches => "Batches one after another, buffers lent",
@@ -846,15 +1031,21 @@ impl UseCase {
         match self {
             Self::OneMessage
             | Self::IdleOneMessage
+            | Self::BriefIdleOneMessage
+            | Self::ControlledIdleOneMessage
             | Self::ContinuousMessages
             | Self::LentMessages => "size",
-            Self::Interleaved | Self::InterleavedTurn | Self::IdleInterleavedTurn => {
-                "messages open"
-            }
+            Self::Interleaved
+            | Self::InterleavedTurn
+            | Self::IdleInterleavedTurn
+            | Self::BriefIdleInterleavedTurn
+            | Self::ControlledIdleInterleavedTurn => "messages open",
             Self::Collection | Self::ContinuousCollection => "collection",
             Self::MerkleTree => "leaves",
             Self::ManyMessages
             | Self::IdleManyMessages
+            | Self::BriefIdleManyMessages
+            | Self::ControlledIdleManyMessages
             | Self::ManyLongMessages
             | Self::ContinuousBatches
             | Self::LentBatches => "messages",
@@ -871,6 +1062,8 @@ impl UseCase {
         match self {
             Self::OneMessage
             | Self::IdleOneMessage
+            | Self::BriefIdleOneMessage
+            | Self::ControlledIdleOneMessage
             | Self::ContinuousMessages
             | Self::LentMessages
             | Self::Interleaved
@@ -878,9 +1071,13 @@ impl UseCase {
             | Self::ContinuousCollection
             | Self::MerkleTree
             | Self::InterleavedTurn
-            | Self::IdleInterleavedTurn => point.bytes as u64 * iterations as u64,
+            | Self::IdleInterleavedTurn
+            | Self::BriefIdleInterleavedTurn
+            | Self::ControlledIdleInterleavedTurn => point.bytes as u64 * iterations as u64,
             Self::ManyMessages
             | Self::IdleManyMessages
+            | Self::BriefIdleManyMessages
+            | Self::ControlledIdleManyMessages
             | Self::ManyLongMessages
             | Self::ContinuousBatches
             | Self::LentBatches => point.messages as u64 * iterations as u64,
@@ -908,8 +1105,12 @@ impl UseCase {
     /// How the program calls, for the report's opening: the clause after
     /// the tables' names.
     fn pattern(self) -> &'static str {
-        if self.idle() {
-            "the program hashes, sleeps 1 ms, and hashes again, as a server handles a request, waits, and handles the next; the second call, with the write of its input, is timed"
+        if self.controlled() {
+            "the program hashes, sleeps 5 ms, and hashes again, with every idle state but the shallowest switched off (the bench runs as root), so the call meets the core awake and the cell measures the library alone; the second call, with the write of its input, is timed"
+        } else if self.pause_ns() == Some(BRIEF_PAUSE_NS) {
+            "the program hashes, sleeps 20 us, and hashes again, as a server handles a request, waits a moment, and handles the next; the second call, with the write of its input, is timed"
+        } else if self.idle() {
+            "the program hashes, sleeps 5 ms, and hashes again, as a server handles a request, waits, and handles the next; the second call, with the write of its input, is timed"
         } else if self.after_gap() {
             "the program hashes, runs other code and reads 128 MiB of memory (at least 1 ms), and hashes again, as a program hashes between its other tasks; the second call, with the write of its input, is timed"
         } else {
@@ -924,12 +1125,16 @@ impl UseCase {
             Self::OneMessage | Self::ManyMessages => "",
             Self::ManyLongMessages => "4 KiB batch ",
             Self::IdleOneMessage | Self::IdleManyMessages => "idle ",
+            Self::BriefIdleOneMessage | Self::BriefIdleManyMessages => "brief idle ",
+            Self::ControlledIdleOneMessage | Self::ControlledIdleManyMessages => "controlled idle ",
             Self::ContinuousMessages => "continuous ",
             Self::ContinuousBatches => "continuous batch ",
             Self::LentMessages => "lent ",
             Self::Interleaved => "interleaved ",
             Self::InterleavedTurn => "turn ",
             Self::IdleInterleavedTurn => "idle turn ",
+            Self::BriefIdleInterleavedTurn => "brief idle turn ",
+            Self::ControlledIdleInterleavedTurn => "controlled idle turn ",
             Self::Collection => "collection ",
             Self::LentBatches => "lent batch ",
             Self::ContinuousCollection => "continuous collection ",
@@ -958,12 +1163,35 @@ impl Point {
         }
     }
 
-    /// The same point, its call made after idling.
+    /// The same point, its call made after idling LONG_PAUSE_NS.
     const fn idle(self) -> Self {
         let use_case = match self.use_case {
             UseCase::OneMessage => UseCase::IdleOneMessage,
             UseCase::ManyMessages => UseCase::IdleManyMessages,
             UseCase::InterleavedTurn => UseCase::IdleInterleavedTurn,
+            _ => panic!("only the calls after other work have idle twins"),
+        };
+        Self { use_case, ..self }
+    }
+
+    /// The same point, its call made after idling BRIEF_PAUSE_NS.
+    const fn brief_idle(self) -> Self {
+        let use_case = match self.use_case {
+            UseCase::OneMessage => UseCase::BriefIdleOneMessage,
+            UseCase::ManyMessages => UseCase::BriefIdleManyMessages,
+            UseCase::InterleavedTurn => UseCase::BriefIdleInterleavedTurn,
+            _ => panic!("only the calls after other work have idle twins"),
+        };
+        Self { use_case, ..self }
+    }
+
+    /// The same point, its call made after idling LONG_PAUSE_NS with the
+    /// deep idle states off.
+    const fn controlled_idle(self) -> Self {
+        let use_case = match self.use_case {
+            UseCase::OneMessage => UseCase::ControlledIdleOneMessage,
+            UseCase::ManyMessages => UseCase::ControlledIdleManyMessages,
+            UseCase::InterleavedTurn => UseCase::ControlledIdleInterleavedTurn,
             _ => panic!("only the calls after other work have idle twins"),
         };
         Self { use_case, ..self }
@@ -1171,18 +1399,25 @@ impl Algorithm {
             UseCase::ManyMessages
             | UseCase::ManyLongMessages
             | UseCase::IdleManyMessages
+            | UseCase::BriefIdleManyMessages
+            | UseCase::ControlledIdleManyMessages
             | UseCase::LentBatches => !matches!(self, Self::Blake3Rayon),
             UseCase::ContinuousBatches => !matches!(self, Self::Blake3Rayon),
             UseCase::ContinuousMessages => true,
             UseCase::OneMessage
             | UseCase::IdleOneMessage
+            | UseCase::BriefIdleOneMessage
+            | UseCase::ControlledIdleOneMessage
             | UseCase::LentMessages
             | UseCase::Interleaved
             | UseCase::Collection
             | UseCase::ContinuousCollection => true,
             /* A tree's layers are batches: BLAKE3 official mt has no batch call. */
             UseCase::MerkleTree => !matches!(self, Self::Blake3Rayon),
-            UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => true,
+            UseCase::InterleavedTurn
+            | UseCase::IdleInterleavedTurn
+            | UseCase::BriefIdleInterleavedTurn
+            | UseCase::ControlledIdleInterleavedTurn => true,
         }
     }
 
@@ -1721,6 +1956,12 @@ struct MachineMetadata {
     /// How the OS lets a core sleep when a thread waits, which sets what a
     /// call after a pause costs: see idle_states.
     idle_states: String,
+    /// The idle states the core entered in fact under each pause at the
+    /// run's start (effective_idle_states), beside the configured ones.
+    effective_idle_states: String,
+    /// The cpuidle switch the controlled cells use (IdleControl::describe);
+    /// a command without controlled cells says so.
+    idle_control: String,
     /// Where the shared scenario's two copies ran, by placement
     /// (Topology::describe): "one cache: CPUs 0 and 2; two caches: none".
     placements: String,
@@ -1760,6 +2001,9 @@ struct Roster {
     /// Where the run's sample sizes came from, for its samples file's
     /// `sample sizes` line.
     sample_sizes: String,
+    /// The cpuidle switch the controlled cells need; without it the run
+    /// measures none of them.
+    idle_control: Option<IdleControl>,
 }
 
 impl Roster {
@@ -1776,6 +2020,7 @@ impl Roster {
         points: Option<Vec<usize>>,
         rounds: Option<usize>,
         visits: &'static Visits,
+        idle_control: Option<IdleControl>,
     ) -> Self {
         assert!(
             (1..=Algorithm::ALL.len()).contains(&algorithms.len()),
@@ -1792,15 +2037,28 @@ impl Roster {
                 panic!("{} cannot run here: {reason}", algorithm.name());
             }
         }
+        // The controlled cells are measured where the bench holds the
+        // switch, as the shared cells where the machine has a pair; named
+        // by hand without it, they are a mistake to stop at.
         let points = points.unwrap_or_else(|| {
             (0..POINT_COUNT)
                 .filter(|&index| !quick || POINTS[index].quick())
+                .filter(|&index| idle_control.is_some() || !POINTS[index].use_case.controlled())
                 .collect()
         });
         assert!(
             !points.is_empty() && points.windows(2).all(|w| w[0] < w[1]),
             "points ascend, without repeats"
         );
+        if idle_control.is_none() {
+            if let Some(&index) = points.iter().find(|&&i| POINTS[i].use_case.controlled()) {
+                panic!(
+                    "--points: {}{} needs the cpuidle switch (run as root; the idle control line says what is missing)",
+                    POINTS[index].use_case.label_prefix(),
+                    POINTS[index].label
+                );
+            }
+        }
         let rounds = rounds.unwrap_or(if quick { QUICK_ROUNDS } else { FULL_ROUNDS });
         assert!(rounds > 0, "--rounds must be positive");
         Self {
@@ -1811,6 +2069,7 @@ impl Roster {
             train: NONSTOP_TRAIN,
             nonstop_visits: None,
             sample_sizes: "calibrated in this run".to_owned(),
+            idle_control,
         }
     }
 
@@ -1962,10 +2221,8 @@ cell sampled in a share of them.
                                    24 rounds, a nonstop cell in 6 (default:
                                    12 and 6, to measure speed)
   --train W_MS,S                   a nonstop visit's warm-up (ms) and samples
-                                   (default 100,6), for the settling and
-                                   variance studies (tools/settle.py,
-                                   tools/variance.py): 0,N gives settling
-                                   curves
+                                   (default 100,6), for settling and variance
+                                   studies: 0,N gives settling curves
   --nonstop-visits N               a nonstop cell's visits (default 2)
   --threads N                      BLAKE3-Servil mt on N threads in all, its
                                    caller among them (default: one a CPU); the
@@ -2555,6 +2812,9 @@ impl std::hash::BuildHasher for Seeded {
 fn main() {
     // Once per process, before any other call: blake3-servil's contract.
     blake3_servil::initialize();
+    // The pauses before calls land when asked (clocks::tight_timers; the
+    // pool's threads, made later, inherit it).
+    clocks::tight_timers();
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     if arguments.first().map(String::as_str) == Some("compare") {
         return compare_command(&arguments[1..]);
@@ -2655,7 +2915,9 @@ fn main() {
     if algorithms.contains(&Algorithm::Blake3ServilMt) {
         blake3_servil::initialize_multithreaded(threads);
     }
-    let mut roster = Roster::new(algorithms, quick, points, rounds, visits);
+    let idle_control = IdleControl::detect(std::path::Path::new("/sys/devices/system/cpu"));
+    machine.idle_control = IdleControl::describe(idle_control.as_ref());
+    let mut roster = Roster::new(algorithms, quick, points, rounds, visits, idle_control);
     roster.train = train;
     roster.nonstop_visits = nonstop_visits;
     // Sizes from the cache where a calibration in this very context left
@@ -2929,7 +3191,10 @@ fn measure_all(
      * September 30). A program that hashes one input after another does not
      * sleep between them, and one that idles between calls mostly sleeps.
      */
-    for pattern in ["nonstop", "busy", "idle"] {
+    // Each way of calling its own set of rounds (the brief pause and the
+    // long one apart too: a core's clock after 20 us differs from after 5 ms).
+    const PATTERNS: [&str; 5] = ["nonstop", "busy", "brief", "idle", "controlled"];
+    for pattern in PATTERNS {
         progress.phase("calibrating");
 
         for (point_index, point) in POINTS.iter().enumerate() {
@@ -2991,7 +3256,7 @@ fn measure_all(
         }
 
         if let Sizes::CalibrateOnly(path) = sizes {
-            if pattern == "idle" {
+            if pattern == PATTERNS[PATTERNS.len() - 1] {
                 twins_take_their_sizes(roster, &mut batch_iterations);
                 Sizes::write(path, &[], roster, &batch_iterations);
                 std::process::exit(0);
@@ -3016,8 +3281,15 @@ fn measure_all(
         progress.phase(match pattern {
             "nonstop" => "measuring one after another",
             "busy" => "measuring after other work",
+            "brief" => "measuring after a brief idle",
+            "controlled" => "measuring after idling, deep states off",
             _ => "measuring after idling",
         });
+        // The controlled cells' rounds run with the deep states off; the
+        // guard puts them back when the rounds end (IdleControlGuard).
+        let _deep_states_off = (pattern == "controlled")
+            .then(|| roster.idle_control.as_ref().map(IdleControl::apply))
+            .flatten();
 
         for round in 0..roster.rounds {
             progress.round(round, &samples.solo);
@@ -3219,8 +3491,8 @@ fn measure_all(
  */
 struct Progress<'a> {
     roster: &'a Roster,
-    started: Instant,
-    measuring_started: Option<Instant>,
+    started: clocks::Stamp,
+    measuring_started: Option<clocks::Stamp>,
     interactive: bool,
     last_width: usize,
 }
@@ -3245,7 +3517,9 @@ impl<'a> Progress<'a> {
         }
         self.draw(&format!(
             "[{:>5}s] {name}…",
-            tenths_of_seconds(self.started.elapsed())
+            tenths_of_seconds(std::time::Duration::from_nanos(clocks::since_ns(
+                self.started
+            )))
         ));
     }
 
@@ -3268,7 +3542,7 @@ impl<'a> Progress<'a> {
 
         /* The rounds left at the rate so far: elapsed × left / done, in whole seconds. */
         let remaining = if round > 0 {
-            let elapsed_ns = measuring_started.elapsed().as_nanos();
+            let elapsed_ns = u128::from(clocks::since_ns(measuring_started));
             let left_ns = elapsed_ns * (rounds - round) as u128 / round as u128;
             format!("{:>3}s left", (left_ns + 500_000_000) / 1_000_000_000)
         } else {
@@ -3277,7 +3551,9 @@ impl<'a> Progress<'a> {
 
         self.draw(&format!(
             "[{:>5}s] measuring {bar} {:>3}/{rounds} rounds · {remaining} · {medians}",
-            tenths_of_seconds(self.started.elapsed()),
+            tenths_of_seconds(std::time::Duration::from_nanos(clocks::since_ns(
+                self.started
+            ))),
             round,
         ));
     }
@@ -3295,7 +3571,9 @@ impl<'a> Progress<'a> {
         let rounds = self.roster.rounds;
         self.draw(&format!(
             "[{:>5}s] measured  {bar} {rounds}/{rounds} rounds · {medians}",
-            tenths_of_seconds(self.started.elapsed()),
+            tenths_of_seconds(std::time::Duration::from_nanos(clocks::since_ns(
+                self.started
+            ))),
         ));
         eprintln!();
     }
@@ -3525,12 +3803,12 @@ fn current_cpu() -> Option<u32> {
  */
 fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usize) -> DuoCopy {
     if point.use_case.after_gap() {
-        let idle = point.use_case.idle();
+        let pause_ns = point.use_case.pause_ns();
         if point.use_case.call() == UseCase::OneMessage {
             // Select the API before the gap and clocks. A cold call should
             // pay for its API, rather than the benchmark's dispatch tree.
             let call = one_message_call(algorithm);
-            return take_prepared_sample(input, true, iterations, idle, |input| {
+            return take_prepared_sample(input, true, iterations, pause_ns, |input| {
                 // The door, for every contender alike (UseCase::in_blocks).
                 assert_blocks_aligned(input);
                 call(input, point.bytes)
@@ -3559,7 +3837,7 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
             };
             if let Some(hash_many) = hash_many {
                 let mut digests = take_batch_digests(point.messages);
-                let measured = take_prepared_sample(input, true, iterations, idle, |input| {
+                let measured = take_prepared_sample(input, true, iterations, pause_ns, |input| {
                     #[cfg(test)]
                     observe_call("hash_many");
                     assert_blocks_aligned(input);
@@ -3578,7 +3856,7 @@ fn take_sample(algorithm: Algorithm, input: &[u8], point: Point, iterations: usi
             input,
             point.use_case.in_blocks(),
             iterations,
-            idle,
+            pause_ns,
             |input| run_batch(algorithm, input, point, 1),
         );
     }
@@ -3616,7 +3894,7 @@ fn take_prepared_sample(
     input: &[u8],
     in_blocks: bool,
     iterations: usize,
-    idle: bool,
+    pause_ns: Option<u64>,
     mut call: impl FnMut(&[u8]),
 ) -> DuoCopy {
     GAP_BUFFERS.with(|kept| {
@@ -3632,16 +3910,17 @@ fn take_prepared_sample(
             produced.resize(input.len(), 0);
             0
         };
-        let gap = if idle {
-            clocks::Gap::Idle
-        } else {
-            clocks::Gap::Busy(work)
+        // The pause before each call: the use case's idle (brief or long),
+        // or GAP_NS of other work.
+        let (gap, gap_ns) = match pause_ns {
+            Some(ns) => (clocks::Gap::Idle, ns),
+            None => (clocks::Gap::Busy(work), GAP_NS),
         };
         let started_ns = clocks::load::now_ns();
         let measured = clocks::measure_after_gaps_prepared(
             iterations as u64,
             gap,
-            GAP_NS,
+            gap_ns,
             // An input in blocks reaches the call with its whole blocks.
             &mut produced[at..],
             |produced| produced[..input.len()].copy_from_slice(black_box(input)),
@@ -3772,7 +4051,11 @@ fn hash_batch(
     );
 
     match point.use_case {
-        UseCase::Interleaved | UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => {
+        UseCase::Interleaved
+        | UseCase::InterleavedTurn
+        | UseCase::IdleInterleavedTurn
+        | UseCase::BriefIdleInterleavedTurn
+        | UseCase::ControlledIdleInterleavedTurn => {
             return hash_interleaved(algorithm, input, point.bytes, iterations, consume)
         }
         UseCase::Collection => {
@@ -3793,9 +4076,15 @@ fn hash_batch(
         UseCase::MerkleTree => return hash_merkle(algorithm, input, point, iterations, consume),
         UseCase::OneMessage
         | UseCase::IdleOneMessage
+        | UseCase::BriefIdleOneMessage
+        | UseCase::ControlledIdleOneMessage
         | UseCase::ManyMessages
         | UseCase::ManyLongMessages
-        | UseCase::IdleManyMessages => hash_in_memory(algorithm, input, point, iterations, consume),
+        | UseCase::IdleManyMessages
+        | UseCase::BriefIdleManyMessages
+        | UseCase::ControlledIdleManyMessages => {
+            hash_in_memory(algorithm, input, point, iterations, consume)
+        }
     }
 }
 
@@ -4721,12 +5010,9 @@ fn hash_continuous_batches(
         return keep_places(places);
     }
     // The lent cell's calls (owned_runs_lent): each batch read into a kept
-    // buffer, then hashed through the batch call.
-    let lent = Point {
-        use_case: UseCase::LentBatches,
-        ..point
-    };
-    hash_lent(algorithm, input, lent, iterations, consume)
+    // buffer, then hashed through the batch call (the point's own use
+    // case: in blocks and a batch, as the lent one is).
+    hash_lent(algorithm, input, point, iterations, consume)
 }
 
 /// The producer lends a whole message or batch for one synchronous call.
@@ -4739,15 +5025,8 @@ fn hash_lent(
     iterations: usize,
     mut consume: impl FnMut(&[u8]),
 ) {
-    let in_memory = Point {
-        use_case: if point.use_case.batch() {
-            UseCase::ManyMessages
-        } else {
-            UseCase::OneMessage
-        },
-        ..point
-    };
-    // Messages and batches lent alike are in blocks (UseCase::in_blocks).
+    // Messages and batches lent alike are in blocks (UseCase::in_blocks),
+    // and hash_in_memory reads nothing else of the use case.
     let mut buffers = take_buffers(1, input.len() + BLOCK_SPARE);
     for _ in 0..iterations {
         let buffer = &mut buffers[0];
@@ -4755,7 +5034,7 @@ fn hash_lent(
         hash_in_memory(
             algorithm,
             &buffer[at..][..input.len().next_multiple_of(BLOCK_LEN)],
-            in_memory,
+            point,
             1,
             &mut consume,
         );
@@ -6001,7 +6280,7 @@ impl MachineMetadata {
 fn cell_wants_sample(slot: usize, rounds: usize, visits: usize) -> bool {
     assert!(rounds > 0);
     let target = visits.min(rounds);
-    (slot % rounds) * target % rounds < target
+    slot * target % rounds < target
 }
 
 /// (iterations per sample, nanoseconds per iteration measured).
@@ -6023,16 +6302,22 @@ fn continuous_min_inputs(input: &[u8], point: Point) -> usize {
         UseCase::ContinuousBatches => 2 * in_flight(input.len()),
         UseCase::OneMessage
         | UseCase::IdleOneMessage
+        | UseCase::BriefIdleOneMessage
+        | UseCase::ControlledIdleOneMessage
         | UseCase::ManyMessages
         | UseCase::ManyLongMessages
         | UseCase::IdleManyMessages
+        | UseCase::BriefIdleManyMessages
+        | UseCase::ControlledIdleManyMessages
         | UseCase::LentMessages
         | UseCase::Interleaved
         | UseCase::Collection
         | UseCase::LentBatches
         | UseCase::MerkleTree
         | UseCase::InterleavedTurn
-        | UseCase::IdleInterleavedTurn => 1,
+        | UseCase::IdleInterleavedTurn
+        | UseCase::BriefIdleInterleavedTurn
+        | UseCase::ControlledIdleInterleavedTurn => 1,
         /* A pass over the collection keeps its many items in flight. */
         UseCase::ContinuousCollection => 1,
     }
@@ -6130,16 +6415,26 @@ fn calibrate_batch(algorithm: Algorithm, input: &[u8], point: Point) -> (usize, 
 /// (read_samples) requires: a file in another format is read with the
 /// tools of the commit that wrote it.
 /// The samples format, and with it the rule the samples were taken under:
-/// v8 (0.20) adds each sample's CPU, its shared rows are the
-/// multithreaded contenders' alone, placed under one cache or two
-/// (bench-hashes #108, #116); v7 marked samples
-/// that 0.17's summary reads with the declared trim (Zooko, October 23).
-const SAMPLES_VERSION: &str = "# bench-hashes samples v8";
+/// v10 (0.21) adds each sample's instructions retired, last-level-cache
+/// references and misses beside its cycles, per core kind, and reads the
+/// raw counter (Zooko, November 4: the most the counters give, kept, and
+/// no clock a time daemon slews); v8 (0.20)
+/// added each sample's CPU, its shared rows the multithreaded
+/// contenders' alone, placed under one cache or two (bench-hashes #108,
+/// #116); v7 marked samples that 0.17's summary reads with the declared
+/// trim (Zooko, October 23).
+const SAMPLES_VERSION: &str = "# bench-hashes samples v10";
 const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\tcpu";
 
+/// The numbers one core kind contributes to a `core counts` sample:
+/// time, cycles, instructions, cache references, cache misses.
+const LEVEL_FIELDS: usize = 5;
+
 /// A row's `core counts` field: each sample's calling-thread counts per
-/// core kind, `P time ns:P cycles:E time ns:E cycles`, or `-` where a
-/// cell's samples carry none (a platform without per-thread counts).
+/// core kind, `P time ns:P cycles:P instructions:P cache references:P
+/// cache misses:E time ns:E cycles:E instructions:E cache references:E
+/// cache misses` (clocks::Level), or `-` where a cell's samples carry
+/// none (a platform without per-thread counts).
 fn counts_field(counts: &[Option<clocks::Counts>]) -> String {
     match counts
         .iter()
@@ -6150,8 +6445,17 @@ fn counts_field(counts: &[Option<clocks::Counts>]) -> String {
             .iter()
             .map(|c| {
                 format!(
-                    "{}:{}:{}:{}",
-                    c.p.time_ns, c.p.cycles, c.e.time_ns, c.e.cycles
+                    "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
+                    c.p.time_ns,
+                    c.p.cycles,
+                    c.p.instructions,
+                    c.p.cache_references,
+                    c.p.cache_misses,
+                    c.e.time_ns,
+                    c.e.cycles,
+                    c.e.instructions,
+                    c.e.cache_references,
+                    c.e.cache_misses
                 )
             })
             .collect::<Vec<_>>()
@@ -6181,6 +6485,7 @@ fn cpu_field(cpu: &[Option<u64>]) -> String {
 /// A samples file read back: its `# load:` line (the run's own verdict,
 /// "quiet: ..." or "busy: ..."), and each cell's samples as measured,
 /// keyed "contender|scenario|use_case|point", in the file's order.
+#[derive(Clone)]
 struct SamplesFile {
     /// Its `# key: value` lines, in order.
     headers: Vec<(String, String)>,
@@ -6196,7 +6501,7 @@ struct SamplesFile {
     energy: Vec<(String, Vec<u64>)>,
     /// The cells whose samples carry the calling thread's counts per core
     /// kind: each sample's [P time ns, P cycles, E time ns, E cycles].
-    cores: Vec<(String, Vec<[u64; 4]>)>,
+    cores: Vec<(String, Vec<[u64; LEVEL_FIELDS * 2]>)>,
     /// The cells whose samples name the CPU each sample's thread ended on.
     cpus: Vec<(String, Vec<u32>)>,
 }
@@ -6274,14 +6579,16 @@ fn read_samples(path: &str) -> SamplesFile {
                 energy.push((key.clone(), nj));
             }
             if fields[9] != "-" {
-                let c: Vec<[u64; 4]> = fields[9]
+                let c: Vec<[u64; LEVEL_FIELDS * 2]> = fields[9]
                     .split(',')
                     .map(|sample| {
                         let v: Vec<u64> = sample
                             .split(':')
                             .map(|x| x.parse().expect("a count"))
                             .collect();
-                        v.try_into().expect("P time, P cycles, E time, E cycles")
+                        v.try_into().expect(
+                            "P time, cycles, instructions, cache references, cache misses; then E's",
+                        )
                     })
                     .collect();
                 assert_eq!(
@@ -6336,6 +6643,48 @@ fn read_samples(path: &str) -> SamplesFile {
 /// cells it judges.
 const COMPARE_Q_PERMILLE: u64 = 50;
 
+/// Each cell's mean wall time per unit (fixed point) and, where its
+/// samples carry them, its CPU time and energy per unit: all the
+/// samples' time over their units.
+fn cell_means(file: SamplesFile) -> Vec<(String, u128, Option<u128>, Option<u128>)> {
+    let cpu: crate::Map<String, Vec<u64>> = file.cpu.into_iter().collect();
+    let energy: crate::Map<String, Vec<u64>> = file.energy.into_iter().collect();
+    file.cells
+        .into_iter()
+        .map(|(key, samples)| {
+            let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
+            let per_unit = |column: &crate::Map<String, Vec<u64>>| {
+                column
+                    .get(&key)
+                    .map(|v| (v.iter().map(|&n| u128::from(n)).sum::<u128>() << 64) / units.max(1))
+                    .filter(|&v| v > 0)
+            };
+            let (c, e) = (per_unit(&cpu), per_unit(&energy));
+            (key, Mean::of(&samples).fixed().0, c, e)
+        })
+        .collect()
+}
+
+/// Each cell's instructions retired a unit (fixed point), both kinds of
+/// core summed over all its samples, for the cells whose samples carry
+/// counts: what names a level cell a suspect (instructions_moved).
+fn cell_instructions(file: &SamplesFile) -> crate::Map<String, u128> {
+    let cores: crate::Map<&String, &Vec<[u64; LEVEL_FIELDS * 2]>> =
+        file.cores.iter().map(|(k, c)| (k, c)).collect();
+    file.cells
+        .iter()
+        .filter_map(|(key, samples)| {
+            let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
+            let instructions: u128 = cores
+                .get(key)?
+                .iter()
+                .map(|s| u128::from(s[2] + s[LEVEL_FIELDS + 2]))
+                .sum();
+            Some((key.clone(), (instructions << 64) / units.max(1)))
+        })
+        .collect()
+}
+
 fn compare_command(arguments: &[String]) {
     let usage = "usage: bench-hashes compare OLD.tsv... -- NEW.tsv... (one new run for each old run, in the order they ran)";
     let split = arguments
@@ -6363,24 +6712,7 @@ fn compare_command(arguments: &[String]) {
                 file.load
             );
         }
-        let cpu: crate::Map<String, Vec<u64>> = file.cpu.into_iter().collect();
-        let energy: crate::Map<String, Vec<u64>> = file.energy.into_iter().collect();
-        file.cells
-            .into_iter()
-            .map(|(key, samples)| {
-                let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
-                let per_unit = |column: &crate::Map<String, Vec<u64>>| {
-                    column
-                        .get(&key)
-                        .map(|v| {
-                            (v.iter().map(|&n| u128::from(n)).sum::<u128>() << 64) / units.max(1)
-                        })
-                        .filter(|&v| v > 0)
-                };
-                let (c, e) = (per_unit(&cpu), per_unit(&energy));
-                (key.clone(), Mean::of(&samples).fixed().0, c, e)
-            })
-            .collect::<Vec<(String, u128, Option<u128>, Option<u128>)>>()
+        cell_means(file)
     };
     // Every cell's means a pair, wall time and (where both sides carry it)
     // CPU time, in the first old run's order.
@@ -6489,8 +6821,8 @@ fn geometric_mean(values: impl Iterator<Item = u128>) -> u128 {
 /*
  * `bench-hashes regress [--contenders A,B [--points P,Q]] OLD... -- NEW...`:
  * whether the new build is slower than the old, measured on this machine.
- * `bench-hashes check` builds the two sides and chooses the cells, then
- * calls this (src/check.rs); it is also callable by hand with builds of
+ * `bench-hashes check` builds the two sides and runs the cells its caller
+ * names, then calls this (src/check.rs); it is also callable by hand with builds of
  * one's own. REGRESS_PAIRS pairs of runs, pair i running the i-th
  * executable of each side (round robin), back to back in alternating order
  * (A B, B A, ...), each at the regression check's visits
@@ -6513,6 +6845,17 @@ const REGRESS_MARGIN_PERMILLE: u64 = 30;
 /// The most level cells a regression run names as suspects for a second
 /// stage, and so the largest family that stage judges (bench-hashes #66).
 const REGRESS_SUSPECTS: usize = 8;
+/// The margin beyond which a level cell's instructions, moved, name it a
+/// suspect ahead of the wall-ranked ones (Zooko, November 4, 2026, on
+/// John's rule; bench-hashes #127): instructions retired are the same
+/// count whatever the core's clock or state, so a move is the code's,
+/// and #119's cold code moved them 1.2% in every pair where wall missed
+/// it three times. Wall still decides, on the second stage's fresh pairs.
+/// The rule reads the solo cells of the single-threaded contenders
+/// alone, where the calling thread does the whole work: a pool's caller
+/// spins while it waits, and its count moved 1-9% between two runs of
+/// the same code (data branch, 2026-11-04/judge2-i7).
+const INSTRUCTIONS_MARGIN_PERMILLE: u64 = 5;
 
 /// What each of the check's runs measures, and which of its cells are
 /// judged: the regress points' solo cells; a default run's every cell
@@ -6676,7 +7019,7 @@ fn regress_load(start_ns: u64, end_ns: u64) -> String {
 }
 
 fn regress_command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes regress [--contenders A,B [--points P,Q]] [--judge CELL;CELL] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE... (pair i runs the i-th of each, round robin; bench-hashes check builds the sides and chooses the cells)";
+    let usage = "usage: bench-hashes regress [--contenders A,B [--points P,Q]] [--judge CELL;CELL] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE... (pair i runs the i-th of each, round robin; bench-hashes check builds the sides and runs the cells its caller names)";
     let mut arguments = arguments;
     let (mut contenders, mut points, mut pairs, mut chosen_rounds, mut keep) =
         (None, None, REGRESS_PAIRS, None, None);
@@ -6709,6 +7052,14 @@ fn regress_command(arguments: &[String]) -> i32 {
         pairs >= 3,
         "--pairs: the rule needs at least three pairs\n{usage}"
     );
+    // The machine first: a run on a busy machine abstains at its end; ten
+    // seconds now say so before it (check asks the same before its build).
+    if let Err(reason) = clocks::load::quiet_for(10) {
+        println!(
+            "regress: {reason}. No verdict (exit 2); run when nothing else runs on the machine."
+        );
+        return 2;
+    }
     if let Some(keep) = &keep {
         fs::create_dir_all(keep)
             .unwrap_or_else(|error| panic!("cannot create {}: {error}", keep.display()));
@@ -6788,7 +7139,18 @@ fn regress_command(arguments: &[String]) -> i32 {
         std::collections::BTreeMap::new();
     // A run's means, and its load line when clocks found it no evidence
     // (other programs busy, or no load window).
-    let mut means = |exe: &str, side: &str| -> (crate::Map<String, u128>, Option<String>) {
+    let mut instruction_ratios: std::collections::BTreeMap<String, Vec<u64>> =
+        std::collections::BTreeMap::new();
+    // A run's means (wall, and instructions a unit where the machine
+    // counts them), and its load line when clocks found it no evidence
+    // (other programs busy, or no load window).
+    let mut means = |exe: &str,
+                     side: &str|
+     -> (
+        crate::Map<String, u128>,
+        crate::Map<String, u128>,
+        Option<String>,
+    ) {
         run_index += 1;
         let kept = keep
             .as_ref()
@@ -6811,11 +7173,13 @@ fn regress_command(arguments: &[String]) -> i32 {
         // line says "not measured", and the run is evidence: keep that
         // machine quiet by hand while it measures.
         let busy = (clocks::load::MEASURED && !load.starts_with("quiet")).then_some(load);
+        let instructions = cell_instructions(&file);
         (
             file.cells
                 .into_iter()
                 .map(|(key, samples)| (key, Mean::of(&samples).fixed().0))
                 .collect(),
+            instructions,
             busy,
         )
     };
@@ -6830,8 +7194,8 @@ fn regress_command(arguments: &[String]) -> i32 {
             &old_exes[pair % old_exes.len()],
             &new_exes[pair % new_exes.len()],
         );
-        let (old, new) = loop {
-            let ((old, a), (new, b)) = if pair % 2 == 0 {
+        let (old, old_instructions, new, new_instructions) = loop {
+            let ((old, oi, a), (new, ni, b)) = if pair % 2 == 0 {
                 let o = means(old_exe, "old");
                 (o, means(new_exe, "new"))
             } else {
@@ -6840,15 +7204,23 @@ fn regress_command(arguments: &[String]) -> i32 {
             };
             let busy: Vec<String> = a.into_iter().chain(b).collect();
             if busy.is_empty() {
-                break (old, new);
+                break (old, oi, new, ni);
             }
             attempt += 1;
             if attempt > REGRESS_REPEATS {
                 unreliable.extend(busy);
-                break (old, new);
+                break (old, oi, new, ni);
             }
             eprintln!("regress: pair {} again: {}", pair + 1, busy.join("; "));
         };
+        for (key, old_count) in &old_instructions {
+            if let Some(new_count) = new_instructions.get(key) {
+                instruction_ratios
+                    .entry(key.clone())
+                    .or_default()
+                    .push(clocks::summary::ratio_permille(*new_count, *old_count));
+            }
+        }
         for (key, old_mean) in &old {
             let Some(&new_mean) = new.get(key) else {
                 continue;
@@ -6910,13 +7282,21 @@ fn regress_command(arguments: &[String]) -> i32 {
     let (judgments, measurement) = judge_once(&tested);
     let mut slower = 0;
     let mut suspects: Vec<(usize, &String)> = Vec::new();
+    // The level cells whose instructions moved beyond their margin: the
+    // code's doing, so the strongest suspects (rank 0), ahead of the
+    // wall-ranked ones.
+    let moved = instructions_moved(&instruction_ratios, pairs);
     for (i, (key, judgment)) in judged.into_iter().zip(judgments).enumerate() {
         // A row whose measurement an earlier row holds (an owned cell
         // measured as its lent twin): its verdict printed, not counted again.
         let first = measurement[i] == i;
         if judgment.verdict == clocks::summary::Verdict::Level {
-            if first && judgment.ratio_permille > 1000 + REGRESS_MARGIN_PERMILLE {
-                suspects.push((judgment.rank, key));
+            if first && moved.iter().any(|(k, _)| k == key) {
+                // Its place among the moved, the largest move first.
+                let place = moved.iter().position(|(k, _)| k == key).unwrap();
+                suspects.push((place, key));
+            } else if first && judgment.ratio_permille > 1000 + REGRESS_MARGIN_PERMILLE {
+                suspects.push((moved.len() + judgment.rank, key));
             }
             continue;
         }
@@ -6944,6 +7324,25 @@ fn regress_command(arguments: &[String]) -> i32 {
         // 42 resamplings of 55, ranked by evidence in 52 (the data branch,
         // 2026-10-31/check-errors-i7).
         suspects.sort();
+        if instruction_ratios.is_empty() {
+            println!("regress: this machine counts no instructions; the suspects are wall's alone");
+        } else if moved.is_empty() {
+            println!(
+                "regress: no level cell's instructions moved beyond {}",
+                percent(1000 + INSTRUCTIONS_MARGIN_PERMILLE)
+            );
+        } else {
+            let listed: Vec<String> = moved
+                .iter()
+                .map(|(k, r)| format!("{k} {}", percent(*r)))
+                .collect();
+            println!(
+                "regress: instructions moved beyond {} in {} level cells, suspects first: {}",
+                percent(1000 + INSTRUCTIONS_MARGIN_PERMILLE),
+                moved.len(),
+                listed.join("; ")
+            );
+        }
         if !suspects.is_empty() {
             let named: Vec<&str> = suspects
                 .iter()
@@ -6955,6 +7354,51 @@ fn regress_command(arguments: &[String]) -> i32 {
     }
     println!("{power}");
     i32::from(slower > 0)
+}
+
+/// The cells whose instructions a unit moved beyond INSTRUCTIONS_MARGIN_
+/// PERMILLE the same way in every pair, the largest median move first:
+/// the solo cells of single-threaded contenders (whose calling thread
+/// does the whole work), each counted in every pair (a cell a side lacks
+/// counts for says nothing). Every pair, since a change in the code moves
+/// the count the same way whatever the layout (#119's cells: x1.0119 in
+/// five pairs to four places), where a count that moves with the link
+/// layout or the run (the interleaved turns, 0.95-1.02 between pairs of
+/// one build) moves both ways (data branch, 2026-11-04/judge3-i7 and
+/// judge-i7, aa_instructions.py).
+fn instructions_moved(
+    ratios: &std::collections::BTreeMap<String, Vec<u64>>,
+    pairs: usize,
+) -> Vec<(String, u64)> {
+    let mut moved: Vec<(String, u64)> = ratios
+        .iter()
+        .filter(|(key, r)| r.len() == pairs && instructions_tell(key))
+        .filter_map(|(key, r)| {
+            let mut sorted = r.clone();
+            sorted.sort_unstable();
+            let median = sorted[sorted.len() / 2];
+            let (least, most) = (sorted[0], sorted[sorted.len() - 1]);
+            let all_more = least > 1000 + INSTRUCTIONS_MARGIN_PERMILLE;
+            let all_fewer = most < 1000 - INSTRUCTIONS_MARGIN_PERMILLE;
+            (all_more || all_fewer).then(|| (key.clone(), median))
+        })
+        .collect();
+    moved.sort_by_key(|(key, median)| (std::cmp::Reverse(median.abs_diff(1000)), key.clone()));
+    moved
+}
+
+/// Whether a cell's calling-thread instructions are the code's alone: a
+/// solo cell of a contender without a pool.
+fn instructions_tell(key: &str) -> bool {
+    let mut fields = key.split('|');
+    let (Some(contender), Some(scenario)) = (fields.next(), fields.next()) else {
+        return false;
+    };
+    scenario == "solo"
+        && Algorithm::ALL
+            .into_iter()
+            .find(|a| a.key() == contender)
+            .is_some_and(|a| !a.multithreaded())
 }
 
 /*
@@ -6986,6 +7430,11 @@ fn samples_header(machine: &MachineMetadata, run: &[(String, String)], load: &st
         ("os type", machine.os_type.as_str()),
         ("cpu identity", machine.cpu_identity.as_str()),
         ("idle states", machine.idle_states.as_str()),
+        (
+            "effective idle states",
+            machine.effective_idle_states.as_str(),
+        ),
+        ("idle control", machine.idle_control.as_str()),
         ("shared placements", machine.placements.as_str()),
     ]
     .into_iter()
@@ -7160,7 +7609,7 @@ fn generate_text(
     writeln!(output).unwrap();
 
     /* How the program calls, for the tables this run shows. */
-    for key in ["busy", "idle", "nonstop"] {
+    for key in ["busy", "brief", "idle", "controlled", "nonstop"] {
         let names: Vec<String> = UseCase::ALL
             .into_iter()
             .filter(|&use_case| {
@@ -7345,6 +7794,8 @@ fn machine_metadata() -> MachineMetadata {
         os_type,
         cpu_identity: cpu_identity(),
         idle_states: idle_states(),
+        effective_idle_states: effective_idle_states(),
+        idle_control: "not used by this command".to_owned(),
         placements: topology().describe(),
         load: Vec::new(),
         power: [Power::read(), None],
@@ -7367,12 +7818,310 @@ fn machine_metadata() -> MachineMetadata {
  * EPYC 9255 runs no cpuidle driver and has no such modes; the Xeon Gold
  * 6330 is 14 times slower than the EPYC in that cell, mostly this. Linux
  * reports the driver and governor, and CPU 0's states as "NAME latency
- * LAT us residency RES us" with "disabled" where a state is; "none" where
- * no driver runs; other systems report no states ("not reported by this
+ * LAT us residency RES us" with "disabled" where a state is; "none listed"
+ * where no driver runs (the kernel's default idle, the EPYC 9255); other systems report no states ("not reported by this
  * OS"), as the power line does.
  */
 fn idle_states() -> String {
     describe_idle_states(&|path| fs::read_to_string(path).ok())
+}
+
+/// The idle states a core enters in fact under the after-pause cells'
+/// pauses: at the run's start this thread sleeps the brief pause and the
+/// long one, each many times over, and its core's hardware residency
+/// counters say what share of each it spent in each C-state (Linux,
+/// Intel's `cstate_core` events; bench-hashes #117 and #128: a Xeon Gold
+/// 6330 enters its C6 for 66% of a long idle and seldom within 1 ms,
+/// and the i7-12700K's deep pauses sit in core C7, which no software
+/// counter shows). Elsewhere, "not measured".
+fn effective_idle_states() -> String {
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(text) = effective_idle_states_linux() {
+            return text;
+        }
+    }
+    "not measured (no cstate_core counters readable here)".to_owned()
+}
+
+/// A pause as the headings name it: "20 us", "5 ms".
+fn describe_pause(ns: u64) -> String {
+    if ns % 1_000_000 == 0 {
+        format!("{} ms", ns / 1_000_000)
+    } else {
+        format!("{} us", ns / 1_000)
+    }
+}
+
+/// The pauses the line measures, each repeated to about 100 ms of sleep.
+const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
+
+#[cfg(target_os = "linux")]
+fn effective_idle_states_linux() -> Option<String> {
+    use std::ffi::{c_int, c_long, c_void};
+    #[repr(C)]
+    struct Attr {
+        kind: u32,
+        size: u32,
+        config: u64,
+        sample_period: u64,
+        sample_type: u64,
+        read_format: u64,
+        flags: u64,
+        reserved: [u64; 2],
+    }
+    unsafe extern "C" {
+        fn syscall(number: c_long, ...) -> c_long;
+        fn read(fd: c_int, buffer: *mut c_void, size: usize) -> isize;
+        fn close(fd: c_int) -> c_int;
+        fn sched_getcpu() -> c_int;
+    }
+    let dir = "/sys/bus/event_source/devices/cstate_core";
+    let kind: u32 = fs::read_to_string(format!("{dir}/type"))
+        .ok()?
+        .trim()
+        .parse()
+        .ok()?;
+    let cpu = unsafe { sched_getcpu() };
+    if cpu < 0 {
+        return None;
+    }
+    let mut names = Vec::new();
+    for entry in fs::read_dir(format!("{dir}/events")).ok()?.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if let Some(state) = name.strip_suffix("-residency") {
+            let spec = fs::read_to_string(entry.path()).ok()?;
+            let config = u64::from_str_radix(spec.trim().strip_prefix("event=0x")?, 16).ok()?;
+            names.push((state.to_uppercase(), config));
+        }
+    }
+    names.sort();
+    // A counter of each state on this CPU, system-wide (the core's time
+    // in the state, whoever idles it).
+    let mut fds = Vec::new();
+    for &(_, config) in &names {
+        let attr = Attr {
+            kind,
+            size: 64,
+            config,
+            sample_period: 0,
+            sample_type: 0,
+            read_format: 0,
+            flags: 0,
+            reserved: [0; 2],
+        };
+        // Sound: perf_event_open reads the attr given; any pid, this CPU, no group, CLOEXEC.
+        let fd = unsafe {
+            syscall(
+                298,
+                &attr as *const Attr,
+                -1 as c_long,
+                c_long::from(cpu),
+                -1 as c_long,
+                8 as c_long,
+            )
+        } as c_int;
+        if fd < 0 {
+            for fd in fds {
+                unsafe { close(fd) };
+            }
+            return None;
+        }
+        fds.push(fd);
+    }
+    let read_all = |fds: &[c_int]| -> Vec<u64> {
+        fds.iter()
+            .map(|&fd| {
+                let mut v = 0u64;
+                // Sound: reads 8 bytes into v.
+                unsafe { read(fd, &mut v as *mut u64 as *mut c_void, 8) };
+                v
+            })
+            .collect()
+    };
+    // Each pause as the cells take it (clocks::Gap::Idle: a sleep of its
+    // length), repeated; the counters read around the whole.
+    let mut measured = Vec::new();
+    for (pause_ns, repeats) in EFFECTIVE_IDLE_PAUSES {
+        let before = read_all(&fds);
+        let started = clocks::now();
+        for _ in 0..repeats {
+            std::thread::sleep(std::time::Duration::from_nanos(pause_ns));
+        }
+        let elapsed_ns = clocks::since_ns(started);
+        let after = read_all(&fds);
+        let ticks: Vec<u64> = before
+            .iter()
+            .zip(&after)
+            .map(|(b, a)| a.saturating_sub(*b))
+            .collect();
+        measured.push((pause_ns, repeats, elapsed_ns, ticks));
+    }
+    for fd in fds {
+        unsafe { close(fd) };
+    }
+    // The counters tick at the TSC's rate: the pause in ticks from the
+    // machine's rate where it says it (tsc_freq_khz, or the model name's
+    // GHz), else from the states' sum, a core idle all along.
+    let tsc_hz: Option<u64> = fs::read_to_string("/sys/devices/system/cpu/cpu0/tsc_freq_khz")
+        .ok()
+        .and_then(|k| k.trim().parse::<u64>().ok())
+        .map(|k| k * 1000)
+        .or_else(|| {
+            fs::read_to_string("/proc/cpuinfo").ok().and_then(|info| {
+                info.lines()
+                    .find(|l| l.starts_with("model name"))
+                    .and_then(|l| {
+                        let ghz = l
+                            .rsplit('@')
+                            .next()?
+                            .trim()
+                            .strip_suffix("GHz")?
+                            .trim()
+                            .parse::<f64>()
+                            .ok()?;
+                        Some((ghz * 1e9) as u64)
+                    })
+            })
+        });
+    let names: Vec<&str> = names.iter().map(|(n, _)| n.as_str()).collect();
+    let lines: Vec<String> = measured
+        .iter()
+        .map(|(pause_ns, repeats, elapsed_ns, ticks)| {
+            let total: u128 = ticks.iter().map(|&t| u128::from(t)).sum();
+            let pause_ticks = tsc_hz.map_or(total, |hz| {
+                u128::from(hz) * u128::from(*elapsed_ns) / 1_000_000_000
+            });
+            format!(
+                "over {repeats} x {}: {}",
+                describe_pause(*pause_ns),
+                describe_effective_idle_states(&names, ticks, pause_ticks)
+            )
+        })
+        .collect();
+    Some(lines.join("; "))
+}
+
+/// The line: each state's share of the pause's ticks (the TSC's), and the
+/// rest, which the core spent awake or in a state no counter names:
+/// "C1 5%, C6 95%, C7 0%, awake or unnamed 0%".
+fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
+    let total: u128 = ticks.iter().map(|&t| u128::from(t)).sum();
+    let pause_ticks = pause_ticks.max(total).max(1);
+    let share = |t: u128| (t * 100 + pause_ticks / 2) / pause_ticks;
+    let mut parts: Vec<String> = names
+        .iter()
+        .zip(ticks)
+        .map(|(n, &t)| format!("{n} {}%", share(u128::from(t))))
+        .collect();
+    parts.push(format!("awake or unnamed {}%", share(pause_ticks - total)));
+    parts.join(", ")
+}
+
+/// The machine's idle states under the bench's control (bench-hashes #117,
+/// Sam Shackleton's protocol): where every cpuidle `disable` file is
+/// writable (the bench runs as root), the after-pause cells run once
+/// more (the ControlledIdle* use cases) with every state but POLL and C1
+/// switched off, so a call meets the core awake and the cell measures
+/// the library alone; the shipped block, what users meet, stays the
+/// first. The states are chosen by name: POLL and C1 kept, or POLL alone
+/// where the machine has no plain C1 (the i7-12700K: C1E, C6, C8, C10).
+/// Applied as a guard that writes each file's old value back when it
+/// drops, so a run that ends early leaves the machine as it found it (a
+/// run killed outright cannot; the header names the files).
+struct IdleControl {
+    /// Each state's `disable` file, with the value it held and whether
+    /// the block keeps the state.
+    files: Vec<(std::path::PathBuf, String, bool)>,
+    /// Whether the machine has a plain C1 (kept beside POLL).
+    has_c1: bool,
+}
+
+impl IdleControl {
+    /// The control for the cpuidle tree at `root` (`/sys/devices/system/cpu`):
+    /// None where there are no states, or any `disable` file is not
+    /// writable.
+    fn detect(root: &std::path::Path) -> Option<IdleControl> {
+        let mut files = Vec::new();
+        let mut names = std::collections::BTreeSet::new();
+        for cpu in fs::read_dir(root).ok()?.flatten() {
+            let name = cpu.file_name().to_string_lossy().into_owned();
+            let Some(number) = name.strip_prefix("cpu") else {
+                continue;
+            };
+            if number.parse::<u32>().is_err() {
+                continue;
+            }
+            let Ok(states) = fs::read_dir(cpu.path().join("cpuidle")) else {
+                continue;
+            };
+            for state in states.flatten() {
+                let state_name = fs::read_to_string(state.path().join("name"))
+                    .ok()?
+                    .trim()
+                    .to_owned();
+                let disable = state.path().join("disable");
+                let held = fs::read_to_string(&disable).ok()?.trim().to_owned();
+                // Writable: open for writing succeeds (nothing written).
+                fs::OpenOptions::new().write(true).open(&disable).ok()?;
+                let keep = state_name == "POLL" || state_name == "C1";
+                names.insert(state_name);
+                files.push((disable, held, keep));
+            }
+        }
+        let has_c1 = names.contains("C1");
+        (!files.is_empty() && files.iter().any(|(_, _, keep)| !keep))
+            .then_some(IdleControl { files, has_c1 })
+    }
+
+    /// The states the block keeps, "POLL and C1" or "POLL alone".
+    fn kept(&self) -> &'static str {
+        if self.has_c1 {
+            "POLL and C1"
+        } else {
+            "POLL alone"
+        }
+    }
+
+    /// Switch every other state off, until the guard drops.
+    fn apply(&self) -> IdleControlGuard<'_> {
+        for (path, _, keep) in &self.files {
+            if !keep {
+                fs::write(path, "1\n")
+                    .unwrap_or_else(|e| panic!("switching off {}: {e}", path.display()));
+            }
+        }
+        IdleControlGuard { control: self }
+    }
+
+    /// Write every file's old value back.
+    fn restore(&self) {
+        for (path, held, _) in &self.files {
+            let _ = fs::write(path, format!("{held}\n"));
+        }
+    }
+
+    /// The header's line: what the controlled cells keep, or why there
+    /// are none.
+    fn describe(control: Option<&IdleControl>) -> String {
+        match control {
+            Some(control) => format!(
+                "the controlled cells keep {} and switch the other states off; run as root",
+                control.kept()
+            ),
+            None => "none (no cpuidle states the bench can switch off: run as root for the controlled cells)".to_owned(),
+        }
+    }
+}
+
+struct IdleControlGuard<'a> {
+    control: &'a IdleControl,
+}
+
+impl Drop for IdleControlGuard<'_> {
+    fn drop(&mut self) {
+        self.control.restore();
+    }
 }
 
 fn describe_idle_states(read: &dyn Fn(&str) -> Option<String>) -> String {
@@ -7382,7 +8131,7 @@ fn describe_idle_states(read: &dyn Fn(&str) -> Option<String>) -> String {
     };
     let driver = driver.trim();
     if driver == "none" {
-        return "none".to_owned();
+        return "none listed (no cpuidle driver; the kernel's default idle)".to_owned();
     }
     let governor = read(&format!("{dir}/cpuidle/current_governor"))
         .map_or("?".to_owned(), |g| g.trim().to_owned());
@@ -7736,14 +8485,16 @@ mod correctness_tests {
                     samples.solo_cpu[a][p].push(Some(3));
                     samples.solo_cpu_ns[a][p].push(Some(2 * value(a, p, r)));
                     samples.solo_energy_nj[a][p].push(Some(3 * value(a, p, r)));
-                    let level = |cycles, time_ns| clocks::Level {
-                        cycles,
-                        instructions: 0,
-                        time_ns,
-                    };
+                    let v = value(a, p, r);
                     samples.solo_counts[a][p].push(Some(clocks::Counts {
-                        p: level(4 * value(a, p, r), value(a, p, r)),
-                        e: level(0, 0),
+                        p: clocks::Level {
+                            cycles: 4 * v,
+                            instructions: 5 * v,
+                            cache_references: 6 * v,
+                            cache_misses: 7 * v,
+                            time_ns: v,
+                        },
+                        e: clocks::Level::default(),
                     }));
                 }
                 results[a][p] = Some(Cell {
@@ -7928,6 +8679,209 @@ mod correctness_tests {
         );
     }
 
+    /// compare's quantity to judge by (bench-hashes #127): a file whose
+    /// cell took the same wall time and cycles a unit as another's but
+    /// more instructions reads level by wall and by cycles and slower by
+    /// instructions; a cell without counts is judged by wall alone.
+    /// A level solo cell of a single-threaded contender whose instructions
+    /// moved beyond the margin the same way in every pair is named (either
+    /// way, the larger move first); one at the margin in any pair, counted
+    /// in fewer pairs than the run had, multithreaded, or shared, is not.
+    /// A cell's visits spread over the rounds: `visits` of `rounds` slots
+    /// take a sample, evenly, and a slot past the rounds (the round plus
+    /// the point's offset) wraps; visits at or past the rounds take every
+    /// slot.
+    #[test]
+    fn cell_visits_spread_over_the_rounds() {
+        let taken = |rounds: usize, visits: usize| -> Vec<usize> {
+            (0..rounds)
+                .filter(|&slot| cell_wants_sample(slot, rounds, visits))
+                .collect()
+        };
+        assert_eq!(taken(12, 4), vec![0, 3, 6, 9]);
+        assert_eq!(taken(12, 5), vec![0, 3, 5, 8, 10]);
+        assert_eq!(taken(12, 12).len(), 12);
+        assert_eq!(taken(12, 40).len(), 12);
+        assert_eq!(taken(7, 1), vec![0]);
+        for slot in 0..36 {
+            assert_eq!(
+                cell_wants_sample(slot, 12, 5),
+                cell_wants_sample(slot % 12, 12, 5),
+                "slot {slot} wraps"
+            );
+        }
+    }
+
+    /// The sizes cache's context names the power source and mode, and
+    /// leaves the battery's charge out: it changes by the minute and sizes
+    /// nothing.
+    #[test]
+    fn the_sizes_context_ignores_the_batterys_charge() {
+        let roster = Roster::new(
+            vec![Algorithm::Sha256],
+            true,
+            None,
+            Some(1),
+            &TO_MEASURE_SPEED,
+            None,
+        );
+        let mut machine = machine_metadata();
+        let power = |percent| {
+            Some(Power {
+                on_battery: true,
+                battery_percent: percent,
+                mode: Some("Low Power Mode".to_owned()),
+                low_power: true,
+            })
+        };
+        machine.power = [power(Some(80)), None];
+        let at_80 = sizes_context(&roster, &machine, None);
+        machine.power = [power(Some(35)), None];
+        let at_35 = sizes_context(&roster, &machine, None);
+        assert_eq!(at_80, at_35, "the charge sizes nothing");
+        let power_line = |context: &[(String, String)]| {
+            context
+                .iter()
+                .find(|(k, _)| k == "power")
+                .unwrap()
+                .1
+                .clone()
+        };
+        assert_eq!(power_line(&at_80), "battery power, Low Power Mode");
+        machine.power = [
+            power(Some(80)).map(|p| Power {
+                on_battery: false,
+                ..p
+            }),
+            None,
+        ];
+        assert_ne!(
+            power_line(&sizes_context(&roster, &machine, None)),
+            power_line(&at_80),
+            "the source sizes"
+        );
+    }
+
+    #[test]
+    fn instructions_moved_names_cells_beyond_the_margin_in_every_pair() {
+        let ratios: std::collections::BTreeMap<String, Vec<u64>> = [
+            (
+                "blake3-servil-st|solo|OneMessage|3839 B",
+                vec![1012, 1011, 1013, 1012],
+            ),
+            (
+                "blake3-servil-st|solo|OneMessage|64 B",
+                vec![990, 991, 989, 990],
+            ),
+            (
+                "blake3-servil-st|solo|OneMessage|1 KiB",
+                vec![1005, 1005, 1005, 1005],
+            ),
+            (
+                "blake3-servil-st|solo|OneMessage|2 KiB",
+                vec![1000, 1000, 1000, 1300],
+            ),
+            // Beyond in the median, at the margin in one pair: a count that
+            // moves with the layout, no change in the code.
+            (
+                "blake3-servil-st|solo|InterleavedTurn|256",
+                vec![1012, 1011, 1004, 1013],
+            ),
+            (
+                "blake3-servil-st|solo|OneMessage|4 KiB",
+                vec![1012, 1012, 1012],
+            ),
+            // A pool's caller spins while it waits: its count is no evidence.
+            (
+                "blake3-servil-mt|solo|OneMessage|1 MiB",
+                vec![1030, 1040, 1050, 1060],
+            ),
+            (
+                "blake3-servil-st|shared-one-cache|LentMessages|64 B",
+                vec![1030, 1040, 1050, 1060],
+            ),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_owned(), v))
+        .collect();
+        assert_eq!(
+            instructions_moved(&ratios, 4),
+            vec![
+                ("blake3-servil-st|solo|OneMessage|3839 B".to_owned(), 1012),
+                ("blake3-servil-st|solo|OneMessage|64 B".to_owned(), 990),
+            ],
+            "beyond the margin the same way in every pair, the larger move first; st solo cells alone"
+        );
+        assert!(instructions_moved(&Default::default(), 4).is_empty());
+    }
+
+    /// A cell's instructions a unit sum both kinds of core over every
+    /// sample, over the units; a cell without counts has none; the wall
+    /// mean is the samples' regardless.
+    #[test]
+    fn cell_instructions_sum_both_kinds_over_the_units() {
+        let dir =
+            std::env::temp_dir().join(format!("bench-cell-instructions-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let write = |name: &str, instructions: u64, counts: bool| -> String {
+            let core = if counts {
+                (0..3)
+                    .map(|i| {
+                        // P and E both counted: the reader sums the kinds.
+                        format!(
+                            "{}:{}:{}:7:1:{}:{}:{}:2:1",
+                            1000 + i,
+                            4000 + 4 * i,
+                            instructions + i,
+                            500 + i,
+                            1000 + 2 * i,
+                            instructions / 10
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",")
+            } else {
+                "-".to_owned()
+            };
+            let text = format!(
+                "{SAMPLES_VERSION}\n# bench-hashes version: test\n# load: quiet\n# power: mains power\n{SAMPLES_COLUMNS}\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t1000/64,1001/64,1002/64\t0,1,2\t-\t-\t{core}\t3,3,3\n"
+            );
+            let path = dir.join(name);
+            std::fs::write(&path, text).unwrap();
+            path.to_str().unwrap().to_owned()
+        };
+        let key = "blake3-servil-st|solo|OneMessage|64 B";
+        let (old, new) = (
+            read_samples(&write("old.tsv", 20_000, true)),
+            read_samples(&write("new.tsv", 21_000, true)),
+        );
+        let (o, n) = (cell_instructions(&old)[key], cell_instructions(&new)[key]);
+        assert!(
+            n > o && (49..=51).contains(&((n - o) * 1000 / o)),
+            "5% more instructions a unit: {o} to {n}"
+        );
+        // P (20000 + 20001 + 20002) + E (3 x 2000), over 192 B.
+        assert_eq!(o >> 64, (60_003 + 6_000) / 192);
+        assert_eq!(
+            cell_means(old)[0].1,
+            cell_means(new)[0].1,
+            "the same wall time"
+        );
+        let none = read_samples(&write("none.tsv", 0, false));
+        assert!(cell_instructions(&none).is_empty(), "no counts: none");
+        assert_eq!(cell_means(none).len(), 1);
+        // A CPU-time column of zeros (a platform that counts none writes
+        // "-", but a zero is the same absence) reads as none.
+        let zero_cpu = format!(
+            "{SAMPLES_VERSION}\n# bench-hashes version: test\n# load: quiet\n# power: mains power\n{SAMPLES_COLUMNS}\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t1000/64,1001/64,1002/64\t0,1,2\t0,0,0\t-\t-\t3,3,3\n"
+        );
+        let path = dir.join("zero-cpu.tsv");
+        std::fs::write(&path, zero_cpu).unwrap();
+        let (_, _, cpu, energy) = cell_means(read_samples(path.to_str().unwrap())).remove(0);
+        assert_eq!((cpu, energy), (None, None), "zero CPU time a unit: none");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn samples_file_places_each_sample_in_the_load_windows() {
         // A machine with one cache (the i7's table), so the shared rows read
@@ -7952,6 +8906,7 @@ mod correctness_tests {
             ]),
             Some(3),
             &TO_CHECK_FOR_REGRESSIONS,
+            None,
         );
         let (_, samples) = run(&roster, 3, |_, _, r| 10_000 + r as u64);
         let mut machine = machine_metadata();
@@ -7970,7 +8925,7 @@ mod correctness_tests {
             },
         ];
         let tsv = generate_samples_tsv(&roster, &samples, &machine, "test");
-        assert!(tsv.starts_with("# bench-hashes samples v8\n"));
+        assert!(tsv.starts_with("# bench-hashes samples v10\n"));
         // The main run's own file carries the shared provenance first.
         assert_eq!(
             &harness_tests::header_keys(&tsv)[..harness_tests::PROVENANCE.len()],
@@ -7980,7 +8935,7 @@ mod correctness_tests {
         assert!(tsv.contains("\n# load: busy: "), "{tsv}");
         assert!(tsv.contains("\n# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1:1200:0,1-3:100:7\n"), "{tsv}");
         assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\tcpu\n"));
-        assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\t30000,30003,30006\t10000:40000:0:0,10001:40004:0:0,10002:40008:0:0\t3,3,3\n"), "{tsv}");
+        assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\t30000,30003,30006\t10000:40000:50000:60000:70000:0:0:0:0:0,10001:40004:50005:60006:70007:0:0:0:0:0,10002:40008:50010:60012:70014:0:0:0:0:0\t3,3,3\n"), "{tsv}");
         // The multithreaded contender's shared rows, the two copies in turn,
         // each sample's CPU with it; a single-threaded contender has none.
         assert!(tsv.contains("\nblake3-servil-mt\tshared-one-cache\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\t-\t-\t-\t2,5,2,5,2,5\n"), "{tsv}");
@@ -8080,6 +9035,139 @@ mod correctness_tests {
         );
     }
 
+    /// The idle control on a faked cpuidle tree: every state but POLL and
+    /// C1 switched off while the guard lives, every file's value back when
+    /// it drops; none where a file is read-only, or no state is there to
+    /// switch off.
+    #[test]
+    fn idle_control_switches_the_deep_states_off_and_back() {
+        let root = std::env::temp_dir().join(format!("bench-cpuidle-{}", std::process::id()));
+        let make = |cpu: usize, states: &[(&str, &str)]| {
+            for (i, (name, disable)) in states.iter().enumerate() {
+                let dir = root.join(format!("cpu{cpu}/cpuidle/state{i}"));
+                fs::create_dir_all(&dir).unwrap();
+                fs::write(dir.join("name"), format!("{name}\n")).unwrap();
+                fs::write(dir.join("disable"), format!("{disable}\n")).unwrap();
+            }
+        };
+        // The i7's ladder on two CPUs (no plain C1), C6 already off on cpu1.
+        make(0, &[("POLL", "0"), ("C1E", "0"), ("C6", "0"), ("C8", "0")]);
+        make(1, &[("POLL", "0"), ("C1E", "0"), ("C6", "1"), ("C8", "0")]);
+        fs::create_dir_all(root.join("cpufreq")).unwrap(); // a sibling that is no CPU
+        let control = IdleControl::detect(&root).expect("writable states");
+        assert_eq!(control.kept(), "POLL alone");
+        let read = |cpu: usize, state: usize| {
+            fs::read_to_string(root.join(format!("cpu{cpu}/cpuidle/state{state}/disable")))
+                .unwrap()
+                .trim()
+                .to_owned()
+        };
+        {
+            let _guard = control.apply();
+            assert_eq!(
+                [read(0, 0), read(0, 1), read(0, 2), read(0, 3)],
+                ["0", "1", "1", "1"],
+                "POLL kept, the rest off"
+            );
+            assert_eq!([read(1, 1), read(1, 2)], ["1", "1"]);
+        }
+        assert_eq!(
+            [read(0, 0), read(0, 1), read(0, 2), read(0, 3)],
+            ["0", "0", "0", "0"],
+            "back as found"
+        );
+        assert_eq!(read(1, 2), "1", "cpu1's C6 was off before, and is again");
+        // A machine with a plain C1 keeps it.
+        let root2 = root.join("with-c1");
+        for (i, name) in ["POLL", "C1", "C6"].iter().enumerate() {
+            let dir = root2.join(format!("cpu0/cpuidle/state{i}"));
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("name"), format!("{name}\n")).unwrap();
+            fs::write(dir.join("disable"), "0\n").unwrap();
+        }
+        let control2 = IdleControl::detect(&root2).expect("writable states");
+        assert_eq!(control2.kept(), "POLL and C1");
+        {
+            let _guard = control2.apply();
+            let read2 = |state: usize| {
+                fs::read_to_string(root2.join(format!("cpu0/cpuidle/state{state}/disable")))
+                    .unwrap()
+                    .trim()
+                    .to_owned()
+            };
+            assert_eq!([read2(0), read2(1), read2(2)], ["0", "0", "1"]);
+        }
+        // A read-only disable file: no control (the bench lacks root). Root
+        // writes a read-only file anyway, so under root (Sam's machines,
+        // the switch's only user) the file stays writable and detect
+        // rightly finds control; the check holds where the mode binds.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let locked = root.join("cpu0/cpuidle/state2/disable");
+            fs::set_permissions(&locked, fs::Permissions::from_mode(0o444)).unwrap();
+            let mode_binds = fs::OpenOptions::new().write(true).open(&locked).is_err();
+            assert_eq!(
+                IdleControl::detect(&root).is_none(),
+                mode_binds,
+                "a file the bench cannot write: no control"
+            );
+            fs::set_permissions(&locked, fs::Permissions::from_mode(0o644)).unwrap();
+        }
+        // No cpuidle at all: no control.
+        assert!(IdleControl::detect(&root.join("nowhere")).is_none());
+        // Only the states the block keeps: nothing to switch off, no control.
+        let shallow = root.join("shallow");
+        for (i, name) in ["POLL", "C1"].iter().enumerate() {
+            let dir = shallow.join(format!("cpu0/cpuidle/state{i}"));
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("name"), format!("{name}\n")).unwrap();
+            fs::write(dir.join("disable"), "0\n").unwrap();
+        }
+        assert!(
+            IdleControl::detect(&shallow).is_none(),
+            "POLL and C1 alone: nothing to switch off"
+        );
+        // The header's line, with the switch and without.
+        assert_eq!(
+            IdleControl::describe(Some(&control2)),
+            "the controlled cells keep POLL and C1 and switch the other states off; run as root"
+        );
+        assert_eq!(
+            IdleControl::describe(Some(&control)),
+            "the controlled cells keep POLL alone and switch the other states off; run as root"
+        );
+        assert_eq!(
+            IdleControl::describe(None),
+            "none (no cpuidle states the bench can switch off: run as root for the controlled cells)"
+        );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// The effective idle states' line: each state's share of the pause's
+    /// ticks, and the rest awake or unnamed; a sum past the pause (a
+    /// rate read low) is the whole.
+    #[test]
+    fn effective_idle_states_line_shares_the_pause() {
+        assert_eq!(
+            describe_effective_idle_states(&["C1", "C6", "C7"], &[5, 95, 0], 100),
+            "C1 5%, C6 95%, C7 0%, awake or unnamed 0%"
+        );
+        assert_eq!(
+            describe_effective_idle_states(&["C1", "C6"], &[20, 30], 100),
+            "C1 20%, C6 30%, awake or unnamed 50%"
+        );
+        assert_eq!(
+            describe_effective_idle_states(&["C1"], &[120], 100),
+            "C1 100%, awake or unnamed 0%"
+        );
+        // Rounded to the nearest percent: 1 of 200 is 1%, 199 of 200 is 100%.
+        assert_eq!(
+            describe_effective_idle_states(&["C1"], &[1], 200),
+            "C1 1%, awake or unnamed 100%"
+        );
+    }
+
     /// The idle-states line from the three kinds of machine (#106): Linux
     /// with a driver (the i7), Linux with none (the EPYC 9255), and a
     /// system without cpuidle (the Mac).
@@ -8126,7 +9214,10 @@ mod correctness_tests {
             path.ends_with("current_driver")
                 .then(|| "none\n".to_owned())
         };
-        assert_eq!(describe_idle_states(&epyc), "none");
+        assert_eq!(
+            describe_idle_states(&epyc),
+            "none listed (no cpuidle driver; the kernel's default idle)"
+        );
         let mac = |_: &str| -> Option<String> { None };
         assert_eq!(describe_idle_states(&mac), "not reported by this OS");
     }
@@ -8141,6 +9232,7 @@ mod correctness_tests {
             Some(vec![point("64 B", UseCase::OneMessage)]),
             Some(2),
             &TO_MEASURE_SPEED,
+            None,
         );
         let context = vec![
             ("machine".to_owned(), "this one".to_owned()),
@@ -8189,6 +9281,7 @@ mod correctness_tests {
             Some(points),
             Some(2),
             &TO_MEASURE_SPEED,
+            None,
         );
         let (owned, lent, small) = (
             point("4 KiB", UseCase::ContinuousMessages),
@@ -8239,6 +9332,7 @@ mod correctness_tests {
             Some(points),
             Some(2),
             &TO_MEASURE_SPEED,
+            None,
         );
         blake3_servil::initialize_multithreaded(None);
         roster.train = Train {
@@ -8326,7 +9420,14 @@ mod correctness_tests {
             point("64 KiB", UseCase::LentMessages),
         ];
         points.sort_unstable();
-        let mut roster = Roster::new(algorithms, true, Some(points), Some(2), &TO_MEASURE_SPEED);
+        let mut roster = Roster::new(
+            algorithms,
+            true,
+            Some(points),
+            Some(2),
+            &TO_MEASURE_SPEED,
+            None,
+        );
         roster.train = Train {
             warm_ns: 1_000_000,
             samples: 2,
@@ -8350,6 +9451,84 @@ mod correctness_tests {
         }
     }
 
+    /// The controlled cells are measured where the bench holds the cpuidle
+    /// switch (a faked tree here): a run without it leaves them out, and
+    /// stops when --points names one; a run with it measures them with the
+    /// deep states off during their rounds and every file back after.
+    #[test]
+    fn controlled_cells_need_the_cpuidle_switch() {
+        let root = std::env::temp_dir().join(format!("bench-cpuidle-run-{}", std::process::id()));
+        for (i, name) in ["POLL", "C1E", "C6"].iter().enumerate() {
+            let dir = root.join(format!("cpu0/cpuidle/state{i}"));
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("name"), format!("{name}\n")).unwrap();
+            // No newline: the guard's restore writes one, so the file's
+            // bytes say whether the switch was thrown and put back.
+            fs::write(dir.join("disable"), "0").unwrap();
+        }
+        let read = |state: usize| {
+            fs::read_to_string(root.join(format!("cpu0/cpuidle/state{state}/disable"))).unwrap()
+        };
+        let plain = point("64 B", UseCase::OneMessage);
+        let controlled = point("64 B", UseCase::ControlledIdleOneMessage);
+
+        let without = Roster::new(
+            vec![Algorithm::Sha256],
+            false,
+            None,
+            Some(1),
+            &TO_MEASURE_SPEED,
+            None,
+        );
+        assert!(without.measures(plain));
+        assert!(
+            !without.measures(controlled),
+            "no switch: no controlled cells"
+        );
+        let named = std::panic::catch_unwind(|| {
+            Roster::new(
+                vec![Algorithm::Sha256],
+                true,
+                Some(vec![controlled]),
+                Some(1),
+                &TO_MEASURE_SPEED,
+                None,
+            )
+        });
+        assert!(
+            named.is_err(),
+            "a controlled point named without the switch stops the run"
+        );
+
+        let control = IdleControl::detect(&root).expect("a writable tree");
+        let mut roster = Roster::new(
+            vec![Algorithm::Sha256],
+            true,
+            Some(vec![plain, controlled]),
+            Some(1),
+            &TO_MEASURE_SPEED,
+            Some(control),
+        );
+        roster.train = Train {
+            warm_ns: 1_000_000,
+            samples: 2,
+        };
+        assert!(roster.measures(controlled));
+        let (results, samples, _, _) = measure_all(&roster, &Sizes::Calibrate);
+        assert!(results[0][controlled].is_some());
+        assert_eq!(
+            samples.solo[0][controlled].len(),
+            1,
+            "one sample in its one round"
+        );
+        assert_eq!(
+            [read(0), read(1), read(2)],
+            ["0\n", "0\n", "0\n"],
+            "the switch was thrown for the controlled rounds and every state put back"
+        );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
     /// A nonstop cell's visit is a train (Train): its warm-up, then its
     /// samples back to back, solo and in the two shared copies; a call
     /// after a gap stays one sample a visit.
@@ -8369,6 +9548,7 @@ mod correctness_tests {
             }),
             Some(2),
             &TO_MEASURE_SPEED,
+            None,
         );
         roster.train = Train {
             warm_ns: 2_000_000,
@@ -8419,6 +9599,7 @@ mod correctness_tests {
             ]),
             Some(20),
             &TO_CHECK_FOR_REGRESSIONS,
+            None,
         );
         // Contender 0's one-message cell has one slow outlier among 20
         // samples of 1000 ns a unit, which the mean counts in full
@@ -8518,9 +9699,20 @@ mod correctness_tests {
                             .iter()
                             .map(|c| {
                                 let c = c.unwrap();
-                                [c.p.time_ns, c.p.cycles, c.e.time_ns, c.e.cycles]
+                                [
+                                    c.p.time_ns,
+                                    c.p.cycles,
+                                    c.p.instructions,
+                                    c.p.cache_references,
+                                    c.p.cache_misses,
+                                    c.e.time_ns,
+                                    c.e.cycles,
+                                    c.e.instructions,
+                                    c.e.cache_references,
+                                    c.e.cache_misses,
+                                ]
                             })
-                            .collect::<Vec<[u64; 4]>>()
+                            .collect::<Vec<[u64; LEVEL_FIELDS * 2]>>()
                     });
                     assert_eq!(cores, wanted, "{key}'s core counts");
                     // The CPU each sample ended on, solo and shared alike.
@@ -8550,13 +9742,23 @@ mod correctness_tests {
             INPUT_COUNT + BATCH_COUNT..INPUT_COUNT + BATCH_COUNT + LONG_BATCH_COUNT
         );
         let idle = INPUT_COUNT + BATCH_COUNT + LONG_BATCH_COUNT;
-        for use_case in [UseCase::IdleOneMessage, UseCase::IdleManyMessages] {
+        let brief = idle + INPUT_COUNT + BATCH_COUNT;
+        let controlled = brief + INPUT_COUNT + BATCH_COUNT;
+        for (use_case, offset) in [
+            (UseCase::IdleOneMessage, idle),
+            (UseCase::IdleManyMessages, idle),
+            (UseCase::BriefIdleOneMessage, brief),
+            (UseCase::BriefIdleManyMessages, brief),
+            (UseCase::ControlledIdleOneMessage, controlled),
+            (UseCase::ControlledIdleManyMessages, controlled),
+        ] {
             let (twin, mine) = (use_case.call().points(), use_case.points());
             assert_eq!(
                 mine,
                 // The idle axes follow the axes after other work and the
-                // long batches, which have no idle twin.
-                twin.start + idle..twin.end + idle,
+                // long batches, which have no idle twin; the brief ones
+                // follow the idle ones.
+                twin.start + offset..twin.end + offset,
                 "each idle axis follows its twin's pattern"
             );
             for (a, b) in POINTS[twin].iter().zip(&POINTS[mine]) {
@@ -8567,7 +9769,7 @@ mod correctness_tests {
                 );
             }
         }
-        let continuous = 2 * idle - LONG_BATCH_COUNT;
+        let continuous = controlled + INPUT_COUNT + BATCH_COUNT;
         assert_eq!(
             UseCase::ContinuousMessages.points(),
             continuous..continuous + CONTINUOUS_MESSAGE_COUNT
@@ -8611,7 +9813,15 @@ mod correctness_tests {
         );
         assert_eq!(
             UseCase::IdleInterleavedTurn.points(),
-            turn + INTERLEAVED_COUNT..POINT_COUNT
+            turn + INTERLEAVED_COUNT..turn + 2 * INTERLEAVED_COUNT
+        );
+        assert_eq!(
+            UseCase::BriefIdleInterleavedTurn.points(),
+            turn + 2 * INTERLEAVED_COUNT..turn + 3 * INTERLEAVED_COUNT
+        );
+        assert_eq!(
+            UseCase::ControlledIdleInterleavedTurn.points(),
+            turn + 3 * INTERLEAVED_COUNT..POINT_COUNT
         );
         for (k, point) in POINTS[UseCase::ContinuousCollection.points()]
             .iter()

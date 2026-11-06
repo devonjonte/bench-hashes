@@ -96,13 +96,19 @@ mod imp {
         pub fn read_nj(&self) -> u64 {
             let mut count = [0u8; 8];
             std::io::Read::read_exact(&mut &self.file, &mut count).expect("reading the package energy counter");
-            // count x mantissa x 10^(exponent + 9) nanojoules, rounded down.
-            let scaled = u128::from(u64::from_ne_bytes(count)) * self.mantissa;
-            let exponent = self.exponent + 9;
-            let nj = if exponent >= 0 { scaled * 10u128.pow(exponent as u32) } else { scaled / 10u128.pow(exponent.unsigned_abs()) };
-            u64::try_from(nj).expect("energy fits in u64")
+            super::scale_nj(u64::from_ne_bytes(count), self.mantissa, self.exponent)
         }
     }
+}
+
+/// A counter's `count` in nanojoules: count x mantissa x 10^(exponent + 9),
+/// rounded down (the scale "2.3283064365386962890625e-10" J a count, as
+/// parse_scale reads it, is mantissa 23283064365386962890625 at exponent -32).
+fn scale_nj(count: u64, mantissa: u128, exponent: i32) -> u64 {
+    let scaled = u128::from(count) * mantissa;
+    let exponent = exponent + 9;
+    let nj = if exponent >= 0 { scaled * 10u128.pow(exponent as u32) } else { scaled / 10u128.pow(exponent.unsigned_abs()) };
+    u64::try_from(nj).expect("energy fits in u64")
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -134,18 +140,44 @@ mod tests {
         assert_eq!(imp::parse_scale("joules"), None);
     }
 
-    /// Where the package energy can be read, it counts up, and a second of
-    /// busy work costs the package between 0.1 and 500 J (a desktop's
-    /// package draws a few watts idle and a few hundred at most).
+    /// A count scaled to nanojoules, exactly: Intel's 2^-32 J a count makes
+    /// 2^32 counts one joule, AMD's 2^-16 J makes 65536 counts one, and a
+    /// whole-joule scale multiplies by 10^9.
     #[test]
-    fn package_energy_counts_up_by_a_plausible_amount() {
-        let Some(before) = package_nj() else {
-            eprintln!("no package energy here; nothing to check");
-            return;
-        };
-        crate::busy_work(1_000_000_000);
-        let millijoules = (package_nj().unwrap() - before) / 1_000_000;
-        eprintln!("package energy over a busy second: {millijoules} mJ");
-        assert!((100..=500_000).contains(&millijoules), "{millijoules} mJ over a busy second");
+    fn counts_scale_to_nanojoules_exactly() {
+        assert_eq!(scale_nj(1 << 32, 23283064365386962890625, -32), 1_000_000_000);
+        assert_eq!(scale_nj(3, 23283064365386962890625, -32), 0, "under a nanojoule rounds down");
+        assert_eq!(scale_nj(65536, 152587890625, -16), 1_000_000_000);
+        assert_eq!(scale_nj(7, 1, 0), 7_000_000_000);
+    }
+
+    /// The machine's properties as this crate relies on them: timing, the
+    /// OS's counters, children. Seconds each and sensitive to other load,
+    /// so they run on purpose (`cargo nextest run -P machine`) before a
+    /// release and on a new machine, and not beside every change or mutant.
+    mod machine {
+        use super::*;
+
+        /// Where the package energy can be read, it counts up, and a second of
+        /// busy work costs the package between 0.1 and 500 J (a desktop's
+        /// package draws a few watts idle and a few hundred at most).
+        #[test]
+        fn package_energy_counts_up_by_a_plausible_amount() {
+            // Offered: the power PMU's energy-pkg event in sysfs, and the
+            // kernel letting a user open a CPU's event (perf_event_paranoid
+            // at most 0, or root).
+            let offered = std::path::Path::new("/sys/bus/event_source/devices/power/events/energy-pkg").exists()
+                && (std::fs::read_to_string("/proc/sys/kernel/perf_event_paranoid").map(|s| s.trim().parse::<i64>().unwrap_or(4)).unwrap_or(4) <= 0
+                    || std::fs::read_to_string("/proc/self/status").map_or(false, |s| s.lines().any(|l| l.starts_with("Uid:\t0\t"))));
+            let Some(before) = package_nj() else {
+                assert!(!offered, "the machine offers the package energy counter: it is read");
+                eprintln!("no package energy here; nothing to check");
+                return;
+            };
+            crate::busy_work(1_000_000_000);
+            let millijoules = (package_nj().unwrap() - before) / 1_000_000;
+            eprintln!("package energy over a busy second: {millijoules} mJ");
+            assert!((100..=500_000).contains(&millijoules), "{millijoules} mJ over a busy second");
+        }
     }
 }

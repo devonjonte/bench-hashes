@@ -2,6 +2,14 @@
 
 **One copy of the timing code.** The code that reads every clock and load measurement is now part of bench-hashes itself, so a result's bench-hashes version names exactly what timed it. It measures as before: the code is the same.
 
+**The wall clock is the raw hardware counter on Linux too.** Until now Linux runs read `CLOCK_MONOTONIC`, which the system's time daemon speeds up or slows down by up to 0.05% to track network time; a benchmark has no use for that, and the rate could be wrong or someone else's. Runs now read `CLOCK_MONOTONIC_RAW`, the counter itself, as Mac runs always did. Each result names its clock.
+
+**A call after a pause is measured after two pauses, 20 µs and 5 ms.** Until now each such call came after 1 ms of sleep, which on some computers is the moment the core is halfway into its deep sleep: half the calls met a rested core and half a drowsy one, and the cell's figure wobbled by a third between runs. After 20 µs every core is still awake; after 5 ms every core measured has settled into its deepest rest. Each is a real program's situation, and each is steady. The map shows both as columns. Where the bench runs as root on Linux it measures the 5 ms pause once more with the core's deep rest switched off, a third column: the library's own cost after a pause, apart from the machine's.
+
+**The check's second look is pointed by instructions.** When the first pairs find no cell slower, the cells that run again on fresh layouts are chosen first by a count the machine's clock cannot move: a cell whose instructions retired per unit moved by more than 0.5% joins them ahead of the wall-time suspects. Wall time still decides. A machine that counts no instructions chooses by wall alone, and says so.
+
+**Every sample keeps its instructions and its cache misses beside its cycles.** The processor counts the instructions a call retired, the cycles it took, and the memory requests that reached its last-level cache and missed it, on each kind of core; results kept the cycles and now keep all four (samples format v10). Instructions are the same count whatever the core's speed or its state after a pause, so they tell a change in the code apart from a change in the machine; the cache counts tell a cold cache apart from a slow core. The counters are read in user space where Linux allows it, so the reading costs the call tens of nanoseconds where a system call cost it a microsecond. Files from earlier versions are read with those versions.
+
 ## Earlier: 0.20.4+6c91cfabef89d1bd52c4d73b7d2578f449689502
 
 **0.20.3 still stopped on a Mac, a step further; this release runs there, and a test now runs a Mac's case on every computer.** It measures as 0.20.3 does elsewhere.

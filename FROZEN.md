@@ -53,14 +53,14 @@ anything", John Servil releasing it):
   load, untimed, for 100 ms, then 6 samples back to back, solo, then the
   same for the two shared copies; 2 visits a cell (`NONSTOP_TRAIN`,
   `Visits::nonstop`). The calls after a gap are unchanged.
-  - Why 100 ms: settling curves (samples back to back from cold,
-    `tools/settle.py`) put every solo cell within 3% by 100 ms on the M4
+  - Why 100 ms: settling curves (samples back to back from cold, the
+    study's `tools/settle.py`, in the tree until 0.21) put every solo cell within 3% by 100 ms on the M4
     Max, the Linux VM and the EPYC 9255, and the GPU path's engagement and
     ramp at about 50 ms; 50 ms reads about as well on the CPUs (the Mac's
     worst solo cell 1.106 against 1.080) and leaves the GPU no margin.
   - Why 2 visits of 6: the spread of a run's mean splits into the samples
     within a visit, the visits within a run, and the runs
-    (`tools/variance.py`): on the Mac and the EPYC the runs' part, which
+    (the study's `tools/variance.py`, in the tree until 0.21): on the Mac and the EPYC the runs' part, which
     no visit count shrinks, and the samples' part lead, so 4 visits of 3
     would cost twice the nonstop time for a p90 of 2.8% against 3.4%
     (Mac), 2.2% against 2.6% (EPYC). The widest cells are servil mt's own
@@ -140,7 +140,9 @@ anything", John Servil releasing it):
   What a run measures is as 0.19.0's.
 - **Studies read samples in Python** (`tools/samples.py`): `means` and
   `settle` left the program for `tools/points.py` and `tools/settle.py`,
-  beside `tools/variance.py`; comparisons and verdicts stay in it.
+  beside `tools/variance.py`; comparisons and verdicts stay in it. (The
+  studies done, the Python reader and the three tools left the tree for
+  0.21, Zooko, November 5: one reader of the format, the program's.)
 
 **Changes for 0.20** (Zooko, November 2, 2026, bench-hashes #108):
 - **The shared scenario measures the multithreaded contenders alone**,
@@ -188,6 +190,73 @@ anything", John Servil releasing it):
   #215) besides.
 
 **Changes for the next release** (Zooko, October 16, 2026):
+- **The wall clock is the raw counter** (Zooko, November 4, 2026): on
+  Linux `CLOCK_MONOTONIC_RAW` in place of `CLOCK_MONOTONIC` (what
+  `std::time::Instant` reads there), which a time daemon slews by up to
+  500 ppm, a rate that could be in error or an adversary's, and helps no
+  measurement here (an i7-12700K had drifted 596 ms from its raw counter
+  8 hours after boot). On Darwin `CLOCK_UPTIME_RAW`, raw already. Same
+  cost a read (11 ns on the i7), same steps (1 ns; 41.67 ns on an M4
+  Max). A run's `sample clock` line names it. Zooko's measure-clocks3
+  (December 2025) compares the clocks on both platforms.
+- **Two pauses before a call "after idling"** (Zooko and John, November
+  4, 2026; bench-hashes #117, Sam Shackleton's protocol): 20 us (the use
+  cases `BriefIdleOneMessage`, `BriefIdleManyMessages`,
+  `BriefIdleInterleavedTurn`) and 5 ms (`IdleOneMessage`,
+  `IdleManyMessages`, `IdleInterleavedTurn`, until 0.20 at 1 ms). After
+  20 us a core keeps its clock and its shallowest idle state; after 5 ms
+  every machine measured has settled into its deep states, where 1 ms
+  was the i7-12700K's transition between the two, bimodal (#117: the
+  i7's 16 x 64 B batch x2.0 at 20 us, x2.6 at 1 ms with 24-49%
+  detectable, x6.3 at 5 ms with 16%). Each pause is a real program's
+  situation, and each is stable. The pauses land when asked: the bench
+  sets its threads' timer slack to 1 us (`clocks::tight_timers`; Linux
+  gives a thread 50 us by default, which landed the 20 us sleep at 72 us
+  and let the i7's core reach C6 in 39% of it; at 23 us it stays in C1). The pauses run in sets of rounds of
+  their own, as the other ways of calling do. The run grows by the
+  after-pause cells' share. Each samples file records, beside the
+  configured idle states, the **effective** ones: the shares of the
+  core's hardware C-state residency under each pause, slept at the run's
+  start as the cells sleep it (1000 x 20 us, 20 x 5 ms; Linux, Intel's
+  `cstate_core` counters; elsewhere "not measured"), since a configured
+  state may seldom happen within a pause (the Xeon Gold 6330's C6 within
+  1 ms, #117) and the deepest may be one no software counter names (the
+  i7's core C7).
+- **The controlled block** (John, November 4, 2026; #117, Sam
+  Shackleton's protocol): where the bench can write every cpuidle
+  state's `disable` file (Linux, run as root), the 5 ms cells run once
+  more as `ControlledIdleOneMessage`, `ControlledIdleManyMessages` and
+  `ControlledIdleInterleavedTurn`, in rounds of their own with every
+  state but POLL and C1 switched off (POLL alone where the machine has no
+  plain C1), so the call meets the core awake and the cell measures the
+  library apart from the machine's rest; the states are put back when
+  those rounds end. The shipped block, what users meet, stays the
+  figure users read; the controlled one stands beside it, a fifth
+  after-gap column on the map. Each samples file's `idle control` line
+  says what the block kept, or why there is none (the i7-12700K in its
+  sandbox: no root).
+- **A level cell whose instructions moved joins the second stage** (Zooko,
+  November 4, 2026, on John's rule; #127): instructions a unit moved
+  beyond 0.5% the same way in every pair names a solo cell of a
+  single-threaded contender a suspect ahead of the wall-ranked ones,
+  the largest move first, with no verdict of its own; wall decides on
+  the fresh pairs. A pool's caller spins while it waits, so a
+  multithreaded cell's count is no evidence (it moved 1-9% between two
+  runs of the same code; data branch, 2026-11-04/judge2-i7). Where the machine counts none, the suspects are wall's
+  alone, and the run says so.
+- **Every sample keeps its instructions retired, and its last-level-cache
+  references and misses, beside its cycles**, per core kind (Zooko,
+  November 4, 2026: the most the counters give, kept whether or not a use
+  is known yet; the cache pair the same day, at a read cost of tens of
+  nanoseconds now that the counters are read in user space). The samples
+  format is v10. On the i7-12700K instructions are the same count on a P
+  core and an E core and after any pause (28719 for a fixed call, every
+  time), where cycles and wall time move with the core's clock (data
+  branch, 2026-11-04/clock-survey). The cache events are perf's generic
+  pair, whose hardware meaning METHODOLOGY names; the counters are read
+  by `rdpmc` where the kernel allows it, since a system call between the
+  pause and the call moved the i7's 64 B figure by 13% (data branch,
+  2026-11-04/precall-counts-i7).
 - **The batch calls take a `Batch`** (Zooko, October 28; BLAKE3 #205):
   `hash_many`, `hash_many_multithreaded` and `Stream::submit_batch` take
   `&Batch`, whose bytes past each message the program cannot write, so a
@@ -897,6 +966,10 @@ use case ManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 
 use case ManyLongMessages: 4, 16, 64, 256
 use case IdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case IdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
+use case BriefIdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
+use case BriefIdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
+use case ControlledIdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
+use case ControlledIdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
 use case ContinuousMessages: 64 B, 128 B, 256 B, 512 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case ContinuousBatches: 16, 64, 256, 1024, 4096, 16384, 65536
 use case LentMessages: 64 B, 128 B, 256 B, 512 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
@@ -907,6 +980,8 @@ use case ContinuousCollection: git objects, Nix files
 use case MerkleTree: 1024, 4096, 16384, 65536, 262144
 use case InterleavedTurn: 256
 use case IdleInterleavedTurn: 256
+use case BriefIdleInterleavedTurn: 256
+use case ControlledIdleInterleavedTurn: 256
 scenarios: solo, shared-one-cache, shared-two-caches, shared-os
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree
 shared placements: two cores under one last-level cache; two cores under two (where the machine has two); where it offers no pair (macOS), wherever the OS runs them
