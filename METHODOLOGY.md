@@ -525,11 +525,16 @@ and the map names the contender "BLAKE3-Servil mt, N threads". `--threads 2`
 measures the smallest pipeline, one worker beside the program's thread.
 
 `bench-hashes check --fork DIR [--against REV]` checks whether a change to
-`blake3-servil` slowed any cell. It builds the working tree and the
-target commit, relinks each side with fresh random function orders (each
-link run twice), and runs the cells whose code the change touches
-(`--cells all` runs every cell). A change to assembly or to the build
-runs every cell.
+`blake3-servil` slowed the cells its author names. It first prints the
+diff's files, added and deleted lines, and the items its hunks sit in.
+Its author reads that summary and names the scope: `--points` for the
+gate, `--probe` for a three-pair survey before the change is built, or
+`--cells all` for every point. With no scope named, the check stops
+before any build. It then builds the working tree and the target commit,
+relinks each side with fresh random function orders (each link run
+twice), and runs the named cells. The check records how many points it
+measured and how many it left unmeasured; choosing them is the author's
+judgment, from the summary and the change itself.
 
 Underneath, `bench-hashes regress` runs the pairs back to back in
 alternating order (four pairs by default in `check`, a link a side
@@ -588,7 +593,7 @@ minutes, most of it the relinks.
 | **A second stage** for the suspects, the strongest evidence first, 64 fresh pairs (16 links a side, each run 4 times), judged among themselves (Zooko, October 24; bench #66; October 31) | One input length planted slower in `hash()` (`data` branch, `2026-10-24/check-one-point` and `check-second-stage`): judged among 75 cells, +20% of calls (the cell +23% to +77% in every pair) was level. With the stage, +20% and +10% were caught, +6% not (cells after a gap swing 10-25% a pair); three A/A checks found no cell slower. A real slowdown, #119's +3% to +11% in 8 cold one-message cells (`2026-10-31/check-errors-i7`), passed 4 of 5 checks at 4 and 16 pairs, by ratio; with 8 pairs, suspects by evidence and 64 pairs, it was caught 3 of 3, and 3 A/A checks found no cell slower. | About eight minutes a check; one cell beside the planted ones judged slower at +10%. |
 | **A 3% margin** (October 2) | +3% planted was caught about half the time, +6% nearly always; one layout-only change in eight sat near 3% at lent 64 B. | Changes under 3% pass one commit at a time; the release check (`--against` the last release) sees their sum. |
 | **One calibration a side a check** (October 17) | Each run calibrating its own sizes cost 18 s of a 41-s run; shared sizes judged every group of cells more narrowly in less time (about 2.2 times the information per minute), and both sides do the same work a sample. | Sizes chosen on the old side's build. |
-| **Cells chosen by what the change touches** (October 20; code outside every coverage region, October 31) | Coverage names the lines each cell executes; a change to `hash()` chose 73 points, a stream change 13, a comment none. The fixed five-cell list this replaced was blind to the cells after a gap, where #80's +18% sat, and to the stream. A constant's line is in no coverage region: `const SPIN` from 5 µs to 0, measured 41% slower in servil mt's 16 KiB stream, read "nothing to measure" (BLAKE3-Servil's `plant/spin0`, Mac jobs 1801 and 1802, under 0.19 and 0.18). So a touched line of code that no region holds and that is no attribute of an item a region holds (a constant, a type, a `use`) measures every point; comments, test code and files the target does not compile measure none. | A coverage build once per contender (cached); a change to assembly, the build, or code outside every coverage region checks every cell. |
+| **Cells named by the change's author** (November 6) | The earlier rule chose cells from coverage: the lines each cell executes, from an instrumented build of each side. It read a change's unattributable line as able to act anywhere and measured every cell: three checks of November 5-6 spent 18 minutes on 426 cells for one declaration each, where the changes' own cells numbered about a dozen. The rule now prints the diff (files, lines, the items its hunks sit in) and its author names the cells, as `--probe` already did when it retired three library ideas in four minutes each that week; `--cells all` stays for releases and changes judged able to act anywhere. | A named scope can miss a cell the change moves; the check prints the count it left unmeasured, its author names the scope in the change's record, and a release measures every cell. |
 | **No intervals as verdicts** (October 1) | 95% median bands held for a quarter of the cells across runs of identical code. | A printed range is a reading aid only. |
 
 **What the SHA-256 cells can tell.** SHA-256's code is identical on both

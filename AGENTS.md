@@ -188,4 +188,4 @@ The benchmarker touches an implementation in two ways only: listing it, calling 
 
 # BLAKE3-Servil's regression check depends on this benchmark
 
-`bench-hashes check` builds this benchmark against both sides of a change to BLAKE3-Servil, chooses the cells the change touches, and runs `bench-hashes regress` on the two builds (`src/check.rs`).
+`bench-hashes check` prints a summary of a change to BLAKE3-Servil, builds this benchmark against both sides, and runs `bench-hashes regress` on the cells its author names (`--points`), on a three-pair survey (`--probe`), or on every cell (`--cells all`) (`src/check.rs`).

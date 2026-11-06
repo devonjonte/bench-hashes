@@ -65,8 +65,13 @@ statistics, the report, and the map.
 
 Measure before building: `bench-hashes check --fork ../BLAKE3 --against
 servil --probe "3 KiB,brief idle 3 KiB"` gives each named cell's ratio in
-about three minutes (three fresh pairs, no verdict); the full `check` is
-the gate once the change is built. A change to the library carries its
+about three minutes (three fresh pairs, no verdict). Once the change is
+built, the same names with `--points` are its gate (four pairs, then the
+second stage on its suspects). `check` prints the diff's files and the
+items its hunks sit in first; its author reads that summary and names the
+cells the change can move. With no scope named it stops there, before any
+build. `--cells all` measures every point, for a release or a change its
+author judges can act anywhere. A change to the library carries its
 probe's line in its pull request.
 
 The BLAKE3-Servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
@@ -82,7 +87,7 @@ it (anywhere: neither holds the other) and name BLAKE3-Servil's checkout:
 ```sh
 git clone --branch servil https://github.com/servil-software-factory/BLAKE3
 git clone https://github.com/servil-software-factory/bench-hashes
-cd bench-hashes && cargo run --release -- check --fork ../BLAKE3   # BLAKE3-Servil's working tree against its HEAD
+cd bench-hashes && cargo run --release -- check --fork ../BLAKE3 --points "3 KiB,brief idle 3 KiB"   # the named cells of BLAKE3-Servil's working tree against its HEAD
 cd bench-hashes && cargo run --release -- check --fork ../BLAKE3 --new my-branch --against servil   # a branch by name, whatever the tree has checked out
 cd bench-hashes && "$(cargo run --release --quiet -- build-against ../BLAKE3)" --quick   # one run of it
 ```
@@ -91,9 +96,7 @@ cd bench-hashes && "$(cargo run --release --quiet -- build-against ../BLAKE3)" -
 `build-against DIR` in DIR's `target/bench-hashes-build/` (a directory of
 DIR's own there, under a shared `CARGO_TARGET_DIR`), each from a copy of
 this repository whose `Cargo.lock` points at a checkout of BLAKE3-Servil, and leaves
-your checkouts' files as they were. It chooses the cells a
-change touches from coverage, with the toolchain's `llvm-profdata` and
-`llvm-cov` (`rustup component add llvm-tools`). Run the executable from a
+your checkouts' files as they were. Run the executable from a
 scratch directory (it writes `benchmark-results/` there); the report
 names the BLAKE3-Servil checkout's commit and whether its tree was clean.
 `build-against` prints an executable in a directory named for both
@@ -106,8 +109,8 @@ fork's own tests and its performance-regression check, which runs this
 benchmark.
 
 To move the pin of BLAKE3-Servil, set its `rev` in `Cargo.toml` to the full commit
-hash and build: Cargo updates the lock. `build-against`, relinking and
-coverage replace BLAKE3-Servil and keep this repository's `clocks/`. A change
+hash and build: Cargo updates the lock. `build-against` and relinking
+replace BLAKE3-Servil and keep this repository's `clocks/`. A change
 to `clocks/` is a change to this repository, its tests among the ones
 `cargo nextest run` runs.
 

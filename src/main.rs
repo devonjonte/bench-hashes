@@ -6821,8 +6821,8 @@ fn geometric_mean(values: impl Iterator<Item = u128>) -> u128 {
 /*
  * `bench-hashes regress [--contenders A,B [--points P,Q]] OLD... -- NEW...`:
  * whether the new build is slower than the old, measured on this machine.
- * `bench-hashes check` builds the two sides and chooses the cells, then
- * calls this (src/check.rs); it is also callable by hand with builds of
+ * `bench-hashes check` builds the two sides and runs the cells its caller
+ * names, then calls this (src/check.rs); it is also callable by hand with builds of
  * one's own. REGRESS_PAIRS pairs of runs, pair i running the i-th
  * executable of each side (round robin), back to back in alternating order
  * (A B, B A, ...), each at the regression check's visits
@@ -7019,7 +7019,7 @@ fn regress_load(start_ns: u64, end_ns: u64) -> String {
 }
 
 fn regress_command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes regress [--contenders A,B [--points P,Q]] [--judge CELL;CELL] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE... (pair i runs the i-th of each, round robin; bench-hashes check builds the sides and chooses the cells)";
+    let usage = "usage: bench-hashes regress [--contenders A,B [--points P,Q]] [--judge CELL;CELL] [--pairs N] [--rounds K] [--keep DIR] OLD_EXE... -- NEW_EXE... (pair i runs the i-th of each, round robin; bench-hashes check builds the sides and runs the cells its caller names)";
     let mut arguments = arguments;
     let (mut contenders, mut points, mut pairs, mut chosen_rounds, mut keep) =
         (None, None, REGRESS_PAIRS, None, None);
