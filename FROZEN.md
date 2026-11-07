@@ -27,6 +27,13 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release**:
+- **A probe compares only accepted pairs** (John Servil, November 7,
+  2026). When a busy pair runs again, keep both abandoned samples under
+  `retried/`, outside the top-level files the probe compares. The raw
+  diagnostic record remains available. Mac probe 1969 exposed the bug:
+  regress used three quiet pairs, but the probe's report reread four,
+  including an abandoned busy pair. The load and comparison rules stay
+  as they were.
 - **An old-benchmark comparison runs with unchanged library trees**
   (John Servil, November 7, 2026). `check --old-bench REV` compares the
   instruments even when both sides use the same library. The early

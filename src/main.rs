@@ -6997,6 +6997,17 @@ fn geometric_mean(values: impl Iterator<Item = u128>) -> u128 {
  */
 const REGRESS_ROUNDS: usize = 24;
 const REGRESS_PAIRS: usize = 8;
+/// Preserve abandoned attempts as diagnostics. Probe comparisons read only
+/// the accepted top-level pairs, while the full raw record stays available.
+fn keep_retried_pair(old: Option<&std::path::Path>, new: Option<&std::path::Path>) {
+    for path in [old, new].into_iter().flatten() {
+        let dir = path.parent().unwrap().join("retried");
+        fs::create_dir_all(&dir).expect("the retried pair's diagnostic directory");
+        fs::rename(path, dir.join(path.file_name().unwrap()))
+            .expect("keep the retried pair outside the comparison");
+    }
+}
+
 /// How many times a pair runs again when one of its runs is no evidence.
 const REGRESS_REPEATS: usize = 3;
 
@@ -7361,6 +7372,7 @@ fn regress_command(arguments: &[String]) -> i32 {
         crate::Map<String, u128>,
         crate::Map<String, u128>,
         Option<String>,
+        Option<std::path::PathBuf>,
     ) {
         run_index += 1;
         let kept = keep
@@ -7392,6 +7404,7 @@ fn regress_command(arguments: &[String]) -> i32 {
                 .collect(),
             instructions,
             busy,
+            kept,
         )
     };
     for pair in 0..pairs {
@@ -7407,7 +7420,7 @@ fn regress_command(arguments: &[String]) -> i32 {
         );
         let (old, old_instructions, new, new_instructions) = loop {
             let pin = pins[pair];
-            let ((old, oi, a), (new, ni, b)) = if pair % 2 == 0 {
+            let ((old, oi, a, old_path), (new, ni, b, new_path)) = if pair % 2 == 0 {
                 let o = means(old_exe, "old", pin);
                 (o, means(new_exe, "new", pin))
             } else {
@@ -7423,6 +7436,7 @@ fn regress_command(arguments: &[String]) -> i32 {
                 unreliable.extend(busy);
                 break (old, oi, new, ni);
             }
+            keep_retried_pair(old_path.as_deref(), new_path.as_deref());
             eprintln!("regress: pair {} again: {}", pair + 1, busy.join("; "));
         };
         for (key, old_count) in &old_instructions {
@@ -8799,6 +8813,29 @@ mod correctness_tests {
             format!("{SIZES_VERSION}\nsha256\t64 B\t40\nblake3-servil-mt\tcontinuous 64 B\t9\n");
         let new = format!("{SIZES_VERSION}\nsha256\t64 B\t44\nblake3-servil-mt\tcontinuous 64 B\t7\nblake3-servil-mt\tcontinuous batch 16\t3\n");
         assert_eq!(merge_sizes(&old, &new), format!("{SIZES_VERSION}\nsha256\t64 B\t40\nblake3-servil-mt\tcontinuous 64 B\t9\nblake3-servil-mt\tcontinuous batch 16\t3\n"));
+    }
+
+    #[test]
+    fn retried_pairs_are_kept_outside_the_probe_comparison() {
+        let dir = std::env::temp_dir().join(format!("bench-retried-pair-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let (old, new) = (dir.join("run-001-old.tsv"), dir.join("run-002-new.tsv"));
+        fs::write(&old, "old: quiet").unwrap();
+        fs::write(&new, "new: busy").unwrap();
+        keep_retried_pair(Some(&old), Some(&new));
+        assert!(
+            !old.exists() && !new.exists(),
+            "both sides of an abandoned pair leave the comparison"
+        );
+        assert_eq!(
+            fs::read_to_string(dir.join("retried/run-001-old.tsv")).unwrap(),
+            "old: quiet"
+        );
+        assert_eq!(
+            fs::read_to_string(dir.join("retried/run-002-new.tsv")).unwrap(),
+            "new: busy"
+        );
+        fs::remove_dir_all(dir).unwrap();
     }
 
     /// Every point hashes a prefix of one buffer: the input of each size is
