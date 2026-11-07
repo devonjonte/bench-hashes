@@ -60,9 +60,18 @@ FAULTS = [
     ("implicit-auth-identity", '"IdentitiesOnly=yes"',
      '"IdentitiesOnly=no"',
      "Client.test_transport_checks_the_pinned_host_and_uses_a_fresh_connection_namespace"),
-    ("local-executor-without-its-own-group", "stdout=log, stderr=subprocess.STDOUT, start_new_session=True)",
-     "stdout=log, stderr=subprocess.STDOUT, start_new_session=False)",
+    ("cancel-misses-the-jobs-group", '        for group in (executor_group(run), executor_group(run, "JOB_PGID")):',
+     '        for group in (executor_group(run),):',
      "Local.test_cancelling_a_local_run_stops_its_whole_group"),
+    ("ignored-deadline", "        if deadline is not None and time.monotonic() - started > deadline:",
+     "        if False:  # planted ignored deadline",
+     "Bounds.test_a_job_past_its_deadline_is_stopped_with_everything_it_started"),
+    ("ignored-memory-floor", "        elif floor is not None and mem_available_mib() < floor:",
+     "        elif False:  # planted ignored floor",
+     "Bounds.test_a_job_under_the_memory_floor_is_stopped_with_everything_it_started"),
+    ("job-without-its-own-group", "stdout=out, stderr=subprocess.STDOUT, start_new_session=True)",
+     "stdout=out, stderr=subprocess.STDOUT, start_new_session=False)",
+     "Bounds.test_a_job_past_its_deadline_is_stopped_with_everything_it_started"),
 ]
 
 
