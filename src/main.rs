@@ -2401,6 +2401,11 @@ cell sampled in a share of them.
   bench-hashes overview OUT DIR    the overview page from every folder's run
   bench-hashes b3sum ...           time b3sum builds on files (README.md)
   bench-hashes crowd               many programs at once, one a CPU (README.md)
+  bench-hashes quiet [--wait]      whether the machine is quiet: ten seconds with
+                                   no window busy, the gate check and regress
+                                   apply (exit 0, else 2 with the reason); with
+                                   --wait, until it is: for a job script to run
+                                   first
   bench-hashes leaves              a Merkle tree's leaves, four ways to hand
                                    them over (src/leaves.rs)
   Each says its own usage when run without what it needs.
@@ -2847,6 +2852,27 @@ fn parse_arguments() -> Options {
     }
 }
 
+/// `bench-hashes quiet [--wait]`: the machine-quiet gate `check` and
+/// `regress` apply before they measure (clocks::load::quiet_for, ten
+/// seconds), as a command of its own, so a job runner or a script asks the
+/// same rule instead of carrying a copy of it.
+fn quiet(arguments: &[String]) {
+    match arguments {
+        [] => match clocks::load::quiet_for(10) {
+            Ok(()) => println!("quiet"),
+            Err(reason) => {
+                println!("busy: {reason}");
+                std::process::exit(2);
+            }
+        },
+        [flag] if flag == "--wait" => {
+            clocks::load::wait_until_quiet();
+            println!("quiet");
+        }
+        _ => panic!("usage: bench-hashes quiet [--wait]"),
+    }
+}
+
 /*
  * The point a `--points` name names: a label's prefix names its use cases
  * ("interleaved 256", "idle 16", "continuous batch 1024"), the longest
@@ -2988,6 +3014,9 @@ fn main() {
     }
     if arguments.first().map(String::as_str) == Some("crowd") {
         return crowd::command(&arguments[1..]);
+    }
+    if arguments.first().map(String::as_str) == Some("quiet") {
+        return quiet(&arguments[1..]);
     }
     if arguments.first().map(String::as_str) == Some("chart") {
         return chart::command(&arguments[1..]);
