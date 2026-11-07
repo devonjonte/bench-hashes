@@ -54,7 +54,7 @@ class Server(unittest.TestCase):
         def git(args, **kw):
             return subprocess.CompletedProcess(args, 0, stdout="a" * 40 if "rev-parse" in args else "")
         with mock.patch.object(self.pr, "sh", git), \
-             mock.patch.object(self.pr.subprocess, "run", return_value=subprocess.CompletedProcess([], job_code)), \
+             mock.patch.object(self.pr, "run_job", return_value=(job_code, None)), \
              mock.patch.object(self.pr, "verify", return_value=list(verification)):
             self.pr.remote_execute(os.path.join(self.root, run_id))
 
@@ -206,13 +206,13 @@ class Server(unittest.TestCase):
         def git(args, **kw):
             assert_locked("prepare")
             return __import__("subprocess").CompletedProcess(args, 0, stdout="a"*40 if "rev-parse" in args else "")
-        def job(args, **kw):
+        def job(*args, **kw):
             assert_locked("job")
-            return __import__("subprocess").CompletedProcess(args, 0)
+            return 0, None
         def verify(*args):
             assert_locked("verify")
             return []
-        with mock.patch.object(self.pr, "sh", git), mock.patch.object(self.pr.subprocess, "run", job), mock.patch.object(self.pr, "verify", verify):
+        with mock.patch.object(self.pr, "sh", git), mock.patch.object(self.pr, "run_job", job), mock.patch.object(self.pr, "verify", verify):
             self.pr.remote_execute(run)
         self.assertEqual(events[-2:], ["job", "verify"])
         self.assertIn("prepare", events)
@@ -765,6 +765,65 @@ class Local(unittest.TestCase):
         else:
             self.fail("the job's child outlived its cancelled run")
         self.assertIn("CANCELLED", self.tool("status", "local", run_id).stdout)
+
+
+
+class Bounds(unittest.TestCase):
+    """A job's limits: its deadline and the machine's memory floor stop its whole group."""
+
+    def setUp(self):
+        import subprocess
+        self.sp = subprocess
+        self.root = tempfile.mkdtemp(prefix="pinned-run-bounds-", dir=os.path.expanduser("~/work"))
+        self.pr = load(self.root)
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def job(self, m, **kw):
+        """A job that starts a child sleeping 5 s and waits for it; the child's pid kept (a job its
+        limit leaves alone ends on its own in 5 s, so a control that drops the limit fails fast)."""
+        cmd = ["bash", "-c", 'sleep 5 & echo $! > child.pid; wait']
+        with open(os.path.join(self.root, "job.log"), "w") as out:
+            code, stopped = self.pr.run_job(cmd, self.root, dict(os.environ), out, m, poll_s=0.05, **kw)
+        with open(os.path.join(self.root, "child.pid")) as f:
+            child = int(f.read())
+        return code, stopped, child
+
+    def assertGone(self, pid):
+        import time
+        for _ in range(100):
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                return
+            time.sleep(0.02)
+        self.fail(f"process {pid} outlived its stopped job")
+
+    def test_a_job_past_its_deadline_is_stopped_with_everything_it_started(self):
+        code, stopped, child = self.job({"deadline_s": 1})
+        self.assertTrue(stopped and "deadline" in stopped, stopped)
+        self.assertNotEqual(code, 0)
+        self.assertGone(child)
+
+    def test_a_job_under_the_memory_floor_is_stopped_with_everything_it_started(self):
+        with mock.patch.object(self.pr, "mem_available_mib", return_value=100):
+            code, stopped, child = self.job({"memory_floor_mib": 1536})
+        self.assertTrue(stopped and "memory" in stopped, stopped)
+        self.assertGone(child)
+
+    def test_a_job_within_its_limits_ends_on_its_own(self):
+        with open(os.path.join(self.root, "job.log"), "w") as out:
+            code, stopped = self.pr.run_job(["bash", "-c", "exit 3"], self.root, dict(os.environ), out,
+                                            {"deadline_s": 60, "memory_floor_mib": 1}, poll_s=0.05)
+        self.assertEqual((code, stopped), (3, None))
+
+    def test_limits_are_whole_numbers_above_zero(self):
+        base = {"name": "n", "host": "local", "repos": [], "script": "j.sh"}
+        for bad in ({"deadline_s": 0}, {"deadline_s": 1.5}, {"memory_floor_mib": -1}, {"memory_floor_mib": "1"}):
+            with self.assertRaises(SystemExit):
+                self.pr.validate(dict(base, **bad))
+        self.pr.validate(dict(base, deadline_s=1, memory_floor_mib=1))
 
 
 if __name__ == "__main__":
