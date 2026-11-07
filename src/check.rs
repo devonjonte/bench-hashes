@@ -168,8 +168,8 @@ pub fn command(arguments: &[String]) -> i32 {
                 layouts_a_side = it
                     .next()
                     .and_then(|v| v.parse().ok())
-                    .filter(|&n| n >= 2)
-                    .unwrap_or_else(|| panic!("--layouts takes a count of 2 or more\n{usage}"))
+                    .filter(|&n| n >= 3)
+                    .unwrap_or_else(|| panic!("--layouts takes a count of 3 or more (regress's rule needs three pairs)\n{usage}"))
             }
             "--keep" => {
                 keep =
