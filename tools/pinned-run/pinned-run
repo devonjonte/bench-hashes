@@ -41,6 +41,7 @@ Manifest (JSON):
   {"name": "...", "host": "root@1.2.3.4" or ["root@a", "root@b"],
    "repos": [{"url": "https://github.com/o/r", "commit": "<40 hex>", "path": "src"}, ...],
    "script": "path/to/job.sh",            # local file; run as: bash job.sh RUN_DIR
+   "study": "short-name",                  # optional: scope next/pending to this work
    "env": {"K": "V"},                      # optional
    "lock": "/root/bench-native-afk.lock",  # optional: held for the job
    "expect": [{"file": "out/x.txt", "contains": ["commit <hash>", ...]}, ...],
@@ -51,13 +52,13 @@ Commands:
   pinned-run fanout HOST MANIFEST...  preflight the shared instrument on HOST, then launch
   pinned-run status HOST RUN_ID   running / queued / VERIFIED / FAILED / CANCELLED (+ reasons)
   pinned-run wait HOST RUN_ID     wait until done, print status
-  pinned-run next [SECONDS]       wait for the next run launched from here to finish (exit 3: none pending)
-  pinned-run pending              the runs launched from here not yet finished
+  pinned-run next [SECONDS] [--study NAME] [--fetch DEST]  next result, optionally fetch and summarize
+  pinned-run pending [--study NAME]  the runs launched from here not yet finished
   pinned-run list HOST            every run on HOST, one a line
   pinned-run cancel HOST RUN_ID   stop a run (queued or running)
   pinned-run fetch HOST RUN_ID DEST [--failed]
 """
-import base64, fcntl, glob, hashlib, io, json, os, re, shlex, subprocess, sys, tarfile, time
+import argparse, base64, collections, csv, fcntl, glob, hashlib, io, json, os, re, shlex, subprocess, sys, tarfile, time
 
 SSH = ["ssh", "-F", "/dev/null", "-i", os.path.expanduser("~/.ssh/id_ed25519"), "-o", "BatchMode=yes",
        "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "LogLevel=ERROR",
@@ -140,6 +141,8 @@ def validate(m):
             die(f"manifest lacks {key!r}")
     if not re.fullmatch(r"[A-Za-z0-9._-]+", m["name"]):
         die("name: letters, digits, . _ - only")
+    if "study" in m and not re.fullmatch(r"[A-Za-z0-9._-]+", m["study"]):
+        die("study: letters, digits, . _ - only")
     paths = set()
     for r in m["repos"]:
         if not HEX40.fullmatch(r.get("commit", "")):
@@ -194,7 +197,10 @@ def submit_manifest(manifest, script):
         sys.stderr.write(f"pinned-run: {host}: {line}\n")
     os.makedirs(os.path.dirname(REGISTRY), exist_ok=True)
     with open(REGISTRY, "a") as f:
-        f.write(json.dumps({"run": run_id, "host": host}) + "\n")
+        entry = {"run": run_id, "host": host}
+        if "study" in m:
+            entry["study"] = m["study"]
+        f.write(json.dumps(entry) + "\n")
     print(f"{run_id} {host}" if show_host else run_id, flush=True)
     return {"run": run_id, "host": host}
 
@@ -215,7 +221,7 @@ def fanout(host, paths, poll=1):
         with open(m["script"], "rb") as f:
             script = f.read()
         identity = (sorted((r["url"], r["commit"], r["path"]) for r in m["repos"]),
-                    script, m.get("env", {}), m.get("forbid", []))
+                    script, m.get("env", {}), m.get("forbid", []), m.get("study"))
         if jobs and identity != jobs[0][2]:
             die("fanout: jobs must name the same repos, script bytes, environment and forbid rules")
         jobs.append((m, script, identity))
@@ -248,9 +254,9 @@ def registered():
     return [json.loads(l) for l in open(REGISTRY) if l.strip()]
 
 
-def states():
-    """(host, run, state) of every registered run, by one list a host."""
-    runs = registered()
+def states(study=None):
+    """(host, run, state), filtering before contacting any host."""
+    runs = [r for r in registered() if study is None or r.get("study") == study]
     out = []
     for host in sorted({r["host"] for r in runs}):
         ensure_installed(host)
@@ -259,33 +265,37 @@ def states():
     return out
 
 
-def pending():
+def pending(study=None):
     """(host, run, state) of every registered run not yet final."""
-    return [x for x in states() if x[2] not in FINAL + ("gone",)]
+    return [x for x in states(study) if x[2] not in FINAL + ("gone",)]
 
 
 def reported():
     return set(open(REPORTED).read().split()) if os.path.exists(REPORTED) else set()
 
 
-def report(host, run):
+def report(host, run, dest=None):
     """Print a finished run's verdict, once: `next` never reports a run twice, nor misses one that
     finished between calls."""
-    print(f"{run} {host}\n{status(host, run)}")
+    result = status(host, run)
+    print(f"{run} {host}\n{result}")
+    if dest is not None:
+        target = fetch(host, run, dest, failed=True)
+        review_card(target, result)
     os.makedirs(os.path.dirname(REPORTED), exist_ok=True)
     with open(REPORTED, "a") as f:
         f.write(run + "\n")
     return run
 
 
-def next_done(limit=None, poll=20):
+def next_done(limit=None, poll=1, study=None, dest=None):
     """The next run launched from here to finish, printed: one that has finished since it was last
     reported first, else the first of those pending to finish. Exit 3 if none is either."""
     seen = reported()
-    everything = states()
+    everything = states(study)
     for host, run, state in everything:
         if state in FINAL and run not in seen:
-            return report(host, run)
+            return report(host, run, dest)
     waiting = [x for x in everything if x[2] not in FINAL + ("gone",)]
     if not waiting:
         die("no run launched from here is pending or unreported", 3)
@@ -293,7 +303,7 @@ def next_done(limit=None, poll=20):
     while True:
         for host, run, _ in waiting:
             if status(host, run).split("\n", 1)[0] in FINAL:
-                return report(host, run)
+                return report(host, run, dest)
         if limit is not None and time.monotonic() - started > limit:
             die(f"none of {len(waiting)} runs finished within {limit} s", 4)
         time.sleep(poll)
@@ -310,6 +320,64 @@ def fetch(host, run_id, dest, failed):
     with tarfile.open(fileobj=io.BytesIO(data)) as t:
         t.extractall(target, filter="data")
     print(target)
+    return target
+
+
+def review_card(target, result):
+    """Summarize fetched identities, workflow phases and the instrument's judgments.
+    Judgment values are copied, never recomputed; VERIFIED is the runner verdict."""
+    with open(f"{target}/manifest.json") as f:
+        m = json.load(f)
+    with open(f"{target}/phases.jsonl") as f:
+        phases = [json.loads(line) for line in f if line.strip()]
+    assert phases and all(p["version"] == 1 for p in phases), "phase format version 1 required"
+    assert len({p["boot_id"] for p in phases}) == 1, "phase intervals need one boot"
+    ticks = [p["monotonic_ns"] for p in phases]
+    assert ticks == sorted(ticks), "monotonic phase order required"
+    assert len({p["phase"] for p in phases}) == len(phases), "unique phase events required"
+    times = {p["phase"]: p["monotonic_ns"] for p in phases}
+    intervals = [("dispatch", "accepted", "executor_started"),
+                 ("lock_wait", "executor_started", "lock_acquired"),
+                 ("preparation", "lock_acquired" if m.get("lock") else "executor_started", "prepared"),
+                 ("job", "prepared", "job_finished"), ("verification", "job_finished", "verification_finished"),
+                 ("total", "accepted", "finished")]
+    durations = {name: times[end] - times[start] for name, start, end in intervals if start in times and end in times}
+    judgments = {}
+    for path in sorted(glob.glob(f"{target}/out/**/judgments*.tsv", recursive=True)):
+        with open(path, newline="") as f:
+            reader = csv.DictReader(f, delimiter="\t")
+            assert reader.fieldnames and "verdict" in reader.fieldnames, f"judgment verdict column missing: {path}"
+            assert len(set(reader.fieldnames)) == len(reader.fieldnames), f"duplicate judgment columns: {path}"
+            rows = list(reader)
+        assert all(None not in row and None not in row.values() for row in rows), f"malformed judgments: {path}"
+        judgments[os.path.relpath(path, target)] = {
+            "counts": dict(sorted(collections.Counter(r["verdict"] for r in rows).items())),
+            "attention": [r for r in rows if r["verdict"] not in ("Faster", "Level")]}
+    summary = dict(version=1, run=os.path.basename(target).removeprefix("FAILED-"),
+                   host=m["host"], study=m.get("study"), runner_result=result,
+                   repos=m["repos"], script_sha256=m["script_sha256"], tool_sha256=m["tool_sha256"],
+                   durations_ns=durations, judgments=judgments)
+    with open(f"{target}/review.json", "w") as f:
+        json.dump(summary, f, indent=2, sort_keys=True)
+        f.write("\n")
+    lines = [f"# {summary['run']}", "", f"Host: `{m['host']}`; study: `{m.get('study', '')}`.",
+             "", "Runner result:", "```", result, "```", "", "## Workflow latency", "",
+             "| Phase | Nanoseconds |", "|---|---:|"]
+    lines += [f"| {name} | {ns} |" for name, ns in durations.items()]
+    lines += ["", "## Instrument judgments", ""]
+    for path, data in judgments.items():
+        lines.append(f"[{path}]({path}): " + ", ".join(f"{n} {v}" for v, n in data["counts"].items()))
+        for row in data["attention"]:
+            lines += ["", "```json", json.dumps(row, sort_keys=True), "```"]
+    if not judgments:
+        lines.append("This run has no judgments TSV. Its checks and logs are in [out/](out/).")
+    lines += ["", "## Sources", "", "[Manifest](manifest.json) · [Phases](phases.jsonl)"]
+    lines += [f"- `{r['path']}`: {r['url']} at `{r['commit']}`" for r in m["repos"]]
+    lines += [f"- Script SHA-256: `{m['script_sha256']}`", f"- Runner SHA-256: `{m['tool_sha256']}`", ""]
+    with open(f"{target}/REVIEW.md", "w") as f:
+        f.write("\n".join(lines))
+    print(f"review: {target}/REVIEW.md")
+    return summary
 
 
 # ---------------------------------------------------------------- the server's requests
@@ -614,10 +682,20 @@ def main():
         while (s := status(a[1], a[2])).split("\n", 1)[0] not in FINAL:
             time.sleep(20)
         print(s)
-    elif a[0] == "next" and len(a) in (1, 2):
-        next_done(float(a[1]) if len(a) == 2 else None)
-    elif a[0] == "pending" and len(a) == 1:
-        for host, run, state in pending():
+    elif a[0] == "next":
+        parser = argparse.ArgumentParser(prog="pinned-run next")
+        parser.add_argument("seconds", nargs="?", type=float)
+        parser.add_argument("--study")
+        parser.add_argument("--fetch", metavar="DEST")
+        opts = parser.parse_args(a[1:])
+        if opts.fetch and not opts.study:
+            parser.error("--fetch requires --study")
+        next_done(opts.seconds, study=opts.study, dest=opts.fetch)
+    elif a[0] == "pending":
+        parser = argparse.ArgumentParser(prog="pinned-run pending")
+        parser.add_argument("--study")
+        opts = parser.parse_args(a[1:])
+        for host, run, state in pending(opts.study):
             print(f"{state:8} {host} {run}")
     elif a[0] == "list" and len(a) == 2:
         ensure_installed(a[1])

@@ -5,7 +5,7 @@ Public source for Sam Shackleton's existing remote runner, used by the
 and [first pilot](https://github.com/servil-software-factory/bench-hashes/issues/147).
 The runner's module documentation describes its manifest and commands.
 
-Run the suite and its six fault controls with one command:
+Run the suite and its nine fault controls with one command:
 
 ```sh
 python3 tools/pinned-run/check.py --output /tmp/pinned-run-check
@@ -15,7 +15,8 @@ It uses Python's standard library and the project's `replace` exact-replacement
 tool. Tests use fake transports, temporary run directories and mock jobs.
 Fault controls omit a phase, report a lock prematurely, rewrite a terminal
 record, release the lock before verification, bypass a failed preflight, and
-accept mismatched preflight inputs. Each must fail its named test. The output
+accept mismatched preflight inputs, ignore a study's scope, skip its review
+summary, and hide a Slower judgment. Each must fail its named test. The output
 directory retains the suite and control logs.
 
 ## First slice: automatic phase records
@@ -70,6 +71,35 @@ a deliberate compile fault. Its pinned runs demonstrate both successful fan-out
 and failure before fan-out. It requires repositories named `library` and `tools`.
 The generic gate checks instrument identity and the VERIFIED completion; the
 instrument owns its preflight's useful compile/reference/work assertions.
+
+## Study-scoped collection
+
+Add `"study": "my-change"` to a job manifest, then:
+
+```sh
+pinned-run next --study my-change --fetch results
+pinned-run pending --study my-change
+```
+
+`next` selects only that study's registered runs and contacts only its hosts.
+It returns the next finished, unreported result, including a result that finished
+before the command started. It polls pending jobs once a second. An optional
+positional number bounds the wait in seconds; exit 3 means all results have
+already been reported, exit 4 means the wait expired. `--help` describes the
+options. Jobs launched without a study retain the existing unscoped behavior.
+
+With `--fetch`, the same command fetches artifacts and writes `REVIEW.md` plus
+`review.json` in the run's result directory. Failed results use the existing
+`FAILED-` prefix and retain their failure reasons. A result is marked reported
+only after fetching and summary generation complete, so interrupted collection
+can be retried. Collection requires a study name.
+
+The summary names the sources, script and runner, derives workflow intervals
+from version-1 monotonic phase records on one boot, and copies counts and every
+attention row from the instrument's `judgments*.tsv` files. It keeps Slower and
+unjudged rows beside the runner's VERIFIED status. The existing instrument
+makes every statistical judgment; the summary reads its TSV and links its logs.
+It stops on malformed phase or judgment records.
 
 ## Evidence and deployment
 

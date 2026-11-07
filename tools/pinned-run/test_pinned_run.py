@@ -406,6 +406,138 @@ class Client(unittest.TestCase):
         self.assertEqual(result["host"], "root@0")
         self.assertTrue(result["run"].startswith("cell-0-"))
 
+    def test_study_is_validated_and_preserved_in_the_registry(self):
+        path = self.fanout_manifests()[0]
+        with open(path) as f:
+            m = json.load(f)
+        m["study"] = "fast-feedback-147"
+        with mock.patch.object(self.pr, "call", return_value=b'{"notes": []}'):
+            self.pr.submit_manifest(m, b"echo exact instrument\n")
+        self.assertEqual(self.pr.registered()[0]["study"], "fast-feedback-147")
+        m["study"] = "two words"
+        with self.assertRaises(SystemExit):
+            self.pr.validate(m)
+
+    def test_scoped_next_ignores_other_studies_and_contacts_only_its_hosts(self):
+        runs = [{"run": "unrelated", "host": "root@other", "study": "other"},
+                {"run": "ours", "host": "root@ours", "study": "pilot"},
+                {"run": "legacy", "host": "root@old"}]
+        with open(self.pr.REGISTRY, "w") as f:
+            f.write("".join(json.dumps(r) + "\n" for r in runs))
+        def call(host, verb, *args, **kw):
+            self.assertEqual(host, "root@ours", "scope filtering happens before any remote request")
+            return b'{"run":"ours","state":"VERIFIED"}\n' if verb == "list" else b"VERIFIED\n"
+        with mock.patch.object(self.pr, "call", call), mock.patch("sys.stdout", new_callable=io.StringIO):
+            self.assertEqual(self.pr.next_done(study="pilot", poll=0), "ours")
+            with self.assertRaises(SystemExit) as error:
+                self.pr.next_done(study="pilot", poll=0)
+            self.assertEqual(error.exception.code, 3)
+            self.assertEqual(self.pr.pending(study="pilot"), [])
+
+    def review_fixture(self):
+        target = os.path.join(self.root, "review-fixture")
+        os.makedirs(target + "/out", exist_ok=True)
+        m = {"host": "root@ours", "study": "pilot", "lock": "/root/bench.lock",
+             "repos": [{"url": "https://x/r", "commit": "a" * 40, "path": "src"}],
+             "script_sha256": "b" * 64, "tool_sha256": "c" * 64}
+        with open(target + "/manifest.json", "w") as f:
+            json.dump(m, f)
+        names = ["accepted", "executor_started", "lock_acquired", "prepared", "job_finished", "verification_finished", "finished"]
+        with open(target + "/phases.jsonl", "w") as f:
+            for i, name in enumerate(names):
+                f.write(json.dumps({"version": 1, "phase": name, "monotonic_ns": i * 10,
+                                    "utc_ns": 1000 - i * 20, "boot_id": "same-boot"}) + "\n")
+        with open(target + "/out/judgments.tsv", "w") as f:
+            f.write("shape\tmetric\tratio_permille\tverdict\n")
+            f.write("tiny\tinstructions\t1040\tSlower\n")
+            f.write("other\twall_ns\t980\tLevel\n")
+            f.write("busy\tcycles\t1000\tNo verdict\n")
+        return target
+
+    def test_review_preserves_slower_and_no_verdict_beside_runner_verified(self):
+        target = self.review_fixture()
+        summary = self.pr.review_card(target, "VERIFIED")
+        self.assertEqual(summary["runner_result"], "VERIFIED")
+        self.assertEqual(summary["durations_ns"], {"dispatch": 10, "lock_wait": 10, "preparation": 10,
+                                                 "job": 10, "verification": 10, "total": 60})
+        judged = summary["judgments"]["out/judgments.tsv"]
+        self.assertEqual(judged["counts"], {"Level": 1, "No verdict": 1, "Slower": 1})
+        self.assertEqual(judged["attention"][0]["ratio_permille"], "1040")
+        self.assertEqual([r["verdict"] for r in judged["attention"]], ["Slower", "No verdict"])
+        with open(target + "/REVIEW.md") as f:
+            text = f.read()
+        self.assertIn("1 Slower", text)
+        self.assertIn('"ratio_permille": "1040"', text)
+        with open(target + "/review.json") as f:
+            self.assertEqual(json.load(f), summary)
+
+    def test_review_requires_current_single_boot_monotonic_phase_records(self):
+        for field, value in [("version", 2), ("boot_id", "another-boot"), ("monotonic_ns", -1), ("phase", "accepted")]:
+            target = self.review_fixture()
+            path = target + "/phases.jsonl"
+            with open(path) as f:
+                rows = [json.loads(l) for l in f]
+            rows[1][field] = value
+            with open(path, "w") as f:
+                f.write("".join(json.dumps(r) + "\n" for r in rows))
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                self.pr.review_card(target, "VERIFIED")
+
+    def test_review_keeps_a_failure_without_judgments(self):
+        target = self.review_fixture()
+        os.remove(target + "/out/judgments.tsv")
+        summary = self.pr.review_card(target, "FAILED\njob: exit 101")
+        self.assertEqual(summary["runner_result"], "FAILED\njob: exit 101")
+        self.assertEqual(summary["judgments"], {})
+        with open(target + "/REVIEW.md") as f:
+            self.assertIn("job: exit 101", f.read())
+
+    def test_collection_finishes_fetch_and_review_before_reporting_once(self):
+        with open(self.pr.REGISTRY, "w") as f:
+            f.write(json.dumps({"run": "ours", "host": "root@ours", "study": "pilot"}) + "\n")
+        events = []
+        def fetch(*args, **kwargs):
+            self.assertFalse(os.path.exists(self.pr.REPORTED))
+            self.assertEqual(kwargs, {"failed": True}, "failed artifacts stay collectable")
+            events.append("fetch")
+            return self.root + "/FAILED-ours"
+        def review(target, result):
+            self.assertFalse(os.path.exists(self.pr.REPORTED))
+            self.assertEqual(result, "FAILED\njob: exit 101")
+            self.assertEqual(target, self.root + "/FAILED-ours")
+            events.append("review")
+        def call(host, verb, *args, **kw):
+            return b'{"run":"ours","state":"FAILED"}\n' if verb == "list" else b"FAILED\njob: exit 101"
+        with mock.patch.object(self.pr, "call", call), mock.patch.object(self.pr, "fetch", fetch), \
+             mock.patch.object(self.pr, "review_card", review):
+            self.assertEqual(self.pr.next_done(study="pilot", dest=self.root, poll=0), "ours")
+        self.assertEqual(events, ["fetch", "review"])
+        self.assertEqual(self.pr.reported(), {"ours"})
+
+    def test_failed_collection_is_retryable(self):
+        for stage in ["fetch", "review_card"]:
+            with mock.patch.object(self.pr, "status", return_value="VERIFIED"), \
+                 mock.patch.object(self.pr, "fetch", return_value=self.root) as fetch, \
+                 mock.patch.object(self.pr, "review_card") as review:
+                (fetch if stage == "fetch" else review).side_effect = OSError("collection interrupted")
+                with self.assertRaises(OSError):
+                    self.pr.report("root@ours", "ours", dest=self.root)
+                self.assertFalse(os.path.exists(self.pr.REPORTED), "an incomplete collection remains unreported")
+
+    def test_malformed_judgments_stop_review(self):
+        target = self.review_fixture()
+        with open(target + "/out/judgments.tsv", "w") as f:
+            f.write("shape\tverdict\ncell\tLevel\textra\n")
+        with self.assertRaisesRegex(AssertionError, "malformed judgments"):
+            self.pr.review_card(target, "VERIFIED")
+
+    def test_next_help_and_collection_scope_contract(self):
+        import subprocess
+        for args, code in [(["next", "--help"], 0), (["next", "--fetch", self.root], 2)]:
+            result = subprocess.run([sys.executable, TOOL, *args], capture_output=True, text=True)
+            self.assertEqual(result.returncode, code)
+            self.assertIn("--study", result.stdout + result.stderr)
+
     def test_a_host_list_takes_a_free_machine_else_the_shortest_queue(self):
         states = {"root@a": {"free": False, "queued": 2}, "root@b": {"free": True, "queued": 0}, "root@c": {"free": False, "queued": 0}}
         with mock.patch.object(self.pr, "call", lambda h, verb, *a, **k: json.dumps(states[h]).encode()):

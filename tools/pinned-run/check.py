@@ -30,6 +30,15 @@ FAULTS = [
     ("mismatched-preflight-inputs", '        if jobs and identity != jobs[0][2]:',
      '        if False:  # planted unchecked inputs',
      "Client.test_fanout_refuses_different_instrument_inputs_before_any_submit"),
+    ("unscoped-collection", '    runs = [r for r in registered() if study is None or r.get("study") == study]',
+     '    runs = registered()  # planted ignored scope',
+     "Client.test_scoped_next_ignores_other_studies_and_contacts_only_its_hosts"),
+    ("missing-review", '        review_card(target, result)',
+     '        pass  # planted omitted review',
+     "Client.test_collection_finishes_fetch_and_review_before_reporting_once"),
+    ("hidden-slower", 'if r["verdict"] not in ("Faster", "Level")',
+     'if r["verdict"] not in ("Faster", "Level", "Slower")',
+     "Client.test_review_preserves_slower_and_no_verdict_beside_runner_verified"),
 ]
 
 
