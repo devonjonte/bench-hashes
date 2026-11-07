@@ -1511,9 +1511,9 @@ impl Algorithm {
             | Self::Sha256CommonCrypto
             | Self::Sha256Ring
             | Self::Sha3_256 => "single-threaded",
-            Self::Blake3ServilSt => "single-threaded; convenience::hash for one message after a gap and throughput::hash for one after another, throughput::hash_many for a batch, throughput::Hasher::update per piece for many messages at once",
+            Self::Blake3ServilSt => "single-threaded; convenience::hash for one message after a gap and throughput::hash for one after another, throughput::hash_many for a batch, convenience::Hasher::update per piece for many messages at once",
             Self::Blake3Rayon => "multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread",
-            Self::Blake3ServilMt => "multithreaded; throughput::hash_multithreaded for one message, throughput::hash_many_multithreaded for a batch, throughput::Hasher::update_multithreaded per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: BLAKE3-Servil chooses when to wake its worker threads",
+            Self::Blake3ServilMt => "multithreaded; throughput::hash_multithreaded for one message, throughput::hash_many_multithreaded for a batch, throughput::update_multithreaded into a convenience::Hasher per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: BLAKE3-Servil chooses when to wake its worker threads",
         }
     }
 }
@@ -4624,7 +4624,8 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             input,
             iterations,
             |pieces| {
-                let mut hasher = blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain);
+                let mut hasher =
+                    blake3_servil::convenience::Hasher::new(blake3_servil::Mode::Plain, None);
                 pieces(&mut |piece| {
                     hasher.update(piece);
                 });
@@ -4636,9 +4637,10 @@ fn hash_stream(algorithm: Algorithm, input: &[u8], iterations: usize, consume: i
             input,
             iterations,
             |pieces| {
-                let mut hasher = blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain);
+                let mut hasher =
+                    blake3_servil::convenience::Hasher::new(blake3_servil::Mode::Plain, None);
                 pieces(&mut |piece| {
-                    hasher.update_multithreaded(piece);
+                    blake3_servil::throughput::update_multithreaded(&mut hasher, piece);
                 });
                 *hasher.finalize().as_bytes()
             },
@@ -4753,16 +4755,16 @@ fn hash_interleaved(
                 input,
                 budget,
                 iterations,
-                || blake3_servil::throughput::Hasher::new(blake3_servil::Mode::Plain),
+                || blake3_servil::convenience::Hasher::new(blake3_servil::Mode::Plain, None),
                 update,
-                move |hashers: &mut [blake3_servil::throughput::Hasher],
+                move |hashers: &mut [blake3_servil::convenience::Hasher],
                       ended: &[usize],
                       consume: &mut dyn FnMut(&[u8])| {
                     digests.resize(ended.len(), [0u8; 32]);
                     blake3_servil::throughput::finalize_each(hashers, ended, &mut digests);
                     for (&i, digest) in ended.iter().zip(&digests) {
                         consume(digest);
-                        hashers[i].reset();
+                        hashers[i].reset(None);
                     }
                 },
                 consume,
