@@ -205,7 +205,8 @@ mod tests {
     }
 }
 
-#[cfg(test)]
+// It reads each thread's CPU time from /proc, which macOS lacks.
+#[cfg(all(test, target_os = "linux"))]
 mod diagnostic {
     use super::*;
 
