@@ -57,6 +57,9 @@ FAULTS = [
     ("ignored-transport-failure", '    if r.returncode == 255 or (check and r.returncode != 0):',
      '    if check and r.returncode != 0:',
      "Client.test_transport_failure_stops_even_an_optional_request"),
+    ("implicit-auth-identity", '"IdentitiesOnly=yes"',
+     '"IdentitiesOnly=no"',
+     "Client.test_transport_checks_the_pinned_host_and_uses_a_fresh_connection_namespace"),
 ]
 
 

@@ -494,6 +494,7 @@ class Client(unittest.TestCase):
             self.assertEqual(self.pr.call("root@ours", "version"), b"ok")
         args = run.call_args.args[0]
         self.assertIn("StrictHostKeyChecking=yes", args)
+        self.assertIn("IdentitiesOnly=yes", args)
         self.assertIn("HostKeyAlgorithms=ssh-ed25519", args)
         self.assertIn("UserKnownHostsFile=" + self.pr.KNOWN_HOSTS, args)
         self.assertIn("ControlPath=" + os.path.expanduser("~/.ssh/pinned-%C"), args)

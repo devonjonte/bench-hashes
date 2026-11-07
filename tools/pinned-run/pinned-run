@@ -63,6 +63,7 @@ import argparse, base64, collections, csv, fcntl, glob, hashlib, io, json, os, r
 
 KNOWN_HOSTS = os.path.expanduser("~/.ssh/known_hosts")
 SSH = ["ssh", "-F", "/dev/null", "-i", os.path.expanduser("~/.ssh/id_ed25519"), "-o", "BatchMode=yes",
+       "-o", "IdentitiesOnly=yes",
        "-o", "StrictHostKeyChecking=yes", "-o", "HostKeyAlgorithms=ssh-ed25519", "-o", "LogLevel=ERROR",
        "-o", "ConnectTimeout=15",
        # One connection reused for every call: a new SSH login runs PAM, the MOTD scripts and a
