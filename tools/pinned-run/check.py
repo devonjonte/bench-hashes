@@ -54,12 +54,15 @@ FAULTS = [
     ("changed-host-key", '            if key not in pins:',
      '            if False:  # planted changed host accepted',
      "Client.test_host_enrollment_is_idempotent_and_refuses_a_changed_key"),
-    ("ignored-transport-failure", '    if r.returncode == 255 or (check and r.returncode != 0):',
-     '    if check and r.returncode != 0:',
+    ("ignored-transport-failure", '        transport_failed = r.returncode == 255',
+     '        transport_failed = False',
      "Client.test_transport_failure_stops_even_an_optional_request"),
     ("implicit-auth-identity", '"IdentitiesOnly=yes"',
      '"IdentitiesOnly=no"',
      "Client.test_transport_checks_the_pinned_host_and_uses_a_fresh_connection_namespace"),
+    ("local-executor-without-its-own-group", "stdout=log, stderr=subprocess.STDOUT, start_new_session=True)",
+     "stdout=log, stderr=subprocess.STDOUT, start_new_session=False)",
+     "Local.test_cancelling_a_local_run_stops_its_whole_group"),
 ]
 
 
