@@ -27,6 +27,16 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release**:
+- **A run's final load window joins the one before it** (John Servil,
+  November 7, 2026). A tail shorter than a window joins the last closed
+  window, however long it is; it closed on its own at half a window
+  before. macOS posts the machine's ticks in lumps up to a second late
+  (#142, Mac probe 1985: 10 CPU-seconds in one 50 ms poll after the
+  threads stopped), and a half-second tail holding such a lump read 24
+  CPUs busy on 16 CPUs (checks 1978 and 1979, which then gave no
+  verdict). Read from the previous window's start, the lump meets the own
+  time it belongs to. A run under a second has no window, where before it
+  had one at half a second.
 - **A probe compares only accepted pairs** (John Servil, November 7,
   2026). When a busy pair runs again, keep both abandoned samples under
   `retried/`, outside the top-level files the probe compares. The raw

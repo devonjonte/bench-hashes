@@ -765,7 +765,12 @@ read four CPUs busy.
 The OS counts both in 10 ms ticks, so the run sums them over
 windows of about a second, read between samples (a reading takes about
 9 µs, once a second, outside every timed interval); on 16 CPUs a window
-reads within 0.16 CPUs. The report, the samples file, and the line under
+reads within 0.16 CPUs. macOS posts the machine's ticks about once a
+second, in a lump, up to a second after the work they count (12 threads'
+last second, 10 CPU-seconds, arrived in one 50 ms poll after they had
+stopped), so a run's final window always reaches the read that closes it:
+a shorter tail joins the window before it, read again from that window's
+start, where the lagging ticks meet the time they belong to. The report, the samples file, and the line under
 each of the map's titles give the run's average and its busiest window, in
 CPUs kept busy, and call the run busy when a window reached a whole CPU
 (other programs or steal), naming the busy windows. The samples file

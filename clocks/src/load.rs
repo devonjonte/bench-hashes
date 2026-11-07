@@ -55,6 +55,19 @@
 //! CPU: at most 0.16 CPUs over a 1 s window on 16 CPUs, well under
 //! [`BUSY_MILLI_CPUS`].
 //!
+//! **Lag.** macOS posts the machine's ticks about once a second, in a
+//! lump: 12 threads' last second of work, 10 CPU-seconds, landed in one
+//! 50 ms poll after they had stopped (bench-hashes #142, M4 Max, runner
+//! job 1985). Our own time is exact, so a window's machine ticks lag the
+//! own time they match by up to a second: in steady load the lag cancels
+//! from one window to the next, and at the end of a run the last lump
+//! lands after the work it belongs to. A run's final window therefore
+//! always reaches the read that closes it, however long since the last
+//! close: a window of a second or more, or a tail joined to the window
+//! before it, read again from that window's own start, so the lagging
+//! ticks meet the own time they belong to. A tail of half a second on its
+//! own read 24 CPUs busy on a 16-CPU machine, from such a lump.
+//!
 //! A window whose other load or steal reaches [`BUSY_MILLI_CPUS`] is
 //! busy: when one closes, this module says so on stderr, so every probe
 //! and benchmark shows it with no code of its own; [`windows`] gives
@@ -234,18 +247,18 @@ pub fn tick() {
 }
 
 /// Every window so far, in order, the running one closed first when it
-/// has lasted half a window or more; a shorter one joins the last closed
-/// quiet window, read again from that window's start, so the run's last samples
-/// lie in a window too (once: a tail joins a window that no tail has
-/// joined, so repeated calls never dilute a burst into a longer average).
-/// An observed busy window stays intact; the run already has no speed verdict.
-/// Empty where the platform gives no CPU times, or before a window has
-/// closed (a run under half a second).
+/// has lasted a window or more; a shorter one joins the last closed
+/// quiet window, read again from that window's start (the module's doc,
+/// "Lag"), so the run's last samples lie in a window too (once: a tail
+/// joins a window that no tail has joined, so repeated calls never dilute
+/// a burst into a longer average). An observed busy window stays intact;
+/// the run already has no speed verdict. Empty where the platform gives
+/// no CPU times, or before a window has closed (a run under a second).
 pub fn windows() -> Vec<Window> {
     let mut state = STATE.lock().expect("load state lock");
     if DUE_NS.load(Ordering::Relaxed) != u64::MAX {
         let closed = state.windows.len();
-        close(&mut state, WINDOW_NS / 2);
+        close(&mut state, WINDOW_NS);
         if state.windows.len() == closed {
             if let (Some(start), Some(reading)) = (state.last_start.take(), Reading::take()) {
                 join_tail(&mut state, start, reading);
@@ -358,11 +371,11 @@ pub fn describe_window(window: &Window) -> String {
 /// CPUs busy on average, 0.10 in the busiest second", or "busy: ..., busy
 /// in 2 of 40 windows (12.0-13.0 s, 20.1-21.1 s)"; for none, "not
 /// measured on this platform", or where the OS counts CPU time "not
-/// measured: the run lasted under half a second" (a window closes after
-/// half a second at the least).
+/// measured: the run lasted under a second" (a window closes after a
+/// second at the least).
 pub fn describe(windows: &[Window]) -> String {
     let Some(first) = windows.first() else {
-        return if MEASURED { "not measured: the run lasted under half a second" } else { "not measured on this platform" }.to_owned();
+        return if MEASURED { "not measured: the run lasted under a second" } else { "not measured on this platform" }.to_owned();
     };
     let span = windows.last().unwrap().end_ns - first.start_ns;
     let weighted = |pick: fn(&Window) -> u64| {
@@ -670,7 +683,7 @@ mod tests {
 
     #[test]
     fn descriptions_weigh_windows_by_length_and_name_busy_ones() {
-        let none = if MEASURED { "not measured: the run lasted under half a second" } else { "not measured on this platform" };
+        let none = if MEASURED { "not measured: the run lasted under a second" } else { "not measured on this platform" };
         assert_eq!(describe(&[]), none);
         let quiet = [window(0, 1_000_000_000, 100, 0), window(1_000_000_000, 4_000_000_000, 500, 0)];
         assert_eq!(describe(&quiet), "quiet: other programs kept 0.40 CPUs busy on average, 0.50 in the busiest window");
@@ -898,9 +911,10 @@ mod tests {
     }
 
     /// On the test clock: a tick half a window in closes nothing; one
-    /// exactly a window in closes it, ending at that tick; a tail
-    /// under half a window joins the last window when the windows are
-    /// read, reaching the read, and once (a later read joins nothing more).
+    /// exactly a window in closes it, ending at that tick; a tail under
+    /// a window joins the last window when the windows are read, reaching
+    /// the read, and once (a later read joins nothing more); a read a
+    /// window or more after the last close closes the running window.
     #[cfg(any(target_os = "linux", target_vendor = "apple"))]
     #[test]
     fn ticks_close_a_window_after_a_window_of_time() {
@@ -931,12 +945,15 @@ mod tests {
         );
         crate::test_clock::advance(WINDOW_NS / 10);
         assert_eq!(super::windows().last().copied(), Some(last), "a second read joins nothing more");
-        // A read half a window or more after the last close closes the
+        // A read half a window after the last close still joins nothing
+        // (a tail joins once); a read a window or more after it closes the
         // running window itself, ending at the read.
+        crate::test_clock::advance(WINDOW_NS / 2);
+        assert_eq!(super::windows().len(), 1, "a tail of 0.7 window closes no window of its own");
         crate::test_clock::advance(WINDOW_NS / 2);
         let read_at = now_ns();
         let windows = super::windows();
-        assert_eq!(windows.len(), 2, "the running window, half a window long, closed at the read");
+        assert_eq!(windows.len(), 2, "the running window, over a window long, closed at the read");
         assert_eq!((windows[1].start_ns, windows[1].end_ns), (last.end_ns, read_at));
         // A tick past its due time (the program was busy) closes the window
         // then, and until_due_ns counts down to the next.
