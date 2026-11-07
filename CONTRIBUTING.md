@@ -64,7 +64,7 @@ statistics, the report, and the map.
 ## Working on BLAKE3-Servil alongside
 
 Measure before building: `bench-hashes check --fork ../BLAKE3 --against
-servil --probe "3 KiB,brief idle 3 KiB"` gives each named cell's ratio in
+main --probe "3 KiB,brief idle 3 KiB"` gives each named cell's ratio in
 about three minutes (three fresh pairs, no verdict). Once the change is
 built, the same names with `--points` are its gate (four pairs, then the
 second stage on its suspects). `check` prints the diff's files and the
@@ -88,7 +88,7 @@ it (anywhere: neither holds the other) and name BLAKE3-Servil's checkout:
 git clone --branch main https://github.com/servil-software-factory/BLAKE3
 git clone https://github.com/servil-software-factory/bench-hashes
 cd bench-hashes && cargo run --release -- check --fork ../BLAKE3 --points "3 KiB,brief idle 3 KiB"   # the named cells of BLAKE3-Servil's working tree against its HEAD
-cd bench-hashes && cargo run --release -- check --fork ../BLAKE3 --new my-branch --against servil --points "3 KiB"   # a branch by name, whatever the tree has checked out
+cd bench-hashes && cargo run --release -- check --fork ../BLAKE3 --new my-branch --against main --points "3 KiB"   # a branch by name, whatever the tree has checked out
 cd bench-hashes && "$(cargo run --release --quiet -- build-against ../BLAKE3)" --quick   # one run of it
 ```
 
