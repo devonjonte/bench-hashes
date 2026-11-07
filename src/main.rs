@@ -5464,17 +5464,25 @@ fn written<T: Clone>(len: usize, value: T) -> Vec<T> {
 const BLOCK_LEN: usize = 64;
 const BLOCK_SPARE: usize = 2 * (BLOCK_LEN - 1);
 
-/// Empties `buffer` and fills it up to its first 64-byte boundary, where
-/// its message or batch is then written: the offset. With BLOCK_SPARE
-/// bytes beyond the input in its capacity, the writes never move it.
+/// Empties `buffer` back to its first 64-byte boundary, where its message
+/// or batch is then written: the offset. The bytes before the boundary are
+/// written once, the first time, and kept: the work of every later message
+/// is the same whatever the buffer's address (writing them every time cost
+/// 0 to 26 instructions a 64-byte message by the heap's offset, so a run's
+/// count for the same code moved 4% with what else the process had
+/// allocated: bench-hashes #144). With BLOCK_SPARE bytes beyond the input
+/// in its capacity, the writes never move it.
 fn block_start(buffer: &mut Vec<u8>) -> usize {
-    buffer.clear();
     let at = buffer.as_ptr().align_offset(BLOCK_LEN);
     assert!(
         at < BLOCK_LEN,
         "a byte buffer reaches a 64-byte boundary within 63 bytes"
     );
-    buffer.resize(at, 0);
+    if buffer.len() < at {
+        buffer.resize(at, 0);
+    } else {
+        buffer.truncate(at);
+    }
     at
 }
 
