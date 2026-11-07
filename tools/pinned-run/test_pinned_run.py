@@ -238,6 +238,87 @@ class Server(unittest.TestCase):
         with open(lock, "a") as other:
             fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
+    def git(self, repo, *args, check=True):
+        import subprocess
+        return subprocess.run(["git", "-C", repo, "-c", "core.hooksPath=/dev/null", "-c", "user.name=Runner Test",
+                               "-c", "user.email=runner@example.invalid", "-c", "commit.gpgsign=false", *args],
+                              capture_output=True, text=True, check=check)
+
+    def real_repo(self):
+        repo = os.path.join(self.root, "upstream")
+        os.mkdir(repo)
+        self.git(repo, "init", "-q", "--initial-branch=main")
+        first = self.real_commit(repo, "first")
+        return repo, first
+
+    def real_commit(self, repo, value):
+        with open(os.path.join(repo, "value"), "w") as f:
+            f.write(value)
+        self.git(repo, "add", "value")
+        self.git(repo, "commit", "-qm", value)
+        return self.git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    def prepare_real(self, repo, commit, n):
+        payload = self.manifest("real", commit=commit, lock=os.path.join(self.root, "bench.lock"))
+        payload["manifest"]["repos"][0]["url"] = repo
+        run_id = f"real-20261105T00000{n}-0000000{n}"
+        self.pr.serve_submit(run_id, payload, start=lambda *_: None)
+        run = os.path.join(self.root, run_id)
+        self.pr.remote_execute(run)
+        return run
+
+    def test_exact_commit_preparation_keeps_history_without_importing_other_refs(self):
+        repo, first = self.real_repo()
+        wanted = self.real_commit(repo, "wanted")
+        self.real_commit(repo, "later")
+        run = self.prepare_real(repo, wanted, 1)
+        with open(run + "/STATUS") as f:
+            self.assertEqual(f.read().strip(), "VERIFIED")
+        self.assertEqual(self.git(run + "/src", "rev-parse", "HEAD").stdout.strip(), wanted)
+        self.assertEqual(self.git(run + "/src", "rev-list", "--count", "HEAD").stdout.strip(), "2")
+        self.git(run + "/src", "cat-file", "-e", first + "^{commit}")
+        self.assertEqual(self.git(run + "/src", "for-each-ref", "--format=%(refname)", "refs/cache").stdout, "",
+                         "only the requested history is fetched, not the mirror's unrelated refs")
+
+    def test_known_commit_preparation_works_offline_and_uses_a_fresh_checkout(self):
+        repo, wanted = self.real_repo()
+        first = self.prepare_real(repo, wanted, 1)
+        with open(first + "/src/stale-untracked", "w") as f:
+            f.write("must stay in the first checkout")
+        os.rename(repo, repo + "-offline")
+        second = self.prepare_real(repo, wanted, 2)
+        with open(second + "/STATUS") as f:
+            self.assertEqual(f.read().strip(), "VERIFIED", "a known immutable commit needs no remote refresh")
+        self.assertFalse(os.path.exists(second + "/src/stale-untracked"))
+        self.assertNotEqual(os.stat(first + "/src/value").st_ino, os.stat(second + "/src/value").st_ino)
+        self.assertEqual(self.git(second + "/src", "rev-parse", "HEAD").stdout.strip(), wanted)
+
+    def test_unknown_commit_is_fetched_by_hash_or_fails_before_the_job(self):
+        repo, first = self.real_repo()
+        self.prepare_real(repo, first, 1)
+        wanted = self.real_commit(repo, "new upstream commit")
+        second = self.prepare_real(repo, wanted, 2)
+        with open(second + "/STATUS") as f:
+            self.assertEqual(f.read().strip(), "VERIFIED")
+        self.assertEqual(self.git(second + "/src", "rev-parse", "HEAD").stdout.strip(), wanted)
+        failed = self.prepare_real(repo, "f" * 40, 3)
+        with open(failed + "/STATUS") as f:
+            self.assertEqual(f.read().strip(), "FAILED")
+        with open(failed + "/phases.jsonl") as f:
+            self.assertNotIn("job_finished", [json.loads(l)["phase"] for l in f])
+
+    def test_successful_git_commands_with_wrong_head_fail_before_the_job(self):
+        import subprocess
+        run_id, _ = self.submit("wrong-head", 1)
+        def git(args, **kw):
+            return subprocess.CompletedProcess(args, 0, stdout="b" * 40 if "rev-parse" in args else "")
+        with mock.patch.object(self.pr, "sh", git), \
+             mock.patch.object(self.pr.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as job:
+            self.pr.remote_execute(os.path.join(self.root, run_id))
+            job.assert_not_called()
+        with open(os.path.join(self.root, run_id, "STATUS")) as f:
+            self.assertEqual(f.read().strip(), "FAILED")
+
     def test_fetch_streams_the_records_and_outputs_alone(self):
         a, _ = self.submit("x", 1)
         run = os.path.join(self.root, a)

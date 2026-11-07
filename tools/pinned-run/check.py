@@ -39,6 +39,15 @@ FAULTS = [
     ("hidden-slower", 'if r["verdict"] not in ("Faster", "Level")',
      'if r["verdict"] not in ("Faster", "Level", "Slower")',
      "Client.test_review_preserves_slower_and_no_verdict_beside_runner_verified"),
+    ("all-ref-preparation", '["git", "-C", d, "fetch", "-q", cache, r["commit"]]',
+     '["git", "-C", d, "fetch", "-q", cache, "+refs/*:refs/cache/*"]',
+     "Server.test_exact_commit_preparation_keeps_history_without_importing_other_refs"),
+    ("unneeded-remote-refresh", '            steps += [["sh", "-c",',
+     '            else:\n                steps.append(["git", "-C", cache, "fetch", "-q", "--prune", "origin"])\n            steps += [["sh", "-c",',
+     "Server.test_known_commit_preparation_works_offline_and_uses_a_fresh_checkout"),
+    ("unchecked-head", '            if head != r["commit"]:',
+     '            if False:  # planted wrong HEAD accepted',
+     "Server.test_successful_git_commands_with_wrong_head_fail_before_the_job"),
 ]
 
 

@@ -5,7 +5,7 @@ Public source for Sam Shackleton's existing remote runner, used by the
 and [first pilot](https://github.com/servil-software-factory/bench-hashes/issues/147).
 The runner's module documentation describes its manifest and commands.
 
-Run the suite and its nine fault controls with one command:
+Run the suite and its twelve fault controls with one command:
 
 ```sh
 python3 tools/pinned-run/check.py --output /tmp/pinned-run-check
@@ -16,8 +16,9 @@ tool. Tests use fake transports, temporary run directories and mock jobs.
 Fault controls omit a phase, report a lock prematurely, rewrite a terminal
 record, release the lock before verification, bypass a failed preflight, and
 accept mismatched preflight inputs, ignore a study's scope, skip its review
-summary, and hide a Slower judgment. Each must fail its named test. The output
-directory retains the suite and control logs.
+summary, hide a Slower judgment, import unrelated cached refs, refresh a known
+commit from an offline remote, and accept the wrong HEAD. Each must fail its
+named test. The output directory retains the suite and control logs.
 
 ## First slice: automatic phase records
 
@@ -44,6 +45,15 @@ retain the outcome. A terminal run's record is left unchanged on re-execution.
 These are workflow events surrounding the script. Workload timing remains in
 clocks. The benchmark lock still covers preparation, the script and verification.
 Build/measurement subphases belong to the instrument and follow in the pilot.
+
+## Fresh checkouts from exact commits
+
+Preparation uses the existing hash-named mirror cache. A commit already in the
+cache needs no remote refresh. An absent commit is fetched by its full hash.
+Every run initializes a fresh private repository, fetches just the named commit
+and its full history from that cache, and verifies HEAD before running the job.
+Other cached branches and their unrelated results stay in the mirror. Targets,
+lockfiles and working trees remain private to the run.
 
 ## Preflight before fan-out
 

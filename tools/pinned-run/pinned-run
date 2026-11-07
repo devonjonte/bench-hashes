@@ -586,21 +586,19 @@ def remote_execute(run):
     with open(f"{run}/prepare.log", "w") as log:
         # Every repository fetched by hash into a fresh directory, and checked.
         # Git's objects are named by their hashes, so one mirror per URL is a
-        # safe shared cache; each run clones from it, with full history (check
-        # builds older commits), and origin set back to the real URL.
+        # safe shared cache. Each run fetches just the named commit and its full
+        # history (check builds older commits), with origin set to the real URL.
         for r in sorted(m["repos"], key=lambda r: r["path"].count("/")):
             d = f"{run}/{r['path']}"
             cache = f"{RUNS}/cache/{sha256(r['url'].encode())[:16]}.git"
             steps = []
             if not os.path.exists(cache):
                 steps.append(["git", "clone", "-q", "--mirror", r["url"], cache])
-            else:
-                steps.append(["git", "-C", cache, "fetch", "-q", "--prune", "origin"])
             steps += [["sh", "-c", f"git -C {cache} cat-file -e {r['commit']}^{{commit}} || git -C {cache} fetch -q {shlex.quote(r['url'])} {r['commit']}"],
                       ["git", "-C", cache, "update-ref", f"refs/pinned/{r['commit']}", r["commit"]],
                       ["git", "init", "-q", d],
                       ["git", "-C", d, "remote", "add", "origin", r["url"]],
-                      ["git", "-C", d, "fetch", "-q", cache, "+refs/*:refs/cache/*"],
+                      ["git", "-C", d, "fetch", "-q", cache, r["commit"]],
                       ["git", "-C", d, "checkout", "-q", "--detach", r["commit"]]]
             for cmd in steps:
                 p = sh(cmd, log=log)
