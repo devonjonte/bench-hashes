@@ -48,6 +48,7 @@ Manifest (JSON):
 
 Commands:
   pinned-run launch MANIFEST      start; prints the run id (and the host, for a list)
+  pinned-run fanout HOST MANIFEST...  preflight the shared instrument on HOST, then launch
   pinned-run status HOST RUN_ID   running / queued / VERIFIED / FAILED / CANCELLED (+ reasons)
   pinned-run wait HOST RUN_ID     wait until done, print status
   pinned-run next [SECONDS]       wait for the next run launched from here to finish (exit 3: none pending)
@@ -168,9 +169,18 @@ def choose_host(m):
 
 
 def launch(manifest_path):
-    m = json.load(open(manifest_path))
+    with open(manifest_path) as f:
+        m = json.load(f)
     validate(m)
-    script = open(m["script"], "rb").read()
+    with open(m["script"], "rb") as f:
+        script = f.read()
+    return submit_manifest(m, script)
+
+
+def submit_manifest(manifest, script):
+    """Submit a captured manifest and script, unchanged since preflight selected them."""
+    m = dict(manifest)
+    show_host = isinstance(m["host"], list)
     host = choose_host(m)
     m["host"] = host
     m["script_sha256"] = sha256(script)
@@ -185,7 +195,47 @@ def launch(manifest_path):
     os.makedirs(os.path.dirname(REGISTRY), exist_ok=True)
     with open(REGISTRY, "a") as f:
         f.write(json.dumps({"run": run_id, "host": host}) + "\n")
-    print(run_id if isinstance(json.load(open(manifest_path))["host"], str) else f"{run_id} {host}")
+    print(f"{run_id} {host}" if show_host else run_id, flush=True)
+    return {"run": run_id, "host": host}
+
+
+def fanout(host, paths, poll=1):
+    """Compile/reference preflight once, then fan out the captured identical instrument.
+    The script handles PINNED_RUN_PREFLIGHT=1 and writes the completion marker only
+    after its compile and small reference/work checks. Normal jobs omit that mode."""
+    jobs = []
+    for path in paths:
+        with open(path) as f:
+            m = json.load(f)
+        validate(m)
+        if "PINNED_RUN_PREFLIGHT" in m.get("env", {}):
+            die("fanout: PINNED_RUN_PREFLIGHT is reserved for the preflight")
+        if not m.get("lock"):
+            die("fanout: every job names its host lock")
+        with open(m["script"], "rb") as f:
+            script = f.read()
+        identity = (sorted((r["url"], r["commit"], r["path"]) for r in m["repos"]),
+                    script, m.get("env", {}), m.get("forbid", []))
+        if jobs and identity != jobs[0][2]:
+            die("fanout: jobs must name the same repos, script bytes, environment and forbid rules")
+        jobs.append((m, script, identity))
+    if not jobs:
+        die("fanout: at least one manifest")
+    first, script, _ = jobs[0]
+    preflight = dict(first, name=first["name"] + "-preflight", host=host,
+                     env=dict(first.get("env", {}), PINNED_RUN_PREFLIGHT="1"),
+                     expect=[{"file": "out/preflight.txt", "contains": ["pinned-run preflight complete"]}])
+    record = submit_manifest(preflight, script)
+    while True:
+        result = status(record["host"], record["run"])
+        state = result.split("\n", 1)[0]
+        if state in FINAL:
+            break
+        time.sleep(poll)
+    if state != "VERIFIED":
+        die(f"preflight {record['run']} {record['host']} failed; no fanout jobs launched:\n{result}")
+    print(f"preflight VERIFIED: {record['run']}", flush=True)
+    return [submit_manifest(m, script) for m, script, _ in jobs]
 
 
 def status(host, run_id):
@@ -556,6 +606,8 @@ def main():
         remote_execute(a[1])
     elif a[0] == "launch" and len(a) == 2:
         launch(a[1])
+    elif a[0] == "fanout" and len(a) >= 3:
+        fanout(a[1], a[2:])
     elif a[0] == "status" and len(a) == 3:
         print(status(a[1], a[2]))
     elif a[0] == "wait" and len(a) == 3:

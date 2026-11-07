@@ -24,6 +24,12 @@ FAULTS = [
     ("unlocked-verification", '        verification = verify(run, m)',
      '        if lock:\n            lock.close()\n        verification = verify(run, m)',
      "test_preparation_and_job_both_hold_the_measurement_lock"),
+    ("failed-preflight-fanout", '    if state != "VERIFIED":',
+     '    if False:  # planted failed gate',
+     "Client.test_failed_preflight_launches_no_fanout_jobs"),
+    ("mismatched-preflight-inputs", '        if jobs and identity != jobs[0][2]:',
+     '        if False:  # planted unchecked inputs',
+     "Client.test_fanout_refuses_different_instrument_inputs_before_any_submit"),
 ]
 
 
@@ -48,11 +54,12 @@ def main():
             change = subprocess.run([replace, str(tool), old, new], text=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             assert change.returncode == 0, change.stdout
-            result = subprocess.run([sys.executable, str(HERE / "test_pinned_run.py"), "Server." + test],
+            selection = test if "." in test else "Server." + test
+            result = subprocess.run([sys.executable, str(HERE / "test_pinned_run.py"), selection],
                                     env=dict(env, PINNED_RUN_TOOL=str(tool)), text=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             args.output.joinpath(name + ".log").write_text(change.stdout + result.stdout)
-            assert result.returncode == 1 and "FAIL: " + test in result.stdout, result.stdout
+            assert result.returncode == 1 and "FAIL: " + selection.split(".")[-1] in result.stdout, result.stdout
             print("control rejected:", name, flush=True)
     print("pinned-run phase checks passed", flush=True)
 

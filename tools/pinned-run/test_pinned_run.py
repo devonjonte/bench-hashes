@@ -306,6 +306,105 @@ class Client(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.root, ignore_errors=True)
 
+    def fanout_manifests(self, *, different=None):
+        script = os.path.join(self.root, "instrument.sh")
+        with open(script, "w") as f:
+            f.write("echo exact instrument\n")
+        paths = []
+        for i in range(2):
+            m = {"name": f"cell-{i}", "host": f"root@{i}", "lock": "/root/bench.lock",
+                 "script": script, "repos": [{"url": "https://x/r", "commit": "a" * 40, "path": "src"}],
+                 "env": {"MODE": "same"}, "expect": [{"file": "out/result", "contains": ["result"]}],
+                 "forbid": ["wrong input"]}
+            if i and different:
+                m.update(different)
+            path = os.path.join(self.root, f"manifest-{i}.json")
+            with open(path, "w") as f:
+                json.dump(m, f)
+            paths.append(path)
+        return paths
+
+    def test_fanout_waits_for_verified_preflight_and_freezes_its_inputs(self):
+        paths = self.fanout_manifests()
+        submitted = []
+        states = iter(["running", "VERIFIED"])
+        def submit(m, script):
+            submitted.append((m, script))
+            if len(submitted) == 1:
+                self.assertEqual(m["host"], "root@fast")
+                self.assertEqual(m["env"]["PINNED_RUN_PREFLIGHT"], "1")
+                self.assertEqual(m["expect"], [{"file": "out/preflight.txt", "contains": ["pinned-run preflight complete"]}])
+                # A local edit after preflight must not change the later submitted inputs.
+                with open(m["script"], "w") as f:
+                    f.write("echo changed after capture\n")
+                with open(paths[1], "w") as f:
+                    json.dump({"broken": True}, f)
+            return {"run": "run-" + str(len(submitted)), "host": m["host"]}
+        def status(host, run):
+            self.assertEqual(len(submitted), 1, "no job launches before preflight verification")
+            return next(states)
+        with mock.patch.object(self.pr, "submit_manifest", submit), mock.patch.object(self.pr, "status", status):
+            result = self.pr.fanout("root@fast", paths, poll=0)
+        self.assertEqual([x["host"] for x in result], ["root@0", "root@1"])
+        self.assertEqual(len(submitted), 3)
+        self.assertTrue(all(script == b"echo exact instrument\n" for _, script in submitted))
+        self.assertTrue(all("PINNED_RUN_PREFLIGHT" not in m["env"] for m, _ in submitted[1:]))
+        self.assertTrue(all(m["expect"] == [{"file": "out/result", "contains": ["result"]}] for m, _ in submitted[1:]))
+
+    def test_failed_preflight_launches_no_fanout_jobs(self):
+        paths = self.fanout_manifests()
+        for state in ["FAILED", "CANCELLED", "lost"]:
+            with self.subTest(state=state), mock.patch.object(self.pr, "submit_manifest", return_value={"host": "root@fast", "run": "preflight"}) as submit, \
+                 mock.patch.object(self.pr, "status", return_value=state), self.assertRaises(SystemExit):
+                self.pr.fanout("root@fast", paths, poll=0)
+            self.assertEqual(submit.call_count, 1, "only preflight was submitted")
+
+    def test_fanout_refuses_different_instrument_inputs_before_any_submit(self):
+        changes = [
+            {"repos": [{"url": "https://x/r", "commit": "b" * 40, "path": "src"}]},
+            {"env": {"MODE": "different"}},
+            {"forbid": ["different rules"]},
+        ]
+        for change in changes:
+            with self.subTest(change=change):
+                paths = self.fanout_manifests(different=change)
+                with mock.patch.object(self.pr, "submit_manifest") as submit, self.assertRaises(SystemExit):
+                    self.pr.fanout("root@fast", paths, poll=0)
+                submit.assert_not_called()
+
+    def test_fanout_refuses_different_script_bytes(self):
+        other = os.path.join(self.root, "other.sh")
+        with open(other, "w") as f:
+            f.write("echo other\n")
+        paths = self.fanout_manifests(different={"script": other})
+        with mock.patch.object(self.pr, "submit_manifest") as submit, self.assertRaises(SystemExit):
+            self.pr.fanout("root@fast", paths, poll=0)
+        submit.assert_not_called()
+
+    def test_fanout_requires_a_lock_and_reserves_its_mode_variable(self):
+        for change in [{"lock": None}, {"env": {"PINNED_RUN_PREFLIGHT": "0"}}]:
+            paths = self.fanout_manifests(different=change)
+            with mock.patch.object(self.pr, "submit_manifest") as submit, self.assertRaises(SystemExit):
+                self.pr.fanout("root@fast", paths, poll=0)
+            submit.assert_not_called()
+
+    def test_preflight_missing_marker_fails_output_verification(self):
+        run = os.path.join(self.root, "marker")
+        os.mkdir(run)
+        m = {"expect": [{"file": "out/preflight.txt", "contains": ["pinned-run preflight complete"]}], "forbid": []}
+        self.assertEqual(self.pr.verify(run, m), ["expect: no file out/preflight.txt"])
+
+    def test_submit_manifest_keeps_the_capture_unchanged(self):
+        path = self.fanout_manifests()[0]
+        with open(path) as f:
+            m = json.load(f)
+        before = json.loads(json.dumps(m))
+        with mock.patch.object(self.pr, "call", return_value=b'{"notes": []}'):
+            result = self.pr.submit_manifest(m, b"echo exact instrument\n")
+        self.assertEqual(m, before)
+        self.assertEqual(result["host"], "root@0")
+        self.assertTrue(result["run"].startswith("cell-0-"))
+
     def test_a_host_list_takes_a_free_machine_else_the_shortest_queue(self):
         states = {"root@a": {"free": False, "queued": 2}, "root@b": {"free": True, "queued": 0}, "root@c": {"free": False, "queued": 0}}
         with mock.patch.object(self.pr, "call", lambda h, verb, *a, **k: json.dumps(states[h]).encode()):

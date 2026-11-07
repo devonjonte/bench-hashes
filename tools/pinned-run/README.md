@@ -5,7 +5,7 @@ Public source for Sam Shackleton's existing remote runner, used by the
 and [first pilot](https://github.com/servil-software-factory/bench-hashes/issues/147).
 The runner's module documentation describes its manifest and commands.
 
-Run the suite and its four fault controls with one command:
+Run the suite and its six fault controls with one command:
 
 ```sh
 python3 tools/pinned-run/check.py --output /tmp/pinned-run-check
@@ -14,8 +14,9 @@ python3 tools/pinned-run/check.py --output /tmp/pinned-run-check
 It uses Python's standard library and the project's `replace` exact-replacement
 tool. Tests use fake transports, temporary run directories and mock jobs.
 Fault controls omit a phase, report a lock prematurely, rewrite a terminal
-record, and release the lock before verification. Each must fail its named test.
-The output directory retains the suite and control logs.
+record, release the lock before verification, bypass a failed preflight, and
+accept mismatched preflight inputs. Each must fail its named test. The output
+directory retains the suite and control logs.
 
 ## First slice: automatic phase records
 
@@ -42,6 +43,33 @@ retain the outcome. A terminal run's record is left unchanged on re-execution.
 These are workflow events surrounding the script. Workload timing remains in
 clocks. The benchmark lock still covers preparation, the script and verification.
 Build/measurement subphases belong to the instrument and follow in the pilot.
+
+## Preflight before fan-out
+
+```sh
+pinned-run fanout root@FAST_HOST manifest-a.json manifest-b.json
+```
+
+The manifests name one instrument: identical script bytes, repository commits
+and paths, environment and forbid rules. Hosts, names and output expectations
+may differ. The runner captures every manifest and the script bytes first,
+checks that identity, then submits one preflight on FAST_HOST under the first
+manifest's lock. It sets `PINNED_RUN_PREFLIGHT=1` and requires
+`out/preflight.txt` to contain `pinned-run preflight complete`.
+
+The script's preflight mode compiles the exact probe against its named sources
+and runs its small reference/work checks. It writes the marker after they pass.
+A VERIFIED preflight permits fan-out of the captured inputs. FAILED, CANCELLED
+or lost preflight stops the command before any target launch. A later local edit
+cannot change what the preflight authorized. The normal jobs retain all of their
+original output expectations. Different instruments use separate preflights.
+
+`fanout-example.sh` is a compiler/reference fixture: it builds a small Rust
+probe against the named library, checks the official `abc` digest, and supports
+a deliberate compile fault. Its pinned runs demonstrate both successful fan-out
+and failure before fan-out. It requires repositories named `library` and `tools`.
+The generic gate checks instrument identity and the VERIFIED completion; the
+instrument owns its preflight's useful compile/reference/work assertions.
 
 ## Evidence and deployment
 
