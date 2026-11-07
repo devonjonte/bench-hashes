@@ -4,8 +4,8 @@ This file explains what a run measures, how it controls measurement
 noise, and what each contender runs. [README.md](README.md) says how to
 run it.
 
-Every run measures each contender in twenty-one use cases. Thirteen are
-calls made now and then, each after a gap of one of three kinds. **After other
+A run measures calls made now and then, continuous hashing, and receiving
+a message in fragments. Calls made now and then follow one of three gaps. **After other
 work** runs after the program has executed a fixed other program and read
 128 MiB of data, as a program hashes between its other tasks. **After a
 brief idle** runs after the program has slept 20 us (the bench sets its
@@ -24,8 +24,8 @@ of 64-byte messages at twenty-four counts from 1 to 262144 (reported per
 message), and **a turn of many messages' pieces** (below); after other
 work alone, **a batch of 4 KiB messages** at 4 to 256.
 
-Eight hash one input after another, as fast as the program can, each
-input first read or written into a buffer (timed with the hashing):
+Continuous use cases hash one input after another, as fast as the program
+can, each input first read or written into a buffer (timed with the hashing):
 
 - With buffers the program **owns** and hands over, filling the next
   while one is hashed: **messages**, at eleven sizes from 64 B to
@@ -121,9 +121,31 @@ BLAKE3-Servil mt, `Digest::update` in sha2, sha1-checked, and sha3,
 ring's `Context::update`, CommonCrypto's `CC_SHA256_Update`). The time
 is per byte of pieces.
 
-A single long message arriving in pieces is not measured: each piece
-lent to an incremental call costs about what one message of the piece's
-length costs, which the one-message cells show.
+## Receiving one message
+
+This case times a 16 MiB message from its first arriving fragment to its
+completed hash. Fragments cycle through 1448 B, 4 KiB, 16 KiB and 64 KiB,
+cut at the message's end. The axis is arrival spacing: saturated input,
+2 us or 20 us. Scheduled arrivals are fixed offsets from the first,
+independent of consumer work. `clocks::sleep_until` waits only for the
+remaining time. A late consumer finds data ready, as with buffered I/O.
+The saturated producer makes no clock reads or waits between fragments.
+
+Each contender receives fragments into its kept 64 KiB buffer (a memory
+copy) and uses its incremental API, including `update_multithreaded` for
+BLAKE3-Servil mt. Finalization follows the final fragment. The consumer
+receives no length declaration before the message ends.
+
+The result includes the reads, arrival waits, updates and finalization.
+Its rate describes end-to-end reception and hashing. This differs from a
+call after an idle gap, whose gap is outside its measured interval. The
+samples retain wall time, calling-thread counts and whole-process CPU time.
+The map gives this case its own "receive + hash, including waits" column.
+
+The saturated case exposes hashing/production throughput. Paced arrivals
+show the cost beside I/O and let background hashing use the time between
+callbacks. The synchronous incremental calls establish the baseline for
+the incremental background pipeline.
 
 ## One input after another
 
@@ -158,8 +180,8 @@ implementation offers that. The many-messages use case measures both as
 they are, with messages of 64 bytes (a Merkle tree's inner node, two
 32-byte children). A contender without a batch entry point loops its
 plain entry point over the batch, one message per call: `for m in batch
-{ hash(m) }`. Three have one. BLAKE3-Servil's `hash_many(input, message_len, out)`
-takes messages of one length back to back in one buffer and fills one
+{ hash(m) }`. Three have one. BLAKE3-Servil's `throughput::hash_many(mode, &Batch, out)`
+takes prepared messages of one length and fills one
 digest each; BLAKE3-Servil mt's `hash_many_multithreaded` does the same
 over BLAKE3-Servil's worker threads. The crates.io BLAKE3 crate has a hidden
 one, `blake3::platform::Platform::hash_many::<N>`, which programs that
@@ -213,13 +235,13 @@ interval takes two samples of the same batch:
 
 In the calls after a gap, each sample is one call (or enough calls to
 fill 2 µs when a single call is shorter than the clock tick), each
-preceded by its own 1 ms gap and timed outside the gap. Before a sample's
+preceded by its use case's gap and timed outside the gap. Before a sample's
 first timed call, one untimed call with its own gap runs so the sample
 starts from that cell's own state. After other work, the thread executes
 1024 generated functions (about 1.1 MiB of machine code) to evict the
 instruction cache, walks a 128 MiB working buffer at 64-byte intervals,
 and spends any remaining millisecond on integer arithmetic. After idling,
-the thread sleeps 1 ms. In both cases the thread then writes the input
+the thread sleeps its use case's 20 us or 5 ms. In both cases the thread then writes the input
 into its buffer and hashes it, storing the digest in its output slot.
 
 In every gap kind, any worker pool's threads have gone to sleep. After
@@ -389,9 +411,8 @@ The participating contenders in each use case run in a Williams design.
 That schedule places every contender in every position equally often and
 realises every "Y right after X" adjacency equally often (n orders for an
 even count of contenders, 2n for odd). Point order rotates independently.
-The run measures in three phases, each with its own calibration and
-rounds: the nonstop use cases, then the calls after other work, then the
-calls after idling. Because the operating system sets a core's clock from
+Each calling pattern has its own calibration and rounds: nonstop,
+after other work, brief idle, long idle, controlled idle, and receiving. Because the operating system sets a core's clock from
 the program's recent activity, each calling pattern runs among its own
 kind. When nonstop and sleeping calls were mixed on an Apple M4 Max, nonstop
 samples ran near 3.0 GHz (against 4.4 GHz alone) and sleeping calls ran
@@ -436,11 +457,12 @@ clocks, its threads' placement, a GPU's clock. The starting
 point's rotation is even only when the round count is a multiple of the
 point count.
 
-With `--contenders ... --rounds N`, every cell samples every round.
-Choose N as a multiple of each measured use case's order count for
-complete balance; other counts give a partial design. For example, a
-roster of eight has eight orders for messages, while seven participants
-in its batch use case have fourteen: 56 rounds completes both designs.
+With `--contenders ... --rounds N`, N sets the rounds available for the
+visits. Cells retain their visit budgets. `--nonstop-visits N` takes one
+nonstop visit each round. Each visit advances through the participating
+contenders' Williams orders. Choose a visit count that completes their
+order cycle: n visits for an even n contenders, 2n for odd n. Other counts
+leave a partial cycle.
 
 Shorter samples (0.5 ms) were tried and rejected: every cell read 1.6%
 slower, since a sample's fixed cost weighs twice as much. Before it sizes
@@ -626,7 +648,8 @@ and then, for the multithreaded contenders, two at once (shared), a
 layer per placement the machine has. Its rows are what the program hashes: one message, a
 batch of short messages, a batch of longer ones, a Merkle tree, many
 messages at once in pieces, and a collection of messages. Its columns are how the program calls: after other work, after
-a pause, waiting for each call, or pipelined. A cell the run did not measure stays
+a pause, waiting for each call, pipelined, or receiving and hashing
+fragments with the arrival waits included. A cell the run did not measure stays
 empty, in its place. Clicking a chart opens it over the cells, its row's
 and column's headers lit, with its axes and, under the pointer, each
 contender's rate and time per message (or batch, or run) at that point;
