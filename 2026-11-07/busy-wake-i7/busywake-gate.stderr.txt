@@ -1,0 +1,78 @@
+check: BLAKE3-Servil's candidate/devon-busy-wake (8b4d8bcc83eb) against origin/next (85bf73a62ed6)
+check: the change touches 71 added and 6 deleted lines in 3 files: src/lanes.rs (+24/-6), src/stream/receiver.rs (+46/-0), tools/mutants/timeouts-x86_64.txt (+1/-0)
+check: its hunks sit in: struct Pool {, pub(crate) fn initialize(threads: usize) {, pub(crate) fn all_workers_parked() -> bool {, pub(crate) mod sources {, pub(super) mod tests {, src/lib.rs	replace __all_workers_parked -> bool with false	1	a test-only hook (_
+check: measuring the 11 named points (11 of 269 points; the rest unmeasured in this check): 64 KiB, 1 MiB, 128 MiB, continuous 64 KiB, continuous 4 KiB, interleaved 256, turn 256, lent 64 B, continuous batch 1024, receive saturated, receive 2 us
+check: the change alters the bench's code here: .data, .dynamic, .eh_frame, .eh_frame_hdr, .gcc_except_table, .got.plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .text; 5 functions of another size or on one side alone (<<std::sync::once::Once>::call_once_force<<std::sync::once_lock::OnceLock<blake3_servil::lanes::Pool>>::initialize<<std::sync::once_lock::OnceLock<blake3_servil::lanes::Pool>>::get_or_init<<std::sync::once_lock::OnceLock<blake3_servil::lanes::Pool>>::try_insert::{closure#0}>::{closure#0}, !>::{closure#0}>::{closure#0} as core::ops::function::FnOnce<(&std::sync::once::OnceState,)>>::call_once::{shim:vtable#0}; <blake3_servil::lanes::Pool>::serve; <blake3_servil::stream::receiver::Message>::submit; <std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<blake3_servil::lanes::Pool>>::initialize<<std::sync::once_lock::OnceLock<blake3_servil::lanes::Pool>>::get_or_init<<std::sync::once_lock::OnceLock<blake3_servil::lanes::Pool>>::try_insert::{closure#0}>::{closure#0}, !>::{closure#0}>::{closure#0}; <std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<usize>>::initialize<<std::sync::once_lock::OnceLock<usize>>::get_or_init<blake3_servil::initialize_multithreaded::{closure#1}>::{closure#0}, !>::{closure#0}>::{closure#0}); 1324 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&[u8; 32] as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Display>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; and 1312 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt --points "64 KiB,1 MiB,128 MiB,continuous 64 KiB,continuous 4 KiB,interleaved 256,turn 256,lent 64 B,continuous batch 1024,receive saturated,receive 2 us"
+regress: pair 1 of 4 in 18.7 s
+regress: pair 2 of 4 in 18.7 s
+regress: pair 3 of 4 in 18.8 s
+regress: pair 4 of 4 in 18.7 s
+check: a second stage for 1 suspects on 64 fresh pairs: blake3-servil-st|solo|OneMessage|1 MiB
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6,8,10,12,14,16,17,18,19
+regress: 64 new builds against 64 old, 64 pairs over --contenders blake3-servil-st --points "1 MiB"
+regress: pair 1 of 64 in 1.4 s
+regress: pair 2 of 64 in 1.4 s
+regress: pair 3 of 64 in 1.4 s
+regress: pair 4 of 64 in 1.4 s
+regress: pair 5 of 64 in 1.4 s
+regress: pair 6 of 64 in 1.4 s
+regress: pair 7 of 64 in 1.4 s
+regress: pair 8 of 64 in 1.4 s
+regress: pair 9 of 64 in 1.5 s
+regress: pair 10 of 64 in 1.5 s
+regress: pair 11 of 64 in 1.5 s
+regress: pair 12 of 64 in 1.5 s
+regress: pair 13 of 64 in 1.4 s
+regress: pair 14 of 64 in 1.4 s
+regress: pair 15 of 64 in 1.4 s
+regress: pair 16 of 64 in 1.4 s
+regress: pair 17 of 64 in 1.4 s
+regress: pair 18 of 64 in 1.4 s
+regress: pair 19 of 64 in 1.4 s
+regress: pair 20 of 64 in 1.4 s
+regress: pair 21 of 64 in 1.5 s
+regress: pair 22 of 64 in 1.5 s
+regress: pair 23 of 64 in 1.5 s
+regress: pair 24 of 64 in 1.5 s
+regress: pair 25 of 64 in 1.4 s
+regress: pair 26 of 64 in 1.4 s
+regress: pair 27 of 64 in 1.4 s
+regress: pair 28 of 64 in 1.4 s
+regress: pair 29 of 64 in 1.4 s
+regress: pair 30 of 64 in 1.4 s
+regress: pair 31 of 64 in 1.4 s
+regress: pair 32 of 64 in 1.4 s
+regress: pair 33 of 64 in 1.5 s
+regress: pair 34 of 64 in 1.5 s
+regress: pair 35 of 64 in 1.5 s
+regress: pair 36 of 64 in 1.5 s
+regress: pair 37 of 64 in 1.4 s
+regress: pair 38 of 64 in 1.4 s
+regress: pair 39 of 64 in 1.4 s
+regress: pair 40 of 64 in 1.4 s
+regress: pair 41 of 64 in 1.4 s
+regress: pair 42 of 64 in 1.4 s
+regress: pair 43 of 64 in 1.4 s
+regress: pair 44 of 64 in 1.4 s
+regress: pair 45 of 64 in 1.5 s
+regress: pair 46 of 64 in 1.5 s
+regress: pair 47 of 64 in 1.5 s
+regress: pair 48 of 64 in 1.5 s
+regress: pair 49 of 64 in 1.4 s
+regress: pair 50 of 64 in 1.4 s
+regress: pair 51 of 64 in 1.4 s
+regress: pair 52 of 64 in 1.4 s
+regress: pair 53 of 64 in 1.4 s
+regress: pair 54 of 64 in 1.4 s
+regress: pair 55 of 64 in 1.4 s
+regress: pair 56 of 64 in 1.4 s
+regress: pair 57 of 64 in 1.6 s
+regress: pair 58 of 64 in 1.5 s
+regress: pair 59 of 64 in 1.5 s
+regress: pair 60 of 64 in 1.5 s
+regress: pair 61 of 64 in 1.4 s
+regress: pair 62 of 64 in 1.4 s
+regress: pair 63 of 64 in 1.4 s
+regress: pair 64 of 64 in 1.4 s
