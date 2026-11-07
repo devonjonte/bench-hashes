@@ -500,6 +500,14 @@ class Client(unittest.TestCase):
         self.assertNotIn("StrictHostKeyChecking=no", args)
         self.assertNotIn("UserKnownHostsFile=/dev/null", args)
 
+    def test_transport_failure_stops_even_an_optional_request(self):
+        import subprocess
+        failure = subprocess.CompletedProcess([], 255, stdout=b"", stderr=b"Host key verification failed")
+        for check in [True, False]:
+            with self.subTest(check=check), mock.patch.object(self.pr.subprocess, "run", return_value=failure), \
+                 self.assertRaises(SystemExit):
+                self.pr.call("root@ours", "version", check=check)
+
     def test_host_enrollment_is_idempotent_and_refuses_a_changed_key(self):
         import subprocess
         self.pr.KNOWN_HOSTS = self.root + "/ssh/known_hosts"

@@ -5,7 +5,7 @@ Public source for Sam Shackleton's existing remote runner, used by the
 and [first pilot](https://github.com/servil-software-factory/bench-hashes/issues/147).
 The runner's module documentation describes its manifest and commands.
 
-Run the suite and its fourteen fault controls with one command:
+Run the suite and its fifteen fault controls with one command:
 
 ```sh
 python3 tools/pinned-run/check.py --output /tmp/pinned-run-check
@@ -17,7 +17,8 @@ asserted single exact match. They omit a phase, report a lock prematurely,
 rewrite a terminal record, release the lock before verification, bypass a failed
 preflight, accept mismatched inputs, ignore a study's scope, skip its review,
 hide a Slower judgment, import unrelated refs, refresh an offline known commit,
-accept the wrong HEAD, disable host-key checking and accept a changed host key.
+accept the wrong HEAD, disable host-key checking, accept a changed host key and
+ignore a transport failure.
 Each must fail its named test. The output directory retains the logs.
 
 ## First slice: automatic phase records
@@ -59,7 +60,8 @@ The bounded bootstrap saves `/root/fast-lane-host-key.pub` and its fingerprint.
 The client records the public key in `~/.ssh/known_hosts`. Re-enrollment is
 idempotent; a changed key stops for operator review. Requests require a matching
 known ED25519 key with strict checking. Connection sharing uses a new `pinned-`
-namespace, separate from earlier unverified SSH sessions. The everyday request
+namespace, separate from earlier unverified SSH sessions. Transport and host-key
+failures stop optional version/status requests too. The everyday request
 key and the interactive shell key retain their separate roles.
 
 ## Fresh checkouts from exact commits

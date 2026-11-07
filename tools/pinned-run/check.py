@@ -54,6 +54,9 @@ FAULTS = [
     ("changed-host-key", '            if key not in pins:',
      '            if False:  # planted changed host accepted',
      "Client.test_host_enrollment_is_idempotent_and_refuses_a_changed_key"),
+    ("ignored-transport-failure", '    if r.returncode == 255 or (check and r.returncode != 0):',
+     '    if check and r.returncode != 0:',
+     "Client.test_transport_failure_stops_even_an_optional_request"),
 ]
 
 

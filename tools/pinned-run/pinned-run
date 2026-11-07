@@ -141,7 +141,7 @@ def call(host, verb, *args, stdin=None, check=True):
     """One request to `host`'s pinned-run: its stdout (bytes). Tests replace this."""
     command = " ".join(shlex.quote(a) for a in ("pinned-run", "serve", verb, *args))
     r = subprocess.run(SSH + ["-o", "UserKnownHostsFile=" + KNOWN_HOSTS, host, command], input=stdin, capture_output=True)
-    if check and r.returncode != 0:
+    if r.returncode == 255 or (check and r.returncode != 0):
         die(f"{host}: {verb} {' '.join(args)[:80]}: exit {r.returncode}\n{r.stderr.decode(errors='replace')[-2000:]}")
     return r.stdout
 
