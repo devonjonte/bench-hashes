@@ -5,20 +5,20 @@ Public source for Sam Shackleton's existing remote runner, used by the
 and [first pilot](https://github.com/servil-software-factory/bench-hashes/issues/147).
 The runner's module documentation describes its manifest and commands.
 
-Run the suite and its twelve fault controls with one command:
+Run the suite and its fourteen fault controls with one command:
 
 ```sh
 python3 tools/pinned-run/check.py --output /tmp/pinned-run-check
 ```
 
-It uses Python's standard library and the project's `replace` exact-replacement
-tool. Tests use fake transports, temporary run directories and mock jobs.
-Fault controls omit a phase, report a lock prematurely, rewrite a terminal
-record, release the lock before verification, bypass a failed preflight, and
-accept mismatched preflight inputs, ignore a study's scope, skip its review
-summary, hide a Slower judgment, import unrelated cached refs, refresh a known
-commit from an offline remote, and accept the wrong HEAD. Each must fail its
-named test. The output directory retains the suite and control logs.
+It uses Python's standard library, Git and OpenSSH. Tests use fake transports,
+temporary Git repositories and mock jobs. Controls edit temporary copies with an
+asserted single exact match. They omit a phase, report a lock prematurely,
+rewrite a terminal record, release the lock before verification, bypass a failed
+preflight, accept mismatched inputs, ignore a study's scope, skip its review,
+hide a Slower judgment, import unrelated refs, refresh an offline known commit,
+accept the wrong HEAD, disable host-key checking and accept a changed host key.
+Each must fail its named test. The output directory retains the logs.
 
 ## First slice: automatic phase records
 
@@ -45,6 +45,22 @@ retain the outcome. A terminal run's record is left unchanged on re-execution.
 These are workflow events surrounding the script. Workload timing remains in
 clocks. The benchmark lock still covers preparation, the script and verification.
 Build/measurement subphases belong to the instrument and follow in the pilot.
+
+## Host authentication
+
+Obtain the server's ED25519 public host key through its trusted provisioning
+channel, verify its fingerprint, then enroll it before the first request:
+
+```sh
+pinned-run trust root@HOST host-key.pub
+```
+
+The bounded bootstrap saves `/root/fast-lane-host-key.pub` and its fingerprint.
+The client records the public key in `~/.ssh/known_hosts`. Re-enrollment is
+idempotent; a changed key stops for operator review. Requests require a matching
+known ED25519 key with strict checking. Connection sharing uses a new `pinned-`
+namespace, separate from earlier unverified SSH sessions. The everyday request
+key and the interactive shell key retain their separate roles.
 
 ## Fresh checkouts from exact commits
 

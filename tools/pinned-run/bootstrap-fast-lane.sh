@@ -40,4 +40,8 @@ done
     lscpu | grep -E 'Model name|^CPU\(s\)|Socket|NUMA node\(s\)'
     cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || true
 } > /root/fast-lane-versions.txt
+# Retrieve this public key through the trusted provisioning channel and enroll
+# it on the client with `pinned-run trust HOST fast-lane-host-key.pub`.
+install -m 644 /etc/ssh/ssh_host_ed25519_key.pub /root/fast-lane-host-key.pub
+ssh-keygen -lf /root/fast-lane-host-key.pub >> /root/fast-lane-versions.txt
 echo "done $(date -u -Is)"

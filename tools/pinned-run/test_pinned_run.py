@@ -20,7 +20,7 @@ def load(root):
 
 class Server(unittest.TestCase):
     def setUp(self):
-        self.root = tempfile.mkdtemp(prefix="pinned-run-test-", dir=os.path.expanduser("~/work"))
+        self.root = tempfile.mkdtemp(prefix="pinned-run-test-")
         self.pr = load(self.root)
         self.started = []
 
@@ -349,7 +349,7 @@ class Server(unittest.TestCase):
 
 class Forced(unittest.TestCase):
     def setUp(self):
-        self.root = tempfile.mkdtemp(prefix="pinned-run-test-", dir=os.path.expanduser("~/work"))
+        self.root = tempfile.mkdtemp(prefix="pinned-run-test-")
         self.pr = load(self.root)
 
     def tearDown(self):
@@ -378,7 +378,7 @@ class Forced(unittest.TestCase):
 
 class Client(unittest.TestCase):
     def setUp(self):
-        self.root = tempfile.mkdtemp(prefix="pinned-run-test-", dir=os.path.expanduser("~/work"))
+        self.root = tempfile.mkdtemp(prefix="pinned-run-test-")
         self.pr = load(self.root)
         self.pr.REGISTRY = os.path.join(self.root, "launched.jsonl")
         self.pr.REPORTED = os.path.join(self.root, "reported.txt")
@@ -486,6 +486,39 @@ class Client(unittest.TestCase):
         self.assertEqual(m, before)
         self.assertEqual(result["host"], "root@0")
         self.assertTrue(result["run"].startswith("cell-0-"))
+
+    def test_transport_checks_the_pinned_host_and_uses_a_fresh_connection_namespace(self):
+        import subprocess
+        self.pr.KNOWN_HOSTS = self.root + "/known_hosts"
+        with mock.patch.object(self.pr.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, stdout=b"ok")) as run:
+            self.assertEqual(self.pr.call("root@ours", "version"), b"ok")
+        args = run.call_args.args[0]
+        self.assertIn("StrictHostKeyChecking=yes", args)
+        self.assertIn("HostKeyAlgorithms=ssh-ed25519", args)
+        self.assertIn("UserKnownHostsFile=" + self.pr.KNOWN_HOSTS, args)
+        self.assertIn("ControlPath=" + os.path.expanduser("~/.ssh/pinned-%C"), args)
+        self.assertNotIn("StrictHostKeyChecking=no", args)
+        self.assertNotIn("UserKnownHostsFile=/dev/null", args)
+
+    def test_host_enrollment_is_idempotent_and_refuses_a_changed_key(self):
+        import subprocess
+        self.pr.KNOWN_HOSTS = self.root + "/ssh/known_hosts"
+        keys = []
+        for i in range(2):
+            key = self.root + f"/key-{i}"
+            subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", key], check=True)
+            keys.append(key + ".pub")
+        self.pr.trust("root@192.0.2.1", keys[0])
+        with open(self.pr.KNOWN_HOSTS) as f:
+            original = f.read()
+        self.pr.trust("root@192.0.2.1", keys[0])
+        with self.assertRaises(SystemExit):
+            self.pr.trust("root@192.0.2.1", keys[1])
+        with open(self.pr.KNOWN_HOSTS) as f:
+            self.assertEqual(f.read(), original)
+        self.pr.trust("root@192.0.2.2", keys[1])
+        with open(self.pr.KNOWN_HOSTS) as f:
+            self.assertEqual(len(f.read().splitlines()), 2)
 
     def test_study_is_validated_and_preserved_in_the_registry(self):
         path = self.fanout_manifests()[0]

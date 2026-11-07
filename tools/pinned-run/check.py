@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Check the runner and require each planted fault to fail its focused test."""
 import argparse
+import difflib
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -48,6 +48,12 @@ FAULTS = [
     ("unchecked-head", '            if head != r["commit"]:',
      '            if False:  # planted wrong HEAD accepted',
      "Server.test_successful_git_commands_with_wrong_head_fail_before_the_job"),
+    ("unchecked-host-key", '"StrictHostKeyChecking=yes"',
+     '"StrictHostKeyChecking=no"',
+     "Client.test_transport_checks_the_pinned_host_and_uses_a_fresh_connection_namespace"),
+    ("changed-host-key", '            if key not in pins:',
+     '            if False:  # planted changed host accepted',
+     "Client.test_host_enrollment_is_idempotent_and_refuses_a_changed_key"),
 ]
 
 
@@ -56,9 +62,6 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
-    Path.home().joinpath("work").mkdir(exist_ok=True)
-    replace = shutil.which("replace")
-    assert replace, "the exact-replacement tool 'replace' is required for fault controls"
     env = dict(os.environ, PINNED_RUN_TOOL=str(HERE / "pinned-run"))
     suite = subprocess.run([sys.executable, str(HERE / "test_pinned_run.py"), "-v"], env=env,
                            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -68,15 +71,17 @@ def main():
     for name, old, new, test in FAULTS:
         with tempfile.TemporaryDirectory(prefix="pinned-run-control-") as temp:
             tool = Path(temp) / "pinned-run"
-            shutil.copy2(HERE / "pinned-run", tool)
-            change = subprocess.run([replace, str(tool), old, new], text=True,
-                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            assert change.returncode == 0, change.stdout
+            original = HERE.joinpath("pinned-run").read_text()
+            assert original.count(old) == 1, f"{name}: exactly one fault site required"
+            changed = original.replace(old, new)
+            tool.write_text(changed)
+            diff = "".join(difflib.unified_diff(original.splitlines(True), changed.splitlines(True),
+                                             fromfile="pinned-run", tofile=name))
             selection = test if "." in test else "Server." + test
             result = subprocess.run([sys.executable, str(HERE / "test_pinned_run.py"), selection],
                                     env=dict(env, PINNED_RUN_TOOL=str(tool)), text=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            args.output.joinpath(name + ".log").write_text(change.stdout + result.stdout)
+            args.output.joinpath(name + ".log").write_text(diff + result.stdout)
             assert result.returncode == 1 and "FAIL: " + selection.split(".")[-1] in result.stdout, result.stdout
             print("control rejected:", name, flush=True)
     print("pinned-run phase checks passed", flush=True)
