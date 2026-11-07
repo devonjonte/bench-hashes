@@ -81,6 +81,17 @@ the notes) may still change, to say it better.
   `hasher.update_multithreaded(piece)`. The same calls under their new
   names, so every cell's work is as it was; a check of this change runs
   its old side with the bench before it (`--old-bench`).
+- **A kept buffer's lead bytes are written once** (Devon Jonte,
+  November 7, 2026, bench-hashes #144). Cells that write each message
+  into a buffer the program keeps (lent and owned messages and batches,
+  collections read in, stream pieces, Merkle layers) start the message at
+  the buffer's first 64-byte boundary. The 0-63 bytes before it were
+  written again for every message, by the buffer's heap address: the
+  same code's 64 B continuous cell read 10.92 to 11.36 instructions a byte
+  by what else the process had allocated, about 1.6% of its cycles. They
+  are written once now, and every configuration reads 10.954. The calls
+  and patterns are unchanged; 64 B cells read up to that much faster in
+  runs whose buffers sat off a boundary.
 
 **Changes for 0.21** (Zooko and John Servil, November 4-6, 2026):
 - **The wall clock is the raw counter** (Zooko, November 4, 2026): on
