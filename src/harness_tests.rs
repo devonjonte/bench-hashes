@@ -4,6 +4,41 @@
 //! official crate's batch wrapper.
 use super::*;
 
+/// A kept buffer's bytes before its first 64-byte boundary are written
+/// once and kept: a message written into it again rewrites nothing there,
+/// so the work of each message is the same whatever the buffer's address
+/// (bench-hashes #144: rewriting them made the instruction count of one
+/// code at 64 B move 4% with the heap's offset).
+#[test]
+fn a_kept_buffers_lead_bytes_are_written_once() {
+    // A buffer whose address is off a 64-byte boundary (a few tries: the
+    // allocator places each at its own address).
+    let mut tries: Vec<Vec<u8>> = Vec::new();
+    let mut buffer = loop {
+        let b: Vec<u8> = Vec::with_capacity(64 + BLOCK_SPARE + tries.len());
+        if b.as_ptr().align_offset(BLOCK_LEN) != 0 {
+            break b;
+        }
+        tries.push(b);
+        assert!(
+            tries.len() < 64,
+            "the allocator gave 64 buffers on 64-byte boundaries"
+        );
+    };
+    let message = make_input(64);
+    let at = block_message(&mut buffer, &message);
+    assert!(at > 0 && (buffer.as_ptr() as usize + at) % BLOCK_LEN == 0);
+    // Mark the lead bytes, then write the message again: the marks stay.
+    buffer[..at].fill(0xa5);
+    let again = block_message(&mut buffer, &message);
+    assert_eq!(again, at, "the same buffer, the same offset");
+    assert!(
+        buffer[..at].iter().all(|&b| b == 0xa5),
+        "the lead bytes are not written again"
+    );
+    assert_eq!(&buffer[at..at + 64], &message[..], "the message in place");
+}
+
 #[test]
 fn batch_digest_storage_survives_a_smaller_cell_without_zeroing() {
     let mut large = take_batch_digests(8192);
