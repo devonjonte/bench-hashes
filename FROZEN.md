@@ -27,6 +27,10 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release**:
+- **finalize_each resets the hashers it finishes** (John Servil, November
+  7, 2026; BLAKE3-Servil's `finalize` takes the Hasher, Sam's audit on
+  #275). The interleaved cells call no `reset` of their own after it; the
+  work is the same, done by the library in one call.
 - **A contender for BLAKE3-Servil's pipeline** (John Servil, November 7,
   2026; Zooko: measure the new API before deciding its design and whether
   it is promoted). `blake3-servil-pipeline` is `throughput::pipeline`,
