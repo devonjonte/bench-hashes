@@ -530,7 +530,9 @@ diff's files, added and deleted lines, and the items its hunks sit in.
 Its author reads that summary and names the scope: `--points` for the
 gate, `--probe` for a three-pair survey before the change is built, or
 `--cells all` for every point. With no scope named, the check stops
-before any build. It then builds the working tree and the target commit,
+before any build. An explicit `--old-bench REV` compares benchmark versions even when the
+library trees are identical. With one benchmark for both sides, identical
+library trees need no measurement. It then builds the working tree and the target commit,
 relinks each side with fresh random function orders (each link run
 twice), and runs the named cells. The check records how many points it
 measured and how many it left unmeasured; choosing them is the author's

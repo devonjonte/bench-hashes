@@ -26,7 +26,15 @@ release, so results of different benchmarks are never read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
-**Changes for the next release**: none yet.
+**Changes for the next release**:
+- **An old-benchmark comparison runs with unchanged library trees**
+  (John Servil, November 7, 2026). `check --old-bench REV` compares the
+  instruments even when both sides use the same library. The early
+  library-tree shortcut applies only when both sides use the current
+  benchmark. The later same-code shortcut already had this restriction.
+  Mac control 1966 had returned "no regression" without measuring the
+  different instruments; that outcome is treated as unmeasured. The
+  comparison rule, cells and measurements remain unchanged.
 
 **Changes for 0.21** (Zooko and John Servil, November 4-6, 2026):
 - **The wall clock is the raw counter** (Zooko, November 4, 2026): on

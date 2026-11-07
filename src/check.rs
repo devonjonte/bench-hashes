@@ -120,6 +120,12 @@ fn each_run(exes: Vec<String>, times: usize) -> Vec<String> {
 /// The two sides' contenders: the code a change to BLAKE3-Servil changes.
 const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
+/// Equal library trees settle a comparison only when both use this bench.
+/// An explicit old bench is a comparison of the instrument itself.
+fn unchanged_inputs(library_changed: bool, old_bench: Option<&str>) -> bool {
+    !library_changed && old_bench.is_none()
+}
+
 pub fn command(arguments: &[String]) -> i32 {
     let usage = "usage: bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS | --cells all] [--layouts N] [--keep DIR] [--when-quiet]";
     let (mut against, mut all, mut layouts_a_side, mut keep) =
@@ -234,9 +240,13 @@ pub fn command(arguments: &[String]) -> i32 {
         against,
         &old[..12]
     );
-    if !change_summary(&fork, &old, &new) {
+    let library_changed = change_summary(&fork, &old, &new);
+    if unchanged_inputs(library_changed, old_bench_rev.as_deref()) {
         println!("check: the two sides' trees are the same; nothing to measure");
         return 0;
+    }
+    if !library_changed {
+        eprintln!("check: the library is unchanged; comparing benchmark versions (--old-bench)");
     }
     if !all && named.is_none() && probe.is_none() {
         println!(
@@ -1169,6 +1179,18 @@ fn fork_patch(copy: &Path, checkout: &Path) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn old_bench_is_compared_even_when_the_library_is_identical() {
+        use super::unchanged_inputs;
+        assert!(unchanged_inputs(false, None));
+        assert!(!unchanged_inputs(true, None));
+        assert!(
+            !unchanged_inputs(false, Some("previous-bench")),
+            "different instruments need measurement even with the same library"
+        );
+        assert!(!unchanged_inputs(true, Some("previous-bench")));
+    }
+
     /// Each checkout builds in a directory of its own where the target
     /// directory is shared, and in its own target's bench-hashes-build
     /// where it isn't.
