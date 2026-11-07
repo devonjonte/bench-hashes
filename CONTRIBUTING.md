@@ -85,7 +85,7 @@ To measure your own checkout of BLAKE3-Servil, keep this repository beside
 it (anywhere: neither holds the other) and name BLAKE3-Servil's checkout:
 
 ```sh
-git clone --branch servil https://github.com/servil-software-factory/BLAKE3
+git clone --branch main https://github.com/servil-software-factory/BLAKE3
 git clone https://github.com/servil-software-factory/bench-hashes
 cd bench-hashes && cargo run --release -- check --fork ../BLAKE3 --points "3 KiB,brief idle 3 KiB"   # the named cells of BLAKE3-Servil's working tree against its HEAD
 cd bench-hashes && cargo run --release -- check --fork ../BLAKE3 --new my-branch --against servil --points "3 KiB"   # a branch by name, whatever the tree has checked out
