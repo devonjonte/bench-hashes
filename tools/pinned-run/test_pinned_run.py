@@ -368,7 +368,8 @@ class Client(unittest.TestCase):
         for change in changes:
             with self.subTest(change=change):
                 paths = self.fanout_manifests(different=change)
-                with mock.patch.object(self.pr, "submit_manifest") as submit, self.assertRaises(SystemExit):
+                with mock.patch.object(self.pr, "submit_manifest", return_value={"host": "root@fast", "run": "preflight"}) as submit, \
+                     mock.patch.object(self.pr, "status", return_value="VERIFIED"), self.assertRaises(SystemExit):
                     self.pr.fanout("root@fast", paths, poll=0)
                 submit.assert_not_called()
 
