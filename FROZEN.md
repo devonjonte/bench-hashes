@@ -62,6 +62,15 @@ the notes) may still change, to say it better.
   baseline for the background pipeline. The map names its column
   "receive + hash, including waits" and its axis is arrival spacing.
   Existing axes retain their calls and schedules.
+- **The Hasher is a convenience call; its parallel update a throughput
+  function** (John Servil, November 7, 2026, from BLAKE3 #267, Zooko's
+  direction of November 6): `convenience::Hasher::new(mode, length_hint)`
+  replaces `throughput::Hasher::new(mode)` (the hint is advisory and
+  `None` here), `reset(None)` replaces `reset()`, and
+  `throughput::update_multithreaded(&mut hasher, piece)` replaces
+  `hasher.update_multithreaded(piece)`. The same calls under their new
+  names, so every cell's work is as it was; a check of this change runs
+  its old side with the bench before it (`--old-bench`).
 
 **Changes for 0.21** (Zooko and John Servil, November 4-6, 2026):
 - **The wall clock is the raw counter** (Zooko, November 4, 2026): on
