@@ -10,4 +10,9 @@
 
 - `r303-confirm.stdout.txt`: the same comparison at 16 pairs (`--layouts 16`) over continuous 64, 128 and 256 B: three cells slower, mt 64 B +7.8% (16 of 16 pairs), 128 B +3.8% (14 of 16), shared one-cache 64 B +7.8% (14 of 16); 256 B level.
 
-**Verdict.** The ring fix makes BLAKE3-Servil mt's stream about 8% slower at 64 B messages and about 4% at 128 B (16 pairs) on the i7; 256 B and up read level. Posted on BLAKE3 #303 for John's judgment.
+- Three probes for the cause, 8 pairs then 64 on suspects (`--layouts 8`):
+  - `ring-stride`: `d4f675f4` with the slot one word longer and nothing else, against `d4f675f4`: no cell slower (mt 64 B x1.019, 128 B x0.989).
+  - `ring-mine`: my identical design (eb3e9ba2, BLAKE3 #305) against 7ee5c1f8: mt 128 B +4.6% (64 pairs); 64 B x1.028 (8 pairs).
+  - `ring-nohb`: #303 with the stream's ring skipping the hand-back (exp/devon-ring-stream-no-handback), against #303: mt 128 B +3.0% *slower* (64 pairs), 64 B level. Skipping the hand-back for the stream does not recover the cost.
+
+**Verdict.** The ring fix makes BLAKE3-Servil mt's stream about 8% slower at 64 B messages and about 4% at 128 B (16 pairs) on the i7; 256 B and up read level. Its cause is not established: the slot's size alone reads level, and the stream's hand-back removed alone recovers nothing. Posted on BLAKE3 #303 and #306 for John's judgment.
