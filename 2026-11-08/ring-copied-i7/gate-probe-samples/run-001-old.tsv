@@ -1,0 +1,40 @@
+# bench-hashes samples v10
+# timestamp: 2026-11-08 06:19:15 UTC
+# bench-hashes version: 0.20.4+6c91cfabef89d1bd52c4d73b7d2578f449689502
+# bench-hashes source: https://github.com/devonjonte/bench-hashes
+# git commit: 3f999e83929cb3ed9b1413c204dabfe1287b6167
+# git clean status: clean
+# dependency lock: blake3 1aac46c5c749f52ff8fd19a4c501878df1a9c8f1f42b44bd0a7ae43857d6ccaf of Cargo.lock
+# rust compiler: rustc 1.98.1 (48a229cea 2026-09-01)
+# c compiler: cc: cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+# rustflags: none
+# build target: x86_64-unknown-linux-gnu
+# target features: fxsr,sse,sse2
+# sample clock: CLOCK_MONOTONIC_RAW (stops during suspend; the raw counter, no NTP slew)
+# clocks source: clocks 0.1.0; this repository's clocks/, at its commit
+# cpu type: 12th Gen Intel(R) Core(TM) i7-12700K
+# cpu count: 20
+# os type: linux7.0.0-42-generic
+# cpu identity: model name: 12th Gen Intel(R) Core(TM) i7-12700K · microcode: 0x3e · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l2 cdp_l2 ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdt_a rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize pconfig arch_lbr ibt flush_l1d arch_capabilities · machine: B748
+# idle states: driver intel_idle, governor menu; POLL latency 0 us residency 0 us, C1E latency 2 us residency 4 us, C6 latency 220 us residency 600 us, C8 latency 280 us residency 800 us, C10 latency 680 us residency 2000 us
+# effective idle states: over 1000 x 20 us: C1 100%, C6 0%, C7 0%, awake or unnamed 0%; over 20 x 5 ms: C1 16%, C6 84%, C7 0%, awake or unnamed 0%
+# idle control: none (no cpuidle states the bench can switch off: run as root for the controlled cells)
+# shared placements: one cache: CPUs 0 and 2; two caches: none
+# source blake3-servil-st: blake3-servil 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 (local checkout); source https://github.com/servil-software-factory/BLAKE3; branch HEAD; commit 7ee5c1f8cfad7937fb490e6510f8f36fe5ce912f; clean
+# source blake3-servil-mt: blake3-servil 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 (local checkout); source https://github.com/servil-software-factory/BLAKE3; branch HEAD; commit 7ee5c1f8cfad7937fb490e6510f8f36fe5ce912f; clean
+# contenders: --contenders blake3-servil-st,blake3-servil-mt
+# rounds: 24
+# measuring thread: pinned to CPU 0 around each sample after a gap (bench-hashes regress)
+# sample sizes: from /home/agent/tmp/bench-hashes-regress-sizes-2715283-old-side.tsv (--sizes)
+# buffers owned: where a contender makes the same calls as with buffers lent, one measurement, shown in both rows
+# nonstop train: 100 ms warm-up, 6 samples a visit
+# points: saturated
+# receive trace: 16777216 B per message; fragment cycle 1448, 4096, 16384, 65536 B; arrival spacing saturated: 0 ns, 2 us: 2000 ns, 20 us: 20000 ns; deadlines fixed from the first arrival, independent of consumer work; receiving through finalization timed together
+# power: mains power, no battery, CPU frequency governor powersave, energy-performance preference performance
+# load: quiet: other programs kept 0.09 CPUs busy on average, 0.09 in the busiest window
+# load measured by: bench-hashes regress, around the run (the windows below are the run's own)
+# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 
+contender	scenario	use_case	point	unit	ns/units	start ms	cpu ns	energy nJ	core counts	cpu
+blake3-servil-st	solo	ReceivingMessage	saturated	B	3935521/16777216,3943983/16777216,4193133/16777216,4187898/16777216,4128176/16777216,4013833/16777216,3874432/16777216,3856791/16777216,3972904/16777216,4200965/16777216,4156881/16777216,4018319/16777216	121,125,129,133,137,141,759,763,767,771,775,779	3942612,3946428,4188999,4190789,4127529,4009235,3883507,3859015,3976341,4203956,4155239,4020863	173217773,163452149,222229004,196655273,198669434,200195312,117187500,167053223,171264648,193481445,233154297,183044434	3936144:19260703:48008016:265917:8391:0:0:0:0:0,3944157:19300184:48008023:265756:10091:0:0:0:0:0,4186146:20254084:48008023:266360:92301:0:0:0:0:0,4188138:20490124:48008016:265894:123946:0:0:0:0:0,4124869:20162901:48008023:265934:78293:0:0:0:0:0,4006587:19605464:48008023:265831:38237:0:0:0:0:0,3875050:19354728:48008016:265513:15064:0:0:0:0:0,3856925:19263244:48008023:265209:10091:0:0:0:0:0,3973159:19621204:48008023:266141:23071:0:0:0:0:0,4201152:20735171:48008023:265808:118036:0:0:0:0:0,4152325:20426132:48008024:265962:110948:0:0:0:0:0,4018504:19873439:48008023:265902:49575:0:0:0:0:0	4,4,4,4,4,4,4,4,4,4,4,4
+blake3-servil-mt	solo	ReceivingMessage	saturated	B	3870143/16777216,3866634/16777216,3864874/16777216,3880536/16777216,3901706/16777216,3860567/16777216,3883688/16777216,3882034/16777216,3856610/16777216,3881838/16777216,3858576/16777216,3863104/16777216	247,251,255,259,263,267,503,507,511,515,519,523	3876148,3869145,3867295,3876761,3903961,3862827,3892271,3884323,3858888,3884080,3860788,3865383	113037109,160949707,163024903,154174804,157348633,163879395,162841797,117309570,163757325,150695800,165527344,150451660	3870497:19337879:48015051:265481:14389:0:0:0:0:0,3866772:19285156:48015059:265596:10513:0:0:0:0:0,3865010:19291463:48015059:265885:10797:0:0:0:0:0,3874732:19317216:48015059:265831:13005:0:0:0:0:0,3901843:19342220:48015059:266187:13771:0:0:0:0:0,3860709:19281217:48015059:265833:9795:0:0:0:0:0,3884308:19257317:48015051:265085:8919:0:0:0:0:0,3882169:19389465:48015059:265437:7372:0:0:0:0:0,3856754:19262301:48015052:265853:8399:0:0:0:0:0,3881982:19248561:48015059:265827:8193:0:0:0:0:0,3858716:19248651:48015059:265840:8292:0:0:0:0:0,3863238:19289244:48015052:265996:9874:0:0:0:0:0	4,4,4,4,4,4,4,4,4,4,4,4
+blake3-servil-mt	shared-one-cache	ReceivingMessage	saturated	B	4333379/16777216,4299368/16777216,4266900/16777216,4353853/16777216,4191343/16777216,4217191/16777216,4146177/16777216,4231201/16777216,4170317/16777216,4156289/16777216,4231821/16777216,4231653/16777216,4224220/16777216,4257636/16777216,4277821/16777216,4226158/16777216,4171596/16777216,4178696/16777216,4135630/16777216,4101923/16777216,4085417/16777216,4096831/16777216,4119211/16777216,4095682/16777216	375,371,379,375,384,380,388,384,392,388,396,392,628,628,632,633,636,637,640,641,645,645,649,649	-	-	4326126:21108619:48015431:267348:150755:0:0:0:0:0,4299770:21034560:48015430:266217:158088:0:0:0:0:0,4252419:20572157:48015437:266296:133496:0:0:0:0:0,4354197:21299788:48015431:266132:168036:0:0:0:0:0,4181151:20416524:48015430:266398:113938:0:0:0:0:0,4217430:20640298:48015437:265685:145605:0:0:0:0:0,4146316:20283063:48015437:266486:86474:0:0:0:0:0,4231467:20703454:48015437:265838:144131:0:0:0:0:0,4170510:20378568:48015437:265983:83494:0:0:0:0:0,4156548:20343065:48015437:266020:103151:0:0:0:0:0,4231969:20689001:48015438:266549:87222:0:0:0:0:0,4231889:20677795:48015431:265896:110615:0:0:0:0:0,4225356:20667207:48015430:266229:92380:0:0:0:0:0,4258434:20709516:48015430:266416:115945:0:0:0:0:0,4267089:20698293:48015431:266298:96746:0:0:0:0:0,4226408:20684513:48015437:265922:104818:0:0:0:0:0,4171812:20405662:48015430:265967:83978:0:0:0:0:0,4178890:20454124:48015437:266174:94187:0:0:0:0:0,4135843:20089517:48015437:266149:83825:0:0:0:0:0,4102116:20070929:48015431:266148:86524:0:0:0:0:0,4085657:19991919:48015437:265897:75882:0:0:0:0:0,4097044:20051475:48015437:265641:82511:0:0:0:0:0,4119359:20018326:48015437:266050:75611:0:0:0:0:0,4095871:20042975:48015432:265849:83501:0:0:0:0:0	0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2
