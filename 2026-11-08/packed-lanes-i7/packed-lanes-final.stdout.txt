@@ -1,0 +1,21 @@
+check-builds: every build passes
+regress: old side: bench 3f999e83929c clean; servil f84c3e4ea918 clean
+regress: new side: bench 3f999e83929c clean; servil a564c2ac2d4a clean
+  faster blake3-servil-mt|shared-one-cache|MerkleTree|1048576 x 16 B: -17.5% (the pairs' geometric mean; 4 pairs: -13.5% -20.5% -18.5% -17.3%)
+  faster blake3-servil-mt|shared-one-cache|MerkleTree|1048576 x 32 B: -11.5% (the pairs' geometric mean; 4 pairs: -11.7% -13.8% -12.2% -8.0%)
+  faster blake3-servil-mt|shared-one-cache|MerkleTree|65536 x 32 B: -36.6% (the pairs' geometric mean; 4 pairs: -36.0% -34.4% -37.8% -38.2%)
+  faster blake3-servil-mt|solo|MerkleTree|1048576 x 16 B: -19.7% (the pairs' geometric mean; 4 pairs: -20.6% -25.0% -15.1% -17.8%)
+  faster blake3-servil-mt|solo|MerkleTree|1048576 x 32 B: -17.6% (the pairs' geometric mean; 4 pairs: -17.4% -19.9% -18.4% -14.6%)
+  faster blake3-servil-mt|solo|MerkleTree|65536 x 32 B: -30.1% (the pairs' geometric mean; 4 pairs: -29.1% -30.7% -28.1% -32.3%)
+  faster blake3-servil-st|solo|MerkleTree|1048576 x 16 B: -52.4% (the pairs' geometric mean; 4 pairs: -53.0% -53.0% -50.7% -52.9%)
+  faster blake3-servil-st|solo|MerkleTree|1048576 x 32 B: -51.7% (the pairs' geometric mean; 4 pairs: -51.7% -51.7% -50.9% -52.2%)
+  faster blake3-servil-st|solo|MerkleTree|65536 x 32 B: -53.3% (the pairs' geometric mean; 4 pairs: -53.6% -53.3% -52.3% -54.1%)
+regress: no cell slower
+regress: instructions moved beyond +0.5% in 3 level cells, suspects first: blake3-servil-st|solo|MerkleTree|65536 x 32 B -54.0%; blake3-servil-st|solo|MerkleTree|1048576 x 16 B -53.9%; blake3-servil-st|solo|MerkleTree|1048576 x 32 B -53.8%
+regress: suspects: blake3-servil-mt|shared-one-cache|MerkleTree|65536;blake3-servil-mt|solo|MerkleTree|65536
+regress: power during the check: mains power, no battery, CPU frequency governor powersave, energy-performance preference performance
+regress: old side: bench 3f999e83929c clean; servil f84c3e4ea918 clean
+regress: new side: bench 3f999e83929c clean; servil a564c2ac2d4a clean
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: power during the check: mains power, no battery, CPU frequency governor powersave, energy-performance preference performance
