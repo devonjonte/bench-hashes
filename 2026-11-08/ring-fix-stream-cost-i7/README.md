@@ -8,4 +8,6 @@
 - Three 3-pair probes (no verdict) of variants of #303: `ring-cas-probe` (the stream takes the slot with a compare-exchange), `ring-first-probe` (`next` first in the slot), `ring-store-probe` (the hand-back store alone, the stream's check removed). None removes the cost clearly; 3 pairs cannot say more.
 - A counting probe (no samples kept): in continuous 64 B the stream never reaches the wait branch, so the cost lies in the hand-back itself.
 
-**Verdict.** The ring fix makes BLAKE3-Servil mt's stream 6% to 8% slower at 64 and 128 B messages on the i7; 256 B and up read level. Posted on BLAKE3 #303 for John's judgment.
+- `r303-confirm.stdout.txt`: the same comparison at 16 pairs (`--layouts 16`) over continuous 64, 128 and 256 B: three cells slower, mt 64 B +7.8% (16 of 16 pairs), 128 B +3.8% (14 of 16), shared one-cache 64 B +7.8% (14 of 16); 256 B level.
+
+**Verdict.** The ring fix makes BLAKE3-Servil mt's stream about 8% slower at 64 B messages and about 4% at 128 B (16 pairs) on the i7; 256 B and up read level. Posted on BLAKE3 #303 for John's judgment.
