@@ -15,4 +15,6 @@
   - `ring-mine`: my identical design (eb3e9ba2, BLAKE3 #305) against 7ee5c1f8: mt 128 B +4.6% (64 pairs); 64 B x1.028 (8 pairs).
   - `ring-nohb`: #303 with the stream's ring skipping the hand-back (exp/devon-ring-stream-no-handback), against #303: mt 128 B +3.0% *slower* (64 pairs), 64 B level. Skipping the hand-back for the stream does not recover the cost.
 
+- `ralign-gate.stdout.txt`: John's alignment control 93439f1d (the slot in OwnLine) against d60b6053, `--layouts 8`, continuous 64 B to 1 MiB: mt 64 B +6.6%, 128 B +3.7% (8 pairs), 256 B, 64 KiB and 1 MiB level. The alignment leaves the i7's cost in place.
+
 **Verdict.** The ring fix makes BLAKE3-Servil mt's stream about 8% slower at 64 B messages and about 4% at 128 B (16 pairs) on the i7; 256 B and up read level. Its cause is not established: the slot's size alone reads level, and the stream's hand-back removed alone recovers nothing. Posted on BLAKE3 #303 and #306 for John's judgment.
