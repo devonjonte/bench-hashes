@@ -27,6 +27,17 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release**:
+- **A turn cell for many short messages in small arrivals** (John Servil,
+  November 8, 2026; bench-hashes #156). The turn cells' large pieces (up
+  to 16 KiB, 256 messages open) barely reach grouped first-chunk
+  compression, so they left a real small-arrival workload unmeasured:
+  many short messages, each arriving in small pieces, finished in groups.
+  A second turn point, `1024 x 1 KiB`, beside `256` in InterleavedTurn and
+  its three gap twins: 1,024 open messages of 1 KiB, each in 256-byte
+  pieces, a turn one piece of every message, a call one whole cycle (the
+  pieces read into the receive buffer, four turns of updates, every
+  message finished and reset), as Sam Shackleton's complete-cycle
+  instrument times it.
 - **Merkle trees over leaves of a digest or half a digest** (John Servil,
   November 7, 2026; Zooko: 16- and 32-byte leaves will be common, a
   million of them). Three points beside the 256-byte-leaf trees:
@@ -1121,10 +1132,10 @@ use case Collection: git objects, Nix files
 use case LentBatches: 16, 64, 256, 1024, 4096, 16384, 65536
 use case ContinuousCollection: git objects, Nix files
 use case MerkleTree: 1024, 4096, 16384, 65536, 262144, 65536 x 32 B, 1048576 x 32 B, 1048576 x 16 B
-use case InterleavedTurn: 256
-use case IdleInterleavedTurn: 256
-use case BriefIdleInterleavedTurn: 256
-use case ControlledIdleInterleavedTurn: 256
+use case InterleavedTurn: 256, 1024 x 1 KiB
+use case IdleInterleavedTurn: 256, 1024 x 1 KiB
+use case BriefIdleInterleavedTurn: 256, 1024 x 1 KiB
+use case ControlledIdleInterleavedTurn: 256, 1024 x 1 KiB
 use case ReceivingMessage: saturated, 2 us, 20 us
 receive trace: 16777216 B per message; fragment cycle 1448, 4096, 16384, 65536 B; arrival spacing saturated: 0 ns, 2 us: 2000 ns, 20 us: 20000 ns; deadlines fixed from the first arrival, independent of consumer work; receiving through finalization timed together
 scenarios: solo, shared-one-cache, shared-two-caches, shared-os
@@ -1134,10 +1145,10 @@ shared contenders: blake3-official-mt, blake3-servil-mt, blake3-servil-pipeline
 blake3-servil-pipeline ReceivingMessage: throughput::pipeline: one Stream kept for the process (64 rooms of 16 KiB, 1 MiB in flight; 2 message slots), Stream::message per message with its length as the hint, each received fragment written into the rooms Message::input gives and committed (the one copy of an arrival), the last fragment's final bytes ended with Message::end(n), then collect and ready until the digest is delivered; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, writes and the wait for the digest timed together
 blake3-servil-st ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together
 blake3-servil-mt ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together
-blake3-servil-st InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it
-blake3-servil-st IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: throughput::update_each, then throughput::finalize_each for the messages that ended in it
-blake3-servil-mt InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it
-blake3-servil-mt IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it
+blake3-servil-st InterleavedTurn: the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it
+blake3-servil-st IdleInterleavedTurn: the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after idling: throughput::update_each, then throughput::finalize_each for the messages that ended in it
+blake3-servil-mt InterleavedTurn: the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after other work: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it
+blake3-servil-mt IdleInterleavedTurn: the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after idling: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it
 blake3-servil-st MerkleTree: throughput::hash_many(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root; leaves of 32 or 16 bytes written into a kept Packed of their length and hashed as they are, each layer's digests into a kept Packed<32>, two by two the next layer's parents (as_blocks), with no copy into blocks
 blake3-servil-mt MerkleTree: throughput::hash_many_multithreaded(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root; leaves of 32 or 16 bytes written into a kept Packed of their length and hashed as they are, each layer's digests into a kept Packed<32>, two by two the next layer's parents (as_blocks), with no copy into blocks
 blake3-servil-st OneMessage: convenience::hash(input), each call after other work

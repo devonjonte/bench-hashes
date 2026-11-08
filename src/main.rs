@@ -177,6 +177,8 @@ const LONG_BATCH_COUNT: usize = 4;
 const LONG_MESSAGE_LEN: usize = 4096;
 /// Many messages at once is measured at one point (FROZEN.md).
 const INTERLEAVED_COUNT: usize = 1;
+/// Many messages at once a turn after a gap, at two schedules (TURNS).
+const TURN_COUNT: usize = 2;
 /// Collections: git's objects, and the files of Nix store paths (FROZEN.md).
 const COLLECTION_COUNT: usize = 2;
 const POINT_COUNT: usize = 4 * (INPUT_COUNT + BATCH_COUNT)
@@ -186,7 +188,7 @@ const POINT_COUNT: usize = 4 * (INPUT_COUNT + BATCH_COUNT)
     + 2 * CONTINUOUS_BATCH_COUNT
     + LONG_BATCH_COUNT
     + MERKLE_COUNT
-    + 4 * INTERLEAVED_COUNT
+    + 4 * TURN_COUNT
     + 3;
 /// A long message reaches a contender in pieces of this many bytes (a
 /// typical read buffer), the last one shorter.
@@ -201,13 +203,20 @@ const PIECE_LEN: usize = 64 * 1024;
  * `messages[n mod len]`. When a message ends, its hash is used and the
  * next opens in its place. The pieces: mostly one TCP segment's payload
  * (1448 B), with a page-sized read (4 KiB) and a TLS record (16 KiB); the
- * messages: many short, a few long. The pieces arrive in turns of TURN,
+ * messages: many short, a few long. The pieces arrive in turns of 64,
  * as one wait of a server's event loop delivers them, each read into its
  * own buffer; a contender with calls for many messages at once (the
  * servil fork's throughput::update_each and finalize_each) makes one of each per
  * turn, every other one update per piece and one finish per message. The
  * schedule carries over from sample to sample, so samples see the steady
  * state. A sample's unit of work is `chunk` bytes of pieces.
+ *
+ * The turn cells (UseCase::InterleavedTurn and its gaps) take two of these
+ * schedules: INTERLEAVED's, and SMALL_ARRIVALS' (John Servil, November 8,
+ * 2026): 1,024 messages of 1 KiB, each arriving in 256-byte pieces, a turn
+ * one piece of every message, so a call (four turns) refills the receive
+ * buffer, updates every message four times, and finishes and resets all
+ * 1,024, the shape grouped first-chunk compression serves.
  */
 /*
  * A collection of messages of different lengths (UseCase::Collection; Zooko,
@@ -328,16 +337,24 @@ const fn collection_count(classes: &[(usize, usize)]) -> usize {
 }
 
 struct InterleavedSpec {
+    /// The point's label (the turn cells' label, after "turn ").
+    label: &'static str,
     open: usize,
     pieces: &'static [usize],
     messages: &'static [usize],
     chunk: usize,
-    /// One call's pieces after a gap (InterleavedTurn): a turn, up to
-    /// TURN pieces in this many bytes (a turn of 64 averages about 306 KB).
+    /// One call's pieces after a gap (InterleavedTurn): turns of up to
+    /// `turn_pieces` pieces, this many bytes (a turn of 64 of INTERLEAVED's
+    /// averages about 306 KB).
     turn: usize,
+    /// The pieces that arrive together, as one wait of a server's event
+    /// loop delivers them (epoll or io_uring), at most one of each open
+    /// message.
+    turn_pieces: usize,
 }
 
 const INTERLEAVED: InterleavedSpec = InterleavedSpec {
+    label: "256",
     open: 256,
     pieces: &[1448, 1448, 4096, 1448, 16 * 1024],
     messages: &[
@@ -351,7 +368,31 @@ const INTERLEAVED: InterleavedSpec = InterleavedSpec {
     ],
     chunk: 1024 * 1024,
     turn: 256 * 1024,
+    turn_pieces: 64,
 };
+
+/// Many short messages in small arrivals (John Servil, November 8, 2026;
+/// bench-hashes #156): a call is one whole cycle of the 1,024 messages.
+const SMALL_ARRIVALS: InterleavedSpec = InterleavedSpec {
+    label: "1024 x 1 KiB",
+    open: 1024,
+    pieces: &[256],
+    messages: &[1024],
+    chunk: 1024 * 1024,
+    turn: 1024 * 1024,
+    turn_pieces: 1024,
+};
+
+/// The schedules of the turn cells, in their points' order.
+const TURNS: [&InterleavedSpec; TURN_COUNT] = [&INTERLEAVED, &SMALL_ARRIVALS];
+
+/// The schedule of an interleaved or turn point: the one its label names.
+fn interleaved_spec(point: &Point) -> &'static InterleavedSpec {
+    TURNS
+        .into_iter()
+        .find(|spec| spec.label == point.label)
+        .unwrap_or_else(|| panic!("no interleaved schedule is named {}", point.label))
+}
 /*
  * A Merkle tree (UseCase::MerkleTree; Zooko, October 19, 2026): the
  * commitment a zero-knowledge prover makes to a Reed-Solomon codeword
@@ -694,7 +735,7 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::lent("4 MiB", 4 * 1024 * 1024),
     Point::lent("16 MiB", 16 * 1024 * 1024),
     Point::lent("64 MiB", 64 * 1024 * 1024),
-    Point::interleaved("256", INTERLEAVED.chunk),
+    Point::interleaved(INTERLEAVED.label, INTERLEAVED.chunk),
     Point::collection(0),
     Point::collection(1),
     Point::lent_batch("16", 16),
@@ -714,10 +755,14 @@ const POINTS: [Point; POINT_COUNT] = [
     Point::merkle_leaves("65536 x 32 B", 1 << 16, 32),
     Point::merkle_leaves("1048576 x 32 B", 1 << 20, 32),
     Point::merkle_leaves("1048576 x 16 B", 1 << 20, 16),
-    Point::interleaved_turn("256"),
-    Point::interleaved_turn("256").idle(),
-    Point::interleaved_turn("256").brief_idle(),
-    Point::interleaved_turn("256").controlled_idle(),
+    Point::interleaved_turn(TURNS[0]),
+    Point::interleaved_turn(TURNS[1]),
+    Point::interleaved_turn(TURNS[0]).idle(),
+    Point::interleaved_turn(TURNS[1]).idle(),
+    Point::interleaved_turn(TURNS[0]).brief_idle(),
+    Point::interleaved_turn(TURNS[1]).brief_idle(),
+    Point::interleaved_turn(TURNS[0]).controlled_idle(),
+    Point::interleaved_turn(TURNS[1]).controlled_idle(),
     Point::receiving(0),
     Point::receiving(1),
     Point::receiving(2),
@@ -816,9 +861,9 @@ enum UseCase {
     /// parents (two children's digests) in one batch, to the root, every
     /// layer kept, as a prover commits to a Reed-Solomon codeword.
     MerkleTree,
-    /// Many messages at once (Interleaved), one turn a call (up to TURN
-    /// pieces, INTERLEAVED.turn bytes), each after other work, as a server
-    /// handles a turn of uploads between its other tasks.
+    /// Many messages at once (Interleaved), a call of turns (TURNS: a
+    /// schedule's `turn` bytes, `turn_pieces` a turn), each after other
+    /// work, as a server handles a turn of uploads between its other tasks.
     InterleavedTurn,
     /// The same turns, each after idling, as a server waits on the network.
     IdleInterleavedTurn,
@@ -1325,11 +1370,11 @@ impl Point {
         }
     }
 
-    /// The same open messages, one turn of their pieces a call.
-    const fn interleaved_turn(label: &'static str) -> Self {
+    /// The open messages of `spec`, a call of turns of their pieces.
+    const fn interleaved_turn(spec: &InterleavedSpec) -> Self {
         Self {
-            label,
-            bytes: INTERLEAVED.turn,
+            label: spec.label,
+            bytes: spec.turn,
             messages: 1,
             use_case: UseCase::InterleavedTurn,
         }
@@ -4341,7 +4386,14 @@ fn hash_batch(
         | UseCase::IdleInterleavedTurn
         | UseCase::BriefIdleInterleavedTurn
         | UseCase::ControlledIdleInterleavedTurn => {
-            return hash_interleaved(algorithm, input, point.bytes, iterations, consume)
+            return hash_interleaved(
+                algorithm,
+                interleaved_spec(&point),
+                input,
+                point.bytes,
+                iterations,
+                consume,
+            )
         }
         UseCase::Collection => {
             return hash_collection(algorithm, input, point, iterations, consume)
@@ -4864,6 +4916,7 @@ fn hash_stream_from<const RECEIVING: bool>(
  */
 fn hash_interleaved(
     algorithm: Algorithm,
+    spec: &'static InterleavedSpec,
     input: &[u8],
     budget: usize,
     iterations: usize,
@@ -4878,25 +4931,33 @@ fn hash_interleaved(
         }
         Algorithm::Blake3 => each_interleaved(
             key,
+            spec,
             input,
             budget,
             iterations,
             blake3::Hasher::new,
-            read_into_buffer(per_piece(|h: &mut blake3::Hasher, p| {
-                h.update(p);
-            })),
+            read_into_buffer(
+                spec,
+                per_piece(|h: &mut blake3::Hasher, p| {
+                    h.update(p);
+                }),
+            ),
             per_message(blake3::Hasher::new, |h| *h.finalize().as_bytes()),
             consume,
         ),
         Algorithm::Blake3Rayon => each_interleaved(
             key,
+            spec,
             input,
             budget,
             iterations,
             blake3::Hasher::new,
-            read_into_buffer(per_piece(|h: &mut blake3::Hasher, p| {
-                h.update_rayon(p);
-            })),
+            read_into_buffer(
+                spec,
+                per_piece(|h: &mut blake3::Hasher, p| {
+                    h.update_rayon(p);
+                }),
+            ),
             per_message(blake3::Hasher::new, |h| *h.finalize().as_bytes()),
             consume,
         ),
@@ -4909,11 +4970,12 @@ fn hash_interleaved(
             let mut digests = Vec::new();
             each_interleaved(
                 key,
+                spec,
                 input,
                 budget,
                 iterations,
                 || blake3_servil::convenience::Hasher::new(blake3_servil::Mode::Plain, None),
-                read_into_buffer(update),
+                read_into_buffer(spec, update),
                 move |hashers: &mut [blake3_servil::convenience::Hasher],
                       ended: &[usize],
                       consume: &mut dyn FnMut(&[u8])| {
@@ -4929,11 +4991,15 @@ fn hash_interleaved(
         }
         Algorithm::Sha256 => each_interleaved(
             key,
+            spec,
             input,
             budget,
             iterations,
             Sha256::new,
-            read_into_buffer(per_piece(|h: &mut Sha256, p| sha2::Digest::update(h, p))),
+            read_into_buffer(
+                spec,
+                per_piece(|h: &mut Sha256, p| sha2::Digest::update(h, p)),
+            ),
             per_message(Sha256::new, |h| -> [u8; 32] { h.finalize().into() }),
             consume,
         ),
@@ -4941,11 +5007,15 @@ fn hash_interleaved(
             let new = || ring::digest::Context::new(&ring::digest::SHA256);
             each_interleaved(
                 key,
+                spec,
                 input,
                 budget,
                 iterations,
                 new,
-                read_into_buffer(per_piece(|h: &mut ring::digest::Context, p| h.update(p))),
+                read_into_buffer(
+                    spec,
+                    per_piece(|h: &mut ring::digest::Context, p| h.update(p)),
+                ),
                 per_message(new, |h| {
                     let mut digest = [0u8; 32];
                     digest.copy_from_slice(h.finish().as_ref());
@@ -4956,23 +5026,26 @@ fn hash_interleaved(
         }
         Algorithm::Sha256CommonCrypto => each_interleaved(
             key,
+            spec,
             input,
             budget,
             iterations,
             common_crypto::Sha256State::new,
-            read_into_buffer(per_piece(|h: &mut common_crypto::Sha256State, p| {
-                h.update(p)
-            })),
+            read_into_buffer(
+                spec,
+                per_piece(|h: &mut common_crypto::Sha256State, p| h.update(p)),
+            ),
             per_message(common_crypto::Sha256State::new, |h| h.finish()),
             consume,
         ),
         Algorithm::Sha1Dc => each_interleaved(
             key,
+            spec,
             input,
             budget,
             iterations,
             sha1_checked::Sha1::new,
-            read_into_buffer(per_piece(|h: &mut sha1_checked::Sha1, p| h.update(p))),
+            read_into_buffer(spec, per_piece(|h: &mut sha1_checked::Sha1, p| h.update(p))),
             per_message(sha1_checked::Sha1::new, |h| {
                 let mut digest = [0u8; 20];
                 digest.copy_from_slice(h.try_finalize().hash());
@@ -4982,13 +5055,15 @@ fn hash_interleaved(
         ),
         Algorithm::Sha3_256 => each_interleaved(
             key,
+            spec,
             input,
             budget,
             iterations,
             sha3::Sha3_256::new,
-            read_into_buffer(per_piece(|h: &mut sha3::Sha3_256, p| {
-                sha3::Digest::update(h, p)
-            })),
+            read_into_buffer(
+                spec,
+                per_piece(|h: &mut sha3::Sha3_256, p| sha3::Digest::update(h, p)),
+            ),
             per_message(sha3::Sha3_256::new, |h| -> [u8; 32] { h.finalize().into() }),
             consume,
         ),
@@ -5028,17 +5103,14 @@ struct Schedule<S> {
 }
 
 thread_local! {
-    static SCHEDULES: std::cell::RefCell<Vec<(&'static str, Box<dyn std::any::Any>)>> = const { std::cell::RefCell::new(Vec::new()) };
+    /// Kept by contender and schedule.
+    static SCHEDULES: std::cell::RefCell<Vec<((&'static str, &'static str), Box<dyn std::any::Any>)>> = const { std::cell::RefCell::new(Vec::new()) };
 }
-
-/// The pieces of many messages at once arrive in turns of this many, as a
-/// server's event loop takes them (one wait on epoll or io_uring), each in
-/// its own buffer.
-const TURN: usize = 64;
 
 #[allow(clippy::too_many_arguments)]
 fn each_interleaved<S: 'static>(
     key: &'static str,
+    spec: &'static InterleavedSpec,
     input: &[u8],
     budget: usize,
     iterations: usize,
@@ -5047,14 +5119,14 @@ fn each_interleaved<S: 'static>(
     mut finish: impl FnMut(&mut [S], &[usize], &mut dyn FnMut(&[u8])),
     mut consume: impl FnMut(&[u8]),
 ) {
-    let spec = &INTERLEAVED;
     let longest = spec.pieces.iter().copied().max().unwrap();
+    let key = (key, spec.label);
     assert!(
         input.len() >= budget && input.len() > longest,
         "the pieces come from a source of a call's budget, longer than a piece"
     );
     assert!(
-        TURN <= spec.open,
+        spec.turn_pieces <= spec.open,
         "a turn holds at most one piece of each open message"
     );
     let kept = SCHEDULES.with(|all| {
@@ -5075,16 +5147,16 @@ fn each_interleaved<S: 'static>(
             source: 0,
         },
     };
-    let mut pieces: Vec<(usize, &[u8])> = Vec::with_capacity(TURN);
-    let mut ended: Vec<usize> = Vec::with_capacity(TURN);
+    let mut pieces: Vec<(usize, &[u8])> = Vec::with_capacity(spec.turn_pieces);
+    let mut ended: Vec<usize> = Vec::with_capacity(spec.turn_pieces);
     for _ in 0..iterations {
         let mut budget = budget;
         while budget > 0 {
-            // A turn: up to TURN pieces, each arriving from the source;
+            // A turn: up to turn_pieces pieces, each arriving from the source;
             // `update` reads each into the contender's own storage.
             pieces.clear();
             ended.clear();
-            while pieces.len() < TURN && budget > 0 {
+            while pieces.len() < spec.turn_pieces && budget > 0 {
                 let slot = schedule.piece % spec.open;
                 let len = spec.pieces[schedule.piece % spec.pieces.len()]
                     .min(schedule.left[slot])
@@ -5117,16 +5189,17 @@ fn each_interleaved<S: 'static>(
 /// place (as a receive writes them), then handed to `update` together: how
 /// every contender but the pipeline takes a turn.
 fn read_into_buffer<S>(
+    spec: &'static InterleavedSpec,
     update: impl Fn(&mut [S], &[(usize, &[u8])]),
 ) -> impl Fn(&mut [S], &[(usize, &[u8])]) {
-    let longest = INTERLEAVED.pieces.iter().copied().max().unwrap();
+    let longest = spec.pieces.iter().copied().max().unwrap();
     move |states, arriving| {
         let mut buffer = STREAM_BUFFER.with(|kept| std::mem::take(&mut *kept.borrow_mut()));
-        if buffer.len() < TURN * longest {
-            buffer = written(TURN * longest, 1u8);
+        if buffer.len() < spec.turn_pieces * longest {
+            buffer = written(spec.turn_pieces * longest, 1u8);
         }
         let mut at = 0;
-        let mut turn: Vec<(usize, usize, usize)> = Vec::with_capacity(TURN);
+        let mut turn: Vec<(usize, usize, usize)> = Vec::with_capacity(spec.turn_pieces);
         for &(slot, piece) in arriving {
             buffer[at..at + piece.len()].copy_from_slice(piece);
             turn.push((slot, at, piece.len()));
@@ -5940,10 +6013,10 @@ const SERVIL_CALLS: [(Algorithm, UseCase, &str); 33] = [
     (Algorithm::Blake3ServilPipeline, UseCase::ReceivingMessage, "throughput::pipeline: one Stream kept for the process (64 rooms of 16 KiB, 1 MiB in flight; 2 message slots), Stream::message per message with its length as the hint, each received fragment written into the rooms Message::input gives and committed (the one copy of an arrival), the last fragment's final bytes ended with Message::end(n), then collect and ready until the digest is delivered; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, writes and the wait for the digest timed together"),
     (Algorithm::Blake3ServilSt, UseCase::ReceivingMessage, "convenience::Hasher::new(Mode::Plain, None), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together"),
     (Algorithm::Blake3ServilMt, UseCase::ReceivingMessage, "convenience::Hasher::new(Mode::Plain, None), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together"),
-    (Algorithm::Blake3ServilSt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it"),
-    (Algorithm::Blake3ServilSt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: throughput::update_each, then throughput::finalize_each for the messages that ended in it"),
-    (Algorithm::Blake3ServilMt, UseCase::InterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it"),
-    (Algorithm::Blake3ServilMt, UseCase::IdleInterleavedTurn, "the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilSt, UseCase::InterleavedTurn, "the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilSt, UseCase::IdleInterleavedTurn, "the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after idling: throughput::update_each, then throughput::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilMt, UseCase::InterleavedTurn, "the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after other work: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it"),
+    (Algorithm::Blake3ServilMt, UseCase::IdleInterleavedTurn, "the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after idling: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it"),
     (Algorithm::Blake3ServilSt, UseCase::MerkleTree, "throughput::hash_many(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root; leaves of 32 or 16 bytes written into a kept Packed of their length and hashed as they are, each layer's digests into a kept Packed<32>, two by two the next layer's parents (as_blocks), with no copy into blocks"),
     (Algorithm::Blake3ServilMt, UseCase::MerkleTree, "throughput::hash_many_multithreaded(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root; leaves of 32 or 16 bytes written into a kept Packed of their length and hashed as they are, each layer's digests into a kept Packed<32>, two by two the next layer's parents (as_blocks), with no copy into blocks"),
     (Algorithm::Blake3ServilSt, UseCase::OneMessage, "convenience::hash(input), each call after other work"),
@@ -10484,21 +10557,18 @@ mod correctness_tests {
         let merkle = continuous_collection + COLLECTION_COUNT;
         assert_eq!(UseCase::MerkleTree.points(), merkle..merkle + MERKLE_COUNT);
         let turn = merkle + MERKLE_COUNT;
-        assert_eq!(
-            UseCase::InterleavedTurn.points(),
-            turn..turn + INTERLEAVED_COUNT
-        );
+        assert_eq!(UseCase::InterleavedTurn.points(), turn..turn + TURN_COUNT);
         assert_eq!(
             UseCase::IdleInterleavedTurn.points(),
-            turn + INTERLEAVED_COUNT..turn + 2 * INTERLEAVED_COUNT
+            turn + TURN_COUNT..turn + 2 * TURN_COUNT
         );
         assert_eq!(
             UseCase::BriefIdleInterleavedTurn.points(),
-            turn + 2 * INTERLEAVED_COUNT..turn + 3 * INTERLEAVED_COUNT
+            turn + 2 * TURN_COUNT..turn + 3 * TURN_COUNT
         );
         assert_eq!(
             UseCase::ControlledIdleInterleavedTurn.points(),
-            turn + 3 * INTERLEAVED_COUNT..turn + 4 * INTERLEAVED_COUNT
+            turn + 3 * TURN_COUNT..turn + 4 * TURN_COUNT
         );
         for (k, point) in POINTS[UseCase::ContinuousCollection.points()]
             .iter()
@@ -10522,7 +10592,7 @@ mod correctness_tests {
         }
         assert_eq!(
             UseCase::ReceivingMessage.points(),
-            turn + 4 * INTERLEAVED_COUNT..POINT_COUNT
+            turn + 4 * TURN_COUNT..POINT_COUNT
         );
         let covered: Vec<_> = UseCase::ALL.into_iter().flat_map(UseCase::points).collect();
         assert_eq!(covered, (0..POINT_COUNT).collect::<Vec<_>>());
@@ -10705,6 +10775,39 @@ mod correctness_tests {
                 }
             }
         }
+    }
+
+    /// A call of the small-arrival turn cell is one whole cycle: every one
+    /// of its 1,024 messages of 1 KiB finished, each the same digest from
+    /// every BLAKE3 contender (bench-hashes #156).
+    #[test]
+    fn a_small_arrival_turn_finishes_every_message_once_a_call() {
+        blake3_servil::initialize_multithreaded(None);
+        let point = Point::interleaved_turn(&SMALL_ARRIVALS);
+        let input = make_input(point.bytes + 4096);
+        let mut official = Vec::new();
+        for algorithm in [
+            Algorithm::Blake3,
+            Algorithm::Blake3ServilSt,
+            Algorithm::Blake3ServilMt,
+        ] {
+            assert!(algorithm.takes_part(point.use_case));
+            for call in 0..2 {
+                let mut digests = Vec::new();
+                hash_batch(algorithm, &input, point, 1, |d| digests.push(d.to_vec()));
+                assert_eq!(digests.len(), 1024, "{} call {call}", algorithm.key());
+                if algorithm == Algorithm::Blake3 {
+                    official.push(digests);
+                } else {
+                    assert_eq!(digests, official[call], "{} call {call}", algorithm.key());
+                }
+            }
+        }
+        let first = &official[0][0];
+        assert!(
+            official[0].iter().any(|d| d != first),
+            "the messages differ"
+        );
     }
 
     /// A sample of a synchronous use case makes its calls after the gap and
