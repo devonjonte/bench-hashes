@@ -1,0 +1,83 @@
+check: BLAKE3-Servil's sam-277-on-next (e673ae1506fc) against origin/next (64ab62a45a7d)
+check: the change touches 2795 added and 63 deleted lines in 17 files: build.rs (+4/-0), c/blake3_output16.S (+607/-0), c/blake3_output8.S (+1252/-0), src/each.rs (+90/-0), src/ffi_output.rs (+446/-0), src/incremental.rs (+2/-57), src/lib.rs (+2/-0), src/self_test.rs (+17/-0), src/test.rs (+11/-4), tools/check-builds.sh (+2/-0), tools/gen_output16.py (+109/-0), tools/gen_output8.py (+63/-0), and 5 more
+check: its hunks sit in: fn build_avx512_assembly() {, pub fn hash_each_multithreaded(mode: Mode, items: &[(&[Block], usize)], out: &mu, pub fn update_each_multithreaded(hashers: &mut [Hasher], pieces: &[(usize, &[u8], pub fn finalize_each(hashers: &mut [Hasher], which: &[usize], out: &mut [[u8; OU, fn update_turn(hashers: &mut [Hasher], pieces: &[(usize, &[u8])], pooled: bool), use super::*;, pub struct Hasher {, impl Hasher {, mod test {, mod sme2;, fn run() -> usize {, mod unsafe_paths {, and 6 more
+check: measuring the 11 named points (11 of 272 points; the rest unmeasured in this check): turn 256, idle turn 256, brief idle turn 256, interleaved 256, collection git objects, collection Nix files, continuous collection git objects, lent 64 B, 64 B, 1 KiB, receive saturated
+check: the change alters the bench's code here: .data.rel.ro, .dynamic, .eh_frame, .eh_frame_hdr, .got, .got.plt, .init, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .text; 10 functions of another size or on one side alone (bench_hashes::hash_interleaved::<bench_hashes::use_digest>; blake3_servil::each::finalize_groups::<16>; blake3_servil::each::finalize_groups::<8>; blake3_servil::each::finish_each; blake3_servil::each::update_turn; blake3_servil::ffi_output::hash_group::<8>; blake3_servil::ffi_output::self_test_shape::<blake3_servil::ffi_output::self_test::{closure#0}>; blake3_servil::self_test::ensure_slow; blake3_servil_output16; blake3_servil_output8); 1355 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&[u8; 32] as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Display>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; and 1343 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt --points "turn 256,idle turn 256,brief idle turn 256,interleaved 256,collection git objects,collection Nix files,continuous collection git objects,lent 64 B,64 B,1 KiB,receive saturated"
+regress: pair 1 of 4 in 15.7 s
+regress: pair 2 of 4 in 15.8 s
+regress: pair 3 of 4 in 15.8 s
+regress: pair 4 of 4 in 15.9 s
+check: a second stage for 3 suspects on 64 fresh pairs: blake3-servil-mt|shared-one-cache|Collection|git objects, blake3-servil-st|solo|OneMessage|1 KiB, blake3-servil-mt|solo|ContinuousCollection|git objects
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6,8,10,12,14,16,17,18,19
+regress: 64 new builds against 64 old, 64 pairs over --contenders blake3-servil-mt,blake3-servil-st --points "1 KiB,collection git objects,continuous collection git objects"
+regress: pair 1 of 64 in 5.0 s
+regress: pair 2 of 64 in 5.0 s
+regress: pair 3 of 64 in 5.0 s
+clocks: other programs kept 1.36 CPUs busy from 28.3 s to 29.3 s (the busiest: pi 0.10 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.34 CPUs busy from 29.3 s to 30.3 s (the busiest: pi 0.30 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 4 again: busy: other programs kept 0.94 CPUs busy on average, 1.36 in the busiest window; busy in 2 of 3 windows (28.3-29.3 s, 29.3-30.3 s)
+regress: pair 4 of 64 in 10.5 s
+regress: pair 5 of 64 in 5.0 s
+regress: pair 6 of 64 in 5.0 s
+regress: pair 7 of 64 in 5.0 s
+regress: pair 8 of 64 in 5.0 s
+regress: pair 9 of 64 in 5.4 s
+regress: pair 10 of 64 in 5.4 s
+regress: pair 11 of 64 in 5.3 s
+regress: pair 12 of 64 in 5.3 s
+regress: pair 13 of 64 in 5.0 s
+regress: pair 14 of 64 in 5.0 s
+regress: pair 15 of 64 in 5.0 s
+regress: pair 16 of 64 in 5.0 s
+regress: pair 17 of 64 in 5.0 s
+regress: pair 18 of 64 in 5.0 s
+regress: pair 19 of 64 in 5.0 s
+regress: pair 20 of 64 in 5.0 s
+regress: pair 21 of 64 in 5.3 s
+regress: pair 22 of 64 in 5.3 s
+regress: pair 23 of 64 in 5.4 s
+regress: pair 24 of 64 in 5.3 s
+regress: pair 25 of 64 in 5.0 s
+regress: pair 26 of 64 in 5.0 s
+regress: pair 27 of 64 in 5.0 s
+regress: pair 28 of 64 in 5.0 s
+regress: pair 29 of 64 in 5.0 s
+regress: pair 30 of 64 in 5.0 s
+regress: pair 31 of 64 in 5.0 s
+regress: pair 32 of 64 in 5.0 s
+regress: pair 33 of 64 in 5.3 s
+regress: pair 34 of 64 in 5.4 s
+regress: pair 35 of 64 in 5.4 s
+regress: pair 36 of 64 in 5.4 s
+regress: pair 37 of 64 in 5.0 s
+regress: pair 38 of 64 in 5.0 s
+regress: pair 39 of 64 in 5.0 s
+regress: pair 40 of 64 in 5.0 s
+regress: pair 41 of 64 in 5.0 s
+regress: pair 42 of 64 in 5.0 s
+regress: pair 43 of 64 in 5.0 s
+regress: pair 44 of 64 in 5.0 s
+regress: pair 45 of 64 in 5.3 s
+regress: pair 46 of 64 in 5.4 s
+regress: pair 47 of 64 in 5.3 s
+regress: pair 48 of 64 in 5.4 s
+regress: pair 49 of 64 in 5.0 s
+regress: pair 50 of 64 in 5.0 s
+regress: pair 51 of 64 in 5.0 s
+regress: pair 52 of 64 in 5.0 s
+regress: pair 53 of 64 in 5.0 s
+regress: pair 54 of 64 in 5.0 s
+regress: pair 55 of 64 in 5.0 s
+regress: pair 56 of 64 in 5.0 s
+regress: pair 57 of 64 in 5.4 s
+regress: pair 58 of 64 in 5.4 s
+regress: pair 59 of 64 in 5.3 s
+regress: pair 60 of 64 in 5.4 s
+clocks: other programs kept 1.21 CPUs busy from 323.2 s to 324.2 s (the busiest: pi 0.11 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 61 again: busy: other programs kept 0.89 CPUs busy on average, 1.21 in the busiest window; busy in 1 of 2 windows (323.2-324.2 s)
+regress: pair 61 of 64 in 10.0 s
+regress: pair 62 of 64 in 5.0 s
+regress: pair 63 of 64 in 5.0 s
+regress: pair 64 of 64 in 5.0 s
