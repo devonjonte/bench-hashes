@@ -1,0 +1,78 @@
+check: BLAKE3-Servil's o8new (925e28d9de5b) against o8base (85c4b2d92b71)
+check: the change touches 1542 added and 72 deleted lines in 12 files: build.rs (+1/-0), c/blake3_output8.S (+1252/-0), src/each.rs (+56/-32), src/ffi_output.rs (+79/-33), src/self_test.rs (+3/-3), tools/check-builds.sh (+1/-0), tools/gen_output8.py (+63/-0), tools/verify/README.md (+7/-0), tools/verify/cross_check_x86.py (+1/-1), tools/verify/long-proofs.sh (+3/-2), tools/verify/prove_output8.py (+75/-0), tools/verify/prove_x86.py (+1/-1)
+check: its hunks sit in: fn build_avx512_assembly() {, pub fn finalize_each(hashers: &mut [Hasher], which: &[usize], out: &mut [[u8; OU, fn finish_each(hashers: &mut [Hasher], which: &[usize], out: &mut [[u8; OUT_LEN], fn update_turn(hashers: &mut [Hasher], pieces: &[(usize, &[u8])], pooled: bool), const _: () = {, unsafe extern "C" {, pub(crate) fn input(hasher: &Hasher) -> Option<Input<'_>> {, pub(crate) fn gather_first(hasher: &mut Hasher, bytes: &[u8]) -> bool {, pub(crate) unsafe fn staged_group(hashers: &[Hasher], which: &[usize; 16], out:, fn check_self_test(answer: u64) {, pub(crate) fn self_test(platform: Platform) -> usize {, mod tests {, and 9 more
+check: measuring the 9 named points (9 of 276 points; the rest unmeasured in this check): turn 256, turn 1024 x 1 KiB, idle turn 256, idle turn 1024 x 1 KiB, brief idle turn 1024 x 1 KiB, interleaved 256, 64 B, 1 KiB, collection git objects
+check: the change alters the bench's code here: .data.rel.ro, .dynamic, .eh_frame, .eh_frame_hdr, .got, .got.plt, .init, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .text; 5 functions of another size or on one side alone (bench_hashes::hash_interleaved::<bench_hashes::use_digest>; blake3_servil::each::update_turn; blake3_servil::ffi_output::hash_group::<8>; blake3_servil::self_test::ensure_slow; blake3_servil_output8); 1357 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&[u8; 32] as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Display>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; and 1345 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt --points "turn 256,turn 1024 x 1 KiB,idle turn 256,idle turn 1024 x 1 KiB,brief idle turn 1024 x 1 KiB,interleaved 256,64 B,1 KiB,collection git objects"
+regress: pair 1 of 4 in 11.1 s
+regress: pair 2 of 4 in 11.1 s
+regress: pair 3 of 4 in 11.0 s
+regress: pair 4 of 4 in 11.0 s
+check: a second stage for 4 suspects on 64 fresh pairs: blake3-servil-mt|solo|OneMessage|1 KiB, blake3-servil-mt|solo|Collection|git objects, blake3-servil-mt|solo|IdleInterleavedTurn|256, blake3-servil-st|solo|IdleInterleavedTurn|256
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6,8,10,12,14,16,17,18,19
+regress: 64 new builds against 64 old, 64 pairs over --contenders blake3-servil-mt,blake3-servil-st --points "1 KiB,collection git objects,idle turn 256"
+regress: pair 1 of 64 in 4.3 s
+regress: pair 2 of 64 in 4.3 s
+regress: pair 3 of 64 in 4.3 s
+regress: pair 4 of 64 in 4.4 s
+regress: pair 5 of 64 in 4.4 s
+regress: pair 6 of 64 in 4.4 s
+regress: pair 7 of 64 in 4.4 s
+regress: pair 8 of 64 in 4.4 s
+regress: pair 9 of 64 in 4.8 s
+regress: pair 10 of 64 in 4.7 s
+regress: pair 11 of 64 in 4.8 s
+regress: pair 12 of 64 in 4.7 s
+regress: pair 13 of 64 in 4.4 s
+regress: pair 14 of 64 in 4.4 s
+regress: pair 15 of 64 in 4.3 s
+regress: pair 16 of 64 in 4.4 s
+regress: pair 17 of 64 in 4.4 s
+regress: pair 18 of 64 in 4.3 s
+regress: pair 19 of 64 in 4.3 s
+regress: pair 20 of 64 in 4.4 s
+regress: pair 21 of 64 in 4.7 s
+regress: pair 22 of 64 in 4.8 s
+regress: pair 23 of 64 in 4.8 s
+regress: pair 24 of 64 in 4.7 s
+regress: pair 25 of 64 in 4.4 s
+regress: pair 26 of 64 in 4.3 s
+regress: pair 27 of 64 in 4.4 s
+regress: pair 28 of 64 in 4.3 s
+regress: pair 29 of 64 in 4.4 s
+regress: pair 30 of 64 in 4.4 s
+regress: pair 31 of 64 in 4.4 s
+regress: pair 32 of 64 in 4.4 s
+regress: pair 33 of 64 in 4.8 s
+regress: pair 34 of 64 in 4.8 s
+regress: pair 35 of 64 in 4.8 s
+regress: pair 36 of 64 in 4.8 s
+regress: pair 37 of 64 in 4.4 s
+regress: pair 38 of 64 in 4.3 s
+regress: pair 39 of 64 in 4.3 s
+regress: pair 40 of 64 in 4.4 s
+regress: pair 41 of 64 in 4.4 s
+regress: pair 42 of 64 in 4.3 s
+regress: pair 43 of 64 in 4.4 s
+regress: pair 44 of 64 in 4.4 s
+regress: pair 45 of 64 in 4.8 s
+regress: pair 46 of 64 in 4.7 s
+regress: pair 47 of 64 in 4.8 s
+regress: pair 48 of 64 in 4.8 s
+regress: pair 49 of 64 in 4.4 s
+regress: pair 50 of 64 in 4.3 s
+regress: pair 51 of 64 in 4.3 s
+regress: pair 52 of 64 in 4.3 s
+regress: pair 53 of 64 in 4.4 s
+regress: pair 54 of 64 in 4.3 s
+regress: pair 55 of 64 in 4.4 s
+regress: pair 56 of 64 in 4.4 s
+regress: pair 57 of 64 in 4.8 s
+regress: pair 58 of 64 in 4.8 s
+regress: pair 59 of 64 in 4.7 s
+regress: pair 60 of 64 in 4.8 s
+regress: pair 61 of 64 in 4.4 s
+regress: pair 62 of 64 in 4.3 s
+regress: pair 63 of 64 in 4.3 s
+regress: pair 64 of 64 in 4.4 s
