@@ -10,4 +10,8 @@
 - `prefix-batch.stdout.txt`: `--layouts 8` on continuous batch 16 and 65536, receive 2 us, continuous 16 KiB. No cell slower; mt 16 KiB -14.0% (8 of 8 pairs), shared one-cache -10.4%.
 - `pipeline/`: the `blake3-servil-pipeline` contender, 6 alternating pairs (`ab.sh`): level solo; shared one-cache 2 us x0.953.
 
-Posted on BLAKE3 #306.
+- `r88-probe.stdout.txt` (`r88-probe.sh`, `--layouts 8`, continuous 64 B to 16 KiB), on John's return-chain candidate 88e215ed and its base fbfb319f (the code before the ring fix):
+  - 88e215ed against fbfb319f: two cells slower, mt 64 B +9.4%, 128 B +6.8% (0 of 8 pairs faster each).
+  - 88e215ed with this change (28b18680, `candidate/devon-task-prefix` after the rebase) against fbfb319f: no cell slower; mt 4 KiB -7.3%, 16 KiB -13.4%, shared one-cache 1 KiB -5.8%, 16 KiB -12.6%, every pair; 64 to 256 B level.
+
+Posted on BLAKE3 #306 and #314.
