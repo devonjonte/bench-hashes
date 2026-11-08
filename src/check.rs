@@ -118,7 +118,11 @@ fn each_run(exes: Vec<String>, times: usize) -> Vec<String> {
         .collect()
 }
 /// The two sides' contenders: the code a change to BLAKE3-Servil changes.
-const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
+const SUBJECTS: [&str; 3] = [
+    "blake3-servil-st",
+    "blake3-servil-mt",
+    "blake3-servil-pipeline",
+];
 
 /// Equal library trees settle a comparison only when both use this bench.
 /// An explicit old bench is a comparison of the instrument itself.
@@ -363,7 +367,7 @@ pub fn command(arguments: &[String]) -> i32 {
     let old_exe = side(&fork, &old_bench, &cache, "old", &old);
     let new_exe = side(&fork, &bench, &cache, "new", &new);
     // The scope: every point, or the points named before the builds.
-    // The contenders are the two the change can move.
+    // Every contender that calls the changed library participates.
     let (contenders, points): (Vec<String>, Option<Vec<String>>) = if all {
         (SUBJECTS.iter().map(|s| s.to_string()).collect(), None)
     } else {
@@ -1301,6 +1305,20 @@ mod tests {
         assert_eq!(
             super::first_of(&(0..15).map(|n| n.to_string()).collect::<Vec<_>>(), 12),
             "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, and 3 more"
+        );
+    }
+
+    #[test]
+    fn regression_subjects_cover_library_contenders() {
+        let expected: Vec<_> = crate::Algorithm::ALL
+            .into_iter()
+            .map(crate::Algorithm::key)
+            .filter(|key| key.starts_with("blake3-servil-"))
+            .collect();
+        assert_eq!(
+            super::SUBJECTS.to_vec(),
+            expected,
+            "all BLAKE3-Servil contenders participate in regression checks"
         );
     }
 
