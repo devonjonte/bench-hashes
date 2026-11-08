@@ -1,0 +1,68 @@
+diff --git a/src/lanes.rs b/src/lanes.rs
+index b1bd8929..e0e45520 100644
+--- a/src/lanes.rs
++++ b/src/lanes.rs
+@@ -905,11 +905,9 @@ pub(crate) mod sources {
+     /// Streams open: workers spin a while for more work only when some are.
+     static OPEN: OwnLine<AtomicUsize> = OwnLine(AtomicUsize::new(0));
+ 
++    // PROBE: `next` in an array of its own, the slot its task alone.
+     struct TaskSlot {
+         task: UnsafeCell<MaybeUninit<Task>>,
+-        /// The next publication allowed to write this slot. Claiming its
+-        /// current task leaves it occupied until the worker copies it.
+-        next: AtomicUsize,
+     }
+ 
+     #[repr(align(128))]
+@@ -920,6 +918,7 @@ pub(crate) mod sources {
+         claimed: OwnLine<AtomicUsize>,
+         /// A stream's tasks; empty for a caller's jobs.
+         ring: Box<[TaskSlot]>,
++        nexts: Box<[AtomicUsize]>,
+         /// A caller's current job and its first number; the job stays the
+         /// claimed numbers' until `finish.finished` passes them.
+         job: AtomicPtr<Job<'static>>,
+@@ -954,7 +953,8 @@ pub(crate) mod sources {
+                 #[cfg(all(test, blake3_gpu))]
+                 gpu_batch_reserved: core::sync::atomic::AtomicBool::new(false),
+                 claimed: OwnLine(AtomicUsize::new(0)),
+-                ring: (0..len).map(|i| TaskSlot { task: UnsafeCell::new(MaybeUninit::uninit()), next: AtomicUsize::new(i) }).collect(),
++                ring: (0..len).map(|_| TaskSlot { task: UnsafeCell::new(MaybeUninit::uninit()) }).collect(),
++                nexts: (0..len).map(AtomicUsize::new).collect(),
+                 job: AtomicPtr::new(core::ptr::null_mut()),
+                 base: AtomicUsize::new(0),
+                 finish: crate::finish::Finish::new(),
+@@ -1017,11 +1017,12 @@ pub(crate) mod sources {
+             // and a comparison the debug check already made).
+             assert!(p - self.claimed.load(Ordering::Relaxed) < self.ring.len(), "a source's ring holds every task not yet taken");
+             let slot = &self.ring[p % self.ring.len()];
+-            if slot.next.load(Ordering::Acquire) != p {
++            let next = &self.nexts[p % self.ring.len()];
++            if next.load(Ordering::Acquire) != p {
+                 waiting();
+                 // A worker has claimed the old task and may be descheduled
+                 // before its copy. Let it run before reusing that storage.
+-                while slot.next.load(Ordering::Acquire) != p {
++                while next.load(Ordering::Acquire) != p {
+                     std::thread::yield_now();
+                 }
+             }
+@@ -1086,7 +1087,7 @@ pub(crate) mod sources {
+                         // Sound: this worker claimed the task after its
+                         // publication; the producer waits for `next` below.
+                         let task = unsafe { (*slot.task.get()).assume_init_read() };
+-                        slot.next.store(c + self.ring.len(), Ordering::Release);
++                        self.nexts[c % self.ring.len()].store(c + self.ring.len(), Ordering::Release);
+                         return Some(Item::Task(task));
+                     }
+                     Err(now) => c = now,
+@@ -1123,7 +1124,7 @@ pub(crate) mod sources {
+             // `published` passed them.
+             f(&mut (c..c + n).map(|i| unsafe { (*self.ring[i % self.ring.len()].task.get()).assume_init_ref() }));
+             for i in c..c + n {
+-                self.ring[i % self.ring.len()].next.store(i + self.ring.len(), Ordering::Release);
++                self.nexts[i % self.ring.len()].store(i + self.ring.len(), Ordering::Release);
+             }
+             true
+         }

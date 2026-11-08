@@ -1,0 +1,26 @@
+diff --git a/src/lanes.rs b/src/lanes.rs
+index b1bd8929..f2e3638c 100644
+--- a/src/lanes.rs
++++ b/src/lanes.rs
+@@ -1005,11 +1005,13 @@ pub(crate) mod sources {
+ 
+         /// Write `task` to the ring and make it visible (the SME2 thread
+         /// woken for it where there is one).
++        #[inline(always)]
+         fn push(&self, task: Task) {
+             self.push_waiting(task, || {});
+         }
+ 
+         /// `waiting` exposes the copy/reuse boundary to the schedule test.
++        #[inline(always)]
+         fn push_waiting(&self, task: Task, waiting: impl FnOnce()) {
+             let p = self.finish.published.load(Ordering::Relaxed);
+             // Every build: a task written over one not yet taken would be
+@@ -1056,6 +1058,7 @@ pub(crate) mod sources {
+         }
+ 
+         /// `claimed` lets the schedule test pause before the task copy.
++        #[inline(always)]
+         fn take_claimed(&self, claimed: impl FnOnce()) -> Option<Item> {
+             let mut c = self.claimed.load(Ordering::Acquire);
+             loop {

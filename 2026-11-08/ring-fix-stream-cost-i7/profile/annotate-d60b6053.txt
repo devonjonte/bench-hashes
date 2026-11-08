@@ -1,0 +1,150 @@
+ Percent |	Source code & Disassembly of bench-d60b6053 for cpu_atom/cycles/ (1 samples, percent: local period)
+-------------------------------------------------------------------------------------------------------------------
+         :
+         :
+         :
+         : 3      Disassembly of section .text:
+         :
+         : 5      00000000001809b0 <<blake3_servil::lanes::sources::Source>::publish>:
+    0.00 :   1809b0: push   %r14
+    0.00 :   1809b2: push   %rbx
+    0.00 :   1809b3: push   %rax
+    0.00 :   1809b4: mov    0x80(%rdi),%r14
+    0.00 :   1809bb: mov    (%rdi),%rax
+    0.00 :   1809be: mov    %r14,%rdx
+    0.00 :   1809c1: sub    %rax,%rdx
+    0.00 :   1809c4: mov    0x218(%rdi),%rcx
+    0.00 :   1809cb: cmp    %rcx,%rdx
+    0.00 :   1809ce: jae    180a92 <<blake3_servil::lanes::sources::Source>::publish+0xe2>
+    0.00 :   1809d4: mov    %rdi,%rbx
+    0.00 :   1809d7: mov    0x210(%rdi),%rdi
+    0.00 :   1809de: mov    %r14,%rax
+    0.00 :   1809e1: or     %rcx,%rax
+    0.00 :   1809e4: shr    $0x20,%rax
+    0.00 :   1809e8: je     1809f4 <<blake3_servil::lanes::sources::Source>::publish+0x44>
+    0.00 :   1809ea: mov    %r14,%rax
+    0.00 :   1809ed: xor    %edx,%edx
+    0.00 :   1809ef: div    %rcx
+    0.00 :   1809f2: jmp    1809fb <<blake3_servil::lanes::sources::Source>::publish+0x4b>
+    0.00 :   1809f4: mov    %r14d,%eax
+    0.00 :   1809f7: xor    %edx,%edx
+    0.00 :   1809f9: div    %ecx
+    0.00 :   1809fb: imul   $0x678,%rdx,%rax
+    0.00 :   180a02: add    %rax,%rdi
+    0.00 :   180a05: mov    $0x678,%edx
+    0.00 :   180a0a: call   *0x1b7b20(%rip)        # 338530 <memcpy@GLIBC_2.14>
+    0.00 :   180a10: inc    %r14
+    0.00 :   180a13: mov    %r14,0x80(%rbx)
+    0.00 :   180a1a: lock orl $0x0,-0x40(%rsp)
+  100.00 :   180a20: mov    0x1b9232(%rip),%eax        # 339c58 <blake3_servil::lanes::POOL+0x48>
+    0.00 :   180a26: test   %eax,%eax
+    0.00 :   180a28: jne    180a88 <<blake3_servil::lanes::sources::Source>::publish+0xd8>
+    0.00 :   180a2a: movzbl 0x1b9e51(%rip),%eax        # 33a882 <blake3_servil::lanes::FORKED>
+    0.00 :   180a31: test   %al,%al
+    0.00 :   180a33: jne    180a8d <<blake3_servil::lanes::sources::Source>::publish+0xdd>
+    0.00 :   180a35: cmpb   $0x1,0x1b9214(%rip)        # 339c50 <blake3_servil::lanes::POOL+0x40>
+    0.00 :   180a3c: jne    180a46 <<blake3_servil::lanes::sources::Source>::publish+0x96>
+    0.00 :   180a3e: xor    %eax,%eax
+    0.00 :   180a40: xchg   %al,0x1b9e3b(%rip)        # 33a881 <blake3_servil::lanes::SME2_PARKED>
+    0.00 :   180a46: mov    0x80(%rbx),%rax
+    0.00 :   180a4d: mov    (%rbx),%rcx
+    0.00 :   180a50: xor    %edx,%edx
+    0.00 :   180a52: sub    %rcx,%rax
+    0.00 :   180a55: cmovae %rax,%rdx
+    0.00 :   180a59: cmp    $0x2,%rdx
+    0.00 :   180a5d: jb     180a80 <<blake3_servil::lanes::sources::Source>::publish+0xd0>
+    0.00 :   180a5f: mov    0x1b91f3(%rip),%eax        # 339c58 <blake3_servil::lanes::POOL+0x48>
+    0.00 :   180a65: test   %eax,%eax
+    0.00 :   180a67: jne    180a88 <<blake3_servil::lanes::sources::Source>::publish+0xd8>
+    0.00 :   180a69: movzbl 0x1b9e12(%rip),%eax        # 33a882 <blake3_servil::lanes::FORKED>
+    0.00 :   180a70: test   %al,%al
+    0.00 :   180a72: jne    180a8d <<blake3_servil::lanes::sources::Source>::publish+0xdd>
+    0.00 :   180a74: add    $0x8,%rsp
+    0.00 :   180a78: pop    %rbx
+    0.00 :   180a79: pop    %r14
+    0.00 :   180a7b: jmp    17ed90 <<blake3_servil::park::Park>::wake_one>
+    0.00 :   180a80: add    $0x8,%rsp
+    0.00 :   180a84: pop    %rbx
+    0.00 :   180a85: pop    %r14
+    0.00 :   180a87: ret
+    0.00 :   180a88: call   16a9c0 <blake3_servil::lanes::no_pool>
+    0.00 :   180a8d: call   16a9e0 <blake3_servil::lanes::forked>
+    0.00 :   180a92: lea    -0x145837(%rip),%rdi        # 3b262 <__abi_tag+0x3af66>
+    0.00 :   180a99: lea    0x1b1760(%rip),%rdx        # 332200 <__frame_dummy_init_array_entry+0x9aa8>
+    0.00 :   180aa0: mov    $0x5d,%esi
+    0.00 :   180aa5: call   293d20 <core::panicking::panic_fmt>
+ Percent |	Source code & Disassembly of bench-d60b6053 for cpu_core/cycles/ (252 samples, percent: local period)
+---------------------------------------------------------------------------------------------------------------------
+         :
+         :
+         :
+         : 3      Disassembly of section .text:
+         :
+         : 5      00000000001809b0 <<blake3_servil::lanes::sources::Source>::publish>:
+    0.80 :   1809b0: push   %r14
+    0.00 :   1809b2: push   %rbx
+    0.00 :   1809b3: push   %rax
+    0.00 :   1809b4: mov    0x80(%rdi),%r14
+    0.40 :   1809bb: mov    (%rdi),%rax
+    1.59 :   1809be: mov    %r14,%rdx
+    0.00 :   1809c1: sub    %rax,%rdx
+    0.00 :   1809c4: mov    0x218(%rdi),%rcx
+    1.20 :   1809cb: cmp    %rcx,%rdx
+    0.00 :   1809ce: jae    180a92 <<blake3_servil::lanes::sources::Source>::publish+0xe2>
+    0.00 :   1809d4: mov    %rdi,%rbx
+    0.00 :   1809d7: mov    0x210(%rdi),%rdi
+    0.00 :   1809de: mov    %r14,%rax
+    0.00 :   1809e1: or     %rcx,%rax
+    0.00 :   1809e4: shr    $0x20,%rax
+    0.00 :   1809e8: je     1809f4 <<blake3_servil::lanes::sources::Source>::publish+0x44>
+    0.00 :   1809ea: mov    %r14,%rax
+    0.00 :   1809ed: xor    %edx,%edx
+    0.00 :   1809ef: div    %rcx
+    0.00 :   1809f2: jmp    1809fb <<blake3_servil::lanes::sources::Source>::publish+0x4b>
+    0.00 :   1809f4: mov    %r14d,%eax
+    0.00 :   1809f7: xor    %edx,%edx
+    0.00 :   1809f9: div    %ecx
+    0.40 :   1809fb: imul   $0x678,%rdx,%rax
+    0.40 :   180a02: add    %rax,%rdi
+    0.00 :   180a05: mov    $0x678,%edx
+    0.00 :   180a0a: call   *0x1b7b20(%rip)        # 338530 <memcpy@GLIBC_2.14>
+    0.00 :   180a10: inc    %r14
+    0.00 :   180a13: mov    %r14,0x80(%rbx)
+    0.00 :   180a1a: lock orl $0x0,-0x40(%rsp)
+   92.82 :   180a20: mov    0x1b9232(%rip),%eax        # 339c58 <blake3_servil::lanes::POOL+0x48>
+    0.00 :   180a26: test   %eax,%eax
+    0.00 :   180a28: jne    180a88 <<blake3_servil::lanes::sources::Source>::publish+0xd8>
+    0.00 :   180a2a: movzbl 0x1b9e51(%rip),%eax        # 33a882 <blake3_servil::lanes::FORKED>
+    0.00 :   180a31: test   %al,%al
+    0.00 :   180a33: jne    180a8d <<blake3_servil::lanes::sources::Source>::publish+0xdd>
+    0.00 :   180a35: cmpb   $0x1,0x1b9214(%rip)        # 339c50 <blake3_servil::lanes::POOL+0x40>
+    0.40 :   180a3c: jne    180a46 <<blake3_servil::lanes::sources::Source>::publish+0x96>
+    0.00 :   180a3e: xor    %eax,%eax
+    0.00 :   180a40: xchg   %al,0x1b9e3b(%rip)        # 33a881 <blake3_servil::lanes::SME2_PARKED>
+    0.40 :   180a46: mov    0x80(%rbx),%rax
+    0.80 :   180a4d: mov    (%rbx),%rcx
+    0.00 :   180a50: xor    %edx,%edx
+    0.00 :   180a52: sub    %rcx,%rax
+    0.40 :   180a55: cmovae %rax,%rdx
+    0.40 :   180a59: cmp    $0x2,%rdx
+    0.00 :   180a5d: jb     180a80 <<blake3_servil::lanes::sources::Source>::publish+0xd0>
+    0.00 :   180a5f: mov    0x1b91f3(%rip),%eax        # 339c58 <blake3_servil::lanes::POOL+0x48>
+    0.00 :   180a65: test   %eax,%eax
+    0.00 :   180a67: jne    180a88 <<blake3_servil::lanes::sources::Source>::publish+0xd8>
+    0.00 :   180a69: movzbl 0x1b9e12(%rip),%eax        # 33a882 <blake3_servil::lanes::FORKED>
+    0.00 :   180a70: test   %al,%al
+    0.00 :   180a72: jne    180a8d <<blake3_servil::lanes::sources::Source>::publish+0xdd>
+    0.00 :   180a74: add    $0x8,%rsp
+    0.00 :   180a78: pop    %rbx
+    0.00 :   180a79: pop    %r14
+    0.00 :   180a7b: jmp    17ed90 <<blake3_servil::park::Park>::wake_one>
+    0.00 :   180a80: add    $0x8,%rsp
+    0.00 :   180a84: pop    %rbx
+    0.00 :   180a85: pop    %r14
+    0.00 :   180a87: ret
+    0.00 :   180a88: call   16a9c0 <blake3_servil::lanes::no_pool>
+    0.00 :   180a8d: call   16a9e0 <blake3_servil::lanes::forked>
+    0.00 :   180a92: lea    -0x145837(%rip),%rdi        # 3b262 <__abi_tag+0x3af66>
+    0.00 :   180a99: lea    0x1b1760(%rip),%rdx        # 332200 <__frame_dummy_init_array_entry+0x9aa8>
+    0.00 :   180aa0: mov    $0x5d,%esi
+    0.00 :   180aa5: call   293d20 <core::panicking::panic_fmt>
