@@ -17,8 +17,8 @@ use std::task::{Context, Poll, Wake, Waker};
 
 /// A pipeline's handler is a plain function, so the pipeline's type is
 /// nameable and kept in a thread local.
-type Pipeline = Stream<'static, usize, fn(Event<usize>)>;
-pub(crate) type Open = Message<'static, 'static, usize, fn(Event<usize>)>;
+type Pipeline = Stream<usize, fn(Event<usize>)>;
+pub(crate) type Open = Message<'static, usize, fn(Event<usize>)>;
 
 /// The room budget of a message received alone: 64 rooms of 16 KiB, 1 MiB
 /// in flight, and two message slots (the one being received and the last,
