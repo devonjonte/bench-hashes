@@ -14,7 +14,7 @@
 //! the running time's TSC scale; 10-20 ns a read), else by the `read`
 //! system call (180-490 ns). A read sits between a cell's pause and its
 //! call, so its cost reaches the call: on the i7-12700K the system calls
-//! made a 64 B call after 20 us read 12% slower and after 5 ms 14% faster
+//! made a 64 B call after 20 μs read 12% slower and after 5 ms 14% faster
 //! than with no reads at all (bench-hashes #127, November 4, 2026).
 use super::{Counts, Level};
 use std::ffi::{c_int, c_long, c_void};

@@ -42,7 +42,7 @@
 //! the machine only once a window of [`WINDOW_NS`] has passed since the
 //! last reading, and otherwise costs one wall-clock read and one atomic
 //! load. Measured in the Linux VM (`reading_cost` below, September 30,
-//! 2026): a reading 8.6 us, a tick between readings 18 ns. A program
+//! 2026): a reading 8.6 μs, a tick between readings 18 ns. A program
 //! that times with [`crate::now`] directly calls [`tick`] itself, between
 //! samples.
 //!

@@ -8,8 +8,8 @@ A run measures calls made now and then, continuous hashing, and receiving
 a message in fragments. Calls made now and then follow one of three gaps. **After other
 work** runs after the program has executed a fixed other program and read
 128 MiB of data, as a program hashes between its other tasks. **After a
-brief idle** runs after the program has slept 20 us (the bench sets its
-timer slack to 1 us, so the sleep lands at 23 us where Linux's default
+brief idle** runs after the program has slept 20 μs (the bench sets its
+timer slack to 1 μs, so the sleep lands at 23 μs where Linux's default
 landed it at 72), as a server answers a reply that arrives at once: the
 core keeps its clock and its shallowest idle state. **After idling** runs after the program has slept 5 ms, as a
 server waits for its next request: every machine measured has settled
@@ -126,7 +126,7 @@ is per byte of pieces.
 This case times a 16 MiB message from its first arriving fragment to its
 completed hash. Fragments cycle through 1448 B, 4 KiB, 16 KiB and 64 KiB,
 cut at the message's end. The axis is arrival spacing: saturated input,
-2 us or 20 us. Scheduled arrivals are fixed offsets from the first,
+2 μs or 20 μs. Scheduled arrivals are fixed offsets from the first,
 independent of consumer work. `clocks::sleep_until` waits only for the
 remaining time. A late consumer finds data ready, as with buffered I/O.
 The saturated producer makes no clock reads or waits between fragments.
@@ -234,14 +234,14 @@ interval takes two samples of the same batch:
   second copy would warm the cache the gap was meant to cool.
 
 In the calls after a gap, each sample is one call (or enough calls to
-fill 2 µs when a single call is shorter than the clock tick), each
+fill 2 μs when a single call is shorter than the clock tick), each
 preceded by its use case's gap and timed outside the gap. Before a sample's
 first timed call, one untimed call with its own gap runs so the sample
 starts from that cell's own state. After other work, the thread executes
 1024 generated functions (about 1.1 MiB of machine code) to evict the
 instruction cache, walks a 128 MiB working buffer at 64-byte intervals,
 and spends any remaining millisecond on integer arithmetic. After idling,
-the thread sleeps its use case's 20 us or 5 ms. In both cases the thread then writes the input
+the thread sleeps its use case's 20 μs or 5 ms. In both cases the thread then writes the input
 into its buffer and hashes it, storing the digest in its output slot.
 
 In every gap kind, any worker pool's threads have gone to sleep. After
@@ -250,7 +250,7 @@ other program's code and data. After a brief idle, the core has entered
 its shallowest idle state alone and kept its clock. After idling 5 ms,
 the operating system has lowered the core's clock, let it enter its deep
 states, or moved the thread. On an Apple M4 Max, 1 ms of sleep lowers the clock
-until roughly 85 µs of work raises it again, and multi-millisecond calls
+until roughly 85 μs of work raises it again, and multi-millisecond calls
 run near 3.8–4.0 GHz after idling against 4.5 GHz after other work. On
 Linux, what a call after idling costs follows how deeply the core slept,
 which the idle governor chooses from recent history: on an i7-12700K, a
@@ -419,7 +419,7 @@ samples ran near 3.0 GHz (against 4.4 GHz alone) and sleeping calls ran
 near full clock (against 3.8–4.0 GHz among other sleeping calls). Each contender/point combination is
 calibrated separately: a continuous cell's timed samples last about 1 ms
 each (and hold at least twice the buffers its program keeps in flight), a
-synchronous cell's sum about 2 µs of calls after the gap.
+synchronous cell's sum about 2 μs of calls after the gap.
 
 A run keeps its calibration in the user's cache directory
 (`$XDG_CACHE_HOME/bench-hashes`, or `~/.cache/bench-hashes`), one file
@@ -533,7 +533,7 @@ AMD maps the pair by generation; a VM or a Mac counts none). On Linux
 x86-64 the counters are read in user space (`rdpmc`) where the kernel
 allows, else by a system call; the read sits between a cell's pause and
 its call, where a system call's microsecond reached the call (#127:
-the i7's 64 B call after 20 us read 13% slower with the system calls,
+the i7's 64 B call after 20 μs read 13% slower with the system calls,
 1% with `rdpmc`). On Apple silicon and Linux x86-64 CPUs with
 performance counters, the map's tooltip shows each point's core share
 and clock rate. On Linux, running time also covers kernel work, so the
@@ -691,7 +691,7 @@ filesystem or drive still reads them in full.
 **Builds.** `tools/b3sum-contenders.py` builds each `b3sum` as its own
 project recommends: official BLAKE3's as `cargo install b3sum` builds it
 (dynamically linked), BLAKE3-Servil's statically linked on Linux, as its
-README recommends. A static build skips the dynamic loader, saving about 240 µs per process
+README recommends. A static build skips the dynamic loader, saving about 240 μs per process
 on an i7-12700K (0.49 ms against 0.74 ms on a 64-byte file), which
 contributes to the single-file process cells. With `LAYOUTS=N`, the
 script relinks each `b3sum` binary `N` times with a random function
@@ -764,7 +764,7 @@ system time counts like its user time: four readers of `/dev/urandom`
 read four CPUs busy.
 The OS counts both in 10 ms ticks, so the run sums them over
 windows of about a second, read between samples (a reading takes about
-9 µs, once a second, outside every timed interval); on 16 CPUs a window
+9 μs, once a second, outside every timed interval); on 16 CPUs a window
 reads within 0.16 CPUs. macOS posts the machine's ticks about once a
 second, in a lump, up to a second after the work they count (12 threads'
 last second, 10 CPU-seconds, arrived in one 50 ms poll after they had

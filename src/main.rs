@@ -73,7 +73,7 @@ const TARGET_SAMPLE_NS: u128 = 1_000_000;
  * a walk of GAP_WORK_BYTES, then integer work to 1 ms, as on a machine
  * busy with other programs; after idling, a 1 ms sleep, as a server
  * waiting for its next request. Longer than a pool keeps its workers
- * polling (BLAKE3-Servil's, 200 us), so each call meets them asleep.
+ * polling (BLAKE3-Servil's, 200 μs), so each call meets them asleep.
  */
 const GAP_NS: u64 = 1_000_000;
 /// The data the other work reads, per measuring thread: larger than the
@@ -889,8 +889,8 @@ enum UseCase {
 /// measured has settled into its deep states (the i7-12700K's transition
 /// is at 1 ms, the pause until 0.20; the Xeon's and the EPYC's deep
 /// plateau begins before). Each is a real program's situation, and each
-/// is a stable one. The bench sets its timer slack to 1 us
-/// (clocks::tight_timers), so a sleep of 20 us lands at 23 us on Linux
+/// is a stable one. The bench sets its timer slack to 1 μs
+/// (clocks::tight_timers), so a sleep of 20 μs lands at 23 μs on Linux
 /// where the default slack landed it at 72; the pause's own length is
 /// outside the interval.
 const BRIEF_PAUSE_NS: u64 = 20_000;
@@ -1074,8 +1074,8 @@ impl UseCase {
             Self::ManyLongMessages => "A batch of 4 KiB messages, after other work",
             Self::IdleOneMessage => "A message in one buffer, after idling 5 ms",
             Self::IdleManyMessages => "A batch of 64-byte messages, after idling 5 ms",
-            Self::BriefIdleOneMessage => "A message in one buffer, after idling 20 us",
-            Self::BriefIdleManyMessages => "A batch of 64-byte messages, after idling 20 us",
+            Self::BriefIdleOneMessage => "A message in one buffer, after idling 20 μs",
+            Self::BriefIdleManyMessages => "A batch of 64-byte messages, after idling 20 μs",
             Self::ControlledIdleOneMessage => {
                 "A message in one buffer, after idling 5 ms, deep idle states off"
             }
@@ -1094,7 +1094,7 @@ impl UseCase {
                 "Many messages at once, a turn of their pieces after idling 5 ms"
             }
             Self::BriefIdleInterleavedTurn => {
-                "Many messages at once, a turn of their pieces after idling 20 us"
+                "Many messages at once, a turn of their pieces after idling 20 μs"
             }
             Self::ControlledIdleInterleavedTurn => {
                 "Many messages at once, a turn of their pieces after idling 5 ms, deep idle states off"
@@ -1197,7 +1197,7 @@ impl UseCase {
         let description = if self.controlled() {
             "the program hashes, sleeps 5 ms, and hashes again, with every idle state but the shallowest switched off (the bench runs as root), so the call meets the core awake and the cell measures the library alone; the second call, with the write of its input, is timed"
         } else if self.pause_ns() == Some(BRIEF_PAUSE_NS) {
-            "the program hashes, sleeps 20 us, and hashes again, as a server handles a request, waits a moment, and handles the next; the second call, with the write of its input, is timed"
+            "the program hashes, sleeps 20 μs, and hashes again, as a server handles a request, waits a moment, and handles the next; the second call, with the write of its input, is timed"
         } else if self.idle() {
             "the program hashes, sleeps 5 ms, and hashes again, as a server handles a request, waits, and handles the next; the second call, with the write of its input, is timed"
         } else if self.after_gap() {
@@ -3426,7 +3426,7 @@ fn measure_all(
      * sleep between them, and one that idles between calls mostly sleeps.
      */
     // Each way of calling its own set of rounds (the brief pause and the
-    // long one apart too: a core's clock after 20 us differs from after 5 ms).
+    // long one apart too: a core's clock after 20 μs differs from after 5 ms).
     for pattern in PATTERNS {
         progress.phase("calibrating");
 
@@ -5872,7 +5872,7 @@ fn take_buffers(count: usize, len: usize) -> Vec<Vec<u8>> {
  * before any sample: a kept buffer of a real program has met its first
  * use long before. vec![0; len] is no substitute: it takes zeroed pages
  * the system maps only at their first write, inside the first sample
- * (fork tmp/lentprobe: 330 against 217 us a queue batch).
+ * (fork tmp/lentprobe: 330 against 217 μs a queue batch).
  */
 fn written<T: Clone>(len: usize, value: T) -> Vec<T> {
     vec![value; len]
@@ -6031,10 +6031,10 @@ thread_local! {
  */
 #[cfg(test)]
 const SERVIL_CALLS: [(Algorithm, UseCase, &str); 34] = [
-    (Algorithm::Blake3ServilPipeline, UseCase::ReceivingMessage, "throughput::pipeline: one Stream kept for the process (64 rooms of 16 KiB, 1 MiB in flight; 2 message slots), Stream::message per message with its length as the hint, each received fragment written into the rooms Message::input gives and committed (the one copy of an arrival), the last fragment's final bytes ended with Message::end(n), then collect and ready until the digest is delivered; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, writes and the wait for the digest timed together"),
+    (Algorithm::Blake3ServilPipeline, UseCase::ReceivingMessage, "throughput::pipeline: one Stream kept for the process (64 rooms of 16 KiB, 1 MiB in flight; 2 message slots), Stream::message per message with its length as the hint, each received fragment written into the rooms Message::input gives and committed (the one copy of an arrival), the last fragment's final bytes ended with Message::end(n), then collect and ready until the digest is delivered; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, writes and the wait for the digest timed together"),
     (Algorithm::Blake3ServilPipeline, UseCase::ContinuousBatches, "throughput::pipeline: the Stream kept for the process (64 rooms of 16 KiB; 2 message slots, so two batches in flight), Stream::submit_batch(batch, places, tag) per batch, the batch (an owned Batch) and its places (&'static mut, kept for the process: the frontend borrows them for the pipeline's life) lent, both handed back by Event::Batch; each batch refilled from the input (every 64-byte message copied in), its digests consumed whole as the batch comes back, the pair used again; collect and ready while none is free; every batch still out waited for at a sample's end"),
-    (Algorithm::Blake3ServilSt, UseCase::ReceivingMessage, "convenience::Hasher::new(Mode::Plain, None), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together"),
-    (Algorithm::Blake3ServilMt, UseCase::ReceivingMessage, "convenience::Hasher::new(Mode::Plain, None), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together"),
+    (Algorithm::Blake3ServilSt, UseCase::ReceivingMessage, "convenience::Hasher::new(Mode::Plain, None), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, updates and finalization timed together"),
+    (Algorithm::Blake3ServilMt, UseCase::ReceivingMessage, "convenience::Hasher::new(Mode::Plain, None), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, updates and finalization timed together"),
     (Algorithm::Blake3ServilSt, UseCase::InterleavedTurn, "the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it"),
     (Algorithm::Blake3ServilSt, UseCase::IdleInterleavedTurn, "the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after idling: throughput::update_each, then throughput::finalize_each for the messages that ended in it"),
     (Algorithm::Blake3ServilMt, UseCase::InterleavedTurn, "the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after other work: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it"),
@@ -6287,7 +6287,7 @@ fn each_message<D: AsRef<[u8]>>(
  * call follows its own preparation. A release through a barrier or condition variable would
  * instead need the operating system to wake a sleeping thread, which on a
  * busy machine can take hundreds of microseconds (a two-CPU virtual
- * machine measured 300 µs when the caller's own thread had just finished
+ * machine measured 300 μs when the caller's own thread had just finished
  * a batch on that CPU); a copy that starts late finishes late through no
  * fault of the contender, and the pair's later finish would carry the
  * wake, not the hash. A polling copy needs no wake.
@@ -6487,7 +6487,7 @@ impl Duo {
              * as copies the other copy's worker threads (a multithreaded
              * contender's) would wait that quantum to start: measured, a
              * 128 KiB multithreaded hash beside two hard spinners took 2 ms in
-             * place of 29 µs. A yielding poll still has the copy in the
+             * place of 29 μs. A yielding poll still has the copy in the
              * instruction stream when the release comes, within a
              * microsecond of it.
              */
@@ -6960,8 +6960,8 @@ fn calibrate_batch(algorithm: Algorithm, input: &[u8], point: Point) -> (usize, 
      * A cell's first calls carry one-time costs (a pool or a queue's
      * delivery thread starting, a self-test, first-touched buffers), which
      * would size its samples short: untimed batches first (Devon Jonte,
-     * bench-hashes#4: the queue's 64 B samples 154-199 us against the 1 ms
-     * target; the Mac's 176 us), and each probe the fastest of three. One
+     * bench-hashes#4: the queue's 64 B samples 154-199 μs against the 1 ms
+     * target; the Mac's 176 μs), and each probe the fastest of three. One
      * untimed batch and one probe left Interleaved 256 still warming
      * in some builds (i7-12700K: probes 0.57-0.79 ms against 0.28 ms an
      * iteration steady), which halved its samples and read it 4-10% slower
@@ -8548,7 +8548,7 @@ fn machine_metadata() -> MachineMetadata {
  * EPYC 9255 runs no cpuidle driver and has no such modes; the Xeon Gold
  * 6330 is 14 times slower than the EPYC in that cell, mostly this. Linux
  * reports the driver and governor, and CPU 0's states as "NAME latency
- * LAT us residency RES us" with "disabled" where a state is; "none listed"
+ * LAT μs residency RES μs" with "disabled" where a state is; "none listed"
  * where no driver runs (the kernel's default idle, the EPYC 9255); other systems report no states ("not reported by this
  * OS"), as the power line does.
  */
@@ -8574,12 +8574,12 @@ fn effective_idle_states() -> String {
     "not measured (no cstate_core counters readable here)".to_owned()
 }
 
-/// A pause as the headings name it: "20 us", "5 ms".
+/// A pause as the headings name it: "20 μs", "5 ms".
 fn describe_pause(ns: u64) -> String {
     if ns % 1_000_000 == 0 {
         format!("{} ms", ns / 1_000_000)
     } else {
-        format!("{} us", ns / 1_000)
+        format!("{} μs", ns / 1_000)
     }
 }
 
@@ -8874,7 +8874,7 @@ fn describe_idle_states(read: &dyn Fn(&str) -> Option<String>) -> String {
         let field =
             |f: &str| read(&format!("{state}/{f}")).map_or("?".to_owned(), |v| v.trim().to_owned());
         states.push(format!(
-            "{} latency {} us residency {} us{}",
+            "{} latency {} μs residency {} μs{}",
             name.trim(),
             field("latency"),
             field("residency"),
@@ -10004,7 +10004,7 @@ mod correctness_tests {
         };
         assert_eq!(
             describe_idle_states(&i7),
-            "driver intel_idle, governor menu; POLL latency 0 us residency 0 us, C1E latency 2 us residency 4 us, C6 latency 220 us residency 600 us disabled"
+            "driver intel_idle, governor menu; POLL latency 0 μs residency 0 μs, C1E latency 2 μs residency 4 μs, C6 latency 220 μs residency 600 μs disabled"
         );
         let epyc = |path: &str| -> Option<String> {
             path.ends_with("current_driver")

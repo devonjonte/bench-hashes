@@ -827,12 +827,12 @@ fn rate(bytes: u64, ns: u128) -> String {
     three(u128::from(bytes), ns.max(1))
 }
 
-/// A whole run's duration for people: "812 us", "1.23 ms", "2.05 s" (three
+/// A whole run's duration for people: "812 μs", "1.23 ms", "2.05 s" (three
 /// significant digits, rounded half up once). Times per unit are format_ns.
 pub(crate) fn time(ns: u128) -> String {
     match ns {
         n if n < 1_000 => format!("{n} ns"),
-        n if n < 1_000_000 => format!("{} us", three(n, 1_000)),
+        n if n < 1_000_000 => format!("{} μs", three(n, 1_000)),
         n if n < 1_000_000_000 => format!("{} ms", three(n, 1_000_000)),
         n => format!("{} s", three(n, 1_000_000_000)),
     }
@@ -1085,7 +1085,7 @@ mod tests {
     fn people_read_three_digits() {
         assert_eq!(time(812), "812 ns");
         assert_eq!(time(1_234_567), "1.23 ms");
-        assert_eq!(time(45_600), "45.6 us");
+        assert_eq!(time(45_600), "45.6 μs");
         assert_eq!(time(2_050_000_000), "2.05 s");
         assert_eq!(rate(GIB, 100_000_000), "10.7");
     }

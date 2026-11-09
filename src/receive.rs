@@ -7,7 +7,7 @@
 /// A TCP payload, a page, a TLS record and a coalesced read, in a fixed cycle.
 pub(crate) const FRAGMENTS: [usize; 4] = [1448, 4096, 16 * 1024, 64 * 1024];
 pub(crate) const MESSAGE_LEN: usize = 16 << 20;
-pub(crate) const CASES: [(&str, u64); 3] = [("saturated", 0), ("2 us", 2_000), ("20 us", 20_000)];
+pub(crate) const CASES: [(&str, u64); 3] = [("saturated", 0), ("2 μs", 2_000), ("20 μs", 20_000)];
 
 /// The producer schedule and timed work, generated from the trace itself.
 pub(crate) fn description() -> String {
@@ -140,7 +140,7 @@ mod tests {
         );
         assert_eq!(CASES[2].1, crate::BRIEF_PAUSE_NS);
         for &(label, ns) in &CASES[1..] {
-            assert_eq!(label, format!("{} us", ns / 1_000));
+            assert_eq!(label, format!("{} μs", ns / 1_000));
         }
         assert!(FRAGMENTS.iter().all(|&n| n <= crate::PIECE_LEN));
         for &point in points {

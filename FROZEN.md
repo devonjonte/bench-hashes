@@ -48,6 +48,14 @@ from then, each entry naming its decider):
   post or a record, so that no figure there is typed by hand. The judgment
   is unchanged. The reason: figures copied into posts by hand were a
   source of error, and a table printed by the tool carries its own.
+- **Microseconds are written μs** (Devon Jonte, November 9, 2026, at the
+  user's suggestion). Every microsecond the benchmark writes, in point
+  names (`receive 2 μs`, `receive 20 μs`, also as `--points` takes them),
+  descriptions, the idle-states line, b3sum's run times, the map and the
+  documents, is written with μ (U+03BC GREEK SMALL LETTER MU, which
+  Unicode's normalization makes of the older U+00B5 MICRO SIGN), where it
+  read "us", or "µ" in places. Records written before keep their names;
+  a comparison across the change meets the receive cells under two names.
 - **BLAKE3-Servil's build version, on its own line** (Devon Jonte,
   November 9, 2026, at Zooko's request for as much as fits in the
   version; bench-hashes #154, BLAKE3 #328). Every samples file gains a
@@ -144,7 +152,7 @@ from then, each entry naming its decider):
   2026, following Zooko's API direction in
   [BLAKE3 #267](https://github.com/servil-software-factory/BLAKE3/issues/267),
   convenience and throughput contracts). `ReceivingMessage` measures a
-  16 MiB message at three arrival spacings: saturated, 2 us and 20 us.
+  16 MiB message at three arrival spacings: saturated, 2 μs and 20 μs.
   Fragments cycle through 1448 B, 4 KiB, 16 KiB and 64 KiB, cut at the
   message's end. Each scheduled arrival is a fixed offset from the first.
   Consumer work and sleep overshoot leave later deadlines unchanged.
@@ -192,24 +200,24 @@ from then, each entry naming its decider):
   Max). A run's `sample clock` line names it. Zooko's measure-clocks3
   (December 2025) compares the clocks on both platforms.
 - **Two pauses before a call "after idling"** (Zooko and John, November
-  4, 2026; bench-hashes #117, Sam Shackleton's protocol): 20 us (the use
+  4, 2026; bench-hashes #117, Sam Shackleton's protocol): 20 μs (the use
   cases `BriefIdleOneMessage`, `BriefIdleManyMessages`,
   `BriefIdleInterleavedTurn`) and 5 ms (`IdleOneMessage`,
   `IdleManyMessages`, `IdleInterleavedTurn`, until 0.20 at 1 ms). After
-  20 us a core keeps its clock and its shallowest idle state; after 5 ms
+  20 μs a core keeps its clock and its shallowest idle state; after 5 ms
   every machine measured has settled into its deep states, where 1 ms
   was the i7-12700K's transition between the two, bimodal (#117: the
-  i7's 16 x 64 B batch x2.0 at 20 us, x2.6 at 1 ms with 24-49%
+  i7's 16 x 64 B batch x2.0 at 20 μs, x2.6 at 1 ms with 24-49%
   detectable, x6.3 at 5 ms with 16%). Each pause is a real program's
   situation, and each is stable. The pauses land when asked: the bench
-  sets its threads' timer slack to 1 us (`clocks::tight_timers`; Linux
-  gives a thread 50 us by default, which landed the 20 us sleep at 72 us
-  and let the i7's core reach C6 in 39% of it; at 23 us it stays in C1). The pauses run in sets of rounds of
+  sets its threads' timer slack to 1 μs (`clocks::tight_timers`; Linux
+  gives a thread 50 μs by default, which landed the 20 μs sleep at 72 μs
+  and let the i7's core reach C6 in 39% of it; at 23 μs it stays in C1). The pauses run in sets of rounds of
   their own, as the other ways of calling do. The run grows by the
   after-pause cells' share. Each samples file records, beside the
   configured idle states, the **effective** ones: the shares of the
   core's hardware C-state residency under each pause, slept at the run's
-  start as the cells sleep it (1000 x 20 us, 20 x 5 ms; Linux, Intel's
+  start as the cells sleep it (1000 x 20 μs, 20 x 5 ms; Linux, Intel's
   `cstate_core` counters; elsewhere "not measured"), since a configured
   state may seldom happen within a pause (the Xeon Gold 6330's C6 within
   1 ms, #117) and the deepest may be one no software counter names (the
@@ -1005,7 +1013,7 @@ regression check, calibrated"):
   lent pieces' read buffer came from `vec![0; len]`, zeroed pages the
   system maps only at their first write, so they faulted inside each
   cell's first sample, a first-use cost no kept buffer of a real program
-  pays (330 against 217 us a queue batch in BLAKE3-Servil's tmp/lentprobe).
+  pays (330 against 217 μs a queue batch in BLAKE3-Servil's tmp/lentprobe).
 
 Why each piece is here (Zooko, September 28, 2026, replacing the contract
 of September 27, whose queue cells measured a round trip rather than
@@ -1185,16 +1193,16 @@ use case InterleavedTurn: 256, 1024 x 1 KiB
 use case IdleInterleavedTurn: 256, 1024 x 1 KiB
 use case BriefIdleInterleavedTurn: 256, 1024 x 1 KiB
 use case ControlledIdleInterleavedTurn: 256, 1024 x 1 KiB
-use case ReceivingMessage: saturated, 2 us, 20 us
-receive trace: 16777216 B per message; fragment cycle 1448, 4096, 16384, 65536 B; arrival spacing saturated: 0 ns, 2 us: 2000 ns, 20 us: 20000 ns; deadlines fixed from the first arrival, independent of consumer work; receiving through finalization timed together
+use case ReceivingMessage: saturated, 2 μs, 20 μs
+receive trace: 16777216 B per message; fragment cycle 1448, 4096, 16384, 65536 B; arrival spacing saturated: 0 ns, 2 μs: 2000 ns, 20 μs: 20000 ns; deadlines fixed from the first arrival, independent of consumer work; receiving through finalization timed together
 scenarios: solo, shared-one-cache, shared-two-caches, shared-os
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree, ReceivingMessage
 shared placements: two cores under one last-level cache; two cores under two (where the machine has two); where it offers no pair (macOS), wherever the OS runs them
 shared contenders: blake3-official-mt, blake3-servil-mt, blake3-servil-pipeline
-blake3-servil-pipeline ReceivingMessage: throughput::pipeline: one Stream kept for the process (64 rooms of 16 KiB, 1 MiB in flight; 2 message slots), Stream::message per message with its length as the hint, each received fragment written into the rooms Message::input gives and committed (the one copy of an arrival), the last fragment's final bytes ended with Message::end(n), then collect and ready until the digest is delivered; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, writes and the wait for the digest timed together
+blake3-servil-pipeline ReceivingMessage: throughput::pipeline: one Stream kept for the process (64 rooms of 16 KiB, 1 MiB in flight; 2 message slots), Stream::message per message with its length as the hint, each received fragment written into the rooms Message::input gives and committed (the one copy of an arrival), the last fragment's final bytes ended with Message::end(n), then collect and ready until the digest is delivered; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, writes and the wait for the digest timed together
 blake3-servil-pipeline ContinuousBatches: throughput::pipeline: the Stream kept for the process (64 rooms of 16 KiB; 2 message slots, so two batches in flight), Stream::submit_batch(batch, places, tag) per batch, the batch (an owned Batch) and its places (&'static mut, kept for the process: the frontend borrows them for the pipeline's life) lent, both handed back by Event::Batch; each batch refilled from the input (every 64-byte message copied in), its digests consumed whole as the batch comes back, the pair used again; collect and ready while none is free; every batch still out waited for at a sample's end
-blake3-servil-st ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together
-blake3-servil-mt ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together
+blake3-servil-st ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, updates and finalization timed together
+blake3-servil-mt ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, updates and finalization timed together
 blake3-servil-st InterleavedTurn: the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it
 blake3-servil-st IdleInterleavedTurn: the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after idling: throughput::update_each, then throughput::finalize_each for the messages that ended in it
 blake3-servil-mt InterleavedTurn: the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after other work: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it

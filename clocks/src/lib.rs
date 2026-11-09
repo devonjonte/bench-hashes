@@ -54,7 +54,7 @@
 //! at 5005425b on the same Mac agrees with its December 2025 results: every
 //! wall clock steps 41.67 ns, the thread CPU-time clock has the smallest
 //! spread (it stops while the thread is interrupted), and process CPU time
-//! steps 1 us.
+//! steps 1 μs.
 //!
 //! **Another program's run** ([`child`]): wall time from its start to its
 //! exit, with the counts the OS keeps for the process (CPU time, peak
@@ -216,8 +216,8 @@ pub struct Counts {
 /// (Linux: a thread pinned to one CPU of each kind; elsewhere the calling
 /// thread). Every counted sample carries this much that is the reads' own,
 /// so a sample's work against it says how diluted the reads are
-/// (bench-hashes #160: a quarter of a 0.6 us sample on the Mac, 0.4% of
-/// 36 us). "not measured" where the platform gives no counts.
+/// (bench-hashes #160: a quarter of a 0.6 μs sample on the Mac, 0.4% of
+/// 36 μs). "not measured" where the platform gives no counts.
 pub fn read_overhead() -> String {
     /// Pin the calling thread to `cpu` (Linux); whether it held.
     fn pin(cpu: usize) -> bool {
@@ -583,8 +583,8 @@ pub fn set_qos(class: u32) {
 }
 
 /// Make the calling thread's sleeps land when asked (Linux: timer slack
-/// 1 us in place of the 50 us every normal thread gets, which landed a
-/// 20 us sleep at 72 us and a 5 ms one up to 300 us late on the
+/// 1 μs in place of the 50 μs every normal thread gets, which landed a
+/// 20 μs sleep at 72 μs and a 5 ms one up to 300 μs late on the
 /// i7-12700K; threads made after this inherit it). Elsewhere nothing.
 /// A pause before a call is the measurement's; its length should be the
 /// one the method names.
@@ -841,8 +841,8 @@ mod tests {
         /// as Darwin's CLOCK_MONOTONIC through clock_gettime does, would fail
         /// here), and it reads at the cost of a function call. A change of the
         /// clock behind `now` shows here.
-        /// On Linux a thread's sleeps land late by its timer slack (50 us by
-        /// default); after tight_timers a 20 us sleep lands within 10 us of
+        /// On Linux a thread's sleeps land late by its timer slack (50 μs by
+        /// default); after tight_timers a 20 μs sleep lands within 10 μs of
         /// it, in the median of 200. Elsewhere the call is nothing and the
         /// sleep lands as the OS lands it.
         #[test]
@@ -863,8 +863,8 @@ mod tests {
                 let loose = landing();
                 tight_timers();
                 let tight = landing();
-                eprintln!("a 20 us sleep lands at {loose} ns with the default slack, {tight} ns with 1 us");
-                assert!(tight < 30_000, "a 20 us sleep lands within 10 us: {tight} ns");
+                eprintln!("a 20 μs sleep lands at {loose} ns with the default slack, {tight} ns with 1 μs");
+                assert!(tight < 30_000, "a 20 μs sleep lands within 10 μs: {tight} ns");
                 assert!(tight < loose, "tight timers land sooner than the default slack ({loose} ns)");
             })
             .join()
@@ -918,7 +918,7 @@ mod tests {
             assert!(before <= ours.0 && ours.0 <= after, "a reading of ours lies between two of CLOCK_MONOTONIC_RAW's: {before} {} {after}", ours.0);
             // The slewed clock and ours differ by what the daemon has applied
             // since boot; the difference moves by at most the slew (500 ppm)
-            // over 10 ms, under 5 us, while a wrong clock behind `now` would
+            // over 10 ms, under 5 μs, while a wrong clock behind `now` would
             // make it the full offset or a jump.
             let offset = || read(CLOCK_MONOTONIC) as i128 - now().0 as i128;
             let o1 = offset();
@@ -926,7 +926,7 @@ mod tests {
             let o2 = offset();
             assert!(
                 (o1 - o2).abs() < 5_000 + 20_000,
-                "the offset to CLOCK_MONOTONIC moved by {} ns in 10 ms (slew is under 5 us; the rest a read's own time)",
+                "the offset to CLOCK_MONOTONIC moved by {} ns in 10 ms (slew is under 5 μs; the rest a read's own time)",
                 o1 - o2
             );
         }

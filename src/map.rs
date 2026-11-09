@@ -774,7 +774,7 @@ fn hashing(path: &Path) -> Section {
         cols: vec![
             ("receiving", "receive + hash, including waits", "A message arrives in fragments on a fixed schedule, independent of the hash calls. A saturated source supplies the next fragment immediately. The time includes receiving, waiting, hashing and finalization; its rate is end-to-end reception, not hashing alone."),
             ("busy", "now and then, after other work", "The program hashes now and then and does other work in between, which pushes the hash's code and data out of the CPU's caches."),
-            ("brief", "now and then, after a brief pause", "The program hashes now and then and waits 20 us in between (a reply arrives at once), so the core keeps its clock and its shallowest rest."),
+            ("brief", "now and then, after a brief pause", "The program hashes now and then and waits 20 μs in between (a reply arrives at once), so the core keeps its clock and its shallowest rest."),
             ("idle", "now and then, after a pause", "The program hashes now and then and waits 5 ms in between (for the network, say), so the core rests deeply and starts the next hash slowly."),
             ("controlled", "now and then, after a pause, deep rest off", "The same 5 ms pause with the core's deep idle states switched off (the bench ran as root), so the call meets the core awake: the library's own cost, apart from the machine's rest."),
             ("lent", "nonstop, waiting for each call", "The program hashes input after input as fast as it can, reading each input once the hash before it has returned."),

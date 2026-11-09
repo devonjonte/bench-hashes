@@ -15,7 +15,7 @@ FORK is a checkout of github.com/servil-software-factory/BLAKE3.
                             a user chooses between
 Each b3sum is built as its own project recommends (official's from crates.io,
 as `cargo install b3sum` builds it); on Linux, BLAKE3-Servil's static link alone
-makes each of its runs about 240 us shorter (METHODOLOGY, b3sum).
+makes each of its runs about 240 μs shorter (METHODOLOGY, b3sum).
 With LAYOUTS=N (default 1), each b3sum is also relinked N times, its functions
 in a random order each time (lld's --symbol-ordering-file, as BLAKE3-Servil's check
 relinks the library), DIR/...-L0 to -L(N-1): a binary's layout alone moves its

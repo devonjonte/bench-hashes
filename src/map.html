@@ -418,9 +418,9 @@ function tipHTML(S, q, k) {
   const rows = q.series.map((s, i) => s && S.shownNow[i] ? [i, 1 / s[k], s[k]] : null).filter(Boolean).sort((a, b) => b[1] - a[1]);
   /* Beside an earlier run: its rate, and how many times faster the run is. */
   const was = i => { const v = S.besideNow && q.before[i] && q.before[i][k]; return v ? ` <span class="was">(before: ${(1 / v).toPrecision(3)}; now ×${(v / q.series[i][k]).toFixed(2)})</span>` : ""; };
-  const time = ns => ns >= 1e6 ? (ns / 1e6).toPrecision(3) + " ms" : ns >= 1e3 ? (ns / 1e3).toPrecision(3) + " µs" : ns.toPrecision(3) + " ns";
+  const time = ns => ns >= 1e6 ? (ns / 1e6).toPrecision(3) + " ms" : ns >= 1e3 ? (ns / 1e3).toPrecision(3) + " μs" : ns.toPrecision(3) + " ns";
   const cpuOf = i => { const v = q.cpu[i] && q.cpu[i][k]; return v ? `${M.wall ? "; " : ""}CPU ${SHOW.cost ? v.toPrecision(3) + " ns/B · " : ""}${time(v * q.per[k])} ${q.what}` : M.wall ? "" : "no CPU time recorded"; };
-  const energyOf = i => { const v = q.energy[i] && q.energy[i][k]; if (!v) return ""; const nj = v * q.per[k]; return `${M.wall || M.cpu ? "; " : ""}energy ${SHOW.cost ? v.toPrecision(3) + " nJ/B · " : (1 / v).toPrecision(3) + " GB/J · "}${nj >= 1e6 ? (nj / 1e6).toPrecision(3) + " mJ" : nj >= 1e3 ? (nj / 1e3).toPrecision(3) + " µJ" : nj.toPrecision(3) + " nJ"} ${q.what}`; };
+  const energyOf = i => { const v = q.energy[i] && q.energy[i][k]; if (!v) return ""; const nj = v * q.per[k]; return `${M.wall || M.cpu ? "; " : ""}energy ${SHOW.cost ? v.toPrecision(3) + " nJ/B · " : (1 / v).toPrecision(3) + " GB/J · "}${nj >= 1e6 ? (nj / 1e6).toPrecision(3) + " mJ" : nj >= 1e3 ? (nj / 1e3).toPrecision(3) + " μJ" : nj.toPrecision(3) + " nJ"} ${q.what}`; };
   /* Where the caller ran: its E-core share and the clocks, where counted. */
   const ran = i => { const c = q.cores && q.cores[i] && q.cores[i][k]; const on = q.cpus && q.cpus[i] && q.cpus[i][k]; if (!c && !on) return ""; const where = c ? (([e, p, ee]) => e < 0.005 ? `P cores, ${p.toFixed(2)} GHz` : e > 0.995 ? `E cores, ${ee.toFixed(2)} GHz` : `${(100 * e).toFixed(0)}% on E cores; P ${p.toFixed(2)}, E ${ee.toFixed(2)} GHz`)(c) : ""; return ` <span class="was">[${where}${where && on ? "; " : ""}${on ? `CPU ${on}` : ""}]</span>`; };
   /* A contender a block: what wraps indents under its name. */
