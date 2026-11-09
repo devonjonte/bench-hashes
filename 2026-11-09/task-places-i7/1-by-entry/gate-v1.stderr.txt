@@ -1,0 +1,80 @@
+check: BLAKE3-Servil's candidate/devon-task-places (5191ab36a31c) against c7936a5f (c7936a5f4a8f)
+check: the change touches 362 added and 55 deleted lines in 7 files: src/lanes.rs (+198/-42), src/stream.rs (+79/-3), src/stream/receiver.rs (+62/-6), src/stream_prototype.rs (+3/-2), src/test.rs (+12/-0), tools/mutants/known-aarch64.txt (+2/-2), tools/mutants/known-x86_64.txt (+6/-0)
+check: its hunks sit in: pub(crate) mod sources {, mod test {, impl<'env, D: FnMut(&'env mut [Hash])> Stream<'env, D> {, impl Receiver {, impl Message {, mod ring_bound {, fn reserved_buffer_returns_from_an_actual_worker() {, fn one_message_accepts_callback_pieces_and_finishes_on_the_workers() {, fn test_official_kernels_and_ours_stay_apart() {, src/lanes.rs	replace + with * in Pool::run_job	1	OPEN: the pool's scheduling und, src/lanes.rs	delete ! in initialize	1	as on aarch64: survives (known-aarch64.txt, src/lanes.rs	replace * with + in sources::Source::run_len	1	the pool's schedulin, and 2 more
+check: measuring the 26 named points (26 of 276 points; the rest unmeasured in this check): continuous 64 B, continuous 128 B, continuous 256 B, continuous 1 KiB, continuous 4 KiB, continuous 16 KiB, continuous 64 KiB, continuous 1 MiB, continuous 16 MiB, continuous batch 16, continuous batch 64, continuous batch 256, continuous batch 1024, continuous batch 4096, continuous batch 16384, continuous batch 65536, lent 64 B, lent 1 KiB, lent 16 KiB, lent 1 MiB, lent batch 16, lent batch 1024, continuous collection git objects, receive saturated, receive 2 μs, receive 20 μs
+check: the change alters the bench's code here: .data.rel.ro, .dynamic, .eh_frame, .eh_frame_hdr, .gcc_except_table, .got.plt, .init, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .text; 19 functions of another size or on one side alone (<blake3_servil::lanes::Pool>::run_job; <blake3_servil::lanes::Pool>::serve; <blake3_servil::lanes::sources::Source>::publish; <blake3_servil::lanes::sources::Source>::publish_part; <blake3_servil::lanes::sources::Source>::push; <blake3_servil::lanes::sources::Source>::take_task; <blake3_servil::stream::Storage>::take; <blake3_servil::stream::Stream<<bench_hashes::leaves::Program>::job::{closure#3}>>::wait_for_room; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_batches<bench_hashes::use_digest>::{closure#0}>>::wait_for_room; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#0}>>::submit_long::<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#1}::{closure#0}>; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#0}>>::wait_for_room; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_messages<bench_hashes::use_digest>::{closure#0}>>::submit_long::<bench_hashes::hash_continuous_messages<bench_hashes::use_digest>::{closure#1}::{closure#0}>; and 7 more); 1403 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&[u8; 32] as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; <&alloc::vec::Vec<u8> as core::fmt::Debug>::fmt; and 1391 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt,blake3-servil-pipeline --points "continuous 64 B,continuous 128 B,continuous 256 B,continuous 1 KiB,continuous 4 KiB,continuous 16 KiB,continuous 64 KiB,continuous 1 MiB,continuous 16 MiB,continuous batch 16,continuous batch 64,continuous batch 256,continuous batch 1024,continuous batch 4096,continuous batch 16384,continuous batch 65536,lent 64 B,lent 1 KiB,lent 16 KiB,lent 1 MiB,lent batch 16,lent batch 1024,continuous collection git objects,receive saturated,receive 2 μs,receive 20 μs"
+regress: pair 1 of 4 in 43.8 s
+regress: pair 2 of 4 in 43.8 s
+regress: pair 3 of 4 in 43.8 s
+regress: pair 4 of 4 in 43.8 s
+check: a second stage for 4 suspects on 64 fresh pairs: blake3-servil-mt|shared-one-cache|ContinuousMessages|64 B, blake3-servil-mt|shared-one-cache|ContinuousMessages|16 KiB, blake3-servil-pipeline|shared-one-cache|ContinuousBatches|1024, blake3-servil-mt|shared-one-cache|ContinuousMessages|4 KiB
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6,8,10,12,14,16,17,18,19
+regress: 64 new builds against 64 old, 64 pairs over --contenders blake3-servil-mt,blake3-servil-pipeline --points "continuous 16 KiB,continuous 4 KiB,continuous 64 B,continuous batch 1024"
+regress: pair 1 of 64 in 4.6 s
+clocks: other programs kept 1.26 CPUs busy from 17.1 s to 18.1 s (the busiest: pi 0.06 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 2 again: busy: other programs kept 0.74 CPUs busy on average, 1.26 in the busiest window; busy in 1 of 2 windows (17.1-18.1 s)
+regress: pair 2 of 64 in 9.1 s
+regress: pair 3 of 64 in 4.6 s
+regress: pair 4 of 64 in 4.6 s
+regress: pair 5 of 64 in 4.6 s
+regress: pair 6 of 64 in 4.6 s
+regress: pair 7 of 64 in 4.6 s
+regress: pair 8 of 64 in 4.6 s
+regress: pair 9 of 64 in 4.6 s
+regress: pair 10 of 64 in 4.6 s
+regress: pair 11 of 64 in 4.6 s
+regress: pair 12 of 64 in 4.5 s
+regress: pair 13 of 64 in 4.6 s
+regress: pair 14 of 64 in 4.6 s
+regress: pair 15 of 64 in 4.5 s
+regress: pair 16 of 64 in 4.6 s
+regress: pair 17 of 64 in 4.6 s
+regress: pair 18 of 64 in 4.6 s
+regress: pair 19 of 64 in 4.6 s
+regress: pair 20 of 64 in 4.6 s
+regress: pair 21 of 64 in 4.5 s
+regress: pair 22 of 64 in 4.6 s
+regress: pair 23 of 64 in 4.5 s
+regress: pair 24 of 64 in 4.6 s
+regress: pair 25 of 64 in 4.6 s
+regress: pair 26 of 64 in 4.5 s
+regress: pair 27 of 64 in 4.6 s
+regress: pair 28 of 64 in 4.6 s
+regress: pair 29 of 64 in 4.6 s
+regress: pair 30 of 64 in 4.6 s
+regress: pair 31 of 64 in 4.6 s
+regress: pair 32 of 64 in 4.6 s
+regress: pair 33 of 64 in 4.6 s
+regress: pair 34 of 64 in 4.6 s
+regress: pair 35 of 64 in 4.6 s
+regress: pair 36 of 64 in 4.6 s
+regress: pair 37 of 64 in 4.6 s
+regress: pair 38 of 64 in 4.6 s
+regress: pair 39 of 64 in 4.6 s
+regress: pair 40 of 64 in 4.6 s
+regress: pair 41 of 64 in 4.6 s
+regress: pair 42 of 64 in 4.5 s
+regress: pair 43 of 64 in 4.6 s
+regress: pair 44 of 64 in 4.6 s
+regress: pair 45 of 64 in 4.6 s
+regress: pair 46 of 64 in 4.6 s
+regress: pair 47 of 64 in 4.5 s
+regress: pair 48 of 64 in 4.6 s
+regress: pair 49 of 64 in 4.6 s
+regress: pair 50 of 64 in 4.6 s
+regress: pair 51 of 64 in 4.5 s
+regress: pair 52 of 64 in 4.6 s
+regress: pair 53 of 64 in 4.6 s
+regress: pair 54 of 64 in 4.5 s
+regress: pair 55 of 64 in 4.6 s
+regress: pair 56 of 64 in 4.6 s
+regress: pair 57 of 64 in 4.6 s
+regress: pair 58 of 64 in 4.6 s
+regress: pair 59 of 64 in 4.6 s
+regress: pair 60 of 64 in 4.6 s
+regress: pair 61 of 64 in 4.6 s
+regress: pair 62 of 64 in 4.6 s
+regress: pair 63 of 64 in 4.6 s
+regress: pair 64 of 64 in 4.6 s

@@ -1,0 +1,39 @@
+check: BLAKE3-Servil's exp/devon-places-in-order (43836b151bd9) against c7936a5f (c7936a5f4a8f)
+check: the change touches 364 added and 55 deleted lines in 7 files: src/lanes.rs (+198/-42), src/stream.rs (+81/-3), src/stream/receiver.rs (+62/-6), src/stream_prototype.rs (+3/-2), src/test.rs (+12/-0), tools/mutants/known-aarch64.txt (+2/-2), tools/mutants/known-x86_64.txt (+6/-0)
+check: its hunks sit in: pub(crate) mod sources {, mod test {, impl<'env, D: FnMut(&'env mut [Hash])> Stream<'env, D> {, impl Receiver {, impl Message {, mod ring_bound {, fn reserved_buffer_returns_from_an_actual_worker() {, fn one_message_accepts_callback_pieces_and_finishes_on_the_workers() {, fn test_official_kernels_and_ours_stay_apart() {, src/lanes.rs	replace + with * in Pool::run_job	1	OPEN: the pool's scheduling und, src/lanes.rs	delete ! in initialize	1	as on aarch64: survives (known-aarch64.txt, src/lanes.rs	replace * with + in sources::Source::run_len	1	the pool's schedulin, and 2 more
+check: measuring the 1 named points (1 of 276 points; the rest unmeasured in this check): continuous 64 B
+check: the change alters the bench's code here: .bss, .data.rel.ro, .dynamic, .eh_frame, .eh_frame_hdr, .gcc_except_table, .got.plt, .init, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .text; 19 functions of another size or on one side alone (<blake3_servil::lanes::Pool>::run_job; <blake3_servil::lanes::Pool>::serve; <blake3_servil::lanes::sources::Source>::publish; <blake3_servil::lanes::sources::Source>::publish_part; <blake3_servil::lanes::sources::Source>::push; <blake3_servil::lanes::sources::Source>::take_task; <blake3_servil::stream::Storage>::take; <blake3_servil::stream::Stream<<bench_hashes::leaves::Program>::job::{closure#3}>>::wait_for_room; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_batches<bench_hashes::use_digest>::{closure#0}>>::wait_for_room; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#0}>>::submit_long::<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#1}::{closure#0}>; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#0}>>::wait_for_room; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_messages<bench_hashes::use_digest>::{closure#0}>>::submit_long::<bench_hashes::hash_continuous_messages<bench_hashes::use_digest>::{closure#1}::{closure#0}>; and 7 more); 1403 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&[u8; 32] as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; <&alloc::vec::Vec<u8> as core::fmt::Debug>::fmt; and 1391 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6,8,10,12,14,16,17,18,19
+regress: 32 new builds against 32 old, 32 pairs over --contenders blake3-servil-st,blake3-servil-mt,blake3-servil-pipeline --points "continuous 64 B"
+regress: pair 1 of 32 in 1.8 s
+regress: pair 2 of 32 in 1.8 s
+regress: pair 3 of 32 in 1.8 s
+regress: pair 4 of 32 in 1.8 s
+regress: pair 5 of 32 in 1.8 s
+regress: pair 6 of 32 in 1.8 s
+regress: pair 7 of 32 in 1.8 s
+regress: pair 8 of 32 in 1.8 s
+regress: pair 9 of 32 in 1.8 s
+regress: pair 10 of 32 in 1.8 s
+regress: pair 11 of 32 in 1.8 s
+regress: pair 12 of 32 in 1.8 s
+regress: pair 13 of 32 in 1.8 s
+regress: pair 14 of 32 in 1.8 s
+regress: pair 15 of 32 in 1.8 s
+regress: pair 16 of 32 in 1.8 s
+regress: pair 17 of 32 in 1.8 s
+regress: pair 18 of 32 in 1.8 s
+regress: pair 19 of 32 in 1.8 s
+regress: pair 20 of 32 in 1.8 s
+regress: pair 21 of 32 in 1.8 s
+regress: pair 22 of 32 in 1.8 s
+regress: pair 23 of 32 in 1.8 s
+regress: pair 24 of 32 in 1.8 s
+regress: pair 25 of 32 in 1.8 s
+regress: pair 26 of 32 in 1.8 s
+regress: pair 27 of 32 in 1.8 s
+regress: pair 28 of 32 in 1.8 s
+regress: pair 29 of 32 in 1.8 s
+regress: pair 30 of 32 in 1.8 s
+regress: pair 31 of 32 in 1.8 s
+regress: pair 32 of 32 in 1.8 s
