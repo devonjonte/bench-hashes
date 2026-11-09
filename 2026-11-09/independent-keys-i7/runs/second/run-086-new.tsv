@@ -1,0 +1,37 @@
+# bench-hashes samples v10
+# timestamp: 2026-11-09 08:28:17 UTC
+# bench-hashes version: 0.20.4+6c91cfabef89d1bd52c4d73b7d2578f449689502
+# bench-hashes source: https://github.com/devonjonte/bench-hashes
+# git commit: 49f45960ff276558e707cb777a357679332788fe
+# git clean status: clean
+# dependency lock: blake3 1aac46c5c749f52ff8fd19a4c501878df1a9c8f1f42b44bd0a7ae43857d6ccaf of Cargo.lock
+# rust compiler: rustc 1.98.1 (48a229cea 2026-09-01)
+# c compiler: cc: cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+# rustflags: none
+# build target: x86_64-unknown-linux-gnu
+# target features: fxsr,sse,sse2
+# sample clock: CLOCK_MONOTONIC_RAW (stops during suspend; the raw counter, no NTP slew)
+# clocks source: clocks 0.1.0; this repository's clocks/, at its commit
+# cpu type: 12th Gen Intel(R) Core(TM) i7-12700K
+# cpu count: 20
+# os type: linux7.0.0-42-generic
+# cpu identity: model name: 12th Gen Intel(R) Core(TM) i7-12700K · microcode: 0x3e · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l2 cdp_l2 ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdt_a rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize pconfig arch_lbr ibt flush_l1d arch_capabilities · machine: B748
+# idle states: driver intel_idle, governor menu; POLL latency 0 us residency 0 us, C1E latency 2 us residency 4 us, C6 latency 220 us residency 600 us, C8 latency 280 us residency 800 us, C10 latency 680 us residency 2000 us
+# effective idle states: over 1000 x 20 us: C1 100%, C6 0%, C7 0%, awake or unnamed 0%; over 20 x 5 ms: C1 24%, C6 0%, C7 76%, awake or unnamed 0%
+# idle control: none (no cpuidle states the bench can switch off: run as root for the controlled cells)
+# shared placements: one cache: CPUs 0 and 2; two caches: none
+# source blake3-servil-mt: blake3-servil 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 (local checkout); source https://github.com/servil-software-factory/BLAKE3; branch HEAD; commit 62b75883dd752bad5b74195138e157349b830344; clean
+# contenders: --contenders blake3-servil-mt
+# rounds: 24
+# measuring thread: pinned to CPU 12 around each sample after a gap (bench-hashes regress)
+# sample sizes: from /home/agent/tmp/bench-hashes-regress-sizes-315299.tsv (--sizes)
+# buffers owned: where a contender makes the same calls as with buffers lent, one measurement, shown in both rows
+# nonstop train: 100 ms warm-up, 6 samples a visit
+# points: 64 B
+# power: mains power, no battery, CPU frequency governor powersave, energy-performance preference performance
+# load: quiet: other programs kept 0.07 CPUs busy on average, 0.07 in the busiest window
+# load measured by: bench-hashes regress, around the run (the windows below are the run's own)
+# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 
+contender	scenario	use_case	point	unit	ns/units	start ms	cpu ns	energy nJ	core counts	cpu
+blake3-servil-mt	solo	ContinuousMessages	64 B	B	743765/2728704,755045/2728704,753908/2728704,747929/2728704,737539/2728704,756325/2728704,739657/2728704,740752/2728704,738299/2728704,734584/2728704,749812/2728704,739692/2728704	109,110,111,111,112,113,321,322,322,323,324,325	2522844,2685536,2609326,2564796,2449544,2620382,2509344,2530744,2538091,2462318,2655581,2581501	37048339,0,98144532,49926757,60424805,62988281,0,98205566,45715332,82885742,67260742,0	744279:3493724:11783749:89145:119:0:0:0:0:0,755165:3517223:11784975:89201:24:0:0:0:0:0,754023:3499779:11784711:89192:25:0:0:0:0:0,748047:3480666:11785059:89103:8:0:0:0:0:0,737658:3498799:11781756:89269:6:0:0:0:0:0,756440:3539676:11784022:89299:9:0:0:0:0:0,740078:3393666:11784015:88973:125:0:0:0:0:0,740871:3391676:11784365:88890:0:0:0:0:0:0,738420:3382024:11784277:88804:8:0:0:0:0:0,734705:3380236:11783668:88840:0:0:0:0:0:0,749931:3427255:11784626:88950:1:0:0:0:0:0,739816:3386666:11783929:89090:13:0:0:0:0:0	4,4,4,4,4,4,4,4,4,4,4,4
+blake3-servil-mt	shared-one-cache	ContinuousMessages	64 B	B	974414/2728704,745269/2728704,991461/2728704,781160/2728704,971192/2728704,759323/2728704,995775/2728704,773079/2728704,991390/2728704,762341/2728704,988293/2728704,778160/2728704,991143/2728704,800921/2728704,946685/2728704,810867/2728704,851239/2728704,774367/2728704,839139/2728704,808415/2728704,969084/2728704,750331/2728704,982821/2728704,806241/2728704	214,214,215,215,216,216,217,217,218,217,219,218,426,426,427,427,428,428,429,429,430,429,431,430	-	-	974789:4445813:11782055:80605:221:0:0:0:0:0,745498:3481652:11779740:89599:173:0:0:0:0:0,991628:4594137:11781568:78501:109:0:0:0:0:0,781278:3645170:11780342:89695:19:0:0:0:0:0,971353:4528726:11780266:78769:81:0:0:0:0:0,759444:3545591:11780085:89400:18:0:0:0:0:0,995938:4605065:11781749:79166:92:0:0:0:0:0,773203:3606758:11780440:89553:12:0:0:0:0:0,991577:4602758:11781140:78537:64:0:0:0:0:0,762468:3575939:11779732:89347:18:0:0:0:0:0,988474:4575223:11781484:78688:65:0:0:0:0:0,778284:3635581:11780179:89357:7:0:0:0:0:0,991908:4565855:11782612:78885:1069:0:0:0:0:0,801777:3661548:11780520:89532:504:0:0:0:0:0,946850:4382177:11781836:81846:2619:0:0:0:0:0,810987:3793508:11779833:88807:2229:0:0:0:0:0,851411:3972224:11780179:84547:629:0:0:0:0:0,774494:3630091:11779390:88970:601:0:0:0:0:0,839330:3879267:11781660:84500:141:0:0:0:0:0,808535:3768703:11939768:89255:49:0:0:0:0:0,969243:4444525:11785557:79926:111:0:0:0:0:0,750450:3526120:11779397:88938:47:0:0:0:0:0,982977:4523452:11782025:80294:95:0:0:0:0:0,800656:3702303:11833023:89218:30:0:0:0:0:0	0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2
