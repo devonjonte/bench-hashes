@@ -84,6 +84,7 @@ compile_error!("clocks reads Unix's clocks (Linux and macOS); Windows is not sup
 
 pub mod child;
 pub mod energy;
+pub mod events;
 pub mod load;
 pub mod other_code;
 pub mod summary;
