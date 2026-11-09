@@ -15,4 +15,8 @@
 
 5b49ec22 does not compile (mid-series). Two controls on main and next: next's task size on main (`rmain-action`, an unused `action` field), level; the room check in debug builds alone on next (`rda`), still slower.
 
-**Reading.** 85bf73a6 adds `Source::help`, the pipeline's own help, and nothing on the stream's path. In the bench built at 85bf73a6, `Source::take_task` is a function of its own (`symbols-85bf73a6.txt`, 0x1a4 bytes); at 6fc30a3d it is inlined everywhere. So the cost comes from code generation around the 1,656-byte task's copies, not from the protocol. BLAKE3 #314 (fewer bytes copied) removes it on the i7.
+**Two tests of the reading** (`bis3.sh`; 85bf73a6 with the fix and a probe, against 85bf73a6 unfixed, `--layouts 6`):
+- `take_task` forced inline (`exp/bis85-inline`; `symbols-85bf73a6-inline.txt` shows no `take_task` of its own): 64 B **x1.084 slower**, 128 B x1.054 slower, 0 of 6 pairs faster. The outlining is not the cause.
+- #314's change on top (`exp/bis85-prefix`): 64 B x1.035 (judged level, 0 of 6 pairs faster), 128 B x1.001. Copying fewer bytes recovers most of the cost here, and all of it on next (task-prefix-i7).
+
+**Reading.** The fix's cost depends on code around it that the stream never runs. It begins at 85bf73a6, which adds `Source::help` for the pipeline. Its cause is not located: the outlining of `take_task` that 85bf73a6 brings is ruled out. It lies in the task copies' cost, since writing fewer bytes removes most of it. Posted on BLAKE3 #306.
