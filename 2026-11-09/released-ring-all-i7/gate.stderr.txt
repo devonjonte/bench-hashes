@@ -1,0 +1,96 @@
+check: BLAKE3-Servil's relring (7b1ba7b9da67) against main-tip (6e0dffd37e04)
+check: the change touches 341 added and 65 deleted lines in 9 files: src/block.rs (+13/-1), src/each.rs (+57/-5), src/gpu.rs (+9/-0), src/lanes.rs (+155/-14), src/lib.rs (+3/-1), src/stream.rs (+77/-31), tests/allocations.rs (+17/-7), tools/mutants/known-aarch64.txt (+3/-4), tools/mutants/known-x86_64.txt (+7/-2)
+check: its hunks sit in: impl Batch<'static> {, mod test {, fn update_turn(hashers: &mut [Hasher], pieces: &[(usize, &[u8])], pooled: bool), fn hash_held(hashers: &mut [Hasher], held: &[usize]) {, impl Gpu {, pub(crate) mod sources {, pub(crate) enum Counted {, std::thread_local! {, impl<'env, D: FnMut(&'env mut [Hash])> Stream<'env, D> {, use std::alloc::{GlobalAlloc, Layout, System};, struct Counting;, unsafe impl GlobalAlloc for Counting {, and 7 more
+check: the change alters the bench's code here: .data.rel.ro, .dynamic, .dynstr, .dynsym, .eh_frame, .eh_frame_hdr, .gcc_except_table, .got.plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .text; 15 functions of another size or on one side alone (<blake3_servil::lanes::Pool>::serve; <blake3_servil::lanes::sources::Source>::publish; <blake3_servil::stream::Storage>::run_waiting; <blake3_servil::stream::Storage>::take; <blake3_servil::stream::Stream<<bench_hashes::leaves::Program>::job::{closure#3}>>::wait_for_room; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_batches<bench_hashes::use_digest>::{closure#0}>>::wait_for_room; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#0}>>::submit_long::<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#1}::{closure#0}>; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#0}>>::wait_for_room; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_messages<bench_hashes::use_digest>::{closure#0}>>::submit_long::<bench_hashes::hash_continuous_messages<bench_hashes::use_digest>::{closure#1}::{closure#0}>; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_messages<bench_hashes::use_digest>::{closure#0}>>::wait_for_room; bench_hashes::hash_batch::<bench_hashes::use_digest>; bench_hashes::leaves::measure_program::{closure#0}; and 3 more); 1133 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&[u8; 32] as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Display>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; and 1121 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt
+clocks: other programs kept 1.94 CPUs busy from 127.2 s to 128.2 s (the busiest: pi 0.05 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.78 CPUs busy from 128.2 s to 129.2 s (the busiest: pi 0.08 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 2.79 CPUs busy from 129.2 s to 130.2 s (the busiest: pi 0.06 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 2.21 CPUs busy from 130.2 s to 131.2 s (the busiest: pi 0.08 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.88 CPUs busy from 131.2 s to 132.2 s (the busiest: pi 0.06 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 2.36 CPUs busy from 132.2 s to 133.2 s (the busiest: pi 0.26 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 4.46 CPUs busy from 133.2 s to 134.2 s (the busiest: pi 0.06 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 2.08 CPUs busy from 134.2 s to 135.2 s (the busiest: pi 0.06 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.20 CPUs busy from 135.2 s to 136.2 s (the busiest: pi 0.06 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.80 CPUs busy from 137.2 s to 138.2 s (the busiest: pi 0.06 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 2.37 CPUs busy from 138.2 s to 139.2 s (the busiest: pi 0.06 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 2.01 CPUs busy from 139.2 s to 140.2 s (the busiest: pi 0.08 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.88 CPUs busy from 140.2 s to 141.2 s (the busiest: pi 0.07 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 2.04 CPUs busy from 141.2 s to 142.2 s (the busiest: pi 0.07 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.85 CPUs busy from 142.2 s to 143.2 s (the busiest: pi 0.08 CPUs); measurements in that time may read slower than this machine runs
+clocks: other programs kept 2.22 CPUs busy from 143.2 s to 144.2 s; measurements in that time may read slower than this machine runs
+regress: pair 1 again: busy: other programs kept 0.45 CPUs busy on average, 4.46 in the busiest window; busy in 16 of 114 windows (127.2-128.2 s, 128.2-129.2 s, 129.2-130.2 s, 130.2-131.2 s, 131.2-132.2 s, 132.2-133.2 s, 133.2-134.2 s, 134.2-135.2 s, 135.2-136.2 s, 137.2-138.2 s, 138.2-139.2 s, 139.2-140.2 s, 140.2-141.2 s, 141.2-142.2 s, 142.2-143.2 s, 143.2-144.2 s)
+regress: pair 1 of 4 in 454.1 s
+regress: pair 2 of 4 in 227.7 s
+regress: pair 3 of 4 in 227.1 s
+regress: pair 4 of 4 in 227.3 s
+check: a second stage for 8 suspects on 64 fresh pairs: blake3-servil-st|solo|IdleInterleavedTurn|256, blake3-servil-st|solo|InterleavedTurn|256, blake3-servil-st|solo|IdleOneMessage|64 B, blake3-servil-mt|solo|BriefIdleManyMessages|1, blake3-servil-st|solo|IdleManyMessages|16384, blake3-servil-st|solo|OneMessage|16 KiB, blake3-servil-mt|solo|ContinuousMessages|16 KiB, blake3-servil-st|solo|IdleManyMessages|3
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6,8,10,12,14,16,17,18,19
+regress: 64 new builds against 64 old, 64 pairs over --contenders blake3-servil-mt,blake3-servil-st --points "16 KiB,brief idle 1,continuous 16 KiB,idle 16384,idle 3,idle 64 B,idle turn 256,turn 256"
+regress: pair 1 of 64 in 11.4 s
+regress: pair 2 of 64 in 11.4 s
+clocks: other programs kept 1.10 CPUs busy from 35.9 s to 36.9 s (the busiest: pi 0.06 CPUs); measurements in that time may read slower than this machine runs
+regress: pair 3 again: busy: other programs kept 0.54 CPUs busy on average, 1.10 in the busiest window; busy in 1 of 5 windows (35.9-36.9 s)
+regress: pair 3 of 64 in 22.9 s
+regress: pair 4 of 64 in 11.4 s
+regress: pair 5 of 64 in 11.5 s
+regress: pair 6 of 64 in 11.4 s
+regress: pair 7 of 64 in 11.5 s
+regress: pair 8 of 64 in 11.5 s
+regress: pair 9 of 64 in 12.1 s
+regress: pair 10 of 64 in 12.0 s
+regress: pair 11 of 64 in 12.0 s
+regress: pair 12 of 64 in 12.0 s
+regress: pair 13 of 64 in 11.5 s
+regress: pair 14 of 64 in 11.5 s
+regress: pair 15 of 64 in 11.4 s
+regress: pair 16 of 64 in 11.5 s
+regress: pair 17 of 64 in 11.4 s
+regress: pair 18 of 64 in 11.5 s
+regress: pair 19 of 64 in 11.5 s
+regress: pair 20 of 64 in 11.5 s
+regress: pair 21 of 64 in 12.1 s
+regress: pair 22 of 64 in 12.0 s
+regress: pair 23 of 64 in 12.0 s
+regress: pair 24 of 64 in 12.0 s
+regress: pair 25 of 64 in 11.4 s
+regress: pair 26 of 64 in 11.4 s
+regress: pair 27 of 64 in 11.4 s
+regress: pair 28 of 64 in 11.4 s
+regress: pair 29 of 64 in 11.4 s
+regress: pair 30 of 64 in 11.4 s
+regress: pair 31 of 64 in 11.4 s
+regress: pair 32 of 64 in 11.5 s
+regress: pair 33 of 64 in 12.0 s
+regress: pair 34 of 64 in 12.0 s
+regress: pair 35 of 64 in 12.0 s
+regress: pair 36 of 64 in 12.0 s
+regress: pair 37 of 64 in 11.4 s
+regress: pair 38 of 64 in 11.4 s
+regress: pair 39 of 64 in 11.4 s
+regress: pair 40 of 64 in 11.4 s
+regress: pair 41 of 64 in 11.5 s
+regress: pair 42 of 64 in 11.4 s
+regress: pair 43 of 64 in 11.4 s
+regress: pair 44 of 64 in 11.5 s
+regress: pair 45 of 64 in 12.0 s
+regress: pair 46 of 64 in 12.0 s
+regress: pair 47 of 64 in 12.0 s
+regress: pair 48 of 64 in 12.0 s
+regress: pair 49 of 64 in 11.4 s
+regress: pair 50 of 64 in 11.4 s
+regress: pair 51 of 64 in 11.4 s
+regress: pair 52 of 64 in 11.4 s
+regress: pair 53 of 64 in 11.4 s
+regress: pair 54 of 64 in 11.4 s
+regress: pair 55 of 64 in 11.4 s
+regress: pair 56 of 64 in 11.5 s
+regress: pair 57 of 64 in 12.0 s
+regress: pair 58 of 64 in 12.0 s
+regress: pair 59 of 64 in 12.0 s
+regress: pair 60 of 64 in 12.1 s
+regress: pair 61 of 64 in 11.5 s
+regress: pair 62 of 64 in 11.4 s
+regress: pair 63 of 64 in 11.5 s
+regress: pair 64 of 64 in 11.5 s
