@@ -485,6 +485,22 @@ fn git_output(repository: &Path, arguments: &[&str]) -> Output {
  * identifies the code: origin URL, branch, exact commit, and a clean flag
  * or a hash of the uncommitted changes. Both emit the same fields.
  */
+/// Where BLAKE3-Servil's version names other code than the commit built: a
+/// release's version holds its code commit's hash (Zooko's scheme), and a
+/// build of a later commit keeps that version until the next release, so a
+/// reader of the version alone would take the build for the release
+/// (bench-hashes #154). Said outright, without "; " (the provenance's
+/// field separator).
+fn version_names_another(version: &str, commit: &str) -> String {
+    match version.split_once('+') {
+        Some((release, named)) if !commit.starts_with(named) => format!(
+            " (the version names commit {}, release {release}'s code, not this build's)",
+            &named[..named.len().min(12)]
+        ),
+        _ => String::new(),
+    }
+}
+
 fn emit_servil_package(lock: &str) {
     let block =
         package_block(lock, "blake3-servil").expect("blake3-servil must be present in Cargo.lock");
@@ -499,7 +515,8 @@ fn emit_servil_package(lock: &str) {
                 .split_once('#')
                 .expect("a git source in Cargo.lock names its commit after '#'");
             format!(
-                "blake3-servil {version}; source {}; commit {commit}; clean",
+                "blake3-servil {version}{}; source {}; commit {commit}; clean",
+                version_names_another(&version, commit),
                 servil_git()
             )
         }
@@ -517,8 +534,12 @@ fn emit_servil_package(lock: &str) {
             /* The whole fork's state: nothing of the bench lives in it. */
             let state = git_state(&repository, &[]);
             format!(
-                "blake3-servil {version} (local checkout); source {}; branch {}; commit {}; {}",
-                state.source, state.branch, state.commit, state.clean_status
+                "blake3-servil {version}{} (local checkout); source {}; branch {}; commit {}; {}",
+                version_names_another(&version, &state.commit),
+                state.source,
+                state.branch,
+                state.commit,
+                state.clean_status
             )
         }
     };

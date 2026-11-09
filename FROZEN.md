@@ -26,18 +26,29 @@ release, so results of different benchmarks are never read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
-**Changes for the next release**:
-- **A turn cell for many short messages in small arrivals** (John Servil,
-  November 8, 2026; bench-hashes #156). The turn cells' large pieces (up
-  to 16 KiB, 256 messages open) barely reach grouped first-chunk
-  compression, so they left a real small-arrival workload unmeasured:
-  many short messages, each arriving in small pieces, finished in groups.
-  A second turn point, `1024 x 1 KiB`, beside `256` in InterleavedTurn and
-  its three gap twins: 1,024 open messages of 1 KiB, each in 256-byte
-  pieces, a turn one piece of every message, a call one whole cycle (the
-  pieces read into the receive buffer, four turns of updates, every
-  message finished and reset), as Sam Shackleton's complete-cycle
-  instrument times it.
+**Changes for 0.21, November 6-9, 2026** (after the release rehearsal of
+bench-hashes #154; John Servil's decisions):
+- **Every samples file records what the counts' own reads cost** (proposed
+  for John Servil's decision, November 9, 2026; bench-hashes #160). A
+  header line, `counts read overhead`: per kind of core, the median over
+  1,001 brackets around no work of two routine counts reads' cycles and
+  instructions (a thread pinned to one CPU of each kind on Linux). Every
+  counted sample carries that much of the reads' own, so a sample's
+  dilution is on record beside it. The samples and their reads are
+  unchanged.
+- **`compare --markdown`** (proposed for John Servil's decision, November
+  9, 2026): the same cells, ratios and verdicts as a Markdown table, for a
+  post or a record, so that no figure there is typed by hand. The judgment
+  is unchanged.
+- **The map and report say where BLAKE3-Servil's version names other
+  code** (proposed for John Servil's decision, November 9, 2026;
+  bench-hashes #154). A release's version holds its code commit's hash,
+  and a build of a later commit keeps that version until the next
+  release: 0.21's runs pin `next`, whose version still reads 0.8.0's. The
+  provenance line now says so beside the version ("the version names
+  commit b3c5efc7c975, release 0.8.0's code, not this build's"), where a
+  reader of the version alone took the build for the release. The
+  commit field and every other field are unchanged.
 - **The pipeline in the continuous batch cells** (John Servil, November 9,
   2026; BLAKE3 #317). `blake3-servil-pipeline` takes part in
   ContinuousBatches (16 to 65,536 messages of 64 B), beside the existing
@@ -50,6 +61,17 @@ the notes) may still change, to say it better.
   judgment. The pipeline and its batches and places are kept for the
   process; before #317 the frontend borrowed the places for the
   pipeline's life, so that side keeps them too, leaked.
+- **A turn cell for many short messages in small arrivals** (John Servil,
+  November 8, 2026; bench-hashes #156). The turn cells' large pieces (up
+  to 16 KiB, 256 messages open) barely reach grouped first-chunk
+  compression, so they left a real small-arrival workload unmeasured:
+  many short messages, each arriving in small pieces, finished in groups.
+  A second turn point, `1024 x 1 KiB`, beside `256` in InterleavedTurn and
+  its three gap twins: 1,024 open messages of 1 KiB, each in 256-byte
+  pieces, a turn one piece of every message, a call one whole cycle (the
+  pieces read into the receive buffer, four turns of updates, every
+  message finished and reset), as Sam Shackleton's complete-cycle
+  instrument times it.
 - **Merkle trees over leaves of a digest or half a digest** (John Servil,
   November 7, 2026; Zooko: 16- and 32-byte leaves will be common, a
   million of them). Three points beside the 256-byte-leaf trees:
@@ -144,7 +166,7 @@ the notes) may still change, to say it better.
   and patterns are unchanged; 64 B cells read up to that much faster in
   runs whose buffers sat off a boundary.
 
-**Changes for 0.21** (Zooko and John Servil, November 4-6, 2026):
+**Changes for 0.21, November 4-6, 2026** (Zooko and John Servil):
 - **The wall clock is the raw counter** (Zooko, November 4, 2026): on
   Linux `CLOCK_MONOTONIC_RAW` in place of `CLOCK_MONOTONIC` (what
   `std::time::Instant` reads there), which a time daemon slews by up to
