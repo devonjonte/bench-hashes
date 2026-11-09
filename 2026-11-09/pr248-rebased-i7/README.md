@@ -7,3 +7,5 @@
 **Gate 2** (`gate2.stdout.txt`, `gate2-runs`): `check --points "4470 B,4 KiB,3839 B,3 KiB" --layouts 16`, then 64 on the suspect. No cell slower: 4470 B x1.007 (5 of 16 pairs faster), 4 KiB x1.042 (5 of 16), 3839 B x1.002; 3 KiB -8.7% (64 pairs).
 
 **Reading.** The 4470 B verdict of gate 1 did not repeat in gate 2. Its instructions are unchanged, so #248 runs the same code at 4470 B, and whatever moved is placement or cold code, not work. 4 KiB leans the same way. Both are recorded on BLAKE3 #248 for John's judgment.
+
+**Side by side** (`g248c.sh`, `--layouts 8`, the same conditions): the old pair 8db14f7b against 7b8de621 reads st 3 KiB x0.852 (8 of 8 pairs faster), the new pair 085b89a0 against 5d966a0c x0.853 (8 of 8). After a pause: old x1.048, new x0.813, both level. The 3 KiB gain is intact; gate 1's -9.7% was this cold cell's run-to-run spread.
