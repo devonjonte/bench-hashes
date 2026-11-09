@@ -6,6 +6,6 @@
 
 **Verdict.**
 - Against main: **no cell slower**; every cell level (mt 64 B x0.994, 128 B x0.992, 1 MiB x1.003).
-- Against 7b1ba7b9: one cell slower, mt 64 B +5.9% (8 of 8 pairs). In this run 7b1ba7b9 read 0.270 ns/B at 64 B, where main read 0.285 in the run before. The protocol version reads faster than main at 64 B on this machine (also x0.981 against 71154c1d, released-ring-i7); the no-generation version reads as main does. That is the per-task fixed-cost sensitivity of ring-cost-bisect-i7, not a cost of the bound.
+- Against 7b1ba7b9: one cell slower, mt 64 B +5.9% (8 of 8 pairs). In this run 7b1ba7b9 read 0.270 ns/B at 64 B; main read 0.285 in the run before, and the no-generation version 0.283 and 0.286 in the two runs. So 7b1ba7b9 may run a little faster than main at 64 B on this machine (it read x0.981, level, against 71154c1d in released-ring-i7). These runs did not compare 7b1ba7b9 with main directly at 64 B; the every-cell check (released-ring-all-i7) judged it level. The no-generation version reads as main does.
 
 The ARM cost John measured (16-46%) is the question this probe answers; it needs his machines. Posted on BLAKE3 #303.
