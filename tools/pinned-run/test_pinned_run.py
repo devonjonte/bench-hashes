@@ -1,6 +1,6 @@
 """Tests of pinned-run's requests and its time savers (superseding, host choice, next), the server run
 in-process against a temporary runs directory, no SSH and no systemd."""
-import base64, fcntl, importlib.machinery, importlib.util, io, json, os, shutil, sys, tarfile, tempfile, unittest
+import base64, fcntl, glob, importlib.machinery, importlib.util, io, json, os, shutil, sys, tarfile, tempfile, unittest
 from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -54,7 +54,7 @@ class Server(unittest.TestCase):
         def git(args, **kw):
             return subprocess.CompletedProcess(args, 0, stdout="a" * 40 if "rev-parse" in args else "")
         with mock.patch.object(self.pr, "sh", git), \
-             mock.patch.object(self.pr, "run_job", return_value=(job_code, None)), \
+             mock.patch.object(self.pr, "run_job", return_value=job_code), \
              mock.patch.object(self.pr, "verify", return_value=list(verification)):
             self.pr.remote_execute(os.path.join(self.root, run_id))
 
@@ -134,6 +134,18 @@ class Server(unittest.TestCase):
                     with open(path, "rb") as f:
                         self.assertEqual(f.read(), before[path], path)
 
+    def test_a_run_cancelled_before_it_starts_executes_nothing(self):
+        run_id, _ = self.submit("early-cancel", 1)
+        run = os.path.join(self.root, run_id)
+        self.serve("cancel", run_id)
+        before = self.phases(run_id)
+        with mock.patch.object(self.pr, "sh") as prepare, mock.patch.object(self.pr, "run_job") as job:
+            self.pr.remote_execute(run)
+            prepare.assert_not_called()
+            job.assert_not_called()
+        self.assertEqual(self.phases(run_id), before)
+        self.assertFalse(os.path.exists(f"{run}/STARTED"))
+
     def test_interrupted_executor_fails_without_fabricating_completed_phases(self):
         run_id, _ = self.submit("restarted", 1)
         run = os.path.join(self.root, run_id)
@@ -208,7 +220,7 @@ class Server(unittest.TestCase):
             return __import__("subprocess").CompletedProcess(args, 0, stdout="a"*40 if "rev-parse" in args else "")
         def job(*args, **kw):
             assert_locked("job")
-            return 0, None
+            return 0
         def verify(*args):
             assert_locked("verify")
             return []
@@ -697,14 +709,87 @@ class Client(unittest.TestCase):
 
 
 
+def sentinel():
+    """A sleeping process in a group of its own, standing for some other program's: a test that
+    signals nothing of its own leaves it alive. The caller reaps it (reap)."""
+    import subprocess
+    return subprocess.Popen(["sleep", "60"], start_new_session=True)
+
+
+def reap(p):
+    import signal
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    p.wait()
+
+
+class Ownership(unittest.TestCase):
+    """A process-supervised run's group is signalled only while it is that run's live executor
+    (Sam's review of #152: a finished record, a group ID reused after a crash)."""
+    setUp_server, tearDown, manifest, submit, serve = Server.setUp, Server.tearDown, Server.manifest, Server.submit, Server.serve
+
+    def setUp(self):
+        self.setUp_server()
+        self.pr.SUPERVISOR = "process"
+        self.other = sentinel()
+        self.addCleanup(reap, self.other)
+        self.run_id, _ = self.submit("owned", 1)
+        self.run = os.path.join(self.root, self.run_id)
+        with open(f"{self.run}/PGID", "w") as f:
+            f.write(f"{self.other.pid}\n")
+        open(f"{self.run}/ALIVE", "w").close()
+
+    def hold_alive(self):
+        """Hold the run's ALIVE lock, as its live executor would."""
+        fd = os.open(f"{self.run}/ALIVE", os.O_RDWR)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        self.addCleanup(os.close, fd)
+
+    def assertAlive(self, p):
+        """`p` still runs half a second on: a SIGKILL sent to it lands well within that."""
+        import subprocess
+        with self.assertRaises(subprocess.TimeoutExpired, msg="a group that is not the run's was signalled"):
+            p.wait(timeout=0.5)
+
+    def test_cancelling_a_finished_run_signals_nothing(self):
+        self.hold_alive()  # even with the lock held by someone, a finished run is left alone
+        self.assertTrue(self.pr.finish(self.run, "VERIFIED", []))
+        self.serve("cancel", self.run_id)
+        self.assertAlive(self.other)
+        self.assertEqual(self.serve("status", self.run_id).decode(), "VERIFIED\n")
+
+    def test_a_stale_group_id_is_not_the_runs_executor(self):
+        self.assertEqual(self.serve("status", self.run_id).decode().strip(), "lost")
+        self.serve("cancel", self.run_id)
+        self.assertAlive(self.other)
+        self.assertEqual(self.serve("status", self.run_id).decode().splitlines()[0], "CANCELLED")
+
+    def test_a_live_executor_is_its_group(self):
+        self.hold_alive()
+        self.assertEqual(self.serve("status", self.run_id).decode().strip(), "queued")
+        self.serve("cancel", self.run_id)
+        self.assertEqual(self.other.wait(timeout=10), -9)
+
+    def test_the_first_terminal_state_stands(self):
+        self.assertTrue(self.pr.finish(self.run, "CANCELLED", ["cancelled: by request"]))
+        self.assertFalse(self.pr.finish(self.run, "VERIFIED", []))
+        self.assertEqual(self.serve("status", self.run_id).decode(), "CANCELLED\ncancelled: by request\n")
+
+
 class Local(unittest.TestCase):
     """The local host end to end, no mocks: a run on this machine through the command line,
-    its executor a process group of its own (a sandbox: no root, no systemd, no SSH)."""
+    its executor a process group of its own (a sandbox: no root, no systemd, no SSH). Self-
+    contained: an ordinary temporary directory is its HOME, and every executor it started is
+    stopped before the directory goes, whatever the test's outcome."""
 
     def setUp(self):
         import subprocess
         self.sp = subprocess
-        self.home = tempfile.mkdtemp(prefix="pinned-run-local-", dir=os.path.expanduser("~/work"))
+        self.home = tempfile.mkdtemp(prefix="pinned-run-local-")
+        self.addCleanup(shutil.rmtree, self.home, True)
+        self.addCleanup(self.stop_executors)
         self.env = dict(os.environ, HOME=self.home)
         self.env.pop("PINNED_RUN_ROOT", None)
         self.env.pop("PINNED_RUN_INSTALLED", None)
@@ -720,8 +805,40 @@ class Local(unittest.TestCase):
         git("commit", "-q", "-m", "one")
         self.repo, self.commit = repo, git("rev-parse", "HEAD").stdout.decode().strip()
 
-    def tearDown(self):
-        shutil.rmtree(self.home, ignore_errors=True)
+    def stop_executors(self):
+        """Kill each run's executor group that still holds its ALIVE lock, and wait for the lock."""
+        import signal, time
+        for alive in glob.glob(os.path.join(self.home, "pinned-runs", "*", "ALIVE")):
+            run = os.path.dirname(alive)
+            fd = os.open(alive, os.O_RDONLY)
+            try:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+                    continue
+                except BlockingIOError:
+                    pass
+                for _ in range(200):  # the executor publishes its group as it starts
+                    if os.path.exists(os.path.join(run, "PGID")):
+                        break
+                    time.sleep(0.05)
+                try:
+                    os.killpg(int(open(os.path.join(run, "PGID")).read()), signal.SIGKILL)
+                except (OSError, ValueError):
+                    pass
+                fcntl.flock(fd, fcntl.LOCK_SH)  # released as the executor dies
+            finally:
+                os.close(fd)
+
+    def reap_group_of(self, pid):
+        """Kill the group of `pid`, a process this test's job started seconds ago, should a
+        fault have let it escape its run's group (and outlive the cancel under test)."""
+        import signal
+        try:
+            group = os.getpgid(pid)
+            if group != os.getpgrp():
+                os.killpg(group, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
 
     def tool(self, *args, timeout=60):
         return self.sp.run([sys.executable, TOOL, *args], env=self.env, capture_output=True, text=True,
@@ -739,22 +856,26 @@ class Local(unittest.TestCase):
         return r.stdout.strip()
 
     def test_a_local_run_is_verified_from_its_pinned_inputs(self):
-        run_id = self.launch("local-ok", 'cat "$1/src/f" > /dev/null && echo ok > "$1/out/x.txt"\n')
+        run_id = self.launch("local-ok", 'cat "$1/src/f" > /dev/null && echo ok > "$1/out/x.txt" && ps -o pgid= -p $$ > "$1/out/pgid"\n')
         r = self.tool("wait", "local", run_id)
         self.assertIn("VERIFIED", r.stdout + r.stderr)
-        phases = [json.loads(l)["phase"] for l in open(os.path.join(self.home, "pinned-runs", run_id, "phases.jsonl"))]
+        run = os.path.join(self.home, "pinned-runs", run_id)
+        phases = [json.loads(l)["phase"] for l in open(os.path.join(run, "phases.jsonl"))]
         self.assertEqual(phases[0], "accepted")
         self.assertEqual(phases[-1], "finished")
+        self.assertEqual(int(open(os.path.join(run, "out", "pgid")).read()), int(open(os.path.join(run, "PGID")).read()),
+                         "the job runs in its executor's group")
 
     def test_cancelling_a_local_run_stops_its_whole_group(self):
         import time
-        run_id = self.launch("local-cancel", 'sleep 300 & echo $! > "$1/child.pid"; wait\n')
+        run_id = self.launch("local-cancel", 'sleep 30 & echo $! > "$1/child.pid"; wait\n')
         run = os.path.join(self.home, "pinned-runs", run_id)
         for _ in range(200):
             if os.path.exists(os.path.join(run, "child.pid")):
                 break
             time.sleep(0.05)
         child = int(open(os.path.join(run, "child.pid")).read())
+        self.addCleanup(self.reap_group_of, child)
         self.assertEqual(self.tool("cancel", "local", run_id).returncode, 0)
         for _ in range(200):
             try:
@@ -767,28 +888,39 @@ class Local(unittest.TestCase):
         self.assertIn("CANCELLED", self.tool("status", "local", run_id).stdout)
 
 
-
 class Bounds(unittest.TestCase):
-    """A job's limits: its deadline and the machine's memory floor stop its whole group."""
+    """A job's limits: its deadline and the machine's memory floor fail the run and stop its
+    whole group, the executor with everything it started. Each job runs under a stand-in
+    executor, a process leading its own group, since a limit kills the caller's group."""
 
     def setUp(self):
         import subprocess
         self.sp = subprocess
-        self.root = tempfile.mkdtemp(prefix="pinned-run-bounds-", dir=os.path.expanduser("~/work"))
-        self.pr = load(self.root)
+        self.root = tempfile.mkdtemp(prefix="pinned-run-bounds-")
+        self.addCleanup(shutil.rmtree, self.root, True)
 
-    def tearDown(self):
-        shutil.rmtree(self.root, ignore_errors=True)
-
-    def job(self, m, **kw):
-        """A job that starts a child sleeping 5 s and waits for it; the child's pid kept (a job its
-        limit leaves alone ends on its own in 5 s, so a control that drops the limit fails fast)."""
-        cmd = ["bash", "-c", 'sleep 5 & echo $! > child.pid; wait']
-        with open(os.path.join(self.root, "job.log"), "w") as out:
-            code, stopped = self.pr.run_job(cmd, self.root, dict(os.environ), out, m, poll_s=0.05, **kw)
+    def job(self, m, memory=None):
+        """A job that starts a child sleeping 5 s and waits for it, under a stand-in executor
+        (a job its limit leaves alone ends on its own in 5 s, so a control that drops the limit
+        fails fast): the executor's exit status and the child's pid."""
+        program = f"""
+import importlib.machinery, importlib.util, json, os, sys
+loader = importlib.machinery.SourceFileLoader("pr", {TOOL!r})
+pr = importlib.util.module_from_spec(importlib.util.spec_from_loader("pr", loader)); loader.exec_module(pr)
+if {memory!r} is not None:
+    pr.mem_available_mib = lambda: {memory!r}
+with open("job.log", "w") as out:
+    print(pr.run_job(["bash", "-c", "sleep 5 & echo $! > child.pid; wait"], {self.root!r}, dict(os.environ), out,
+                     json.loads({json.dumps(m)!r}), poll_s=0.05))
+"""
+        p = self.sp.run([sys.executable, "-c", program], cwd=self.root, start_new_session=True, timeout=60,
+                        capture_output=True, text=True, env=dict(os.environ, PINNED_RUN_ROOT=self.root))
         with open(os.path.join(self.root, "child.pid")) as f:
             child = int(f.read())
-        return code, stopped, child
+        return p, child
+
+    def status(self):
+        return open(os.path.join(self.root, "STATUS")).read() + open(os.path.join(self.root, "REASONS")).read()
 
     def assertGone(self, pid):
         import time
@@ -801,29 +933,31 @@ class Bounds(unittest.TestCase):
         self.fail(f"process {pid} outlived its stopped job")
 
     def test_a_job_past_its_deadline_is_stopped_with_everything_it_started(self):
-        code, stopped, child = self.job({"deadline_s": 1})
-        self.assertTrue(stopped and "deadline" in stopped, stopped)
-        self.assertNotEqual(code, 0)
+        p, child = self.job({"deadline_s": 1})
         self.assertGone(child)
+        self.assertEqual(p.returncode, -9, p.stdout + p.stderr)
+        self.assertEqual(self.status(), "FAILED\njob: stopped at its deadline, 1 s\n")
 
     def test_a_job_under_the_memory_floor_is_stopped_with_everything_it_started(self):
-        with mock.patch.object(self.pr, "mem_available_mib", return_value=100):
-            code, stopped, child = self.job({"memory_floor_mib": 1536})
-        self.assertTrue(stopped and "memory" in stopped, stopped)
+        p, child = self.job({"memory_floor_mib": 1536}, memory=100)
         self.assertGone(child)
+        self.assertEqual(p.returncode, -9, p.stdout + p.stderr)
+        self.assertIn("memory fell under 1536 MiB", self.status())
 
     def test_a_job_within_its_limits_ends_on_its_own(self):
         with open(os.path.join(self.root, "job.log"), "w") as out:
-            code, stopped = self.pr.run_job(["bash", "-c", "exit 3"], self.root, dict(os.environ), out,
-                                            {"deadline_s": 60, "memory_floor_mib": 1}, poll_s=0.05)
-        self.assertEqual((code, stopped), (3, None))
+            code = load(self.root).run_job(["bash", "-c", "exit 3"], self.root, dict(os.environ), out,
+                                           {"deadline_s": 60, "memory_floor_mib": 1}, poll_s=0.05)
+        self.assertEqual(code, 3)
+        self.assertFalse(os.path.exists(os.path.join(self.root, "STATUS")))
 
     def test_limits_are_whole_numbers_above_zero(self):
+        pr = load(self.root)
         base = {"name": "n", "host": "local", "repos": [], "script": "j.sh"}
         for bad in ({"deadline_s": 0}, {"deadline_s": 1.5}, {"memory_floor_mib": -1}, {"memory_floor_mib": "1"}):
             with self.assertRaises(SystemExit):
-                self.pr.validate(dict(base, **bad))
-        self.pr.validate(dict(base, deadline_s=1, memory_floor_mib=1))
+                pr.validate(dict(base, **bad))
+        pr.validate(dict(base, deadline_s=1, memory_floor_mib=1))
 
 
 if __name__ == "__main__":

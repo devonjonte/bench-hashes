@@ -465,47 +465,69 @@ def unit_of(run_id):
     return "pinned-" + sha256(run_id.encode())[:12]
 
 
-def stop(run, reason):
-    """Stop a run's unit (its processes with it) and mark it CANCELLED, unless it has finished."""
-    run_id = os.path.basename(run)
-    if SUPERVISOR == "process":
-        # The executor's group, then the job's own (run_job starts it in a session of its own).
-        for group in (executor_group(run), executor_group(run, "JOB_PGID")):
-            if group:
-                try:
-                    os.killpg(group, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-    else:
-        subprocess.run(SYSTEMCTL + ["stop", unit_of(run_id)], capture_output=True)
-    if not os.path.exists(f"{run}/STATUS"):
-        with open(f"{run}/REASONS", "a") as f:
-            f.write(f"cancelled: {reason}\n")
-        with open(f"{run}/STATUS", "w") as f:
-            f.write("CANCELLED\n")
-
-
-def executor_group(run, name="PGID"):
-    """The process group a process-supervised run's executor leads (its PGID file), or its job's
-    (JOB_PGID), or None."""
+def finish(run, state, reasons):
+    """Make `state` the run's STATUS, with its reasons, if no one has yet: whether this call did.
+    STATUS appears once, whole (a hard link, which fails where one exists), so the executor's
+    verdict, a cancel and a limit never overwrite one another; the first stands."""
+    tmp = f"{run}/STATUS.{os.getpid()}"
+    with open(tmp, "w") as f:
+        f.write(state + "\n")
     try:
-        with open(f"{run}/{name}") as f:
+        os.link(tmp, f"{run}/STATUS")
+    except FileExistsError:
+        return False
+    finally:
+        os.unlink(tmp)
+    with open(f"{run}/REASONS.{os.getpid()}", "w") as f:
+        f.write("".join(f"{x}\n" for x in reasons))
+    os.replace(f"{run}/REASONS.{os.getpid()}", f"{run}/REASONS")
+    return True
+
+
+def stop(run, reason):
+    """Mark a run CANCELLED and stop its executor with everything it started; a run that has
+    finished keeps its STATUS and nothing is signalled."""
+    if not finish(run, "CANCELLED", [f"cancelled: {reason}"]):
+        return
+    # The STATUS comes first: an executor that has not yet looked for one finds it and runs
+    # nothing (remote_execute), and one that already looked has published its group.
+    if SUPERVISOR == "process":
+        group = executor_group(run)
+        if group is not None and executor_active(run):
+            try:
+                os.killpg(group, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+    else:
+        subprocess.run(SYSTEMCTL + ["stop", unit_of(os.path.basename(run))], capture_output=True)
+
+
+def executor_group(run):
+    """The process group a process-supervised run's executor leads (its PGID file), or None."""
+    try:
+        with open(f"{run}/PGID") as f:
             return int(f.read())
     except (OSError, ValueError):
         return None
 
 
 def executor_active(run):
-    """Whether a run's executor still runs: its systemd unit, or its process group."""
+    """Whether a run's executor still runs: its systemd unit, or (process supervision) the lock
+    on its ALIVE file, which the executor holds from its start (start_unit) to its exit. The
+    kernel drops the lock with the process, so a group ID reused after a crash never passes
+    for this run's executor."""
     if SUPERVISOR == "process":
-        group = executor_group(run)
-        if group is None:
+        try:
+            fd = os.open(f"{run}/ALIVE", os.O_RDONLY)
+        except FileNotFoundError:
             return False
         try:
-            os.killpg(group, 0)
-            return True
-        except ProcessLookupError:
+            fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
             return False
+        except BlockingIOError:
+            return True
+        finally:
+            os.close(fd)
     return subprocess.run(SYSTEMCTL + ["is-active", "--quiet", unit_of(os.path.basename(run))]).returncode == 0
 
 
@@ -513,12 +535,15 @@ def start_unit(run_id, tool_path):
     if SUPERVISOR == "process":
         # A session of its own, so the whole group (the job and everything it starts) stops
         # together, whoever started it; the server's request returns at once.
+        # The executor inherits the ALIVE lock taken here, so it holds it from its first
+        # instruction (executor_active); it publishes its own group (remote_execute).
         run = run_dir(run_id)
+        alive = os.open(f"{run}/ALIVE", os.O_CREAT | os.O_RDWR, 0o644)
+        fcntl.flock(alive, fcntl.LOCK_EX)
         with open(f"{run}/executor.log", "a") as log:
-            p = subprocess.Popen([sys.executable, tool_path, "remote-execute", run], stdin=subprocess.DEVNULL,
-                                 stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
-        with open(f"{run}/PGID", "w") as f:
-            f.write(f"{p.pid}\n")
+            subprocess.Popen([sys.executable, tool_path, "remote-execute", run], stdin=subprocess.DEVNULL,
+                             stdout=log, stderr=subprocess.STDOUT, start_new_session=True, pass_fds=(alive,))
+        os.close(alive)
         return
     # OOMPolicy=continue: the kernel's OOM killer taking one of the job's
     # processes (a mutant's test allocating without end) fails that process,
@@ -648,6 +673,14 @@ def sh(cmd, cwd=None, log=None):
 
 
 def remote_execute(run):
+    if SUPERVISOR == "process":
+        # Its group is the run's: everything it starts, the job included, stops with one
+        # signal (stop, run_job). Published before the STATUS check below (see stop).
+        if os.getpgrp() != os.getpid():
+            die(f"{run}: the executor must lead its own process group")
+        with open(f"{run}/PGID.tmp", "w") as f:
+            f.write(f"{os.getpid()}\n")
+        os.replace(f"{run}/PGID.tmp", f"{run}/PGID")
     if os.path.exists(f"{run}/STATUS"):
         return  # a terminal run and its phase record stay immutable
     m = json.load(open(f"{run}/manifest.json"))
@@ -658,10 +691,7 @@ def remote_execute(run):
     try:
         os.close(os.open(f"{run}/STARTED", os.O_CREAT | os.O_EXCL | os.O_WRONLY))
     except FileExistsError:
-        with open(f"{run}/REASONS", "a") as f:
-            f.write("executed twice: the run's unit was restarted (needrestart after an upgrade?), so its first execution was killed\n")
-        with open(f"{run}/STATUS", "w") as f:
-            f.write("FAILED\n")
+        finish(run, "FAILED", ["executed twice: the run's unit was restarted (needrestart after an upgrade?), so its first execution was killed"])
         return
     record_phase(run, "executor_started")
     os.makedirs(f"{run}/out", exist_ok=True)
@@ -708,11 +738,9 @@ def remote_execute(run):
         home = "/root" if SUPERVISOR == "systemd" else os.environ.get("HOME", "/")
         env = dict(os.environ, HOME=home, RUN_DIR=run, **m.get("env", {}))
         with open(f"{run}/job.log", "w") as out:
-            code, stopped = run_job(["bash", script, run], run, env, out, m)
+            code = run_job(["bash", script, run], run, env, out, m)
         record_phase(run, "job_finished", exit_code=code)
-        if stopped:
-            reasons.append(f"job: {stopped}")
-        elif code != 0:
+        if code != 0:
             reasons.append(f"job: exit {code}")
         verification = verify(run, m)
         reasons += verification
@@ -721,12 +749,9 @@ def remote_execute(run):
         lock.close()
     if os.path.exists(f"{run}/STATUS"):
         return  # cancelled meanwhile: its STATUS stands
-    with open(f"{run}/REASONS", "w") as f:
-        f.write("".join(f"{x}\n" for x in reasons))
     state = "FAILED" if reasons else "VERIFIED"
     record_phase(run, "finished", status=state)
-    with open(f"{run}/STATUS", "w") as f:
-        f.write(state + "\n")
+    finish(run, state, reasons)
 
 
 def mem_available_mib():
@@ -739,34 +764,28 @@ def mem_available_mib():
 
 
 def run_job(cmd, run, env, out, m, poll_s=1.0):
-    """Run the job in a session of its own and wait for it, bounded by the manifest's limits:
-    past `deadline_s` seconds, or with the machine's available memory under `memory_floor_mib`,
-    its whole group (everything it started) is killed. Its exit code, and why it was stopped
-    (None when it ended on its own). A hung job then costs its deadline, not the host."""
+    """Run the job in the executor's own process group and wait for it: its exit code. Past
+    the manifest's `deadline_s` seconds, or with the machine's available memory under its
+    `memory_floor_mib`, the run is FAILED with the reason and the whole group, this executor
+    and everything the job started, is killed; the call never returns. A hung job then costs
+    its deadline, not the host. The caller leads its group (remote_execute)."""
     deadline, floor = m.get("deadline_s"), m.get("memory_floor_mib")
-    p = subprocess.Popen(cmd, cwd=run, env=env, stdout=out, stderr=subprocess.STDOUT, start_new_session=True)
-    # The job's group, for a cancel to stop too (its executor's group no longer holds it).
-    with open(f"{run}/JOB_PGID", "w") as f:
-        f.write(f"{p.pid}\n")
+    p = subprocess.Popen(cmd, cwd=run, env=env, stdout=out, stderr=subprocess.STDOUT)
     started = time.monotonic()
-    stopped = None
     while True:
         try:
-            return p.wait(timeout=poll_s), stopped
+            return p.wait(timeout=poll_s)
         except subprocess.TimeoutExpired:
             pass
-        if stopped:
-            continue
+        stopped = None
         if deadline is not None and time.monotonic() - started > deadline:
             stopped = f"stopped at its deadline, {deadline} s"
         elif floor is not None and mem_available_mib() < floor:
             stopped = f"stopped: the machine's available memory fell under {floor} MiB"
         if stopped:
-            try:
-                os.killpg(p.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            p.kill()  # the job itself, should its group be gone already
+            record_phase(run, "job_finished", stopped=stopped)
+            finish(run, "FAILED", [f"job: {stopped}"])
+            os.killpg(os.getpgrp(), signal.SIGKILL)
 
 
 def verify(run, m):
