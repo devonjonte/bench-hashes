@@ -84,6 +84,7 @@ compile_error!("clocks reads Unix's clocks (Linux and macOS); Windows is not sup
 
 pub mod child;
 pub mod energy;
+pub mod events;
 pub mod load;
 pub mod other_code;
 pub mod summary;
@@ -207,6 +208,86 @@ pub struct Level {
 pub struct Counts {
     pub p: Level,
     pub e: Level,
+}
+
+/// What the routine counts' own reads cost, as a samples file records it
+/// beside its samples: the median, over 1,001 brackets around no work, of
+/// two `Counts::read`s' cycles and instructions, on each kind of core
+/// (Linux: a thread pinned to one CPU of each kind; elsewhere the calling
+/// thread). Every counted sample carries this much that is the reads' own,
+/// so a sample's work against it says how diluted the reads are
+/// (bench-hashes #160: a quarter of a 0.6 us sample on the Mac, 0.4% of
+/// 36 us). "not measured" where the platform gives no counts.
+pub fn read_overhead() -> String {
+    /// Pin the calling thread to `cpu` (Linux); whether it held.
+    fn pin(cpu: usize) -> bool {
+        #[cfg(target_os = "linux")]
+        {
+            unsafe extern "C" {
+                fn sched_setaffinity(pid: i32, size: usize, set: *const u64) -> i32;
+            }
+            let mut set = [0u64; 16];
+            if cpu >= 1024 {
+                return false;
+            }
+            set[cpu / 64] |= 1 << (cpu % 64);
+            // Sound: `set` is a cpu_set_t of 1024 bits; pid 0 is this thread.
+            unsafe { sched_setaffinity(0, core::mem::size_of_val(&set), set.as_ptr()) == 0 }
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = cpu;
+            false
+        }
+    }
+    fn median(mut v: Vec<u64>) -> u64 {
+        v.sort_unstable();
+        v[v.len() / 2]
+    }
+    /// The brackets on the calling thread: (P cycles, P instructions, E
+    /// cycles, E instructions) medians, each kind where it ran.
+    fn brackets() -> Option<[Option<(u64, u64)>; 2]> {
+        let mut kinds = [(Vec::new(), Vec::new()), (Vec::new(), Vec::new())];
+        for _ in 0..1001 {
+            let then = Counts::read()?;
+            let now = Counts::read()?;
+            let d = now.since(then);
+            for (k, level) in [d.p, d.e].into_iter().enumerate() {
+                if level.cycles > 0 {
+                    kinds[k].0.push(level.cycles);
+                    kinds[k].1.push(level.instructions);
+                }
+            }
+        }
+        Some(kinds.map(|(c, i)| (!c.is_empty()).then(|| (median(c), median(i)))))
+    }
+    let on = |cpus: Option<&str>| -> Option<[Option<(u64, u64)>; 2]> {
+        match cpus {
+            None => brackets(),
+            Some(cpu) => {
+                let cpu: usize = cpu.parse().ok()?;
+                std::thread::spawn(move || pin(cpu).then(brackets).flatten()).join().ok()?
+            }
+        }
+    };
+    // The first CPU of each kind, where Linux names the kinds.
+    let first = |pmu: &str| -> Option<String> {
+        let list = std::fs::read_to_string(format!("/sys/bus/event_source/devices/{pmu}/cpus")).ok()?;
+        Some(list.trim().split(|c| c == ',' || c == '-').next()?.to_owned())
+    };
+    let (p, e) = match (first("cpu_core"), first("cpu_atom")) {
+        (Some(p), Some(e)) => (on(Some(&p)).and_then(|k| k[0]), on(Some(&e)).and_then(|k| k[1])),
+        _ => match on(None) {
+            Some([p, e]) => (p, e),
+            None => (None, None),
+        },
+    };
+    let show = |kind: &str, v: Option<(u64, u64)>| v.map(|(c, i)| format!("{kind} {c} cycles, {i} instructions"));
+    let kinds: Vec<String> = [show("P", p), show("E", e)].into_iter().flatten().collect();
+    if kinds.is_empty() {
+        return "not measured".to_owned();
+    }
+    format!("{} (the median of 1,001 brackets around no work, two counts reads each)", kinds.join("; "))
 }
 
 impl Counts {
