@@ -54,7 +54,7 @@ class Server(unittest.TestCase):
         def git(args, **kw):
             return subprocess.CompletedProcess(args, 0, stdout="a" * 40 if "rev-parse" in args else "")
         with mock.patch.object(self.pr, "sh", git), \
-             mock.patch.object(self.pr.subprocess, "run", return_value=subprocess.CompletedProcess([], job_code)), \
+             mock.patch.object(self.pr, "run_job", return_value=(job_code, None)), \
              mock.patch.object(self.pr, "verify", return_value=list(verification)):
             self.pr.remote_execute(os.path.join(self.root, run_id))
 
@@ -206,13 +206,13 @@ class Server(unittest.TestCase):
         def git(args, **kw):
             assert_locked("prepare")
             return __import__("subprocess").CompletedProcess(args, 0, stdout="a"*40 if "rev-parse" in args else "")
-        def job(args, **kw):
+        def job(*args, **kw):
             assert_locked("job")
-            return __import__("subprocess").CompletedProcess(args, 0)
+            return 0, None
         def verify(*args):
             assert_locked("verify")
             return []
-        with mock.patch.object(self.pr, "sh", git), mock.patch.object(self.pr.subprocess, "run", job), mock.patch.object(self.pr, "verify", verify):
+        with mock.patch.object(self.pr, "sh", git), mock.patch.object(self.pr, "run_job", job), mock.patch.object(self.pr, "verify", verify):
             self.pr.remote_execute(run)
         self.assertEqual(events[-2:], ["job", "verify"])
         self.assertIn("prepare", events)
@@ -694,6 +694,136 @@ class Client(unittest.TestCase):
             with self.assertRaises(SystemExit) as e:
                 self.pr.next_done(poll=0)
             self.assertEqual(e.exception.code, 3, "none pending or unreported")
+
+
+
+class Local(unittest.TestCase):
+    """The local host end to end, no mocks: a run on this machine through the command line,
+    its executor a process group of its own (a sandbox: no root, no systemd, no SSH)."""
+
+    def setUp(self):
+        import subprocess
+        self.sp = subprocess
+        self.home = tempfile.mkdtemp(prefix="pinned-run-local-", dir=os.path.expanduser("~/work"))
+        self.env = dict(os.environ, HOME=self.home)
+        self.env.pop("PINNED_RUN_ROOT", None)
+        self.env.pop("PINNED_RUN_INSTALLED", None)
+        repo = os.path.join(self.home, "repo")
+        git = lambda *a: subprocess.run(["git", "-C", repo, *a], check=True, capture_output=True, env=dict(
+            self.env, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t.invalid", GIT_COMMITTER_NAME="t",
+            GIT_COMMITTER_EMAIL="t@t.invalid"))
+        os.makedirs(repo)
+        git("init", "-q")
+        with open(os.path.join(repo, "f"), "w") as f:
+            f.write("x")
+        git("add", "f")
+        git("commit", "-q", "-m", "one")
+        self.repo, self.commit = repo, git("rev-parse", "HEAD").stdout.decode().strip()
+
+    def tearDown(self):
+        shutil.rmtree(self.home, ignore_errors=True)
+
+    def tool(self, *args, timeout=60):
+        return self.sp.run([sys.executable, TOOL, *args], env=self.env, capture_output=True, text=True,
+                           timeout=timeout, cwd=self.home)
+
+    def launch(self, name, script):
+        with open(os.path.join(self.home, "job.sh"), "w") as f:
+            f.write(script)
+        with open(os.path.join(self.home, "m.json"), "w") as f:
+            json.dump({"name": name, "host": "local", "script": "job.sh",
+                       "repos": [{"url": "file://" + self.repo, "commit": self.commit, "path": "src"}],
+                       "expect": [{"file": "out/x.txt", "contains": ["ok"]}]}, f)
+        r = self.tool("launch", "m.json")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout.strip()
+
+    def test_a_local_run_is_verified_from_its_pinned_inputs(self):
+        run_id = self.launch("local-ok", 'cat "$1/src/f" > /dev/null && echo ok > "$1/out/x.txt"\n')
+        r = self.tool("wait", "local", run_id)
+        self.assertIn("VERIFIED", r.stdout + r.stderr)
+        phases = [json.loads(l)["phase"] for l in open(os.path.join(self.home, "pinned-runs", run_id, "phases.jsonl"))]
+        self.assertEqual(phases[0], "accepted")
+        self.assertEqual(phases[-1], "finished")
+
+    def test_cancelling_a_local_run_stops_its_whole_group(self):
+        import time
+        run_id = self.launch("local-cancel", 'sleep 300 & echo $! > "$1/child.pid"; wait\n')
+        run = os.path.join(self.home, "pinned-runs", run_id)
+        for _ in range(200):
+            if os.path.exists(os.path.join(run, "child.pid")):
+                break
+            time.sleep(0.05)
+        child = int(open(os.path.join(run, "child.pid")).read())
+        self.assertEqual(self.tool("cancel", "local", run_id).returncode, 0)
+        for _ in range(200):
+            try:
+                os.kill(child, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.05)
+        else:
+            self.fail("the job's child outlived its cancelled run")
+        self.assertIn("CANCELLED", self.tool("status", "local", run_id).stdout)
+
+
+
+class Bounds(unittest.TestCase):
+    """A job's limits: its deadline and the machine's memory floor stop its whole group."""
+
+    def setUp(self):
+        import subprocess
+        self.sp = subprocess
+        self.root = tempfile.mkdtemp(prefix="pinned-run-bounds-", dir=os.path.expanduser("~/work"))
+        self.pr = load(self.root)
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def job(self, m, **kw):
+        """A job that starts a child sleeping 5 s and waits for it; the child's pid kept (a job its
+        limit leaves alone ends on its own in 5 s, so a control that drops the limit fails fast)."""
+        cmd = ["bash", "-c", 'sleep 5 & echo $! > child.pid; wait']
+        with open(os.path.join(self.root, "job.log"), "w") as out:
+            code, stopped = self.pr.run_job(cmd, self.root, dict(os.environ), out, m, poll_s=0.05, **kw)
+        with open(os.path.join(self.root, "child.pid")) as f:
+            child = int(f.read())
+        return code, stopped, child
+
+    def assertGone(self, pid):
+        import time
+        for _ in range(100):
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                return
+            time.sleep(0.02)
+        self.fail(f"process {pid} outlived its stopped job")
+
+    def test_a_job_past_its_deadline_is_stopped_with_everything_it_started(self):
+        code, stopped, child = self.job({"deadline_s": 1})
+        self.assertTrue(stopped and "deadline" in stopped, stopped)
+        self.assertNotEqual(code, 0)
+        self.assertGone(child)
+
+    def test_a_job_under_the_memory_floor_is_stopped_with_everything_it_started(self):
+        with mock.patch.object(self.pr, "mem_available_mib", return_value=100):
+            code, stopped, child = self.job({"memory_floor_mib": 1536})
+        self.assertTrue(stopped and "memory" in stopped, stopped)
+        self.assertGone(child)
+
+    def test_a_job_within_its_limits_ends_on_its_own(self):
+        with open(os.path.join(self.root, "job.log"), "w") as out:
+            code, stopped = self.pr.run_job(["bash", "-c", "exit 3"], self.root, dict(os.environ), out,
+                                            {"deadline_s": 60, "memory_floor_mib": 1}, poll_s=0.05)
+        self.assertEqual((code, stopped), (3, None))
+
+    def test_limits_are_whole_numbers_above_zero(self):
+        base = {"name": "n", "host": "local", "repos": [], "script": "j.sh"}
+        for bad in ({"deadline_s": 0}, {"deadline_s": 1.5}, {"memory_floor_mib": -1}, {"memory_floor_mib": "1"}):
+            with self.assertRaises(SystemExit):
+                self.pr.validate(dict(base, **bad))
+        self.pr.validate(dict(base, deadline_s=1, memory_floor_mib=1))
 
 
 if __name__ == "__main__":
