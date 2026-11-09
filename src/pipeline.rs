@@ -11,6 +11,7 @@
 //! its own thread and parks between polls, as the crate's example does.
 
 use blake3_servil::throughput::pipeline::{Event, Limits, Message, Stream};
+use blake3_servil::throughput::Batch;
 use std::cell::RefCell;
 use std::future::Future;
 use std::task::{Context, Poll, Wake, Waker};
@@ -20,16 +21,25 @@ use std::task::{Context, Poll, Wake, Waker};
 type Pipeline = Stream<usize, fn(Event<usize>)>;
 pub(crate) type Open = Message<'static, usize, fn(Event<usize>)>;
 
-/// The room budget of a message received alone: 64 rooms of 16 KiB, 1 MiB
-/// in flight, and two message slots (the one being received and the last,
-/// until its digest is collected).
-pub(crate) const RECEIVE_LIMITS: (usize, usize) = (64, 2);
+/// The pipeline's budget: 64 rooms of 16 KiB, 1 MiB in flight, and two
+/// message slots. A message received alone takes the one being received
+/// and the last, until its digest is collected; batches go round two at a
+/// time, a slot each.
+pub(crate) const LIMITS: (usize, usize) = (64, 2);
 
 thread_local! {
     static PIPELINES: RefCell<Vec<((usize, usize), &'static Pipeline)>> = const { RefCell::new(Vec::new()) };
     /// Digests delivered and not yet taken, with their tags.
     static INBOX: RefCell<Vec<(usize, [u8; 32])>> = const { RefCell::new(Vec::new()) };
+    /// Batches handed back with their places, not yet taken.
+    static RETURNED: RefCell<Vec<(usize, Batch<'static>, Places)>> = const { RefCell::new(Vec::new()) };
+    /// Batches and places kept for the process, by messages per batch.
+    static KEPT: RefCell<Vec<(usize, Vec<(Batch<'static>, Places)>)>> = const { RefCell::new(Vec::new()) };
 }
+
+/// A batch's digest places, one a message: owned, as the pipeline holds
+/// them while its workers write them (BLAKE3-Servil #309).
+type Places = Box<[[u8; 32]]>;
 
 fn deliver(event: Event<usize>) {
     match event {
@@ -37,7 +47,9 @@ fn deliver(event: Event<usize>) {
             INBOX.with(|inbox| inbox.borrow_mut().push((tag, *hash.as_bytes())))
         }
         Event::Aborted { .. } => unreachable!("the benchmark aborts no message"),
-        Event::Batch { .. } => unreachable!("the benchmark submits no batch to the pipeline"),
+        Event::Batch { tag, batch, places } => {
+            RETURNED.with(|returned| returned.borrow_mut().push((tag, batch, places)))
+        }
     }
 }
 
@@ -138,7 +150,7 @@ pub(crate) fn receive(
     arrivals: &impl Fn(&[u8], &mut dyn FnMut(&[u8])),
     mut consume: impl FnMut(&[u8]),
 ) {
-    let p = pipeline(RECEIVE_LIMITS);
+    let p = pipeline(LIMITS);
     let mut delivered = Vec::with_capacity(1);
     for _ in 0..iterations {
         let mut message = Some(block_on(p.message(0, Some(input.len() as u64))));
@@ -167,9 +179,121 @@ pub(crate) fn receive(
     }
 }
 
+/// `iterations` batches of `messages` 64-byte messages through the
+/// pipeline, a complete cycle each: the batch refilled from `input` (each
+/// message's 64 bytes copied in, as a program reads its messages into its
+/// own batch), submitted, handed back with its places by its completion,
+/// its digests consumed whole, and the batch and places used again. As
+/// many batches in flight as the pipeline's message slots (LIMITS); at the
+/// end, every one still out is waited for, so a sample counts the work it
+/// started. `consume` reads digests and does not use the pipeline (the
+/// returned batches stay borrowed while it runs).
+pub(crate) fn batches(
+    input: &[u8],
+    messages: usize,
+    iterations: usize,
+    mut consume: impl FnMut(&[u8]),
+) {
+    const LEN: usize = 64;
+    assert!(
+        input.len() >= messages * LEN,
+        "the batch's messages come from the input"
+    );
+    let p = pipeline(LIMITS);
+    let mut free = KEPT.with(|kept| {
+        let mut kept = kept.borrow_mut();
+        match kept.iter().position(|(m, _)| *m == messages) {
+            Some(i) => kept.swap_remove(i).1,
+            None => (0..LIMITS.1)
+                .map(|_| {
+                    (
+                        Batch::new(LEN, messages),
+                        vec![[0u8; 32]; messages].into_boxed_slice(),
+                    )
+                })
+                .collect(),
+        }
+    });
+    let mut out = 0;
+    // The batches handed back, each into the free pairs as its digests
+    // are consumed.
+    let mut take_back = |free: &mut Vec<(Batch<'static>, Places)>, out: &mut usize| {
+        RETURNED.with(|returned| {
+            for (_, batch, places) in returned.borrow_mut().drain(..) {
+                // The batch's digests whole, as the stream's batch cell
+                // hands each place back.
+                consume(places.as_flattened());
+                free.push((batch, places));
+                *out -= 1;
+            }
+        })
+    };
+    for i in 0..iterations {
+        while free.is_empty() {
+            p.collect();
+            take_back(&mut free, &mut out);
+            if free.is_empty() {
+                block_on(p.ready());
+            }
+        }
+        let (mut batch, places) = free.pop().unwrap();
+        let input = std::hint::black_box(input);
+        for m in 0..messages {
+            batch.set(m, &input[m * LEN..][..LEN]);
+        }
+        block_on(p.submit_batch(batch, places, i));
+        out += 1;
+        take_back(&mut free, &mut out);
+    }
+    while out > 0 {
+        p.collect();
+        take_back(&mut free, &mut out);
+        if out > 0 {
+            block_on(p.ready());
+        }
+    }
+    KEPT.with(|kept| kept.borrow_mut().push((messages, free)));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Each batch's digests, handed back through its completion and
+    /// consumed, are BLAKE3's digests of its messages, through refills and
+    /// on the kept pipeline, at every batch size of the continuous axis.
+    #[test]
+    fn a_batch_cycle_hashes_every_message_to_blake3() {
+        blake3_servil::initialize_multithreaded(None);
+        for messages in [1, 16, 64, 1024] {
+            // Fresh input each call: the kept pairs come back holding the
+            // last call's messages, and a refill that skipped one would
+            // pass on the same data.
+            for iterations in [1, 2, 5] {
+                let input = crate::make_input_seeded(messages * 64, 29 + iterations as u64);
+                let want: Vec<[u8; 32]> = input
+                    .chunks(64)
+                    .map(|m| *blake3::hash(m).as_bytes())
+                    .collect();
+                let mut got = Vec::new();
+                batches(&input, messages, iterations, |d| {
+                    got.extend(d.chunks(32).map(|c| <[u8; 32]>::try_from(c).unwrap()))
+                });
+                assert_eq!(
+                    got.len(),
+                    iterations * messages,
+                    "{messages} messages, {iterations} batches"
+                );
+                for (k, digest) in got.iter().enumerate() {
+                    assert_eq!(
+                        *digest,
+                        want[k % messages],
+                        "{messages} messages, {iterations} batches, digest {k}"
+                    );
+                }
+            }
+        }
+    }
 
     /// The pipeline's digest of a message received in fragments is BLAKE3's
     /// digest of the message, at every length around a block, a fragment
