@@ -160,7 +160,7 @@ fn use_digest_stores_each_digest_in_its_slot() {
 /// The provenance every samples file's header carries, in order (the main
 /// run's, b3sum's and leaves' all write theirs with samples_header): the
 /// keys before the run's own.
-pub(crate) const PROVENANCE: [&str; 21] = [
+pub(crate) const PROVENANCE: [&str; 22] = [
     "timestamp",
     "bench-hashes version",
     "bench-hashes source",
@@ -182,6 +182,7 @@ pub(crate) const PROVENANCE: [&str; 21] = [
     "effective idle states",
     "idle control",
     "shared placements",
+    "counts read overhead",
 ];
 
 /// A samples file's header keys, in order.

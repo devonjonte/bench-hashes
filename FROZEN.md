@@ -28,6 +28,18 @@ the notes) may still change, to say it better.
 
 **Changes for 0.21, November 6-9, 2026** (after the release rehearsal of
 bench-hashes #154; John Servil's decisions):
+- **Every samples file records what the counts' own reads cost** (proposed
+  for John Servil's decision, November 9, 2026; bench-hashes #160). A
+  header line, `counts read overhead`: per kind of core, the median over
+  1,001 brackets around no work of two routine counts reads' cycles and
+  instructions (a thread pinned to one CPU of each kind on Linux). Every
+  counted sample carries that much of the reads' own, so a sample's
+  dilution is on record beside it. The samples and their reads are
+  unchanged.
+- **`compare --markdown`** (proposed for John Servil's decision, November
+  9, 2026): the same cells, ratios and verdicts as a Markdown table, for a
+  post or a record, so that no figure there is typed by hand. The judgment
+  is unchanged.
 - **The map and report say where BLAKE3-Servil's version names other
   code** (proposed for John Servil's decision, November 9, 2026;
   bench-hashes #154). A release's version holds its code commit's hash,

@@ -2158,6 +2158,9 @@ struct MachineMetadata {
     /// Where the shared scenario's two copies ran, by placement
     /// (Topology::describe): "one cache: CPUs 0 and 2; two caches: none".
     placements: String,
+    /// What the counts' own reads add to every counted sample, per kind of
+    /// core (clocks::read_overhead).
+    read_overhead: String,
     /// Other programs' load during the measuring phase, window by window
     /// (clocks::load), where the OS reports it (Linux, macOS; empty
     /// elsewhere); set once measuring ends.
@@ -7301,7 +7304,11 @@ fn cell_instructions(file: &SamplesFile) -> crate::Map<String, u128> {
 }
 
 fn compare_command(arguments: &[String]) {
-    let usage = "usage: bench-hashes compare OLD.tsv... -- NEW.tsv... (one new run for each old run, in the order they ran)";
+    let usage = "usage: bench-hashes compare [--markdown] OLD.tsv... -- NEW.tsv... (one new run for each old run, in the order they ran)";
+    // --markdown: the cells as a Markdown table, for a post or a record, so
+    // that no figure in one is typed by hand.
+    let markdown = arguments.first().is_some_and(|a| a == "--markdown");
+    let arguments = &arguments[usize::from(markdown)..];
     let split = arguments
         .iter()
         .position(|argument| argument == "--")
@@ -7363,6 +7370,10 @@ fn compare_command(arguments: &[String]) {
     let tested: Vec<Pairs> = order.iter().map(|key| cells[key].0.clone()).collect();
     let (judged, _) = judge_once(&tested);
     let times = |permille: u64| format!("x{}.{:03}", permille / 1000, permille % 1000);
+    if markdown {
+        println!("| cell | old ns/unit | new ns/unit | new/old | verdict | pairs faster | CPU time | energy |");
+        println!("|---|---:|---:|---:|---|---:|---:|---:|");
+    }
     for (key, judgment) in order.into_iter().zip(judged) {
         let (wall, cpu, energy) = &cells[&key];
         let verdict = match judgment.verdict {
@@ -7383,11 +7394,31 @@ fn compare_command(arguments: &[String]) {
                 String::new()
             }
         };
-        let cpu = beside("CPU time", cpu) + &beside("energy", energy);
         let (a, b) = (
             geometric_mean(wall.iter().map(|p| p.0)),
             geometric_mean(wall.iter().map(|p| p.1)),
         );
+        if markdown {
+            let column = |pairs: &Pairs| {
+                if pairs.len() == wall.len() {
+                    times(clocks::summary::geometric_mean_permille(pairs))
+                } else {
+                    "-".to_owned()
+                }
+            };
+            println!(
+                "| {} | {} | {} | {} | {verdict} | {faster} of {} | {} | {} |",
+                key.replace('|', " / "),
+                Fixed(a).format_ns(),
+                Fixed(b).format_ns(),
+                times(judgment.ratio_permille),
+                wall.len(),
+                column(cpu),
+                column(energy)
+            );
+            continue;
+        }
+        let cpu = beside("CPU time", cpu) + &beside("energy", energy);
         println!(
             "{key}: {} -> {} ns/unit  {} {verdict}, {faster} of {} pairs faster{cpu}",
             Fixed(a).format_ns(),
@@ -8117,6 +8148,7 @@ fn samples_header(machine: &MachineMetadata, run: &[(String, String)], load: &st
         ),
         ("idle control", machine.idle_control.as_str()),
         ("shared placements", machine.placements.as_str()),
+        ("counts read overhead", machine.read_overhead.as_str()),
     ]
     .into_iter()
     .chain(
@@ -8486,6 +8518,7 @@ fn machine_metadata() -> MachineMetadata {
         effective_idle_states: effective_idle_states(),
         idle_control: "not used by this command".to_owned(),
         placements: topology().describe(),
+        read_overhead: clocks::read_overhead(),
         load: Vec::new(),
         power: [Power::read(), None],
     }

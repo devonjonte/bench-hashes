@@ -22,6 +22,8 @@
 
 **The provenance says when BLAKE3-Servil's version names another release.** A build of unreleased BLAKE3-Servil code keeps the last release's version string; the line beside it now says the version names that release's code, not this build's.
 
+**The same diagnostic events on every platform.** The `clocks` crate gives, beside the routine counts, a diagnostic set by one set of names: cycles, instructions, L1 data and instruction misses, data-TLB misses, backend stalls and branch misses, per kind of core. On Linux the `clocks` crate counts them through the processor's counters; on the Mac, Apple's counters give the matching events to a process run as root (BLAKE3-Servil's events sampler). They answer "the cycles moved and the instructions did not: what moved with them?" around work long enough to dilute the reads. Every samples file also records what the routine counts' own reads cost on each kind of core, and `compare --markdown` prints its cells as a table for a post.
+
 **Maintainers: `bench-hashes quiet` and the local runner.** `bench-hashes quiet [--wait]` applies the quiet-machine rule `check` and `regress` use before they start. `pinned-run` runs jobs on the local machine too, each under its deadline and memory floor, its processes supervised as a group.
 
 ## Earlier: 0.20.4+6c91cfabef89d1bd52c4d73b7d2578f449689502
