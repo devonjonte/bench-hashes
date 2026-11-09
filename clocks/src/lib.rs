@@ -32,6 +32,30 @@
 //! Read wall time alone inside a timed interval and the counts outside it:
 //! a counts read is a system call.
 //!
+//! **What a read costs** (an M4 Max, November 9, 2026; BLAKE3-Servil's
+//! `probe/measure-clocks3`, Mac jobs 2068-2072):
+//!
+//! - A wall read: 12-23 ns, 41 cycles, 81 instructions.
+//! - A `thread_selfcounts` read: 110-154 ns, about 400 cycles, 1,613
+//!   instructions. The two reads around an interval add about 470 cycles
+//!   and 1,792 instructions to its counts, and about 10 ns to its wall
+//!   time. The instructions are constant to ±1. The cycles vary with the
+//!   cache state the interval leaves behind.
+//! - Apple's `kpc` read (root): 578 ns, 2,391 cycles, 12,370
+//!   instructions, four to six times more. It buys the configurable
+//!   events for diagnosis: cache and TLB misses, dispatch stalls, SME-unit
+//!   waits, 104 in all, eight at a time beside cycles and instructions.
+//! - A direct counter read (`mrs` of PMC0, PMC1, or `PMCCNTR_EL0`) traps
+//!   in user mode, as root too, counting on or off. The kernel leaves
+//!   `PMCR0.USEREN` off and exposes no switch.
+//!
+//! So an interval is made long against 470 cycles: a batch of calls, or
+//! several prepared sets finished inside one bracket. zooko/measure-clocks3
+//! at 5005425b on the same Mac agrees with its December 2025 results: every
+//! wall clock steps 41.67 ns, the thread CPU-time clock has the smallest
+//! spread (it stops while the thread is interrupted), and process CPU time
+//! steps 1 us.
+//!
 //! **Another program's run** ([`child`]): wall time from its start to its
 //! exit, with the counts the OS keeps for the process (CPU time, peak
 //! memory, reads from storage, and on macOS cycles per core kind).
