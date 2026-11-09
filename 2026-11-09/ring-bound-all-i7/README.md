@@ -4,4 +4,4 @@
 
 **Command.** `check --cells all` through queue.py (`night2-20261109.queue`, 48 min): 4 pairs over every cell, then 64 pairs on the suspects.
 
-**Verdict.** No cell slower at either stage. (The run's output names no instruction suspect.) Posted on BLAKE3 #303.
+**Verdict.** No cell slower at either stage. No level cell's instructions moved beyond 0.5%. Posted on BLAKE3 #303.
