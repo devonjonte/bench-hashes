@@ -1,0 +1,37 @@
+# bench-hashes samples v10
+# timestamp: 2026-11-09 00:10:20 UTC
+# bench-hashes version: 0.20.4+6c91cfabef89d1bd52c4d73b7d2578f449689502
+# bench-hashes source: https://github.com/devonjonte/bench-hashes
+# git commit: 5c1a092f71126b95f035e104c25d38b0cacae63b
+# git clean status: clean
+# dependency lock: blake3 1aac46c5c749f52ff8fd19a4c501878df1a9c8f1f42b44bd0a7ae43857d6ccaf of Cargo.lock
+# rust compiler: rustc 1.98.1 (48a229cea 2026-09-01)
+# c compiler: cc: cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+# rustflags: none
+# build target: x86_64-unknown-linux-gnu
+# target features: fxsr,sse,sse2
+# sample clock: CLOCK_MONOTONIC_RAW (stops during suspend; the raw counter, no NTP slew)
+# clocks source: clocks 0.1.0; this repository's clocks/, at its commit
+# cpu type: 12th Gen Intel(R) Core(TM) i7-12700K
+# cpu count: 20
+# os type: linux7.0.0-42-generic
+# cpu identity: model name: 12th Gen Intel(R) Core(TM) i7-12700K · microcode: 0x3e · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l2 cdp_l2 ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdt_a rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize pconfig arch_lbr ibt flush_l1d arch_capabilities · machine: B748
+# idle states: driver intel_idle, governor menu; POLL latency 0 us residency 0 us, C1E latency 2 us residency 4 us, C6 latency 220 us residency 600 us, C8 latency 280 us residency 800 us, C10 latency 680 us residency 2000 us
+# effective idle states: over 1000 x 20 us: C1 100%, C6 0%, C7 0%, awake or unnamed 0%; over 20 x 5 ms: C1 24%, C6 76%, C7 0%, awake or unnamed 0%
+# idle control: none (no cpuidle states the bench can switch off: run as root for the controlled cells)
+# shared placements: one cache: CPUs 0 and 2; two caches: none
+# source blake3-servil-mt: blake3-servil 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 (local checkout); source https://github.com/servil-software-factory/BLAKE3; branch HEAD; commit 12a3ae6cddb576d8a237d677046e13fa6086ad12; clean
+# contenders: --contenders blake3-servil-mt
+# rounds: 24
+# measuring thread: pinned to CPU 0 around each sample after a gap (bench-hashes regress)
+# sample sizes: from /home/agent/tmp/bench-hashes-regress-sizes-3867668.tsv (--sizes)
+# buffers owned: where a contender makes the same calls as with buffers lent, one measurement, shown in both rows
+# nonstop train: 100 ms warm-up, 6 samples a visit
+# points: 64 B
+# power: mains power, no battery, CPU frequency governor powersave, energy-performance preference performance
+# load: quiet: other programs kept 0.20 CPUs busy on average, 0.20 in the busiest window
+# load measured by: bench-hashes regress, around the run (the windows below are the run's own)
+# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 
+contender	scenario	use_case	point	unit	ns/units	start ms	cpu ns	energy nJ	core counts	cpu
+blake3-servil-mt	solo	ContinuousMessages	64 B	B	629348/2318976,636579/2318976,632473/2318976,628950/2318976,637453/2318976,629308/2318976,649078/2318976,639010/2318976,636483/2318976,645414/2318976,652877/2318976,638057/2318976	109,110,111,111,112,113,318,319,319,320,321,321	2437849,2283287,2288661,2200594,2402582,2175394,2595102,2392476,2345705,2437262,2684939,2285479	0,88378906,67626953,0,72021485,0,110839844,57678223,0,85693359,0,0	629774:2888787:9804833:77485:69:0:0:0:0:0,636699:2912695:9804756:77539:1:0:0:0:0:0,632593:2883801:9805367:77541:11:0:0:0:0:0,629073:2880262:9805199:77345:1:0:0:0:0:0,637574:2872361:9805801:77332:1:0:0:0:0:0,629428:2897920:9803999:77363:2:0:0:0:0:0,649701:2973787:9804859:77717:364:0:0:0:0:0,639130:2918614:9805019:77587:34:0:0:0:0:0,636602:2912414:9805185:77087:41:0:0:0:0:0,645558:2950245:9805018:77509:9:0:0:0:0:0,652998:2990470:9804864:77977:3:0:0:0:0:0,638177:2934724:9804402:77699:4:0:0:0:0:0	6,6,6,6,6,6,2,2,2,2,2,2
+blake3-servil-mt	shared-one-cache	ContinuousMessages	64 B	B	644606/2318976,627435/2318976,728711/2318976,625539/2318976,726824/2318976,624720/2318976,618609/2318976,608091/2318976,616593/2318976,613302/2318976,610477/2318976,601144/2318976,1089156/2318976,670158/2318976,603660/2318976,641388/2318976,609561/2318976,605344/2318976,661225/2318976,615470/2318976,609036/2318976,639008/2318976,604978/2318976,615657/2318976	214,214,214,214,215,215,216,216,216,216,217,217,423,423,424,423,424,424,425,424,426,425,426,426	-	-	645084:2977961:9802075:79149:117:0:0:0:0:0,627731:2922295:9801362:79032:153:0:0:0:0:0,728890:3335111:9802576:75220:101:0:0:0:0:0,625667:2924946:9801505:78089:89:0:0:0:0:0,727034:3384135:9802040:73985:152:0:0:0:0:0,624852:2918764:9801348:77741:24:0:0:0:0:0,618734:2874109:9802057:76028:29:0:0:0:0:0,608211:2859455:9800829:77230:14:0:0:0:0:0,616711:2877546:9802047:76539:11:0:0:0:0:0,613419:2872473:9800913:77361:8:0:0:0:0:0,610596:2852008:9801446:77344:5:0:0:0:0:0,601265:2819255:9800914:77107:5:0:0:0:0:0,1090361:4987851:19967390:74355:202:0:0:0:0:0,670589:3085391:9804311:76358:112:0:0:0:0:0,603786:2830327:9800920:74745:93:0:0:0:0:0,641504:2951769:9803882:76742:37:0:0:0:0:0,609683:2862638:9801001:75980:57:0:0:0:0:0,605462:2827875:9801446:76865:33:0:0:0:0:0,661343:3095282:9801645:75618:28:0:0:0:0:0,615591:2874935:9802140:76990:14:0:0:0:0:0,609165:2860555:9801001:75927:29:0:0:0:0:0,639129:2946216:9803355:77452:6:0:0:0:0:0,605101:2838826:9800831:75989:13:0:0:0:0:0,615774:2865886:9802048:77041:27:0:0:0:0:0	0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2,0,2
