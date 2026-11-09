@@ -27,6 +27,18 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release**:
+- **The pipeline in the continuous batch cells** (John Servil, November 9,
+  2026; BLAKE3 #317). `blake3-servil-pipeline` takes part in
+  ContinuousBatches (16 to 65,536 messages of 64 B), beside the existing
+  contenders: batches go round the pipeline, each refilled from the input,
+  submitted with its places, handed back with them by its completion, its
+  digests consumed whole, and used again; two in flight, the pipeline's
+  existing limits (64 rooms, 2 message slots). The reason: to measure
+  refill, admission, completion, consumption and reuse across the
+  ownership contract (#309, #317), not a change to existing workloads or
+  judgment. The pipeline and its batches and places are kept for the
+  process; before #317 the frontend borrowed the places for the
+  pipeline's life, so that side keeps them too, leaked.
 - **Merkle trees over leaves of a digest or half a digest** (John Servil,
   November 7, 2026; Zooko: 16- and 32-byte leaves will be common, a
   million of them). Three points beside the 256-byte-leaf trees:
@@ -1132,6 +1144,7 @@ shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleave
 shared placements: two cores under one last-level cache; two cores under two (where the machine has two); where it offers no pair (macOS), wherever the OS runs them
 shared contenders: blake3-official-mt, blake3-servil-mt, blake3-servil-pipeline
 blake3-servil-pipeline ReceivingMessage: throughput::pipeline: one Stream kept for the process (64 rooms of 16 KiB, 1 MiB in flight; 2 message slots), Stream::message per message with its length as the hint, each received fragment written into the rooms Message::input gives and committed (the one copy of an arrival), the last fragment's final bytes ended with Message::end(n), then collect and ready until the digest is delivered; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, writes and the wait for the digest timed together
+blake3-servil-pipeline ContinuousBatches: throughput::pipeline: the Stream kept for the process (64 rooms of 16 KiB; 2 message slots, so two batches in flight), Stream::submit_batch(batch, places, tag) per batch, the batch (an owned Batch) and its places (&'static mut, kept for the process: the frontend borrows them for the pipeline's life) lent, both handed back by Event::Batch; each batch refilled from the input (every 64-byte message copied in), its digests consumed whole as the batch comes back, the pair used again; collect and ready while none is free; every batch still out waited for at a sample's end
 blake3-servil-st ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together
 blake3-servil-mt ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together
 blake3-servil-st InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it
