@@ -1,0 +1,21 @@
+--- src/each.rs
++++ delete ! in hash_held
+@@ -208,17 +208,17 @@
+             HELD_GROUPS.with(|groups| groups.borrow_mut().push(held.to_vec()));
+             crate::counted(crate::Counted::HeldPass);
+             return;
+         }
+     }
+     // Other platforms retain public-mode cohorts in the same ready bound.
+     let mut plain = arrayvec::ArrayVec::<usize, TABLE>::new();
+     plain.extend(held.iter().copied().filter(|&i| hashers[i].core.chunk_state.flags == 0));
+-    if !plain.is_empty() {
++    if  /* ~ changed by cargo-mutants ~ */plain.is_empty() {
+         hash_cohort::<TABLE>(hashers, &plain);
+     }
+     for &i in held {
+         if hashers[i].core.chunk_state.flags != 0 {
+             hash_cohort::<1>(hashers, &[i]);
+         }
+     }
+ }

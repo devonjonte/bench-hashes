@@ -1,0 +1,898 @@
+[
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with * in held_groups\n@@ -126,17 +126,17 @@\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n-                let inputs = core::array::from_fn(|j| input(base + j));\n+                let inputs = core::array::from_fn(|j| input(base * /* ~ changed by cargo-mutants ~ */ j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:134:66: replace + with * in held_groups",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 67,
+        "line": 134
+      },
+      "start": {
+        "column": 66,
+        "line": 134
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with - in held_groups\n@@ -127,17 +127,17 @@\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n-                unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n+                unsafe { hash_group::<8>(&inputs, &mut next[base..base - /* ~ changed by cargo-mutants ~ */ 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n             full += 8;\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:135:72: replace + with - in held_groups",
+    "package": "blake3-servil",
+    "replacement": "-",
+    "span": {
+      "end": {
+        "column": 73,
+        "line": 135
+      },
+      "start": {
+        "column": 72,
+        "line": 135
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with * in held_groups\n@@ -127,17 +127,17 @@\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n-                unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n+                unsafe { hash_group::<8>(&inputs, &mut next[base..base * /* ~ changed by cargo-mutants ~ */ 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n             full += 8;\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:135:72: replace + with * in held_groups",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 73,
+        "line": 135
+      },
+      "start": {
+        "column": 72,
+        "line": 135
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace && with || in held_groups\n@@ -130,17 +130,17 @@\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n-        if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n+        if width == 16 && count - full >= 8 || /* ~ changed by cargo-mutants ~ */ crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n             full += 8;\n         }\n         for (j, out) in next.iter_mut().enumerate().take(count).skip(full) {\n             let input = input(j);\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:138:45: replace && with || in held_groups",
+    "package": "blake3-servil",
+    "replacement": "||",
+    "span": {
+      "end": {
+        "column": 47,
+        "line": 138
+      },
+      "start": {
+        "column": 45,
+        "line": 138
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace && with || in held_groups\n@@ -130,17 +130,17 @@\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n-        if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n+        if width == 16 || /* ~ changed by cargo-mutants ~ */ count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n             full += 8;\n         }\n         for (j, out) in next.iter_mut().enumerate().take(count).skip(full) {\n             let input = input(j);\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:138:24: replace && with || in held_groups",
+    "package": "blake3-servil",
+    "replacement": "||",
+    "span": {
+      "end": {
+        "column": 26,
+        "line": 138
+      },
+      "start": {
+        "column": 24,
+        "line": 138
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace == with != in held_groups\n@@ -130,17 +130,17 @@\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n-        if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n+        if width != /* ~ changed by cargo-mutants ~ */ 16 && count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n             full += 8;\n         }\n         for (j, out) in next.iter_mut().enumerate().take(count).skip(full) {\n             let input = input(j);\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:138:18: replace == with != in held_groups",
+    "package": "blake3-servil",
+    "replacement": "!=",
+    "span": {
+      "end": {
+        "column": 20,
+        "line": 138
+      },
+      "start": {
+        "column": 18,
+        "line": 138
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace >= with < in held_groups\n@@ -130,17 +130,17 @@\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n-        if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n+        if width == 16 && count - full < /* ~ changed by cargo-mutants ~ */ 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n             full += 8;\n         }\n         for (j, out) in next.iter_mut().enumerate().take(count).skip(full) {\n             let input = input(j);\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:138:40: replace >= with < in held_groups",
+    "package": "blake3-servil",
+    "replacement": "<",
+    "span": {
+      "end": {
+        "column": 42,
+        "line": 138
+      },
+      "start": {
+        "column": 40,
+        "line": 138
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace - with + in held_groups\n@@ -130,17 +130,17 @@\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n-        if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n+        if width == 16 && count + /* ~ changed by cargo-mutants ~ */ full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n             full += 8;\n         }\n         for (j, out) in next.iter_mut().enumerate().take(count).skip(full) {\n             let input = input(j);\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:138:33: replace - with + in held_groups",
+    "package": "blake3-servil",
+    "replacement": "+",
+    "span": {
+      "end": {
+        "column": 34,
+        "line": 138
+      },
+      "start": {
+        "column": 33,
+        "line": 138
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace - with / in held_groups\n@@ -130,17 +130,17 @@\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n-        if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n+        if width == 16 && count / /* ~ changed by cargo-mutants ~ */ full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n             full += 8;\n         }\n         for (j, out) in next.iter_mut().enumerate().take(count).skip(full) {\n             let input = input(j);\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:138:33: replace - with / in held_groups",
+    "package": "blake3-servil",
+    "replacement": "/",
+    "span": {
+      "end": {
+        "column": 34,
+        "line": 138
+      },
+      "start": {
+        "column": 33,
+        "line": 138
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with - in held_groups\n@@ -131,17 +131,17 @@\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n-            let inputs = core::array::from_fn(|j| input(full + j));\n+            let inputs = core::array::from_fn(|j| input(full - /* ~ changed by cargo-mutants ~ */ j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n             full += 8;\n         }\n         for (j, out) in next.iter_mut().enumerate().take(count).skip(full) {\n             let input = input(j);\n             let mut cv = *input.cv;\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:139:62: replace + with - in held_groups",
+    "package": "blake3-servil",
+    "replacement": "-",
+    "span": {
+      "end": {
+        "column": 63,
+        "line": 139
+      },
+      "start": {
+        "column": 62,
+        "line": 139
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with * in held_groups\n@@ -131,17 +131,17 @@\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n-            let inputs = core::array::from_fn(|j| input(full + j));\n+            let inputs = core::array::from_fn(|j| input(full * /* ~ changed by cargo-mutants ~ */ j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n             full += 8;\n         }\n         for (j, out) in next.iter_mut().enumerate().take(count).skip(full) {\n             let input = input(j);\n             let mut cv = *input.cv;\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:139:62: replace + with * in held_groups",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 63,
+        "line": 139
+      },
+      "start": {
+        "column": 62,
+        "line": 139
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with - in held_groups\n@@ -134,17 +134,17 @@\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n-            unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n+            unsafe { hash_group::<8>(&inputs, &mut next[full..full - /* ~ changed by cargo-mutants ~ */ 8]) };\n             full += 8;\n         }\n         for (j, out) in next.iter_mut().enumerate().take(count).skip(full) {\n             let input = input(j);\n             let mut cv = *input.cv;\n             platform.compress_in_place(&mut cv, input.block, input.len, 0, input.flags);\n             *out = crate::hasher::le_bytes(&cv);\n         }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:142:68: replace + with - in held_groups",
+    "package": "blake3-servil",
+    "replacement": "-",
+    "span": {
+      "end": {
+        "column": 69,
+        "line": 142
+      },
+      "start": {
+        "column": 68,
+        "line": 142
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with * in held_groups\n@@ -134,17 +134,17 @@\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n-            unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n+            unsafe { hash_group::<8>(&inputs, &mut next[full..full * /* ~ changed by cargo-mutants ~ */ 8]) };\n             full += 8;\n         }\n         for (j, out) in next.iter_mut().enumerate().take(count).skip(full) {\n             let input = input(j);\n             let mut cv = *input.cv;\n             platform.compress_in_place(&mut cv, input.block, input.len, 0, input.flags);\n             *out = crate::hasher::le_bytes(&cv);\n         }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:142:68: replace + with * in held_groups",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 69,
+        "line": 142
+      },
+      "start": {
+        "column": 68,
+        "line": 142
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace += with -= in held_groups\n@@ -135,17 +135,17 @@\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n-            full += 8;\n+            full -= /* ~ changed by cargo-mutants ~ */ 8;\n         }\n         for (j, out) in next.iter_mut().enumerate().take(count).skip(full) {\n             let input = input(j);\n             let mut cv = *input.cv;\n             platform.compress_in_place(&mut cv, input.block, input.len, 0, input.flags);\n             *out = crate::hasher::le_bytes(&cv);\n         }\n         core::mem::swap(&mut level, &mut next);\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:143:18: replace += with -= in held_groups",
+    "package": "blake3-servil",
+    "replacement": "-=",
+    "span": {
+      "end": {
+        "column": 20,
+        "line": 143
+      },
+      "start": {
+        "column": 18,
+        "line": 143
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace += with *= in held_groups\n@@ -135,17 +135,17 @@\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n-            full += 8;\n+            full *= /* ~ changed by cargo-mutants ~ */ 8;\n         }\n         for (j, out) in next.iter_mut().enumerate().take(count).skip(full) {\n             let input = input(j);\n             let mut cv = *input.cv;\n             platform.compress_in_place(&mut cv, input.block, input.len, 0, input.flags);\n             *out = crate::hasher::le_bytes(&cv);\n         }\n         core::mem::swap(&mut level, &mut next);\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:143:18: replace += with *= in held_groups",
+    "package": "blake3-servil",
+    "replacement": "*=",
+    "span": {
+      "end": {
+        "column": 20,
+        "line": 143
+      },
+      "start": {
+        "column": 18,
+        "line": 143
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace == with != in held_groups\n@@ -148,17 +148,17 @@\n             platform.compress_in_place(&mut cv, input.block, input.len, 0, input.flags);\n             *out = crate::hasher::le_bytes(&cv);\n         }\n         core::mem::swap(&mut level, &mut next);\n     }\n     for (k, &i) in held.iter().enumerate() {\n         let (counter, _) = hashers[i].held_group().unwrap();\n         let mut result = [0u8; BLOCK_LEN];\n-        if counter == 0 {\n+        if counter != /* ~ changed by cargo-mutants ~ */ 0 {\n             // Four swaps leave each final parent's two children in next.\n             result.copy_from_slice(next[2 * k..2 * k + 2].as_flattened());\n         } else {\n             result[..OUT_LEN].copy_from_slice(&level[k]);\n         }\n         hashers[i].take_held(&result);\n     }\n }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:156:20: replace == with != in held_groups",
+    "package": "blake3-servil",
+    "replacement": "!=",
+    "span": {
+      "end": {
+        "column": 22,
+        "line": 156
+      },
+      "start": {
+        "column": 20,
+        "line": 156
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with + in held_groups\n@@ -150,17 +150,17 @@\n         }\n         core::mem::swap(&mut level, &mut next);\n     }\n     for (k, &i) in held.iter().enumerate() {\n         let (counter, _) = hashers[i].held_group().unwrap();\n         let mut result = [0u8; BLOCK_LEN];\n         if counter == 0 {\n             // Four swaps leave each final parent's two children in next.\n-            result.copy_from_slice(next[2 * k..2 * k + 2].as_flattened());\n+            result.copy_from_slice(next[2 + /* ~ changed by cargo-mutants ~ */ k..2 * k + 2].as_flattened());\n         } else {\n             result[..OUT_LEN].copy_from_slice(&level[k]);\n         }\n         hashers[i].take_held(&result);\n     }\n }\n \n const SELF_TEST_EXPECTED: u64 = 0x153e0dfbeac2bb44;\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:158:43: replace * with + in held_groups",
+    "package": "blake3-servil",
+    "replacement": "+",
+    "span": {
+      "end": {
+        "column": 44,
+        "line": 158
+      },
+      "start": {
+        "column": 43,
+        "line": 158
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with / in held_groups\n@@ -150,17 +150,17 @@\n         }\n         core::mem::swap(&mut level, &mut next);\n     }\n     for (k, &i) in held.iter().enumerate() {\n         let (counter, _) = hashers[i].held_group().unwrap();\n         let mut result = [0u8; BLOCK_LEN];\n         if counter == 0 {\n             // Four swaps leave each final parent's two children in next.\n-            result.copy_from_slice(next[2 * k..2 * k + 2].as_flattened());\n+            result.copy_from_slice(next[2 / /* ~ changed by cargo-mutants ~ */ k..2 * k + 2].as_flattened());\n         } else {\n             result[..OUT_LEN].copy_from_slice(&level[k]);\n         }\n         hashers[i].take_held(&result);\n     }\n }\n \n const SELF_TEST_EXPECTED: u64 = 0x153e0dfbeac2bb44;\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:158:43: replace * with / in held_groups",
+    "package": "blake3-servil",
+    "replacement": "/",
+    "span": {
+      "end": {
+        "column": 44,
+        "line": 158
+      },
+      "start": {
+        "column": 43,
+        "line": 158
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with - in held_groups\n@@ -150,17 +150,17 @@\n         }\n         core::mem::swap(&mut level, &mut next);\n     }\n     for (k, &i) in held.iter().enumerate() {\n         let (counter, _) = hashers[i].held_group().unwrap();\n         let mut result = [0u8; BLOCK_LEN];\n         if counter == 0 {\n             // Four swaps leave each final parent's two children in next.\n-            result.copy_from_slice(next[2 * k..2 * k + 2].as_flattened());\n+            result.copy_from_slice(next[2 * k..2 * k - /* ~ changed by cargo-mutants ~ */ 2].as_flattened());\n         } else {\n             result[..OUT_LEN].copy_from_slice(&level[k]);\n         }\n         hashers[i].take_held(&result);\n     }\n }\n \n const SELF_TEST_EXPECTED: u64 = 0x153e0dfbeac2bb44;\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:158:54: replace + with - in held_groups",
+    "package": "blake3-servil",
+    "replacement": "-",
+    "span": {
+      "end": {
+        "column": 55,
+        "line": 158
+      },
+      "start": {
+        "column": 54,
+        "line": 158
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with * in held_groups\n@@ -150,17 +150,17 @@\n         }\n         core::mem::swap(&mut level, &mut next);\n     }\n     for (k, &i) in held.iter().enumerate() {\n         let (counter, _) = hashers[i].held_group().unwrap();\n         let mut result = [0u8; BLOCK_LEN];\n         if counter == 0 {\n             // Four swaps leave each final parent's two children in next.\n-            result.copy_from_slice(next[2 * k..2 * k + 2].as_flattened());\n+            result.copy_from_slice(next[2 * k..2 * k * /* ~ changed by cargo-mutants ~ */ 2].as_flattened());\n         } else {\n             result[..OUT_LEN].copy_from_slice(&level[k]);\n         }\n         hashers[i].take_held(&result);\n     }\n }\n \n const SELF_TEST_EXPECTED: u64 = 0x153e0dfbeac2bb44;\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:158:54: replace + with * in held_groups",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 55,
+        "line": 158
+      },
+      "start": {
+        "column": 54,
+        "line": 158
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with + in held_groups\n@@ -150,17 +150,17 @@\n         }\n         core::mem::swap(&mut level, &mut next);\n     }\n     for (k, &i) in held.iter().enumerate() {\n         let (counter, _) = hashers[i].held_group().unwrap();\n         let mut result = [0u8; BLOCK_LEN];\n         if counter == 0 {\n             // Four swaps leave each final parent's two children in next.\n-            result.copy_from_slice(next[2 * k..2 * k + 2].as_flattened());\n+            result.copy_from_slice(next[2 * k..2 + /* ~ changed by cargo-mutants ~ */ k + 2].as_flattened());\n         } else {\n             result[..OUT_LEN].copy_from_slice(&level[k]);\n         }\n         hashers[i].take_held(&result);\n     }\n }\n \n const SELF_TEST_EXPECTED: u64 = 0x153e0dfbeac2bb44;\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:158:50: replace * with + in held_groups",
+    "package": "blake3-servil",
+    "replacement": "+",
+    "span": {
+      "end": {
+        "column": 51,
+        "line": 158
+      },
+      "start": {
+        "column": 50,
+        "line": 158
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with / in held_groups\n@@ -150,17 +150,17 @@\n         }\n         core::mem::swap(&mut level, &mut next);\n     }\n     for (k, &i) in held.iter().enumerate() {\n         let (counter, _) = hashers[i].held_group().unwrap();\n         let mut result = [0u8; BLOCK_LEN];\n         if counter == 0 {\n             // Four swaps leave each final parent's two children in next.\n-            result.copy_from_slice(next[2 * k..2 * k + 2].as_flattened());\n+            result.copy_from_slice(next[2 * k..2 / /* ~ changed by cargo-mutants ~ */ k + 2].as_flattened());\n         } else {\n             result[..OUT_LEN].copy_from_slice(&level[k]);\n         }\n         hashers[i].take_held(&result);\n     }\n }\n \n const SELF_TEST_EXPECTED: u64 = 0x153e0dfbeac2bb44;\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:158:50: replace * with / in held_groups",
+    "package": "blake3-servil",
+    "replacement": "/",
+    "span": {
+      "end": {
+        "column": 51,
+        "line": 158
+      },
+      "start": {
+        "column": 50,
+        "line": 158
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace self_test_shape -> u64 with 0\n@@ -160,32 +160,17 @@\n             result[..OUT_LEN].copy_from_slice(&level[k]);\n         }\n         hashers[i].take_held(&result);\n     }\n }\n \n const SELF_TEST_EXPECTED: u64 = 0x153e0dfbeac2bb44;\n fn self_test_shape(mut hash: impl FnMut(&[Input<'_>; 16], &mut [[u8; OUT_LEN]])) -> u64 {\n-    let mut lens: [u8; 16] = [0, 1, 31, 63, 64, 7, 32, 55, 3, 15, 48, 60, 2, 33, 62, 64];\n-    let flags: [u8; 16] = core::array::from_fn(|i| {\n-        let shape = [3u8, 2, 4][i % 3];\n-        if shape == 4 {\n-            lens[i] = 64;\n-        }\n-        shape | [0u8, 16, 32, 64][i % 4]\n-    });\n-    let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n-        core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n-    });\n-    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n-    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n-    let mut out = [[0u8; OUT_LEN]; 16];\n-    hash(&inputs, &mut out);\n-    crate::self_test::fold(out.as_flattened())\n+    0 /* ~ changed by cargo-mutants ~ */\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n unsafe fn hash_eight_groups(inputs: &[Input<'_>; 16], out: &mut [[u8; OUT_LEN]]) {\n     for (inputs, out) in inputs.chunks_exact(8).zip(out.chunks_mut(8)) {\n         unsafe { hash_group::<8>(inputs.try_into().unwrap(), out) };\n     }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/ffi_output.rs:168:5: replace self_test_shape -> u64 with 0",
+    "package": "blake3-servil",
+    "replacement": "0",
+    "span": {
+      "end": {
+        "column": 47,
+        "line": 183
+      },
+      "start": {
+        "column": 5,
+        "line": 168
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace self_test_shape -> u64 with 1\n@@ -160,32 +160,17 @@\n             result[..OUT_LEN].copy_from_slice(&level[k]);\n         }\n         hashers[i].take_held(&result);\n     }\n }\n \n const SELF_TEST_EXPECTED: u64 = 0x153e0dfbeac2bb44;\n fn self_test_shape(mut hash: impl FnMut(&[Input<'_>; 16], &mut [[u8; OUT_LEN]])) -> u64 {\n-    let mut lens: [u8; 16] = [0, 1, 31, 63, 64, 7, 32, 55, 3, 15, 48, 60, 2, 33, 62, 64];\n-    let flags: [u8; 16] = core::array::from_fn(|i| {\n-        let shape = [3u8, 2, 4][i % 3];\n-        if shape == 4 {\n-            lens[i] = 64;\n-        }\n-        shape | [0u8, 16, 32, 64][i % 4]\n-    });\n-    let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n-        core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n-    });\n-    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n-    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n-    let mut out = [[0u8; OUT_LEN]; 16];\n-    hash(&inputs, &mut out);\n-    crate::self_test::fold(out.as_flattened())\n+    1 /* ~ changed by cargo-mutants ~ */\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n unsafe fn hash_eight_groups(inputs: &[Input<'_>; 16], out: &mut [[u8; OUT_LEN]]) {\n     for (inputs, out) in inputs.chunks_exact(8).zip(out.chunks_mut(8)) {\n         unsafe { hash_group::<8>(inputs.try_into().unwrap(), out) };\n     }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/ffi_output.rs:168:5: replace self_test_shape -> u64 with 1",
+    "package": "blake3-servil",
+    "replacement": "1",
+    "span": {
+      "end": {
+        "column": 47,
+        "line": 183
+      },
+      "start": {
+        "column": 5,
+        "line": 168
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace < with == in self_test_shape\n@@ -171,17 +171,17 @@\n         if shape == 4 {\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n-    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n+    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j == /* ~ changed by cargo-mutants ~ */ lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n     let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:179:89: replace < with == in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "==",
+    "span": {
+      "end": {
+        "column": 90,
+        "line": 179
+      },
+      "start": {
+        "column": 89,
+        "line": 179
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace < with > in self_test_shape\n@@ -171,17 +171,17 @@\n         if shape == 4 {\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n-    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n+    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j > /* ~ changed by cargo-mutants ~ */ lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n     let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:179:89: replace < with > in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": ">",
+    "span": {
+      "end": {
+        "column": 90,
+        "line": 179
+      },
+      "start": {
+        "column": 89,
+        "line": 179
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace < with <= in self_test_shape\n@@ -171,17 +171,17 @@\n         if shape == 4 {\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n-    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n+    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j <= /* ~ changed by cargo-mutants ~ */ lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n     let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:179:89: replace < with <= in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "<=",
+    "span": {
+      "end": {
+        "column": 90,
+        "line": 179
+      },
+      "start": {
+        "column": 89,
+        "line": 179
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace ^ with | in self_test_shape\n@@ -171,17 +171,17 @@\n         if shape == 4 {\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n-    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n+    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) | /* ~ changed by cargo-mutants ~ */ 0x5a) as u8 } else { 0 }));\n     let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:179:129: replace ^ with | in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "|",
+    "span": {
+      "end": {
+        "column": 130,
+        "line": 179
+      },
+      "start": {
+        "column": 129,
+        "line": 179
+      }
+    }
+  }
+]

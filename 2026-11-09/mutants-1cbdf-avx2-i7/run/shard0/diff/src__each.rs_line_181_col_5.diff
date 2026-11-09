@@ -1,0 +1,22 @@
+--- src/each.rs
++++ replace flush_held with ()
+@@ -173,18 +173,17 @@
+             }
+         }
+     }
+     flush_held(hashers, &mut held);
+ }
+ 
+ /// Hash every queued stage, then return the bounded table to its caller.
+ fn flush_held(hashers: &mut [Hasher], held: &mut arrayvec::ArrayVec<usize, TABLE>) {
+-    hash_held(hashers, held);
+-    held.clear();
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(all(test, feature = "std"))]
+ std::thread_local! {
+     // Actual cohorts passed to the shared-key or independent-parent body.
+     static HELD_GROUPS: core::cell::RefCell<Vec<Vec<usize>>> = const { core::cell::RefCell::new(Vec::new()) };
+ }
+ 

@@ -1,0 +1,21 @@
+--- src/each.rs
++++ replace / with %
+@@ -219,17 +219,17 @@
+     for &i in held {
+         if hashers[i].core.chunk_state.flags != 0 {
+             hash_cohort::<1>(hashers, &[i]);
+         }
+     }
+ }
+ 
+ /// Parent blocks supplied by a full staged message's pairs of CVs.
+-const STAGE_PARENTS: usize = ALONE_CHUNKS / 2;
++const STAGE_PARENTS: usize = ALONE_CHUNKS % /* ~ changed by cargo-mutants ~ */ 2;
+ 
+ /// Contiguous parent inputs retain the kernels' direct path. Both CV
+ /// levels live on the stack; ping-pong leaves the final two children in
+ /// the other buffer. Block supplies the existing 64-byte alignment.
+ pub(crate) struct HeldWorkspace<const N: usize> {
+     level: arrayvec::ArrayVec<[Block; STAGE_PARENTS], N>,
+     next: arrayvec::ArrayVec<[Block; STAGE_PARENTS / 2], N>,
+ }

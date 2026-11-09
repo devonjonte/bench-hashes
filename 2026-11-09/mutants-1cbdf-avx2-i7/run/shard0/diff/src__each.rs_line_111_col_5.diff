@@ -1,0 +1,52 @@
+--- src/each.rs
++++ replace finalize_each with ()
+@@ -103,48 +103,17 @@
+ /// `out.len() == which.len()`, each index `< hashers.len()`, and distinct indices.
+ ///
+ /// # Key-dependent timing
+ ///
+ /// Selected hashers may use different secret keys. Key values and key equality
+ /// select neither the finalization path nor its amount of work.
+ /// See the [key-independence contract](crate#key-dependent-timing).
+ pub fn finalize_each(hashers: &mut [Hasher], which: &[usize], out: &mut [[u8; OUT_LEN]]) {
+-    assert_eq!(which.len(), out.len(), "one digest per message named");
+-    debug_assert!(which.iter().enumerate().all(|(at, i)| !which[..at].contains(i)), "each finalized index is distinct");
+-    #[cfg(all(blake3_avx512_ffi, target_os = "linux"))]
+-    if which.len() >= 16 && matches!(Platform::detect(), Platform::AVX512) {
+-        #[cfg(all(test, feature = "std"))]
+-        crate::counted(crate::Counted::OutputGroupTurn);
+-        for (which, out) in which.chunks(16).zip(out.chunks_mut(16)) {
+-            if which.len() == 16 {
+-                let hashed = {
+-                    let inputs: Option<arrayvec::ArrayVec<_, 16>> = which.iter().map(|&i| crate::ffi_output::input(&hashers[i])).collect();
+-                    match inputs {
+-                        Some(inputs) => {
+-                            // Sound: the detected platform supplies AVX-512F+VL;
+-                            // borrowed descriptors keep every block/CV readable.
+-                            unsafe { crate::ffi_output::hash_group::<16>(inputs.as_slice().try_into().unwrap(), out) };
+-                            true
+-                        }
+-                        None => false,
+-                    }
+-                };
+-                if hashed {
+-                    for &i in which {
+-                        hashers[i].reset(None);
+-                    }
+-                    continue;
+-                }
+-            }
+-            finish_each(hashers, which, out);
+-        }
+-        return;
+-    }
+-    finish_each(hashers, which, out);
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ /// Each hasher `which` names finished in place and reset, its digest into
+ /// `out`: the path every message takes but a sixteen-lane group.
+ fn finish_each(hashers: &mut [Hasher], which: &[usize], out: &mut [[u8; OUT_LEN]]) {
+     for (&i, out) in which.iter().zip(out) {
+         *out = *hashers[i].take_output().root_hash().as_bytes();
+         hashers[i].reset(None);

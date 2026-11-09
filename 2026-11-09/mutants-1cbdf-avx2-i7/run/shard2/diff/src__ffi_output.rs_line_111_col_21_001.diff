@@ -1,0 +1,21 @@
+--- src/ffi_output.rs
++++ replace * with / in held_groups
+@@ -103,17 +103,17 @@
+         platform.hash_many(
+             &refs,
+             &h.core.key,
+             counter,
+             crate::IncrementCounter::Yes,
+             h.core.chunk_state.flags,
+             CHUNK_START,
+             CHUNK_END,
+-            level[k * PER..(k + 1) * PER].as_flattened_mut(),
++            level[k / /* ~ changed by cargo-mutants ~ */ PER..(k + 1) * PER].as_flattened_mut(),
+         );
+     }
+     for depth in 0..4 {
+         let per_message = PER >> (depth + 1);
+         let count = n * per_message;
+         let input = |j: usize| {
+             let h = &hashers[held[j / per_message]];
+             Input {

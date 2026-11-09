@@ -1,0 +1,21 @@
+--- src/each.rs
++++ replace + with * in hash_cohort
+@@ -274,17 +274,17 @@
+     let turn = crate::platform::Sme2Turn::take(hashers[first].core.chunk_state.platform, true);
+     let platform = turn.platform();
+     let mut work = HeldWorkspace::<N>::new();
+     let (mut level, mut next) = work.buffers(alike.len());
+     {
+         let mut refs = arrayvec::ArrayVec::<[&[u8; CHUNK_LEN]; ALONE_CHUNKS], N>::new();
+         refs.extend(alike.iter().map(|&i| {
+             let stage = hashers[i].held_group().expect("a held group").1;
+-            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j + 1) * CHUNK_LEN].try_into().unwrap())
++            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j * /* ~ changed by cargo-mutants ~ */ 1) * CHUNK_LEN].try_into().unwrap())
+         }));
+         let refs = refs.as_slice().as_flattened();
+         let mut counters = arrayvec::ArrayVec::<u64, N>::new();
+         counters.extend(alike.iter().map(|&i| hashers[i].held_group().unwrap().0));
+         #[cfg(blake3_sme2)]
+         let on_sme2 = matches!(platform, Platform::SME2);
+         #[cfg(not(blake3_sme2))]
+         let on_sme2 = false;

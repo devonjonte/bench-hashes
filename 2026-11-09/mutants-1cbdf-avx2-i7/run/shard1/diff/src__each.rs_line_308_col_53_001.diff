@@ -1,0 +1,21 @@
+--- src/each.rs
++++ replace * with / in hash_cohort
+@@ -300,17 +300,17 @@
+                 platform.hash_many(
+                     &refs[k * ALONE_CHUNKS..(k + 1) * ALONE_CHUNKS],
+                     &key,
+                     counter,
+                     IncrementCounter::Yes,
+                     flags,
+                     CHUNK_START,
+                     CHUNK_END,
+-                    level[k * ALONE_CHUNKS..(k + 1) * ALONE_CHUNKS].as_flattened_mut(),
++                    level[k * ALONE_CHUNKS..(k + 1) / /* ~ changed by cargo-mutants ~ */ ALONE_CHUNKS].as_flattened_mut(),
+                 );
+             }
+         }
+     }
+     let mut per = ALONE_CHUNKS;
+     while per > 1 {
+         let count = alike.len() * per / 2;
+         {

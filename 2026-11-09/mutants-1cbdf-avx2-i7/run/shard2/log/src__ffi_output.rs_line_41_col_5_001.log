@@ -1,0 +1,158 @@
+
+*** src/ffi_output.rs:41:5: replace lanes -> usize with 1
+
+*** mutation diff:
+--- src/ffi_output.rs
++++ replace lanes -> usize with 1
+@@ -33,21 +33,17 @@
+     assert!(core::mem::offset_of!(Params8, flags) == 352);
+ };
+ unsafe extern "C" {
+     fn blake3_servil_output16(inputs: *const Input<'_>, out: *mut u8);
+     fn blake3_servil_output8(params: *const Params8, out: *mut u8);
+ }
+ 
+ pub(crate) fn lanes(platform: Platform) -> usize {
+-    match platform {
+-        Platform::AVX512 => 16,
+-        Platform::AVX2 => 8,
+-        _ => 0,
+-    }
++    1 /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ /// A whole message still in its first chunk, with no staged suffix or
+ /// stacked subtree. Its final block is already padded by ChunkState.
+ /// Other states keep Hasher's existing finalization path.
+ pub(crate) fn input(hasher: &Hasher) -> Option<Input<'_>> {
+     let c = &hasher.core.chunk_state;
+     (hasher.staged == 0 && hasher.core.initial_chunk_counter == 0 && c.chunk_counter == 0 && hasher.core.cv_stack.len() == 0).then(|| Input {
+
+
+*** /home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo nextest run --no-run --cargo-profile=mutants --verbose --package=blake3-servil@0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 --features=serde,zeroize
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+warning: ignoring --test-threads because --no-run is specified
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling blake3-servil v0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 (/home/agent/tmp/blake3-servil-mutants/run-2)
+warning: unused variable: `platform`
+  --> src/ffi_output.rs:40:21
+   |
+40 | pub(crate) fn lanes(platform: Platform) -> usize {
+   |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_platform`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `blake3-servil` (lib) generated 1 warning (run `cargo fix --lib -p blake3-servil` to apply 1 suggestion)
+warning: `blake3-servil` (lib test) generated 1 warning (1 duplicate)
+    Finished `mutants` profile [optimized] target(s) in 2.00s
+info: using target runner `sh /home/agent/BLAKE3-m3/tools/mutants/test-runner` defined by environment variable `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER`
+
+*** result: Success
+
+*** /home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo nextest run --cargo-profile=mutants --verbose --package=blake3-servil@0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 --features=serde,zeroize --lib --tests
+    Blocking waiting for file lock on package cache
+warning: unused variable: `platform`
+  --> src/ffi_output.rs:40:21
+   |
+40 | pub(crate) fn lanes(platform: Platform) -> usize {
+   |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_platform`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `blake3-servil` (lib) generated 1 warning (run `cargo fix --lib -p blake3-servil` to apply 1 suggestion)
+warning: `blake3-servil` (lib test) generated 1 warning (1 duplicate)
+    Finished `mutants` profile [optimized] target(s) in 0.04s
+info: using target runner `sh /home/agent/BLAKE3-m3/tools/mutants/test-runner` defined by environment variable `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER`
+────────────
+ Nextest run ID 25f3be9c-f7a1-4c2a-a919-a941c613c1d7 with nextest profile: mutants
+    Starting 236 tests across 17 binaries (1 binary skipped via profile.mutants.default-filter)
+       START [         ] (  1/236) blake3-servil avx512::test::test_xof_many
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512::test::test_xof_many --nocapture
+       START [         ] (  1/236) blake3-servil avx512::test::test_wide_dispatch_groups_tails_and_bounds
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512::test::test_wide_dispatch_groups_tails_and_bounds --nocapture
+       START [         ] (  1/236) blake3-servil avx512::test::test_parent16_dispatch_and_legacy_incrementing_route
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512::test::test_parent16_dispatch_and_legacy_incrementing_route --nocapture
+        PASS [   0.060s] (  1/236) blake3-servil avx512::test::test_wide_dispatch_groups_tails_and_bounds
+       START [         ] (  2/236) blake3-servil avx512_32::tests::generated_assembly_matches
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::generated_assembly_matches --nocapture
+        PASS [   0.065s] (  2/236) blake3-servil avx512::test::test_xof_many
+       START [         ] (  3/236) blake3-servil avx512_32::tests::guarded_input_key_pointer_table_and_output_bounds
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::guarded_input_key_pointer_table_and_output_bounds --nocapture
+        PASS [   0.070s] (  3/236) blake3-servil avx512::test::test_parent16_dispatch_and_legacy_incrementing_route
+       START [         ] (  4/236) blake3-servil avx512_32::tests::parent16_unaligned_overlapping_output
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::parent16_unaligned_overlapping_output --nocapture
+        PASS [   0.016s] (  4/236) blake3-servil avx512_32::tests::guarded_input_key_pointer_table_and_output_bounds
+       START [         ] (  5/236) blake3-servil avx512_32::tests::randomized_counters_flags_and_block_counts
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::randomized_counters_flags_and_block_counts --nocapture
+        PASS [   0.017s] (  5/236) blake3-servil avx512_32::tests::parent16_unaligned_overlapping_output
+       START [         ] (  6/236) blake3-servil avx512_32::tests::short_last_blocks_unaligned_and_overlapping_output
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::short_last_blocks_unaligned_and_overlapping_output --nocapture
+        PASS [   0.030s] (  6/236) blake3-servil avx512_32::tests::generated_assembly_matches
+       START [         ] (  7/236) blake3-servil block::packed_test::packed_messages_hash_as_each_message_alone
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::packed_test::packed_messages_hash_as_each_message_alone --nocapture
+        PASS [   0.019s] (  7/236) blake3-servil avx512_32::tests::randomized_counters_flags_and_block_counts
+       START [         ] (  8/236) blake3-servil block::packed_test::packed_storage_is_aligned_and_chains_into_a_tree
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::packed_test::packed_storage_is_aligned_and_chains_into_a_tree --nocapture
+        PASS [   0.022s] (  8/236) blake3-servil avx512_32::tests::short_last_blocks_unaligned_and_overlapping_output
+       START [         ] (  9/236) blake3-servil block::test::test_a_batch_describes_itself
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_a_batch_describes_itself --nocapture
+        PASS [   0.026s] (  9/236) blake3-servil block::test::test_a_batch_describes_itself
+       START [         ] ( 10/236) blake3-servil block::test::test_a_batch_keeps_the_bytes_past_its_messages_zero
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_a_batch_keeps_the_bytes_past_its_messages_zero --nocapture
+     SIGABRT [   0.150s] ( 10/236) blake3-servil block::packed_test::packed_messages_hash_as_each_message_alone
+  stdout ───
+
+    running 1 test
+  stderr ───
+
+    thread 'block::packed_test::packed_messages_hash_as_each_message_alone' (3412985) panicked at src/ffi_output.rs:193:9:
+    assertion `left == right` failed
+      left: 1
+     right: 8
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+    blake3-servil startup self-test failed: a kernel panicked on this build or this CPU
+
+    (test aborted with signal 6: SIGABRT)
+
+  Cancelling due to test failure: immediately terminating 2 tests still running
+     SIGKILL [   0.143s] ( 11/236) blake3-servil block::packed_test::packed_storage_is_aligned_and_chains_into_a_tree
+  stdout ───
+
+    running 1 test
+  stderr ───
+
+    thread 'block::packed_test::packed_storage_is_aligned_and_chains_into_a_tree' (3413021) panicked at src/ffi_output.rs:193:9:
+    assertion `left == right` failed
+      left: 1
+     right: 8
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+    blake3-servil startup self-test failed: a kernel panicked on this build or this CPU
+
+    (test aborted with signal 9: SIGKILL)
+
+     SIGKILL [   0.108s] ( 12/236) blake3-servil block::test::test_a_batch_keeps_the_bytes_past_its_messages_zero
+  stdout ───
+
+    running 1 test
+  stderr ───
+
+    thread 'block::test::test_a_batch_keeps_the_bytes_past_its_messages_zero' (3413154) panicked at src/ffi_output.rs:193:9:
+    assertion `left == right` failed
+      left: 1
+     right: 8
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+    blake3-servil startup self-test failed: a kernel panicked on this build or this CPU
+
+    (test aborted with signal 9: SIGKILL)
+
+────────────
+     Summary [   0.246s] 12/236 tests run: 9 passed, 3 failed, 0 skipped
+warning: 224/236 tests were not run due to test failure (run with --no-fail-fast to run all tests, or run with --max-fail)
+error: test run failed
+
+*** result: Failure(100)

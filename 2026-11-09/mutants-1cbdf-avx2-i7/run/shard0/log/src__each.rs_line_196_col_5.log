@@ -1,0 +1,313 @@
+
+*** src/each.rs:196:5: replace hash_held with ()
+
+*** mutation diff:
+--- src/each.rs
++++ replace hash_held with ()
+@@ -188,44 +188,17 @@
+     static HELD_GROUPS: core::cell::RefCell<Vec<Vec<usize>>> = const { core::cell::RefCell::new(Vec::new()) };
+ }
+ 
+ /// Hash held stages with an independent key per parent lane where
+ /// available. Elsewhere, public mode chooses the cohorts; key values
+ /// never determine grouping, allocation or dispatch.
+ #[cfg(feature = "std")]
+ fn hash_held(hashers: &mut [Hasher], held: &[usize]) {
+-    let Some(&_first) = held.first() else { return };
+-    // Public plain mode fixes every key to the IV.
+-    if held.iter().all(|&i| hashers[i].core.chunk_state.flags == 0) {
+-        hash_cohort::<TABLE>(hashers, held);
+-        return;
+-    }
+-    #[cfg(all(blake3_avx512_ffi, target_os = "linux"))]
+-    {
+-        let platform = hashers[_first].core.chunk_state.platform;
+-        if matches!(platform, Platform::AVX2 | Platform::AVX512) {
+-            crate::ffi_output::held_groups(hashers, held, platform);
+-            #[cfg(all(test, feature = "std"))]
+-            HELD_GROUPS.with(|groups| groups.borrow_mut().push(held.to_vec()));
+-            crate::counted(crate::Counted::HeldPass);
+-            return;
+-        }
+-    }
+-    // Other platforms retain public-mode cohorts in the same ready bound.
+-    let mut plain = arrayvec::ArrayVec::<usize, TABLE>::new();
+-    plain.extend(held.iter().copied().filter(|&i| hashers[i].core.chunk_state.flags == 0));
+-    if !plain.is_empty() {
+-        hash_cohort::<TABLE>(hashers, &plain);
+-    }
+-    for &i in held {
+-        if hashers[i].core.chunk_state.flags != 0 {
+-            hash_cohort::<1>(hashers, &[i]);
+-        }
+-    }
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ /// Parent blocks supplied by a full staged message's pairs of CVs.
+ const STAGE_PARENTS: usize = ALONE_CHUNKS / 2;
+ 
+ /// Contiguous parent inputs retain the kernels' direct path. Both CV
+ /// levels live on the stack; ping-pong leaves the final two children in
+ /// the other buffer. Block supplies the existing 64-byte alignment.
+
+
+*** /home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo nextest run --no-run --cargo-profile=mutants --verbose --package=blake3-servil@0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 --features=serde,zeroize
+warning: ignoring --test-threads because --no-run is specified
+   Compiling blake3-servil v0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 (/home/agent/tmp/blake3-servil-mutants/run-0)
+warning: unused variable: `hashers`
+   --> src/each.rs:195:14
+    |
+195 | fn hash_held(hashers: &mut [Hasher], held: &[usize]) {
+    |              ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_hashers`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `held`
+   --> src/each.rs:195:38
+    |
+195 | fn hash_held(hashers: &mut [Hasher], held: &[usize]) {
+    |                                      ^^^^ help: if this is intentional, prefix it with an underscore: `_held`
+
+warning: constant `STAGE_PARENTS` is never used
+   --> src/each.rs:200:7
+    |
+200 | const STAGE_PARENTS: usize = ALONE_CHUNKS / 2;
+    |       ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `HeldWorkspace` is never constructed
+   --> src/each.rs:205:19
+    |
+205 | pub(crate) struct HeldWorkspace<const N: usize> {
+    |                   ^^^^^^^^^^^^^
+
+warning: associated items `new` and `buffers` are never used
+   --> src/each.rs:213:19
+    |
+210 | impl<const N: usize> HeldWorkspace<N> {
+    | ------------------------------------- associated items in this implementation
+...
+213 |     pub(crate) fn new() -> Self {
+    |                   ^^^
+...
+222 |     pub(crate) fn buffers(&mut self, count: usize) -> (&mut [CVBytes], &mut [CVBytes]) {
+    |                   ^^^^^^^
+
+warning: function `hash_cohort` is never used
+   --> src/each.rs:239:4
+    |
+239 | fn hash_cohort<const N: usize>(hashers: &mut [Hasher], alike: &[usize]) {
+    |    ^^^^^^^^^^^
+
+warning: function `held_groups` is never used
+  --> src/ffi_output.rs:91:15
+   |
+91 | pub(crate) fn held_groups(hashers: &mut [Hasher], held: &[usize], platform: Platform) {
+   |               ^^^^^^^^^^^
+
+warning: method `take_held` is never used
+   --> src/incremental.rs:236:19
+    |
+154 | impl Hasher {
+    | ----------- method in this implementation
+...
+236 |     pub(crate) fn take_held(&mut self, result: &[u8; BLOCK_LEN]) {
+    |                   ^^^^^^^^^
+
+warning: function `hash_cohort` is never used
+   --> src/each.rs:239:4
+    |
+239 | fn hash_cohort<const N: usize>(hashers: &mut [Hasher], alike: &[usize]) {
+    |    ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `blake3-servil` (lib) generated 8 warnings (run `cargo fix --lib -p blake3-servil` to apply 2 suggestions)
+warning: `blake3-servil` (lib test) generated 5 warnings (4 duplicates)
+    Finished `mutants` profile [optimized] target(s) in 4.08s
+info: using target runner `sh /home/agent/BLAKE3-m3/tools/mutants/test-runner` defined by environment variable `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER`
+
+*** result: Success
+
+*** /home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo nextest run --cargo-profile=mutants --verbose --package=blake3-servil@0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 --features=serde,zeroize --lib --tests
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+warning: unused variable: `hashers`
+   --> src/each.rs:195:14
+    |
+195 | fn hash_held(hashers: &mut [Hasher], held: &[usize]) {
+    |              ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_hashers`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `held`
+   --> src/each.rs:195:38
+    |
+195 | fn hash_held(hashers: &mut [Hasher], held: &[usize]) {
+    |                                      ^^^^ help: if this is intentional, prefix it with an underscore: `_held`
+
+warning: constant `STAGE_PARENTS` is never used
+   --> src/each.rs:200:7
+    |
+200 | const STAGE_PARENTS: usize = ALONE_CHUNKS / 2;
+    |       ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `HeldWorkspace` is never constructed
+   --> src/each.rs:205:19
+    |
+205 | pub(crate) struct HeldWorkspace<const N: usize> {
+    |                   ^^^^^^^^^^^^^
+
+warning: associated items `new` and `buffers` are never used
+   --> src/each.rs:213:19
+    |
+210 | impl<const N: usize> HeldWorkspace<N> {
+    | ------------------------------------- associated items in this implementation
+...
+213 |     pub(crate) fn new() -> Self {
+    |                   ^^^
+...
+222 |     pub(crate) fn buffers(&mut self, count: usize) -> (&mut [CVBytes], &mut [CVBytes]) {
+    |                   ^^^^^^^
+
+warning: function `hash_cohort` is never used
+   --> src/each.rs:239:4
+    |
+239 | fn hash_cohort<const N: usize>(hashers: &mut [Hasher], alike: &[usize]) {
+    |    ^^^^^^^^^^^
+
+warning: function `held_groups` is never used
+  --> src/ffi_output.rs:91:15
+   |
+91 | pub(crate) fn held_groups(hashers: &mut [Hasher], held: &[usize], platform: Platform) {
+   |               ^^^^^^^^^^^
+
+warning: method `take_held` is never used
+   --> src/incremental.rs:236:19
+    |
+154 | impl Hasher {
+    | ----------- method in this implementation
+...
+236 |     pub(crate) fn take_held(&mut self, result: &[u8; BLOCK_LEN]) {
+    |                   ^^^^^^^^^
+
+warning: `blake3-servil` (lib) generated 8 warnings (run `cargo fix --lib -p blake3-servil` to apply 2 suggestions)
+warning: function `hash_cohort` is never used
+   --> src/each.rs:239:4
+    |
+239 | fn hash_cohort<const N: usize>(hashers: &mut [Hasher], alike: &[usize]) {
+    |    ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `blake3-servil` (lib test) generated 5 warnings (4 duplicates)
+    Finished `mutants` profile [optimized] target(s) in 0.06s
+info: using target runner `sh /home/agent/BLAKE3-m3/tools/mutants/test-runner` defined by environment variable `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER`
+────────────
+ Nextest run ID b6500cf0-b363-439e-8f70-478cd1687708 with nextest profile: mutants
+    Starting 236 tests across 17 binaries (1 binary skipped via profile.mutants.default-filter)
+       START [         ] (  1/236) blake3-servil avx512::test::test_parent16_dispatch_and_legacy_incrementing_route
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512::test::test_parent16_dispatch_and_legacy_incrementing_route --nocapture
+       START [         ] (  1/236) blake3-servil avx512::test::test_xof_many
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512::test::test_xof_many --nocapture
+       START [         ] (  1/236) blake3-servil avx512::test::test_wide_dispatch_groups_tails_and_bounds
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512::test::test_wide_dispatch_groups_tails_and_bounds --nocapture
+        PASS [   0.054s] (  1/236) blake3-servil avx512::test::test_xof_many
+       START [         ] (  2/236) blake3-servil avx512_32::tests::generated_assembly_matches
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::generated_assembly_matches --nocapture
+        PASS [   0.060s] (  2/236) blake3-servil avx512::test::test_wide_dispatch_groups_tails_and_bounds
+       START [         ] (  3/236) blake3-servil avx512_32::tests::guarded_input_key_pointer_table_and_output_bounds
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::guarded_input_key_pointer_table_and_output_bounds --nocapture
+        PASS [   0.064s] (  3/236) blake3-servil avx512::test::test_parent16_dispatch_and_legacy_incrementing_route
+       START [         ] (  4/236) blake3-servil avx512_32::tests::parent16_unaligned_overlapping_output
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::parent16_unaligned_overlapping_output --nocapture
+        PASS [   0.016s] (  4/236) blake3-servil avx512_32::tests::guarded_input_key_pointer_table_and_output_bounds
+       START [         ] (  5/236) blake3-servil avx512_32::tests::randomized_counters_flags_and_block_counts
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::randomized_counters_flags_and_block_counts --nocapture
+        PASS [   0.018s] (  5/236) blake3-servil avx512_32::tests::parent16_unaligned_overlapping_output
+       START [         ] (  6/236) blake3-servil avx512_32::tests::short_last_blocks_unaligned_and_overlapping_output
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::short_last_blocks_unaligned_and_overlapping_output --nocapture
+        PASS [   0.035s] (  6/236) blake3-servil avx512_32::tests::generated_assembly_matches
+       START [         ] (  7/236) blake3-servil block::packed_test::packed_messages_hash_as_each_message_alone
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::packed_test::packed_messages_hash_as_each_message_alone --nocapture
+        PASS [   0.023s] (  7/236) blake3-servil avx512_32::tests::randomized_counters_flags_and_block_counts
+       START [         ] (  8/236) blake3-servil block::packed_test::packed_storage_is_aligned_and_chains_into_a_tree
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::packed_test::packed_storage_is_aligned_and_chains_into_a_tree --nocapture
+        PASS [   0.025s] (  8/236) blake3-servil avx512_32::tests::short_last_blocks_unaligned_and_overlapping_output
+       START [         ] (  9/236) blake3-servil block::test::test_a_batch_describes_itself
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_a_batch_describes_itself --nocapture
+        PASS [   0.025s] (  9/236) blake3-servil block::packed_test::packed_storage_is_aligned_and_chains_into_a_tree
+       START [         ] ( 10/236) blake3-servil block::test::test_a_batch_keeps_the_bytes_past_its_messages_zero
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_a_batch_keeps_the_bytes_past_its_messages_zero --nocapture
+        PASS [   0.028s] ( 10/236) blake3-servil block::test::test_a_batch_describes_itself
+       START [         ] ( 11/236) blake3-servil block::test::test_a_merkle_layer_lands_in_the_next_layers_blocks
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_a_merkle_layer_lands_in_the_next_layers_blocks --nocapture
+        PASS [   0.019s] ( 11/236) blake3-servil block::test::test_a_batch_keeps_the_bytes_past_its_messages_zero
+       START [         ] ( 12/236) blake3-servil block::test::test_blocks_mut_refuses_messages_with_padding
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_blocks_mut_refuses_messages_with_padding --nocapture
+        PASS [   0.018s] ( 12/236) blake3-servil block::test::test_a_merkle_layer_lands_in_the_next_layers_blocks
+       START [         ] ( 13/236) blake3-servil block::test::test_blocks_mut_writes_the_messages
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_blocks_mut_writes_the_messages --nocapture
+        PASS [   0.067s] ( 13/236) blake3-servil block::packed_test::packed_messages_hash_as_each_message_alone
+       START [         ] ( 14/236) blake3-servil block::test::test_digests_mut_takes_64_byte_messages
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_digests_mut_takes_64_byte_messages --nocapture
+        PASS [   0.014s] ( 14/236) blake3-servil block::test::test_blocks_mut_refuses_messages_with_padding
+       START [         ] ( 15/236) blake3-servil block::test::test_from_blocks_borrows_messages_that_fill_their_blocks
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_from_blocks_borrows_messages_that_fill_their_blocks --nocapture
+        PASS [   0.017s] ( 15/236) blake3-servil block::test::test_blocks_mut_writes_the_messages
+       START [         ] ( 16/236) blake3-servil block::test::test_from_bytes_takes_aligned_whole_blocks_only
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_from_bytes_takes_aligned_whole_blocks_only --nocapture
+        PASS [   0.016s] ( 16/236) blake3-servil block::test::test_from_blocks_borrows_messages_that_fill_their_blocks
+       START [         ] ( 17/236) blake3-servil chunk_root::test::test_chunk_root_kernel_touches_no_stack
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact chunk_root::test::test_chunk_root_kernel_touches_no_stack --nocapture
+        PASS [   0.023s] ( 17/236) blake3-servil block::test::test_digests_mut_takes_64_byte_messages
+       START [         ] ( 18/236) blake3-servil chunk_root::test::test_chunk_root_line_placements
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact chunk_root::test::test_chunk_root_line_placements --nocapture
+        PASS [   0.023s] ( 18/236) blake3-servil block::test::test_from_bytes_takes_aligned_whole_blocks_only
+       START [         ] ( 19/236) blake3-servil chunk_root::test::test_chunk_root_matches_chunk_state
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact chunk_root::test::test_chunk_root_matches_chunk_state --nocapture
+        PASS [   0.036s] ( 19/236) blake3-servil chunk_root::test::test_chunk_root_kernel_touches_no_stack
+       START [         ] ( 20/236) blake3-servil each::test::finalize_each_groups_only_full_output_lanes
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::finalize_each_groups_only_full_output_lanes --nocapture
+        PASS [   0.048s] ( 20/236) blake3-servil each::test::finalize_each_groups_only_full_output_lanes
+       START [         ] ( 21/236) blake3-servil each::test::held_dispatch_ignores_key_equality_and_prefixes
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::held_dispatch_ignores_key_equality_and_prefixes --nocapture
+        PASS [   0.069s] ( 21/236) blake3-servil chunk_root::test::test_chunk_root_matches_chunk_state
+       START [         ] ( 22/236) blake3-servil each::test::held_groups_pass_by_mode_not_key
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::held_groups_pass_by_mode_not_key --nocapture
+        FAIL [   0.022s] ( 22/236) blake3-servil each::test::held_groups_pass_by_mode_not_key
+  stdout ───
+
+    running 1 test
+    test each::test::held_groups_pass_by_mode_not_key ... FAILED
+
+    failures:
+
+    failures:
+        each::test::held_groups_pass_by_mode_not_key
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 198 filtered out; finished in 0.00s
+
+  stderr ───
+
+    thread 'each::test::held_groups_pass_by_mode_not_key' (3448744) panicked at src/each.rs:943:9:
+    assertion `left == right` failed: plain hashers hash together
+      left: 0
+     right: 1
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+  Cancelling due to test failure: immediately terminating 2 tests still running
+     SIGTERM [   0.027s] ( 23/236) blake3-servil each::test::held_dispatch_ignores_key_equality_and_prefixes
+     SIGTERM [   0.106s] ( 24/236) blake3-servil chunk_root::test::test_chunk_root_line_placements
+────────────
+     Summary [   0.286s] 24/236 tests run: 21 passed, 3 failed, 0 skipped
+warning: 212/236 tests were not run due to test failure (run with --no-fail-fast to run all tests, or run with --max-fail)
+error: test run failed
+
+*** result: Failure(100)

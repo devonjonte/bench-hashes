@@ -1,0 +1,21 @@
+--- src/ffi_output.rs
++++ replace == with != in self_test
+@@ -194,17 +194,17 @@
+     if lanes(platform) == 16 {
+         unsafe { hash_group::<16>(inputs, out) };
+     } else {
+         assert_eq!(lanes(platform), 8);
+         unsafe { hash_eight_groups(inputs, out) };
+     }
+ }
+ pub(crate) fn self_test(platform: Platform) -> usize {
+-    if lanes(platform) == 0 {
++    if lanes(platform) != /* ~ changed by cargo-mutants ~ */ 0 {
+         return 0;
+     }
+     let mut checked = 1;
+     let answer = self_test_shape(|inputs, out| {
+         // Sound: initialize detected this platform before testing its kernels.
+         unsafe { hash_on_platform(platform, inputs, out) };
+         if lanes(platform) == 16 && crate::platform::avx2_detected() {
+             // Check the wide output before the remainder kernel reuses it.

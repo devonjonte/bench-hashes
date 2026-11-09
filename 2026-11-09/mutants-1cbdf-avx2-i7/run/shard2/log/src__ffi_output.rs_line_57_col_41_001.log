@@ -1,0 +1,64 @@
+
+*** src/ffi_output.rs:57:41: replace | with ^ in input
+
+*** mutation diff:
+--- src/ffi_output.rs
++++ replace | with ^ in input
+@@ -49,17 +49,17 @@
+ /// stacked subtree. Its final block is already padded by ChunkState.
+ /// Other states keep Hasher's existing finalization path.
+ pub(crate) fn input(hasher: &Hasher) -> Option<Input<'_>> {
+     let c = &hasher.core.chunk_state;
+     (hasher.staged == 0 && hasher.core.initial_chunk_counter == 0 && c.chunk_counter == 0 && hasher.core.cv_stack.len() == 0).then(|| Input {
+         block: &c.buf,
+         cv: &c.cv,
+         len: c.buf_len,
+-        flags: c.flags | c.start_flag() | CHUNK_END | ROOT,
++        flags: c.flags | c.start_flag() ^ /* ~ changed by cargo-mutants ~ */ CHUNK_END | ROOT,
+     })
+ }
+ 
+ /// Requires AVX2 for W=8, AVX-512F+VL for W=16, on Linux. Every descriptor
+ /// borrows a readable padded block/CV, length 0..64. All counters are zero.
+ pub(crate) unsafe fn hash_group<const W: usize>(inputs: &[Input<'_>; W], out: &mut [[u8; OUT_LEN]]) {
+     assert_eq!(out.len(), W, "one compression output per lane");
+     if W == 16 {
+
+
+*** /home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo nextest run --no-run --cargo-profile=mutants --verbose --package=blake3-servil@0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 --features=serde,zeroize
+warning: ignoring --test-threads because --no-run is specified
+   Compiling blake3-servil v0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 (/home/agent/tmp/blake3-servil-mutants/run-2)
+    Finished `mutants` profile [optimized] target(s) in 1.92s
+info: using target runner `sh /home/agent/BLAKE3-m3/tools/mutants/test-runner` defined by environment variable `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER`
+
+*** result: Success
+
+*** /home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo nextest run --cargo-profile=mutants --verbose --package=blake3-servil@0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 --features=serde,zeroize --lib --tests
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Finished `mutants` profile [optimized] target(s) in 0.07s
+info: using target runner `sh /home/agent/BLAKE3-m3/tools/mutants/test-runner` defined by environment variable `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER`
+────────────
+ Nextest run ID cb27e428-261e-42ec-a80d-2f112248858b with nextest profile: mutants
+    Starting 236 tests across 17 binaries (1 binary skipped via profile.mutants.default-filter)
+       START [         ] (  1/236) blake3-servil avx512::test::test_xof_many
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512::test::test_xof_many --nocapture
+       START [         ] (  1/236) blake3-servil avx512::test::test_wide_dispatch_groups_tails_and_bounds
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512::test::test_wide_dispatch_groups_tails_and_bounds --nocapture
+       START [         ] (  1/236) blake3-servil avx512::test::test_parent16_dispatch_and_legacy_incrementing_route
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/run-2/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512::test::test_parent16_dispatch_and_legacy_incrementing_route --nocapture
+        FAIL [   0.133s] (  1/236) blake3-servil avx512::test::test_xof_many
+  stderr ───
+    mutants: same code: every test binary hashes as the unmutated build's
+
+    (test failed with exit code 99)
+
+  Cancelling due to test failure: immediately terminating 2 tests still running
+     SIGTERM [   0.134s] (  2/236) blake3-servil avx512::test::test_wide_dispatch_groups_tails_and_bounds
+     SIGTERM [   0.134s] (  3/236) blake3-servil avx512::test::test_parent16_dispatch_and_legacy_incrementing_route
+────────────
+     Summary [   0.136s] 3/236 tests run: 0 passed, 3 failed, 0 skipped
+warning: 233/236 tests were not run due to test failure (run with --no-fail-fast to run all tests, or run with --max-fail)
+error: test run failed
+
+*** result: Failure(100)

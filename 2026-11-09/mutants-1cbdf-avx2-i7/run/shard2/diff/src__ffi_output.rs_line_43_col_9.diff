@@ -1,0 +1,21 @@
+--- src/ffi_output.rs
++++ delete match arm Platform::AVX2 in lanes
+@@ -35,17 +35,17 @@
+ unsafe extern "C" {
+     fn blake3_servil_output16(inputs: *const Input<'_>, out: *mut u8);
+     fn blake3_servil_output8(params: *const Params8, out: *mut u8);
+ }
+ 
+ pub(crate) fn lanes(platform: Platform) -> usize {
+     match platform {
+         Platform::AVX512 => 16,
+-        Platform::AVX2 => 8,
++         /* ~ changed by cargo-mutants ~ */
+         _ => 0,
+     }
+ }
+ 
+ /// A whole message still in its first chunk, with no staged suffix or
+ /// stacked subtree. Its final block is already padded by ChunkState.
+ /// Other states keep Hasher's existing finalization path.
+ pub(crate) fn input(hasher: &Hasher) -> Option<Input<'_>> {

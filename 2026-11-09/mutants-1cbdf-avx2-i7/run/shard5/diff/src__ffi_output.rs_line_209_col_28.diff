@@ -1,0 +1,21 @@
+--- src/ffi_output.rs
++++ replace == with != in self_test
+@@ -201,17 +201,17 @@
+ pub(crate) fn self_test(platform: Platform) -> usize {
+     if lanes(platform) == 0 {
+         return 0;
+     }
+     let mut checked = 1;
+     let answer = self_test_shape(|inputs, out| {
+         // Sound: initialize detected this platform before testing its kernels.
+         unsafe { hash_on_platform(platform, inputs, out) };
+-        if lanes(platform) == 16 && crate::platform::avx2_detected() {
++        if lanes(platform) != /* ~ changed by cargo-mutants ~ */ 16 && crate::platform::avx2_detected() {
+             // Check the wide output before the remainder kernel reuses it.
+             check_self_test(crate::self_test::fold(out.as_flattened()));
+             unsafe { hash_eight_groups(inputs, out) };
+             checked = 2;
+         }
+     });
+     check_self_test(answer);
+     checked

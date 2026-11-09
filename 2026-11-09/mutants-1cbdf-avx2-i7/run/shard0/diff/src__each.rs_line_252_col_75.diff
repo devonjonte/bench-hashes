@@ -1,0 +1,21 @@
+--- src/each.rs
++++ replace / with % in HeldWorkspace<N>::buffers
+@@ -244,17 +244,17 @@
+         Self { level: arrayvec::ArrayVec::new(), next: arrayvec::ArrayVec::new() }
+     }
+ 
+     /// Call once, with 1 <= count <= N: initialize through a borrow of the
+     /// workspace's final place, then borrow its two CV levels.
+     pub(crate) fn buffers(&mut self, count: usize) -> (&mut [CVBytes], &mut [CVBytes]) {
+         debug_assert!(count > 0 && count <= N && self.level.is_empty() && self.next.is_empty());
+         self.level.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS], count));
+-        self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS / 2], count));
++        self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS % /* ~ changed by cargo-mutants ~ */ 2], count));
+         let (level, _) = Block::bytes_mut(self.level.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();
+         let (next, _) = Block::bytes_mut(self.next.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();
+         (level, next)
+     }
+ }
+ 
+ /// Hash 1..=N distinct held stages: plain hashers together, or one keyed
+ /// or derive-key hasher. Keep chunks and each parent level together so

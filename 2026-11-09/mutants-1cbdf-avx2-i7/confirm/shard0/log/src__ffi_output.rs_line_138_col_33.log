@@ -1,0 +1,753 @@
+
+*** src/ffi_output.rs:138:33: replace - with + in held_groups
+
+*** mutation diff:
+--- src/ffi_output.rs
++++ replace - with + in held_groups
+@@ -130,17 +130,17 @@
+             if width == 16 {
+                 let inputs = core::array::from_fn(|j| input(base + j));
+                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };
+             } else {
+                 let inputs = core::array::from_fn(|j| input(base + j));
+                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };
+             }
+         }
+-        if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {
++        if width == 16 && count + /* ~ changed by cargo-mutants ~ */ full >= 8 && crate::platform::avx2_detected() {
+             let inputs = core::array::from_fn(|j| input(full + j));
+             // Sound: AVX2 is detected; eight real parent blocks and keys
+             // remain, and next has disjoint room for all eight outputs.
+             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };
+             full += 8;
+         }
+         for (j, out) in next.iter_mut().enumerate().take(count).skip(full) {
+             let input = input(j);
+
+
+*** /home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo nextest run --no-run --cargo-profile=mutants --verbose --package=blake3-servil@0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 --features=serde,zeroize
+warning: ignoring --test-threads because --no-run is specified
+   Compiling blake3-servil v0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 (/home/agent/tmp/blake3-servil-mutants/confirm-0)
+    Finished `mutants` profile [optimized] target(s) in 1.03s
+info: using target runner `sh /home/agent/BLAKE3-m3/tools/mutants/test-runner` defined by environment variable `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER`
+
+*** result: Success
+
+*** /home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo nextest run --cargo-profile=mutants --verbose --package=blake3-servil@0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 --features=serde,zeroize --lib --tests
+    Finished `mutants` profile [optimized] target(s) in 0.02s
+info: using target runner `sh /home/agent/BLAKE3-m3/tools/mutants/test-runner` defined by environment variable `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER`
+────────────
+ Nextest run ID 31e4f622-2062-4450-98d3-493ab5e4caed with nextest profile: mutants
+    Starting 236 tests across 17 binaries (1 binary skipped via profile.mutants.default-filter)
+       START [         ] (  1/236) blake3-servil avx512::test::test_parent16_dispatch_and_legacy_incrementing_route
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512::test::test_parent16_dispatch_and_legacy_incrementing_route --nocapture
+       START [         ] (  1/236) blake3-servil avx512_32::tests::generated_assembly_matches
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::generated_assembly_matches --nocapture
+       START [         ] (  1/236) blake3-servil avx512::test::test_xof_many
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512::test::test_xof_many --nocapture
+       START [         ] (  1/236) blake3-servil avx512::test::test_wide_dispatch_groups_tails_and_bounds
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512::test::test_wide_dispatch_groups_tails_and_bounds --nocapture
+       START [         ] (  1/236) blake3-servil avx512_32::tests::parent16_unaligned_overlapping_output
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::parent16_unaligned_overlapping_output --nocapture
+       START [         ] (  1/236) blake3-servil avx512_32::tests::guarded_input_key_pointer_table_and_output_bounds
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::guarded_input_key_pointer_table_and_output_bounds --nocapture
+       START [         ] (  1/236) blake3-servil avx512_32::tests::short_last_blocks_unaligned_and_overlapping_output
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::short_last_blocks_unaligned_and_overlapping_output --nocapture
+       START [         ] (  1/236) blake3-servil avx512_32::tests::randomized_counters_flags_and_block_counts
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact avx512_32::tests::randomized_counters_flags_and_block_counts --nocapture
+       START [         ] (  1/236) blake3-servil block::packed_test::packed_messages_hash_as_each_message_alone
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::packed_test::packed_messages_hash_as_each_message_alone --nocapture
+       START [         ] (  1/236) blake3-servil block::packed_test::packed_storage_is_aligned_and_chains_into_a_tree
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::packed_test::packed_storage_is_aligned_and_chains_into_a_tree --nocapture
+       START [         ] (  1/236) blake3-servil block::test::test_a_batch_keeps_the_bytes_past_its_messages_zero
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_a_batch_keeps_the_bytes_past_its_messages_zero --nocapture
+       START [         ] (  1/236) blake3-servil block::test::test_a_batch_describes_itself
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_a_batch_describes_itself --nocapture
+       START [         ] (  1/236) blake3-servil block::test::test_blocks_mut_refuses_messages_with_padding
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_blocks_mut_refuses_messages_with_padding --nocapture
+       START [         ] (  1/236) blake3-servil block::test::test_a_merkle_layer_lands_in_the_next_layers_blocks
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_a_merkle_layer_lands_in_the_next_layers_blocks --nocapture
+       START [         ] (  1/236) blake3-servil block::test::test_digests_mut_takes_64_byte_messages
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_digests_mut_takes_64_byte_messages --nocapture
+       START [         ] (  1/236) blake3-servil block::test::test_from_bytes_takes_aligned_whole_blocks_only
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_from_bytes_takes_aligned_whole_blocks_only --nocapture
+       START [         ] (  1/236) blake3-servil block::test::test_from_blocks_borrows_messages_that_fill_their_blocks
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_from_blocks_borrows_messages_that_fill_their_blocks --nocapture
+       START [         ] (  1/236) blake3-servil block::test::test_blocks_mut_writes_the_messages
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact block::test::test_blocks_mut_writes_the_messages --nocapture
+       START [         ] (  1/236) blake3-servil chunk_root::test::test_chunk_root_kernel_touches_no_stack
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact chunk_root::test::test_chunk_root_kernel_touches_no_stack --nocapture
+       START [         ] (  1/236) blake3-servil chunk_root::test::test_chunk_root_line_placements
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact chunk_root::test::test_chunk_root_line_placements --nocapture
+        PASS [   0.041s] (  1/236) blake3-servil avx512::test::test_parent16_dispatch_and_legacy_incrementing_route
+       START [         ] (  2/236) blake3-servil chunk_root::test::test_chunk_root_matches_chunk_state
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact chunk_root::test::test_chunk_root_matches_chunk_state --nocapture
+        PASS [   0.045s] (  2/236) blake3-servil block::test::test_a_batch_describes_itself
+       START [         ] (  3/236) blake3-servil each::test::finalize_each_groups_only_full_output_lanes
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::finalize_each_groups_only_full_output_lanes --nocapture
+        PASS [   0.049s] (  3/236) blake3-servil avx512_32::tests::guarded_input_key_pointer_table_and_output_bounds
+       START [         ] (  4/236) blake3-servil each::test::held_dispatch_ignores_key_equality_and_prefixes
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::held_dispatch_ignores_key_equality_and_prefixes --nocapture
+        PASS [   0.052s] (  4/236) blake3-servil avx512_32::tests::randomized_counters_flags_and_block_counts
+       START [         ] (  5/236) blake3-servil each::test::held_groups_pass_by_mode_not_key
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::held_groups_pass_by_mode_not_key --nocapture
+        PASS [   0.055s] (  5/236) blake3-servil block::test::test_a_batch_keeps_the_bytes_past_its_messages_zero
+       START [         ] (  6/236) blake3-servil each::test::held_passes_do_not_depend_on_keys
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::held_passes_do_not_depend_on_keys --nocapture
+        PASS [   0.060s] (  6/236) blake3-servil chunk_root::test::test_chunk_root_line_placements
+       START [         ] (  7/236) blake3-servil each::test::held_workspace_preserves_distinct_message_rows
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::held_workspace_preserves_distinct_message_rows --nocapture
+        PASS [   0.063s] (  7/236) blake3-servil avx512::test::test_xof_many
+       START [         ] (  8/236) blake3-servil each::test::test_hash_each_matches_hash_with
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::test_hash_each_matches_hash_with --nocapture
+        PASS [   0.066s] (  8/236) blake3-servil block::test::test_blocks_mut_writes_the_messages
+       START [         ] (  9/236) blake3-servil each::test::test_hash_each_multithreaded
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::test_hash_each_multithreaded --nocapture
+        PASS [   0.069s] (  9/236) blake3-servil avx512_32::tests::generated_assembly_matches
+       START [         ] ( 10/236) blake3-servil each::test::test_hash_each_multithreaded_past_the_split
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::test_hash_each_multithreaded_past_the_split --nocapture
+        PASS [   0.070s] ( 10/236) blake3-servil avx512_32::tests::short_last_blocks_unaligned_and_overlapping_output
+       START [         ] ( 11/236) blake3-servil each::test::test_hash_each_multithreaded_splits_at_min_split_len_exactly
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::test_hash_each_multithreaded_splits_at_min_split_len_exactly --nocapture
+        PASS [   0.073s] ( 11/236) blake3-servil avx512::test::test_wide_dispatch_groups_tails_and_bounds
+       START [         ] ( 12/236) blake3-servil each::test::test_hash_each_on_counts_its_alone_messages_and_rounds
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::test_hash_each_on_counts_its_alone_messages_and_rounds --nocapture
+        PASS [   0.076s] ( 12/236) blake3-servil block::test::test_digests_mut_takes_64_byte_messages
+       START [         ] ( 13/236) blake3-servil each::test::test_hash_each_small_items_by_blocks
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::test_hash_each_small_items_by_blocks --nocapture
+        PASS [   0.079s] ( 13/236) blake3-servil block::packed_test::packed_storage_is_aligned_and_chains_into_a_tree
+       START [         ] ( 14/236) blake3-servil each::test::test_held_key_groups_take_one_partition_pass
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::test_held_key_groups_take_one_partition_pass --nocapture
+        PASS [   0.083s] ( 14/236) blake3-servil avx512_32::tests::parent16_unaligned_overlapping_output
+       START [         ] ( 15/236) blake3-servil each::test::test_update_each
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::test_update_each --nocapture
+        PASS [   0.087s] ( 15/236) blake3-servil block::test::test_from_blocks_borrows_messages_that_fill_their_blocks
+       START [         ] ( 16/236) blake3-servil each::test::test_update_each_at_offsets
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::test_update_each_at_offsets --nocapture
+        PASS [   0.095s] ( 16/236) blake3-servil block::test::test_from_bytes_takes_aligned_whole_blocks_only
+       START [         ] ( 17/236) blake3-servil each::test::test_update_each_holds_groups_together
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact each::test::test_update_each_holds_groups_together --nocapture
+        PASS [   0.100s] ( 17/236) blake3-servil block::test::test_blocks_mut_refuses_messages_with_padding
+       START [         ] ( 18/236) blake3-servil ffi_output::tests::incremental_roots_batch_all_modes_and_selected_indices
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact ffi_output::tests::incremental_roots_batch_all_modes_and_selected_indices --nocapture
+        PASS [   0.103s] ( 18/236) blake3-servil block::test::test_a_merkle_layer_lands_in_the_next_layers_blocks
+       START [         ] ( 19/236) blake3-servil ffi_output::tests::independent_blocks_cvs_descriptors_and_output_against_guard_pages
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact ffi_output::tests::independent_blocks_cvs_descriptors_and_output_against_guard_pages --nocapture
+        PASS [   0.106s] ( 19/236) blake3-servil chunk_root::test::test_chunk_root_kernel_touches_no_stack
+       START [         ] ( 20/236) blake3-servil ffi_output::tests::staged_long_roots_keep_the_existing_path
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact ffi_output::tests::staged_long_roots_keep_the_existing_path --nocapture
+        PASS [   0.069s] ( 20/236) blake3-servil each::test::finalize_each_groups_only_full_output_lanes
+       START [         ] ( 21/236) blake3-servil ffi_output::tests::startup_answers_match_independent_compression
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact ffi_output::tests::startup_answers_match_independent_compression --nocapture
+        PASS [   0.078s] ( 21/236) blake3-servil chunk_root::test::test_chunk_root_matches_chunk_state
+       START [         ] ( 22/236) blake3-servil ffi_output::tests::startup_covers_each_supported_platform
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact ffi_output::tests::startup_covers_each_supported_platform --nocapture
+        PASS [   0.127s] ( 22/236) blake3-servil block::packed_test::packed_messages_hash_as_each_message_alone
+       START [         ] ( 23/236) blake3-servil ffi_output::tests::startup_rejects_corrupted_answer
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact ffi_output::tests::startup_rejects_corrupted_answer --nocapture
+        PASS [   0.075s] ( 23/236) blake3-servil each::test::test_hash_each_matches_hash_with
+       START [         ] ( 24/236) blake3-servil ffi_partial::test::test_params_layout_is_the_generators
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact ffi_partial::test::test_params_layout_is_the_generators --nocapture
+        PASS [   0.089s] ( 24/236) blake3-servil each::test::held_groups_pass_by_mode_not_key
+       START [         ] ( 25/236) blake3-servil ffi_partial::test::test_partial_kernels_against_portable
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact ffi_partial::test::test_partial_kernels_against_portable --nocapture
+        PASS [   0.077s] ( 25/236) blake3-servil each::test::test_hash_each_multithreaded_past_the_split
+       START [         ] ( 26/236) blake3-servil finish::tests::a_spurious_wake_is_slept_through
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact finish::tests::a_spurious_wake_is_slept_through --nocapture
+        PASS [   0.075s] ( 26/236) blake3-servil each::test::test_hash_each_on_counts_its_alone_messages_and_rounds
+       START [         ] ( 27/236) blake3-servil finish::tests::every_atomic_in_the_handshake_files_is_seqcst
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact finish::tests::every_atomic_in_the_handshake_files_is_seqcst --nocapture
+        PASS [   0.083s] ( 27/236) blake3-servil each::test::test_hash_each_multithreaded_splits_at_min_split_len_exactly
+       START [         ] ( 28/236) blake3-servil finish::tests::finished_unparks_only_a_sleeper_on_the_last_piece
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact finish::tests::finished_unparks_only_a_sleeper_on_the_last_piece --nocapture
+        PASS [   0.081s] ( 28/236) blake3-servil each::test::test_hash_each_small_items_by_blocks
+       START [         ] ( 29/236) blake3-servil hasher::test::test_absorb_takes_whole_blocks_straight_from_the_input
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact hasher::test::test_absorb_takes_whole_blocks_straight_from_the_input --nocapture
+        PASS [   0.083s] ( 29/236) blake3-servil each::test::test_update_each
+       START [         ] ( 30/236) blake3-servil hasher::test::test_feed_asks_for_a_flat_subtree_after_the_first
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact hasher::test::test_feed_asks_for_a_flat_subtree_after_the_first --nocapture
+        PASS [   0.117s] ( 30/236) blake3-servil each::test::held_dispatch_ignores_key_equality_and_prefixes
+       START [         ] ( 31/236) blake3-servil incremental::test::clone_from_copies_only_the_live_stage_prefix
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact incremental::test::clone_from_copies_only_the_live_stage_prefix --nocapture
+        PASS [   0.083s] ( 31/236) blake3-servil each::test::test_update_each_at_offsets
+       START [         ] ( 32/236) blake3-servil incremental::test::test_gather_part_holds_a_whole_group
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact incremental::test::test_gather_part_holds_a_whole_group --nocapture
+        PASS [   0.078s] ( 32/236) blake3-servil each::test::test_update_each_holds_groups_together
+       START [         ] ( 33/236) blake3-servil incremental::test::test_the_length_hint_never_changes_the_digest
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact incremental::test::test_the_length_hint_never_changes_the_digest --nocapture
+        PASS [   0.082s] ( 33/236) blake3-servil ffi_output::tests::incremental_roots_batch_all_modes_and_selected_indices
+       START [         ] ( 34/236) blake3-servil incremental::test::test_update_stages_exactly_what_it_must
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact incremental::test::test_update_stages_exactly_what_it_must --nocapture
+        PASS [   0.083s] ( 34/236) blake3-servil ffi_output::tests::independent_blocks_cvs_descriptors_and_output_against_guard_pages
+       START [         ] ( 35/236) blake3-servil incremental::test::test_update_stages_to_the_message_boundary_from_an_offset
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact incremental::test::test_update_stages_to_the_message_boundary_from_an_offset --nocapture
+        PASS [   0.084s] ( 35/236) blake3-servil ffi_output::tests::staged_long_roots_keep_the_existing_path
+       START [         ] ( 36/236) blake3-servil lanes::sources::test::test_a_finished_threads_source_is_the_next_threads
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::sources::test::test_a_finished_threads_source_is_the_next_threads --nocapture
+        PASS [   0.139s] ( 36/236) blake3-servil each::test::held_passes_do_not_depend_on_keys
+       START [         ] ( 37/236) blake3-servil lanes::sources::test::test_a_worker_serves_the_lowest_source_until_it_is_empty
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::sources::test::test_a_worker_serves_the_lowest_source_until_it_is_empty --nocapture
+        PASS [   0.080s] ( 37/236) blake3-servil ffi_output::tests::startup_answers_match_independent_compression
+       START [         ] ( 38/236) blake3-servil lanes::sources::test::test_find_reaches_every_registered_source
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::sources::test::test_find_reaches_every_registered_source --nocapture
+        PASS [   0.117s] ( 38/236) blake3-servil each::test::test_held_key_groups_take_one_partition_pass
+       START [         ] ( 39/236) blake3-servil lanes::sources::test::test_unregister_gives_the_slot_back
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::sources::test::test_unregister_gives_the_slot_back --nocapture
+        PASS [   0.080s] ( 39/236) blake3-servil ffi_output::tests::startup_covers_each_supported_platform
+       START [         ] ( 40/236) blake3-servil lanes::sources::test::test_unregister_leaves_the_other_sources_registered
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::sources::test::test_unregister_leaves_the_other_sources_registered --nocapture
+        PASS [   0.078s] ( 40/236) blake3-servil ffi_output::tests::startup_rejects_corrupted_answer
+       START [         ] ( 41/236) blake3-servil lanes::sources::test::test_visible_sees_a_waiting_item_and_its_kind
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::sources::test::test_visible_sees_a_waiting_item_and_its_kind --nocapture
+        PASS [   0.071s] ( 41/236) blake3-servil ffi_partial::test::test_partial_kernels_against_portable
+       START [         ] ( 42/236) blake3-servil lanes::sources::test::waiting_help_runs_one_task
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::sources::test::waiting_help_runs_one_task --nocapture
+        PASS [   0.075s] ( 42/236) blake3-servil ffi_partial::test::test_params_layout_is_the_generators
+       START [         ] ( 43/236) blake3-servil lanes::test::equal_members_match_the_reference
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::equal_members_match_the_reference --nocapture
+        PASS [   0.072s] ( 43/236) blake3-servil finish::tests::every_atomic_in_the_handshake_files_is_seqcst
+       START [         ] ( 44/236) blake3-servil lanes::test::test_a_caller_gives_its_place_back
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_a_caller_gives_its_place_back --nocapture
+        PASS [   0.162s] ( 44/236) blake3-servil each::test::held_workspace_preserves_distinct_message_rows
+       START [         ] ( 45/236) blake3-servil lanes::test::test_a_caller_polls_for_spin_before_sleep_then_sleeps
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_a_caller_polls_for_spin_before_sleep_then_sleeps --nocapture
+        PASS [   0.071s] ( 45/236) blake3-servil finish::tests::finished_unparks_only_a_sleeper_on_the_last_piece
+       START [         ] ( 46/236) blake3-servil lanes::test::test_a_claim_takes_a_share_of_what_waits
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_a_claim_takes_a_share_of_what_waits --nocapture
+        PASS [   0.072s] ( 46/236) blake3-servil hasher::test::test_absorb_takes_whole_blocks_straight_from_the_input
+       START [         ] ( 47/236) blake3-servil lanes::test::test_a_job_wakes_one_worker_a_piece_past_its_own
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_a_job_wakes_one_worker_a_piece_past_its_own --nocapture
+        PASS [   0.067s] ( 47/236) blake3-servil hasher::test::test_feed_asks_for_a_flat_subtree_after_the_first
+       START [         ] ( 48/236) blake3-servil lanes::test::test_a_parked_caller_is_woken_by_the_last_piece
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_a_parked_caller_is_woken_by_the_last_piece --nocapture
+        PASS [   0.091s] ( 48/236) blake3-servil finish::tests::a_spurious_wake_is_slept_through
+       START [         ] ( 49/236) blake3-servil lanes::test::test_a_poller_yields_every_yield_every
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_a_poller_yields_every_yield_every --nocapture
+        PASS [   0.072s] ( 49/236) blake3-servil incremental::test::clone_from_copies_only_the_live_stage_prefix
+       START [         ] ( 50/236) blake3-servil lanes::test::test_a_source_unregistered_leaves_its_slot
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_a_source_unregistered_leaves_its_slot --nocapture
+        PASS [   0.071s] ( 50/236) blake3-servil incremental::test::test_gather_part_holds_a_whole_group
+       START [         ] ( 51/236) blake3-servil lanes::test::test_a_stream_is_what_opens_the_sources
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_a_stream_is_what_opens_the_sources --nocapture
+        PASS [   0.073s] ( 51/236) blake3-servil incremental::test::test_the_length_hint_never_changes_the_digest
+       START [         ] ( 52/236) blake3-servil lanes::test::test_a_wake_is_tried_for_the_second_task_waiting
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_a_wake_is_tried_for_the_second_task_waiting --nocapture
+        PASS [   0.066s] ( 52/236) blake3-servil incremental::test::test_update_stages_exactly_what_it_must
+       START [         ] ( 53/236) blake3-servil lanes::test::test_a_worker_spins_for_spin_while_a_stream_is_open
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_a_worker_spins_for_spin_while_a_stream_is_open --nocapture
+        PASS [   0.065s] ( 53/236) blake3-servil incremental::test::test_update_stages_to_the_message_boundary_from_an_offset
+       START [         ] ( 54/236) blake3-servil lanes::test::test_concurrent_batch_callers_agree
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_concurrent_batch_callers_agree --nocapture
+        PASS [   0.064s] ( 54/236) blake3-servil lanes::sources::test::test_a_finished_threads_source_is_the_next_threads
+       START [         ] ( 55/236) blake3-servil lanes::test::test_concurrent_callers_agree
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_concurrent_callers_agree --nocapture
+        PASS [   0.064s] ( 55/236) blake3-servil lanes::sources::test::test_a_worker_serves_the_lowest_source_until_it_is_empty
+       START [         ] ( 56/236) blake3-servil lanes::test::test_cut_items_exactly
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_cut_items_exactly --nocapture
+        PASS [   0.068s] ( 56/236) blake3-servil lanes::sources::test::test_find_reaches_every_registered_source
+       START [         ] ( 57/236) blake3-servil lanes::test::test_cut_messages_exactly
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_cut_messages_exactly --nocapture
+        PASS [   0.070s] ( 57/236) blake3-servil lanes::sources::test::test_unregister_gives_the_slot_back
+       START [         ] ( 58/236) blake3-servil lanes::test::test_cut_messages_shapes
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_cut_messages_shapes --nocapture
+        PASS [   0.071s] ( 58/236) blake3-servil lanes::sources::test::test_unregister_leaves_the_other_sources_registered
+       START [         ] ( 59/236) blake3-servil lanes::test::test_cut_with_prefix_exactly
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_cut_with_prefix_exactly --nocapture
+        PASS [   0.069s] ( 59/236) blake3-servil lanes::sources::test::test_visible_sees_a_waiting_item_and_its_kind
+       START [         ] ( 60/236) blake3-servil lanes::test::test_cut_with_prefix_shapes_and_hashes
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_cut_with_prefix_shapes_and_hashes --nocapture
+        PASS [   0.069s] ( 60/236) blake3-servil lanes::sources::test::waiting_help_runs_one_task
+       START [         ] ( 61/236) blake3-servil lanes::test::test_hash_many_pool_agrees
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_hash_many_pool_agrees --nocapture
+        PASS [   0.061s] ( 61/236) blake3-servil lanes::test::test_a_caller_polls_for_spin_before_sleep_then_sleeps
+       START [         ] ( 62/236) blake3-servil lanes::test::test_hash_matches_serial
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_hash_matches_serial --nocapture
+        PASS [   0.067s] ( 62/236) blake3-servil lanes::test::test_a_caller_gives_its_place_back
+       START [         ] ( 63/236) blake3-servil lanes::test::test_idle_workers_park_while_a_stream_is_open
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_idle_workers_park_while_a_stream_is_open --nocapture
+        PASS [   0.222s] ( 63/236) blake3-servil each::test::test_hash_each_multithreaded
+       START [         ] ( 64/236) blake3-servil lanes::test::test_next_piece_len
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_next_piece_len --nocapture
+        PASS [   0.065s] ( 64/236) blake3-servil lanes::test::test_a_claim_takes_a_share_of_what_waits
+       START [         ] ( 65/236) blake3-servil lanes::test::test_one_member_runs_alone
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_one_member_runs_alone --nocapture
+        PASS [   0.067s] ( 65/236) blake3-servil lanes::test::test_a_job_wakes_one_worker_a_piece_past_its_own
+       START [         ] ( 66/236) blake3-servil lanes::test::test_simd_merge_matches_recursive
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_simd_merge_matches_recursive --nocapture
+        PASS [   0.066s] ( 66/236) blake3-servil lanes::test::test_a_parked_caller_is_woken_by_the_last_piece
+       START [         ] ( 67/236) blake3-servil lanes::test::test_sme2_prefix_exactly
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_sme2_prefix_exactly --nocapture
+        PASS [   0.061s] ( 67/236) blake3-servil lanes::test::test_a_source_unregistered_leaves_its_slot
+       START [         ] ( 68/236) blake3-servil lanes::test::test_spin_ends_after_spin_or_with_no_stream_open
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_spin_ends_after_spin_or_with_no_stream_open --nocapture
+        PASS [   0.065s] ( 68/236) blake3-servil lanes::test::test_a_poller_yields_every_yield_every
+       START [         ] ( 69/236) blake3-servil lanes::test::test_the_pool_begins_at_min_split_len
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_the_pool_begins_at_min_split_len --nocapture
+        PASS [   0.094s] ( 69/236) blake3-servil lanes::test::equal_members_match_the_reference
+       START [         ] ( 70/236) blake3-servil lanes::test::test_the_pool_reads_time_through_now
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_the_pool_reads_time_through_now --nocapture
+        PASS [   0.065s] ( 70/236) blake3-servil lanes::test::test_a_stream_is_what_opens_the_sources
+       START [         ] ( 71/236) blake3-servil lanes::test::test_the_workers_are_every_thread_but_the_caller
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_the_workers_are_every_thread_but_the_caller --nocapture
+        PASS [   0.064s] ( 71/236) blake3-servil lanes::test::test_a_wake_is_tried_for_the_second_task_waiting
+       START [         ] ( 72/236) blake3-servil lanes::test::test_tree_thread_budget
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_tree_thread_budget --nocapture
+        PASS [   0.065s] ( 72/236) blake3-servil lanes::test::test_a_worker_spins_for_spin_while_a_stream_is_open
+       START [         ] ( 73/236) blake3-servil lanes::test::test_update_multithreaded_matches_hash
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact lanes::test::test_update_multithreaded_matches_hash --nocapture
+        PASS [   0.074s] ( 73/236) blake3-servil lanes::test::test_cut_items_exactly
+       START [         ] ( 74/236) blake3-servil many::test::across_partial_chunks_matches_published_vectors
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::across_partial_chunks_matches_published_vectors --nocapture
+        PASS [   0.075s] ( 74/236) blake3-servil lanes::test::test_cut_messages_exactly
+       START [         ] ( 75/236) blake3-servil many::test::four_chunk_batch_matches_published_vectors
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::four_chunk_batch_matches_published_vectors --nocapture
+        PASS [   0.093s] ( 75/236) blake3-servil lanes::test::test_concurrent_batch_callers_agree
+       START [         ] ( 76/236) blake3-servil many::test::test_a_short_input_is_refused_before_the_kernels
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::test_a_short_input_is_refused_before_the_kernels --nocapture
+        PASS [   0.079s] ( 76/236) blake3-servil lanes::test::test_cut_messages_shapes
+       START [         ] ( 77/236) blake3-servil many::test::test_across_from_exactly
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::test_across_from_exactly --nocapture
+        PASS [   0.088s] ( 77/236) blake3-servil lanes::test::test_cut_with_prefix_exactly
+       START [         ] ( 78/236) blake3-servil many::test::test_hash_blocks_without_plans
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::test_hash_blocks_without_plans --nocapture
+        PASS [   0.106s] ( 78/236) blake3-servil lanes::test::test_hash_many_pool_agrees
+       START [         ] ( 79/236) blake3-servil many::test::test_hash_four_at_a_time_arrangement
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::test_hash_four_at_a_time_arrangement --nocapture
+        PASS [   0.099s] ( 79/236) blake3-servil lanes::test::test_next_piece_len
+       START [         ] ( 80/236) blake3-servil many::test::test_hash_many_modes_every_platform
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::test_hash_many_modes_every_platform --nocapture
+        PASS [   0.101s] ( 80/236) blake3-servil lanes::test::test_idle_workers_park_while_a_stream_is_open
+       START [         ] ( 81/236) blake3-servil many::test::test_hash_many_needs_the_input_it_names
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::test_hash_many_needs_the_input_it_names --nocapture
+        PASS [   0.108s] ( 81/236) blake3-servil lanes::test::test_one_member_runs_alone
+       START [         ] ( 82/236) blake3-servil many::test::test_hash_many_on_paths_by_count
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::test_hash_many_on_paths_by_count --nocapture
+        PASS [   0.144s] ( 82/236) blake3-servil lanes::test::test_concurrent_callers_agree
+       START [         ] ( 83/236) blake3-servil many::test::test_hash_many_whole_blocks
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::test_hash_many_whole_blocks --nocapture
+        PASS [   0.116s] ( 83/236) blake3-servil lanes::test::test_hash_matches_serial
+       START [         ] ( 84/236) blake3-servil many::test::test_small_batches_after_a_pause
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::test_small_batches_after_a_pause --nocapture
+        PASS [   0.127s] ( 84/236) blake3-servil lanes::test::test_cut_with_prefix_shapes_and_hashes
+       START [         ] ( 85/236) blake3-servil many::test::test_sme2_sized_exactly
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::test_sme2_sized_exactly --nocapture
+        PASS [   0.107s] ( 85/236) blake3-servil lanes::test::test_simd_merge_matches_recursive
+       START [         ] ( 86/236) blake3-servil many::test::test_whole_blocks_x86_full_width
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::test_whole_blocks_x86_full_width --nocapture
+        PASS [   0.106s] ( 86/236) blake3-servil lanes::test::test_sme2_prefix_exactly
+       START [         ] ( 87/236) blake3-servil many::test::two_chunk_batch_matches_published_vectors
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact many::test::two_chunk_batch_matches_published_vectors --nocapture
+        PASS [   0.110s] ( 87/236) blake3-servil lanes::test::test_spin_ends_after_spin_or_with_no_stream_open
+       START [         ] ( 88/236) blake3-servil park::test::a_waker_wakes_at_most_its_fanout_and_owes_the_rest
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact park::test::a_waker_wakes_at_most_its_fanout_and_owes_the_rest --nocapture
+        PASS [   0.111s] ( 88/236) blake3-servil lanes::test::test_the_pool_begins_at_min_split_len
+       START [         ] ( 89/236) blake3-servil park::test::wakes_made_and_owed_exactly
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact park::test::wakes_made_and_owed_exactly --nocapture
+        PASS [   0.111s] ( 89/236) blake3-servil lanes::test::test_the_pool_reads_time_through_now
+       START [         ] ( 90/236) blake3-servil platform::x86_degree_test::test_detected_degree_is_the_widest_kernel
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact platform::x86_degree_test::test_detected_degree_is_the_widest_kernel --nocapture
+        PASS [   0.113s] ( 90/236) blake3-servil lanes::test::test_the_workers_are_every_thread_but_the_caller
+       START [         ] ( 91/236) blake3-servil platform::x86_features_test::test_a_cpu_runs_its_widest_kernel_and_one_without_sse41_none
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact platform::x86_features_test::test_a_cpu_runs_its_widest_kernel_and_one_without_sse41_none --nocapture
+        PASS [   0.114s] ( 91/236) blake3-servil lanes::test::test_tree_thread_budget
+       START [         ] ( 92/236) blake3-servil platform::x86_features_test::test_wide_bit_matches_cpuinfo
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact platform::x86_features_test::test_wide_bit_matches_cpuinfo --nocapture
+        PASS [   0.096s] ( 92/236) blake3-servil many::test::four_chunk_batch_matches_published_vectors
+       START [         ] ( 93/236) blake3-servil platform::x86_features_test::test_wide_cpu_and_family
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact platform::x86_features_test::test_wide_cpu_and_family --nocapture
+        PASS [   0.107s] ( 93/236) blake3-servil many::test::across_partial_chunks_matches_published_vectors
+       START [         ] ( 94/236) blake3-servil platform::x86_features_test::test_x86_detection_matches_std
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact platform::x86_features_test::test_x86_detection_matches_std --nocapture
+        PASS [   0.098s] ( 94/236) blake3-servil many::test::test_a_short_input_is_refused_before_the_kernels
+       START [         ] ( 95/236) blake3-servil platform::x86_features_test::test_x86_features_match_std
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact platform::x86_features_test::test_x86_features_match_std --nocapture
+        PASS [   0.099s] ( 95/236) blake3-servil many::test::test_across_from_exactly
+       START [         ] ( 96/236) blake3-servil self_test::stops::test_a_failing_self_test_stops_the_process
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact self_test::stops::test_a_failing_self_test_stops_the_process --nocapture
+        PASS [   0.090s] ( 96/236) blake3-servil many::test::test_hash_blocks_without_plans
+       START [         ] ( 97/236) blake3-servil self_test::stops::test_a_wrong_digest_in_any_case_stops_the_process
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact self_test::stops::test_a_wrong_digest_in_any_case_stops_the_process --nocapture
+        PASS [   0.064s] ( 97/236) blake3-servil many::test::test_hash_many_needs_the_input_it_names
+       START [         ] ( 98/236) blake3-servil self_test::test::self_test_matches_official_blake3
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact self_test::test::self_test_matches_official_blake3 --nocapture
+        PASS [   0.074s] ( 98/236) blake3-servil many::test::test_hash_four_at_a_time_arrangement
+       START [         ] ( 99/236) blake3-servil self_test::test::test_a_waiting_thread_takes_the_verdict
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact self_test::test::test_a_waiting_thread_takes_the_verdict --nocapture
+        PASS [   0.067s] ( 99/236) blake3-servil many::test::test_hash_many_on_paths_by_count
+       START [         ] (100/236) blake3-servil self_test::test::test_self_test_run_checks_every_case
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact self_test::test::test_self_test_run_checks_every_case --nocapture
+        PASS [   0.085s] (100/236) blake3-servil many::test::test_hash_many_modes_every_platform
+       START [         ] (101/236) blake3-servil self_test::test::wide_self_test_matches_reference
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact self_test::test::wide_self_test_matches_reference --nocapture
+        PASS [   0.079s] (101/236) blake3-servil many::test::test_sme2_sized_exactly
+       START [         ] (102/236) blake3-servil self_test::test::wide_self_test_rejects_corruption
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact self_test::test::wide_self_test_rejects_corruption --nocapture
+        PASS [   0.078s] (102/236) blake3-servil many::test::two_chunk_batch_matches_published_vectors
+       START [         ] (103/236) blake3-servil stream::frontend::tests::a_borrowed_batch_fills_the_producers_places
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::frontend::tests::a_borrowed_batch_fills_the_producers_places --nocapture
+        PASS [   0.087s] (103/236) blake3-servil many::test::test_hash_many_whole_blocks
+       START [         ] (104/236) blake3-servil stream::frontend::tests::a_later_message_is_delivered_before_an_earlier_held_one
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::frontend::tests::a_later_message_is_delivered_before_an_earlier_held_one --nocapture
+        PASS [   0.076s] (104/236) blake3-servil park::test::a_waker_wakes_at_most_its_fanout_and_owes_the_rest
+       START [         ] (105/236) blake3-servil stream::frontend::tests::batches_and_places_come_back_to_be_refilled
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::frontend::tests::batches_and_places_come_back_to_be_refilled --nocapture
+        PASS [   0.075s] (105/236) blake3-servil park::test::wakes_made_and_owed_exactly
+       START [         ] (106/236) blake3-servil stream::frontend::tests::end_carries_the_last_bytes
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::frontend::tests::end_carries_the_last_bytes --nocapture
+        PASS [   0.075s] (106/236) blake3-servil platform::x86_degree_test::test_detected_degree_is_the_widest_kernel
+       START [         ] (107/236) blake3-servil stream::frontend::tests::interleaved_messages_in_random_fragments_match_official
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::frontend::tests::interleaved_messages_in_random_fragments_match_official --nocapture
+        PASS [   0.076s] (107/236) blake3-servil platform::x86_features_test::test_a_cpu_runs_its_widest_kernel_and_one_without_sse41_none
+       START [         ] (108/236) blake3-servil stream::frontend::tests::messages_batches_and_an_abort_reach_the_handler
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::frontend::tests::messages_batches_and_an_abort_reach_the_handler --nocapture
+        PASS [   0.076s] (108/236) blake3-servil platform::x86_features_test::test_wide_bit_matches_cpuinfo
+       START [         ] (109/236) blake3-servil stream::frontend::tests::parts_of_a_long_message_spread_over_the_workers
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::frontend::tests::parts_of_a_long_message_spread_over_the_workers --nocapture
+        PASS [   0.070s] (109/236) blake3-servil platform::x86_features_test::test_wide_cpu_and_family
+       START [         ] (110/236) blake3-servil stream::prototype::one_message_accepts_callback_pieces_and_finishes_on_the_workers
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::prototype::one_message_accepts_callback_pieces_and_finishes_on_the_workers --nocapture
+        PASS [   0.069s] (110/236) blake3-servil platform::x86_features_test::test_x86_detection_matches_std
+       START [         ] (111/236) blake3-servil stream::prototype::reserved_buffer_returns_from_an_actual_worker
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::prototype::reserved_buffer_returns_from_an_actual_worker --nocapture
+        PASS [   0.071s] (111/236) blake3-servil platform::x86_features_test::test_x86_features_match_std
+       START [         ] (112/236) blake3-servil stream::receiver::ring_bound::the_task_ring_holds_a_batch_per_message_beside_every_part
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::receiver::ring_bound::the_task_ring_holds_a_batch_per_message_beside_every_part --nocapture
+        PASS [   0.074s] (112/236) blake3-servil self_test::test::self_test_matches_official_blake3
+       START [         ] (113/236) blake3-servil stream::receiver::sketch::the_sketchs_receive_loop_runs_on_the_engine
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::receiver::sketch::the_sketchs_receive_loop_runs_on_the_engine --nocapture
+        PASS [   0.072s] (113/236) blake3-servil self_test::test::test_a_waiting_thread_takes_the_verdict
+       START [         ] (114/236) blake3-servil stream::receiver::tests::a_closed_receivers_core_serves_the_next_receiver_in_another_mode
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::receiver::tests::a_closed_receivers_core_serves_the_next_receiver_in_another_mode --nocapture
+        PASS [   0.072s] (114/236) blake3-servil self_test::test::test_self_test_run_checks_every_case
+       START [         ] (115/236) blake3-servil stream::receiver::tests::a_later_message_completes_while_an_earlier_one_is_unfinished
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::receiver::tests::a_later_message_completes_while_an_earlier_one_is_unfinished --nocapture
+        PASS [   0.070s] (115/236) blake3-servil self_test::test::wide_self_test_matches_reference
+       START [         ] (116/236) blake3-servil stream::receiver::tests::a_prepared_batch_completes_as_one_group_beside_incremental_messages
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::receiver::tests::a_prepared_batch_completes_as_one_group_beside_incremental_messages --nocapture
+        PASS [   0.068s] (116/236) blake3-servil self_test::test::wide_self_test_rejects_corruption
+       START [         ] (117/236) blake3-servil stream::receiver::tests::a_second_part_runs_while_every_free_worker_is_parked
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::receiver::tests::a_second_part_runs_while_every_free_worker_is_parked --nocapture
+        PASS [   0.070s] (117/236) blake3-servil stream::frontend::tests::a_borrowed_batch_fills_the_producers_places
+       START [         ] (118/236) blake3-servil stream::receiver::tests::aborting_a_writer_returns_its_resources_after_the_drain
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::receiver::tests::aborting_a_writer_returns_its_resources_after_the_drain --nocapture
+        PASS [   0.072s] (118/236) blake3-servil stream::frontend::tests::a_later_message_is_delivered_before_an_earlier_held_one
+       START [         ] (119/236) blake3-servil stream::receiver::tests::empty_and_borrowed_batches_complete
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::receiver::tests::empty_and_borrowed_batches_complete --nocapture
+        PASS [   0.160s] (119/236) blake3-servil many::test::test_small_batches_after_a_pause
+       START [         ] (120/236) blake3-servil stream::receiver::tests::irregular_pieces_match_official_in_every_mode
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::receiver::tests::irregular_pieces_match_official_in_every_mode --nocapture
+        PASS [   0.076s] (120/236) blake3-servil stream::frontend::tests::batches_and_places_come_back_to_be_refilled
+       START [         ] (121/236) blake3-servil stream::receiver::tests::parts_completed_out_of_order_fold_in_message_order
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::receiver::tests::parts_completed_out_of_order_fold_in_message_order --nocapture
+        PASS [   0.079s] (121/236) blake3-servil stream::frontend::tests::end_carries_the_last_bytes
+       START [         ] (122/236) blake3-servil stream::receiver::tests::unwinding_with_accepted_work_aborts_the_process
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::receiver::tests::unwinding_with_accepted_work_aborts_the_process --nocapture
+        PASS [   0.081s] (122/236) blake3-servil stream::frontend::tests::interleaved_messages_in_random_fragments_match_official
+       START [         ] (123/236) blake3-servil stream::test::test_a_batch_is_cut_into_task_sized_parts
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_a_batch_is_cut_into_task_sized_parts --nocapture
+        PASS [   0.083s] (123/236) blake3-servil stream::frontend::tests::messages_batches_and_an_abort_reach_the_handler
+       START [         ] (124/236) blake3-servil stream::test::test_a_finished_stream_gives_back_its_slot_and_storage
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_a_finished_stream_gives_back_its_slot_and_storage --nocapture
+        PASS [   0.088s] (124/236) blake3-servil stream::prototype::one_message_accepts_callback_pieces_and_finishes_on_the_workers
+       START [         ] (125/236) blake3-servil stream::test::test_a_panic_in_a_stream_ends_the_process
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_a_panic_in_a_stream_ends_the_process --nocapture
+        PASS [   0.085s] (125/236) blake3-servil stream::prototype::reserved_buffer_returns_from_an_actual_worker
+       START [         ] (126/236) blake3-servil stream::test::test_a_reservation_that_fits_to_the_ring_s_end_takes_no_lap_and_no_wait
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_a_reservation_that_fits_to_the_ring_s_end_takes_no_lap_and_no_wait --nocapture
+        PASS [   0.086s] (126/236) blake3-servil stream::receiver::ring_bound::the_task_ring_holds_a_batch_per_message_beside_every_part
+       START [         ] (127/236) blake3-servil stream::test::test_batch_with_zeroes_past_each_message
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_batch_with_zeroes_past_each_message --nocapture
+        PASS [   0.079s] (127/236) blake3-servil stream::receiver::sketch::the_sketchs_receive_loop_runs_on_the_engine
+       START [         ] (128/236) blake3-servil stream::test::test_batch_with_zeroes_where_bytes_follow_a_message_and_nowhere_else
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_batch_with_zeroes_where_bytes_follow_a_message_and_nowhere_else --nocapture
+        PASS [   0.077s] (128/236) blake3-servil stream::receiver::tests::a_closed_receivers_core_serves_the_next_receiver_in_another_mode
+       START [         ] (129/236) blake3-servil stream::test::test_fill_with_a_plain_read
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_fill_with_a_plain_read --nocapture
+        PASS [   0.110s] (129/236) blake3-servil stream::frontend::tests::parts_of_a_long_message_spread_over_the_workers
+       START [         ] (130/236) blake3-servil stream::test::test_has_room_counts_the_bytes_in_flight
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_has_room_counts_the_bytes_in_flight --nocapture
+        PASS [   0.077s] (130/236) blake3-servil stream::receiver::tests::a_later_message_completes_while_an_earlier_one_is_unfinished
+       START [         ] (131/236) blake3-servil stream::test::test_long_messages_against_hash_with
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_long_messages_against_hash_with --nocapture
+        PASS [   0.076s] (131/236) blake3-servil stream::receiver::tests::a_prepared_batch_completes_as_one_group_beside_incremental_messages
+       START [         ] (132/236) blake3-servil stream::test::test_long_messages_fill_the_long_ring_to_its_end
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_long_messages_fill_the_long_ring_to_its_end --nocapture
+        PASS [   0.174s] (132/236) blake3-servil self_test::stops::test_a_failing_self_test_stops_the_process
+       START [         ] (133/236) blake3-servil stream::test::test_short_messages_gather_into_tasks_as_designed
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_short_messages_gather_into_tasks_as_designed --nocapture
+        PASS [   0.310s] (133/236) blake3-servil lanes::test::test_update_multithreaded_matches_hash
+       START [         ] (134/236) blake3-servil stream::test::test_small_stream
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_small_stream --nocapture
+        PASS [   0.076s] (134/236) blake3-servil stream::receiver::tests::a_second_part_runs_while_every_free_worker_is_parked
+       START [         ] (135/236) blake3-servil stream::test::test_stream_against_hash_with
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_stream_against_hash_with --nocapture
+        PASS [   0.075s] (135/236) blake3-servil stream::receiver::tests::aborting_a_writer_returns_its_resources_after_the_drain
+       START [         ] (136/236) blake3-servil stream::test::test_submit_reader_failing_where_its_piece_skips_the_lap_end
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_submit_reader_failing_where_its_piece_skips_the_lap_end --nocapture
+        PASS [   0.074s] (136/236) blake3-servil stream::receiver::tests::empty_and_borrowed_batches_complete
+       START [         ] (137/236) blake3-servil stream::test::test_submit_reader_reads_and_fails_at_every_point
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::test_submit_reader_reads_and_fails_at_every_point --nocapture
+        PASS [   0.076s] (137/236) blake3-servil stream::receiver::tests::irregular_pieces_match_official_in_every_mode
+       START [         ] (138/236) blake3-servil stream::test::waiting_help_runs_one_task
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact stream::test::waiting_help_runs_one_task --nocapture
+        PASS [   0.078s] (138/236) blake3-servil stream::receiver::tests::parts_completed_out_of_order_fold_in_message_order
+       START [         ] (139/236) blake3-servil test::aaa_require_nextest
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::aaa_require_nextest --nocapture
+        PASS [   0.075s] (139/236) blake3-servil stream::test::test_a_batch_is_cut_into_task_sized_parts
+       START [         ] (140/236) blake3-servil test::guard_pages::test_chunk_root_against_a_guard_page
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::guard_pages::test_chunk_root_against_a_guard_page --nocapture
+        PASS [   0.070s] (140/236) blake3-servil stream::test::test_a_finished_stream_gives_back_its_slot_and_storage
+       START [         ] (141/236) blake3-servil test::guard_pages::test_each_item_against_a_guard_page
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::guard_pages::test_each_item_against_a_guard_page --nocapture
+        PASS [   0.066s] (141/236) blake3-servil stream::test::test_a_reservation_that_fits_to_the_ring_s_end_takes_no_lap_and_no_wait
+       START [         ] (142/236) blake3-servil test::guard_pages::test_every_call_inside_guard_pages
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::guard_pages::test_every_call_inside_guard_pages --nocapture
+        PASS [   0.065s] (142/236) blake3-servil stream::test::test_batch_with_zeroes_past_each_message
+       START [         ] (143/236) blake3-servil test::guard_pages::test_hash_inside_guard_pages
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::guard_pages::test_hash_inside_guard_pages --nocapture
+        PASS [   0.063s] (143/236) blake3-servil stream::test::test_batch_with_zeroes_where_bytes_follow_a_message_and_nowhere_else
+       START [         ] (144/236) blake3-servil test::guard_pages::test_hash_many_each_input_against_a_guard_page
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::guard_pages::test_hash_many_each_input_against_a_guard_page --nocapture
+        PASS [   0.063s] (144/236) blake3-servil stream::test::test_fill_with_a_plain_read
+       START [         ] (145/236) blake3-servil test::guard_pages::test_hash_many_inside_guard_pages
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::guard_pages::test_hash_many_inside_guard_pages --nocapture
+        PASS [   0.067s] (145/236) blake3-servil stream::test::test_has_room_counts_the_bytes_in_flight
+       START [         ] (146/236) blake3-servil test::guard_pages::test_xof_inside_guard_pages
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::guard_pages::test_xof_inside_guard_pages --nocapture
+        PASS [   0.071s] (146/236) blake3-servil stream::test::test_short_messages_gather_into_tasks_as_designed
+       START [         ] (147/236) blake3-servil test::test_block_buffer_alignment
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_block_buffer_alignment --nocapture
+        PASS [   0.077s] (147/236) blake3-servil stream::test::test_long_messages_fill_the_long_ring_to_its_end
+       START [         ] (148/236) blake3-servil test::test_compress_chunks_parallel_every_cpu_platform
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_compress_chunks_parallel_every_cpu_platform --nocapture
+        PASS [   0.073s] (148/236) blake3-servil stream::test::test_small_stream
+       START [         ] (149/236) blake3-servil test::test_debug_leaves_out_the_bytes
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_debug_leaves_out_the_bytes --nocapture
+        PASS [   0.087s] (149/236) blake3-servil stream::test::test_submit_reader_failing_where_its_piece_skips_the_lap_end
+       START [         ] (150/236) blake3-servil test::test_empty_subtree_should_panic
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_empty_subtree_should_panic --nocapture
+        PASS [   0.090s] (150/236) blake3-servil stream::test::waiting_help_runs_one_task
+       START [         ] (151/236) blake3-servil test::test_every_assembly_symbol_carries_the_crate_prefix
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_every_assembly_symbol_carries_the_crate_prefix --nocapture
+        PASS [   0.102s] (151/236) blake3-servil stream::test::test_submit_reader_reads_and_fails_at_every_point
+       START [         ] (152/236) blake3-servil test::test_fill_computes_each_block_once
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_fill_computes_each_block_once --nocapture
+        PASS [   0.095s] (152/236) blake3-servil test::aaa_require_nextest
+       START [         ] (153/236) blake3-servil test::test_grouped_hash
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_grouped_hash --nocapture
+        PASS [   0.090s] (153/236) blake3-servil test::guard_pages::test_chunk_root_against_a_guard_page
+       START [         ] (154/236) blake3-servil test::test_hash_comparisons_and_formats
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_hash_comparisons_and_formats --nocapture
+        PASS [   0.312s] (154/236) blake3-servil self_test::stops::test_a_wrong_digest_in_any_case_stops_the_process
+       START [         ] (155/236) blake3-servil test::test_hash_const_conversions
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_hash_const_conversions --nocapture
+        PASS [   0.093s] (155/236) blake3-servil test::guard_pages::test_hash_many_each_input_against_a_guard_page
+       START [         ] (156/236) blake3-servil test::test_hash_conversions
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_hash_conversions --nocapture
+        PASS [   0.085s] (156/236) blake3-servil test::guard_pages::test_xof_inside_guard_pages
+       START [         ] (157/236) blake3-servil test::test_hasher_already_accepted_input_should_panic
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_hasher_already_accepted_input_should_panic --nocapture
+        PASS [   0.368s] (157/236) blake3-servil many::test::test_whole_blocks_x86_full_width
+       START [         ] (158/236) blake3-servil test::test_hasher_gathers
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_hasher_gathers --nocapture
+        PASS [   0.082s] (158/236) blake3-servil test::test_block_buffer_alignment
+       START [         ] (159/236) blake3-servil test::test_hasher_io_write
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_hasher_io_write --nocapture
+        PASS [   0.082s] (159/236) blake3-servil test::test_debug_leaves_out_the_bytes
+       START [         ] (160/236) blake3-servil test::test_hex_encoding_decoding
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_hex_encoding_decoding --nocapture
+        PASS [   0.219s] (160/236) blake3-servil stream::receiver::tests::unwinding_with_accepted_work_aborts_the_process
+       START [         ] (161/236) blake3-servil test::test_official_kernels_and_ours_stay_apart
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_official_kernels_and_ours_stay_apart --nocapture
+        PASS [   0.073s] (161/236) blake3-servil test::test_empty_subtree_should_panic
+       START [         ] (162/236) blake3-servil test::test_pair_hash_many_blocks_every_platform
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_pair_hash_many_blocks_every_platform --nocapture
+        PASS [   0.095s] (162/236) blake3-servil test::test_compress_chunks_parallel_every_cpu_platform
+       START [         ] (163/236) blake3-servil test::test_reset
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_reset --nocapture
+        PASS [   0.069s] (163/236) blake3-servil test::test_every_assembly_symbol_carries_the_crate_prefix
+       START [         ] (164/236) blake3-servil test::test_serde
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_serde --nocapture
+        PASS [   0.065s] (164/236) blake3-servil test::test_fill_computes_each_block_once
+       START [         ] (165/236) blake3-servil test::test_set_input_offset_cant_finalize
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_set_input_offset_cant_finalize --nocapture
+        PASS [   0.067s] (165/236) blake3-servil test::test_grouped_hash
+       START [         ] (166/236) blake3-servil test::test_set_input_offset_cant_finalize_xof
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_set_input_offset_cant_finalize_xof --nocapture
+        PASS [   0.067s] (166/236) blake3-servil test::test_hash_comparisons_and_formats
+       START [         ] (167/236) blake3-servil test::test_the_paths_chosen_exactly
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_the_paths_chosen_exactly --nocapture
+        PASS [   0.047s] (167/236) blake3-servil test::test_hash_conversions
+       START [         ] (168/236) blake3-servil test::test_too_much_input_should_panic
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_too_much_input_should_panic --nocapture
+        PASS [   0.053s] (168/236) blake3-servil test::test_hash_const_conversions
+       START [         ] (169/236) blake3-servil test::test_unaligned_offset_should_panic
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_unaligned_offset_should_panic --nocapture
+        PASS [   0.054s] (169/236) blake3-servil test::test_hasher_already_accepted_input_should_panic
+       START [         ] (170/236) blake3-servil test::test_update_reader_interrupted
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_update_reader_interrupted --nocapture
+        PASS [   0.048s] (170/236) blake3-servil test::test_hasher_io_write
+       START [         ] (171/236) blake3-servil test::test_update_reader_keeps_every_byte_across_errors
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_update_reader_keeps_every_byte_across_errors --nocapture
+        PASS [   0.167s] (171/236) blake3-servil test::guard_pages::test_every_call_inside_guard_pages
+       START [         ] (172/236) blake3-servil test::test_xof_clone_and_empty_fill
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_xof_clone_and_empty_fill --nocapture
+        PASS [   0.050s] (172/236) blake3-servil test::test_hex_encoding_decoding
+       START [         ] (173/236) blake3-servil test::test_xof_groups_sweep_on_this_cpu
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_xof_groups_sweep_on_this_cpu --nocapture
+        PASS [   0.059s] (173/236) blake3-servil test::test_hasher_gathers
+       START [         ] (174/236) blake3-servil test::test_xof_many_every_cpu_platform
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_xof_many_every_cpu_platform --nocapture
+        PASS [   0.045s] (174/236) blake3-servil test::test_pair_hash_many_blocks_every_platform
+       START [         ] (175/236) blake3-servil test::test_xof_partial_block_cache_seeks_and_clones
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_xof_partial_block_cache_seeks_and_clones --nocapture
+        PASS [   0.048s] (175/236) blake3-servil test::test_official_kernels_and_ours_stay_apart
+       START [         ] (176/236) blake3-servil test::test_xof_seek
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_xof_seek --nocapture
+        PASS [   0.049s] (176/236) blake3-servil test::test_reset
+       START [         ] (177/236) blake3-servil test::test_zeroize
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::test_zeroize --nocapture
+        PASS [   0.048s] (177/236) blake3-servil test::test_serde
+       START [         ] (178/236) blake3-servil test::unsafe_paths::test_batches_small
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::unsafe_paths::test_batches_small --nocapture
+        PASS [   0.050s] (178/236) blake3-servil test::test_set_input_offset_cant_finalize
+       START [         ] (179/236) blake3-servil test::unsafe_paths::test_pool_from_two_callers
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact test::unsafe_paths::test_pool_from_two_callers --nocapture
+        PASS [   0.048s] (179/236) blake3-servil test::test_set_input_offset_cant_finalize_xof
+       START [         ] (180/236) blake3-servil tree::test::test_root_children_arrays_are_the_smallest_that_hold_the_walk
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/blake3_servil-993efe235a8d60a5 --exact tree::test::test_root_children_arrays_are_the_smallest_that_hold_the_walk --nocapture
+        PASS [   0.049s] (180/236) blake3-servil test::test_the_paths_chosen_exactly
+       START [         ] (181/236) blake3-servil::admission a_dropped_request_leaves_the_queue_at_every_position
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/admission-6e57d7f7b5e7c933 --exact a_dropped_request_leaves_the_queue_at_every_position --nocapture
+        PASS [   0.052s] (181/236) blake3-servil test::test_too_much_input_should_panic
+       START [         ] (182/236) blake3-servil::admission a_moved_pending_future_replaces_its_notification
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/admission-6e57d7f7b5e7c933 --exact a_moved_pending_future_replaces_its_notification --nocapture
+        PASS [   0.053s] (182/236) blake3-servil test::test_unaligned_offset_should_panic
+       START [         ] (183/236) blake3-servil::admission an_owned_grant_keeps_the_pool_alive_after_the_original_handle_drops
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/admission-6e57d7f7b5e7c933 --exact an_owned_grant_keeps_the_pool_alive_after_the_original_handle_drops --nocapture
+        PASS [   0.055s] (183/236) blake3-servil test::test_update_reader_interrupted
+       START [         ] (184/236) blake3-servil::admission an_unreleased_resource_aborts_the_process
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/admission-6e57d7f7b5e7c933 --exact an_unreleased_resource_aborts_the_process --nocapture
+        PASS [   0.054s] (184/236) blake3-servil test::test_xof_clone_and_empty_fill
+       START [         ] (185/236) blake3-servil::admission capacity_returned_while_cloning_the_notification_is_taken
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/admission-6e57d7f7b5e7c933 --exact capacity_returned_while_cloning_the_notification_is_taken --nocapture
+        PASS [   0.054s] (185/236) blake3-servil test::test_xof_many_every_cpu_platform
+        PASS [   0.220s] (186/236) blake3-servil test::guard_pages::test_hash_inside_guard_pages
+       START [         ] (187/236) blake3-servil::admission granted_capacity_is_reserved_before_notification
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/admission-6e57d7f7b5e7c933 --exact granted_capacity_is_reserved_before_notification --nocapture
+       START [         ] (187/236) blake3-servil::admission dropping_the_woken_waiter_wakes_the_next
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/admission-6e57d7f7b5e7c933 --exact dropping_the_woken_waiter_wakes_the_next --nocapture
+        PASS [   0.066s] (187/236) blake3-servil test::test_update_reader_keeps_every_byte_across_errors
+       START [         ] (188/236) blake3-servil::admission owned_and_borrowed_requests_share_one_fifo
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/admission-6e57d7f7b5e7c933 --exact owned_and_borrowed_requests_share_one_fifo --nocapture
+        PASS [   0.060s] (188/236) blake3-servil test::test_xof_groups_sweep_on_this_cpu
+       START [         ] (189/236) blake3-servil::admission require_nextest::aaa_require_nextest
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/admission-6e57d7f7b5e7c933 --exact require_nextest::aaa_require_nextest --nocapture
+        PASS [   0.059s] (189/236) blake3-servil test::test_xof_partial_block_cache_seeks_and_clones
+       START [         ] (190/236) blake3-servil::admission unused_requests_leave_capacity_available
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/admission-6e57d7f7b5e7c933 --exact unused_requests_leave_capacity_available --nocapture
+        PASS [   0.060s] (190/236) blake3-servil test::test_xof_seek
+       START [         ] (191/236) blake3-servil::admission worker_writes_are_visible_when_the_buffer_returns
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/admission-6e57d7f7b5e7c933 --exact worker_writes_are_visible_when_the_buffer_returns --nocapture
+        PASS [   0.062s] (191/236) blake3-servil test::test_zeroize
+       START [         ] (192/236) blake3-servil::allocations allocation_counter_sees_a_callers_allocation
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/allocations-da1ae87359651e89 --exact allocation_counter_sees_a_callers_allocation --nocapture
+        PASS [   0.061s] (192/236) blake3-servil test::unsafe_paths::test_batches_small
+       START [         ] (193/236) blake3-servil::allocations grouped_cycles_reuse_storage_for_every_key_prefix
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/allocations-da1ae87359651e89 --exact grouped_cycles_reuse_storage_for_every_key_prefix --nocapture
+        PASS [   0.060s] (193/236) blake3-servil test::unsafe_paths::test_pool_from_two_callers
+       START [         ] (194/236) blake3-servil::allocations grouped_fragmentation_reuses_storage_at_table_boundaries
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/allocations-da1ae87359651e89 --exact grouped_fragmentation_reuses_storage_at_table_boundaries --nocapture
+        PASS [   0.058s] (194/236) blake3-servil tree::test::test_root_children_arrays_are_the_smallest_that_hold_the_walk
+       START [         ] (195/236) blake3-servil::allocations require_nextest::aaa_require_nextest
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/allocations-da1ae87359651e89 --exact require_nextest::aaa_require_nextest --nocapture
+        PASS [   0.059s] (195/236) blake3-servil::admission a_dropped_request_leaves_the_queue_at_every_position
+       START [         ] (196/236) blake3-servil::allocations resource_admission_allocates_nothing_when_ready_or_waiting
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/allocations-da1ae87359651e89 --exact resource_admission_allocates_nothing_when_ready_or_waiting --nocapture
+        PASS [   0.301s] (196/236) blake3-servil stream::test::test_long_messages_against_hash_with
+       START [         ] (197/236) blake3-servil::allocations single_threaded_calls_allocate_as_the_memory_section_says
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/allocations-da1ae87359651e89 --exact single_threaded_calls_allocate_as_the_memory_section_says --nocapture
+        PASS [   0.058s] (197/236) blake3-servil::admission a_moved_pending_future_replaces_its_notification
+       START [         ] (198/236) blake3-servil::api_plan a_batch_whose_buffer_is_short_of_its_messages_is_refused
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/api_plan-cd7de6f51ad41e3d --exact a_batch_whose_buffer_is_short_of_its_messages_is_refused --nocapture
+        PASS [   0.249s] (198/236) blake3-servil test::guard_pages::test_hash_many_inside_guard_pages
+       START [         ] (199/236) blake3-servil::api_plan a_message_in_pieces_matches_the_fixed_values
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/api_plan-cd7de6f51ad41e3d --exact a_message_in_pieces_matches_the_fixed_values --nocapture
+        PASS [   0.055s] (199/236) blake3-servil::admission an_owned_grant_keeps_the_pool_alive_after_the_original_handle_drops
+       START [         ] (200/236) blake3-servil::api_plan a_stream_cycles_a_fixed_set_of_places
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/api_plan-cd7de6f51ad41e3d --exact a_stream_cycles_a_fixed_set_of_places --nocapture
+        PASS [   0.050s] (200/236) blake3-servil::admission capacity_returned_while_cloning_the_notification_is_taken
+       START [         ] (201/236) blake3-servil::api_plan a_stream_puts_every_digest_in_its_place_and_hands_the_places_back_in_order
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/api_plan-cd7de6f51ad41e3d --exact a_stream_puts_every_digest_in_its_place_and_hands_the_places_back_in_order --nocapture
+        PASS [   0.051s] (201/236) blake3-servil::admission dropping_the_woken_waiter_wakes_the_next
+       START [         ] (202/236) blake3-servil::api_plan a_streams_batches_fill_the_callers_places
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/api_plan-cd7de6f51ad41e3d --exact a_streams_batches_fill_the_callers_places --nocapture
+        PASS [   0.055s] (202/236) blake3-servil::admission granted_capacity_is_reserved_before_notification
+       START [         ] (203/236) blake3-servil::api_plan batches_every_form_match_the_fixed_values
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/api_plan-cd7de6f51ad41e3d --exact batches_every_form_match_the_fixed_values --nocapture
+        PASS [   0.055s] (203/236) blake3-servil::admission require_nextest::aaa_require_nextest
+       START [         ] (204/236) blake3-servil::api_plan bursts_of_large_batches_after_pauses_complete
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/api_plan-cd7de6f51ad41e3d --exact bursts_of_large_batches_after_pauses_complete --nocapture
+        PASS [   0.061s] (204/236) blake3-servil::admission owned_and_borrowed_requests_share_one_fifo
+       START [         ] (205/236) blake3-servil::api_plan one_message_every_form_matches_the_vectors
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/api_plan-cd7de6f51ad41e3d --exact one_message_every_form_matches_the_vectors --nocapture
+        PASS [   0.061s] (205/236) blake3-servil::admission unused_requests_leave_capacity_available
+       START [         ] (206/236) blake3-servil::api_plan one_message_large_inputs_match_the_fixed_values
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/api_plan-cd7de6f51ad41e3d --exact one_message_large_inputs_match_the_fixed_values --nocapture
+        PASS [   0.060s] (206/236) blake3-servil::admission worker_writes_are_visible_when_the_buffer_returns
+       START [         ] (207/236) blake3-servil::api_plan streams_on_several_threads_keep_their_own_order
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/api_plan-cd7de6f51ad41e3d --exact streams_on_several_threads_keep_their_own_order --nocapture
+        PASS [   0.061s] (207/236) blake3-servil::allocations allocation_counter_sees_a_callers_allocation
+       START [         ] (208/236) blake3-servil::forked_child a_forked_childs_multithreaded_calls_panic_and_its_single_threaded_ones_work
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/forked_child-20df83e8e57f05ae --exact a_forked_childs_multithreaded_calls_panic_and_its_single_threaded_ones_work --nocapture
+        PASS [   0.063s] (208/236) blake3-servil::allocations require_nextest::aaa_require_nextest
+       START [         ] (209/236) blake3-servil::initialize_contract a_call_before_initialize_panics
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/initialize_contract-b9b0b2fc48afeb42 --exact a_call_before_initialize_panics --nocapture
+        PASS [   0.065s] (209/236) blake3-servil::allocations single_threaded_calls_allocate_as_the_memory_section_says
+       START [         ] (210/236) blake3-servil::initialize_multithreaded_contract a_multithreaded_call_before_initialize_multithreaded_panics
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/initialize_multithreaded_contract-d508608bbbee1dfb --exact a_multithreaded_call_before_initialize_multithreaded_panics --nocapture
+        PASS [   0.071s] (210/236) blake3-servil::allocations resource_admission_allocates_nothing_when_ready_or_waiting
+       START [         ] (211/236) blake3-servil::pool_threads one_thread_starts_no_workers
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/pool_threads-377f3da017e25a7a --exact one_thread_starts_no_workers --nocapture
+        PASS [   0.073s] (211/236) blake3-servil::api_plan a_batch_whose_buffer_is_short_of_its_messages_is_refused
+       START [         ] (212/236) blake3-servil::stream_collect_no_workers a_caller_looping_on_collect_makes_progress_without_workers
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/stream_collect_no_workers-2ecff3cdc35114c7 --exact a_caller_looping_on_collect_makes_progress_without_workers --nocapture
+        PASS [   0.081s] (212/236) blake3-servil::api_plan a_stream_cycles_a_fixed_set_of_places
+       START [         ] (213/236) blake3-servil::stream_collect_one_worker a_caller_looping_on_collect_makes_progress_without_workers
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/stream_collect_one_worker-01f522d78f042c0b --exact a_caller_looping_on_collect_makes_progress_without_workers --nocapture
+        PASS [   0.080s] (213/236) blake3-servil::api_plan a_streams_batches_fill_the_callers_places
+       START [         ] (214/236) blake3-servil::stream_collect_parked_workers a_caller_looping_on_collect_wakes_a_parked_worker
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/stream_collect_parked_workers-645a288655a38ea9 --exact a_caller_looping_on_collect_wakes_a_parked_worker --nocapture
+        PASS [   0.149s] (214/236) blake3-servil::admission an_unreleased_resource_aborts_the_process
+       START [         ] (215/236) blake3-servil::stream_collect_with_workers a_caller_looping_on_collect_makes_progress_with_sleeping_workers
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/stream_collect_with_workers-a3b3c4d3d0de57ba --exact a_caller_looping_on_collect_makes_progress_with_sleeping_workers --nocapture
+        PASS [   0.093s] (215/236) blake3-servil::api_plan a_stream_puts_every_digest_in_its_place_and_hands_the_places_back_in_order
+       START [         ] (216/236) blake3-servil::stream_finish_parked_workers a_finishing_caller_hashes_its_lone_task_with_every_worker_parked
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/stream_finish_parked_workers-a4c2f65cb02b2cb2 --exact a_finishing_caller_hashes_its_lone_task_with_every_worker_parked --nocapture
+        PASS [   0.077s] (216/236) blake3-servil::api_plan one_message_every_form_matches_the_vectors
+       START [         ] (217/236) blake3-servil::stream_one_cpu every_stream_completes_on_one_cpu
+             command: sh /home/agent/BLAKE3-m3/tools/mutants/test-runner /home/agent/BLAKE3-m3/target/mutants/confirm-0/mutants/deps/stream_one_cpu-2f193ab016e330b4 --exact every_stream_completes_on_one_cpu --nocapture
+        PASS [   0.377s] (217/236) blake3-servil test::guard_pages::test_each_item_against_a_guard_page
+        PASS [   0.094s] (218/236) blake3-servil::api_plan batches_every_form_match_the_fixed_values
+        PASS [   0.076s] (219/236) blake3-servil::forked_child a_forked_childs_multithreaded_calls_panic_and_its_single_threaded_ones_work
+        PASS [   0.066s] (220/236) blake3-servil::initialize_contract a_call_before_initialize_panics
+        PASS [   0.137s] (221/236) blake3-servil::allocations grouped_cycles_reuse_storage_for_every_key_prefix
+        PASS [   0.064s] (222/236) blake3-servil::initialize_multithreaded_contract a_multithreaded_call_before_initialize_multithreaded_panics
+        PASS [   0.067s] (223/236) blake3-servil::stream_collect_no_workers a_caller_looping_on_collect_makes_progress_without_workers
+        PASS [   0.111s] (224/236) blake3-servil::api_plan one_message_large_inputs_match_the_fixed_values
+        PASS [   0.159s] (225/236) blake3-servil::allocations grouped_fragmentation_reuses_storage_at_table_boundaries
+        PASS [   0.063s] (226/236) blake3-servil::stream_collect_one_worker a_caller_looping_on_collect_makes_progress_without_workers
+        PASS [   0.147s] (227/236) blake3-servil::api_plan a_message_in_pieces_matches_the_fixed_values
+        PASS [   0.111s] (228/236) blake3-servil::api_plan streams_on_several_threads_keep_their_own_order
+        PASS [   0.058s] (229/236) blake3-servil::stream_collect_parked_workers a_caller_looping_on_collect_wakes_a_parked_worker
+        PASS [   0.053s] (230/236) blake3-servil::stream_finish_parked_workers a_finishing_caller_hashes_its_lone_task_with_every_worker_parked
+        PASS [   0.486s] (231/236) blake3-servil stream::test::test_a_panic_in_a_stream_ends_the_process
+        PASS [   0.091s] (232/236) blake3-servil::pool_threads one_thread_starts_no_workers
+        PASS [   0.078s] (233/236) blake3-servil::stream_one_cpu every_stream_completes_on_one_cpu
+        PASS [   0.210s] (234/236) blake3-servil::api_plan bursts_of_large_batches_after_pauses_complete
+        PASS [   0.260s] (235/236) blake3-servil::stream_collect_with_workers a_caller_looping_on_collect_makes_progress_with_sleeping_workers
+        PASS [   0.846s] (236/236) blake3-servil stream::test::test_stream_against_hash_with
+────────────
+     Summary [   1.470s] 236 tests run: 236 passed, 0 skipped
+
+*** result: Success

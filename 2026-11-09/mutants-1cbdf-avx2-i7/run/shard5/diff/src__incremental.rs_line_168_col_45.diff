@@ -1,0 +1,21 @@
+--- src/incremental.rs
++++ replace + with - in Hasher::stage
+@@ -160,17 +160,17 @@
+     #[cfg(feature = "std")]
+     fn staged_bytes(&self) -> &[u8] {
+         // Sound: the first `staged` bytes of the stage were written (gather).
+         unsafe { core::slice::from_raw_parts(self.stage.as_ptr() as *const u8, self.staged) }
+     }
+ 
+     /// Copy `bytes` into the stage after what it holds.
+     pub(crate) fn stage(&mut self, bytes: &[u8]) {
+-        self.stage[self.staged..self.staged + bytes.len()].write_copy_of_slice(bytes);
++        self.stage[self.staged..self.staged - /* ~ changed by cargo-mutants ~ */ bytes.len()].write_copy_of_slice(bytes);
+         self.staged += bytes.len();
+     }
+ 
+     /// `update`'s gathering: an update of STAGE_LEN or more from a 16 KiB
+     /// boundary of the message (or an empty stage) goes to the core whole;
+     /// shorter ones gather in the stage until it reaches the next boundary
+     /// (but a fresh hasher's first chunk goes to the core),
+     /// and the stage goes to the core as one update, its chunks side by

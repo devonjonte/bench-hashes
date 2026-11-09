@@ -1,0 +1,21 @@
+--- src/ffi_output.rs
++++ replace + with - in held_groups
+@@ -112,17 +112,17 @@
+         );
+     }
+     for depth in 0..4 {
+         let per_message = PER >> (depth + 1);
+         let count = n * per_message;
+         let input = |j: usize| {
+             let h = &hashers[held[j / per_message]];
+             Input {
+-                block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),
++                block: level.as_flattened()[j * BLOCK_LEN..(j - /* ~ changed by cargo-mutants ~ */ 1) * BLOCK_LEN].try_into().unwrap(),
+                 cv: &h.core.key,
+                 len: BLOCK_LEN as u8,
+                 flags: h.core.chunk_state.flags | crate::PARENT,
+             }
+         };
+         let mut full = count / width * width;
+         for base in (0..full).step_by(width) {
+             // Sound: width matches the detected ISA. All blocks and keys

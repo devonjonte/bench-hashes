@@ -1,0 +1,48 @@
+--- src/each.rs
++++ replace hash_held with ()
+@@ -188,44 +188,17 @@
+     static HELD_GROUPS: core::cell::RefCell<Vec<Vec<usize>>> = const { core::cell::RefCell::new(Vec::new()) };
+ }
+ 
+ /// Hash held stages with an independent key per parent lane where
+ /// available. Elsewhere, public mode chooses the cohorts; key values
+ /// never determine grouping, allocation or dispatch.
+ #[cfg(feature = "std")]
+ fn hash_held(hashers: &mut [Hasher], held: &[usize]) {
+-    let Some(&_first) = held.first() else { return };
+-    // Public plain mode fixes every key to the IV.
+-    if held.iter().all(|&i| hashers[i].core.chunk_state.flags == 0) {
+-        hash_cohort::<TABLE>(hashers, held);
+-        return;
+-    }
+-    #[cfg(all(blake3_avx512_ffi, target_os = "linux"))]
+-    {
+-        let platform = hashers[_first].core.chunk_state.platform;
+-        if matches!(platform, Platform::AVX2 | Platform::AVX512) {
+-            crate::ffi_output::held_groups(hashers, held, platform);
+-            #[cfg(all(test, feature = "std"))]
+-            HELD_GROUPS.with(|groups| groups.borrow_mut().push(held.to_vec()));
+-            crate::counted(crate::Counted::HeldPass);
+-            return;
+-        }
+-    }
+-    // Other platforms retain public-mode cohorts in the same ready bound.
+-    let mut plain = arrayvec::ArrayVec::<usize, TABLE>::new();
+-    plain.extend(held.iter().copied().filter(|&i| hashers[i].core.chunk_state.flags == 0));
+-    if !plain.is_empty() {
+-        hash_cohort::<TABLE>(hashers, &plain);
+-    }
+-    for &i in held {
+-        if hashers[i].core.chunk_state.flags != 0 {
+-            hash_cohort::<1>(hashers, &[i]);
+-        }
+-    }
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ /// Parent blocks supplied by a full staged message's pairs of CVs.
+ const STAGE_PARENTS: usize = ALONE_CHUNKS / 2;
+ 
+ /// Contiguous parent inputs retain the kernels' direct path. Both CV
+ /// levels live on the stack; ping-pong leaves the final two children in
+ /// the other buffer. Block supplies the existing 64-byte alignment.

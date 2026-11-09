@@ -1,0 +1,21 @@
+--- src/ffi_output.rs
++++ replace | with & in input
+@@ -49,17 +49,17 @@
+ /// stacked subtree. Its final block is already padded by ChunkState.
+ /// Other states keep Hasher's existing finalization path.
+ pub(crate) fn input(hasher: &Hasher) -> Option<Input<'_>> {
+     let c = &hasher.core.chunk_state;
+     (hasher.staged == 0 && hasher.core.initial_chunk_counter == 0 && c.chunk_counter == 0 && hasher.core.cv_stack.len() == 0).then(|| Input {
+         block: &c.buf,
+         cv: &c.cv,
+         len: c.buf_len,
+-        flags: c.flags | c.start_flag() | CHUNK_END | ROOT,
++        flags: c.flags & /* ~ changed by cargo-mutants ~ */ c.start_flag() | CHUNK_END | ROOT,
+     })
+ }
+ 
+ /// Requires AVX2 for W=8, AVX-512F+VL for W=16, on Linux. Every descriptor
+ /// borrows a readable padded block/CV, length 0..64. All counters are zero.
+ pub(crate) unsafe fn hash_group<const W: usize>(inputs: &[Input<'_>; W], out: &mut [[u8; OUT_LEN]]) {
+     assert_eq!(out.len(), W, "one compression output per lane");
+     if W == 16 {

@@ -1,0 +1,21 @@
+--- src/ffi_output.rs
++++ replace == with != in held_groups
+@@ -148,17 +148,17 @@
+             platform.compress_in_place(&mut cv, input.block, input.len, 0, input.flags);
+             *out = crate::hasher::le_bytes(&cv);
+         }
+         core::mem::swap(&mut level, &mut next);
+     }
+     for (k, &i) in held.iter().enumerate() {
+         let (counter, _) = hashers[i].held_group().unwrap();
+         let mut result = [0u8; BLOCK_LEN];
+-        if counter == 0 {
++        if counter != /* ~ changed by cargo-mutants ~ */ 0 {
+             // Four swaps leave each final parent's two children in next.
+             result.copy_from_slice(next[2 * k..2 * k + 2].as_flattened());
+         } else {
+             result[..OUT_LEN].copy_from_slice(&level[k]);
+         }
+         hashers[i].take_held(&result);
+     }
+ }

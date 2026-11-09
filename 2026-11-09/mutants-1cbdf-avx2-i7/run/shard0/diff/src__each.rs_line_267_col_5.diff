@@ -1,0 +1,95 @@
+--- src/each.rs
++++ replace hash_cohort with ()
+@@ -259,91 +259,17 @@
+ /// Hash 1..=N distinct held stages: plain hashers together, or one keyed
+ /// or derive-key hasher. Keep chunks and each parent level together so
+ /// one SME2 entry covers the cohort; contiguous parents use its direct
+ /// path. Spare descriptor slots repeat a readable block and stay unused.
+ #[cfg(feature = "std")]
+ // Keep the workspace frame out of empty turns and the other mode's caller.
+ #[inline(never)]
+ fn hash_cohort<const N: usize>(hashers: &mut [Hasher], alike: &[usize]) {
+-    use crate::{BLOCK_LEN, PARENT};
+-    let first = alike[0];
+-    #[cfg(all(test, feature = "std"))]
+-    HELD_GROUPS.with(|groups| groups.borrow_mut().push(alike.to_vec()));
+-    #[cfg(all(test, feature = "std"))]
+-    crate::counted(crate::Counted::HeldPass);
+-    let (key, flags) = (hashers[first].core.key, hashers[first].core.chunk_state.flags);
+-    let turn = crate::platform::Sme2Turn::take(hashers[first].core.chunk_state.platform, true);
+-    let platform = turn.platform();
+-    let mut work = HeldWorkspace::<N>::new();
+-    let (mut level, mut next) = work.buffers(alike.len());
+-    {
+-        let mut refs = arrayvec::ArrayVec::<[&[u8; CHUNK_LEN]; ALONE_CHUNKS], N>::new();
+-        refs.extend(alike.iter().map(|&i| {
+-            let stage = hashers[i].held_group().expect("a held group").1;
+-            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j + 1) * CHUNK_LEN].try_into().unwrap())
+-        }));
+-        let refs = refs.as_slice().as_flattened();
+-        let mut counters = arrayvec::ArrayVec::<u64, N>::new();
+-        counters.extend(alike.iter().map(|&i| hashers[i].held_group().unwrap().0));
+-        #[cfg(blake3_sme2)]
+-        let on_sme2 = matches!(platform, Platform::SME2);
+-        #[cfg(not(blake3_sme2))]
+-        let on_sme2 = false;
+-        if on_sme2 {
+-            #[cfg(blake3_sme2)]
+-            // Sound: the turn detects SME2. Borrowed stages and stack output
+-            // are disjoint, with one counter per full 16-chunk stage.
+-            unsafe {
+-                crate::sme2::hash_groups_at(refs, &counters, &key, flags, CHUNK_START, CHUNK_END, level.as_flattened_mut())
+-            };
+-        } else {
+-            for (k, &counter) in counters.iter().enumerate() {
+-                platform.hash_many(
+-                    &refs[k * ALONE_CHUNKS..(k + 1) * ALONE_CHUNKS],
+-                    &key,
+-                    counter,
+-                    IncrementCounter::Yes,
+-                    flags,
+-                    CHUNK_START,
+-                    CHUNK_END,
+-                    level[k * ALONE_CHUNKS..(k + 1) * ALONE_CHUNKS].as_flattened_mut(),
+-                );
+-            }
+-        }
+-    }
+-    let mut per = ALONE_CHUNKS;
+-    while per > 1 {
+-        let count = alike.len() * per / 2;
+-        {
+-            let bytes = level[..2 * count].as_flattened();
+-            // Eight parent blocks per full stage. Derive descriptor rows
+-            // from that layout, including its readable final padding.
+-            let (full, tail) = bytes.as_chunks::<BLOCK_LEN>().0.as_chunks::<STAGE_PARENTS>();
+-            let mut rows = arrayvec::ArrayVec::<_, N>::new();
+-            rows.extend(full.iter().map(|row| row.each_ref()));
+-            if let Some(first) = tail.first() {
+-                rows.push(core::array::from_fn(|i| tail.get(i).unwrap_or(first)));
+-            }
+-            platform.hash_many(&rows.as_slice().as_flattened()[..count], &key, 0, IncrementCounter::No, flags | PARENT, 0, 0, next[..count].as_flattened_mut());
+-        }
+-        core::mem::swap(&mut level, &mut next);
+-        per /= 2;
+-    }
+-    drop(turn);
+-    for (k, &i) in alike.iter().enumerate() {
+-        let (counter, _) = hashers[i].held_group().unwrap();
+-        let mut result = [0u8; BLOCK_LEN];
+-        if counter == 0 {
+-            result.copy_from_slice(next[2 * k..2 * k + 2].as_flattened());
+-        } else {
+-            result[..OUT_LEN].copy_from_slice(&level[k]);
+-        }
+-        hashers[i].take_held(&result);
+-    }
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ 
+ #[cfg(not(feature = "std"))]
+ fn hash_held(_: &mut [Hasher], held: &[usize]) {
+     assert!(held.is_empty(), "nothing held without std");
+ }
+ 
+ /// Messages of this many chunks or more fill the lanes alone.

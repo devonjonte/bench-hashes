@@ -1,0 +1,21 @@
+--- src/each.rs
++++ replace || with && in update_turn
+@@ -162,17 +162,17 @@
+             flush_held(hashers, &mut held);
+         }
+         while !bytes.is_empty() {
+             let before = bytes.len();
+             bytes = hashers[i].gather_part(bytes, pooled, true);
+             assert!(bytes.len() < before, "a turn's pass gathered nothing");
+             if hashers[i].held_group().is_some() {
+                 held.push(i);
+-                if held.is_full() || !bytes.is_empty() {
++                if held.is_full() && /* ~ changed by cargo-mutants ~ */ !bytes.is_empty() {
+                     flush_held(hashers, &mut held);
+                 }
+             }
+         }
+     }
+     flush_held(hashers, &mut held);
+ }
+ 

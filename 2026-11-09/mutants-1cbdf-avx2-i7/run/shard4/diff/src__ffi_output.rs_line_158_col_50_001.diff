@@ -1,0 +1,21 @@
+--- src/ffi_output.rs
++++ replace * with / in held_groups
+@@ -150,17 +150,17 @@
+         }
+         core::mem::swap(&mut level, &mut next);
+     }
+     for (k, &i) in held.iter().enumerate() {
+         let (counter, _) = hashers[i].held_group().unwrap();
+         let mut result = [0u8; BLOCK_LEN];
+         if counter == 0 {
+             // Four swaps leave each final parent's two children in next.
+-            result.copy_from_slice(next[2 * k..2 * k + 2].as_flattened());
++            result.copy_from_slice(next[2 * k..2 / /* ~ changed by cargo-mutants ~ */ k + 2].as_flattened());
+         } else {
+             result[..OUT_LEN].copy_from_slice(&level[k]);
+         }
+         hashers[i].take_held(&result);
+     }
+ }
+ 
+ const SELF_TEST_EXPECTED: u64 = 0x153e0dfbeac2bb44;

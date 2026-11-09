@@ -1,0 +1,21 @@
+--- src/each.rs
++++ replace /= with *= in hash_cohort
+@@ -321,17 +321,17 @@
+             let mut rows = arrayvec::ArrayVec::<_, N>::new();
+             rows.extend(full.iter().map(|row| row.each_ref()));
+             if let Some(first) = tail.first() {
+                 rows.push(core::array::from_fn(|i| tail.get(i).unwrap_or(first)));
+             }
+             platform.hash_many(&rows.as_slice().as_flattened()[..count], &key, 0, IncrementCounter::No, flags | PARENT, 0, 0, next[..count].as_flattened_mut());
+         }
+         core::mem::swap(&mut level, &mut next);
+-        per /= 2;
++        per *= /* ~ changed by cargo-mutants ~ */ 2;
+     }
+     drop(turn);
+     for (k, &i) in alike.iter().enumerate() {
+         let (counter, _) = hashers[i].held_group().unwrap();
+         let mut result = [0u8; BLOCK_LEN];
+         if counter == 0 {
+             result.copy_from_slice(next[2 * k..2 * k + 2].as_flattened());
+         } else {

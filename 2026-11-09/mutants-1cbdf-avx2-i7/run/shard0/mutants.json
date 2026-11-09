@@ -1,0 +1,846 @@
+[
+  {
+    "diff": "--- src/each.rs\n+++ replace finalize_each with ()\n@@ -103,48 +103,17 @@\n /// `out.len() == which.len()`, each index `< hashers.len()`, and distinct indices.\n ///\n /// # Key-dependent timing\n ///\n /// Selected hashers may use different secret keys. Key values and key equality\n /// select neither the finalization path nor its amount of work.\n /// See the [key-independence contract](crate#key-dependent-timing).\n pub fn finalize_each(hashers: &mut [Hasher], which: &[usize], out: &mut [[u8; OUT_LEN]]) {\n-    assert_eq!(which.len(), out.len(), \"one digest per message named\");\n-    debug_assert!(which.iter().enumerate().all(|(at, i)| !which[..at].contains(i)), \"each finalized index is distinct\");\n-    #[cfg(all(blake3_avx512_ffi, target_os = \"linux\"))]\n-    if which.len() >= 16 && matches!(Platform::detect(), Platform::AVX512) {\n-        #[cfg(all(test, feature = \"std\"))]\n-        crate::counted(crate::Counted::OutputGroupTurn);\n-        for (which, out) in which.chunks(16).zip(out.chunks_mut(16)) {\n-            if which.len() == 16 {\n-                let hashed = {\n-                    let inputs: Option<arrayvec::ArrayVec<_, 16>> = which.iter().map(|&i| crate::ffi_output::input(&hashers[i])).collect();\n-                    match inputs {\n-                        Some(inputs) => {\n-                            // Sound: the detected platform supplies AVX-512F+VL;\n-                            // borrowed descriptors keep every block/CV readable.\n-                            unsafe { crate::ffi_output::hash_group::<16>(inputs.as_slice().try_into().unwrap(), out) };\n-                            true\n-                        }\n-                        None => false,\n-                    }\n-                };\n-                if hashed {\n-                    for &i in which {\n-                        hashers[i].reset(None);\n-                    }\n-                    continue;\n-                }\n-            }\n-            finish_each(hashers, which, out);\n-        }\n-        return;\n-    }\n-    finish_each(hashers, which, out);\n+    () /* ~ changed by cargo-mutants ~ */\n }\n \n /// Each hasher `which` names finished in place and reset, its digest into\n /// `out`: the path every message takes but a sixteen-lane group.\n fn finish_each(hashers: &mut [Hasher], which: &[usize], out: &mut [[u8; OUT_LEN]]) {\n     for (&i, out) in which.iter().zip(out) {\n         *out = *hashers[i].take_output().root_hash().as_bytes();\n         hashers[i].reset(None);\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "finalize_each",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 143
+        },
+        "start": {
+          "column": 1,
+          "line": 100
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/each.rs:111:5: replace finalize_each with ()",
+    "package": "blake3-servil",
+    "replacement": "()",
+    "span": {
+      "end": {
+        "column": 38,
+        "line": 142
+      },
+      "start": {
+        "column": 5,
+        "line": 111
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace update_turn with ()\n@@ -151,34 +151,17 @@\n     }\n }\n \n /// Gather pieces in caller order, holding at most TABLE ready stages.\n /// Before a held hasher's next bytes, hash its ready group; a full table\n /// or the end of the caller's pieces also flushes. The caller owns the\n /// input descriptors; stack workspace holds intermediate CVs.\n fn update_turn(hashers: &mut [Hasher], pieces: &[(usize, &[u8])], pooled: bool) {\n-    let mut held = arrayvec::ArrayVec::<usize, TABLE>::new();\n-    for &(i, mut bytes) in pieces {\n-        if hashers[i].held_group().is_some() {\n-            flush_held(hashers, &mut held);\n-        }\n-        while !bytes.is_empty() {\n-            let before = bytes.len();\n-            bytes = hashers[i].gather_part(bytes, pooled, true);\n-            assert!(bytes.len() < before, \"a turn's pass gathered nothing\");\n-            if hashers[i].held_group().is_some() {\n-                held.push(i);\n-                if held.is_full() || !bytes.is_empty() {\n-                    flush_held(hashers, &mut held);\n-                }\n-            }\n-        }\n-    }\n-    flush_held(hashers, &mut held);\n+    () /* ~ changed by cargo-mutants ~ */\n }\n \n /// Hash every queued stage, then return the bounded table to its caller.\n fn flush_held(hashers: &mut [Hasher], held: &mut arrayvec::ArrayVec<usize, TABLE>) {\n     hash_held(hashers, held);\n     held.clear();\n }\n \n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "update_turn",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 177
+        },
+        "start": {
+          "column": 1,
+          "line": 154
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/each.rs:159:5: replace update_turn with ()",
+    "package": "blake3-servil",
+    "replacement": "()",
+    "span": {
+      "end": {
+        "column": 36,
+        "line": 176
+      },
+      "start": {
+        "column": 5,
+        "line": 159
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ delete ! in update_turn\n@@ -156,17 +156,17 @@\n /// or the end of the caller's pieces also flushes. The caller owns the\n /// input descriptors; stack workspace holds intermediate CVs.\n fn update_turn(hashers: &mut [Hasher], pieces: &[(usize, &[u8])], pooled: bool) {\n     let mut held = arrayvec::ArrayVec::<usize, TABLE>::new();\n     for &(i, mut bytes) in pieces {\n         if hashers[i].held_group().is_some() {\n             flush_held(hashers, &mut held);\n         }\n-        while !bytes.is_empty() {\n+        while  /* ~ changed by cargo-mutants ~ */bytes.is_empty() {\n             let before = bytes.len();\n             bytes = hashers[i].gather_part(bytes, pooled, true);\n             assert!(bytes.len() < before, \"a turn's pass gathered nothing\");\n             if hashers[i].held_group().is_some() {\n                 held.push(i);\n                 if held.is_full() || !bytes.is_empty() {\n                     flush_held(hashers, &mut held);\n                 }\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "update_turn",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 177
+        },
+        "start": {
+          "column": 1,
+          "line": 154
+        }
+      }
+    },
+    "genre": "UnaryOperator",
+    "name": "src/each.rs:164:15: delete ! in update_turn",
+    "package": "blake3-servil",
+    "replacement": "",
+    "span": {
+      "end": {
+        "column": 16,
+        "line": 164
+      },
+      "start": {
+        "column": 15,
+        "line": 164
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace || with && in update_turn\n@@ -162,17 +162,17 @@\n             flush_held(hashers, &mut held);\n         }\n         while !bytes.is_empty() {\n             let before = bytes.len();\n             bytes = hashers[i].gather_part(bytes, pooled, true);\n             assert!(bytes.len() < before, \"a turn's pass gathered nothing\");\n             if hashers[i].held_group().is_some() {\n                 held.push(i);\n-                if held.is_full() || !bytes.is_empty() {\n+                if held.is_full() && /* ~ changed by cargo-mutants ~ */ !bytes.is_empty() {\n                     flush_held(hashers, &mut held);\n                 }\n             }\n         }\n     }\n     flush_held(hashers, &mut held);\n }\n \n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "update_turn",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 177
+        },
+        "start": {
+          "column": 1,
+          "line": 154
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:170:35: replace || with && in update_turn",
+    "package": "blake3-servil",
+    "replacement": "&&",
+    "span": {
+      "end": {
+        "column": 37,
+        "line": 170
+      },
+      "start": {
+        "column": 35,
+        "line": 170
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ delete ! in update_turn\n@@ -162,17 +162,17 @@\n             flush_held(hashers, &mut held);\n         }\n         while !bytes.is_empty() {\n             let before = bytes.len();\n             bytes = hashers[i].gather_part(bytes, pooled, true);\n             assert!(bytes.len() < before, \"a turn's pass gathered nothing\");\n             if hashers[i].held_group().is_some() {\n                 held.push(i);\n-                if held.is_full() || !bytes.is_empty() {\n+                if held.is_full() ||  /* ~ changed by cargo-mutants ~ */bytes.is_empty() {\n                     flush_held(hashers, &mut held);\n                 }\n             }\n         }\n     }\n     flush_held(hashers, &mut held);\n }\n \n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "update_turn",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 177
+        },
+        "start": {
+          "column": 1,
+          "line": 154
+        }
+      }
+    },
+    "genre": "UnaryOperator",
+    "name": "src/each.rs:170:38: delete ! in update_turn",
+    "package": "blake3-servil",
+    "replacement": "",
+    "span": {
+      "end": {
+        "column": 39,
+        "line": 170
+      },
+      "start": {
+        "column": 38,
+        "line": 170
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace flush_held with ()\n@@ -173,18 +173,17 @@\n             }\n         }\n     }\n     flush_held(hashers, &mut held);\n }\n \n /// Hash every queued stage, then return the bounded table to its caller.\n fn flush_held(hashers: &mut [Hasher], held: &mut arrayvec::ArrayVec<usize, TABLE>) {\n-    hash_held(hashers, held);\n-    held.clear();\n+    () /* ~ changed by cargo-mutants ~ */\n }\n \n #[cfg(all(test, feature = \"std\"))]\n std::thread_local! {\n     // Actual cohorts passed to the shared-key or independent-parent body.\n     static HELD_GROUPS: core::cell::RefCell<Vec<Vec<usize>>> = const { core::cell::RefCell::new(Vec::new()) };\n }\n \n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "flush_held",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 183
+        },
+        "start": {
+          "column": 1,
+          "line": 179
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/each.rs:181:5: replace flush_held with ()",
+    "package": "blake3-servil",
+    "replacement": "()",
+    "span": {
+      "end": {
+        "column": 18,
+        "line": 182
+      },
+      "start": {
+        "column": 5,
+        "line": 181
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace hash_held with ()\n@@ -188,44 +188,17 @@\n     static HELD_GROUPS: core::cell::RefCell<Vec<Vec<usize>>> = const { core::cell::RefCell::new(Vec::new()) };\n }\n \n /// Hash held stages with an independent key per parent lane where\n /// available. Elsewhere, public mode chooses the cohorts; key values\n /// never determine grouping, allocation or dispatch.\n #[cfg(feature = \"std\")]\n fn hash_held(hashers: &mut [Hasher], held: &[usize]) {\n-    let Some(&_first) = held.first() else { return };\n-    // Public plain mode fixes every key to the IV.\n-    if held.iter().all(|&i| hashers[i].core.chunk_state.flags == 0) {\n-        hash_cohort::<TABLE>(hashers, held);\n-        return;\n-    }\n-    #[cfg(all(blake3_avx512_ffi, target_os = \"linux\"))]\n-    {\n-        let platform = hashers[_first].core.chunk_state.platform;\n-        if matches!(platform, Platform::AVX2 | Platform::AVX512) {\n-            crate::ffi_output::held_groups(hashers, held, platform);\n-            #[cfg(all(test, feature = \"std\"))]\n-            HELD_GROUPS.with(|groups| groups.borrow_mut().push(held.to_vec()));\n-            crate::counted(crate::Counted::HeldPass);\n-            return;\n-        }\n-    }\n-    // Other platforms retain public-mode cohorts in the same ready bound.\n-    let mut plain = arrayvec::ArrayVec::<usize, TABLE>::new();\n-    plain.extend(held.iter().copied().filter(|&i| hashers[i].core.chunk_state.flags == 0));\n-    if !plain.is_empty() {\n-        hash_cohort::<TABLE>(hashers, &plain);\n-    }\n-    for &i in held {\n-        if hashers[i].core.chunk_state.flags != 0 {\n-            hash_cohort::<1>(hashers, &[i]);\n-        }\n-    }\n+    () /* ~ changed by cargo-mutants ~ */\n }\n \n /// Parent blocks supplied by a full staged message's pairs of CVs.\n const STAGE_PARENTS: usize = ALONE_CHUNKS / 2;\n \n /// Contiguous parent inputs retain the kernels' direct path. Both CV\n /// levels live on the stack; ping-pong leaves the final two children in\n /// the other buffer. Block supplies the existing 64-byte alignment.\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "hash_held",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 224
+        },
+        "start": {
+          "column": 1,
+          "line": 191
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/each.rs:196:5: replace hash_held with ()",
+    "package": "blake3-servil",
+    "replacement": "()",
+    "span": {
+      "end": {
+        "column": 6,
+        "line": 223
+      },
+      "start": {
+        "column": 5,
+        "line": 196
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace == with != in hash_held\n@@ -190,17 +190,17 @@\n \n /// Hash held stages with an independent key per parent lane where\n /// available. Elsewhere, public mode chooses the cohorts; key values\n /// never determine grouping, allocation or dispatch.\n #[cfg(feature = \"std\")]\n fn hash_held(hashers: &mut [Hasher], held: &[usize]) {\n     let Some(&_first) = held.first() else { return };\n     // Public plain mode fixes every key to the IV.\n-    if held.iter().all(|&i| hashers[i].core.chunk_state.flags == 0) {\n+    if held.iter().all(|&i| hashers[i].core.chunk_state.flags != /* ~ changed by cargo-mutants ~ */ 0) {\n         hash_cohort::<TABLE>(hashers, held);\n         return;\n     }\n     #[cfg(all(blake3_avx512_ffi, target_os = \"linux\"))]\n     {\n         let platform = hashers[_first].core.chunk_state.platform;\n         if matches!(platform, Platform::AVX2 | Platform::AVX512) {\n             crate::ffi_output::held_groups(hashers, held, platform);\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "hash_held",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 224
+        },
+        "start": {
+          "column": 1,
+          "line": 191
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:198:63: replace == with != in hash_held",
+    "package": "blake3-servil",
+    "replacement": "!=",
+    "span": {
+      "end": {
+        "column": 65,
+        "line": 198
+      },
+      "start": {
+        "column": 63,
+        "line": 198
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace == with != in hash_held\n@@ -207,17 +207,17 @@\n             #[cfg(all(test, feature = \"std\"))]\n             HELD_GROUPS.with(|groups| groups.borrow_mut().push(held.to_vec()));\n             crate::counted(crate::Counted::HeldPass);\n             return;\n         }\n     }\n     // Other platforms retain public-mode cohorts in the same ready bound.\n     let mut plain = arrayvec::ArrayVec::<usize, TABLE>::new();\n-    plain.extend(held.iter().copied().filter(|&i| hashers[i].core.chunk_state.flags == 0));\n+    plain.extend(held.iter().copied().filter(|&i| hashers[i].core.chunk_state.flags != /* ~ changed by cargo-mutants ~ */ 0));\n     if !plain.is_empty() {\n         hash_cohort::<TABLE>(hashers, &plain);\n     }\n     for &i in held {\n         if hashers[i].core.chunk_state.flags != 0 {\n             hash_cohort::<1>(hashers, &[i]);\n         }\n     }\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "hash_held",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 224
+        },
+        "start": {
+          "column": 1,
+          "line": 191
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:215:85: replace == with != in hash_held",
+    "package": "blake3-servil",
+    "replacement": "!=",
+    "span": {
+      "end": {
+        "column": 87,
+        "line": 215
+      },
+      "start": {
+        "column": 85,
+        "line": 215
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ delete ! in hash_held\n@@ -208,17 +208,17 @@\n             HELD_GROUPS.with(|groups| groups.borrow_mut().push(held.to_vec()));\n             crate::counted(crate::Counted::HeldPass);\n             return;\n         }\n     }\n     // Other platforms retain public-mode cohorts in the same ready bound.\n     let mut plain = arrayvec::ArrayVec::<usize, TABLE>::new();\n     plain.extend(held.iter().copied().filter(|&i| hashers[i].core.chunk_state.flags == 0));\n-    if !plain.is_empty() {\n+    if  /* ~ changed by cargo-mutants ~ */plain.is_empty() {\n         hash_cohort::<TABLE>(hashers, &plain);\n     }\n     for &i in held {\n         if hashers[i].core.chunk_state.flags != 0 {\n             hash_cohort::<1>(hashers, &[i]);\n         }\n     }\n }\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "hash_held",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 224
+        },
+        "start": {
+          "column": 1,
+          "line": 191
+        }
+      }
+    },
+    "genre": "UnaryOperator",
+    "name": "src/each.rs:216:8: delete ! in hash_held",
+    "package": "blake3-servil",
+    "replacement": "",
+    "span": {
+      "end": {
+        "column": 9,
+        "line": 216
+      },
+      "start": {
+        "column": 8,
+        "line": 216
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace != with == in hash_held\n@@ -212,17 +212,17 @@\n     }\n     // Other platforms retain public-mode cohorts in the same ready bound.\n     let mut plain = arrayvec::ArrayVec::<usize, TABLE>::new();\n     plain.extend(held.iter().copied().filter(|&i| hashers[i].core.chunk_state.flags == 0));\n     if !plain.is_empty() {\n         hash_cohort::<TABLE>(hashers, &plain);\n     }\n     for &i in held {\n-        if hashers[i].core.chunk_state.flags != 0 {\n+        if hashers[i].core.chunk_state.flags == /* ~ changed by cargo-mutants ~ */ 0 {\n             hash_cohort::<1>(hashers, &[i]);\n         }\n     }\n }\n \n /// Parent blocks supplied by a full staged message's pairs of CVs.\n const STAGE_PARENTS: usize = ALONE_CHUNKS / 2;\n \n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "hash_held",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 224
+        },
+        "start": {
+          "column": 1,
+          "line": 191
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:220:46: replace != with == in hash_held",
+    "package": "blake3-servil",
+    "replacement": "==",
+    "span": {
+      "end": {
+        "column": 48,
+        "line": 220
+      },
+      "start": {
+        "column": 46,
+        "line": 220
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace / with %\n@@ -219,17 +219,17 @@\n     for &i in held {\n         if hashers[i].core.chunk_state.flags != 0 {\n             hash_cohort::<1>(hashers, &[i]);\n         }\n     }\n }\n \n /// Parent blocks supplied by a full staged message's pairs of CVs.\n-const STAGE_PARENTS: usize = ALONE_CHUNKS / 2;\n+const STAGE_PARENTS: usize = ALONE_CHUNKS % /* ~ changed by cargo-mutants ~ */ 2;\n \n /// Contiguous parent inputs retain the kernels' direct path. Both CV\n /// levels live on the stack; ping-pong leaves the final two children in\n /// the other buffer. Block supplies the existing 64-byte alignment.\n pub(crate) struct HeldWorkspace<const N: usize> {\n     level: arrayvec::ArrayVec<[Block; STAGE_PARENTS], N>,\n     next: arrayvec::ArrayVec<[Block; STAGE_PARENTS / 2], N>,\n }\n",
+    "file": "src/each.rs",
+    "function": null,
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:227:43: replace / with %",
+    "package": "blake3-servil",
+    "replacement": "%",
+    "span": {
+      "end": {
+        "column": 44,
+        "line": 227
+      },
+      "start": {
+        "column": 43,
+        "line": 227
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace / with *\n@@ -219,17 +219,17 @@\n     for &i in held {\n         if hashers[i].core.chunk_state.flags != 0 {\n             hash_cohort::<1>(hashers, &[i]);\n         }\n     }\n }\n \n /// Parent blocks supplied by a full staged message's pairs of CVs.\n-const STAGE_PARENTS: usize = ALONE_CHUNKS / 2;\n+const STAGE_PARENTS: usize = ALONE_CHUNKS * /* ~ changed by cargo-mutants ~ */ 2;\n \n /// Contiguous parent inputs retain the kernels' direct path. Both CV\n /// levels live on the stack; ping-pong leaves the final two children in\n /// the other buffer. Block supplies the existing 64-byte alignment.\n pub(crate) struct HeldWorkspace<const N: usize> {\n     level: arrayvec::ArrayVec<[Block; STAGE_PARENTS], N>,\n     next: arrayvec::ArrayVec<[Block; STAGE_PARENTS / 2], N>,\n }\n",
+    "file": "src/each.rs",
+    "function": null,
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:227:43: replace / with *",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 44,
+        "line": 227
+      },
+      "start": {
+        "column": 43,
+        "line": 227
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace / with %\n@@ -226,17 +226,17 @@\n /// Parent blocks supplied by a full staged message's pairs of CVs.\n const STAGE_PARENTS: usize = ALONE_CHUNKS / 2;\n \n /// Contiguous parent inputs retain the kernels' direct path. Both CV\n /// levels live on the stack; ping-pong leaves the final two children in\n /// the other buffer. Block supplies the existing 64-byte alignment.\n pub(crate) struct HeldWorkspace<const N: usize> {\n     level: arrayvec::ArrayVec<[Block; STAGE_PARENTS], N>,\n-    next: arrayvec::ArrayVec<[Block; STAGE_PARENTS / 2], N>,\n+    next: arrayvec::ArrayVec<[Block; STAGE_PARENTS % /* ~ changed by cargo-mutants ~ */ 2], N>,\n }\n \n impl<const N: usize> HeldWorkspace<N> {\n     /// Empty buffers, ready to initialize in their final place.\n     #[inline(always)]\n     pub(crate) fn new() -> Self {\n         const {\n             assert!(ALONE_CHUNKS == 16 && crate::STAGE_LEN == ALONE_CHUNKS * CHUNK_LEN);\n",
+    "file": "src/each.rs",
+    "function": null,
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:234:52: replace / with %",
+    "package": "blake3-servil",
+    "replacement": "%",
+    "span": {
+      "end": {
+        "column": 53,
+        "line": 234
+      },
+      "start": {
+        "column": 52,
+        "line": 234
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace / with *\n@@ -226,17 +226,17 @@\n /// Parent blocks supplied by a full staged message's pairs of CVs.\n const STAGE_PARENTS: usize = ALONE_CHUNKS / 2;\n \n /// Contiguous parent inputs retain the kernels' direct path. Both CV\n /// levels live on the stack; ping-pong leaves the final two children in\n /// the other buffer. Block supplies the existing 64-byte alignment.\n pub(crate) struct HeldWorkspace<const N: usize> {\n     level: arrayvec::ArrayVec<[Block; STAGE_PARENTS], N>,\n-    next: arrayvec::ArrayVec<[Block; STAGE_PARENTS / 2], N>,\n+    next: arrayvec::ArrayVec<[Block; STAGE_PARENTS * /* ~ changed by cargo-mutants ~ */ 2], N>,\n }\n \n impl<const N: usize> HeldWorkspace<N> {\n     /// Empty buffers, ready to initialize in their final place.\n     #[inline(always)]\n     pub(crate) fn new() -> Self {\n         const {\n             assert!(ALONE_CHUNKS == 16 && crate::STAGE_LEN == ALONE_CHUNKS * CHUNK_LEN);\n",
+    "file": "src/each.rs",
+    "function": null,
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:234:52: replace / with *",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 53,
+        "line": 234
+      },
+      "start": {
+        "column": 52,
+        "line": 234
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace HeldWorkspace<N>::buffers -> (&mut[CVBytes], &mut[CVBytes]) with (Vec::leak(Vec::new()), Vec::leak(Vec::new()))\n@@ -242,22 +242,17 @@\n             assert!(ALONE_CHUNKS == 16 && crate::STAGE_LEN == ALONE_CHUNKS * CHUNK_LEN);\n         }\n         Self { level: arrayvec::ArrayVec::new(), next: arrayvec::ArrayVec::new() }\n     }\n \n     /// Call once, with 1 <= count <= N: initialize through a borrow of the\n     /// workspace's final place, then borrow its two CV levels.\n     pub(crate) fn buffers(&mut self, count: usize) -> (&mut [CVBytes], &mut [CVBytes]) {\n-        debug_assert!(count > 0 && count <= N && self.level.is_empty() && self.next.is_empty());\n-        self.level.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS], count));\n-        self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS / 2], count));\n-        let (level, _) = Block::bytes_mut(self.level.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();\n-        let (next, _) = Block::bytes_mut(self.next.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();\n-        (level, next)\n+        (Vec::leak(Vec::new()), Vec::leak(Vec::new())) /* ~ changed by cargo-mutants ~ */\n     }\n }\n \n /// Hash 1..=N distinct held stages: plain hashers together, or one keyed\n /// or derive-key hasher. Keep chunks and each parent level together so\n /// one SME2 entry covers the cohort; contiguous parents use its direct\n /// path. Spare descriptor slots repeat a readable block and stay unused.\n #[cfg(feature = \"std\")]\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "HeldWorkspace<N>::buffers",
+      "return_type": "-> (&mut[CVBytes], &mut[CVBytes])",
+      "span": {
+        "end": {
+          "column": 6,
+          "line": 256
+        },
+        "start": {
+          "column": 5,
+          "line": 247
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/each.rs:250:9: replace HeldWorkspace<N>::buffers -> (&mut[CVBytes], &mut[CVBytes]) with (Vec::leak(Vec::new()), Vec::leak(Vec::new()))",
+    "package": "blake3-servil",
+    "replacement": "(Vec::leak(Vec::new()), Vec::leak(Vec::new()))",
+    "span": {
+      "end": {
+        "column": 22,
+        "line": 255
+      },
+      "start": {
+        "column": 9,
+        "line": 250
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace HeldWorkspace<N>::buffers -> (&mut[CVBytes], &mut[CVBytes]) with (Vec::leak(Vec::new()), Vec::leak(vec![Default::default()]))\n@@ -242,22 +242,17 @@\n             assert!(ALONE_CHUNKS == 16 && crate::STAGE_LEN == ALONE_CHUNKS * CHUNK_LEN);\n         }\n         Self { level: arrayvec::ArrayVec::new(), next: arrayvec::ArrayVec::new() }\n     }\n \n     /// Call once, with 1 <= count <= N: initialize through a borrow of the\n     /// workspace's final place, then borrow its two CV levels.\n     pub(crate) fn buffers(&mut self, count: usize) -> (&mut [CVBytes], &mut [CVBytes]) {\n-        debug_assert!(count > 0 && count <= N && self.level.is_empty() && self.next.is_empty());\n-        self.level.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS], count));\n-        self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS / 2], count));\n-        let (level, _) = Block::bytes_mut(self.level.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();\n-        let (next, _) = Block::bytes_mut(self.next.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();\n-        (level, next)\n+        (Vec::leak(Vec::new()), Vec::leak(vec![Default::default()])) /* ~ changed by cargo-mutants ~ */\n     }\n }\n \n /// Hash 1..=N distinct held stages: plain hashers together, or one keyed\n /// or derive-key hasher. Keep chunks and each parent level together so\n /// one SME2 entry covers the cohort; contiguous parents use its direct\n /// path. Spare descriptor slots repeat a readable block and stay unused.\n #[cfg(feature = \"std\")]\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "HeldWorkspace<N>::buffers",
+      "return_type": "-> (&mut[CVBytes], &mut[CVBytes])",
+      "span": {
+        "end": {
+          "column": 6,
+          "line": 256
+        },
+        "start": {
+          "column": 5,
+          "line": 247
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/each.rs:250:9: replace HeldWorkspace<N>::buffers -> (&mut[CVBytes], &mut[CVBytes]) with (Vec::leak(Vec::new()), Vec::leak(vec![Default::default()]))",
+    "package": "blake3-servil",
+    "replacement": "(Vec::leak(Vec::new()), Vec::leak(vec![Default::default()]))",
+    "span": {
+      "end": {
+        "column": 22,
+        "line": 255
+      },
+      "start": {
+        "column": 9,
+        "line": 250
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace HeldWorkspace<N>::buffers -> (&mut[CVBytes], &mut[CVBytes]) with (Vec::leak(vec![Default::default()]), Vec::leak(Vec::new()))\n@@ -242,22 +242,17 @@\n             assert!(ALONE_CHUNKS == 16 && crate::STAGE_LEN == ALONE_CHUNKS * CHUNK_LEN);\n         }\n         Self { level: arrayvec::ArrayVec::new(), next: arrayvec::ArrayVec::new() }\n     }\n \n     /// Call once, with 1 <= count <= N: initialize through a borrow of the\n     /// workspace's final place, then borrow its two CV levels.\n     pub(crate) fn buffers(&mut self, count: usize) -> (&mut [CVBytes], &mut [CVBytes]) {\n-        debug_assert!(count > 0 && count <= N && self.level.is_empty() && self.next.is_empty());\n-        self.level.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS], count));\n-        self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS / 2], count));\n-        let (level, _) = Block::bytes_mut(self.level.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();\n-        let (next, _) = Block::bytes_mut(self.next.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();\n-        (level, next)\n+        (Vec::leak(vec![Default::default()]), Vec::leak(Vec::new())) /* ~ changed by cargo-mutants ~ */\n     }\n }\n \n /// Hash 1..=N distinct held stages: plain hashers together, or one keyed\n /// or derive-key hasher. Keep chunks and each parent level together so\n /// one SME2 entry covers the cohort; contiguous parents use its direct\n /// path. Spare descriptor slots repeat a readable block and stay unused.\n #[cfg(feature = \"std\")]\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "HeldWorkspace<N>::buffers",
+      "return_type": "-> (&mut[CVBytes], &mut[CVBytes])",
+      "span": {
+        "end": {
+          "column": 6,
+          "line": 256
+        },
+        "start": {
+          "column": 5,
+          "line": 247
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/each.rs:250:9: replace HeldWorkspace<N>::buffers -> (&mut[CVBytes], &mut[CVBytes]) with (Vec::leak(vec![Default::default()]), Vec::leak(Vec::new()))",
+    "package": "blake3-servil",
+    "replacement": "(Vec::leak(vec![Default::default()]), Vec::leak(Vec::new()))",
+    "span": {
+      "end": {
+        "column": 22,
+        "line": 255
+      },
+      "start": {
+        "column": 9,
+        "line": 250
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace HeldWorkspace<N>::buffers -> (&mut[CVBytes], &mut[CVBytes]) with (Vec::leak(vec![Default::default()]), Vec::leak(vec![Default::default()]))\n@@ -242,22 +242,17 @@\n             assert!(ALONE_CHUNKS == 16 && crate::STAGE_LEN == ALONE_CHUNKS * CHUNK_LEN);\n         }\n         Self { level: arrayvec::ArrayVec::new(), next: arrayvec::ArrayVec::new() }\n     }\n \n     /// Call once, with 1 <= count <= N: initialize through a borrow of the\n     /// workspace's final place, then borrow its two CV levels.\n     pub(crate) fn buffers(&mut self, count: usize) -> (&mut [CVBytes], &mut [CVBytes]) {\n-        debug_assert!(count > 0 && count <= N && self.level.is_empty() && self.next.is_empty());\n-        self.level.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS], count));\n-        self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS / 2], count));\n-        let (level, _) = Block::bytes_mut(self.level.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();\n-        let (next, _) = Block::bytes_mut(self.next.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();\n-        (level, next)\n+        (Vec::leak(vec![Default::default()]), Vec::leak(vec![Default::default()])) /* ~ changed by cargo-mutants ~ */\n     }\n }\n \n /// Hash 1..=N distinct held stages: plain hashers together, or one keyed\n /// or derive-key hasher. Keep chunks and each parent level together so\n /// one SME2 entry covers the cohort; contiguous parents use its direct\n /// path. Spare descriptor slots repeat a readable block and stay unused.\n #[cfg(feature = \"std\")]\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "HeldWorkspace<N>::buffers",
+      "return_type": "-> (&mut[CVBytes], &mut[CVBytes])",
+      "span": {
+        "end": {
+          "column": 6,
+          "line": 256
+        },
+        "start": {
+          "column": 5,
+          "line": 247
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/each.rs:250:9: replace HeldWorkspace<N>::buffers -> (&mut[CVBytes], &mut[CVBytes]) with (Vec::leak(vec![Default::default()]), Vec::leak(vec![Default::default()]))",
+    "package": "blake3-servil",
+    "replacement": "(Vec::leak(vec![Default::default()]), Vec::leak(vec![Default::default()]))",
+    "span": {
+      "end": {
+        "column": 22,
+        "line": 255
+      },
+      "start": {
+        "column": 9,
+        "line": 250
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace / with % in HeldWorkspace<N>::buffers\n@@ -244,17 +244,17 @@\n         Self { level: arrayvec::ArrayVec::new(), next: arrayvec::ArrayVec::new() }\n     }\n \n     /// Call once, with 1 <= count <= N: initialize through a borrow of the\n     /// workspace's final place, then borrow its two CV levels.\n     pub(crate) fn buffers(&mut self, count: usize) -> (&mut [CVBytes], &mut [CVBytes]) {\n         debug_assert!(count > 0 && count <= N && self.level.is_empty() && self.next.is_empty());\n         self.level.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS], count));\n-        self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS / 2], count));\n+        self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS % /* ~ changed by cargo-mutants ~ */ 2], count));\n         let (level, _) = Block::bytes_mut(self.level.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();\n         let (next, _) = Block::bytes_mut(self.next.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();\n         (level, next)\n     }\n }\n \n /// Hash 1..=N distinct held stages: plain hashers together, or one keyed\n /// or derive-key hasher. Keep chunks and each parent level together so\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "HeldWorkspace<N>::buffers",
+      "return_type": "-> (&mut[CVBytes], &mut[CVBytes])",
+      "span": {
+        "end": {
+          "column": 6,
+          "line": 256
+        },
+        "start": {
+          "column": 5,
+          "line": 247
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:252:75: replace / with % in HeldWorkspace<N>::buffers",
+    "package": "blake3-servil",
+    "replacement": "%",
+    "span": {
+      "end": {
+        "column": 76,
+        "line": 252
+      },
+      "start": {
+        "column": 75,
+        "line": 252
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace / with * in HeldWorkspace<N>::buffers\n@@ -244,17 +244,17 @@\n         Self { level: arrayvec::ArrayVec::new(), next: arrayvec::ArrayVec::new() }\n     }\n \n     /// Call once, with 1 <= count <= N: initialize through a borrow of the\n     /// workspace's final place, then borrow its two CV levels.\n     pub(crate) fn buffers(&mut self, count: usize) -> (&mut [CVBytes], &mut [CVBytes]) {\n         debug_assert!(count > 0 && count <= N && self.level.is_empty() && self.next.is_empty());\n         self.level.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS], count));\n-        self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS / 2], count));\n+        self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS * /* ~ changed by cargo-mutants ~ */ 2], count));\n         let (level, _) = Block::bytes_mut(self.level.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();\n         let (next, _) = Block::bytes_mut(self.next.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();\n         (level, next)\n     }\n }\n \n /// Hash 1..=N distinct held stages: plain hashers together, or one keyed\n /// or derive-key hasher. Keep chunks and each parent level together so\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "HeldWorkspace<N>::buffers",
+      "return_type": "-> (&mut[CVBytes], &mut[CVBytes])",
+      "span": {
+        "end": {
+          "column": 6,
+          "line": 256
+        },
+        "start": {
+          "column": 5,
+          "line": 247
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:252:75: replace / with * in HeldWorkspace<N>::buffers",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 76,
+        "line": 252
+      },
+      "start": {
+        "column": 75,
+        "line": 252
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace hash_cohort with ()\n@@ -259,91 +259,17 @@\n /// Hash 1..=N distinct held stages: plain hashers together, or one keyed\n /// or derive-key hasher. Keep chunks and each parent level together so\n /// one SME2 entry covers the cohort; contiguous parents use its direct\n /// path. Spare descriptor slots repeat a readable block and stay unused.\n #[cfg(feature = \"std\")]\n // Keep the workspace frame out of empty turns and the other mode's caller.\n #[inline(never)]\n fn hash_cohort<const N: usize>(hashers: &mut [Hasher], alike: &[usize]) {\n-    use crate::{BLOCK_LEN, PARENT};\n-    let first = alike[0];\n-    #[cfg(all(test, feature = \"std\"))]\n-    HELD_GROUPS.with(|groups| groups.borrow_mut().push(alike.to_vec()));\n-    #[cfg(all(test, feature = \"std\"))]\n-    crate::counted(crate::Counted::HeldPass);\n-    let (key, flags) = (hashers[first].core.key, hashers[first].core.chunk_state.flags);\n-    let turn = crate::platform::Sme2Turn::take(hashers[first].core.chunk_state.platform, true);\n-    let platform = turn.platform();\n-    let mut work = HeldWorkspace::<N>::new();\n-    let (mut level, mut next) = work.buffers(alike.len());\n-    {\n-        let mut refs = arrayvec::ArrayVec::<[&[u8; CHUNK_LEN]; ALONE_CHUNKS], N>::new();\n-        refs.extend(alike.iter().map(|&i| {\n-            let stage = hashers[i].held_group().expect(\"a held group\").1;\n-            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j + 1) * CHUNK_LEN].try_into().unwrap())\n-        }));\n-        let refs = refs.as_slice().as_flattened();\n-        let mut counters = arrayvec::ArrayVec::<u64, N>::new();\n-        counters.extend(alike.iter().map(|&i| hashers[i].held_group().unwrap().0));\n-        #[cfg(blake3_sme2)]\n-        let on_sme2 = matches!(platform, Platform::SME2);\n-        #[cfg(not(blake3_sme2))]\n-        let on_sme2 = false;\n-        if on_sme2 {\n-            #[cfg(blake3_sme2)]\n-            // Sound: the turn detects SME2. Borrowed stages and stack output\n-            // are disjoint, with one counter per full 16-chunk stage.\n-            unsafe {\n-                crate::sme2::hash_groups_at(refs, &counters, &key, flags, CHUNK_START, CHUNK_END, level.as_flattened_mut())\n-            };\n-        } else {\n-            for (k, &counter) in counters.iter().enumerate() {\n-                platform.hash_many(\n-                    &refs[k * ALONE_CHUNKS..(k + 1) * ALONE_CHUNKS],\n-                    &key,\n-                    counter,\n-                    IncrementCounter::Yes,\n-                    flags,\n-                    CHUNK_START,\n-                    CHUNK_END,\n-                    level[k * ALONE_CHUNKS..(k + 1) * ALONE_CHUNKS].as_flattened_mut(),\n-                );\n-            }\n-        }\n-    }\n-    let mut per = ALONE_CHUNKS;\n-    while per > 1 {\n-        let count = alike.len() * per / 2;\n-        {\n-            let bytes = level[..2 * count].as_flattened();\n-            // Eight parent blocks per full stage. Derive descriptor rows\n-            // from that layout, including its readable final padding.\n-            let (full, tail) = bytes.as_chunks::<BLOCK_LEN>().0.as_chunks::<STAGE_PARENTS>();\n-            let mut rows = arrayvec::ArrayVec::<_, N>::new();\n-            rows.extend(full.iter().map(|row| row.each_ref()));\n-            if let Some(first) = tail.first() {\n-                rows.push(core::array::from_fn(|i| tail.get(i).unwrap_or(first)));\n-            }\n-            platform.hash_many(&rows.as_slice().as_flattened()[..count], &key, 0, IncrementCounter::No, flags | PARENT, 0, 0, next[..count].as_flattened_mut());\n-        }\n-        core::mem::swap(&mut level, &mut next);\n-        per /= 2;\n-    }\n-    drop(turn);\n-    for (k, &i) in alike.iter().enumerate() {\n-        let (counter, _) = hashers[i].held_group().unwrap();\n-        let mut result = [0u8; BLOCK_LEN];\n-        if counter == 0 {\n-            result.copy_from_slice(next[2 * k..2 * k + 2].as_flattened());\n-        } else {\n-            result[..OUT_LEN].copy_from_slice(&level[k]);\n-        }\n-        hashers[i].take_held(&result);\n-    }\n+    () /* ~ changed by cargo-mutants ~ */\n }\n \n #[cfg(not(feature = \"std\"))]\n fn hash_held(_: &mut [Hasher], held: &[usize]) {\n     assert!(held.is_empty(), \"nothing held without std\");\n }\n \n /// Messages of this many chunks or more fill the lanes alone.\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "hash_cohort",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 342
+        },
+        "start": {
+          "column": 1,
+          "line": 259
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/each.rs:267:5: replace hash_cohort with ()",
+    "package": "blake3-servil",
+    "replacement": "()",
+    "span": {
+      "end": {
+        "column": 6,
+        "line": 341
+      },
+      "start": {
+        "column": 5,
+        "line": 267
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace * with + in hash_cohort\n@@ -274,17 +274,17 @@\n     let turn = crate::platform::Sme2Turn::take(hashers[first].core.chunk_state.platform, true);\n     let platform = turn.platform();\n     let mut work = HeldWorkspace::<N>::new();\n     let (mut level, mut next) = work.buffers(alike.len());\n     {\n         let mut refs = arrayvec::ArrayVec::<[&[u8; CHUNK_LEN]; ALONE_CHUNKS], N>::new();\n         refs.extend(alike.iter().map(|&i| {\n             let stage = hashers[i].held_group().expect(\"a held group\").1;\n-            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j + 1) * CHUNK_LEN].try_into().unwrap())\n+            core::array::from_fn(|j| stage[j + /* ~ changed by cargo-mutants ~ */ CHUNK_LEN..(j + 1) * CHUNK_LEN].try_into().unwrap())\n         }));\n         let refs = refs.as_slice().as_flattened();\n         let mut counters = arrayvec::ArrayVec::<u64, N>::new();\n         counters.extend(alike.iter().map(|&i| hashers[i].held_group().unwrap().0));\n         #[cfg(blake3_sme2)]\n         let on_sme2 = matches!(platform, Platform::SME2);\n         #[cfg(not(blake3_sme2))]\n         let on_sme2 = false;\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "hash_cohort",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 342
+        },
+        "start": {
+          "column": 1,
+          "line": 259
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:282:46: replace * with + in hash_cohort",
+    "package": "blake3-servil",
+    "replacement": "+",
+    "span": {
+      "end": {
+        "column": 47,
+        "line": 282
+      },
+      "start": {
+        "column": 46,
+        "line": 282
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace * with / in hash_cohort\n@@ -274,17 +274,17 @@\n     let turn = crate::platform::Sme2Turn::take(hashers[first].core.chunk_state.platform, true);\n     let platform = turn.platform();\n     let mut work = HeldWorkspace::<N>::new();\n     let (mut level, mut next) = work.buffers(alike.len());\n     {\n         let mut refs = arrayvec::ArrayVec::<[&[u8; CHUNK_LEN]; ALONE_CHUNKS], N>::new();\n         refs.extend(alike.iter().map(|&i| {\n             let stage = hashers[i].held_group().expect(\"a held group\").1;\n-            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j + 1) * CHUNK_LEN].try_into().unwrap())\n+            core::array::from_fn(|j| stage[j / /* ~ changed by cargo-mutants ~ */ CHUNK_LEN..(j + 1) * CHUNK_LEN].try_into().unwrap())\n         }));\n         let refs = refs.as_slice().as_flattened();\n         let mut counters = arrayvec::ArrayVec::<u64, N>::new();\n         counters.extend(alike.iter().map(|&i| hashers[i].held_group().unwrap().0));\n         #[cfg(blake3_sme2)]\n         let on_sme2 = matches!(platform, Platform::SME2);\n         #[cfg(not(blake3_sme2))]\n         let on_sme2 = false;\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "hash_cohort",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 342
+        },
+        "start": {
+          "column": 1,
+          "line": 259
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:282:46: replace * with / in hash_cohort",
+    "package": "blake3-servil",
+    "replacement": "/",
+    "span": {
+      "end": {
+        "column": 47,
+        "line": 282
+      },
+      "start": {
+        "column": 46,
+        "line": 282
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace * with + in hash_cohort\n@@ -274,17 +274,17 @@\n     let turn = crate::platform::Sme2Turn::take(hashers[first].core.chunk_state.platform, true);\n     let platform = turn.platform();\n     let mut work = HeldWorkspace::<N>::new();\n     let (mut level, mut next) = work.buffers(alike.len());\n     {\n         let mut refs = arrayvec::ArrayVec::<[&[u8; CHUNK_LEN]; ALONE_CHUNKS], N>::new();\n         refs.extend(alike.iter().map(|&i| {\n             let stage = hashers[i].held_group().expect(\"a held group\").1;\n-            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j + 1) * CHUNK_LEN].try_into().unwrap())\n+            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j + 1) + /* ~ changed by cargo-mutants ~ */ CHUNK_LEN].try_into().unwrap())\n         }));\n         let refs = refs.as_slice().as_flattened();\n         let mut counters = arrayvec::ArrayVec::<u64, N>::new();\n         counters.extend(alike.iter().map(|&i| hashers[i].held_group().unwrap().0));\n         #[cfg(blake3_sme2)]\n         let on_sme2 = matches!(platform, Platform::SME2);\n         #[cfg(not(blake3_sme2))]\n         let on_sme2 = false;\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "hash_cohort",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 342
+        },
+        "start": {
+          "column": 1,
+          "line": 259
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:282:67: replace * with + in hash_cohort",
+    "package": "blake3-servil",
+    "replacement": "+",
+    "span": {
+      "end": {
+        "column": 68,
+        "line": 282
+      },
+      "start": {
+        "column": 67,
+        "line": 282
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace * with / in hash_cohort\n@@ -274,17 +274,17 @@\n     let turn = crate::platform::Sme2Turn::take(hashers[first].core.chunk_state.platform, true);\n     let platform = turn.platform();\n     let mut work = HeldWorkspace::<N>::new();\n     let (mut level, mut next) = work.buffers(alike.len());\n     {\n         let mut refs = arrayvec::ArrayVec::<[&[u8; CHUNK_LEN]; ALONE_CHUNKS], N>::new();\n         refs.extend(alike.iter().map(|&i| {\n             let stage = hashers[i].held_group().expect(\"a held group\").1;\n-            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j + 1) * CHUNK_LEN].try_into().unwrap())\n+            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j + 1) / /* ~ changed by cargo-mutants ~ */ CHUNK_LEN].try_into().unwrap())\n         }));\n         let refs = refs.as_slice().as_flattened();\n         let mut counters = arrayvec::ArrayVec::<u64, N>::new();\n         counters.extend(alike.iter().map(|&i| hashers[i].held_group().unwrap().0));\n         #[cfg(blake3_sme2)]\n         let on_sme2 = matches!(platform, Platform::SME2);\n         #[cfg(not(blake3_sme2))]\n         let on_sme2 = false;\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "hash_cohort",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 342
+        },
+        "start": {
+          "column": 1,
+          "line": 259
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:282:67: replace * with / in hash_cohort",
+    "package": "blake3-servil",
+    "replacement": "/",
+    "span": {
+      "end": {
+        "column": 68,
+        "line": 282
+      },
+      "start": {
+        "column": 67,
+        "line": 282
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace + with - in hash_cohort\n@@ -274,17 +274,17 @@\n     let turn = crate::platform::Sme2Turn::take(hashers[first].core.chunk_state.platform, true);\n     let platform = turn.platform();\n     let mut work = HeldWorkspace::<N>::new();\n     let (mut level, mut next) = work.buffers(alike.len());\n     {\n         let mut refs = arrayvec::ArrayVec::<[&[u8; CHUNK_LEN]; ALONE_CHUNKS], N>::new();\n         refs.extend(alike.iter().map(|&i| {\n             let stage = hashers[i].held_group().expect(\"a held group\").1;\n-            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j + 1) * CHUNK_LEN].try_into().unwrap())\n+            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j - /* ~ changed by cargo-mutants ~ */ 1) * CHUNK_LEN].try_into().unwrap())\n         }));\n         let refs = refs.as_slice().as_flattened();\n         let mut counters = arrayvec::ArrayVec::<u64, N>::new();\n         counters.extend(alike.iter().map(|&i| hashers[i].held_group().unwrap().0));\n         #[cfg(blake3_sme2)]\n         let on_sme2 = matches!(platform, Platform::SME2);\n         #[cfg(not(blake3_sme2))]\n         let on_sme2 = false;\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "hash_cohort",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 342
+        },
+        "start": {
+          "column": 1,
+          "line": 259
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:282:62: replace + with - in hash_cohort",
+    "package": "blake3-servil",
+    "replacement": "-",
+    "span": {
+      "end": {
+        "column": 63,
+        "line": 282
+      },
+      "start": {
+        "column": 62,
+        "line": 282
+      }
+    }
+  },
+  {
+    "diff": "--- src/each.rs\n+++ replace + with * in hash_cohort\n@@ -274,17 +274,17 @@\n     let turn = crate::platform::Sme2Turn::take(hashers[first].core.chunk_state.platform, true);\n     let platform = turn.platform();\n     let mut work = HeldWorkspace::<N>::new();\n     let (mut level, mut next) = work.buffers(alike.len());\n     {\n         let mut refs = arrayvec::ArrayVec::<[&[u8; CHUNK_LEN]; ALONE_CHUNKS], N>::new();\n         refs.extend(alike.iter().map(|&i| {\n             let stage = hashers[i].held_group().expect(\"a held group\").1;\n-            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j + 1) * CHUNK_LEN].try_into().unwrap())\n+            core::array::from_fn(|j| stage[j * CHUNK_LEN..(j * /* ~ changed by cargo-mutants ~ */ 1) * CHUNK_LEN].try_into().unwrap())\n         }));\n         let refs = refs.as_slice().as_flattened();\n         let mut counters = arrayvec::ArrayVec::<u64, N>::new();\n         counters.extend(alike.iter().map(|&i| hashers[i].held_group().unwrap().0));\n         #[cfg(blake3_sme2)]\n         let on_sme2 = matches!(platform, Platform::SME2);\n         #[cfg(not(blake3_sme2))]\n         let on_sme2 = false;\n",
+    "file": "src/each.rs",
+    "function": {
+      "function_name": "hash_cohort",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 342
+        },
+        "start": {
+          "column": 1,
+          "line": 259
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/each.rs:282:62: replace + with * in hash_cohort",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 63,
+        "line": 282
+      },
+      "start": {
+        "column": 62,
+        "line": 282
+      }
+    }
+  }
+]

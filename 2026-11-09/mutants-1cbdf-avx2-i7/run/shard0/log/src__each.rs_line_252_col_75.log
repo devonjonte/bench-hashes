@@ -1,0 +1,63 @@
+
+*** src/each.rs:252:75: replace / with % in HeldWorkspace<N>::buffers
+
+*** mutation diff:
+--- src/each.rs
++++ replace / with % in HeldWorkspace<N>::buffers
+@@ -244,17 +244,17 @@
+         Self { level: arrayvec::ArrayVec::new(), next: arrayvec::ArrayVec::new() }
+     }
+ 
+     /// Call once, with 1 <= count <= N: initialize through a borrow of the
+     /// workspace's final place, then borrow its two CV levels.
+     pub(crate) fn buffers(&mut self, count: usize) -> (&mut [CVBytes], &mut [CVBytes]) {
+         debug_assert!(count > 0 && count <= N && self.level.is_empty() && self.next.is_empty());
+         self.level.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS], count));
+-        self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS / 2], count));
++        self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS % /* ~ changed by cargo-mutants ~ */ 2], count));
+         let (level, _) = Block::bytes_mut(self.level.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();
+         let (next, _) = Block::bytes_mut(self.next.as_mut_slice().as_flattened_mut()).as_chunks_mut::<OUT_LEN>();
+         (level, next)
+     }
+ }
+ 
+ /// Hash 1..=N distinct held stages: plain hashers together, or one keyed
+ /// or derive-key hasher. Keep chunks and each parent level together so
+
+
+*** /home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo nextest run --no-run --cargo-profile=mutants --verbose --package=blake3-servil@0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 --features=serde,zeroize
+warning: ignoring --test-threads because --no-run is specified
+   Compiling blake3-servil v0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 (/home/agent/tmp/blake3-servil-mutants/run-0)
+error[E0271]: type mismatch resolving `<RepeatN<[Block; 0]> as IntoIterator>::Item == [Block; 4]`
+   --> src/each.rs:252:26
+    |
+252 |         self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS % /* ~ changed by cargo-mutants ~ */ 2], count));
+    |                   ------ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected an array with a size of 4, found one with a size of 0
+    |                   |
+    |                   required by a bound introduced by this call
+    |
+    = note: expected array `[Block; 4]`
+               found array `[Block; 0]`
+note: required by a bound in `extend`
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/iter/traits/collect.rs:416:4
+
+For more information about this error, try `rustc --explain E0271`.
+error: could not compile `blake3-servil` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error[E0271]: type mismatch resolving `<RepeatN<[Block; 0]> as IntoIterator>::Item == [Block; 4]`
+   --> src/each.rs:252:26
+    |
+252 |         self.next.extend(core::iter::repeat_n([Block::ZERO; STAGE_PARENTS % /* ~ changed by cargo-mutants ~ */ 2], count));
+    |                   ------ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected an array with a size of 4, found one with a size of 0
+    |                   |
+    |                   required by a bound introduced by this call
+    |
+    = note: expected array `[block::Block; 4]`
+               found array `[block::Block; 0]`
+note: required by a bound in `extend`
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/iter/traits/collect.rs:416:4
+
+error: could not compile `blake3-servil` (lib test) due to 1 previous error
+error: command `/home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo '--color=auto' test --no-run --message-format json-render-diagnostics --package blake3-servil@0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 --features serde,zeroize --profile mutants` exited with code 101
+
+*** result: Failure(101)

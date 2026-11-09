@@ -1,0 +1,21 @@
+--- src/ffi_output.rs
++++ replace * with / in held_groups
+@@ -94,17 +94,17 @@
+     const PER: usize = crate::STAGE_LEN / CHUNK_LEN;
+     const { assert!(PER == 16) };
+     let n = held.len();
+     let mut work = crate::each::HeldWorkspace::<{ crate::many::TABLE }>::new();
+     let (mut level, mut next) = work.buffers(n);
+     for (k, &i) in held.iter().enumerate() {
+         let h = &hashers[i];
+         let (counter, bytes) = h.held_group().expect("a held group");
+-        let refs: [&[u8; CHUNK_LEN]; PER] = core::array::from_fn(|j| bytes[j * CHUNK_LEN..(j + 1) * CHUNK_LEN].try_into().unwrap());
++        let refs: [&[u8; CHUNK_LEN]; PER] = core::array::from_fn(|j| bytes[j / /* ~ changed by cargo-mutants ~ */ CHUNK_LEN..(j + 1) * CHUNK_LEN].try_into().unwrap());
+         platform.hash_many(
+             &refs,
+             &h.core.key,
+             counter,
+             crate::IncrementCounter::Yes,
+             h.core.chunk_state.flags,
+             CHUNK_START,
+             CHUNK_END,

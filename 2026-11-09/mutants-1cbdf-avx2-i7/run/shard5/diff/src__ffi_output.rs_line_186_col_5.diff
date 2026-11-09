@@ -1,0 +1,21 @@
+--- src/ffi_output.rs
++++ replace check_self_test with ()
+@@ -178,17 +178,17 @@
+     });
+     let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));
+     let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });
+     let mut out = [[0u8; OUT_LEN]; 16];
+     hash(&inputs, &mut out);
+     crate::self_test::fold(out.as_flattened())
+ }
+ fn check_self_test(answer: u64) {
+-    assert_eq!(answer, SELF_TEST_EXPECTED, "blake3-servil startup self-test failed: independent counter-zero compressions");
++    () /* ~ changed by cargo-mutants ~ */
+ }
+ unsafe fn hash_eight_groups(inputs: &[Input<'_>; 16], out: &mut [[u8; OUT_LEN]]) {
+     for (inputs, out) in inputs.chunks_exact(8).zip(out.chunks_mut(8)) {
+         unsafe { hash_group::<8>(inputs.try_into().unwrap(), out) };
+     }
+ }
+ unsafe fn hash_on_platform(platform: Platform, inputs: &[Input<'_>; 16], out: &mut [[u8; OUT_LEN]]) {
+     if lanes(platform) == 16 {

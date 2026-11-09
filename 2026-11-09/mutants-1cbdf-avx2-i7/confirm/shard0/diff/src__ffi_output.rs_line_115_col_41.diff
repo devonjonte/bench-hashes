@@ -1,0 +1,21 @@
+--- src/ffi_output.rs
++++ replace + with - in held_groups
+@@ -107,17 +107,17 @@
+             crate::IncrementCounter::Yes,
+             h.core.chunk_state.flags,
+             CHUNK_START,
+             CHUNK_END,
+             level[k * PER..(k + 1) * PER].as_flattened_mut(),
+         );
+     }
+     for depth in 0..4 {
+-        let per_message = PER >> (depth + 1);
++        let per_message = PER >> (depth - /* ~ changed by cargo-mutants ~ */ 1);
+         let count = n * per_message;
+         let input = |j: usize| {
+             let h = &hashers[held[j / per_message]];
+             Input {
+                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),
+                 cv: &h.core.key,
+                 len: BLOCK_LEN as u8,
+                 flags: h.core.chunk_state.flags | crate::PARENT,

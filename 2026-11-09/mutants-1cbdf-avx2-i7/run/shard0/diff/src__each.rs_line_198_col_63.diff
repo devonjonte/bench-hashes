@@ -1,0 +1,21 @@
+--- src/each.rs
++++ replace == with != in hash_held
+@@ -190,17 +190,17 @@
+ 
+ /// Hash held stages with an independent key per parent lane where
+ /// available. Elsewhere, public mode chooses the cohorts; key values
+ /// never determine grouping, allocation or dispatch.
+ #[cfg(feature = "std")]
+ fn hash_held(hashers: &mut [Hasher], held: &[usize]) {
+     let Some(&_first) = held.first() else { return };
+     // Public plain mode fixes every key to the IV.
+-    if held.iter().all(|&i| hashers[i].core.chunk_state.flags == 0) {
++    if held.iter().all(|&i| hashers[i].core.chunk_state.flags != /* ~ changed by cargo-mutants ~ */ 0) {
+         hash_cohort::<TABLE>(hashers, held);
+         return;
+     }
+     #[cfg(all(blake3_avx512_ffi, target_os = "linux"))]
+     {
+         let platform = hashers[_first].core.chunk_state.platform;
+         if matches!(platform, Platform::AVX2 | Platform::AVX512) {
+             crate::ffi_output::held_groups(hashers, held, platform);

@@ -1,0 +1,21 @@
+--- src/each.rs
++++ replace / with % in hash_cohort
+@@ -307,17 +307,17 @@
+                     CHUNK_END,
+                     level[k * ALONE_CHUNKS..(k + 1) * ALONE_CHUNKS].as_flattened_mut(),
+                 );
+             }
+         }
+     }
+     let mut per = ALONE_CHUNKS;
+     while per > 1 {
+-        let count = alike.len() * per / 2;
++        let count = alike.len() * per % /* ~ changed by cargo-mutants ~ */ 2;
+         {
+             let bytes = level[..2 * count].as_flattened();
+             // Eight parent blocks per full stage. Derive descriptor rows
+             // from that layout, including its readable final padding.
+             let (full, tail) = bytes.as_chunks::<BLOCK_LEN>().0.as_chunks::<STAGE_PARENTS>();
+             let mut rows = arrayvec::ArrayVec::<_, N>::new();
+             rows.extend(full.iter().map(|row| row.each_ref()));
+             if let Some(first) = tail.first() {

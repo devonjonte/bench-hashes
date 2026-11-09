@@ -1,0 +1,898 @@
+[
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with / in held_groups\n@@ -103,17 +103,17 @@\n         platform.hash_many(\n             &refs,\n             &h.core.key,\n             counter,\n             crate::IncrementCounter::Yes,\n             h.core.chunk_state.flags,\n             CHUNK_START,\n             CHUNK_END,\n-            level[k * PER..(k + 1) * PER].as_flattened_mut(),\n+            level[k * PER..(k + 1) / /* ~ changed by cargo-mutants ~ */ PER].as_flattened_mut(),\n         );\n     }\n     for depth in 0..4 {\n         let per_message = PER >> (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:111:36: replace * with / in held_groups",
+    "package": "blake3-servil",
+    "replacement": "/",
+    "span": {
+      "end": {
+        "column": 37,
+        "line": 111
+      },
+      "start": {
+        "column": 36,
+        "line": 111
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with - in held_groups\n@@ -103,17 +103,17 @@\n         platform.hash_many(\n             &refs,\n             &h.core.key,\n             counter,\n             crate::IncrementCounter::Yes,\n             h.core.chunk_state.flags,\n             CHUNK_START,\n             CHUNK_END,\n-            level[k * PER..(k + 1) * PER].as_flattened_mut(),\n+            level[k * PER..(k - /* ~ changed by cargo-mutants ~ */ 1) * PER].as_flattened_mut(),\n         );\n     }\n     for depth in 0..4 {\n         let per_message = PER >> (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:111:31: replace + with - in held_groups",
+    "package": "blake3-servil",
+    "replacement": "-",
+    "span": {
+      "end": {
+        "column": 32,
+        "line": 111
+      },
+      "start": {
+        "column": 31,
+        "line": 111
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with * in held_groups\n@@ -103,17 +103,17 @@\n         platform.hash_many(\n             &refs,\n             &h.core.key,\n             counter,\n             crate::IncrementCounter::Yes,\n             h.core.chunk_state.flags,\n             CHUNK_START,\n             CHUNK_END,\n-            level[k * PER..(k + 1) * PER].as_flattened_mut(),\n+            level[k * PER..(k * /* ~ changed by cargo-mutants ~ */ 1) * PER].as_flattened_mut(),\n         );\n     }\n     for depth in 0..4 {\n         let per_message = PER >> (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:111:31: replace + with * in held_groups",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 32,
+        "line": 111
+      },
+      "start": {
+        "column": 31,
+        "line": 111
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace >> with << in held_groups\n@@ -107,17 +107,17 @@\n             crate::IncrementCounter::Yes,\n             h.core.chunk_state.flags,\n             CHUNK_START,\n             CHUNK_END,\n             level[k * PER..(k + 1) * PER].as_flattened_mut(),\n         );\n     }\n     for depth in 0..4 {\n-        let per_message = PER >> (depth + 1);\n+        let per_message = PER << /* ~ changed by cargo-mutants ~ */ (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:115:31: replace >> with << in held_groups",
+    "package": "blake3-servil",
+    "replacement": "<<",
+    "span": {
+      "end": {
+        "column": 33,
+        "line": 115
+      },
+      "start": {
+        "column": 31,
+        "line": 115
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with - in held_groups\n@@ -107,17 +107,17 @@\n             crate::IncrementCounter::Yes,\n             h.core.chunk_state.flags,\n             CHUNK_START,\n             CHUNK_END,\n             level[k * PER..(k + 1) * PER].as_flattened_mut(),\n         );\n     }\n     for depth in 0..4 {\n-        let per_message = PER >> (depth + 1);\n+        let per_message = PER >> (depth - /* ~ changed by cargo-mutants ~ */ 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:115:41: replace + with - in held_groups",
+    "package": "blake3-servil",
+    "replacement": "-",
+    "span": {
+      "end": {
+        "column": 42,
+        "line": 115
+      },
+      "start": {
+        "column": 41,
+        "line": 115
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with * in held_groups\n@@ -107,17 +107,17 @@\n             crate::IncrementCounter::Yes,\n             h.core.chunk_state.flags,\n             CHUNK_START,\n             CHUNK_END,\n             level[k * PER..(k + 1) * PER].as_flattened_mut(),\n         );\n     }\n     for depth in 0..4 {\n-        let per_message = PER >> (depth + 1);\n+        let per_message = PER >> (depth * /* ~ changed by cargo-mutants ~ */ 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:115:41: replace + with * in held_groups",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 42,
+        "line": 115
+      },
+      "start": {
+        "column": 41,
+        "line": 115
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with + in held_groups\n@@ -108,17 +108,17 @@\n             h.core.chunk_state.flags,\n             CHUNK_START,\n             CHUNK_END,\n             level[k * PER..(k + 1) * PER].as_flattened_mut(),\n         );\n     }\n     for depth in 0..4 {\n         let per_message = PER >> (depth + 1);\n-        let count = n * per_message;\n+        let count = n + /* ~ changed by cargo-mutants ~ */ per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:116:23: replace * with + in held_groups",
+    "package": "blake3-servil",
+    "replacement": "+",
+    "span": {
+      "end": {
+        "column": 24,
+        "line": 116
+      },
+      "start": {
+        "column": 23,
+        "line": 116
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with / in held_groups\n@@ -108,17 +108,17 @@\n             h.core.chunk_state.flags,\n             CHUNK_START,\n             CHUNK_END,\n             level[k * PER..(k + 1) * PER].as_flattened_mut(),\n         );\n     }\n     for depth in 0..4 {\n         let per_message = PER >> (depth + 1);\n-        let count = n * per_message;\n+        let count = n / /* ~ changed by cargo-mutants ~ */ per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:116:23: replace * with / in held_groups",
+    "package": "blake3-servil",
+    "replacement": "/",
+    "span": {
+      "end": {
+        "column": 24,
+        "line": 116
+      },
+      "start": {
+        "column": 23,
+        "line": 116
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace / with % in held_groups\n@@ -110,17 +110,17 @@\n             CHUNK_END,\n             level[k * PER..(k + 1) * PER].as_flattened_mut(),\n         );\n     }\n     for depth in 0..4 {\n         let per_message = PER >> (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n-            let h = &hashers[held[j / per_message]];\n+            let h = &hashers[held[j % /* ~ changed by cargo-mutants ~ */ per_message]];\n             Input {\n                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n         let mut full = count / width * width;\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:118:37: replace / with % in held_groups",
+    "package": "blake3-servil",
+    "replacement": "%",
+    "span": {
+      "end": {
+        "column": 38,
+        "line": 118
+      },
+      "start": {
+        "column": 37,
+        "line": 118
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace / with * in held_groups\n@@ -110,17 +110,17 @@\n             CHUNK_END,\n             level[k * PER..(k + 1) * PER].as_flattened_mut(),\n         );\n     }\n     for depth in 0..4 {\n         let per_message = PER >> (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n-            let h = &hashers[held[j / per_message]];\n+            let h = &hashers[held[j * /* ~ changed by cargo-mutants ~ */ per_message]];\n             Input {\n                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n         let mut full = count / width * width;\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:118:37: replace / with * in held_groups",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 38,
+        "line": 118
+      },
+      "start": {
+        "column": 37,
+        "line": 118
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with + in held_groups\n@@ -112,17 +112,17 @@\n         );\n     }\n     for depth in 0..4 {\n         let per_message = PER >> (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n-                block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n+                block: level.as_flattened()[j + /* ~ changed by cargo-mutants ~ */ BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:120:47: replace * with + in held_groups",
+    "package": "blake3-servil",
+    "replacement": "+",
+    "span": {
+      "end": {
+        "column": 48,
+        "line": 120
+      },
+      "start": {
+        "column": 47,
+        "line": 120
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with / in held_groups\n@@ -112,17 +112,17 @@\n         );\n     }\n     for depth in 0..4 {\n         let per_message = PER >> (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n-                block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n+                block: level.as_flattened()[j / /* ~ changed by cargo-mutants ~ */ BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:120:47: replace * with / in held_groups",
+    "package": "blake3-servil",
+    "replacement": "/",
+    "span": {
+      "end": {
+        "column": 48,
+        "line": 120
+      },
+      "start": {
+        "column": 47,
+        "line": 120
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with + in held_groups\n@@ -112,17 +112,17 @@\n         );\n     }\n     for depth in 0..4 {\n         let per_message = PER >> (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n-                block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n+                block: level.as_flattened()[j * BLOCK_LEN..(j + 1) + /* ~ changed by cargo-mutants ~ */ BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:120:68: replace * with + in held_groups",
+    "package": "blake3-servil",
+    "replacement": "+",
+    "span": {
+      "end": {
+        "column": 69,
+        "line": 120
+      },
+      "start": {
+        "column": 68,
+        "line": 120
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with / in held_groups\n@@ -112,17 +112,17 @@\n         );\n     }\n     for depth in 0..4 {\n         let per_message = PER >> (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n-                block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n+                block: level.as_flattened()[j * BLOCK_LEN..(j + 1) / /* ~ changed by cargo-mutants ~ */ BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:120:68: replace * with / in held_groups",
+    "package": "blake3-servil",
+    "replacement": "/",
+    "span": {
+      "end": {
+        "column": 69,
+        "line": 120
+      },
+      "start": {
+        "column": 68,
+        "line": 120
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with - in held_groups\n@@ -112,17 +112,17 @@\n         );\n     }\n     for depth in 0..4 {\n         let per_message = PER >> (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n-                block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n+                block: level.as_flattened()[j * BLOCK_LEN..(j - /* ~ changed by cargo-mutants ~ */ 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:120:63: replace + with - in held_groups",
+    "package": "blake3-servil",
+    "replacement": "-",
+    "span": {
+      "end": {
+        "column": 64,
+        "line": 120
+      },
+      "start": {
+        "column": 63,
+        "line": 120
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with * in held_groups\n@@ -112,17 +112,17 @@\n         );\n     }\n     for depth in 0..4 {\n         let per_message = PER >> (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n-                block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n+                block: level.as_flattened()[j * BLOCK_LEN..(j * /* ~ changed by cargo-mutants ~ */ 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:120:63: replace + with * in held_groups",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 64,
+        "line": 120
+      },
+      "start": {
+        "column": 63,
+        "line": 120
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace | with & in held_groups\n@@ -115,17 +115,17 @@\n         let per_message = PER >> (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n-                flags: h.core.chunk_state.flags | crate::PARENT,\n+                flags: h.core.chunk_state.flags & /* ~ changed by cargo-mutants ~ */ crate::PARENT,\n             }\n         };\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:123:49: replace | with & in held_groups",
+    "package": "blake3-servil",
+    "replacement": "&",
+    "span": {
+      "end": {
+        "column": 50,
+        "line": 123
+      },
+      "start": {
+        "column": 49,
+        "line": 123
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace | with ^ in held_groups\n@@ -115,17 +115,17 @@\n         let per_message = PER >> (depth + 1);\n         let count = n * per_message;\n         let input = |j: usize| {\n             let h = &hashers[held[j / per_message]];\n             Input {\n                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n-                flags: h.core.chunk_state.flags | crate::PARENT,\n+                flags: h.core.chunk_state.flags ^ /* ~ changed by cargo-mutants ~ */ crate::PARENT,\n             }\n         };\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:123:49: replace | with ^ in held_groups",
+    "package": "blake3-servil",
+    "replacement": "^",
+    "span": {
+      "end": {
+        "column": 50,
+        "line": 123
+      },
+      "start": {
+        "column": 49,
+        "line": 123
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with + in held_groups\n@@ -118,17 +118,17 @@\n             let h = &hashers[held[j / per_message]];\n             Input {\n                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n-        let mut full = count / width * width;\n+        let mut full = count / width + /* ~ changed by cargo-mutants ~ */ width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:126:38: replace * with + in held_groups",
+    "package": "blake3-servil",
+    "replacement": "+",
+    "span": {
+      "end": {
+        "column": 39,
+        "line": 126
+      },
+      "start": {
+        "column": 38,
+        "line": 126
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with / in held_groups\n@@ -118,17 +118,17 @@\n             let h = &hashers[held[j / per_message]];\n             Input {\n                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n-        let mut full = count / width * width;\n+        let mut full = count / width / /* ~ changed by cargo-mutants ~ */ width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:126:38: replace * with / in held_groups",
+    "package": "blake3-servil",
+    "replacement": "/",
+    "span": {
+      "end": {
+        "column": 39,
+        "line": 126
+      },
+      "start": {
+        "column": 38,
+        "line": 126
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace / with % in held_groups\n@@ -118,17 +118,17 @@\n             let h = &hashers[held[j / per_message]];\n             Input {\n                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n-        let mut full = count / width * width;\n+        let mut full = count % /* ~ changed by cargo-mutants ~ */ width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:126:30: replace / with % in held_groups",
+    "package": "blake3-servil",
+    "replacement": "%",
+    "span": {
+      "end": {
+        "column": 31,
+        "line": 126
+      },
+      "start": {
+        "column": 30,
+        "line": 126
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace / with * in held_groups\n@@ -118,17 +118,17 @@\n             let h = &hashers[held[j / per_message]];\n             Input {\n                 block: level.as_flattened()[j * BLOCK_LEN..(j + 1) * BLOCK_LEN].try_into().unwrap(),\n                 cv: &h.core.key,\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n-        let mut full = count / width * width;\n+        let mut full = count * /* ~ changed by cargo-mutants ~ */ width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:126:30: replace / with * in held_groups",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 31,
+        "line": 126
+      },
+      "start": {
+        "column": 30,
+        "line": 126
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace == with != in held_groups\n@@ -122,17 +122,17 @@\n                 len: BLOCK_LEN as u8,\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n-            if width == 16 {\n+            if width != /* ~ changed by cargo-mutants ~ */ 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:130:22: replace == with != in held_groups",
+    "package": "blake3-servil",
+    "replacement": "!=",
+    "span": {
+      "end": {
+        "column": 24,
+        "line": 130
+      },
+      "start": {
+        "column": 22,
+        "line": 130
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with - in held_groups\n@@ -123,17 +123,17 @@\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n-                let inputs = core::array::from_fn(|j| input(base + j));\n+                let inputs = core::array::from_fn(|j| input(base - /* ~ changed by cargo-mutants ~ */ j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:131:66: replace + with - in held_groups",
+    "package": "blake3-servil",
+    "replacement": "-",
+    "span": {
+      "end": {
+        "column": 67,
+        "line": 131
+      },
+      "start": {
+        "column": 66,
+        "line": 131
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with * in held_groups\n@@ -123,17 +123,17 @@\n                 flags: h.core.chunk_state.flags | crate::PARENT,\n             }\n         };\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n-                let inputs = core::array::from_fn(|j| input(base + j));\n+                let inputs = core::array::from_fn(|j| input(base * /* ~ changed by cargo-mutants ~ */ j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:131:66: replace + with * in held_groups",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 67,
+        "line": 131
+      },
+      "start": {
+        "column": 66,
+        "line": 131
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with - in held_groups\n@@ -124,17 +124,17 @@\n             }\n         };\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n-                unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n+                unsafe { hash_group::<16>(&inputs, &mut next[base..base - /* ~ changed by cargo-mutants ~ */ 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:132:73: replace + with - in held_groups",
+    "package": "blake3-servil",
+    "replacement": "-",
+    "span": {
+      "end": {
+        "column": 74,
+        "line": 132
+      },
+      "start": {
+        "column": 73,
+        "line": 132
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with * in held_groups\n@@ -124,17 +124,17 @@\n             }\n         };\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n-                unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n+                unsafe { hash_group::<16>(&inputs, &mut next[base..base * /* ~ changed by cargo-mutants ~ */ 16]) };\n             } else {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:132:73: replace + with * in held_groups",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 74,
+        "line": 132
+      },
+      "start": {
+        "column": 73,
+        "line": 132
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with - in held_groups\n@@ -126,17 +126,17 @@\n         let mut full = count / width * width;\n         for base in (0..full).step_by(width) {\n             // Sound: width matches the detected ISA. All blocks and keys\n             // are readable; next supplies disjoint complete outputs.\n             if width == 16 {\n                 let inputs = core::array::from_fn(|j| input(base + j));\n                 unsafe { hash_group::<16>(&inputs, &mut next[base..base + 16]) };\n             } else {\n-                let inputs = core::array::from_fn(|j| input(base + j));\n+                let inputs = core::array::from_fn(|j| input(base - /* ~ changed by cargo-mutants ~ */ j));\n                 unsafe { hash_group::<8>(&inputs, &mut next[base..base + 8]) };\n             }\n         }\n         if width == 16 && count - full >= 8 && crate::platform::avx2_detected() {\n             let inputs = core::array::from_fn(|j| input(full + j));\n             // Sound: AVX2 is detected; eight real parent blocks and keys\n             // remain, and next has disjoint room for all eight outputs.\n             unsafe { hash_group::<8>(&inputs, &mut next[full..full + 8]) };\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "held_groups",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 164
+        },
+        "start": {
+          "column": 1,
+          "line": 85
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:134:66: replace + with - in held_groups",
+    "package": "blake3-servil",
+    "replacement": "-",
+    "span": {
+      "end": {
+        "column": 67,
+        "line": 134
+      },
+      "start": {
+        "column": 66,
+        "line": 134
+      }
+    }
+  }
+]

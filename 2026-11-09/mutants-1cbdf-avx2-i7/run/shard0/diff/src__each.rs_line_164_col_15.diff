@@ -1,0 +1,21 @@
+--- src/each.rs
++++ delete ! in update_turn
+@@ -156,17 +156,17 @@
+ /// or the end of the caller's pieces also flushes. The caller owns the
+ /// input descriptors; stack workspace holds intermediate CVs.
+ fn update_turn(hashers: &mut [Hasher], pieces: &[(usize, &[u8])], pooled: bool) {
+     let mut held = arrayvec::ArrayVec::<usize, TABLE>::new();
+     for &(i, mut bytes) in pieces {
+         if hashers[i].held_group().is_some() {
+             flush_held(hashers, &mut held);
+         }
+-        while !bytes.is_empty() {
++        while  /* ~ changed by cargo-mutants ~ */bytes.is_empty() {
+             let before = bytes.len();
+             bytes = hashers[i].gather_part(bytes, pooled, true);
+             assert!(bytes.len() < before, "a turn's pass gathered nothing");
+             if hashers[i].held_group().is_some() {
+                 held.push(i);
+                 if held.is_full() || !bytes.is_empty() {
+                     flush_held(hashers, &mut held);
+                 }

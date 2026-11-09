@@ -1,0 +1,21 @@
+--- src/each.rs
++++ replace != with == in hash_held
+@@ -212,17 +212,17 @@
+     }
+     // Other platforms retain public-mode cohorts in the same ready bound.
+     let mut plain = arrayvec::ArrayVec::<usize, TABLE>::new();
+     plain.extend(held.iter().copied().filter(|&i| hashers[i].core.chunk_state.flags == 0));
+     if !plain.is_empty() {
+         hash_cohort::<TABLE>(hashers, &plain);
+     }
+     for &i in held {
+-        if hashers[i].core.chunk_state.flags != 0 {
++        if hashers[i].core.chunk_state.flags == /* ~ changed by cargo-mutants ~ */ 0 {
+             hash_cohort::<1>(hashers, &[i]);
+         }
+     }
+ }
+ 
+ /// Parent blocks supplied by a full staged message's pairs of CVs.
+ const STAGE_PARENTS: usize = ALONE_CHUNKS / 2;
+ 

@@ -1,0 +1,21 @@
+--- src/each.rs
++++ replace * with + in hash_cohort
+@@ -328,17 +328,17 @@
+         core::mem::swap(&mut level, &mut next);
+         per /= 2;
+     }
+     drop(turn);
+     for (k, &i) in alike.iter().enumerate() {
+         let (counter, _) = hashers[i].held_group().unwrap();
+         let mut result = [0u8; BLOCK_LEN];
+         if counter == 0 {
+-            result.copy_from_slice(next[2 * k..2 * k + 2].as_flattened());
++            result.copy_from_slice(next[2 + /* ~ changed by cargo-mutants ~ */ k..2 * k + 2].as_flattened());
+         } else {
+             result[..OUT_LEN].copy_from_slice(&level[k]);
+         }
+         hashers[i].take_held(&result);
+     }
+ }
+ 
+ #[cfg(not(feature = "std"))]

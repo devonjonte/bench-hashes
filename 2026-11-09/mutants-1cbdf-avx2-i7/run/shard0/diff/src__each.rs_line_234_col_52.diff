@@ -1,0 +1,21 @@
+--- src/each.rs
++++ replace / with %
+@@ -226,17 +226,17 @@
+ /// Parent blocks supplied by a full staged message's pairs of CVs.
+ const STAGE_PARENTS: usize = ALONE_CHUNKS / 2;
+ 
+ /// Contiguous parent inputs retain the kernels' direct path. Both CV
+ /// levels live on the stack; ping-pong leaves the final two children in
+ /// the other buffer. Block supplies the existing 64-byte alignment.
+ pub(crate) struct HeldWorkspace<const N: usize> {
+     level: arrayvec::ArrayVec<[Block; STAGE_PARENTS], N>,
+-    next: arrayvec::ArrayVec<[Block; STAGE_PARENTS / 2], N>,
++    next: arrayvec::ArrayVec<[Block; STAGE_PARENTS % /* ~ changed by cargo-mutants ~ */ 2], N>,
+ }
+ 
+ impl<const N: usize> HeldWorkspace<N> {
+     /// Empty buffers, ready to initialize in their final place.
+     #[inline(always)]
+     pub(crate) fn new() -> Self {
+         const {
+             assert!(ALONE_CHUNKS == 16 && crate::STAGE_LEN == ALONE_CHUNKS * CHUNK_LEN);

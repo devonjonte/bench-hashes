@@ -1,0 +1,738 @@
+[
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace ^ with & in self_test_shape\n@@ -171,17 +171,17 @@\n         if shape == 4 {\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n-    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n+    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) & /* ~ changed by cargo-mutants ~ */ 0x5a) as u8 } else { 0 }));\n     let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:179:129: replace ^ with & in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "&",
+    "span": {
+      "end": {
+        "column": 130,
+        "line": 179
+      },
+      "start": {
+        "column": 129,
+        "line": 179
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with - in self_test_shape\n@@ -171,17 +171,17 @@\n         if shape == 4 {\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n-    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n+    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 - /* ~ changed by cargo-mutants ~ */ j * 17) ^ 0x5a) as u8 } else { 0 }));\n     let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:179:119: replace + with - in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "-",
+    "span": {
+      "end": {
+        "column": 120,
+        "line": 179
+      },
+      "start": {
+        "column": 119,
+        "line": 179
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace + with * in self_test_shape\n@@ -171,17 +171,17 @@\n         if shape == 4 {\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n-    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n+    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 * /* ~ changed by cargo-mutants ~ */ j * 17) ^ 0x5a) as u8 } else { 0 }));\n     let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:179:119: replace + with * in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 120,
+        "line": 179
+      },
+      "start": {
+        "column": 119,
+        "line": 179
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with + in self_test_shape\n@@ -171,17 +171,17 @@\n         if shape == 4 {\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n-    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n+    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i + /* ~ changed by cargo-mutants ~ */ 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n     let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:179:114: replace * with + in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "+",
+    "span": {
+      "end": {
+        "column": 115,
+        "line": 179
+      },
+      "start": {
+        "column": 114,
+        "line": 179
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with / in self_test_shape\n@@ -171,17 +171,17 @@\n         if shape == 4 {\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n-    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n+    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i / /* ~ changed by cargo-mutants ~ */ 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n     let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:179:114: replace * with / in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "/",
+    "span": {
+      "end": {
+        "column": 115,
+        "line": 179
+      },
+      "start": {
+        "column": 114,
+        "line": 179
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with + in self_test_shape\n@@ -171,17 +171,17 @@\n         if shape == 4 {\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n-    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n+    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j + /* ~ changed by cargo-mutants ~ */ 17) ^ 0x5a) as u8 } else { 0 }));\n     let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:179:123: replace * with + in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "+",
+    "span": {
+      "end": {
+        "column": 124,
+        "line": 179
+      },
+      "start": {
+        "column": 123,
+        "line": 179
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace * with / in self_test_shape\n@@ -171,17 +171,17 @@\n         if shape == 4 {\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n-    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n+    let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j / /* ~ changed by cargo-mutants ~ */ 17) ^ 0x5a) as u8 } else { 0 }));\n     let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:179:123: replace * with / in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "/",
+    "span": {
+      "end": {
+        "column": 124,
+        "line": 179
+      },
+      "start": {
+        "column": 123,
+        "line": 179
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace | with & in self_test_shape\n@@ -172,17 +172,17 @@\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n     let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n-    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n+    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] & /* ~ changed by cargo-mutants ~ */ if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n unsafe fn hash_eight_groups(inputs: &[Input<'_>; 16], out: &mut [[u8; OUT_LEN]]) {\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:180:113: replace | with & in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "&",
+    "span": {
+      "end": {
+        "column": 114,
+        "line": 180
+      },
+      "start": {
+        "column": 113,
+        "line": 180
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace | with ^ in self_test_shape\n@@ -172,17 +172,17 @@\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n     let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n-    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n+    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] ^ /* ~ changed by cargo-mutants ~ */ if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n unsafe fn hash_eight_groups(inputs: &[Input<'_>; 16], out: &mut [[u8; OUT_LEN]]) {\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:180:113: replace | with ^ in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "^",
+    "span": {
+      "end": {
+        "column": 114,
+        "line": 180
+      },
+      "start": {
+        "column": 113,
+        "line": 180
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace == with != in self_test_shape\n@@ -172,17 +172,17 @@\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n     let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n-    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n+    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 != /* ~ changed by cargo-mutants ~ */ 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n unsafe fn hash_eight_groups(inputs: &[Input<'_>; 16], out: &mut [[u8; OUT_LEN]]) {\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:180:130: replace == with != in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "!=",
+    "span": {
+      "end": {
+        "column": 132,
+        "line": 180
+      },
+      "start": {
+        "column": 130,
+        "line": 180
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace % with / in self_test_shape\n@@ -172,17 +172,17 @@\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n     let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n-    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n+    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) / /* ~ changed by cargo-mutants ~ */ 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n unsafe fn hash_eight_groups(inputs: &[Input<'_>; 16], out: &mut [[u8; OUT_LEN]]) {\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:180:126: replace % with / in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "/",
+    "span": {
+      "end": {
+        "column": 127,
+        "line": 180
+      },
+      "start": {
+        "column": 126,
+        "line": 180
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace % with + in self_test_shape\n@@ -172,17 +172,17 @@\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n     let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n-    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n+    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) + /* ~ changed by cargo-mutants ~ */ 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n unsafe fn hash_eight_groups(inputs: &[Input<'_>; 16], out: &mut [[u8; OUT_LEN]]) {\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:180:126: replace % with + in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "+",
+    "span": {
+      "end": {
+        "column": 127,
+        "line": 180
+      },
+      "start": {
+        "column": 126,
+        "line": 180
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace / with % in self_test_shape\n@@ -172,17 +172,17 @@\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n     let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n-    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n+    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i % /* ~ changed by cargo-mutants ~ */ 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n unsafe fn hash_eight_groups(inputs: &[Input<'_>; 16], out: &mut [[u8; OUT_LEN]]) {\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:180:121: replace / with % in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "%",
+    "span": {
+      "end": {
+        "column": 122,
+        "line": 180
+      },
+      "start": {
+        "column": 121,
+        "line": 180
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace / with * in self_test_shape\n@@ -172,17 +172,17 @@\n             lens[i] = 64;\n         }\n         shape | [0u8, 16, 32, 64][i % 4]\n     });\n     let cvs: [[u32; 8]; 16] = core::array::from_fn(|i| {\n         core::array::from_fn(|w| (0x1234abcdu32.wrapping_add(i as u32 * 0x9e37).wrapping_add(w as u32 * 0x1020304)).wrapping_mul(0x85ebca6b))\n     });\n     let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n-    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n+    let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i * /* ~ changed by cargo-mutants ~ */ 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n     assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n }\n unsafe fn hash_eight_groups(inputs: &[Input<'_>; 16], out: &mut [[u8; OUT_LEN]]) {\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test_shape",
+      "return_type": "-> u64",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 184
+        },
+        "start": {
+          "column": 1,
+          "line": 167
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:180:121: replace / with * in self_test_shape",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 122,
+        "line": 180
+      },
+      "start": {
+        "column": 121,
+        "line": 180
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace check_self_test with ()\n@@ -178,17 +178,17 @@\n     });\n     let blocks: [[u8; 64]; 16] = core::array::from_fn(|i| core::array::from_fn(|j| if j < lens[i] as usize { ((i * 37 + j * 17) ^ 0x5a) as u8 } else { 0 }));\n     let inputs = core::array::from_fn(|i| Input { block: &blocks[i], cv: &cvs[i], len: lens[i], flags: flags[i] | if (i / 4) % 2 == 0 { ROOT } else { 0 } });\n     let mut out = [[0u8; OUT_LEN]; 16];\n     hash(&inputs, &mut out);\n     crate::self_test::fold(out.as_flattened())\n }\n fn check_self_test(answer: u64) {\n-    assert_eq!(answer, SELF_TEST_EXPECTED, \"blake3-servil startup self-test failed: independent counter-zero compressions\");\n+    () /* ~ changed by cargo-mutants ~ */\n }\n unsafe fn hash_eight_groups(inputs: &[Input<'_>; 16], out: &mut [[u8; OUT_LEN]]) {\n     for (inputs, out) in inputs.chunks_exact(8).zip(out.chunks_mut(8)) {\n         unsafe { hash_group::<8>(inputs.try_into().unwrap(), out) };\n     }\n }\n unsafe fn hash_on_platform(platform: Platform, inputs: &[Input<'_>; 16], out: &mut [[u8; OUT_LEN]]) {\n     if lanes(platform) == 16 {\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "check_self_test",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 187
+        },
+        "start": {
+          "column": 1,
+          "line": 185
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/ffi_output.rs:186:5: replace check_self_test with ()",
+    "package": "blake3-servil",
+    "replacement": "()",
+    "span": {
+      "end": {
+        "column": 125,
+        "line": 186
+      },
+      "start": {
+        "column": 5,
+        "line": 186
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace self_test -> usize with 0\n@@ -194,32 +194,17 @@\n     if lanes(platform) == 16 {\n         unsafe { hash_group::<16>(inputs, out) };\n     } else {\n         assert_eq!(lanes(platform), 8);\n         unsafe { hash_eight_groups(inputs, out) };\n     }\n }\n pub(crate) fn self_test(platform: Platform) -> usize {\n-    if lanes(platform) == 0 {\n-        return 0;\n-    }\n-    let mut checked = 1;\n-    let answer = self_test_shape(|inputs, out| {\n-        // Sound: initialize detected this platform before testing its kernels.\n-        unsafe { hash_on_platform(platform, inputs, out) };\n-        if lanes(platform) == 16 && crate::platform::avx2_detected() {\n-            // Check the wide output before the remainder kernel reuses it.\n-            check_self_test(crate::self_test::fold(out.as_flattened()));\n-            unsafe { hash_eight_groups(inputs, out) };\n-            checked = 2;\n-        }\n-    });\n-    check_self_test(answer);\n-    checked\n+    0 /* ~ changed by cargo-mutants ~ */\n }\n #[cfg(test)]\n pub(crate) fn entry() -> *const () {\n     blake3_servil_output16 as *const ()\n }\n #[cfg(test)]\n pub(crate) fn entry8() -> *const () {\n     blake3_servil_output8 as *const ()\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test",
+      "return_type": "-> usize",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 218
+        },
+        "start": {
+          "column": 1,
+          "line": 201
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/ffi_output.rs:202:5: replace self_test -> usize with 0",
+    "package": "blake3-servil",
+    "replacement": "0",
+    "span": {
+      "end": {
+        "column": 12,
+        "line": 217
+      },
+      "start": {
+        "column": 5,
+        "line": 202
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace self_test -> usize with 1\n@@ -194,32 +194,17 @@\n     if lanes(platform) == 16 {\n         unsafe { hash_group::<16>(inputs, out) };\n     } else {\n         assert_eq!(lanes(platform), 8);\n         unsafe { hash_eight_groups(inputs, out) };\n     }\n }\n pub(crate) fn self_test(platform: Platform) -> usize {\n-    if lanes(platform) == 0 {\n-        return 0;\n-    }\n-    let mut checked = 1;\n-    let answer = self_test_shape(|inputs, out| {\n-        // Sound: initialize detected this platform before testing its kernels.\n-        unsafe { hash_on_platform(platform, inputs, out) };\n-        if lanes(platform) == 16 && crate::platform::avx2_detected() {\n-            // Check the wide output before the remainder kernel reuses it.\n-            check_self_test(crate::self_test::fold(out.as_flattened()));\n-            unsafe { hash_eight_groups(inputs, out) };\n-            checked = 2;\n-        }\n-    });\n-    check_self_test(answer);\n-    checked\n+    1 /* ~ changed by cargo-mutants ~ */\n }\n #[cfg(test)]\n pub(crate) fn entry() -> *const () {\n     blake3_servil_output16 as *const ()\n }\n #[cfg(test)]\n pub(crate) fn entry8() -> *const () {\n     blake3_servil_output8 as *const ()\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test",
+      "return_type": "-> usize",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 218
+        },
+        "start": {
+          "column": 1,
+          "line": 201
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/ffi_output.rs:202:5: replace self_test -> usize with 1",
+    "package": "blake3-servil",
+    "replacement": "1",
+    "span": {
+      "end": {
+        "column": 12,
+        "line": 217
+      },
+      "start": {
+        "column": 5,
+        "line": 202
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace == with != in self_test\n@@ -194,17 +194,17 @@\n     if lanes(platform) == 16 {\n         unsafe { hash_group::<16>(inputs, out) };\n     } else {\n         assert_eq!(lanes(platform), 8);\n         unsafe { hash_eight_groups(inputs, out) };\n     }\n }\n pub(crate) fn self_test(platform: Platform) -> usize {\n-    if lanes(platform) == 0 {\n+    if lanes(platform) != /* ~ changed by cargo-mutants ~ */ 0 {\n         return 0;\n     }\n     let mut checked = 1;\n     let answer = self_test_shape(|inputs, out| {\n         // Sound: initialize detected this platform before testing its kernels.\n         unsafe { hash_on_platform(platform, inputs, out) };\n         if lanes(platform) == 16 && crate::platform::avx2_detected() {\n             // Check the wide output before the remainder kernel reuses it.\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test",
+      "return_type": "-> usize",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 218
+        },
+        "start": {
+          "column": 1,
+          "line": 201
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:202:24: replace == with != in self_test",
+    "package": "blake3-servil",
+    "replacement": "!=",
+    "span": {
+      "end": {
+        "column": 26,
+        "line": 202
+      },
+      "start": {
+        "column": 24,
+        "line": 202
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace && with || in self_test\n@@ -201,17 +201,17 @@\n pub(crate) fn self_test(platform: Platform) -> usize {\n     if lanes(platform) == 0 {\n         return 0;\n     }\n     let mut checked = 1;\n     let answer = self_test_shape(|inputs, out| {\n         // Sound: initialize detected this platform before testing its kernels.\n         unsafe { hash_on_platform(platform, inputs, out) };\n-        if lanes(platform) == 16 && crate::platform::avx2_detected() {\n+        if lanes(platform) == 16 || /* ~ changed by cargo-mutants ~ */ crate::platform::avx2_detected() {\n             // Check the wide output before the remainder kernel reuses it.\n             check_self_test(crate::self_test::fold(out.as_flattened()));\n             unsafe { hash_eight_groups(inputs, out) };\n             checked = 2;\n         }\n     });\n     check_self_test(answer);\n     checked\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test",
+      "return_type": "-> usize",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 218
+        },
+        "start": {
+          "column": 1,
+          "line": 201
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:209:34: replace && with || in self_test",
+    "package": "blake3-servil",
+    "replacement": "||",
+    "span": {
+      "end": {
+        "column": 36,
+        "line": 209
+      },
+      "start": {
+        "column": 34,
+        "line": 209
+      }
+    }
+  },
+  {
+    "diff": "--- src/ffi_output.rs\n+++ replace == with != in self_test\n@@ -201,17 +201,17 @@\n pub(crate) fn self_test(platform: Platform) -> usize {\n     if lanes(platform) == 0 {\n         return 0;\n     }\n     let mut checked = 1;\n     let answer = self_test_shape(|inputs, out| {\n         // Sound: initialize detected this platform before testing its kernels.\n         unsafe { hash_on_platform(platform, inputs, out) };\n-        if lanes(platform) == 16 && crate::platform::avx2_detected() {\n+        if lanes(platform) != /* ~ changed by cargo-mutants ~ */ 16 && crate::platform::avx2_detected() {\n             // Check the wide output before the remainder kernel reuses it.\n             check_self_test(crate::self_test::fold(out.as_flattened()));\n             unsafe { hash_eight_groups(inputs, out) };\n             checked = 2;\n         }\n     });\n     check_self_test(answer);\n     checked\n",
+    "file": "src/ffi_output.rs",
+    "function": {
+      "function_name": "self_test",
+      "return_type": "-> usize",
+      "span": {
+        "end": {
+          "column": 2,
+          "line": 218
+        },
+        "start": {
+          "column": 1,
+          "line": 201
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/ffi_output.rs:209:28: replace == with != in self_test",
+    "package": "blake3-servil",
+    "replacement": "!=",
+    "span": {
+      "end": {
+        "column": 30,
+        "line": 209
+      },
+      "start": {
+        "column": 28,
+        "line": 209
+      }
+    }
+  },
+  {
+    "diff": "--- src/incremental.rs\n+++ replace Hasher::stage with ()\n@@ -160,18 +160,17 @@\n     #[cfg(feature = \"std\")]\n     fn staged_bytes(&self) -> &[u8] {\n         // Sound: the first `staged` bytes of the stage were written (gather).\n         unsafe { core::slice::from_raw_parts(self.stage.as_ptr() as *const u8, self.staged) }\n     }\n \n     /// Copy `bytes` into the stage after what it holds.\n     pub(crate) fn stage(&mut self, bytes: &[u8]) {\n-        self.stage[self.staged..self.staged + bytes.len()].write_copy_of_slice(bytes);\n-        self.staged += bytes.len();\n+        () /* ~ changed by cargo-mutants ~ */\n     }\n \n     /// `update`'s gathering: an update of STAGE_LEN or more from a 16 KiB\n     /// boundary of the message (or an empty stage) goes to the core whole;\n     /// shorter ones gather in the stage until it reaches the next boundary\n     /// (but a fresh hasher's first chunk goes to the core),\n     /// and the stage goes to the core as one update, its chunks side by\n     /// side in the lanes.\n",
+    "file": "src/incremental.rs",
+    "function": {
+      "function_name": "Hasher::stage",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 6,
+          "line": 170
+        },
+        "start": {
+          "column": 5,
+          "line": 166
+        }
+      }
+    },
+    "genre": "FnValue",
+    "name": "src/incremental.rs:168:9: replace Hasher::stage with ()",
+    "package": "blake3-servil",
+    "replacement": "()",
+    "span": {
+      "end": {
+        "column": 36,
+        "line": 169
+      },
+      "start": {
+        "column": 9,
+        "line": 168
+      }
+    }
+  },
+  {
+    "diff": "--- src/incremental.rs\n+++ replace + with - in Hasher::stage\n@@ -160,17 +160,17 @@\n     #[cfg(feature = \"std\")]\n     fn staged_bytes(&self) -> &[u8] {\n         // Sound: the first `staged` bytes of the stage were written (gather).\n         unsafe { core::slice::from_raw_parts(self.stage.as_ptr() as *const u8, self.staged) }\n     }\n \n     /// Copy `bytes` into the stage after what it holds.\n     pub(crate) fn stage(&mut self, bytes: &[u8]) {\n-        self.stage[self.staged..self.staged + bytes.len()].write_copy_of_slice(bytes);\n+        self.stage[self.staged..self.staged - /* ~ changed by cargo-mutants ~ */ bytes.len()].write_copy_of_slice(bytes);\n         self.staged += bytes.len();\n     }\n \n     /// `update`'s gathering: an update of STAGE_LEN or more from a 16 KiB\n     /// boundary of the message (or an empty stage) goes to the core whole;\n     /// shorter ones gather in the stage until it reaches the next boundary\n     /// (but a fresh hasher's first chunk goes to the core),\n     /// and the stage goes to the core as one update, its chunks side by\n",
+    "file": "src/incremental.rs",
+    "function": {
+      "function_name": "Hasher::stage",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 6,
+          "line": 170
+        },
+        "start": {
+          "column": 5,
+          "line": 166
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/incremental.rs:168:45: replace + with - in Hasher::stage",
+    "package": "blake3-servil",
+    "replacement": "-",
+    "span": {
+      "end": {
+        "column": 46,
+        "line": 168
+      },
+      "start": {
+        "column": 45,
+        "line": 168
+      }
+    }
+  },
+  {
+    "diff": "--- src/incremental.rs\n+++ replace + with * in Hasher::stage\n@@ -160,17 +160,17 @@\n     #[cfg(feature = \"std\")]\n     fn staged_bytes(&self) -> &[u8] {\n         // Sound: the first `staged` bytes of the stage were written (gather).\n         unsafe { core::slice::from_raw_parts(self.stage.as_ptr() as *const u8, self.staged) }\n     }\n \n     /// Copy `bytes` into the stage after what it holds.\n     pub(crate) fn stage(&mut self, bytes: &[u8]) {\n-        self.stage[self.staged..self.staged + bytes.len()].write_copy_of_slice(bytes);\n+        self.stage[self.staged..self.staged * /* ~ changed by cargo-mutants ~ */ bytes.len()].write_copy_of_slice(bytes);\n         self.staged += bytes.len();\n     }\n \n     /// `update`'s gathering: an update of STAGE_LEN or more from a 16 KiB\n     /// boundary of the message (or an empty stage) goes to the core whole;\n     /// shorter ones gather in the stage until it reaches the next boundary\n     /// (but a fresh hasher's first chunk goes to the core),\n     /// and the stage goes to the core as one update, its chunks side by\n",
+    "file": "src/incremental.rs",
+    "function": {
+      "function_name": "Hasher::stage",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 6,
+          "line": 170
+        },
+        "start": {
+          "column": 5,
+          "line": 166
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/incremental.rs:168:45: replace + with * in Hasher::stage",
+    "package": "blake3-servil",
+    "replacement": "*",
+    "span": {
+      "end": {
+        "column": 46,
+        "line": 168
+      },
+      "start": {
+        "column": 45,
+        "line": 168
+      }
+    }
+  }
+]

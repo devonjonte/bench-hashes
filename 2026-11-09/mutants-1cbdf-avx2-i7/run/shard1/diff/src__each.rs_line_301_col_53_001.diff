@@ -1,0 +1,21 @@
+--- src/each.rs
++++ replace * with / in hash_cohort
+@@ -293,17 +293,17 @@
+             // Sound: the turn detects SME2. Borrowed stages and stack output
+             // are disjoint, with one counter per full 16-chunk stage.
+             unsafe {
+                 crate::sme2::hash_groups_at(refs, &counters, &key, flags, CHUNK_START, CHUNK_END, level.as_flattened_mut())
+             };
+         } else {
+             for (k, &counter) in counters.iter().enumerate() {
+                 platform.hash_many(
+-                    &refs[k * ALONE_CHUNKS..(k + 1) * ALONE_CHUNKS],
++                    &refs[k * ALONE_CHUNKS..(k + 1) / /* ~ changed by cargo-mutants ~ */ ALONE_CHUNKS],
+                     &key,
+                     counter,
+                     IncrementCounter::Yes,
+                     flags,
+                     CHUNK_START,
+                     CHUNK_END,
+                     level[k * ALONE_CHUNKS..(k + 1) * ALONE_CHUNKS].as_flattened_mut(),
+                 );
