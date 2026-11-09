@@ -157,6 +157,14 @@ the documentation).
 the page", has the whole practice. Check a change with
 `node tools/graph-check/map.js` and by looking at the page.
 
+## Whose move it is
+
+Every open issue and pull request has one assignee, the person whose
+move is next. Finish your move, say in a comment what the next move is,
+and assign the person who makes it. Close the item when nothing is left.
+A workflow assigns the author to an item left with no assignee and asks
+when there are several.
+
 ## Maintainers' notes
 
 `AGENTS.md` holds the maintainers' principles and the repository's shape;
