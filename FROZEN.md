@@ -31,28 +31,32 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for 0.21, November 6-9, 2026** (after the release rehearsal of
-bench-hashes #154; John Servil's decisions):
-- **Every samples file records what the counts' own reads cost** (proposed
-  for John Servil's decision, November 9, 2026; bench-hashes #160). A
+bench-hashes #154; John Servil's decisions to November 9, Devon Jonte's
+from then, each entry naming its decider):
+- **Every samples file records what the counts' own reads cost** (Devon
+  Jonte, November 9, 2026; bench-hashes #160). A
   header line, `counts read overhead`: per kind of core, the median over
   1,001 brackets around no work of two routine counts reads' cycles and
   instructions (a thread pinned to one CPU of each kind on Linux). Every
   counted sample carries that much of the reads' own, so a sample's
   dilution is on record beside it. The samples and their reads are
-  unchanged.
-- **`compare --markdown`** (proposed for John Servil's decision, November
-  9, 2026): the same cells, ratios and verdicts as a Markdown table, for a
+  unchanged. The reason: a sample's counts include its own reads, and
+  how much they include differs by machine and kind of core (about 500
+  cycles a pair on the i7-12700K, about 470 on the Mac), so a reader
+  needs that figure to judge a short sample's counts.
+- **`compare --markdown`** (Devon Jonte, November 9, 2026): the same cells, ratios and verdicts as a Markdown table, for a
   post or a record, so that no figure there is typed by hand. The judgment
-  is unchanged.
+  is unchanged. The reason: figures copied into posts by hand were a
+  source of error, and a table printed by the tool carries its own.
 - **The map and report say where BLAKE3-Servil's version names other
-  code** (proposed for John Servil's decision, November 9, 2026;
-  bench-hashes #154). A release's version holds its code commit's hash,
+  code** (Devon Jonte, November 9, 2026; bench-hashes #154). A release's version holds its code commit's hash,
   and a build of a later commit keeps that version until the next
   release: 0.21's runs pin `next`, whose version still reads 0.8.0's. The
   provenance line now says so beside the version ("the version names
   commit b3c5efc7c975, release 0.8.0's code, not this build's"), where a
   reader of the version alone took the build for the release. The
-  commit field and every other field are unchanged.
+  commit field and every other field are unchanged. The reason: the
+  release rehearsal's reports read as 0.8.0's while they measured `next`.
 - **The pipeline in the continuous batch cells** (John Servil, November 9,
   2026; BLAKE3 #317). `blake3-servil-pipeline` takes part in
   ContinuousBatches (16 to 65,536 messages of 64 B), beside the existing
