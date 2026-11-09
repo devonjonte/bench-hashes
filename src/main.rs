@@ -1501,10 +1501,14 @@ impl Algorithm {
     /// to one thread hashes its inputs so (FROZEN.md).
     fn takes_part(self, use_case: UseCase) -> bool {
         let use_case = use_case.call();
-        /* The pipeline takes part where bytes arrive over time: a message
-         * received in fragments. Elsewhere it has no call. */
+        /* The pipeline takes part where bytes arrive over time (a message
+         * received in fragments) and where batches go round one after
+         * another (BLAKE3 #317). Elsewhere it has no call. */
         if self == Self::Blake3ServilPipeline {
-            return matches!(use_case, UseCase::ReceivingMessage);
+            return matches!(
+                use_case,
+                UseCase::ReceivingMessage | UseCase::ContinuousBatches
+            );
         }
         match use_case {
             UseCase::ManyMessages
@@ -5273,7 +5277,10 @@ fn free_place<'a, D: FnMut(&'a mut [blake3_servil::Hash])>(
 /// hash_continuous_batches), so a contender that gains a path of its own
 /// for owned buffers changes it.
 fn owned_runs_lent(algorithm: Algorithm, len: Option<usize>) -> bool {
-    algorithm != Algorithm::Blake3ServilMt && len.is_none_or(|len| len <= PIECE_LEN)
+    !matches!(
+        algorithm,
+        Algorithm::Blake3ServilMt | Algorithm::Blake3ServilPipeline
+    ) && len.is_none_or(|len| len <= PIECE_LEN)
 }
 
 /// Each owned cell measured as its lent twin (lent_twin) takes the twin's
@@ -5387,6 +5394,10 @@ fn hash_continuous_batches(
     iterations: usize,
     mut consume: impl FnMut(&[u8]),
 ) {
+    if algorithm == Algorithm::Blake3ServilPipeline {
+        // Batches round the pipeline, refilled as they come back.
+        return pipeline::batches(input, point.messages, iterations, consume);
+    }
     if !owned_runs_lent(algorithm, None) {
         // Each batch read straight into the stream's ring (submit_batch_with),
         // its digests into a kept place of the batch's size, handed to
@@ -6009,8 +6020,9 @@ thread_local! {
  * these.
  */
 #[cfg(test)]
-const SERVIL_CALLS: [(Algorithm, UseCase, &str); 33] = [
+const SERVIL_CALLS: [(Algorithm, UseCase, &str); 34] = [
     (Algorithm::Blake3ServilPipeline, UseCase::ReceivingMessage, "throughput::pipeline: one Stream kept for the process (64 rooms of 16 KiB, 1 MiB in flight; 2 message slots), Stream::message per message with its length as the hint, each received fragment written into the rooms Message::input gives and committed (the one copy of an arrival), the last fragment's final bytes ended with Message::end(n), then collect and ready until the digest is delivered; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, writes and the wait for the digest timed together"),
+    (Algorithm::Blake3ServilPipeline, UseCase::ContinuousBatches, "throughput::pipeline: the Stream kept for the process (64 rooms of 16 KiB; 2 message slots, so two batches in flight), Stream::submit_batch(batch, places, tag) per batch, the batch (an owned Batch) and its places (&'static mut, kept for the process: the frontend borrows them for the pipeline's life) lent, both handed back by Event::Batch; each batch refilled from the input (every 64-byte message copied in), its digests consumed whole as the batch comes back, the pair used again; collect and ready while none is free; every batch still out waited for at a sample's end"),
     (Algorithm::Blake3ServilSt, UseCase::ReceivingMessage, "convenience::Hasher::new(Mode::Plain, None), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together"),
     (Algorithm::Blake3ServilMt, UseCase::ReceivingMessage, "convenience::Hasher::new(Mode::Plain, None), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 us, 20 us); reads, waits, updates and finalization timed together"),
     (Algorithm::Blake3ServilSt, UseCase::InterleavedTurn, "the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it"),
