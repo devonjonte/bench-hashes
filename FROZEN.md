@@ -4,7 +4,7 @@ The servil team's contract with itself (Zooko and John Servil): bench-hashes
 measures BLAKE3-Servil through exactly the calls and usage patterns below, which
 are the API plan (BLAKE3-Servil's `docs/api-design.md`) turned into
 measurements. BLAKE3-Servil's work is to be as fast as possible under them.
-Changing what the benchmark asks is a decision of Zooko's: edit this file
+Changing what the benchmark asks is Devon's decision (below): edit this file
 with the change, the date, and the reason, and the code with it; the test
 `frozen_contract_matches_frozen_md` compares the block below with the
 code's own tables and fails when they differ.
@@ -19,10 +19,14 @@ of runs: `clocks::summary`), the load rule (`clocks::load`), the
 regression check (`bench-hashes regress`: its points, its pairs, its
 margin of 3%), and the
 presentation (the map and the report, their layout and
-their words). A change to any of these, a bug fix included, is John
-Servil's decision (Zooko, November 2, 2026: a momentous, uncertain one
-waits for Zooko), recorded here with its date and reason, and it starts a new
-release, so results of different benchmarks are never read as alike. The
+their words). A change to any of these, a bug fix included, is Devon's
+decision (Zooko, November 9, 2026, replacing John's of November 2: the
+person making the library fast under the benchmark does not also decide
+what it asks; John and Sam recommend, and a change that would serve the
+decider's own library work is for the others to decide; a momentous,
+uncertain one waits for Zooko), recorded here with its date and reason,
+and it starts a new release, so results of different benchmarks are never
+read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
