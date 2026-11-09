@@ -963,20 +963,32 @@ fn servil_source(headers: &[(String, String)]) -> &str {
         .map_or("", |(_, v)| v.as_str())
 }
 
-/// A run's name: its bench-hashes release and BLAKE3-Servil's commit.
+/// BLAKE3-Servil as a run names it to a reader: its `blake3-servil version`
+/// line (from bench-hashes 0.21: the release, or "+dev" for newer, then
+/// what names the code), or for an older record, whose version could name
+/// a release's code through later commits, its commit's first seven
+/// digits; "" where the run measured neither servil contender.
+pub(crate) fn servil_version(headers: &[(String, String)]) -> String {
+    if let Some((_, version)) = headers.iter().find(|(k, _)| k == "blake3-servil version") {
+        return version.clone();
+    }
+    servil_source(headers)
+        .split("commit ")
+        .nth(1)
+        .map_or(String::new(), |c| c[..c.len().min(7)].to_owned())
+}
+
+/// A run's name: its bench-hashes release and BLAKE3-Servil's build version.
 fn run_name(headers: &[(String, String)]) -> String {
     let version = header(headers, "bench-hashes version")
         .split('+')
         .next()
         .unwrap_or("");
-    let fork = servil_source(headers)
-        .split("commit ")
-        .nth(1)
-        .map_or("", |c| &c[..c.len().min(7)]);
-    if fork.is_empty() {
+    let servil = servil_version(headers);
+    if servil.is_empty() {
         format!("bench-hashes {version}")
     } else {
-        format!("bench-hashes {version}, BLAKE3-Servil {fork}")
+        format!("bench-hashes {version}, BLAKE3-Servil {servil}")
     }
 }
 
@@ -1102,6 +1114,34 @@ pub fn command(args: &[String]) {
 
 #[cfg(test)]
 mod tests {
+    /// A run names BLAKE3-Servil to a reader by its version line where the
+    /// record has one, and an older record, whose version could name a
+    /// release's code through later commits, by its commit.
+    #[test]
+    fn a_run_names_blake3_servil_by_its_version_line_else_its_commit() {
+        let c = "9c25ed9ef6b3cb12c2ca8c77955663feeb2f09fa";
+        let source = (
+            "source blake3-servil-st".to_owned(),
+            format!("blake3-servil 0.8.0+b3c5; source https://x/BLAKE3; commit {c}; clean"),
+        );
+        let version = ("blake3-servil version".to_owned(), format!("0.8.0+dev.{c}"));
+        let bench = ("bench-hashes version".to_owned(), "0.21.0+abc".to_owned());
+        assert_eq!(
+            super::servil_version(&[source.clone(), version.clone()]),
+            format!("0.8.0+dev.{c}")
+        );
+        assert_eq!(
+            super::run_name(&[bench.clone(), source.clone(), version]),
+            format!("bench-hashes 0.21.0, BLAKE3-Servil 0.8.0+dev.{c}")
+        );
+        assert_eq!(
+            super::servil_version(&[source.clone()]),
+            "9c25ed9",
+            "an older record: its commit"
+        );
+        assert_eq!(super::run_name(&[bench]), "bench-hashes 0.21.0");
+    }
+
     /// The door's BLAKE3-Servil row: linked to its commit where the source
     /// names a repository, and unlinked, not a panic, where the checkout's
     /// origin is a local path.
@@ -1109,7 +1149,7 @@ mod tests {
     fn the_servil_row_links_its_commit_where_the_repository_is_known() {
         let c = "9c25ed9ef6b3cb12c2ca8c77955663feeb2f09fa";
         let row = |source: &str| {
-            let line = format!("blake3-servil 0.8.0+09d3bbc6 (local checkout); source {source}; branch HEAD; commit {c}; clean; multithreaded");
+            let line = format!("blake3-servil (local checkout); source {source}; branch HEAD; commit {c}; clean; multithreaded");
             let headers = vec![("source blake3-servil-mt".to_owned(), line)];
             super::details(&headers, "", "", "bench-hashes.samples.tsv")
                 .into_iter()

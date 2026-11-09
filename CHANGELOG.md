@@ -20,7 +20,7 @@
 
 **64-byte cells read as fast as the code allows.** The bench rewrote up to 63 bytes before every message in a kept buffer, by where the buffer sat in memory, so those cells' speed moved with the process's other allocations by up to 1.6%. It writes them once now.
 
-**The provenance says when BLAKE3-Servil's version names another release.** A build of unreleased BLAKE3-Servil code keeps the last release's version string; the line beside it now says the version names that release's code, not this build's.
+**BLAKE3-Servil's build version names the code.** Every samples file records BLAKE3-Servil's build version on a line of its own: a release's version on its release commit, otherwise `X.Y.Z+dev` (newer than X.Y.Z) or the version, then the commit and a dirty tree's Git tree id. The map, the overview and the chart name BLAKE3-Servil by it, where a version alone once named the last release through every commit after it.
 
 **The same diagnostic events on every platform.** The `clocks` crate gives, beside the routine counts, a diagnostic set by one set of names: cycles, instructions, L1 data and instruction misses, data-TLB misses, backend stalls and branch misses, per kind of core. On Linux the `clocks` crate counts them through the processor's counters; on the Mac, Apple's counters give the matching events to a process run as root (BLAKE3-Servil's events sampler). They answer "the cycles moved and the instructions did not: what moved with them?" around work long enough to dilute the reads. Every samples file also records what the routine counts' own reads cost on each kind of core, and `compare --markdown` prints its cells as a table for a post.
 

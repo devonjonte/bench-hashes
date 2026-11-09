@@ -434,6 +434,13 @@ const RING_SOURCE_INFO: &str = env!("RING_SOURCE_INFO");
 const SHA1_CHECKED_SOURCE_INFO: &str = env!("SHA1_CHECKED_SOURCE_INFO");
 const SHA3_SOURCE_INFO: &str = env!("SHA3_SOURCE_INFO");
 const BLAKE3_SERVIL_SOURCE_INFO: &str = env!("BLAKE3_SERVIL_SOURCE_INFO");
+/// BLAKE3-Servil's build version: its release, or "+dev" for newer, then
+/// what names this build's code; the library's own from BLAKE3 #328 on,
+/// else build.rs's (servil_build_version).
+#[cfg(servil_build_version)]
+const BLAKE3_SERVIL_VERSION: &str = blake3_servil::BUILD_VERSION;
+#[cfg(not(servil_build_version))]
+const BLAKE3_SERVIL_VERSION: &str = env!("BLAKE3_SERVIL_VERSION_BEFORE_328");
 /// The instrument's provenance: the clocks crate that timed the run (build.rs).
 const CLOCKS_SOURCE_INFO: &str = env!("CLOCKS_SOURCE_INFO");
 
@@ -8129,6 +8136,7 @@ fn samples_header(machine: &MachineMetadata, run: &[(String, String)], load: &st
         ("bench-hashes source", GIT_SOURCE),
         ("git commit", GIT_COMMIT),
         ("git clean status", GIT_CLEAN_STATUS),
+        ("blake3-servil version", BLAKE3_SERVIL_VERSION),
         ("dependency lock", LOCK_FINGERPRINT),
         ("rust compiler", RUSTC_VERSION),
         ("c compiler", C_COMPILER),
@@ -9292,7 +9300,7 @@ mod correctness_tests {
     #[test]
     fn expect_servil_takes_only_the_named_clean_commit() {
         let c = "934dee8902889186e3da9b62edf43699dd1c6305";
-        let patched = format!("blake3-servil 0.8.0+f7ce (local checkout); source https://github.com/johnservil/BLAKE3; branch HEAD; commit {c}; clean; single-threaded");
+        let patched = format!("blake3-servil (local checkout); source https://github.com/johnservil/BLAKE3; branch HEAD; commit {c}; clean; single-threaded");
         expect_servil(c, &patched);
         let pin = "blake3-servil 0.3.0+2e4f; source https://github.com/johnservil/BLAKE3; commit 49b43b1d317305dbd25e1aa93d56f307430a1205; clean";
         let dirty = patched.replace("; clean;", "; dirty-00ab;");

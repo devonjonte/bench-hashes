@@ -48,15 +48,22 @@ from then, each entry naming its decider):
   post or a record, so that no figure there is typed by hand. The judgment
   is unchanged. The reason: figures copied into posts by hand were a
   source of error, and a table printed by the tool carries its own.
-- **The map and report say where BLAKE3-Servil's version names other
-  code** (Devon Jonte, November 9, 2026; bench-hashes #154). A release's version holds its code commit's hash,
-  and a build of a later commit keeps that version until the next
-  release: 0.21's runs pin `next`, whose version still reads 0.8.0's. The
-  provenance line now says so beside the version ("the version names
-  commit b3c5efc7c975, release 0.8.0's code, not this build's"), where a
-  reader of the version alone took the build for the release. The
-  commit field and every other field are unchanged. The reason: the
-  release rehearsal's reports read as 0.8.0's while they measured `next`.
+- **BLAKE3-Servil's build version, on its own line** (Devon Jonte,
+  November 9, 2026, at Zooko's request for as much as fits in the
+  version; bench-hashes #154, BLAKE3 #328). Every samples file gains a
+  header line, `blake3-servil version`: the library's own build version
+  (from BLAKE3 #328: the release's version on the release commit; after
+  it `X.Y.Z+dev`, "newer than X.Y.Z", then the commit and a dirty tree's
+  Git tree id). For a library from before #328 it is that commit's version,
+  then its commit, and `.dirty` for a dirty tree. The map's run names,
+  the overview and the chart's record name BLAKE3-Servil by it, and
+  older records, which lack the line, by their commit as before. The
+  source line keeps the commit and the tree's state and drops its version
+  field. The reason: a release's version named its code through every
+  commit after it, so the rehearsal's reports read as 0.8.0's while they
+  measured `next`, and the chart said "BLAKE3-Servil 0.8.0" for any
+  commit. Long, deliberately: what proves inconvenient in practice gets
+  trimmed.
 - **The pipeline in the continuous batch cells** (John Servil, November 9,
   2026; BLAKE3 #317). `blake3-servil-pipeline` takes part in
   ContinuousBatches (16 to 65,536 messages of 64 B), beside the existing

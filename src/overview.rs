@@ -437,11 +437,7 @@ fn described(headers: &[(String, String)], link: String, cells: Vec<Bars>, stale
     } else {
         os.to_owned()
     };
-    let fork = headers
-        .iter()
-        .find(|(k, _)| k.starts_with("source blake3-servil"))
-        .and_then(|(_, v)| v.split("commit ").nth(1))
-        .map_or(String::new(), |c| c[..c.len().min(7)].to_owned());
+    let fork = crate::map::servil_version(headers);
     let identity = header(headers, "cpu identity");
     Row {
         machine: short_name(header(headers, "cpu type")),

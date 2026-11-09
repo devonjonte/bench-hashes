@@ -485,20 +485,20 @@ fn git_output(repository: &Path, arguments: &[&str]) -> Output {
  * identifies the code: origin URL, branch, exact commit, and a clean flag
  * or a hash of the uncommitted changes. Both emit the same fields.
  */
-/// Where BLAKE3-Servil's version names other code than the commit built: a
-/// release's version holds its code commit's hash (Zooko's scheme), and a
-/// build of a later commit keeps that version until the next release, so a
-/// reader of the version alone would take the build for the release
-/// (bench-hashes #154). Said outright, without "; " (the provenance's
-/// field separator).
-fn version_names_another(version: &str, commit: &str) -> String {
-    match version.split_once('+') {
-        Some((release, named)) if !commit.starts_with(named) => format!(
-            " (the version names commit {}, release {release}'s code, not this build's)",
-            &named[..named.len().min(12)]
-        ),
-        _ => String::new(),
+/// BLAKE3-Servil's build version for a library from before BLAKE3 #328,
+/// which has none of its own: its version, its commit, and `.dirty` for a
+/// dirty tree, never a release's version alone, which named the release's
+/// code through the commits after it (bench-hashes #154). From #328 on, the
+/// lock holds blake3-servil-version and the bench reads the library's own
+/// (`cfg(servil_build_version)`: `blake3_servil::BUILD_VERSION`, the
+/// release's version on a release commit, else the version, the commit and
+/// a dirty tree's Git tree id).
+fn servil_build_version(lock: &str, version: &str, commit: &str, clean: bool) -> String {
+    println!("cargo:rustc-check-cfg=cfg(servil_build_version)");
+    if package_block(lock, "blake3-servil-version").is_some() {
+        println!("cargo:rustc-cfg=servil_build_version");
     }
+    format!("{version}.{commit}{}", if clean { "" } else { ".dirty" })
 }
 
 fn emit_servil_package(lock: &str) {
@@ -514,9 +514,12 @@ fn emit_servil_package(lock: &str) {
             let (_rev, commit) = pinned
                 .split_once('#')
                 .expect("a git source in Cargo.lock names its commit after '#'");
+            emit_env(
+                "BLAKE3_SERVIL_VERSION_BEFORE_328",
+                &servil_build_version(lock, &version, commit, true),
+            );
             format!(
-                "blake3-servil {version}{}; source {}; commit {commit}; clean",
-                version_names_another(&version, commit),
+                "blake3-servil; source {}; commit {commit}; clean",
                 servil_git()
             )
         }
@@ -533,13 +536,13 @@ fn emit_servil_package(lock: &str) {
             watch_repository(&repository);
             /* The whole fork's state: nothing of the bench lives in it. */
             let state = git_state(&repository, &[]);
+            emit_env(
+                "BLAKE3_SERVIL_VERSION_BEFORE_328",
+                &servil_build_version(lock, &version, &state.commit, state.clean_status == "clean"),
+            );
             format!(
-                "blake3-servil {version}{} (local checkout); source {}; branch {}; commit {}; {}",
-                version_names_another(&version, &state.commit),
-                state.source,
-                state.branch,
-                state.commit,
-                state.clean_status
+                "blake3-servil (local checkout); source {}; branch {}; commit {}; {}",
+                state.source, state.branch, state.commit, state.clean_status
             )
         }
     };
