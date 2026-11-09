@@ -1,0 +1,155 @@
+    38.54%  [.] do_lookup_x                   -      -            
+            |
+            ---_dl_start
+               _dl_start_final (inlined)
+               _dl_sysdep_start
+               dl_main
+               __rtld_malloc_init_real
+               lookup_malloc_symbol
+               _dl_lookup_symbol_x
+               do_lookup_x
+
+    22.02%  [k] 0xffffffff817e82a3            -      -            
+            |
+            ---_dl_start
+               _dl_start_final (inlined)
+               _dl_sysdep_start
+               dl_main
+               _dl_map_object_deps
+               __GI__dl_catch_exception (inlined)
+               openaux
+               _dl_map_new_object
+               _dl_map_object_from_fd
+               _dl_map_segments (inlined)
+               0xffffffff817e82a3
+               0xffffffff8100012b
+               0xffffffff82731b85
+               0xffffffff81349ae4
+               0xffffffff813aa696
+               0xffffffff8180bac3
+               0xffffffff817ca279
+               0xffffffff8180cc78
+               0xffffffff81830b52
+               0xffffffff8182e9fc
+               0xffffffff8182d11f
+               0xffffffff8182cfed
+               0xffffffff817e82a3
+
+    13.15%  [.] intel_check_word.constprop.0  -      -            
+            |
+            ---_dl_start
+               _dl_start_final (inlined)
+               _dl_sysdep_start
+               dl_platform_init (inlined)
+               init_cpu_features.constprop.0
+               dl_init_cacheinfo (inlined)
+               handle_intel.constprop.0
+               intel_check_word.constprop.0
+
+    13.15%  [k] 0xffffffff8272b8c6            -      -            
+            |
+            ---0xffffffff82731b85
+               0xffffffff81348783
+               0xffffffff818f9e6e
+               0xffffffff818f9b5b
+               0xffffffff818f817a
+               0xffffffff818f8090
+               0xffffffff818f7d2c
+               0xffffffff819a236a
+               0xffffffff819a1926
+               0xffffffff81000bb7
+               0xffffffff8273a443
+               0xffffffff8141923b
+               0xffffffff8180628e
+               0xffffffff81805f03
+               0xffffffff818059b1
+               0xffffffff81800478
+               0xffffffff817f54b0
+               0xffffffff8272b8c6
+
+    13.15%  [k] 0xffffffff8272fca0            -      -            
+            |
+            ---0xffffffff82731b85
+               0xffffffff81348783
+               0xffffffff818f9e6e
+               0xffffffff818f9b5b
+               0xffffffff818f817a
+               0xffffffff818f8090
+               0xffffffff818f7d2c
+               0xffffffff819a282c
+               0xffffffff8272fca0
+
+
+
+    50.01%  [.] _blake3_servil_hash_many_avx2                                                                                                                          -      -            
+            |
+            ---__libc_start_main@@GLIBC_2.34
+               __libc_start_call_main
+               0x5eb03114c08f
+               __execvpe
+               __execvpe_common (inlined)
+               _start
+               __libc_start_main@@GLIBC_2.34
+               __libc_start_call_main
+               main
+               std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+               bench_hashes::main
+               bench_hashes::measure_all
+               |          
+               |--45.99%--bench_hashes::hash_interleaved::<bench_hashes::use_digest>
+               |          blake3_servil::each::update_turn
+               |          |          
+               |           --45.88%--blake3_servil::each::flush_held
+               |                     |          
+               |                     |--41.07%--<blake3_servil::platform::Platform>::hash_many::<1024>
+               |                     |          _blake3_servil_hash_many_avx2
+               |                     |          
+               |                      --4.81%--<blake3_servil::platform::Platform>::hash_many::<64>
+               |                                _blake3_servil_hash_many_avx2
+               |          
+                --4.03%--bench_hashes::take_sample
+                          bench_hashes::hash_interleaved::<bench_hashes::use_digest>
+                          blake3_servil::each::update_turn
+                          |          
+                           --3.92%--blake3_servil::each::flush_held
+                                     |          
+                                      --3.59%--<blake3_servil::platform::Platform>::hash_many::<1024>
+                                                _blake3_servil_hash_many_avx2
+
+    43.36%  [.] __memmove_avx_unaligned_erms                                                                                                                           -      -            
+            |
+            ---__libc_start_main@@GLIBC_2.34
+               __libc_start_call_main
+               0x5eb03114c08f
+               __execvpe
+               __execvpe_common (inlined)
+               _start
+               __libc_start_main@@GLIBC_2.34
+               __libc_start_call_main
+               main
+               std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+               bench_hashes::main
+               bench_hashes::measure_all
+               |          
+               |--39.09%--bench_hashes::hash_interleaved::<bench_hashes::use_digest>
+               |          |          
+               |          |--34.73%--blake3_servil::each::update_turn
+               |          |          |          
+               |          |          |--29.81%--blake3_servil::each::flush_held
+               |          |          |          __memmove_avx_unaligned_erms
+               |          |          |          
+               |          |           --4.91%--<blake3_servil::incremental::Hasher>::gather_part
+               |          |                     __memmove_avx_unaligned_erms
+               |          |          
+               |           --4.37%--__memmove_avx_unaligned_erms
+               |          
+                --4.26%--bench_hashes::take_sample
+                          bench_hashes::hash_interleaved::<bench_hashes::use_digest>
+                          |          
+                           --3.39%--blake3_servil::each::update_turn
+                                     |          
+                                      --2.62%--blake3_servil::each::flush_held
+                                                __memmove_avx_unaligned_erms
+
+
+
