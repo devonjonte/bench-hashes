@@ -26,7 +26,17 @@ release, so results of different benchmarks are never read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
-**Changes for the next release**:
+**Changes for 0.21, November 6-9, 2026** (after the release rehearsal of
+bench-hashes #154; John Servil's decisions):
+- **The map and report say where BLAKE3-Servil's version names other
+  code** (proposed for John Servil's decision, November 9, 2026;
+  bench-hashes #154). A release's version holds its code commit's hash,
+  and a build of a later commit keeps that version until the next
+  release: 0.21's runs pin `next`, whose version still reads 0.8.0's. The
+  provenance line now says so beside the version ("the version names
+  commit b3c5efc7c975, release 0.8.0's code, not this build's"), where a
+  reader of the version alone took the build for the release. The
+  commit field and every other field are unchanged.
 - **The pipeline in the continuous batch cells** (John Servil, November 9,
   2026; BLAKE3 #317). `blake3-servil-pipeline` takes part in
   ContinuousBatches (16 to 65,536 messages of 64 B), beside the existing
@@ -144,7 +154,7 @@ the notes) may still change, to say it better.
   and patterns are unchanged; 64 B cells read up to that much faster in
   runs whose buffers sat off a boundary.
 
-**Changes for 0.21** (Zooko and John Servil, November 4-6, 2026):
+**Changes for 0.21, November 4-6, 2026** (Zooko and John Servil):
 - **The wall clock is the raw counter** (Zooko, November 4, 2026): on
   Linux `CLOCK_MONOTONIC_RAW` in place of `CLOCK_MONOTONIC` (what
   `std::time::Instant` reads there), which a time daemon slews by up to

@@ -10,6 +10,20 @@
 
 **Every sample keeps its instructions and its cache misses beside its cycles.** The processor counts the instructions a call retired, the cycles it took, and the memory requests that reached its last-level cache and missed it, on each kind of core; results kept the cycles and now keep all four (samples format v10). Instructions are the same count whatever the core's speed or its state after a pause, so they tell a change in the code apart from a change in the machine; the cache counts tell a cold cache apart from a slow core. The counters are read in user space where Linux allows it, so the reading costs the call tens of nanoseconds where a system call cost it a microsecond. Files from earlier versions are read with those versions.
 
+**A message received in pieces, as a server receives it.** New cells hash one 16 MiB message whose bytes arrive in network-sized pieces (1,448 B to 64 KiB) at three paces: as fast as they come, and every 2 µs or 20 µs. Each piece is read into the program's buffer and hashed as it arrives, and the cell times the whole receive, waits included.
+
+**BLAKE3-Servil's pipeline is a contender.** Its background pipeline (`throughput::pipeline`) takes part in the received-message cells and in the continuous batch cells. In the batch cells, batches go round the pipeline: refilled, submitted, handed back with their digests, used again.
+
+**Many short messages in small arrivals.** A second "many messages at once" point holds 1,024 open messages of 1 KiB, each arriving in 256-byte pieces, the shape a server with many small requests meets. A call is one whole cycle: every message updated four times, then finished and reset.
+
+**Merkle trees over short leaves.** Three trees whose leaves are 32 or 16 bytes, a digest or half a digest, beside the trees of 256-byte leaves; a million leaves in the largest.
+
+**64-byte cells read as fast as the code allows.** The bench rewrote up to 63 bytes before every message in a kept buffer, by where the buffer sat in memory, so those cells' speed moved with the process's other allocations by up to 1.6%. It writes them once now.
+
+**The provenance says when BLAKE3-Servil's version names another release.** A build of unreleased BLAKE3-Servil code keeps the last release's version string; the line beside it now says the version names that release's code, not this build's.
+
+**Maintainers: `bench-hashes quiet` and the local runner.** `bench-hashes quiet [--wait]` applies the quiet-machine rule `check` and `regress` use before they start. `pinned-run` runs jobs on the local machine too, each under its deadline and memory floor, its processes supervised as a group.
+
 ## Earlier: 0.20.4+6c91cfabef89d1bd52c4d73b7d2578f449689502
 
 **0.20.3 still stopped on a Mac, a step further; this release runs there, and a test now runs a Mac's case on every computer.** It measures as 0.20.3 does elsewhere.
