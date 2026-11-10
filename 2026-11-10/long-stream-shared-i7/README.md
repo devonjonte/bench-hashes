@@ -56,6 +56,28 @@ all single-threaded and solo, and they took all eight places. A release
 check spans a large diff, so this is where it happens. The bench's issue
 for it is linked from bench-hashes #163.
 
+## The check's repair, tried on this case (bench-hashes #166)
+
+The repair gives the second stage's eight places to moved counts and
+slower cells in turn. Two trials, both judged by the November 7 bench
+with the repair ported onto it (devonjonte/bench-hashes
+`scratch/devon-166-replay`, 3ee8b5cc; the library of this case builds with
+that bench alone):
+
+- **`e-suspects-replayed.txt`: run `e`'s own samples, replayed.** Of 476
+  cells none is slower in the first stage; 16 level cells have moved
+  counts and 21 are slower beyond the margin, the two regressed cells
+  first and second among them by evidence. The old order names the eight
+  single-threaded solo cells that run `e` named. In turn, both regressed
+  cells take a place (second and fourth of eight), and shared 64 MiB a
+  third.
+- **`f`: the whole-map check run again.** It reads "REGRESSION: 2 cells
+  slower", in its first stage: the two cells cleared the first stage's
+  bar this time (+36.3% and +35.0%, four pairs), as they did in rehearsal
+  5 and did not on November 7 or in run `e`. So `f` shows the first
+  stage's verdict on these cells is marginal at four pairs among this
+  many cells; it does not exercise the repair.
+
 **Machine.** i7-12700K, Linux 7.0.0-42 (booted November 3), mains power,
 governor `powersave`; every check waited for a quiet machine and ran
 alone.
