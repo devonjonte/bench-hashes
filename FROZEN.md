@@ -30,6 +30,20 @@ read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
+**Changes for the next release** (Devon Jonte's decisions, each dated):
+- **The pipeline contender goes with its API** (Devon Jonte, November
+  10, 2026, bench-hashes #170). BLAKE3-Servil removes its first pipeline
+  (`throughput::pipeline`): the one streaming API to come is built on the
+  stream's machinery (BLAKE3 #356, #357), and a bench that names the
+  removed calls does not build against the library without them. So
+  `blake3-servil-pipeline` leaves the receiving cells and the continuous
+  batch cells, which keep their other contenders unchanged, and `check`'s
+  subjects are BLAKE3-Servil's two forms. 0.21 is the release that holds
+  its numbers: on the i7-12700K, in its rehearsal's full run, the
+  pipeline took 2.4 to 11.5 times the stream's time a message in the
+  continuous batch cells. The new
+  Pipeline's cells follow when its calls exist (bench-hashes #169).
+
 **Changes for 0.21, November 6-10, 2026** (after the release rehearsal of
 bench-hashes #154; John Servil's decisions to November 9, Devon Jonte's
 from then, each entry naming its decider):
@@ -1234,9 +1248,7 @@ receive trace: 16777216 B per message; fragment cycle 1448, 4096, 16384, 65536 B
 scenarios: solo, shared-one-cache, shared-two-caches, shared-os
 shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree, ReceivingMessage
 shared placements: two cores under one last-level cache; two cores under two (where the machine has two); where it offers no pair (macOS), wherever the OS runs them
-shared contenders: blake3-official-mt, blake3-servil-mt, blake3-servil-pipeline
-blake3-servil-pipeline ReceivingMessage: throughput::pipeline: one Stream kept for the process (64 rooms of 16 KiB, 1 MiB in flight; 2 message slots), Stream::message per message with its length as the hint, each received fragment written into the rooms Message::input gives and committed (the one copy of an arrival), the last fragment's final bytes ended with Message::end(n), then collect and ready until the digest is delivered; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, writes and the wait for the digest timed together
-blake3-servil-pipeline ContinuousBatches: throughput::pipeline: the Stream kept for the process (64 rooms of 16 KiB; 2 message slots, so two batches in flight), Stream::submit_batch(batch, places, tag) per batch, the batch (an owned Batch) and its places (a Box of 32-byte places, one a message) moved in, both handed back by Event::Batch; each batch refilled from the input (every 64-byte message copied in), its digests consumed whole as the batch comes back, the pair used again; collect and ready while none is free; every batch still out waited for at a sample's end
+shared contenders: blake3-official-mt, blake3-servil-mt
 blake3-servil-st ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, updates and finalization timed together
 blake3-servil-mt ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, updates and finalization timed together
 blake3-servil-st InterleavedTurn: the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it

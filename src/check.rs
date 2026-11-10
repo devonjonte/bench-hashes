@@ -119,11 +119,7 @@ fn each_run(exes: Vec<String>, times: usize) -> Vec<String> {
         .collect()
 }
 /// The two sides' contenders: the code a change to BLAKE3-Servil changes.
-const SUBJECTS: [&str; 3] = [
-    "blake3-servil-st",
-    "blake3-servil-mt",
-    "blake3-servil-pipeline",
-];
+const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
 /// The contenders a comparison across two benches runs: those the older
 /// bench knows too, from its `--list` (each line starts with a key). A

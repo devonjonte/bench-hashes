@@ -144,8 +144,8 @@ The map gives this case its own "receive + hash, including waits" column.
 
 The saturated case exposes hashing/production throughput. Paced arrivals
 show the cost beside I/O and let background hashing use the time between
-callbacks. The synchronous incremental calls establish the baseline for
-the incremental background pipeline.
+callbacks. The synchronous incremental calls are the baseline for
+BLAKE3-Servil's Pipeline, whose cells join when its calls exist.
 
 ## One input after another
 

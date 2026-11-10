@@ -1,3 +1,7 @@
+# bench-hashes 0.22.0
+
+**The pipeline contender is gone.** BLAKE3-Servil removes its first pipeline (`throughput::pipeline`); the one streaming API that replaces it and the stream is still to come. `blake3-servil-pipeline` leaves the received-message cells and the continuous batch cells, which keep their other contenders. 0.21 holds its numbers.
+
 # bench-hashes 0.21.0+84236bf0f0c832f6619b8f99ce7bc878c7800ef0
 
 **One copy of the timing code.** The code that reads every clock and load measurement is now part of bench-hashes itself, so a result's bench-hashes version names exactly what timed it. It measures as before: the code is the same.
