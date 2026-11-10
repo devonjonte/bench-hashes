@@ -60,14 +60,55 @@ fn counts_from_rusage(w: &[u64; 64], ns: impl Fn(u64) -> u64) -> Counts {
     }
 }
 
+/// How a run ended: by its own exit, with its code, or killed by a signal
+/// (a crash: an abort, a fault in memory).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Ended {
+    Exit(i32),
+    Signal(i32),
+}
+
+impl Ended {
+    /// From the status `wait4` reports.
+    pub(crate) fn of(status: i32) -> Ended {
+        match status & 0x7f {
+            0 => Ended::Exit((status >> 8) & 0xff),
+            signal => Ended::Signal(signal),
+        }
+    }
+}
+
+impl core::fmt::Display for Ended {
+    /// "exit code 101", "signal 6 (SIGABRT)": for a report of a run that
+    /// stopped.
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match *self {
+            Ended::Exit(code) => write!(f, "exit code {code}"),
+            Ended::Signal(signal) => {
+                // The signals a crash raises, numbered alike on Linux and macOS.
+                let name = match signal {
+                    4 => " (SIGILL)",
+                    6 => " (SIGABRT)",
+                    8 => " (SIGFPE)",
+                    9 => " (SIGKILL)",
+                    11 => " (SIGSEGV)",
+                    15 => " (SIGTERM)",
+                    _ => "",
+                };
+                write!(f, "signal {signal}{name}")
+            }
+        }
+    }
+}
+
 /// One run of another program.
 #[derive(Clone, Copy, Debug)]
 pub struct Run {
     /// When it started, as [`crate::load::now_ns`].
     pub started_ns: u64,
     pub wall_ns: u64,
-    /// Whether it exited with status 0.
-    pub success: bool,
+    /// How it ended: `Exit(0)` is success.
+    pub ended: Ended,
     /// User and system CPU time, all its threads.
     pub cpu_ns: Option<u64>,
     pub max_rss_bytes: Option<u64>,
@@ -77,9 +118,15 @@ pub struct Run {
 }
 
 impl Run {
+    /// Whether it exited with code 0.
+    pub fn success(&self) -> bool {
+        self.ended == Ended::Exit(0)
+    }
+
     /// Runs one after another as one: started with the first, their wall
     /// and CPU times, reads, faults and counts summed, their peak memory the
-    /// largest, successful when every one was. Requires a run. (Callers sum
+    /// largest, ended as the first that failed did (successful when every
+    /// one was). Requires a run. (Callers sum
     /// runs here, never by hand, so a count added to Run reaches them.)
     pub fn sum(runs: &[Run]) -> Run {
         let first = runs.first().expect("a sum of runs needs a run");
@@ -87,7 +134,7 @@ impl Run {
         Run {
             started_ns: first.started_ns,
             wall_ns: runs.iter().map(|r| r.wall_ns).sum(),
-            success: runs.iter().all(|r| r.success),
+            ended: runs.iter().find(|r| !r.success()).map_or(Ended::Exit(0), |r| r.ended),
             cpu_ns: sum(|r| r.cpu_ns),
             max_rss_bytes: runs.iter().map(|r| r.max_rss_bytes).max().flatten(),
             storage_read_bytes: sum(|r| r.storage_read_bytes),
@@ -243,7 +290,7 @@ mod rusage {
 
 #[cfg(all(unix, not(target_vendor = "apple")))]
 mod imp {
-    use super::{rusage, Run};
+    use super::{rusage, Ended, Run};
 
     /// A running (or exited, unreaped) process's user and system time, from
     /// /proc/PID/stat (fields 14 and 15, in clock ticks).
@@ -272,7 +319,7 @@ mod imp {
         Run {
             started_ns,
             wall_ns,
-            success: status == 0,
+            ended: Ended::of(status),
             cpu_ns: Some(rusage::cpu_ns(&words)),
             max_rss_bytes: Some(rusage::max_rss_bytes(&words)),
             storage_read_bytes: Some(rusage::inblock(&words) * 512),
@@ -284,7 +331,7 @@ mod imp {
 
 #[cfg(target_vendor = "apple")]
 mod imp {
-    use super::{rusage, Run};
+    use super::{rusage, Ended, Run};
 
     unsafe extern "C" {
         fn proc_pid_rusage(pid: i32, flavor: i32, buffer: *mut u64) -> i32;
@@ -321,7 +368,7 @@ mod imp {
         Run {
             started_ns,
             wall_ns,
-            success: status == 0,
+            ended: Ended::of(status),
             cpu_ns: Some(rusage::cpu_ns(&rusage_words)),
             max_rss_bytes: Some(rusage::max_rss_bytes(&rusage_words)),
             storage_read_bytes: usage.map(|w| w[DISKIO_BYTESREAD]),
@@ -370,10 +417,10 @@ mod tests {
     /// missing count missing from the sum, failed if any one failed.
     #[test]
     fn runs_sum() {
-        let run = |wall_ns, rss, cpu: Option<u64>, success| Run {
+        let run = |wall_ns, rss, cpu: Option<u64>, success: bool| Run {
             started_ns: wall_ns,
             wall_ns,
-            success,
+            ended: if success { Ended::Exit(0) } else { Ended::Signal(11) },
             cpu_ns: cpu,
             max_rss_bytes: Some(rss),
             storage_read_bytes: Some(1),
@@ -382,11 +429,11 @@ mod tests {
         };
         let sum = Run::sum(&[run(10, 5, Some(3), true), run(20, 7, Some(4), true)]);
         assert_eq!(
-            (sum.started_ns, sum.wall_ns, sum.cpu_ns, sum.max_rss_bytes, sum.storage_read_bytes, sum.major_faults, sum.success),
+            (sum.started_ns, sum.wall_ns, sum.cpu_ns, sum.max_rss_bytes, sum.storage_read_bytes, sum.major_faults, sum.success()),
             (10, 30, Some(7), Some(7), Some(2), None, true)
         );
         assert_eq!(Run::sum(&[run(1, 1, None, true), run(1, 1, Some(1), false)]).cpu_ns, None);
-        assert!(!Run::sum(&[run(1, 1, None, true), run(1, 1, None, false)]).success);
+        assert_eq!(Run::sum(&[run(1, 1, None, true), run(1, 1, None, false)]).ended, Ended::Signal(11), "as the one that failed");
     }
 
     /// A struct rusage's words: user then system timevals (seconds and
@@ -444,7 +491,7 @@ mod tests {
         fn a_child_is_timed_and_counted() {
             let _one = one();
             let ok = run(std::process::Command::new("sh").args(["-c", "i=0; while [ $i -lt 20000 ]; do i=$((i+1)); done"]));
-            assert!(ok.success, "{ok:?}");
+            assert!(ok.success(), "{ok:?}");
             let cpu = ok.cpu_ns.expect("unix counts CPU time");
             assert!(cpu > 0 && cpu <= ok.wall_ns + 20_000_000, "{ok:?}");
             assert!(ok.max_rss_bytes.unwrap() > 100_000, "{ok:?}");
@@ -452,7 +499,12 @@ mod tests {
                 let ns = counts.p.time_ns + counts.e.time_ns;
                 assert!(ns * 2 >= cpu && ns <= cpu * 2, "the per-kind times add up to the CPU time: {ok:?}");
             }
-            assert!(!run(std::process::Command::new("sh").args(["-c", "exit 3"])).success);
+            // How a run ended, as a report says it: its code, or the signal
+            // that killed it.
+            let failed = run(std::process::Command::new("sh").args(["-c", "exit 3"]));
+            assert_eq!((failed.success(), failed.ended.to_string()), (false, "exit code 3".to_owned()));
+            let aborted = run(std::process::Command::new("sh").args(["-c", "kill -ABRT $$"]));
+            assert_eq!((aborted.success(), aborted.ended.to_string()), (false, "signal 6 (SIGABRT)".to_owned()));
         }
 
         /// A child running across several windows leaves them a second long,
@@ -522,7 +574,7 @@ mod tests {
                 .args(["--exact", "child::tests::exiting_threads_helper", "--test-threads=1", "--quiet"])
                 .env("CLOCKS_EXITING_THREADS_HELPER", "1")
                 .stdout(std::process::Stdio::null()));
-            assert!(child.success, "{child:?}");
+            assert!(child.success(), "{child:?}");
             let windows = crate::load::windows();
             let during: Vec<_> = windows[before..].iter().filter(|w| w.end_ns > child.started_ns && w.start_ns < child.started_ns + child.wall_ns).collect();
             assert!(!during.is_empty(), "{windows:?}");

@@ -4,7 +4,8 @@
 //! tree (or `--new REV`) with a commit (`--against`, HEAD by default) and
 //! prints the cells judged slower or faster, with their ratios; exit 0 when
 //! no named cell is slower, 1 when one is, 2 when no scope was named or a
-//! run's load left no verdict.
+//! run's load left no verdict, 3 when a side's run stopped (a panic, a
+//! crash: `regress` names the side and quotes its last words).
 //!
 //! What a check does, every time, with nothing to choose:
 //! 0. Builds bench-hashes against both sides in turn from one path and
@@ -431,8 +432,8 @@ pub fn command(arguments: &[String]) -> i32 {
     regress.push("--".into());
     regress.extend(news);
     let (code, out) = run_regress(&new_exe, &bench, &regress);
-    if probe.is_some() && code == 2 {
-        return 2;
+    if probe.is_some() && code >= 2 {
+        return code;
     }
     if probe.is_some() {
         // The numbers, no verdict: each cell's old and new means over the

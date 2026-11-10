@@ -20,6 +20,8 @@
 
 **64-byte cells read as fast as the code allows.** The bench rewrote up to 63 bytes before every message in a kept buffer, by where the buffer sat in memory, so those cells' speed moved with the process's other allocations by up to 1.6%. It writes them once now.
 
+**`check` says when a side crashes.** When the old or the new build stops during a comparison, `check` and `regress` name the side and its build, say how it ended (its exit code or signal), quote its last words without the progress display, keep its whole stderr beside the samples, and exit 3. Before, the crash surfaced as the tool's own panic.
+
 **Microseconds read μs.** Point names, descriptions and pages write microseconds with μ, where they read "us": the receive cells are `receive 2 μs` and `receive 20 μs`, on the command line too.
 
 **BLAKE3-Servil's build version names the code.** Every samples file records BLAKE3-Servil's build version on a line of its own: a release's version on its release commit, otherwise `X.Y.Z+dev` (newer than X.Y.Z) or the version, then the commit and a dirty tree's Git tree id. The map, the overview and the chart name BLAKE3-Servil by it, where a version alone once named the last release through every commit after it.

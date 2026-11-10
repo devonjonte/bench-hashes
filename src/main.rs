@@ -2447,8 +2447,9 @@ cell sampled in a share of them.
                                    runs the i-th of each side (fresh
                                    layouts: BLAKE3-Servil's tools/perf_regress.py),
                                    in alternating order; all cells judged at
-                                   once; exit 0, 1 (slower), or 2 (no
-                                   verdict); --full: every default cell;
+                                   once; exit 0, 1 (slower), 2 (no verdict),
+                                   or 3 (a side's run stopped: a crash);
+                                   --full: every default cell;
                                    --contenders (and --points): the cells
                                    a run with them measures, every one judged
 
@@ -7596,6 +7597,56 @@ fn merge_sizes(old: &str, new: &str) -> String {
         .collect()
 }
 
+/// `regress`'s exit code when a side's run stopped (a panic, a crash):
+/// beside 0 (no cell slower), 1 (a cell slower) and 2 (no verdict: the
+/// load).
+const REGRESS_STOPPED: i32 = 3;
+
+/// What `regress` prints when a side's run stops: which side, its build,
+/// how it ended, and its own last words (its stderr without the progress
+/// display, the last twelve lines), then where the whole stderr is kept.
+/// No speed verdict follows a stopped side. (The 0.21 release candidate's
+/// gate of BLAKE3 #331: the old side panicked in a pipeline cell, and the
+/// check said so with a panic of its own, the message under a screen of
+/// progress lines.)
+fn stopped_report(
+    side: &str,
+    exe: &str,
+    build: Option<&str>,
+    ended: &str,
+    stderr: &str,
+    record: &str,
+) -> String {
+    // A progress line starts "[ 12.3s] "; Rust's backtrace hint says
+    // nothing about this run.
+    let progress = |line: &str| {
+        line.strip_prefix('[')
+            .and_then(|rest| rest.split_once("s] "))
+            .is_some_and(|(time, _)| time.trim().parse::<f64>().is_ok())
+    };
+    let words: Vec<&str> = stderr
+        .lines()
+        .filter(|line| {
+            !line.trim().is_empty() && !progress(line) && !line.contains("RUST_BACKTRACE")
+        })
+        .collect();
+    let mut text = format!(
+        "regress: the {side} side STOPPED: {exe}{} ended with {ended}\n",
+        build.map_or(String::new(), |build| format!(" ({build})"))
+    );
+    if words.is_empty() {
+        text += "regress:   it wrote nothing to stderr beside its progress\n";
+    }
+    for line in &words[words.len().saturating_sub(12)..] {
+        text += &format!("regress:   {line}\n");
+    }
+    text += &format!("regress: its whole stderr: {record}\n");
+    text += &format!(
+        "regress: STOPPED: a side's run failed. No speed verdict (exit {REGRESS_STOPPED}): the failure is the finding.\n"
+    );
+    text
+}
+
 /// One run of `exe` over `scope`, `rounds` rounds (0: a default run's
 /// own), its samples sized by the file at `sizes`: its samples file, also
 /// copied to `keep`, and the load this process saw while it ran
@@ -7605,6 +7656,7 @@ fn merge_sizes(old: &str, new: &str) -> String {
 /// and its own load line (of windows inside it) goes unread.
 fn regress_run(
     exe: &str,
+    side: &str,
     rounds: usize,
     scope: &RegressScope,
     sizes: &std::path::Path,
@@ -7634,13 +7686,41 @@ fn regress_run(
             .stdout(std::process::Stdio::null())
             .stderr(stderr),
     );
-    assert!(
-        run.success,
-        "{exe} failed\n{}",
-        fs::read_to_string(&stderr_path)
-            .unwrap_or_default()
-            .trim_end()
-    );
+    if !run.success() {
+        // A side that stops is the gravest finding a comparison can make:
+        // said in lines of its own, with an exit code of its own.
+        let record = match keep {
+            Some(kept) => {
+                let record = kept.with_extension("stderr.txt");
+                fs::copy(&stderr_path, &record).unwrap_or_else(|error| {
+                    panic!(
+                        "cannot keep the stopped run's stderr at {}: {error}",
+                        record.display()
+                    )
+                });
+                record
+            }
+            None => stderr_path.clone(),
+        };
+        let build = std::process::Command::new(exe)
+            .arg("provenance")
+            .output()
+            .ok()
+            .filter(|out| out.status.success())
+            .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_owned());
+        print!(
+            "{}",
+            stopped_report(
+                side,
+                exe,
+                build.as_deref(),
+                &run.ended.to_string(),
+                &fs::read_to_string(&stderr_path).unwrap_or_default(),
+                &record.display().to_string(),
+            )
+        );
+        std::process::exit(REGRESS_STOPPED);
+    }
     let found: Vec<_> = fs::read_dir(directory.join("benchmark-results"))
         .unwrap()
         .map(|entry| entry.unwrap().path().join("bench-hashes.samples.tsv"))
@@ -7872,7 +7952,7 @@ fn regress_command(arguments: &[String]) -> i32 {
             .as_ref()
             .map(|dir| dir.join(format!("run-{run_index:03}-{side}.tsv")));
         let side_sizes = if side == "old" { &old_sizes } else { &sizes };
-        let (file, load) = regress_run(exe, rounds, &scope, side_sizes, kept.as_deref(), pin);
+        let (file, load) = regress_run(exe, side, rounds, &scope, side_sizes, kept.as_deref(), pin);
         let builds = if side == "old" {
             &mut old_builds
         } else {

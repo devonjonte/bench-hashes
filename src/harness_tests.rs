@@ -437,3 +437,53 @@ fn every_message_in_blocks_hashes_its_own_bytes() {
         }
     }
 }
+
+/// A stopped side's report names the side, its build and how it ended,
+/// and quotes its last words without the progress display: the panic of
+/// BLAKE3 #302's race, as the old side of #331's gate wrote it.
+#[test]
+fn a_stopped_sides_report_quotes_its_last_words_without_the_progress() {
+    let stderr = "[  0.0s] calibrating…\n\
+        [  1.3s] measuring ██████████████░░░░░░░░░░░░░░░░  11/24 rounds ·   2s left · BLAKE3-Servil mt 3.931 ns/B at 16384\n\
+        \n\
+        thread 'blake3-worker-1' (1028496) panicked at src/stream/receiver.rs:504:29:\n\
+        one task takes the published batch job\n\
+        note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n";
+    assert_eq!(
+        stopped_report(
+            "old",
+            "target/check/old/bench-hashes-10",
+            Some("bench 0bb31ed5186e clean; servil c7936a5f4a8f clean"),
+            "signal 6 (SIGABRT)",
+            stderr,
+            "kept/run-070-old.stderr.txt",
+        ),
+        "regress: the old side STOPPED: target/check/old/bench-hashes-10 (bench 0bb31ed5186e clean; servil c7936a5f4a8f clean) ended with signal 6 (SIGABRT)\n\
+         regress:   thread 'blake3-worker-1' (1028496) panicked at src/stream/receiver.rs:504:29:\n\
+         regress:   one task takes the published batch job\n\
+         regress: its whole stderr: kept/run-070-old.stderr.txt\n\
+         regress: STOPPED: a side's run failed. No speed verdict (exit 3): the failure is the finding.\n"
+    );
+    // A crash that says nothing, and a build that cannot name itself.
+    let silent = stopped_report(
+        "new",
+        "exe",
+        None,
+        "signal 11 (SIGSEGV)",
+        "[  0.0s] calibrating…\n",
+        "r",
+    );
+    assert!(
+        silent.starts_with("regress: the new side STOPPED: exe ended with signal 11 (SIGSEGV)\nregress:   it wrote nothing to stderr beside its progress\n"),
+        "{silent}"
+    );
+    // A long stderr: its last twelve lines.
+    let long: String = (0..30).map(|i| format!("line {i}\n")).collect();
+    let report = stopped_report("old", "exe", None, "exit code 101", &long, "r");
+    assert!(
+        !report.contains("line 17\n")
+            && report.contains("line 18\n")
+            && report.contains("line 29\n"),
+        "{report}"
+    );
+}

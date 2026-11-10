@@ -618,7 +618,7 @@ pub fn command(args: &[String]) {
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());
             let run = clocks::child::run(&mut command);
-            if !run.success {
+            if !run.success() {
                 // Show what it said, then stop: a failing contender measures nothing.
                 let _ = Command::new(&c.build(round).program)
                     .args(&c.args)

@@ -48,6 +48,18 @@ from then, each entry naming its decider):
   post or a record, so that no figure there is typed by hand. The judgment
   is unchanged. The reason: figures copied into posts by hand were a
   source of error, and a table printed by the tool carries its own.
+- **A side that stops is reported as such** (Devon Jonte, November 10,
+  2026). When a side's run fails in `regress` (and so in `check`), the
+  report says which side, its build, how it ended (its exit code or the
+  signal that killed it), and its last words, its stderr without the
+  progress display; the whole stderr is kept beside the samples; the
+  exit code is 3, beside 0, 1 (a cell slower) and 2 (no verdict: the
+  load). No speed verdict follows. The reason: in the gate of BLAKE3
+  #331 the old side panicked in a pipeline cell (the race of BLAKE3
+  #302), and the check answered with a panic of its own, the message
+  under a screen of progress lines. A crash is the gravest finding a
+  comparison can make, and it read as a tool failure. The measurement
+  and the judgment are unchanged.
 - **Microseconds are written μs** (Devon Jonte, November 9, 2026, at the
   user's suggestion). Every microsecond the benchmark writes, in point
   names (`receive 2 μs`, `receive 20 μs`, also as `--points` takes them),
