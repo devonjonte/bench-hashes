@@ -1,0 +1,43 @@
+Found 4 mutants to test
+Found 4 mutants to test
+Found 4 mutants to test
+Found 4 mutants to test
+Found 4 mutants to test
+Found 0 mutants to test
+ok       Unmutated baseline in 29s build + 5s test
+ok       Unmutated baseline in 30s build + 4s test
+ok       Unmutated baseline in 30s build + 4s test
+ok       Unmutated baseline in 31s build + 4s test
+ok       Unmutated baseline in 31s build + 4s test
+MISSED   src/ffi_avx512_32.rs:112:5: replace parent_entry -> *const() with Default::default() in 1s build + 5s test
+4 mutants tested in 51s: 3 caught, 1 unviable
+MISSED   src/ffi_avx512_32.rs:117:5: replace entries -> [(&'static str, *const()); 3] with [("", Default::default()); 3] in 4s build + 5s test
+MISSED   src/ffi_chunk_root.rs:80:9: replace test::variants -> Vec<bool> with vec![false] in 1s build + 5s test
+4 mutants tested in 51s: 1 missed, 3 caught
+4 mutants tested in 52s: 4 caught
+4 mutants tested in 55s: 4 caught
+MISSED   src/ffi_avx512_32.rs:117:5: replace entries -> [(&'static str, *const()); 3] with [("xyzzy", Default::default()); 3] in 1s build + 3s test
+4 mutants tested in 57s: 3 missed, 1 caught
+mutants: 0 of 4 surviving places build to the same code in a release build, their line count kept (release_same.py)
+{
+ "files": [
+  "src/ffi_chunk_root.rs",
+  "src/ffi_avx512_32.rs"
+ ],
+ "mutants": 20,
+ "survivors": {
+  "src/ffi_avx512_32.rs\treplace parent_entry -> *const() with Default::default()": 1,
+  "src/ffi_avx512_32.rs\treplace entries -> [(&'static str, *const()); 3] with [(\"\", Default::default()); 3]": 1,
+  "src/ffi_avx512_32.rs\treplace entries -> [(&'static str, *const()); 3] with [(\"xyzzy\", Default::default()); 3]": 1,
+  "src/ffi_chunk_root.rs\treplace test::variants -> Vec<bool> with vec![false]": 1
+ },
+ "timeouts": {},
+ "by_outcome": {
+  "CaughtMutant": 15,
+  "Unviable": 1,
+  "MissedMutant": 4
+ },
+ "same_code": {},
+ "same_in_release": {}
+}
+exit 0
