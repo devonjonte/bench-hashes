@@ -95,7 +95,10 @@ from then, each entry naming its decider):
   ownership contract (#309, #317), not a change to existing workloads or
   judgment. The pipeline and its batches and places are kept for the
   process; before #317 the frontend borrowed the places for the
-  pipeline's life, so that side keeps them too, leaked.
+  pipeline's life, so that side keeps them too, leaked. From November 10
+  (Devon Jonte), with #317 landed, the cells pin and measure the owned
+  side: the batch and its Box of places move in and come back with the
+  batch's event.
 - **A turn cell for many short messages in small arrivals** (John Servil,
   November 8, 2026; bench-hashes #156). The turn cells' large pieces (up
   to 16 KiB, 256 messages open) barely reach grouped first-chunk
@@ -1212,7 +1215,7 @@ shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleave
 shared placements: two cores under one last-level cache; two cores under two (where the machine has two); where it offers no pair (macOS), wherever the OS runs them
 shared contenders: blake3-official-mt, blake3-servil-mt, blake3-servil-pipeline
 blake3-servil-pipeline ReceivingMessage: throughput::pipeline: one Stream kept for the process (64 rooms of 16 KiB, 1 MiB in flight; 2 message slots), Stream::message per message with its length as the hint, each received fragment written into the rooms Message::input gives and committed (the one copy of an arrival), the last fragment's final bytes ended with Message::end(n), then collect and ready until the digest is delivered; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, writes and the wait for the digest timed together
-blake3-servil-pipeline ContinuousBatches: throughput::pipeline: the Stream kept for the process (64 rooms of 16 KiB; 2 message slots, so two batches in flight), Stream::submit_batch(batch, places, tag) per batch, the batch (an owned Batch) and its places (&'static mut, kept for the process: the frontend borrows them for the pipeline's life) lent, both handed back by Event::Batch; each batch refilled from the input (every 64-byte message copied in), its digests consumed whole as the batch comes back, the pair used again; collect and ready while none is free; every batch still out waited for at a sample's end
+blake3-servil-pipeline ContinuousBatches: throughput::pipeline: the Stream kept for the process (64 rooms of 16 KiB; 2 message slots, so two batches in flight), Stream::submit_batch(batch, places, tag) per batch, the batch (an owned Batch) and its places (a Box of 32-byte places, one a message) moved in, both handed back by Event::Batch; each batch refilled from the input (every 64-byte message copied in), its digests consumed whole as the batch comes back, the pair used again; collect and ready while none is free; every batch still out waited for at a sample's end
 blake3-servil-st ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, updates and finalization timed together
 blake3-servil-mt ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, updates and finalization timed together
 blake3-servil-st InterleavedTurn: the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it

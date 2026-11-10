@@ -18,8 +18,8 @@ use std::task::{Context, Poll, Wake, Waker};
 
 /// A pipeline's handler is a plain function, so the pipeline's type is
 /// nameable and kept in a thread local.
-type Pipeline = Stream<'static, usize, fn(Event<'static, usize>)>;
-pub(crate) type Open = Message<'static, 'static, usize, fn(Event<'static, usize>)>;
+type Pipeline = Stream<usize, fn(Event<usize>)>;
+pub(crate) type Open = Message<'static, usize, fn(Event<usize>)>;
 
 /// The pipeline's budget: 64 rooms of 16 KiB, 1 MiB in flight, and two
 /// message slots. A message received alone takes the one being received
@@ -37,14 +37,11 @@ thread_local! {
     static KEPT: RefCell<Vec<(usize, Vec<(Batch<'static>, Places)>)>> = const { RefCell::new(Vec::new()) };
 }
 
-/// A batch's digest places, one a message: borrowed for the pipeline's
-/// life (BLAKE3-Servil before #309 takes `&'a mut` places for a
-/// `Stream<'a, ..>`). The pipeline is kept for the process, so the places
-/// are kept too (leaked): the program reaches them again only through the
-/// event that hands them back, and can free them never.
-type Places = &'static mut [[u8; 32]];
+/// A batch's digest places, one a message: owned, as the pipeline holds
+/// them while its workers write them (BLAKE3-Servil #309).
+type Places = Box<[[u8; 32]]>;
 
-fn deliver(event: Event<'static, usize>) {
+fn deliver(event: Event<usize>) {
     match event {
         Event::Hashed { tag, hash } => {
             INBOX.with(|inbox| inbox.borrow_mut().push((tag, *hash.as_bytes())))
@@ -67,7 +64,7 @@ pub(crate) fn pipeline(limits: (usize, usize)) -> &'static Pipeline {
         let p: &'static Pipeline = &*Box::leak(Box::new(Stream::new(
             blake3_servil::Mode::Plain,
             Limits { buffers, messages },
-            deliver as fn(Event<'static, usize>),
+            deliver as fn(Event<usize>),
         )));
         all.push((limits, p));
         p
@@ -211,7 +208,7 @@ pub(crate) fn batches(
                 .map(|_| {
                     (
                         Batch::new(LEN, messages),
-                        &mut *Box::leak(vec![[0u8; 32]; messages].into_boxed_slice()),
+                        vec![[0u8; 32]; messages].into_boxed_slice(),
                     )
                 })
                 .collect(),
