@@ -155,6 +155,18 @@ from then, each entry naming its decider):
   regress used three quiet pairs, but the probe's report reread four,
   including an abandoned busy pair. The load and comparison rules stay
   as they were.
+- **The second stage's places go to moved counts and slower cells in
+  turn** (Devon Jonte, November 10, 2026, bench-hashes #166). `regress`
+  names at most eight suspects. Level cells whose instruction counts
+  moved went ahead of every cell slower beyond the wall margin (the
+  November 4 entry below), so with eight or more moved counts no slower
+  cell was judged again. 0.21's rehearsal met the case: a whole-map check
+  of BLAKE3-Servil against 0.8 on the i7-12700K had 17 moved counts, all
+  single-threaded and solo, and read "no cell slower" with a
+  multithreaded shared cell at x1.38, slower in every pair (BLAKE3 #349).
+  The two kinds now take the places in turn, a moved count first, each
+  in its own order; one kind alone takes them all, as before. The
+  stage's family stays at eight, and its judging is unchanged.
 - **An old-benchmark comparison runs the contenders both benches know**
   (Devon Jonte, November 10, 2026). `check --old-bench REV` asks the old
   side's bench for its contenders (`--list`) and compares BLAKE3-Servil's
