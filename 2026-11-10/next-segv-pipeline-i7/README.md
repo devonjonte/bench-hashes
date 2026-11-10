@@ -8,4 +8,6 @@
 
 **Rate here.** One stop in the confirmation round's first run; one in 105 runs under gdb.
 
+**A third sighting, the same night** (`third-sighting/`): a speed gate of BLAKE3 #329 against `next` a4095ba6, the pipeline's ten points. Its first round finished (no cell slower); in its confirmation round the old side, `next`, ended with signal 11 at its fifth run. So a check that names pipeline batch points against an unrepaired `next` often cannot finish its confirmation: two of this night's three such gates were stopped this way.
+
 **The repair.** BLAKE3 #331 (with #329). Its controls hold a claimer after its claim while the ring laps it.
