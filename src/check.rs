@@ -123,8 +123,8 @@ const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
 /// The contenders a comparison across two benches runs: those the older
 /// bench knows too, from its `--list` (each line starts with a key). A
-/// contender one side lacks has nothing to be compared with: the pipeline
-/// joined after BLAKE3-Servil 0.8, whose bench stops on its name.
+/// contender one side lacks has nothing to be compared with (the first
+/// pipeline joined after BLAKE3-Servil 0.8, whose bench stopped on its name).
 fn shared_subjects(old_list: &str) -> Vec<&'static str> {
     let known: BTreeSet<&str> = old_list
         .lines()
@@ -1334,19 +1334,18 @@ mod tests {
     }
 
     /// Across two benches the comparison runs the contenders the older one
-    /// lists: a bench from before the pipeline leaves it out, in the
-    /// subjects' own order, and a bench that lists all three keeps all.
+    /// lists: a bench that lacks one leaves it out, the rest in the
+    /// subjects' own order, and a bench that lists them all keeps all.
     #[test]
     fn an_older_bench_compares_the_contenders_it_knows() {
-        let before_the_pipeline = "  blake3-official      BLAKE3 official        available\n  blake3-servil-st     BLAKE3-Servil st       available\n  sha256               SHA-256                available\n  blake3-servil-mt     BLAKE3-Servil mt       available\n";
+        let one_thread_alone = "  blake3-official      BLAKE3 official        available\n  blake3-servil-st     BLAKE3-Servil st       available\n  sha256               SHA-256                available\n";
         assert_eq!(
-            super::shared_subjects(before_the_pipeline),
-            ["blake3-servil-st", "blake3-servil-mt"]
+            super::shared_subjects(one_thread_alone),
+            ["blake3-servil-st"]
         );
-        let today = format!(
-            "{before_the_pipeline}  blake3-servil-pipeline BLAKE3-Servil pipeline available\n"
-        );
-        assert_eq!(super::shared_subjects(&today), super::SUBJECTS);
+        let both =
+            format!("{one_thread_alone}  blake3-servil-mt     BLAKE3-Servil mt       available\n");
+        assert_eq!(super::shared_subjects(&both), super::SUBJECTS);
         // A name inside another word is no contender of that bench.
         assert!(super::shared_subjects("  not-blake3-servil-st  x  available\n").is_empty());
     }
