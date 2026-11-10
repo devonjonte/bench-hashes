@@ -10,15 +10,15 @@ V = {"core": dict(title="BLAKE3-Servil on one thread: 0.8 beside today's",
                   picks=[("OneMessage", "64 B", "one 64 B message, between other work"), ("OneMessage", "1 KiB", "one 1 KiB message, between other work"),
                          ("OneMessage", "3 KiB", "one 3 KiB message, between other work"), ("OneMessage", "1 MiB", "one 1 MiB message"),
                          ("OneMessage", "128 MiB", "one 128 MiB message"), ("IdleOneMessage", "64 B", "one 64 B message, after a pause"),
-                         ("ManyMessages", "1024", "1,024 messages of 64 B in one call"), ("ManyLongMessages", None, "a batch of longer messages"),
+                         ("ManyMessages", "4", "4 messages of 64 B in one call"), ("ManyMessages", "1024", "1,024 messages of 64 B in one call"), ("ManyLongMessages", None, "a batch of longer messages"),
                          ("InterleavedTurn", None, "many messages at once, in pieces"), ("Collection", None, "a collection of messages"), ("MerkleTree", None, "a Merkle tree")]),
      "sync": dict(title="BLAKE3-Servil's multithreaded calls: 0.8 beside today's",
                   what="The multithreaded calls that return when the work is done, settled for 0.9.",
                   old="blake3-servil-0.8-mt", now="blake3-servil-mt", other="blake3-official-mt",
                   names=("BLAKE3-Servil 0.8, every core", "BLAKE3-Servil today, every core", "BLAKE3 official, every core"),
-                  picks=[("OneMessage", "64 KiB", "one 64 KiB message, between other work"), ("OneMessage", "1 MiB", "one 1 MiB message"),
+                  picks=[("OneMessage", "8 KiB", "one 8 KiB message, between other work"), ("OneMessage", "64 KiB", "one 64 KiB message, between other work"), ("OneMessage", "1 MiB", "one 1 MiB message"),
                          ("OneMessage", "128 MiB", "one 128 MiB message"), ("IdleOneMessage", "1 MiB", "one 1 MiB message, after a pause"),
-                         ("ManyMessages", "1024", "1,024 messages of 64 B in one call"), ("ManyMessages", "65536", "65,536 messages of 64 B in one call"),
+                         ("ManyMessages", "4", "4 messages of 64 B in one call"), ("ManyMessages", "1024", "1,024 messages of 64 B in one call"), ("ManyMessages", "65536", "65,536 messages of 64 B in one call"),
                          ("ManyLongMessages", None, "a batch of longer messages"), ("InterleavedTurn", None, "many messages at once, in pieces"),
                          ("Collection", None, "a collection of messages"), ("MerkleTree", None, "a Merkle tree")])}[view]
 COL = {V["old"]: "#111827", V["now"]: "#7c3aed", V["other"]: "#3b82f6"}
@@ -39,7 +39,7 @@ out = [f"<!doctype html><meta charset=utf-8><title>{html.escape(V['title'])}</ti
        "h2{font-size:17px;margin:1.4em 0 .1em}a{color:#5b21b6}</style>",
        f"<h1>{html.escape(V['title'])}</h1>",
        f"<p class=sub><b>{html.escape(V['what'])}</b> The streaming usages are left out. Longer is faster. <b>Where the bars come from:</b> the two versions are the release check's own paired runs (four a side, fresh link layouts, the same sample sizes): 0.8 built by the last bench-hashes that builds against it, "
-       "today's (2037118c) by bench-hashes 0.21; official BLAKE3 is from 0.21's full run. Each bar is a mean over those runs. The check itself judged every cell: no cell slower; read a gap of a few percent here as no difference.</p>",
+       "today's (2037118c) by bench-hashes 0.21; official BLAKE3 is from 0.21's full run. Each bar is a mean over those runs; read a gap of a few percent as no difference. Each machine's check judged every cell, and its verdict stands under the machine's name.</p>",
        "<p class=key>" + "".join(f"<i style='background:{COL[k]}'></i>{html.escape(n)}" for k, n in zip((V['old'], V['now'], V['other']), V['names'])) + "</p>"]
 for d in sorted(glob.glob(os.path.join(pages, "benchmark-results", "*"))):
     f = os.path.join(d, "bench-hashes.samples.tsv")
@@ -47,7 +47,7 @@ for d in sorted(glob.glob(os.path.join(pages, "benchmark-results", "*"))):
     head, cells = read(f)
     get = lambda k: next((h.split(":", 1)[1].strip() for h in head if h.startswith(f"# {k}:")), "")
     out.append(f"<h2><a href='benchmark-results/{os.path.basename(d)}/bench-hashes.map.html'>{html.escape(get('cpu type') or os.path.basename(d))}</a></h2>"
-               f"<p class=sub>{html.escape(get('cpu count'))} CPUs, {html.escape(get('os type'))}. Every cell of this machine is on <a href='benchmark-results/{os.path.basename(d)}/bench-hashes.map.html'>its map</a>.</p><table>")
+               f"<p class=sub>{html.escape(get('cpu count'))} CPUs, {html.escape(get('os type'))}. Every cell of this machine is on <a href='benchmark-results/{os.path.basename(d)}/bench-hashes.map.html'>its map</a>. <b>Its check:</b> {html.escape(open(os.path.join(d, 'verdict.txt')).read().strip())}</p><table>")
     for use, point, label in V["picks"]:
         if point is None:  # the use case's largest point both versions have
             pts = [p for (c, u, p) in cells if c == V["now"] and u == use and (V["old"], u, p) in cells]

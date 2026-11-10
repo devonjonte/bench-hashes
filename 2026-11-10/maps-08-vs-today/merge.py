@@ -53,7 +53,7 @@ for h in nh:
 for k, new in KEEP["old"].items():
     src = next(h for h in oh if h.startswith(f"# source {k}:"))
     load = next(h for h in oh if h.startswith("# load:"))
-    head.append(f"# source {new}:" + src.split(":", 1)[1] + f"; measured by bench-hashes 3363bee8, {runs[0]} runs joined (" + load[2:] + ")")
+    head.append(f"# source {new}:" + src.split(":", 1)[1] + f"; measured by an earlier bench-hashes that builds against it, {runs[0]} runs joined (" + load[2:] + ")")
 rows = []
 for r in orows:
     p = r.split("\t")

@@ -1,4 +1,4 @@
-# BLAKE3-Servil 0.8 beside today's, as maps (i7-12700K, November 10, 2026)
+# BLAKE3-Servil 0.8 beside today's, as maps (i7-12700K and Apple M6, November 10, 2026)
 
 **Question** (Zooko): pages like the overview and a machine's map, showing
 BLAKE3-Servil 0.8 and today's library as two contenders, for two subsets
@@ -29,6 +29,8 @@ extra contenders for 0.8's samples and never measures them
 (devonjonte/bench-hashes `scratch/devon-maps-08-vs-now`, cb88ed0b, never
 to land), then titled by `title.py`; the front pages by `front.py`.
 
-**What they show, on this machine:** the two versions about the same in
+**The Apple M6** (Sam Shackleton's; added the same night): the same way, from the paired runs of job 3036 on the Mac exchange (old bench 828e8500, new 4bef90cc), the other hashes from job 3033's full run. Its check read 23 cells slower and 13 faster (BLAKE3 #364): small batches of 2 to 8 messages by 37 to 180%, and on the multithreaded contender one message of 1.5 to 16 KiB by 28 to 115%.
+
+**What they show, on the i7:** the two versions about the same in
 most uses; today's faster at one 3 KiB message (21%) and one 1 KiB
 message (7%) between other work, and at a 64 B message after a pause (7%).
