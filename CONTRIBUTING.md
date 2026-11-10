@@ -18,8 +18,7 @@ it measures, and keep your results comparable with ours.
   measurement configuration.
 - `build.rs`: embeds the provenance (this repository's commit and state,
   and each contender crate's version and source).
-- `tools/`: `samples.py` reads samples files for the Python studies
-  (`points.py`, `settle.py`, `variance.py`); `b3sum-contenders.py` builds
+- `tools/`: `b3sum-contenders.py` builds
   b3sum's contenders; `gen-ver.py` makes a release; `graph-check/map.js`
   drives the map in Chromium (its README says how); `require_nextest.rs`,
   included by every crate's tests, fails under plain `cargo test` and
@@ -34,7 +33,8 @@ The tests run under [cargo-nextest](https://nexte.st), each in its own
 process (`cargo test` stops at once and says so).
 
 ```sh
-cargo nextest run --release
+cargo nextest run --release              # the code's tests: under two seconds
+cargo nextest run --release -P machine   # the machine's: clocks, counters, children; seconds each
 cargo run --release -- --quick     # seconds; a full run takes minutes
 node tools/graph-check/map.js benchmark-results/FOLDER/bench-hashes.map.html
 ```
@@ -49,7 +49,7 @@ every place, and the compiler names any match you miss.
 2. Add a variant to `Algorithm` and to `Algorithm::ALL`, with its key
    (for `--contenders`), name, one-line description, colour, provenance,
    and mode (single-threaded or multithreaded). A hash with both modes
-   is two contenders, as BLAKE3 servil st and mt are.
+   is two contenders, as BLAKE3-Servil st and mt are.
 3. Give it three calls, each the plain entry point your users call: one
    message (`one_message_call`), a batch of 64-byte messages
    (`hash_batch`; a loop over its one-message call when it has no batch
@@ -61,68 +61,68 @@ Then `cargo nextest run --release` and
 The harness does the rest: interleaving, the use cases and scenarios,
 statistics, the report, and the map.
 
-## Working on the fork alongside
+## Working on BLAKE3-Servil alongside
 
-The BLAKE3 servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
+Measure before building: `bench-hashes check --fork ../BLAKE3 --against
+next --probe "3 KiB,brief idle 3 KiB"` gives each named cell's ratio in
+about three minutes (three fresh pairs, no verdict). Once the change is
+built, the same names with `--points` are its gate (four pairs, then the
+second stage on its suspects). `check` prints the diff's files and the
+items its hunks sit in first; its author reads that summary and names the
+cells the change can move. With no scope named it stops there, before any
+build. `--cells all` measures every point, for a release or a change its
+author judges can act anywhere. A change to the library carries its
+probe's line in its pull request.
+
+The BLAKE3-Servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
 the crate `blake3-servil`, a git dependency on
-[github.com/johnservil/BLAKE3](https://github.com/johnservil/BLAKE3) at
-the commit whose full hash `Cargo.toml` names (`rev`). The separate
-`clocks` pin names the instrument used on both sides of a comparison.
-To measure your own checkout of the fork, keep this repository beside
-it (anywhere: neither holds the other) and name the fork's checkout:
+[github.com/servil-software-factory/BLAKE3](https://github.com/servil-software-factory/BLAKE3) at
+the commit whose full hash `Cargo.toml` names (`rev`). The instrument,
+`clocks/` (every clock a measurement reads), is part of this repository,
+so a run's bench commit names the one that timed it, on both sides of a
+comparison.
+To measure your own checkout of BLAKE3-Servil, keep this repository beside
+it (anywhere: neither holds the other) and name BLAKE3-Servil's checkout:
 
 ```sh
-git clone --branch servil https://github.com/johnservil/BLAKE3
-git clone https://github.com/johnservil/bench-hashes
-cd bench-hashes && cargo run --release -- check --fork ../BLAKE3   # the fork's working tree against its HEAD
+git clone --branch next https://github.com/servil-software-factory/BLAKE3
+git clone https://github.com/servil-software-factory/bench-hashes
+cd bench-hashes && cargo run --release -- check --fork ../BLAKE3 --points "3 KiB,brief idle 3 KiB"   # the named cells of BLAKE3-Servil's working tree against its HEAD
+cd bench-hashes && cargo run --release -- check --fork ../BLAKE3 --new my-branch --against next --points "3 KiB"   # a branch by name, whatever the tree has checked out
 cd bench-hashes && "$(cargo run --release --quiet -- build-against ../BLAKE3)" --quick   # one run of it
 ```
 
-`check` builds in directories of its own (the fork's `target/check/`), and
+`check` builds in directories of its own (BLAKE3-Servil's `target/check/`), and
 `build-against DIR` in DIR's `target/bench-hashes-build/` (a directory of
 DIR's own there, under a shared `CARGO_TARGET_DIR`), each from a copy of
-this repository whose `Cargo.lock` points at the fork checkout, and leaves
-your checkouts' files as they were. It chooses the cells a
-change touches from coverage, with the toolchain's `llvm-profdata` and
-`llvm-cov` (`rustup component add llvm-tools`). Run the executable from a
+this repository whose `Cargo.lock` points at a checkout of BLAKE3-Servil, and leaves
+your checkouts' files as they were. Run the executable from a
 scratch directory (it writes `benchmark-results/` there); the report
-names the fork checkout's commit and whether its tree was clean.
+names the BLAKE3-Servil checkout's commit and whether its tree was clean.
 `build-against` prints an executable in a directory named for both
 builds, as `bench-hashes provenance` prints them: each checkout's commit
 and its tree's state (`clean`, or a dirty tree's sigil). So a path kept
 from an earlier build runs what it names. `regress` and `compare` print
 each side's builds the same way, and say so when both sides are one
-build. The fork's `CONTRIBUTING.md` covers the
+build. BLAKE3-Servil's `CONTRIBUTING.md` covers the
 fork's own tests and its performance-regression check, which runs this
 benchmark.
 
-To move either pin, set its `rev` in `Cargo.toml` to the full commit
-hash and build: Cargo updates the lock. `build-against`, relinking and
-coverage replace the fork while keeping the benchmark's clocks pin.
-
-To try a local clocks before moving its pin, patch it and name the
-checkout, so the run records what timed it:
-
-```sh
-BENCH_CLOCKS_CHECKOUT=/path/to/BLAKE3/clocks cargo build --release \
-  --config 'patch."https://github.com/johnservil/BLAKE3".clocks.path="/path/to/BLAKE3/clocks"'
-```
-
-The samples header's `clocks source` line then names that checkout, its
-commit, and whether its `clocks/` was clean; a patch without
-`BENCH_CLOCKS_CHECKOUT` stops the build. The repository's `git clean
-status` forgives the lock line such a patch drops, as it does
-blake3-servil's, and no other change to `Cargo.lock`.
+To move the pin of BLAKE3-Servil, set its `rev` in `Cargo.toml` to the full commit
+hash and build: Cargo updates the lock. `build-against` and relinking
+replace BLAKE3-Servil and keep this repository's `clocks/`. A change
+to `clocks/` is a change to this repository, its tests among the ones
+`cargo nextest run` runs.
 
 ## Rules that keep results comparable
 
 - **Contenders are black boxes.** The benchmark lists a contender, calls
   its plain entry point (single-threaded, multithreaded, a batch call, or
-  its incremental API for messages in pieces; for the fork's multithreaded
+  its incremental API for messages in pieces; for BLAKE3-Servil's multithreaded
   contender, its stream for inputs one after another) with no pool, cap,
   or wrapper of its own. A contender without a batch entry point hashes a
   batch as `for m in batch { hash(m) }`.
-- **What the benchmark asks of the fork is frozen.** `FROZEN.md` lists
+- **What the benchmark asks of BLAKE3-Servil is frozen.** `FROZEN.md` lists
   each use case's calls and call pattern, and a test compares it with the
   code; changing it is Zooko's decision, recorded there.
 - **The benchmark checks no digests.** Each crate's own tests establish
@@ -133,7 +133,7 @@ blake3-servil's, and no other change to `Cargo.lock`.
   hash, as a sigil) measured uncommitted code. Sigil's Python module
   turns one into hex: `python3 -c 'import sys, sigilcode; print(sigilcode.decode(sys.argv[1], 32).hex())' SIGIL`,
   from a checkout of johnservil/sigil's `python/`.
-- **The fork's regression check runs `bench-hashes regress OLD... -- NEW...`**,
+- **BLAKE3-Servil's regression check runs `bench-hashes regress OLD... -- NEW...`**,
   which runs the two executables with `--contenders`, `--points`, and
   `--rounds` and reads their samples files: the rule lives here, so a
   change to the format changes its reader in the same change.
@@ -157,6 +157,14 @@ the documentation).
 the page", has the whole practice. Check a change with
 `node tools/graph-check/map.js` and by looking at the page.
 
+## Whose move it is
+
+Every open issue and pull request has one assignee, the person whose
+move is next. Finish your move, say in a comment what the next move is,
+and assign the person who makes it. Close the item when nothing is left.
+A workflow assigns the author to an item left with no assignee and asks
+when there are several.
+
 ## Maintainers' notes
 
 `AGENTS.md` holds the maintainers' principles and the repository's shape;
@@ -171,23 +179,40 @@ The overview shows one release a page, so a release is the moment every
 machine runs again. In order:
 
 1. **What it carries:** each entry under FROZEN.md's "Changes for the next
-   release", and the two pins (BLAKE3 servil's commit, the clocks), each a
-   commit that passed the fork's own checks.
-2. **Checks on main:** `cargo nextest run --release`, `cargo fmt --check`,
+   release", and the pin of BLAKE3-Servil (its commit), a commit that
+   passed BLAKE3-Servil's own checks.
+2. **Checks on main:** `cargo nextest run --release`, `cargo nextest run
+   --release -P machine` on the release machines, `cargo fmt --check`,
    and a `--quick` run that reports no busy window.
 3. **The tag:** `python3 tools/gen-ver.py X.Y.Z` from a clean tree: one
    commit setting the version to X.Y.Z+<HEAD's hash>, and its tag.
-4. **Every machine runs again at the tag,** each on a quiet machine,
+4. **Every machine runs again at the tag,** each on a quiet machine
+   (`check` and `regress` refuse a busy one before they start;
+   `--when-quiet` waits for it; a script's other runs start with
+   `bench-hashes quiet --wait`, the same rule),
    plugged in, with the CPU governor at `performance` (a tuning service
    such as `tuned` can reset it mid-run). A machine's run is:
-   - the fork's release check and, beside it, the same check with the same
+   - BLAKE3-Servil's release check and, beside it, the same check with the same
      library on both sides (`--against` the measured commit, `--old-bench`
      the previous bench). A cell slower in the first and level in the
-     second is the library's; slower in both, the bench's;
-   - the full run, built against the fork's checkout, never through a
+     second is the library's; slower in both, the bench's.
+     Where the library's API has changed since its last release, the
+     release check takes `--old-bench` too, a bench that builds against
+     that release; the issue for the release names both commands;
+     the same-library check's "instructions moved" line must name no
+     cell: the same code retires the same instructions a unit in every
+     single-threaded solo cell (within 1% on the i7-12700K, the
+     sampler's own reads included), so a cell named there is the bench
+     measuring different work in two runs, its bug to find before the
+     release;
+   - the full run, built against BLAKE3-Servil's checkout, never through a
      `--config` patch (Cargo's lock can build the pin instead):
      `bench-hashes build-against ..`, then the executable it prints, with
      `--all --expect-servil COMMIT`, from a scratch directory;
+     on Linux, as root where you can (`sudo` on the executable, the
+     scratch directory writable by root), so the run holds the cpuidle
+     switch and measures the controlled after-pause cells; its header's
+     `idle control` line says whether it did;
    - the b3sum run, `LAYOUTS=4 python3 tools/b3sum-contenders.py`, with
      `--files` on the machine's own storage. On tmpfs (a VM's `/tmp`, for
      one) nothing is read from storage, and the run reports its

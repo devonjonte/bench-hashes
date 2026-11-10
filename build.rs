@@ -19,7 +19,7 @@ fn main() {
     );
 
     println!("cargo:rerun-if-changed=Cargo.toml");
-    // The fork's repository, for the map's links (Cargo.toml's one place).
+    // BLAKE3-Servil's repository, for the map's links (Cargo.toml's one place).
     println!("cargo:rustc-env=BENCH_SERVIL_GIT={}", servil_git());
     println!("cargo:rerun-if-changed=Cargo.lock");
     println!("cargo:rerun-if-changed=README.md");
@@ -43,8 +43,8 @@ fn main() {
 
     /*
      * The checkout whose git state is this build's provenance: this
-     * directory, or, for a copy built elsewhere (the fork's perf_regress
-     * builds one inside a fork worktree, where git would find the fork),
+     * directory, or, for a copy built elsewhere (BLAKE3-Servil's perf_regress
+     * builds one inside a fork worktree, where git would find BLAKE3-Servil),
      * the checkout BENCH_HASHES_CHECKOUT names.
      */
     println!("cargo:rerun-if-env-changed=BENCH_HASHES_CHECKOUT");
@@ -81,7 +81,7 @@ fn main() {
      * What else decides the machine code, beyond this commit and the
      * crates' sources: every dependency's exact version and checksum (a
      * BLAKE3 fingerprint of Cargo.lock), the C compiler that assembles the
-     * contenders' C and assembly (ring's, the fork's, through the cc crate:
+     * contenders' C and assembly (ring's, BLAKE3-Servil's, through the cc crate:
      * $CC or cc), and RUSTFLAGS.
      */
     emit_env(
@@ -160,12 +160,12 @@ fn git_text_allow_failure(repository: &Path, arguments: &[&str]) -> Option<Strin
     )
 }
 
-/// The environment variable naming the local checkout of the fork when a
+/// The environment variable naming the local checkout of BLAKE3-Servil when a
 /// `--config` patch replaces the git dependency: `bench-hashes
 /// build-against DIR` sets it to DIR, wherever the two checkouts sit.
 const SERVIL_CHECKOUT: &str = "BENCH_HASHES_FORK";
 
-/// The fork's repository, as Cargo.toml names it (its one place: a bench
+/// BLAKE3-Servil's repository, as Cargo.toml names it (its one place: a bench
 /// pinned to another fork changes that line alone) and Cargo.lock records it.
 fn servil_git() -> String {
     let manifest = std::fs::read_to_string(
@@ -245,7 +245,7 @@ fn watch_repository(repository: &Path) {
 }
 
 /// Reads the git state of `repository`, leaving out the path `skip` (the
-/// results directory, or this repository nested inside the fork's
+/// results directory, or this repository nested inside BLAKE3-Servil's
 /// checkout, where it is an untracked directory). A dirty tree is fingerprinted by hashing its status, its
 /// diff against HEAD, and every untracked file, with BLAKE3, the hash written as a sigil
 /// (`dirty-` and 25 letters: johnservil/sigil 0.1).
@@ -365,20 +365,17 @@ fn git_state(repository: &Path, skip: &[&str]) -> GitState {
     }
 }
 
-/// The packages whose provenance has a line of its own (BLAKE3_SERVIL_ and
-/// CLOCKS_SOURCE_INFO), naming a local checkout and its state when a
-/// `--config` patch replaces their git source.
-const RECORDED_ELSEWHERE: [&str; 2] = ["blake3-servil", "clocks"];
+/// The packages whose provenance has a line of its own
+/// (BLAKE3_SERVIL_SOURCE_INFO), naming a local checkout and its state when
+/// a `--config` patch replaces their git source.
+const RECORDED_ELSEWHERE: [&str; 1] = ["blake3-servil"];
 
 /*
- * A `--config` patch that points blake3-servil or clocks at a local
- * checkout makes Cargo drop that package's `source` line from Cargo.lock.
- * Their provenance lines then name the checkout and its state, so a tree
- * whose only change is that line, in those packages' blocks alone, counts
- * as clean. Any other change to the lock is dirty: the comparison is by
- * package, since both come from the fork's repository (matching that
- * URL's lines once let a patched clocks pass as clean, with no record of
- * what timed the run).
+ * A `--config` patch that points blake3-servil at a local checkout makes
+ * Cargo drop that package's `source` line from Cargo.lock. Its provenance
+ * line then names the checkout and its state, so a tree whose only change
+ * is that line, in that package's block alone, counts as clean. Any other
+ * change to the lock is dirty: the comparison is by package.
  */
 fn only_recorded_patches(repository: &Path, status: &[u8]) -> bool {
     if status != b" M Cargo.lock\0" {
@@ -420,58 +417,21 @@ fn without_source(block: &str) -> String {
 }
 
 /*
- * clocks, the instrument: every timing in a run is its. Pinned, Cargo.lock
- * names its repository and commit. A `--config` patch replaces it with a
- * local checkout and drops that line; the checkout must then be named in
- * BENCH_CLOCKS_CHECKOUT (the clocks crate's directory), whose git state
- * (origin, branch, commit, and a clean flag or a hash of the uncommitted
- * changes under that directory) becomes the record. Without one the build
- * stops: a run must not say what timed it only as a lock fingerprint.
+ * clocks, the instrument: every timing in a run is its. It is this
+ * repository's own crate (clocks/), so the bench's commit and clean status,
+ * recorded beside it, name the one clocks that timed the run.
  */
 fn emit_clocks_package(lock: &str) {
-    println!("cargo:rerun-if-env-changed=BENCH_CLOCKS_CHECKOUT");
     let block = package_block(lock, "clocks").expect("clocks must be present in Cargo.lock");
     let version = quoted_field(block, "version").expect("Cargo.lock package must have a version");
-    let description = match quoted_field(block, "source") {
-        Some(source) => {
-            let (url, commit) = source
-                .strip_prefix("git+")
-                .and_then(|rest| rest.split_once("?rev="))
-                .and_then(|(url, rev)| Some((url, rev.split_once('#')?.1)))
-                .unwrap_or_else(|| panic!("clocks must come by git at a rev, or a local patch; Cargo.lock says {source}"));
-            format!("clocks {version}; source {url}; commit {commit}; clean")
-        }
-        None => {
-            let checkout = env::var_os("BENCH_CLOCKS_CHECKOUT").map(PathBuf::from).unwrap_or_else(|| {
-                panic!(
-                    "clocks is patched to a local path (Cargo.lock names no source): set BENCH_CLOCKS_CHECKOUT to that clocks \
-                     directory, so the run records the checkout that times it"
-                )
-            });
-            let manifest =
-                fs::read_to_string(checkout.join("Cargo.toml")).unwrap_or_else(|error| {
-                    panic!("BENCH_CLOCKS_CHECKOUT {}: {error}", checkout.display())
-                });
-            assert!(
-                manifest
-                    .lines()
-                    .any(|line| line.trim() == "name = \"clocks\""),
-                "BENCH_CLOCKS_CHECKOUT {} is not the clocks crate",
-                checkout.display()
-            );
-            watch_repository(&checkout);
-            let state = git_state(&checkout, &[]);
-            format!(
-                "clocks {version} (local checkout {}); source {}; branch {}; commit {}; {}",
-                checkout.display(),
-                state.source,
-                state.branch,
-                state.commit,
-                state.clean_status
-            )
-        }
-    };
-    emit_env("CLOCKS_SOURCE_INFO", &description);
+    assert!(
+        quoted_field(block, "source").is_none(),
+        "clocks comes from this repository's clocks/, never from elsewhere"
+    );
+    emit_env(
+        "CLOCKS_SOURCE_INFO",
+        &format!("clocks {version}; this repository's clocks/, at its commit"),
+    );
 }
 
 fn emit_git_metadata(repository: &Path) {
@@ -517,14 +477,30 @@ fn git_output(repository: &Path, arguments: &[&str]) -> Output {
 }
 
 /*
- * blake3-servil comes from the fork's repository at the commit Cargo.lock
+ * blake3-servil comes from BLAKE3-Servil's repository at the commit Cargo.lock
  * pins, with a line such as
- *   source = "git+https://github.com/johnservil/BLAKE3?rev=COMMIT#COMMIT"
+ *   source = "git+https://github.com/servil-software-factory/BLAKE3?rev=COMMIT#COMMIT"
  * A `--config` patch replaces it with the enclosing checkout at `..`, and
  * Cargo.lock then records no source; the checkout's own git state
  * identifies the code: origin URL, branch, exact commit, and a clean flag
  * or a hash of the uncommitted changes. Both emit the same fields.
  */
+/// BLAKE3-Servil's build version for a library from before BLAKE3 #328,
+/// which has none of its own: its version, its commit, and `.dirty` for a
+/// dirty tree, never a release's version alone, which named the release's
+/// code through the commits after it (bench-hashes #154). From #328 on, the
+/// lock holds blake3-servil-version and the bench reads the library's own
+/// (`cfg(servil_build_version)`: `blake3_servil::BUILD_VERSION`, the
+/// release's version on a release commit, else the version, the commit and
+/// a dirty tree's Git tree id).
+fn servil_build_version(lock: &str, version: &str, commit: &str, clean: bool) -> String {
+    println!("cargo:rustc-check-cfg=cfg(servil_build_version)");
+    if package_block(lock, "blake3-servil-version").is_some() {
+        println!("cargo:rustc-cfg=servil_build_version");
+    }
+    format!("{version}.{commit}{}", if clean { "" } else { ".dirty" })
+}
+
 fn emit_servil_package(lock: &str) {
     let block =
         package_block(lock, "blake3-servil").expect("blake3-servil must be present in Cargo.lock");
@@ -538,8 +514,12 @@ fn emit_servil_package(lock: &str) {
             let (_rev, commit) = pinned
                 .split_once('#')
                 .expect("a git source in Cargo.lock names its commit after '#'");
+            emit_env(
+                "BLAKE3_SERVIL_VERSION_BEFORE_328",
+                &servil_build_version(lock, &version, commit, true),
+            );
             format!(
-                "blake3-servil {version}; source {}; commit {commit}; clean",
+                "blake3-servil; source {}; commit {commit}; clean",
                 servil_git()
             )
         }
@@ -550,14 +530,18 @@ fn emit_servil_package(lock: &str) {
             }));
             assert!(
                 repository.join("Cargo.toml").is_file(),
-                "{SERVIL_CHECKOUT} names {}, which holds no checkout of the fork",
+                "{SERVIL_CHECKOUT} names {}, which holds no checkout of BLAKE3-Servil",
                 repository.display()
             );
             watch_repository(&repository);
             /* The whole fork's state: nothing of the bench lives in it. */
             let state = git_state(&repository, &[]);
+            emit_env(
+                "BLAKE3_SERVIL_VERSION_BEFORE_328",
+                &servil_build_version(lock, &version, &state.commit, state.clean_status == "clean"),
+            );
             format!(
-                "blake3-servil {version} (local checkout); source {}; branch {}; commit {}; {}",
+                "blake3-servil (local checkout); source {}; branch {}; commit {}; {}",
                 state.source, state.branch, state.commit, state.clean_status
             )
         }

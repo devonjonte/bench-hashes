@@ -19,91 +19,133 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
         UseCase::OneMessage => (
             "one",
             "busy",
-            "performance::hash_multithreaded",
+            "throughput::hash_multithreaded",
             "performance/fn.hash_multithreaded.html",
         ),
         UseCase::IdleOneMessage => (
             "one",
             "idle",
-            "performance::hash_multithreaded",
+            "throughput::hash_multithreaded",
             "performance/fn.hash_multithreaded.html",
+        ),
+        UseCase::BriefIdleOneMessage => (
+            "one",
+            "brief",
+            "throughput::hash_multithreaded",
+            "performance/fn.hash_multithreaded.html",
+        ),
+        UseCase::ControlledIdleOneMessage => (
+            "one",
+            "controlled",
+            "throughput::hash_multithreaded",
+            "performance/fn.hash_multithreaded.html",
+        ),
+        UseCase::ReceivingMessage => (
+            "one",
+            "receiving",
+            "throughput::Hasher::update_multithreaded",
+            "throughput/struct.Hasher.html#method.update_multithreaded",
         ),
         UseCase::LentMessages => (
             "one",
             "lent",
-            "performance::hash_multithreaded",
+            "throughput::hash_multithreaded",
             "performance/fn.hash_multithreaded.html",
         ),
         UseCase::ContinuousMessages => (
             "one",
             "piped",
-            "performance::Stream::submit_with",
+            "throughput::Stream::submit_with",
             "performance/struct.Stream.html#method.submit_with",
         ),
         UseCase::ManyMessages => (
             "batch",
             "busy",
-            "performance::hash_many_multithreaded",
+            "throughput::hash_many_multithreaded",
             "performance/fn.hash_many_multithreaded.html",
         ),
         UseCase::ManyLongMessages => (
             "long",
             "busy",
-            "performance::hash_many_multithreaded",
+            "throughput::hash_many_multithreaded",
             "performance/fn.hash_many_multithreaded.html",
         ),
         UseCase::IdleManyMessages => (
             "batch",
             "idle",
-            "performance::hash_many_multithreaded",
+            "throughput::hash_many_multithreaded",
+            "performance/fn.hash_many_multithreaded.html",
+        ),
+        UseCase::BriefIdleManyMessages => (
+            "batch",
+            "brief",
+            "throughput::hash_many_multithreaded",
+            "performance/fn.hash_many_multithreaded.html",
+        ),
+        UseCase::ControlledIdleManyMessages => (
+            "batch",
+            "controlled",
+            "throughput::hash_many_multithreaded",
             "performance/fn.hash_many_multithreaded.html",
         ),
         UseCase::LentBatches => (
             "batch",
             "lent",
-            "performance::hash_many_multithreaded",
+            "throughput::hash_many_multithreaded",
             "performance/fn.hash_many_multithreaded.html",
         ),
         UseCase::ContinuousBatches => (
             "batch",
             "piped",
-            "performance::Stream::submit_batch_with",
+            "throughput::Stream::submit_batch_with",
             "performance/struct.Stream.html#method.submit_batch_with",
         ),
         UseCase::Interleaved => (
             "many",
             "lent",
-            "performance::update_each_multithreaded",
+            "throughput::update_each_multithreaded",
             "performance/fn.update_each_multithreaded.html",
         ),
         UseCase::InterleavedTurn => (
             "many",
             "busy",
-            "performance::update_each_multithreaded",
+            "throughput::update_each_multithreaded",
             "performance/fn.update_each_multithreaded.html",
         ),
         UseCase::IdleInterleavedTurn => (
             "many",
             "idle",
-            "performance::update_each_multithreaded",
+            "throughput::update_each_multithreaded",
+            "performance/fn.update_each_multithreaded.html",
+        ),
+        UseCase::BriefIdleInterleavedTurn => (
+            "many",
+            "brief",
+            "throughput::update_each_multithreaded",
+            "performance/fn.update_each_multithreaded.html",
+        ),
+        UseCase::ControlledIdleInterleavedTurn => (
+            "many",
+            "controlled",
+            "throughput::update_each_multithreaded",
             "performance/fn.update_each_multithreaded.html",
         ),
         UseCase::Collection => (
             "coll",
             "lent",
-            "performance::hash_each_multithreaded",
+            "throughput::hash_each_multithreaded",
             "performance/fn.hash_each_multithreaded.html",
         ),
         UseCase::ContinuousCollection => (
             "coll",
             "piped",
-            "performance::Stream::submit_with",
+            "throughput::Stream::submit_with",
             "performance/struct.Stream.html#method.submit_with",
         ),
         UseCase::MerkleTree => (
             "merkle",
             "lent",
-            "performance::hash_many_multithreaded",
+            "throughput::hash_many_multithreaded",
             "performance/fn.hash_many_multithreaded.html",
         ),
     }
@@ -116,16 +158,19 @@ pub fn cell_key(scenario: &str, use_case: UseCase) -> String {
     format!("{scenario}|{row}|{col}")
 }
 
-const DOCS: &str = "https://johnservil.github.io/BLAKE3/blake3_servil/";
+const DOCS: &str = "https://servil-software-factory.github.io/BLAKE3/blake3_servil/";
 
 /// What a chart's points are, with their unit: the opened chart's x axis
 /// and the tooltip's heading.
 fn axis(use_case: UseCase) -> &'static str {
     match use_case {
-        UseCase::Interleaved | UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => {
-            "messages open at once"
-        }
+        UseCase::Interleaved
+        | UseCase::InterleavedTurn
+        | UseCase::IdleInterleavedTurn
+        | UseCase::BriefIdleInterleavedTurn
+        | UseCase::ControlledIdleInterleavedTurn => "messages open at once",
         UseCase::MerkleTree => "leaves (256 B each)",
+        UseCase::ReceivingMessage => "arrival spacing",
         UseCase::Collection | UseCase::ContinuousCollection => "collection",
         UseCase::ManyLongMessages => "messages in the batch (4 KiB each)",
         _ if use_case.batch() => "messages in the batch (64 B each)",
@@ -138,7 +183,10 @@ fn what(use_case: UseCase) -> &'static str {
     match use_case {
         UseCase::Collection | UseCase::ContinuousCollection => "the collection",
         UseCase::Interleaved => "a megabyte of pieces",
-        UseCase::InterleavedTurn | UseCase::IdleInterleavedTurn => "a turn",
+        UseCase::InterleavedTurn
+        | UseCase::IdleInterleavedTurn
+        | UseCase::BriefIdleInterleavedTurn
+        | UseCase::ControlledIdleInterleavedTurn => "a turn",
         UseCase::MerkleTree => "a tree",
         _ if use_case.batch() => "a batch",
         _ => "a message",
@@ -172,14 +220,20 @@ fn cpus_of(column: &[(String, Vec<u32>)], key: &str) -> Option<String> {
     Some(c.iter().map(u32::to_string).collect::<Vec<_>>().join(","))
 }
 
-fn where_ran(column: &[(String, Vec<[u64; 4]>)], key: &str) -> Option<[f64; 3]> {
+fn where_ran(
+    column: &[(String, Vec<[u64; super::LEVEL_FIELDS * 2]>)],
+    key: &str,
+) -> Option<[f64; 3]> {
     let (_, v) = column.iter().find(|(k, _)| k == key)?;
+    // Time and cycles per kind; instructions and the cache counts are the
+    // samples' to keep, not this chart's to show.
+    const E: usize = super::LEVEL_FIELDS;
     let [pt, pc, et, ec] = v.iter().fold([0u128; 4], |a, c| {
         [
             a[0] + u128::from(c[0]),
             a[1] + u128::from(c[1]),
-            a[2] + u128::from(c[2]),
-            a[3] + u128::from(c[3]),
+            a[2] + u128::from(c[E]),
+            a[3] + u128::from(c[E + 1]),
         ]
     });
     let ghz = |cycles: u128, ns: u128| {
@@ -301,7 +355,7 @@ struct Section {
     /// Each contender's pattern: a library's multi-threaded form is drawn
     /// in its single-threaded form's colour, as a double line.
     striped: Vec<bool>,
-    /// Which contenders are BLAKE3 servil's: a bracket joins servil's line
+    /// Which contenders are BLAKE3-Servil's: a bracket joins servil's line
     /// and its strongest rival's.
     ours: Vec<bool>,
     shown: Vec<bool>,
@@ -462,6 +516,16 @@ fn details(
         String::new(),
     );
     add(
+        "Effective idle states",
+        header(headers, "effective idle states").to_owned(),
+        String::new(),
+    );
+    add(
+        "Idle control",
+        header(headers, "idle control").to_owned(),
+        String::new(),
+    );
+    add(
         "Shared placements",
         header(headers, "shared placements").to_owned(),
         String::new(),
@@ -503,7 +567,7 @@ fn details(
         // Its source as the run recorded it (version, commit, clean status),
         // linked to the commit where the repository is known.
         add(
-            "BLAKE3 servil",
+            "BLAKE3-Servil",
             servil.to_owned(),
             repo.map_or(String::new(), |repo| format!("https://{repo}/tree/{fork}")),
         );
@@ -558,6 +622,8 @@ fn details(
         "files",
         "idle states",
         "shared placements",
+        "effective idle states",
+        "idle control",
         "contender",
     ];
     for (k, v) in headers.iter().filter(|(k, _)| {
@@ -676,8 +742,11 @@ fn hashing(path: &Path) -> Section {
                         UseCase::Interleaved
                             | UseCase::InterleavedTurn
                             | UseCase::IdleInterleavedTurn
+                            | UseCase::BriefIdleInterleavedTurn
+                            | UseCase::ControlledIdleInterleavedTurn
                             | UseCase::Collection
                             | UseCase::ContinuousCollection
+                            | UseCase::ReceivingMessage
                     ),
                     per: measured.iter().map(|p| p.bytes as u64).collect(),
                     what: what(use_case),
@@ -695,7 +764,7 @@ fn hashing(path: &Path) -> Section {
     Section {
         title: "How fast each hash runs, by what a program hashes and how it calls",
         rows: vec![
-            ("one", "one message", "One message in memory, of the length along the chart's axis."),
+            ("one", "one message", "One logical message."),
             ("batch", "a batch of short messages", "Many 64-byte messages hashed together, such as a Merkle tree's nodes; the axis counts the messages."),
             ("long", "a batch of longer messages", "Many 4 KiB messages hashed together, such as a store's blocks or a backup's chunks; the axis counts the messages."),
             ("merkle", "a Merkle tree", "A Merkle tree over 256-byte leaves the program has just written into place, leaves and parents hashed apart, every layer kept, as a zero-knowledge prover commits to its Reed-Solomon codeword (WHIR); the axis counts the leaves."),
@@ -703,10 +772,13 @@ fn hashing(path: &Path) -> Section {
             ("coll", "a collection of messages", "A collection of messages of every size, such as a repository's objects or a store's files, hashed together."),
         ],
         cols: vec![
+            ("receiving", "receive + hash, including waits", "A message arrives in fragments on a fixed schedule, independent of the hash calls. A saturated source supplies the next fragment immediately. The time includes receiving, waiting, hashing and finalization; its rate is end-to-end reception, not hashing alone."),
             ("busy", "now and then, after other work", "The program hashes now and then and does other work in between, which pushes the hash's code and data out of the CPU's caches."),
-            ("idle", "now and then, after a pause", "The program hashes now and then and waits in between (for the network, say), so the core rests and starts the next hash slowly."),
+            ("brief", "now and then, after a brief pause", "The program hashes now and then and waits 20 μs in between (a reply arrives at once), so the core keeps its clock and its shallowest rest."),
+            ("idle", "now and then, after a pause", "The program hashes now and then and waits 5 ms in between (for the network, say), so the core rests deeply and starts the next hash slowly."),
+            ("controlled", "now and then, after a pause, deep rest off", "The same 5 ms pause with the core's deep idle states switched off (the bench ran as root), so the call meets the core awake: the library's own cost, apart from the machine's rest."),
             ("lent", "nonstop, waiting for each call", "The program hashes input after input as fast as it can, reading each input once the hash before it has returned."),
-            ("piped", "nonstop, pipelined", "The program hashes input after input as fast as it can, and reads the next inputs while earlier ones hash: it hands its inputs to BLAKE3 servil's stream, which hashes them on other threads. The other hashes have no such call and hash on the program's thread."),
+            ("piped", "nonstop, pipelined", "The program hashes input after input as fast as it can, and reads the next inputs while earlier ones hash: it hands its inputs to BLAKE3-Servil's stream, which hashes them on other threads. The other hashes have no such call and hash on the program's thread."),
         ],
         // A layer the run did not measure (two caches on a one-cache
         // machine) has no cells, and the page leaves it out.
@@ -882,7 +954,7 @@ fn b3sum(path: &Path) -> Section {
 }
 
 /// Draw `directory`'s map from the samples files in it; true if it held any.
-/// BLAKE3 servil's source as the run recorded it (either servil contender's
+/// BLAKE3-Servil's source as the run recorded it (either servil contender's
 /// line: one crate), or "" where the run measured neither.
 fn servil_source(headers: &[(String, String)]) -> &str {
     headers
@@ -891,20 +963,32 @@ fn servil_source(headers: &[(String, String)]) -> &str {
         .map_or("", |(_, v)| v.as_str())
 }
 
-/// A run's name: its bench-hashes release and BLAKE3 servil's commit.
+/// BLAKE3-Servil as a run names it to a reader: its `blake3-servil version`
+/// line (from bench-hashes 0.21: the release, or "+dev" for newer, then
+/// what names the code), or for an older record, whose version could name
+/// a release's code through later commits, its commit's first seven
+/// digits; "" where the run measured neither servil contender.
+pub(crate) fn servil_version(headers: &[(String, String)]) -> String {
+    if let Some((_, version)) = headers.iter().find(|(k, _)| k == "blake3-servil version") {
+        return version.clone();
+    }
+    servil_source(headers)
+        .split("commit ")
+        .nth(1)
+        .map_or(String::new(), |c| c[..c.len().min(7)].to_owned())
+}
+
+/// A run's name: its bench-hashes release and BLAKE3-Servil's build version.
 fn run_name(headers: &[(String, String)]) -> String {
     let version = header(headers, "bench-hashes version")
         .split('+')
         .next()
         .unwrap_or("");
-    let fork = servil_source(headers)
-        .split("commit ")
-        .nth(1)
-        .map_or("", |c| &c[..c.len().min(7)]);
-    if fork.is_empty() {
+    let servil = servil_version(headers);
+    if servil.is_empty() {
         format!("bench-hashes {version}")
     } else {
-        format!("bench-hashes {version}, BLAKE3 servil {fork}")
+        format!("bench-hashes {version}, BLAKE3-Servil {servil}")
     }
 }
 
@@ -1030,19 +1114,47 @@ pub fn command(args: &[String]) {
 
 #[cfg(test)]
 mod tests {
-    /// The door's BLAKE3 servil row: linked to its commit where the source
+    /// A run names BLAKE3-Servil to a reader by its version line where the
+    /// record has one, and an older record, whose version could name a
+    /// release's code through later commits, by its commit.
+    #[test]
+    fn a_run_names_blake3_servil_by_its_version_line_else_its_commit() {
+        let c = "9c25ed9ef6b3cb12c2ca8c77955663feeb2f09fa";
+        let source = (
+            "source blake3-servil-st".to_owned(),
+            format!("blake3-servil 0.8.0+b3c5; source https://x/BLAKE3; commit {c}; clean"),
+        );
+        let version = ("blake3-servil version".to_owned(), format!("0.8.0+dev.{c}"));
+        let bench = ("bench-hashes version".to_owned(), "0.21.0+abc".to_owned());
+        assert_eq!(
+            super::servil_version(&[source.clone(), version.clone()]),
+            format!("0.8.0+dev.{c}")
+        );
+        assert_eq!(
+            super::run_name(&[bench.clone(), source.clone(), version]),
+            format!("bench-hashes 0.21.0, BLAKE3-Servil 0.8.0+dev.{c}")
+        );
+        assert_eq!(
+            super::servil_version(&[source.clone()]),
+            "9c25ed9",
+            "an older record: its commit"
+        );
+        assert_eq!(super::run_name(&[bench]), "bench-hashes 0.21.0");
+    }
+
+    /// The door's BLAKE3-Servil row: linked to its commit where the source
     /// names a repository, and unlinked, not a panic, where the checkout's
     /// origin is a local path.
     #[test]
     fn the_servil_row_links_its_commit_where_the_repository_is_known() {
         let c = "9c25ed9ef6b3cb12c2ca8c77955663feeb2f09fa";
         let row = |source: &str| {
-            let line = format!("blake3-servil 0.8.0+09d3bbc6 (local checkout); source {source}; branch HEAD; commit {c}; clean; multithreaded");
+            let line = format!("blake3-servil (local checkout); source {source}; branch HEAD; commit {c}; clean; multithreaded");
             let headers = vec![("source blake3-servil-mt".to_owned(), line)];
             super::details(&headers, "", "", "bench-hashes.samples.tsv")
                 .into_iter()
-                .find(|(label, _, _)| label == "BLAKE3 servil")
-                .expect("a BLAKE3 servil row")
+                .find(|(label, _, _)| label == "BLAKE3-Servil")
+                .expect("a BLAKE3-Servil row")
         };
         let (_, text, link) = row("https://github.com/johnservil/BLAKE3");
         assert_eq!(

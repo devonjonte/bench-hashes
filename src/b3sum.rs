@@ -33,7 +33,7 @@ struct Input {
 }
 
 /// The inputs: single files from a page to a gigabyte (b3sum maps files of
-/// 16 KiB and more; the fork's pool takes 1 MiB and more); a tree of small
+/// 16 KiB and more; BLAKE3-Servil's pool takes 1 MiB and more); a tree of small
 /// files of one size, as `b3sum $(find src -type f)` hashes one; and a
 /// tree of mixed sizes, a source checkout's range, one file after another
 /// in a single run as `find . -type f -print0 | xargs -0 b3sum` runs it;
@@ -180,9 +180,9 @@ fn size_label(len: u64) -> String {
 /// alike on every machine and incompressible (a filesystem or a drive that
 /// compresses would read zeros from storage almost for free).
 fn contents(name: &str) -> blake3_servil::OutputReader {
-    blake3_servil::performance::Hasher::new(blake3_servil::Mode::Plain)
-        .update(name.as_bytes())
-        .finalize_xof()
+    let mut hasher = blake3_servil::convenience::Hasher::new(blake3_servil::Mode::Plain, None);
+    hasher.update(name.as_bytes());
+    hasher.finalize_xof()
 }
 
 /// Make `dir/name` hold `len` bytes of its contents, unless it holds them: a
@@ -284,7 +284,7 @@ mod imp {
     pub const EVICTS: bool = true;
 
     /// Evict `file`'s pages, and check that none stays: a program that
-    /// leaves its mappings for exit to reclaim (b3sum since johnservil/BLAKE3
+    /// leaves its mappings for exit to reclaim (b3sum since servil-software-factory/BLAKE3
     /// #56) leaves pages DONTNEED cannot drop for 20-50 ms after it exits
     /// (i7-12700K: every first try failed, a try 20-50 ms later took them),
     /// so the advice is given again, 5 ms apart, until the page cache holds
@@ -618,7 +618,7 @@ pub fn command(args: &[String]) {
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());
             let run = clocks::child::run(&mut command);
-            if !run.success {
+            if !run.success() {
                 // Show what it said, then stop: a failing contender measures nothing.
                 let _ = Command::new(&c.build(round).program)
                     .args(&c.args)
@@ -827,12 +827,12 @@ fn rate(bytes: u64, ns: u128) -> String {
     three(u128::from(bytes), ns.max(1))
 }
 
-/// A whole run's duration for people: "812 us", "1.23 ms", "2.05 s" (three
+/// A whole run's duration for people: "812 μs", "1.23 ms", "2.05 s" (three
 /// significant digits, rounded half up once). Times per unit are format_ns.
 pub(crate) fn time(ns: u128) -> String {
     match ns {
         n if n < 1_000 => format!("{n} ns"),
-        n if n < 1_000_000 => format!("{} us", three(n, 1_000)),
+        n if n < 1_000_000 => format!("{} μs", three(n, 1_000)),
         n if n < 1_000_000_000 => format!("{} ms", three(n, 1_000_000)),
         n => format!("{} s", three(n, 1_000_000_000)),
     }
@@ -1085,7 +1085,7 @@ mod tests {
     fn people_read_three_digits() {
         assert_eq!(time(812), "812 ns");
         assert_eq!(time(1_234_567), "1.23 ms");
-        assert_eq!(time(45_600), "45.6 us");
+        assert_eq!(time(45_600), "45.6 μs");
         assert_eq!(time(2_050_000_000), "2.05 s");
         assert_eq!(rate(GIB, 100_000_000), "10.7");
     }

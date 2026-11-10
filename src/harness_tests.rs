@@ -4,6 +4,41 @@
 //! official crate's batch wrapper.
 use super::*;
 
+/// A kept buffer's bytes before its first 64-byte boundary are written
+/// once and kept: a message written into it again rewrites nothing there,
+/// so the work of each message is the same whatever the buffer's address
+/// (bench-hashes #144: rewriting them made the instruction count of one
+/// code at 64 B move 4% with the heap's offset).
+#[test]
+fn a_kept_buffers_lead_bytes_are_written_once() {
+    // A buffer whose address is off a 64-byte boundary (a few tries: the
+    // allocator places each at its own address).
+    let mut tries: Vec<Vec<u8>> = Vec::new();
+    let mut buffer = loop {
+        let b: Vec<u8> = Vec::with_capacity(64 + BLOCK_SPARE + tries.len());
+        if b.as_ptr().align_offset(BLOCK_LEN) != 0 {
+            break b;
+        }
+        tries.push(b);
+        assert!(
+            tries.len() < 64,
+            "the allocator gave 64 buffers on 64-byte boundaries"
+        );
+    };
+    let message = make_input(64);
+    let at = block_message(&mut buffer, &message);
+    assert!(at > 0 && (buffer.as_ptr() as usize + at) % BLOCK_LEN == 0);
+    // Mark the lead bytes, then write the message again: the marks stay.
+    buffer[..at].fill(0xa5);
+    let again = block_message(&mut buffer, &message);
+    assert_eq!(again, at, "the same buffer, the same offset");
+    assert!(
+        buffer[..at].iter().all(|&b| b == 0xa5),
+        "the lead bytes are not written again"
+    );
+    assert_eq!(&buffer[at..at + 64], &message[..], "the message in place");
+}
+
 #[test]
 fn batch_digest_storage_survives_a_smaller_cell_without_zeroing() {
     let mut large = take_batch_digests(8192);
@@ -125,12 +160,13 @@ fn use_digest_stores_each_digest_in_its_slot() {
 /// The provenance every samples file's header carries, in order (the main
 /// run's, b3sum's and leaves' all write theirs with samples_header): the
 /// keys before the run's own.
-pub(crate) const PROVENANCE: [&str; 19] = [
+pub(crate) const PROVENANCE: [&str; 23] = [
     "timestamp",
     "bench-hashes version",
     "bench-hashes source",
     "git commit",
     "git clean status",
+    "blake3-servil version",
     "dependency lock",
     "rust compiler",
     "c compiler",
@@ -144,7 +180,10 @@ pub(crate) const PROVENANCE: [&str; 19] = [
     "os type",
     "cpu identity",
     "idle states",
+    "effective idle states",
+    "idle control",
     "shared placements",
+    "counts read overhead",
 ];
 
 /// A samples file's header keys, in order.
@@ -194,7 +233,7 @@ fn every_samples_file_names_what_measured_and_where() {
 
 /// A pipelined collection hashes every item, in order, each to its own
 /// digest: for every contender taking part, the digests it hands on match
-/// each item hashed alone (BLAKE3 servil's stream included).
+/// each item hashed alone (BLAKE3-Servil's stream included).
 #[test]
 fn a_pipelined_collection_hashes_every_item() {
     blake3_servil::initialize_multithreaded(None);
@@ -255,48 +294,51 @@ fn a_merkle_tree_has_the_root_of_its_layers_hashed_node_by_node() {
     }
     /* RFC 6962's prefix, then the message, in one buffer. */
     let with = |node: Node, m: &[u8]| [&[node.prefix()][..], m].concat();
-    let point = POINTS[UseCase::MerkleTree.points()][0];
-    let input = make_input(point.bytes);
-    let blake3_root = root(&input, MERKLE.leaf_len, |node, m| {
-        blake3::keyed_hash(node.key(), m).as_bytes().to_vec()
-    });
-    let sha256_root = root(&input, MERKLE.leaf_len, |node, m| {
-        Sha256::digest(with(node, m)).to_vec()
-    });
-    let sha1_root = root(&input, MERKLE.leaf_len, |node, m| {
-        sha1_checked::Sha1::try_digest(with(node, m))
-            .hash()
-            .to_vec()
-    });
-    let sha3_root = root(&input, MERKLE.leaf_len, |node, m| {
-        sha3::Sha3_256::digest(with(node, m)).to_vec()
-    });
-    for algorithm in Algorithm::ALL
-        .into_iter()
-        .filter(|a| a.availability().is_ok() && a.takes_part(UseCase::MerkleTree))
-    {
-        let want = match algorithm {
-            Algorithm::Blake3 | Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt => {
-                &blake3_root
-            }
-            Algorithm::Sha256 | Algorithm::Sha256Ring | Algorithm::Sha256CommonCrypto => {
-                &sha256_root
-            }
-            Algorithm::Sha1Dc => &sha1_root,
-            Algorithm::Sha3_256 => &sha3_root,
-            Algorithm::Blake3Rayon => {
-                unreachable!("{} takes no part in a Merkle tree", algorithm.key())
-            }
-        };
-        let mut roots: Vec<Vec<u8>> = Vec::new();
-        hash_batch(algorithm, &input, point, 2, |r| roots.push(r.to_vec()));
-        assert_eq!(
-            roots,
-            vec![want.clone(), want.clone()],
-            "{}: the root of {} leaves, each tree",
-            algorithm.key(),
-            point.messages
-        );
+    /* The 256-byte-leaf tree, and the packed-leaf trees (32 and 16 bytes). */
+    for point in [0, 5, 7].map(|i| POINTS[UseCase::MerkleTree.points()][i]) {
+        let leaf_len = point.bytes / point.messages;
+        let input = make_input(point.bytes);
+        let blake3_root = root(&input, leaf_len, |node, m| {
+            blake3::keyed_hash(node.key(), m).as_bytes().to_vec()
+        });
+        let sha256_root = root(&input, leaf_len, |node, m| {
+            Sha256::digest(with(node, m)).to_vec()
+        });
+        let sha1_root = root(&input, leaf_len, |node, m| {
+            sha1_checked::Sha1::try_digest(with(node, m))
+                .hash()
+                .to_vec()
+        });
+        let sha3_root = root(&input, leaf_len, |node, m| {
+            sha3::Sha3_256::digest(with(node, m)).to_vec()
+        });
+        for algorithm in Algorithm::ALL
+            .into_iter()
+            .filter(|a| a.availability().is_ok() && a.takes_part(UseCase::MerkleTree))
+        {
+            let want = match algorithm {
+                Algorithm::Blake3 | Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt => {
+                    &blake3_root
+                }
+                Algorithm::Sha256 | Algorithm::Sha256Ring | Algorithm::Sha256CommonCrypto => {
+                    &sha256_root
+                }
+                Algorithm::Sha1Dc => &sha1_root,
+                Algorithm::Sha3_256 => &sha3_root,
+                Algorithm::Blake3Rayon | Algorithm::Blake3ServilPipeline => {
+                    unreachable!("{} takes no part in a Merkle tree", algorithm.key())
+                }
+            };
+            let mut roots: Vec<Vec<u8>> = Vec::new();
+            hash_batch(algorithm, &input, point, 2, |r| roots.push(r.to_vec()));
+            assert_eq!(
+                roots,
+                vec![want.clone(), want.clone()],
+                "{}: the root of {} leaves of {leaf_len} B, each tree",
+                algorithm.key(),
+                point.messages
+            );
+        }
     }
 }
 
@@ -346,7 +388,7 @@ fn visits_follow_what_the_run_is_for() {
 /// Every cell whose inputs come in blocks (UseCase::in_blocks) hashes each
 /// message's own bytes: the three BLAKE3 contenders' digests equal
 /// official BLAKE3's of the message alone, whether a contender gets the
-/// message cut from its blocks or, as servil's performance calls, the
+/// message cut from its blocks or, as servil's throughput calls, the
 /// blocks and the length. The benchmark checks no digest in a run, so this
 /// holds the layouts' lengths (lengths off a block, and a collection's
 /// items each in their own blocks).
@@ -396,25 +438,52 @@ fn every_message_in_blocks_hashes_its_own_bytes() {
     }
 }
 
-/// The Python studies' one reader of samples files (tools/samples.py)
-/// reads exactly the format this program writes: its version line and
-/// its column row.
+/// A stopped side's report names the side, its build and how it ended,
+/// and quotes its last words without the progress display: the panic of
+/// BLAKE3 #302's race, as the old side of #331's gate wrote it.
 #[test]
-fn the_python_reader_reads_this_format() {
-    let reader =
-        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tools/samples.py")).unwrap();
-    assert!(
-        reader.contains(&format!("VERSION = {SAMPLES_VERSION:?}")),
-        "tools/samples.py reads {SAMPLES_VERSION}"
+fn a_stopped_sides_report_quotes_its_last_words_without_the_progress() {
+    let stderr = "[  0.0s] calibrating…\n\
+        [  1.3s] measuring ██████████████░░░░░░░░░░░░░░░░  11/24 rounds ·   2s left · BLAKE3-Servil mt 3.931 ns/B at 16384\n\
+        \n\
+        thread 'blake3-worker-1' (1028496) panicked at src/stream/receiver.rs:504:29:\n\
+        one task takes the published batch job\n\
+        note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n";
+    assert_eq!(
+        stopped_report(
+            "old",
+            "target/check/old/bench-hashes-10",
+            Some("bench 0bb31ed5186e clean; servil c7936a5f4a8f clean"),
+            "signal 6 (SIGABRT)",
+            stderr,
+            "kept/run-070-old.stderr.txt",
+        ),
+        "regress: the old side STOPPED: target/check/old/bench-hashes-10 (bench 0bb31ed5186e clean; servil c7936a5f4a8f clean) ended with signal 6 (SIGABRT)\n\
+         regress:   thread 'blake3-worker-1' (1028496) panicked at src/stream/receiver.rs:504:29:\n\
+         regress:   one task takes the published batch job\n\
+         regress: its whole stderr: kept/run-070-old.stderr.txt\n\
+         regress: STOPPED: a side's run failed. No speed verdict (exit 3): the failure is the finding.\n"
     );
-    let columns = SAMPLES_COLUMNS.replace('\t', "\\t");
-    assert!(
-        reader.contains(&format!("COLUMNS = \"{columns}\"")),
-        "tools/samples.py reads the columns {SAMPLES_COLUMNS:?}"
+    // A crash that says nothing, and a build that cannot name itself.
+    let silent = stopped_report(
+        "new",
+        "exe",
+        None,
+        "signal 11 (SIGSEGV)",
+        "[  0.0s] calibrating…\n",
+        "r",
     );
-    let fields = SAMPLES_COLUMNS.split('\t').count();
     assert!(
-        reader.contains(&format!("len(fields) == {fields}")),
-        "tools/samples.py expects {fields} fields a row"
+        silent.starts_with("regress: the new side STOPPED: exe ended with signal 11 (SIGSEGV)\nregress:   it wrote nothing to stderr beside its progress\n"),
+        "{silent}"
+    );
+    // A long stderr: its last twelve lines.
+    let long: String = (0..30).map(|i| format!("line {i}\n")).collect();
+    let report = stopped_report("old", "exe", None, "exit code 101", &long, "r");
+    assert!(
+        !report.contains("line 17\n")
+            && report.contains("line 18\n")
+            && report.contains("line 29\n"),
+        "{report}"
     );
 }

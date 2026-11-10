@@ -1,10 +1,10 @@
 """Build b3sum contenders for `bench-hashes b3sum` into DIR, each named for what it is:
     python3 tools/b3sum-contenders.py FORK DIR [COMMIT...]
-FORK is a checkout of github.com/johnservil/BLAKE3.
+FORK is a checkout of github.com/servil-software-factory/BLAKE3.
   DIR/b3sum-official-1.8.7  official BLAKE3's b3sum from crates.io (also as
                             official-1-thread, the same build with
                             --num-threads 1)
-  DIR/b3sum-COMMIT          the fork's b3sum at each COMMIT (default: FORK's HEAD),
+  DIR/b3sum-COMMIT          BLAKE3-Servil's b3sum at each COMMIT (default: FORK's HEAD),
                             built from a clean worktree of that commit as its
                             README recommends: statically linked on Linux;
                             named b3sum where one COMMIT is given (with
@@ -14,10 +14,10 @@ FORK is a checkout of github.com/johnservil/BLAKE3.
   sha256sum, sha1sum, md5sum  the system's own, where installed: the programs
                             a user chooses between
 Each b3sum is built as its own project recommends (official's from crates.io,
-as `cargo install b3sum` builds it); on Linux, the fork's static link alone
-makes each of its runs about 240 us shorter (METHODOLOGY, b3sum).
+as `cargo install b3sum` builds it); on Linux, BLAKE3-Servil's static link alone
+makes each of its runs about 240 μs shorter (METHODOLOGY, b3sum).
 With LAYOUTS=N (default 1), each b3sum is also relinked N times, its functions
-in a random order each time (lld's --symbol-ordering-file, as the fork's check
+in a random order each time (lld's --symbol-ordering-file, as BLAKE3-Servil's check
 relinks the library), DIR/...-L0 to -L(N-1): a binary's layout alone moves its
 times by several percent, so a program's cells should not rest on one layout's
 luck. Layout i's seed is the build's name's checksum plus i: each build's
@@ -54,7 +54,7 @@ revs = sys.argv[3:] or ["HEAD"]
 target = os.path.join(os.environ.get("CARGO_TARGET_DIR", os.path.join(fork, "target")), "b3sum-contenders")
 host = next(l.split(": ", 1)[1] for l in out("rustc", "-vV").splitlines() if l.startswith("host: "))
 layouts = int(os.environ.get("LAYOUTS", "1"))
-# The fork's b3sum as its README recommends: statically linked on Linux.
+# BLAKE3-Servil's b3sum as its README recommends: statically linked on Linux.
 static = "-C target-feature=+crt-static" if host.endswith("-linux-gnu") else ""
 
 
@@ -91,7 +91,7 @@ def relink(name, manifest, built, flags=""):
     return contenders
 
 
-# Official BLAKE3 1.8.7, the release the fork comes from and the one the
+# Official BLAKE3 1.8.7, the release BLAKE3-Servil comes from and the one the
 # bench's hash cells measure (Cargo.lock): one reference point (Zooko,
 # October 25).
 OFFICIAL = "1.8.7"
@@ -103,7 +103,7 @@ if not os.access(official, os.X_OK):
 cargo_home = os.environ.get("CARGO_HOME", os.path.expanduser("~/.cargo"))
 official_src = sorted(glob.glob(os.path.join(cargo_home, "registry", "src", "*", f"b3sum-{OFFICIAL}")))[0]
 contenders = relink("official", os.path.join(official_src, "Cargo.toml"), official)
-# Official's on one thread too, as the fork's is, so the two compare on one
+# Official's on one thread too, as BLAKE3-Servil's is, so the two compare on one
 # thread as well as on every core (official's maintainer asked; Zooko,
 # October 25).
 contenders += [c.replace("official=", "official-1-thread=", 1) + " --num-threads 1" for c in list(contenders)]

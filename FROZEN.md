@@ -1,16 +1,16 @@
-# What the benchmark asks of the servil fork (frozen)
+# What the benchmark asks of BLAKE3-Servil (frozen)
 
 The servil team's contract with itself (Zooko and John Servil): bench-hashes
-measures the fork through exactly the calls and usage patterns below, which
-are the API plan (the fork's `docs/api-design.md`) turned into
-measurements. The fork's work is to be as fast as possible under them.
-Changing what the benchmark asks is a decision of Zooko's: edit this file
+measures BLAKE3-Servil through exactly the calls and usage patterns below, which
+are the API plan (BLAKE3-Servil's `docs/api-design.md`) turned into
+measurements. BLAKE3-Servil's work is to be as fast as possible under them.
+Changing what the benchmark asks is Devon's decision (below): edit this file
 with the change, the date, and the reason, and the code with it; the test
 `frozen_contract_matches_frozen_md` compares the block below with the
 code's own tables and fails when they differ.
 
 **The whole benchmark is frozen** (Zooko, October 1, 2026, at bench-hashes
-0.10.0, tag v0.10.0+e57316f, measuring the fork's `servil` at b132f8c), so
+0.10.0, tag v0.10.0+e57316f, measuring BLAKE3-Servil's `servil` at b132f8c), so
 that a number, a verdict, and a picture from later mean what they mean
 now, and people can compare results by eye: how samples are taken (the
 rounds, the sample lengths, the gaps, the contender orders), the
@@ -19,115 +19,336 @@ of runs: `clocks::summary`), the load rule (`clocks::load`), the
 regression check (`bench-hashes regress`: its points, its pairs, its
 margin of 3%), and the
 presentation (the map and the report, their layout and
-their words). A change to any of these, a bug fix included, is John
-Servil's decision (Zooko, November 2, 2026: a momentous, uncertain one
-waits for Zooko), recorded here with its date and reason, and it starts a new
-release, so results of different benchmarks are never read as alike. The
+their words). A change to any of these, a bug fix included, is Devon's
+decision (Zooko, November 9, 2026, replacing John's of November 2: the
+person making the library fast under the benchmark does not also decide
+what it asks; John and Sam recommend, and a change that would serve the
+decider's own library work is for the others to decide; a momentous,
+uncertain one waits for Zooko), recorded here with its date and reason,
+and it starts a new release, so results of different benchmarks are never
+read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
-**Changes for 0.19** (Zooko, October 31, 2026: "the new protocol is worth
-it for accuracy under sustained load, which the GPU work needs, even if it
-worsens the VM results a bit"; and, the same day, "don't wait for me on
-anything", John Servil releasing it):
+**Changes for 0.21, November 6-10, 2026** (after the release rehearsal of
+bench-hashes #154; John Servil's decisions to November 9, Devon Jonte's
+from then, each entry naming its decider):
+- **Every samples file records what the counts' own reads cost** (Devon
+  Jonte, November 9, 2026; bench-hashes #160). A
+  header line, `counts read overhead`: per kind of core, the median over
+  1,001 brackets around no work of two routine counts reads' cycles and
+  instructions (a thread pinned to one CPU of each kind on Linux). Every
+  counted sample carries that much of the reads' own, so a sample's
+  dilution is on record beside it. The samples and their reads are
+  unchanged. The reason: a sample's counts include its own reads, and
+  how much they include differs by machine and kind of core (about 500
+  cycles a pair on the i7-12700K, about 470 on the Mac), so a reader
+  needs that figure to judge a short sample's counts.
+- **`compare --markdown`** (Devon Jonte, November 9, 2026): the same cells, ratios and verdicts as a Markdown table, for a
+  post or a record, so that no figure there is typed by hand. The judgment
+  is unchanged. The reason: figures copied into posts by hand were a
+  source of error, and a table printed by the tool carries its own.
+- **A side that stops is reported as such** (Devon Jonte, November 10,
+  2026). When a side's run fails in `regress` (and so in `check`), the
+  report says which side, its build, how it ended (its exit code or the
+  signal that killed it), and its last words, its stderr without the
+  progress display; the whole stderr is kept beside the samples; the
+  exit code is 3, beside 0, 1 (a cell slower) and 2 (no verdict: the
+  load). No speed verdict follows. The reason: in the gate of BLAKE3
+  #331 the old side panicked in a pipeline cell (the race of BLAKE3
+  #302), and the check answered with a panic of its own, the message
+  under a screen of progress lines. A crash is the gravest finding a
+  comparison can make, and it read as a tool failure. The measurement
+  and the judgment are unchanged.
+- **Microseconds are written μs** (Devon Jonte, November 9, 2026, at the
+  user's suggestion). Every microsecond the benchmark writes, in point
+  names (`receive 2 μs`, `receive 20 μs`, also as `--points` takes them),
+  descriptions, the idle-states line, b3sum's run times, the map and the
+  documents, is written with μ (U+03BC GREEK SMALL LETTER MU, which
+  Unicode's normalization makes of the older U+00B5 MICRO SIGN), where it
+  read "us", or "µ" in places. Records written before keep their names;
+  a comparison across the change meets the receive cells under two names.
+- **BLAKE3-Servil's build version, on its own line** (Devon Jonte,
+  November 9, 2026, at Zooko's request for as much as fits in the
+  version; bench-hashes #154, BLAKE3 #328). Every samples file gains a
+  header line, `blake3-servil version`: the library's own build version
+  (from BLAKE3 #328: the release's version on the release commit; after
+  it `X.Y.Z+dev`, "newer than X.Y.Z", then the commit and a dirty tree's
+  Git tree id). For a library from before #328 it is that commit's version,
+  then its commit, and `.dirty` for a dirty tree. The map's run names,
+  the overview and the chart's record name BLAKE3-Servil by it, and
+  older records, which lack the line, by their commit as before. The
+  source line keeps the commit and the tree's state and drops its version
+  field. The reason: a release's version named its code through every
+  commit after it, so the rehearsal's reports read as 0.8.0's while they
+  measured `next`, and the chart said "BLAKE3-Servil 0.8.0" for any
+  commit. Long, deliberately: what proves inconvenient in practice gets
+  trimmed.
+- **The pipeline in the continuous batch cells** (John Servil, November 9,
+  2026; BLAKE3 #317). `blake3-servil-pipeline` takes part in
+  ContinuousBatches (16 to 65,536 messages of 64 B), beside the existing
+  contenders: batches go round the pipeline, each refilled from the input,
+  submitted with its places, handed back with them by its completion, its
+  digests consumed whole, and used again; two in flight, the pipeline's
+  existing limits (64 rooms, 2 message slots). The reason: to measure
+  refill, admission, completion, consumption and reuse across the
+  ownership contract (#309, #317), not a change to existing workloads or
+  judgment. The pipeline and its batches and places are kept for the
+  process; before #317 the frontend borrowed the places for the
+  pipeline's life, so that side keeps them too, leaked. From November 10
+  (Devon Jonte), with #317 landed, the cells pin and measure the owned
+  side: the batch and its Box of places move in and come back with the
+  batch's event.
+- **A turn cell for many short messages in small arrivals** (John Servil,
+  November 8, 2026; bench-hashes #156). The turn cells' large pieces (up
+  to 16 KiB, 256 messages open) barely reach grouped first-chunk
+  compression, so they left a real small-arrival workload unmeasured:
+  many short messages, each arriving in small pieces, finished in groups.
+  A second turn point, `1024 x 1 KiB`, beside `256` in InterleavedTurn and
+  its three gap twins: 1,024 open messages of 1 KiB, each in 256-byte
+  pieces, a turn one piece of every message, a call one whole cycle (the
+  pieces read into the receive buffer, four turns of updates, every
+  message finished and reset), as Sam Shackleton's complete-cycle
+  instrument times it.
+- **Merkle trees over leaves of a digest or half a digest** (John Servil,
+  November 7, 2026; Zooko: 16- and 32-byte leaves will be common, a
+  million of them). Three points beside the 256-byte-leaf trees:
+  65536 x 32 B, 1048576 x 32 B, 1048576 x 16 B. BLAKE3-Servil hashes them
+  from a `Packed` of their length (BLAKE3-Servil's new prepared input for
+  16- and 32-byte messages, on a 128-byte boundary, no padding in
+  memory), each layer's digests into a `Packed<32>` that is, two by two,
+  the next layer's parents; the other contenders as before, their leaves
+  in a buffer of the program's. The leaves are written into the kept
+  storage each tree, as the 256-byte leaves are.
+- **finalize_each resets the hashers it finishes** (John Servil, November
+  7, 2026; BLAKE3-Servil's `finalize` takes the Hasher, Sam's audit on
+  #275). The interleaved cells call no `reset` of their own after it; the
+  work is the same, done by the library in one call.
+- **A contender for BLAKE3-Servil's pipeline** (John Servil, November 7,
+  2026; Zooko: measure the new API before deciding its design and whether
+  it is promoted). `blake3-servil-pipeline` is `throughput::pipeline`,
+  the incremental background pipeline, taking part where bytes arrive
+  over time: the receiving cells, beside `blake3-servil-st` (a Hasher,
+  update per fragment) and `blake3-servil-mt` (update_multithreaded per
+  fragment). One pipeline per thread and limits, kept for the process;
+  64 rooms of 16 KiB (1 MiB in flight) and 2 message slots for a message
+  received alone. Each fragment is written straight into the pipeline's
+  room (the one copy of an arrival, as the Hasher contenders copy into
+  their receive buffer), the last fragment's final bytes with
+  `Message::end(n)`; the digest is awaited after the last. The pipeline is
+  multithreaded, so the shared scenario measures it too. Its other cells
+  (many messages at once, continuous messages) follow as the API settles.
+- **A run's final load window joins the one before it** (John Servil,
+  November 7, 2026). A tail shorter than a window joins the last closed
+  window, however long it is; it closed on its own at half a window
+  before. macOS posts the machine's ticks in lumps up to a second late
+  (#142, Mac probe 1985: 10 CPU-seconds in one 50 ms poll after the
+  threads stopped), and a half-second tail holding such a lump read 24
+  CPUs busy on 16 CPUs (checks 1978 and 1979, which then gave no
+  verdict). Read from the previous window's start, the lump meets the own
+  time it belongs to. A run under a second has no window, where before it
+  had one at half a second.
+- **A probe compares only accepted pairs** (John Servil, November 7,
+  2026). When a busy pair runs again, keep both abandoned samples under
+  `retried/`, outside the top-level files the probe compares. The raw
+  diagnostic record remains available. Mac probe 1969 exposed the bug:
+  regress used three quiet pairs, but the probe's report reread four,
+  including an abandoned busy pair. The load and comparison rules stay
+  as they were.
+- **The second stage's places go to moved counts and slower cells in
+  turn** (Devon Jonte, November 10, 2026, bench-hashes #166). `regress`
+  names at most eight suspects. Level cells whose instruction counts
+  moved went ahead of every cell slower beyond the wall margin (the
+  November 4 entry below), so with eight or more moved counts no slower
+  cell was judged again. 0.21's rehearsal met the case: a whole-map check
+  of BLAKE3-Servil against 0.8 on the i7-12700K had 17 moved counts, all
+  single-threaded and solo, and read "no cell slower" with a
+  multithreaded shared cell at x1.38, slower in every pair (BLAKE3 #349).
+  The two kinds now take the places in turn, a moved count first, each
+  in its own order; one kind alone takes them all, as before. The
+  stage's family stays at eight, and its judging is unchanged.
+- **An old-benchmark comparison runs the contenders both benches know**
+  (Devon Jonte, November 10, 2026). `check --old-bench REV` asks the old
+  side's bench for its contenders (`--list`) and compares BLAKE3-Servil's
+  that it lists, naming each one left out. The pipeline contender joined
+  after BLAKE3-Servil 0.8, and a bench from before it stops on its name:
+  0.21's rehearsal of the library's release check against 0.8, with
+  `--cells all`, ended there with no verdict. A contender one side lacks
+  has nothing to be compared with. With one bench for both sides, every
+  contender runs as before.
+- **An old-benchmark comparison runs with unchanged library trees**
+  (John Servil, November 7, 2026). `check --old-bench REV` compares the
+  instruments even when both sides use the same library. The early
+  library-tree shortcut applies only when both sides use the current
+  benchmark. The later same-code shortcut already had this restriction.
+  Mac control 1966 had returned "no regression" without measuring the
+  different instruments; that outcome is treated as unmeasured. The
+  comparison rule, cells and measurements remain unchanged.
+- **Receive and hash one message in fragments** (John Servil, November 6,
+  2026, following Zooko's API direction in
+  [BLAKE3 #267](https://github.com/servil-software-factory/BLAKE3/issues/267),
+  convenience and throughput contracts). `ReceivingMessage` measures a
+  16 MiB message at three arrival spacings: saturated, 2 μs and 20 μs.
+  Fragments cycle through 1448 B, 4 KiB, 16 KiB and 64 KiB, cut at the
+  message's end. Each scheduled arrival is a fixed offset from the first.
+  Consumer work and sleep overshoot leave later deadlines unchanged.
+  `clocks::sleep_until` waits only for the remaining time; a late consumer
+  finds the next fragment ready, as it would with buffered I/O. Saturated
+  input needs no clock reads or waits between fragments.
+  Receiving runs in its own phase. The trace description comes from its
+  constants and is stored in the samples' `receive trace` header, shown
+  in the map's run details. Each fragment is read into a kept 64 KiB
+  buffer before its incremental update. Reads, waits, updates and
+  finalization are timed together, solo and shared under the existing
+  sampling and comparison rules. Current incremental APIs establish the
+  baseline for the background pipeline. The map names its column
+  "receive + hash, including waits" and its axis is arrival spacing.
+  Existing axes retain their calls and schedules.
+- **The Hasher is a convenience call; its parallel update a throughput
+  function** (John Servil, November 7, 2026, from BLAKE3 #267, Zooko's
+  direction of November 6): `convenience::Hasher::new(mode, length_hint)`
+  replaces `throughput::Hasher::new(mode)` (the hint is advisory and
+  `None` here), `reset(None)` replaces `reset()`, and
+  `throughput::update_multithreaded(&mut hasher, piece)` replaces
+  `hasher.update_multithreaded(piece)`. The same calls under their new
+  names, so every cell's work is as it was; a check of this change runs
+  its old side with the bench before it (`--old-bench`).
+- **A kept buffer's lead bytes are written once** (Devon Jonte,
+  November 7, 2026, bench-hashes #144). Cells that write each message
+  into a buffer the program keeps (lent and owned messages and batches,
+  collections read in, stream pieces, Merkle layers) start the message at
+  the buffer's first 64-byte boundary. The 0-63 bytes before it were
+  written again for every message, by the buffer's heap address: the
+  same code's 64 B continuous cell read 10.92 to 11.36 instructions a byte
+  by what else the process had allocated, about 1.6% of its cycles. They
+  are written once now, and every configuration reads 10.954. The calls
+  and patterns are unchanged; 64 B cells read up to that much faster in
+  runs whose buffers sat off a boundary.
 
-- **Continuous means continuous.** A nonstop cell ("one input after
-  another, as fast as the program can") took each 1 ms sample in a visit
-  of its own, between other contenders' samples. Whatever settles more
-  slowly than a millisecond met every sample cold: a core's clock, thread
-  placement, a GPU's clock (30-40 ms of load on an M4 Max, the fork's
-  tmp/metal-night probes). Now a nonstop visit is a train: the cell's own
-  load, untimed, for 100 ms, then 6 samples back to back, solo, then the
-  same for the two shared copies; 2 visits a cell (`NONSTOP_TRAIN`,
-  `Visits::nonstop`). The calls after a gap are unchanged.
-  - Why 100 ms: settling curves (samples back to back from cold,
-    `tools/settle.py`) put every solo cell within 3% by 100 ms on the M4
-    Max, the Linux VM and the EPYC 9255, and the GPU path's engagement and
-    ramp at about 50 ms; 50 ms reads about as well on the CPUs (the Mac's
-    worst solo cell 1.106 against 1.080) and leaves the GPU no margin.
-  - Why 2 visits of 6: the spread of a run's mean splits into the samples
-    within a visit, the visits within a run, and the runs
-    (`tools/variance.py`): on the Mac and the EPYC the runs' part, which
-    no visit count shrinks, and the samples' part lead, so 4 visits of 3
-    would cost twice the nonstop time for a p90 of 2.8% against 3.4%
-    (Mac), 2.2% against 2.6% (EPYC). The widest cells are servil mt's own
-    two speeds (#196 in the fork), which no setting fixes.
-  - What changed in the results, old (0.18.3) against new, three pairs of
-    full runs: the Mac (M4 Max) nonstop cells repeat better, median
-    spread 1.5% to 1.1% (solo) and 1.2% to 0.8% (shared), p90 4.0% to
-    4.6% and 3.5% to 3.8%; the EPYC 9255 (Sam Shackleton, bench #96)
-    median 0.7% to 0.4%, p90 5.2% to 7.6%; the VM read 2-4% slower and
-    slightly less repeatable. Official mt streams read 21-27% faster on
-    the Mac, servil mt's 10-12%. The longer nonstop phase leaves the Mac's
-    cores about 1% slower in the phases after it (P cores 4.02-4.06 GHz
-    against 4.07-4.11; SHA-256's SHA instructions, 4%), so a cell after a
-    gap reads that much slower than under 0.18. A control (0.19's code
-    measuring 0.18's way) read level with 0.18 on every machine (all 1590
-    cells on the EPYC).
-  - Cost: a full run on the Mac takes 352 s (0.18: 230), the owned cells
-    measured once and calibration cached (below) paying part of it.
-- **Owned and lent cells that run the same calls are measured once**
-  (`owned_runs_lent`): every contender but servil mt's stream, messages up
-  to a piece, measures the lent cell, and its samples stand for the owned
-  row too, as the samples file's header says. Two measurements of
-  identical calls in one run differed by up to 40% (0.18's runs on the
-  M4 Max and the EPYC 9255; median 0.3-1.3%, the worst in batch cells).
-- **Calibration is cached** (`sizes_context`): a run keeps its sample
-  sizes in the user's cache directory, a file for each context, and a
-  later run in that context reuses them (about 50 s on the Mac). The
-  context is the bench's version, commit and clean status, the machine,
-  the power source and mode, and the contenders, points and threads. The code under test is no
-  part of the context: a nonstop cell whose median sample falls under a
-  quarter of its target deletes the file. The samples file's `sample
-  sizes` line names the sizes' source.
-- **Load is other programs' CPU time, measured on macOS again** (the
-  fork's clocks, where its probes are; as of 0.19.3 below).
-- **Comparisons judge each measurement once** (`judge_once`; Devon Jonte,
-  bench #98): an owned cell measured as its lent twin is one measurement,
-  counted once in the false discovery rate's family and among the
-  suspects, its verdict printed on both rows.
-- **0.19.1: `check`'s commit of the working tree has an identity of its
-  own** (as it has a date of its own): git otherwise guessed one from the
-  host's name, and on the Mac's runner on another network refused the
-  guess ("benchrunner@Mac.(none)", job 1830). `check` alone changes; a
-  run measures as 0.19.0's.
-- **0.19.2: `check --old-bench` makes the old side's worktree afresh**
-  each check: one left by a check from before the separate checkouts
-  pointed at a repository gone (job 1831). `check` alone changes.
-- **0.19.3: on Linux, other programs' load is their own CPU time,
-  summed** (the fork's clocks at ac9e6b7d): every other process's user
-  and system time from `/proc`, where it lists the whole machine; the
-  machine's busy time less ours, in one subtraction, in a PID namespace
-  and on macOS. On 112 CPUs the machine's user time less ours read 1-6
-  CPUs where no other process took 0.5 (bench #98, Sam Shackleton). The
-  load reading alone changes; a run measures as 0.19.0's.
-- **0.19.4: `check`'s first stage is 4 pairs, a link a side each**
-  (Devon Jonte's lean variant of his check; Zooko, November 1: "I love
-  saving 12 minutes without losing sensitivity"): its 4 pairs choose the
-  suspects as well as 8 did on #119, ranked by evidence, and the 64-pair
-  second stage stays. About 12 minutes less a check.
-- **0.19.5: the record shown whole** (Devon Jonte, bench #103, #104,
-  #107). A dirty tree's fingerprint is its BLAKE3 hash written as a sigil.
-  The map's "About this run" lists every header line, each chart draws
-  its record into the image (machine, date, the bench's and BLAKE3-Servil's
-  commits, the compiler), and the overview links each machine's record.
-  A phone keeps the grid's row names in view; a map's layer shows its own
-  rows and columns; a cell's call name fits. What a run measures is as
-  0.19.0's.
-- **0.19.6: each samples file records the machine's idle states** (Devon
-  Jonte, bench #106, #109): the cpuidle driver, governor and CPU 0's states
-  with their exit latencies and target residencies, `none` without a
-  driver, `not reported by this OS` elsewhere. The cells after a pause
-  measure the state the core slept in (the i7: 13.5, 25.8 and 58.2 ns a
-  message after C1E, C6 and C8). What a run measures is as 0.19.0's.
-- **0.19.7: two of the map's fixes.** Every layer keeps every column at
-  its place, a column it doesn't measure a blank track (Sam's review of
-  #107); a BLAKE3-Servil source with no repository (a local clone's) is a
-  row without a link, where the map panicked after measuring (Sam, #111).
-  What a run measures is as 0.19.0's.
-- **Studies read samples in Python** (`tools/samples.py`): `means` and
-  `settle` left the program for `tools/points.py` and `tools/settle.py`,
-  beside `tools/variance.py`; comparisons and verdicts stay in it.
+**Changes for 0.21, November 4-6, 2026** (Zooko and John Servil):
+- **The wall clock is the raw counter** (Zooko, November 4, 2026): on
+  Linux `CLOCK_MONOTONIC_RAW` in place of `CLOCK_MONOTONIC` (what
+  `std::time::Instant` reads there), which a time daemon slews by up to
+  500 ppm, a rate that could be in error or an adversary's, and helps no
+  measurement here (an i7-12700K had drifted 596 ms from its raw counter
+  8 hours after boot). On Darwin `CLOCK_UPTIME_RAW`, raw already. Same
+  cost a read (11 ns on the i7), same steps (1 ns; 41.67 ns on an M4
+  Max). A run's `sample clock` line names it. Zooko's measure-clocks3
+  (December 2025) compares the clocks on both platforms.
+- **Two pauses before a call "after idling"** (Zooko and John, November
+  4, 2026; bench-hashes #117, Sam Shackleton's protocol): 20 μs (the use
+  cases `BriefIdleOneMessage`, `BriefIdleManyMessages`,
+  `BriefIdleInterleavedTurn`) and 5 ms (`IdleOneMessage`,
+  `IdleManyMessages`, `IdleInterleavedTurn`, until 0.20 at 1 ms). After
+  20 μs a core keeps its clock and its shallowest idle state; after 5 ms
+  every machine measured has settled into its deep states, where 1 ms
+  was the i7-12700K's transition between the two, bimodal (#117: the
+  i7's 16 x 64 B batch x2.0 at 20 μs, x2.6 at 1 ms with 24-49%
+  detectable, x6.3 at 5 ms with 16%). Each pause is a real program's
+  situation, and each is stable. The pauses land when asked: the bench
+  sets its threads' timer slack to 1 μs (`clocks::tight_timers`; Linux
+  gives a thread 50 μs by default, which landed the 20 μs sleep at 72 μs
+  and let the i7's core reach C6 in 39% of it; at 23 μs it stays in C1). The pauses run in sets of rounds of
+  their own, as the other ways of calling do. The run grows by the
+  after-pause cells' share. Each samples file records, beside the
+  configured idle states, the **effective** ones: the shares of the
+  core's hardware C-state residency under each pause, slept at the run's
+  start as the cells sleep it (1000 x 20 μs, 20 x 5 ms; Linux, Intel's
+  `cstate_core` counters; elsewhere "not measured"), since a configured
+  state may seldom happen within a pause (the Xeon Gold 6330's C6 within
+  1 ms, #117) and the deepest may be one no software counter names (the
+  i7's core C7).
+- **The controlled block** (John, November 4, 2026; #117, Sam
+  Shackleton's protocol): where the bench can write every cpuidle
+  state's `disable` file (Linux, run as root), the 5 ms cells run once
+  more as `ControlledIdleOneMessage`, `ControlledIdleManyMessages` and
+  `ControlledIdleInterleavedTurn`, in rounds of their own with every
+  state but POLL and C1 switched off (POLL alone where the machine has no
+  plain C1), so the call meets the core awake and the cell measures the
+  library apart from the machine's rest; the states are put back when
+  those rounds end. The shipped block, what users meet, stays the
+  figure users read; the controlled one stands beside it, a fifth
+  after-gap column on the map. Each samples file's `idle control` line
+  says what the block kept, or why there is none (the i7-12700K in its
+  sandbox: no root).
+- **A level cell whose instructions moved joins the second stage** (Zooko,
+  November 4, 2026, on John's rule; #127): instructions a unit moved
+  beyond 0.5% the same way in every pair names a solo cell of a
+  single-threaded contender a suspect ahead of the wall-ranked ones,
+  the largest move first, with no verdict of its own; wall decides on
+  the fresh pairs. A pool's caller spins while it waits, so a
+  multithreaded cell's count is no evidence (it moved 1-9% between two
+  runs of the same code; data branch, 2026-11-04/judge2-i7). Where the machine counts none, the suspects are wall's
+  alone, and the run says so.
+- **Every sample keeps its instructions retired, and its last-level-cache
+  references and misses, beside its cycles**, per core kind (Zooko,
+  November 4, 2026: the most the counters give, kept whether or not a use
+  is known yet; the cache pair the same day, at a read cost of tens of
+  nanoseconds now that the counters are read in user space). The samples
+  format is v10. On the i7-12700K instructions are the same count on a P
+  core and an E core and after any pause (28719 for a fixed call, every
+  time), where cycles and wall time move with the core's clock (data
+  branch, 2026-11-04/clock-survey). The cache events are perf's generic
+  pair, whose hardware meaning METHODOLOGY names; the counters are read
+  by `rdpmc` where the kernel allows it, since a system call between the
+  pause and the call moved the i7's 64 B figure by 13% (data branch,
+  2026-11-04/precall-counts-i7).
+- **servil st's calls made one after another are its performance call**
+  (Zooko, November 5, 2026, "Cold calls and warm calls, by their API":
+  convenience is for a hash now and then, amid other work; performance for
+  call after call, the call alone deciding; built at John Servil's request
+  on BLAKE3-Servil #253, November 6): the lent messages, the owned messages
+  up to 64 KiB (their lent twins) and the pipelined collection's items go
+  through `performance::hash`, each message in the whole blocks the bench
+  lays out for every contender (no copy). The cells after a gap (after
+  other work, after idling) keep `convenience::hash`. On AMD Zen 5 the
+  performance call takes the integer-register chunk root for a chunk or
+  less (BLAKE3-Servil #252: 19-35% less time back to back).
+
+- **A comparison's pairs each run on one core** (John Servil, November 5,
+  2026; bench-hashes #69). `regress`, and so `check`, pins each pair's two
+  runs' measuring thread to one CPU around each sample after a gap, the
+  pool's workers untouched; pair i takes a core of the parity of i, the
+  pairs of a parity turning through the cache domains, one CPU a core,
+  performance cores where there are two kinds. The reason: after the
+  busy gap, odd cores fill the call's L2 misses from DRAM where even ones
+  fill them from the L3 (EPYC 9255, `b069-oddeven`), so the core a run
+  happened on was a difference between the sides of a pair: unpinned, a
+  small cell after other work swung 1.3-1.8x with its core. Pinned, a
+  pair's sides share the core, and the alternation keeps a change that
+  helps one parity and hurts the other visible in half the pairs. Each
+  run's samples header says where (`measuring thread`). Records stay
+  unpinned: a record reports what a caller meets wherever the OS puts
+  it. How comparisons are judged is unchanged. Where the machine takes
+  no thread affinity (macOS), every run is the OS's, as before.
+- **`check` and `regress` ask the machine first** (Devon Jonte, November
+  5, 2026, bench-hashes #128): ten quiet seconds before a build or a
+  measurement, or no verdict at once. A busy machine had cost whole
+  checks that abstained at their end. `regress` tries for up to two
+  minutes, since a check's own builds leave load behind for a few
+  seconds (John Servil, November 6). `check --when-quiet` waits as long
+  as it takes. What a run measures is unchanged.
+- **BLAKE3-Servil's throughput calls** (Zooko, November 6, 2026): the
+  library's `performance` module is `throughput`, a name for what its calls
+  are for, many hashes one after another; a caller hashing now and then
+  had read `performance::hash` as the faster call, where
+  `convenience::hash` is. The same calls, measured the same way; the
+  contract below, the report and the map name them so.
+- **`check` measures the cells its author names** (Zooko, November 6,
+  2026; Devon Jonte, bench-hashes #128). `check` first prints the diff's
+  files, its added and deleted lines, and the items its hunks sit in.
+  Then it measures the points its author names: `--points` for the gate,
+  `--probe` for a three-pair survey before the change is built, `--cells
+  all` for every point. With none named, it stops before a build, and
+  each check records how many points it left unmeasured. Until 0.21,
+  coverage chose the cells, and a declaration that no coverage region
+  holds made a check measure every cell: three checks of November 5-6
+  spent 18 minutes on 426 cells, each for one such line.
+- **An owned cell measured as its lent twin takes the twin's sample size**
+  in a sizes file (Sam Shackleton, bench-hashes #134, a bug fix):
+  `--calibrate-only` wrote 1 for those cells, and `regress` gave that
+  size to both sides, so a new side that measured such a cell itself
+  timed one call a sample (#133: +72% read where the cell was -93%).
 
 **Changes for 0.20** (Zooko, November 2, 2026, bench-hashes #108):
 - **The shared scenario measures the multithreaded contenders alone**,
@@ -171,30 +392,136 @@ anything", John Servil releasing it):
   its train first keeps hashing, unsampled, until the other has finished.
   Before, the slower copy's last samples ran alone, about 1% optimistic
   in 0.19 (7% in 0.18, whose copies were uneven). The pool's fairness
-  between two callers is the fork's `tests/pool_fairness.rs` (BLAKE3
+  between two callers is BLAKE3-Servil's `tests/pool_fairness.rs` (BLAKE3
   #215) besides.
 
-**Changes for the next release** (Zooko, October 16, 2026):
+**Changes for 0.19** (Zooko, October 31, 2026: "the new protocol is worth
+it for accuracy under sustained load, which the GPU work needs, even if it
+worsens the VM results a bit"; and, the same day, "don't wait for me on
+anything", John Servil releasing it):
+
+- **Continuous means continuous.** A nonstop cell ("one input after
+  another, as fast as the program can") took each 1 ms sample in a visit
+  of its own, between other contenders' samples. Whatever settles more
+  slowly than a millisecond met every sample cold: a core's clock, thread
+  placement, a GPU's clock (30-40 ms of load on an M4 Max, BLAKE3-Servil's
+  tmp/metal-night probes). Now a nonstop visit is a train: the cell's own
+  load, untimed, for 100 ms, then 6 samples back to back, solo, then the
+  same for the two shared copies; 2 visits a cell (`NONSTOP_TRAIN`,
+  `Visits::nonstop`). The calls after a gap are unchanged.
+  - Why 100 ms: settling curves (samples back to back from cold, the
+    study's `tools/settle.py`, in the tree until 0.21) put every solo cell within 3% by 100 ms on the M4
+    Max, the Linux VM and the EPYC 9255, and the GPU path's engagement and
+    ramp at about 50 ms; 50 ms reads about as well on the CPUs (the Mac's
+    worst solo cell 1.106 against 1.080) and leaves the GPU no margin.
+  - Why 2 visits of 6: the spread of a run's mean splits into the samples
+    within a visit, the visits within a run, and the runs
+    (the study's `tools/variance.py`, in the tree until 0.21): on the Mac and the EPYC the runs' part, which
+    no visit count shrinks, and the samples' part lead, so 4 visits of 3
+    would cost twice the nonstop time for a p90 of 2.8% against 3.4%
+    (Mac), 2.2% against 2.6% (EPYC). The widest cells are servil mt's own
+    two speeds (#196 in BLAKE3-Servil), which no setting fixes.
+  - What changed in the results, old (0.18.3) against new, three pairs of
+    full runs: the Mac (M4 Max) nonstop cells repeat better, median
+    spread 1.5% to 1.1% (solo) and 1.2% to 0.8% (shared), p90 4.0% to
+    4.6% and 3.5% to 3.8%; the EPYC 9255 (Sam Shackleton, bench #96)
+    median 0.7% to 0.4%, p90 5.2% to 7.6%; the VM read 2-4% slower and
+    slightly less repeatable. Official mt streams read 21-27% faster on
+    the Mac, servil mt's 10-12%. The longer nonstop phase leaves the Mac's
+    cores about 1% slower in the phases after it (P cores 4.02-4.06 GHz
+    against 4.07-4.11; SHA-256's SHA instructions, 4%), so a cell after a
+    gap reads that much slower than under 0.18. A control (0.19's code
+    measuring 0.18's way) read level with 0.18 on every machine (all 1590
+    cells on the EPYC).
+  - Cost: a full run on the Mac takes 352 s (0.18: 230), the owned cells
+    measured once and calibration cached (below) paying part of it.
+- **Owned and lent cells that run the same calls are measured once**
+  (`owned_runs_lent`): every contender but servil mt's stream, messages up
+  to a piece, measures the lent cell, and its samples stand for the owned
+  row too, as the samples file's header says. Two measurements of
+  identical calls in one run differed by up to 40% (0.18's runs on the
+  M4 Max and the EPYC 9255; median 0.3-1.3%, the worst in batch cells).
+- **Calibration is cached** (`sizes_context`): a run keeps its sample
+  sizes in the user's cache directory, a file for each context, and a
+  later run in that context reuses them (about 50 s on the Mac). The
+  context is the bench's version, commit and clean status, the machine,
+  the power source and mode, and the contenders, points and threads. The code under test is no
+  part of the context: a nonstop cell whose median sample falls under a
+  quarter of its target deletes the file. The samples file's `sample
+  sizes` line names the sizes' source.
+- **Load is other programs' CPU time, measured on macOS again** (the
+  fork's clocks, where its probes are; as of 0.19.3 below).
+- **Comparisons judge each measurement once** (`judge_once`; Devon Jonte,
+  bench #98): an owned cell measured as its lent twin is one measurement,
+  counted once in the false discovery rate's family and among the
+  suspects, its verdict printed on both rows.
+- **0.19.1: `check`'s commit of the working tree has an identity of its
+  own** (as it has a date of its own): git otherwise guessed one from the
+  host's name, and on the Mac's runner on another network refused the
+  guess ("benchrunner@Mac.(none)", job 1830). `check` alone changes; a
+  run measures as 0.19.0's.
+- **0.19.2: `check --old-bench` makes the old side's worktree afresh**
+  each check: one left by a check from before the separate checkouts
+  pointed at a repository gone (job 1831). `check` alone changes.
+- **0.19.3: on Linux, other programs' load is their own CPU time,
+  summed** (BLAKE3-Servil's clocks at ac9e6b7d): every other process's user
+  and system time from `/proc`, where it lists the whole machine; the
+  machine's busy time less ours, in one subtraction, in a PID namespace
+  and on macOS. On 112 CPUs the machine's user time less ours read 1-6
+  CPUs where no other process took 0.5 (bench #98, Sam Shackleton). The
+  load reading alone changes; a run measures as 0.19.0's.
+- **0.19.4: `check`'s first stage is 4 pairs, a link a side each**
+  (Devon Jonte's lean variant of his check; Zooko, November 1: "I love
+  saving 12 minutes without losing sensitivity"): its 4 pairs choose the
+  suspects as well as 8 did on #119, ranked by evidence, and the 64-pair
+  second stage stays. About 12 minutes less a check.
+- **0.19.5: the record shown whole** (Devon Jonte, bench #103, #104,
+  #107). A dirty tree's fingerprint is its BLAKE3 hash written as a sigil.
+  The map's "About this run" lists every header line, each chart draws
+  its record into the image (machine, date, the bench's and BLAKE3-Servil's
+  commits, the compiler), and the overview links each machine's record.
+  A phone keeps the grid's row names in view; a map's layer shows its own
+  rows and columns; a cell's call name fits. What a run measures is as
+  0.19.0's.
+- **0.19.6: each samples file records the machine's idle states** (Devon
+  Jonte, bench #106, #109): the cpuidle driver, governor and CPU 0's states
+  with their exit latencies and target residencies, `none` without a
+  driver, `not reported by this OS` elsewhere. The cells after a pause
+  measure the state the core slept in (the i7: 13.5, 25.8 and 58.2 ns a
+  message after C1E, C6 and C8). What a run measures is as 0.19.0's.
+- **0.19.7: two of the map's fixes.** Every layer keeps every column at
+  its place, a column it doesn't measure a blank track (Sam's review of
+  #107); a BLAKE3-Servil source with no repository (a local clone's) is a
+  row without a link, where the map panicked after measuring (Sam, #111).
+  What a run measures is as 0.19.0's.
+- **Studies read samples in Python** (`tools/samples.py`): `means` and
+  `settle` left the program for `tools/points.py` and `tools/settle.py`,
+  beside `tools/variance.py`; comparisons and verdicts stay in it. (The
+  studies done, the Python reader and the three tools left the tree for
+  0.21, Zooko, November 5: one reader of the format, the program's.)
+
+**Changes for 0.18** (Zooko, October 24-28, 2026; a patch release's
+entries name it):
 - **The batch calls take a `Batch`** (Zooko, October 28; BLAKE3 #205):
   `hash_many`, `hash_many_multithreaded` and `Stream::submit_batch` take
   `&Batch`, whose bytes past each message the program cannot write, so a
   nonzero one, which the AArch64 kernels would hash into a wrong digest,
   cannot be written. The bench's batches fill their blocks (64 B and
   4 KiB messages, 256 B leaves, 64 B nodes) and are borrowed in place
-  with `Batch::from_blocks`: the same blocks, read the same way.
+  with `Batch::from_blocks`: the same blocks, read the same way. (0.18.3)
 - **A stream's fill returns the bytes it wrote** (Zooko, October 28;
   BLAKE3 #204). `submit_with` and `submit_batch_with` now call `fill`
   as `Read::read_exact` calls `read`, until each piece is full, so a
   fill that writes less is never hashed with stale bytes. The bench's
   fills write all of each room and return its length: the same calls,
-  writing the same bytes.
+  writing the same bytes. (0.18.2)
 - **BLAKE3 official, multi-threaded, in every `--all` run** (Zooko,
   October 27). Since September 26 it ran only when named, on the ground
   that servil's multi-threaded form beat it at every point. The one run
   since that named it (EPYC 9255, October 23) read 128 MiB level, and
   without it every "times official" on an every-core cell compared
   servil on every core with official on one. Each library is measured
-  in both its forms, so every comparison is like for like.
+  in both its forms, so every comparison is like for like. (0.18.1)
 - **The overview: a column a kind of machine** (Zooko, October 27). Nine
   machines have runs, and a column each did not fit. The grid shows
   three columns, Arm, AMD and Intel, each the machine most like its
@@ -202,15 +529,15 @@ anything", John Servil releasing it):
   Max, AMD Ryzen 7 9700X, Intel Core i7-12700K). Every other machine
   waits behind a door, a card each in plain words, and a card puts its
   machine in its family's column. Every cell holds each form of each
-  library its run measured, and the page opens on BLAKE3 servil,
+  library its run measured, and the page opens on BLAKE3-Servil,
   multi-threaded, beside SHA-256; the legend shows the rest. So the rows
   "1 MiB, one thread" and "128 MiB, every core" become "1 MiB" and
-  "128 MiB": the legend, not the row, says which forms are drawn.
+  "128 MiB": the legend, not the row, says which forms are drawn. (0.18.1)
 - **Official b3sum 1.8.7** (October 27, for 0.18.0): the b3sum run's
-  official contender is b3sum 1.8.7 (was 1.8.2), the release the fork
+  official contender is b3sum 1.8.7 (was 1.8.2), the release BLAKE3-Servil
   comes from and the one the hash cells' official crate already is
   (Cargo.lock). Zooko, October 25: official BLAKE3 1.8.7 is the one
-  reference point; a b3sum chart against 1.8.2 compared the fork with an
+  reference point; a b3sum chart against 1.8.2 compared BLAKE3-Servil with an
   older official than every other chart.
 - **A batch of 4 KiB messages** (Zooko, October 24, for 0.18.0): a use
   case of its own, ManyLongMessages, batches of 4, 16, 64 and 256
@@ -229,21 +556,21 @@ anything", John Servil releasing it):
 - **Streams and lent calls of 128 B and 512 B messages** (Zooko, October
   26): the ContinuousMessages and LentMessages axes gain 128 B and 512 B
   (64 B, 128 B, 256 B, 512 B, 1 KiB, then factors of four to 64 MiB),
-  the two axes keeping one set of sizes. Why: BLAKE3 servil's stream
+  the two axes keeping one set of sizes. Why: BLAKE3-Servil's stream
   gathers messages of one length into a task and hashes them side by
   side with a kernel for each length from 64 B to 1 KiB
   (`Task::run_members`); no cell streamed 128 B or 512 B messages, so
   those two kernels' speed went unmeasured (BLAKE3 #183).
-- **The fork's names made consistent** (Zooko, October 26): the plain
+- **BLAKE3-Servil's names made consistent** (Zooko, October 26): the plain
   hash's mode is `Mode::Plain` (was `Mode::Hash`), and a `Hasher` is made
   by `Hasher::new(mode)` alone. The calls and their work are unchanged:
   the same calls under their 0.8 names.
 - **Official's b3sum on one thread too** (Zooko, October 25, answering
   official BLAKE3's maintainer): `official-1-thread`, official's `b3sum`
-  with `--num-threads 1`, beside the fork's `b3sum-1-thread`, so every
+  with `--num-threads 1`, beside BLAKE3-Servil's `b3sum-1-thread`, so every
   b3sum cell compares the two on one thread as well as on every core.
   `tools/b3sum-contenders.py` adds it.
-- **The fork's two kinds of call** (Zooko, October 24): BLAKE3 servil
+- **BLAKE3-Servil's two kinds of call** (Zooko, October 24): BLAKE3-Servil
   splits its API into `convenience` (one call per hash, any slice) and
   `performance` (every way to hash fast, inputs as `Block`s; BLAKE3 #146).
   The benchmark's calls are the same calls under their new names, listed
@@ -252,12 +579,12 @@ anything", John Servil releasing it):
   message given to a performance call comes in its whole blocks
   ("Inputs in blocks" below).
 - **The outboard and verify use cases go** (Zooko, October 24, deleting
-  the fork's outboard and `Verifier` API): only BLAKE3 official (through
+  BLAKE3-Servil's outboard and `Verifier` API): only BLAKE3 official (through
   bao-tree) and servil took part, so without servil's cells they compare
   nothing of ours. bao-tree leaves the dependencies, and its line leaves
   the map.
 - **Inputs in blocks** (Zooko, October 24, deciding on BLAKE3 #141 and
-  #146): the fork's performance calls take their inputs as `Block`s, 64
+  #146): BLAKE3-Servil's performance calls take their inputs as `Block`s, 64
   bytes on a 64-byte boundary, so the bench aligns the inputs of every cell
   that has a performance-call contender, for every contender alike
   (`UseCase::in_blocks`): every batch, and the one-message, lent,
@@ -273,6 +600,17 @@ anything", John Servil releasing it):
   holds each kind of copying cell to it, with a control. 0.17's cells
   measured inputs at the allocator's placement: compare them with 0.18's
   only with that difference stated.
+- **Produced leaves use the shared sampler** (Zooko, October 22, approval
+  to proceed with sampler consolidation): whole jobs, 5 ms sizing and
+  three samples per cell per round stay unchanged. `clocks::measure`
+  owns calibration, wall time, process CPU time and caller thread counts.
+  Shared rows keep process CPU time absent; solo rows retain it. The
+  existing v6 core-count field now records available caller counts, with
+  energy absent. The wall report uses the same shared mean selection as
+  compare and the map; it had its own plain sum. Hash calls, generated
+  input, checksum work and stored digests stay unchanged.
+
+**Changes for 0.17** (Zooko, October 16-23, 2026):
 - **The overview** (Zooko, October 22): one page above the maps, built
   from every machine's published run; its representative cells and rules
   are the section "The overview" below, and the frozen block's
@@ -289,7 +627,7 @@ anything", John Servil releasing it):
   ten deterministic phases, each read as level, 10% of the raw cost
   gone), where the plain mean shows it, and a stall that the trim would
   have softened is what the pairs of runs and the load readings catch.
-  The rule lives in `clocks::summary::mean` (the fork's line, 7f9f1f7),
+  The rule lives in `clocks::summary::mean` (BLAKE3-Servil's line, 7f9f1f7),
   with the fixture as its test; every reader here passes raw samples to
   it through one `mean_totals`, so the report, the comparison, the
   regression check and the maps draw one figure. Reports of 0.16 and
@@ -309,15 +647,6 @@ anything", John Servil releasing it):
   shape on which a generated x86 kernel ran 34.6% slower (1,152 to 1,984
   bytes) while no single-message cell could show it: the points went from
   1 KiB to 2 KiB. Every run now carries it.
-- **Produced leaves use the shared sampler** (Zooko, October 22, approval
-  to proceed with sampler consolidation): whole jobs, 5 ms sizing and
-  three samples per cell per round stay unchanged. `clocks::measure`
-  owns calibration, wall time, process CPU time and caller thread counts.
-  Shared rows keep process CPU time absent; solo rows retain it. The
-  existing v6 core-count field now records available caller counts, with
-  energy absent. The wall report uses the same shared mean selection as
-  compare and the map; it had its own plain sum. Hash calls, generated
-  input, checksum work and stored digests stay unchanged.
 - **BLAKE3 commonware retires** (Zooko, October 20): its kernels were
   commonware's pull request #4982, which closed unmerged; commonware's
   shipped BLAKE3 is the official `blake3` crate (a thread-pool split of
@@ -340,7 +669,7 @@ anything", John Servil releasing it):
   as every call after a gap.
 - **A Merkle tree** (Zooko, October 19, for v0.8): a new use case,
   MerkleTree, the commitment a zero-knowledge prover makes to its
-  Reed-Solomon codeword (WHIR, the fork's docs/whir-merkle-trees.md). The
+  Reed-Solomon codeword (WHIR, BLAKE3-Servil's docs/whir-merkle-trees.md). The
   program writes its leaves (256 bytes each) into its buffer, then hashes
   them and each layer of parents (two children's digests) to the root,
   every layer kept, at 1024 to 262144 leaves, solo and shared. Leaves and
@@ -359,10 +688,10 @@ anything", John Servil releasing it):
   question): a new use case, ContinuousCollection, at the two collections
   (git objects, Nix files), solo and shared: the items one after another,
   each read into the program's buffer, then hashed, as a program reads a
-  store's files and hashes them. BLAKE3 servil mt streams them
+  store's files and hashes them. BLAKE3-Servil mt streams them
   (`submit_with`), every other hash hashes each on the program's thread.
   The map draws it in the collection's row, pipelined column.
-- **BLAKE3 servil st takes part in the pipelined (continuous) cells**
+- **BLAKE3-Servil st takes part in the pipelined (continuous) cells**
   (Devon Jonte's fork, October 18; Zooko's question): as every hash
   without a stream does, on the program's thread, one input after another
   read into the program's buffer. A program that keeps to one thread
@@ -407,10 +736,10 @@ anything", John Servil releasing it):
   raised about eight false alarms a run, while `compare` already judges
   every cell with the false-discovery rate controlled.
 - **The b3sum suite's contenders built as each project recommends**
-  (Devon Jonte, #32; Zooko, October 17): the fork's b3sum statically
+  (Devon Jonte, #32; Zooko, October 17): BLAKE3-Servil's b3sum statically
   linked on Linux, as its README recommends, official BLAKE3's from
   crates.io; METHODOLOGY says what linking alone is worth (a 64-byte file
-  in 0.49 against 0.74 ms on an i7-12700K), so part of the fork's lead in
+  in 0.49 against 0.74 ms on an i7-12700K), so part of BLAKE3-Servil's lead in
   the process-per-file cells is its linking.
 - **Fresh link layouts for the b3sum suite** (Devon Jonte, #33; Zooko,
   October 17): a contender may be several builds of one program, one a
@@ -435,7 +764,7 @@ anything", John Servil releasing it):
 - **`regress` with too few pairs for an interval says so** in place of
   stopping (Devon Jonte, #31; Zooko, October 17).
 - **The comparison rule judges every cell at once** (Devon Jonte, #11,
-  #13; fork #44, #45): `compare` and `regress` judge a comparison's cells
+  #13; BLAKE3-Servil #44, #45): `compare` and `regress` judge a comparison's cells
   together, their false discovery rate controlled at 5% with the 3%
   margin, by `clocks::summary::discoveries`, in place of a sign test per
   cell; and each pair of runs links each side afresh, its functions in a
@@ -481,7 +810,7 @@ anything", John Servil releasing it):
   at once are common, and no other input covered them.
 - **`bench-hashes leaves` measures produced Merkle leaves** (Devon Jonte,
   #14; a new use case, Zooko, October 18): 16384 and 1048576
-  64-byte leaves from a counter, handed to BLAKE3 servil four ways (lent to
+  64-byte leaves from a counter, handed to BLAKE3-Servil four ways (lent to
   `hash_many_multithreaded`, lent to a stream, copied into its ring, or
   produced straight into it by `submit_batch_with`), each job timed whole
   from the first leaf produced to the last digest read, solo and two
@@ -511,8 +840,8 @@ anything", John Servil releasing it):
   page of the file stays cached (a b3sum that leaves its mappings to exit
   can leave pages that cannot be dropped for 20-50 ms), so those cells no
   longer run partly from the page cache.
-- **The fork's queue retired; its stream measures the continuous cells.**
-  BLAKE3 servil mt's ContinuousMessages and ContinuousBatches call
+- **BLAKE3-Servil's queue retired; its stream measures the continuous cells.**
+  BLAKE3-Servil mt's ContinuousMessages and ContinuousBatches call
   `stream()`: each message or batch read straight into the stream's ring,
   its digests into places the program keeps and cycles through the
   stream's handler (the queue's buffers and digest space were cycled
@@ -520,7 +849,7 @@ anything", John Servil releasing it):
   shapes with one API, its cells measured faster than the queue's on an
   i7-12700K (streaming batches x0.62, messages x0.82 against servil
   beb9abe's queue, three pairs of default runs), and retiring the queue
-  leaves the fork one scheduler (fork #59). The guide's examples and the
+  leaves BLAKE3-Servil one scheduler (BLAKE3-Servil #59). The guide's examples and the
   map's calls for these cells name the stream's.
 
 **Changes in 0.16.0** (Zooko, October 6, 2026):
@@ -528,7 +857,7 @@ anything", John Servil releasing it):
   commonware-cryptography's BLAKE3 batch kernels from its pull request
   #4982 (commit 3aa183f0), which hash one message per SIMD lane (NEON 4
   on AArch64; AVX2 8 and AVX-512 16 on x86-64), so that their author can
-  compare them with BLAKE3 servil's on x86-64 machines we lack. It takes
+  compare them with BLAKE3-Servil's on x86-64 machines we lack. It takes
   part in the batch use cases alone (its other calls are BLAKE3
   official's), through `Blake3::hash_many` over the batch's 64-byte
   messages, its digests in a new `Vec` each call; on one thread. Its
@@ -540,7 +869,7 @@ anything", John Servil releasing it):
   provenance missing). The line: the machine, its OS, the day, and how
   many seconds other programs kept it busy. "About this run" opens on the
   time, the machine's cores, the power, the load in full, bench-hashes's
-  release and commit, BLAKE3 servil's commit, the crates' versions, the
+  release and commit, BLAKE3-Servil's commit, the crates' versions, the
   compiler and target, and the samples file, linked to the exact code.
 - **Escape puts an open chart back** (Zooko).
 - **Two runs side by side** (Zooko): `bench-hashes map NEW --beside OLD`
@@ -576,7 +905,7 @@ alone; the benchmark's measurements and the map are 0.15.0's:
   a verdict.
 
 **Changes in 0.15.0** (Zooko, October 5, 2026), the benchmark for the
-optimisation pass that follows it: its maps before and after the fork's
+optimisation pass that follows it: its maps before and after BLAKE3-Servil's
 changes are drawn by one benchmark.
 - **A message received, verified as it arrives** (Zooko, "14. Yes"): a
   receiver of iroh-blobs' wire format. Messages of 1 MiB and 64 MiB one
@@ -587,20 +916,20 @@ changes are drawn by one benchmark.
   verified against the message's hash as they arrive, each verified group
   copied into the message's kept buffer. BLAKE3 decodes with bao-tree
   0.16.1 (`decode_ranges`, no outboard kept), drawn as bao-tree
-  (iroh-blobs); both BLAKE3 servil contenders with a `Verifier`, on the
+  (iroh-blobs); both BLAKE3-Servil contenders with a `Verifier`, on the
   calling thread (it has no multithreaded form). Each copies
   every received byte in and every verified byte out once.
 - **Many messages at once arrive in turns** (Zooko, October 5: "add the
   lanes across messages before freezing the API"): the pieces come 64 at
   a time, as one wait of a server's event loop delivers them, each read
-  into its own kept buffer. BLAKE3 servil takes each turn in one call,
+  into its own kept buffer. BLAKE3-Servil takes each turn in one call,
   `Hasher::update_each` (one thread) or `Hasher::update_each_multithreaded`,
   then `Hasher::finalize_each` for the messages that ended in it; every
   other contender updates per piece and finishes per message, as before.
   The Hasher gathers each message's pieces into whole 16 KiB itself
   (Zooko, October 5), so no contender gathers. Every contender's numbers
   move from 0.14's: the pieces sit in 64 buffers instead of one.
-- **A collection, multithreaded, in one call:** BLAKE3 servil mt hashes a
+- **A collection, multithreaded, in one call:** BLAKE3-Servil mt hashes a
   collection with `hash_each_multithreaded_with`, the multithreaded twin
   of servil st's `hash_each_with` (Zooko, October 5: each servil
   contender makes the fastest call under its choice of threads, one
@@ -622,7 +951,7 @@ changes are drawn by one benchmark.
   (Zooko, October 5, 2026): `bench-hashes.map.html`, every cell a small
   chart placed by what the program hashes and how it calls, opening in
   place with its values under the pointer, each call's name a link to its
-  documentation (johnservil.github.io/BLAKE3), b3sum's results a section
+  documentation (servil-software-factory.github.io/BLAKE3), b3sum's results a section
   in the same form. Every run, and every b3sum run, draws it from the
   samples files in its folder; `bench-hashes map FOLDER` draws it again.
   The guide's answers link to their charts on the map. The README's 1 MiB
@@ -640,10 +969,10 @@ changes are drawn by one benchmark.
   written into a kept buffer, then hashed with its outboard: the tree's
   parent nodes above 16 KiB groups, in pre-order, as iroh-blobs stores
   them and as a server makes them when it adds a file. BLAKE3 builds it
-  with bao-tree 0.16.1 (`PreOrderMemOutboard::create`), BLAKE3 servil with
+  with bao-tree 0.16.1 (`PreOrderMemOutboard::create`), BLAKE3-Servil with
   `outboard_with` on one thread and `outboard_multithreaded_with` on
   several; all give the same bytes. Verifying a
-  range as it arrives costs about what building costs (the fork's
+  range as it arrives costs about what building costs (BLAKE3-Servil's
   `verify_range_with`), so one cell serves both.
 - **A collection of messages of different lengths, each hashed once**: a
   program naming every item of a collection by its hash, as git, Bazel,
@@ -653,8 +982,8 @@ changes are drawn by one benchmark.
   (`COLLECTIONS`): git/git's objects (422,404 at c46c1e3) and the files
   under 1 MiB of 1000 nixos-25.05 store paths (192,213 files); within an
   octave every item has one length, one and a half times its lower bound.
-  BLAKE3 servil on one thread hashes the whole collection in one call of
-  `hash_each_with` (the fork's call for this use case, short items side by
+  BLAKE3-Servil on one thread hashes the whole collection in one call of
+  `hash_each_with` (BLAKE3-Servil's call for this use case, short items side by
   side in the SIMD lanes); every other contender calls its one-message
   call once per item.
   No cell hashed many small items of different lengths, the main work of
@@ -675,7 +1004,7 @@ changes are drawn by one benchmark.
   open message, each piece read into a kept buffer, then fed to its
   message. No other cell had messages open at once, and a program serving
   many connections meets it. One long message in 64 KiB pieces goes: with
-  no thread lingering between updates (the fork's candidate/no-linger),
+  no thread lingering between updates (BLAKE3-Servil's candidate/no-linger),
   pieces lent to an incremental call hash as one message of their length
   does, which the one-message cells show; the guide shows those for
   `update_multithreaded`. The regression check drops its "lent pieces
@@ -688,7 +1017,7 @@ changes are drawn by one benchmark.
   from a stored file. The READMEs show the published records' charts.
 
 **Changes in 0.12.0** (Zooko, October 2, 2026),
-from the regression check's calibration (the fork's NOTES, "The
+from the regression check's calibration (BLAKE3-Servil's NOTES, "The
 regression check, calibrated"):
 - Every summary is a run's mean, the total time of its samples over the
   total work they did (`clocks::summary`); the two-speed rule, its
@@ -706,12 +1035,12 @@ regression check, calibrated"):
   in place of the single-call retiming.
 - `compare` says so beside any run whose load was unmeasured, as well as
   busy (Devon Jonte's finding).
-- `bench-hashes b3sum` measures builds of b3sum (it was the fork's
+- `bench-hashes b3sum` measures builds of b3sum (it was BLAKE3-Servil's
   tools/b3sum-bench), in this samples format.
 
 **Changes in 0.11.0** (Zooko, October 2, 2026):
-- The fork's queue takes a mode and a handler (`Queue::messages(mode,
-  handler)`): the fork removed its time-or-energy choice, whose
+- BLAKE3-Servil's queue takes a mode and a handler (`Queue::messages(mode,
+  handler)`): BLAKE3-Servil removed its time-or-energy choice, whose
   complexity outweighed its likely use, and the benchmark called
   `Efficiency::Time`, the queue's only way of hashing now. The calls and
   their patterns are otherwise the same.
@@ -720,7 +1049,7 @@ regression check, calibrated"):
   lent pieces' read buffer came from `vec![0; len]`, zeroed pages the
   system maps only at their first write, so they faulted inside each
   cell's first sample, a first-use cost no kept buffer of a real program
-  pays (330 against 217 us a queue batch in the fork's tmp/lentprobe).
+  pays (330 against 217 μs a queue batch in BLAKE3-Servil's tmp/lentprobe).
 
 Why each piece is here (Zooko, September 28, 2026, replacing the contract
 of September 27, whose queue cells measured a round trip rather than
@@ -800,11 +1129,11 @@ their users seldom make):
 
 (Zooko, October 22, 2026; its design as of October 24.) One page above
 the maps, built from every machine's published run, that answers "how
-does BLAKE3 servil do on my kind of machine?" and "how does it do for my
+does BLAKE3-Servil do on my kind of machine?" and "how does it do for my
 use, across machines?".
 
 - **The first view: three bars a machine** (the machines in the grid),
-  on one logarithmic scale for every machine: BLAKE3 servil's
+  on one logarithmic scale for every machine: BLAKE3-Servil's
   multi-threaded form, BLAKE3 official's (off until asked for) and the
   fastest SHA-256 the run measured (sha2, ring, or the OS's). A bar's full
   length is hashing nonstop on every core (ContinuousMessages 64 KiB:
@@ -835,7 +1164,7 @@ use, across machines?".
   | 128 MiB | solo OneMessage 128 MiB | blake3-servil-mt | a download or a disk image |
   | 64 KiB messages, one after another | solo ContinuousMessages 64 KiB | blake3-servil-mt (the stream) | messages arriving one after another, as fast as the program can feed them |
   | 1024 messages of 64 B, batched | solo ManyMessages 1024 | blake3-servil-st | a Merkle layer, a content-addressed store, a database's keys |
-  | 1000 files, b3sum | b3sum, warm, mixed tree, 1000 files, 74 MiB | the fork's b3sum (against official b3sum and the system's sha256sum, sha1sum and md5sum: still what many people run on a download, whatever their security) | the command people actually run, process start to exit |
+  | 1000 files, b3sum | b3sum, warm, mixed tree, 1000 files, 74 MiB | BLAKE3-Servil's b3sum (against official b3sum and the system's sha256sum, sha1sum and md5sum: still what many people run on a download, whatever their security) | the command people actually run, process start to exit |
 
   Seven cells. **The budget is eight.** Adding one names the one it
   displaces, or argues the rare exception, here. Each cell is a card that
@@ -853,7 +1182,7 @@ use, across machines?".
   forms one above the other, under "Show:", with a line saying a click
   shows or hides. A button hides or shows its hash's bars (in the first
   view, its form's part of a bar); an off button keeps its name readable
-  and its swatch hollow. The page opens on BLAKE3 servil, multi-threaded,
+  and its swatch hollow. The page opens on BLAKE3-Servil, multi-threaded,
   and SHA-256 (Zooko, October 27).
 - **Machines** are each one published run, the newest of the current
   benchmark release on that machine: its CPU name, core count and OS from
@@ -884,6 +1213,10 @@ use case ManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 
 use case ManyLongMessages: 4, 16, 64, 256
 use case IdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
 use case IdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
+use case BriefIdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
+use case BriefIdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
+use case ControlledIdleOneMessage: 64 B, 128 B, 256 B, 512 B, 1 KiB, 1536 B, 2 KiB, 2304 B, 3 KiB, 3839 B, 4 KiB, 4470 B, 7935 B, 8 KiB, 16 KiB, 32 KiB, 64 KiB, 128 KiB, 256 KiB, 512 KiB, 1 MiB, 2 MiB, 3 MiB, 4 MiB, 8 MiB, 32 MiB, 64 MiB, 128 MiB
+use case ControlledIdleManyMessages: 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144
 use case ContinuousMessages: 64 B, 128 B, 256 B, 512 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
 use case ContinuousBatches: 16, 64, 256, 1024, 4096, 16384, 65536
 use case LentMessages: 64 B, 128 B, 256 B, 512 B, 1 KiB, 4 KiB, 16 KiB, 64 KiB, 256 KiB, 1 MiB, 4 MiB, 16 MiB, 64 MiB
@@ -891,43 +1224,51 @@ use case Interleaved: 256
 use case Collection: git objects, Nix files
 use case LentBatches: 16, 64, 256, 1024, 4096, 16384, 65536
 use case ContinuousCollection: git objects, Nix files
-use case MerkleTree: 1024, 4096, 16384, 65536, 262144
-use case InterleavedTurn: 256
-use case IdleInterleavedTurn: 256
+use case MerkleTree: 1024, 4096, 16384, 65536, 262144, 65536 x 32 B, 1048576 x 32 B, 1048576 x 16 B
+use case InterleavedTurn: 256, 1024 x 1 KiB
+use case IdleInterleavedTurn: 256, 1024 x 1 KiB
+use case BriefIdleInterleavedTurn: 256, 1024 x 1 KiB
+use case ControlledIdleInterleavedTurn: 256, 1024 x 1 KiB
+use case ReceivingMessage: saturated, 2 μs, 20 μs
+receive trace: 16777216 B per message; fragment cycle 1448, 4096, 16384, 65536 B; arrival spacing saturated: 0 ns, 2 μs: 2000 ns, 20 μs: 20000 ns; deadlines fixed from the first arrival, independent of consumer work; receiving through finalization timed together
 scenarios: solo, shared-one-cache, shared-two-caches, shared-os
-shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree
+shared measures: ContinuousMessages, ContinuousBatches, LentMessages, Interleaved, Collection, LentBatches, ContinuousCollection, MerkleTree, ReceivingMessage
 shared placements: two cores under one last-level cache; two cores under two (where the machine has two); where it offers no pair (macOS), wherever the OS runs them
-shared contenders: blake3-official-mt, blake3-servil-mt
-blake3-servil-st InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each, then performance::finalize_each for the messages that ended in it
-blake3-servil-st IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: performance::update_each, then performance::finalize_each for the messages that ended in it
-blake3-servil-mt InterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after other work: performance::update_each_multithreaded, then performance::finalize_each for the messages that ended in it
-blake3-servil-mt IdleInterleavedTurn: the Hashers of the 256 open messages; one turn a call (up to 64 pieces, 256 KiB), each after idling: performance::update_each_multithreaded, then performance::finalize_each for the messages that ended in it
-blake3-servil-st MerkleTree: performance::hash_many(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root
-blake3-servil-mt MerkleTree: performance::hash_many_multithreaded(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root
+shared contenders: blake3-official-mt, blake3-servil-mt, blake3-servil-pipeline
+blake3-servil-pipeline ReceivingMessage: throughput::pipeline: one Stream kept for the process (64 rooms of 16 KiB, 1 MiB in flight; 2 message slots), Stream::message per message with its length as the hint, each received fragment written into the rooms Message::input gives and committed (the one copy of an arrival), the last fragment's final bytes ended with Message::end(n), then collect and ready until the digest is delivered; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, writes and the wait for the digest timed together
+blake3-servil-pipeline ContinuousBatches: throughput::pipeline: the Stream kept for the process (64 rooms of 16 KiB; 2 message slots, so two batches in flight), Stream::submit_batch(batch, places, tag) per batch, the batch (an owned Batch) and its places (a Box of 32-byte places, one a message) moved in, both handed back by Event::Batch; each batch refilled from the input (every 64-byte message copied in), its digests consumed whole as the batch comes back, the pair used again; collect and ready while none is free; every batch still out waited for at a sample's end
+blake3-servil-st ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, updates and finalization timed together
+blake3-servil-mt ReceivingMessage: convenience::Hasher::new(Mode::Plain, None), update_multithreaded per received fragment, finalize after the last; 1448 B, 4 KiB, 16 KiB and 64 KiB arrivals in a repeating cycle, cut at message end; a kept 64 KiB receive buffer; fixed arrival deadlines from the first fragment (saturated, 2 μs, 20 μs); reads, waits, updates and finalization timed together
+blake3-servil-st InterleavedTurn: the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after other work: throughput::update_each, then throughput::finalize_each for the messages that ended in it
+blake3-servil-st IdleInterleavedTurn: the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after idling: throughput::update_each, then throughput::finalize_each for the messages that ended in it
+blake3-servil-mt InterleavedTurn: the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after other work: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it
+blake3-servil-mt IdleInterleavedTurn: the Hashers of the open messages (256 in pieces up to 16 KiB, one call of turns of up to 64 pieces, 256 KiB; or 1,024 of 1 KiB in 256-byte pieces, one call a whole cycle, four turns of a piece of each message), each after idling: throughput::update_each_multithreaded, then throughput::finalize_each for the messages that ended in it
+blake3-servil-st MerkleTree: throughput::hash_many(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root; leaves of 32 or 16 bytes written into a kept Packed of their length and hashed as they are, each layer's digests into a kept Packed<32>, two by two the next layer's parents (as_blocks), with no copy into blocks
+blake3-servil-mt MerkleTree: throughput::hash_many_multithreaded(Mode::Keyed(key), &Batch::from_blocks(layer, len), out) for each layer, a tree a sample: the leaves (256 B) written into a kept buffer and hashed under the leaf key, then each layer of parents (64 B, two children's digests) under the parent key into a kept buffer of its own, to the root; leaves of 32 or 16 bytes written into a kept Packed of their length and hashed as they are, each layer's digests into a kept Packed<32>, two by two the next layer's parents (as_blocks), with no copy into blocks
 blake3-servil-st OneMessage: convenience::hash(input), each call after other work
-blake3-servil-st ManyMessages: performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work
-blake3-servil-mt OneMessage: performance::hash_multithreaded(Mode::Plain, blocks, len), each call after other work
-blake3-servil-mt ManyMessages: performance::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work
-blake3-servil-st ManyLongMessages: performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work
-blake3-servil-mt ManyLongMessages: performance::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work
-blake3-servil-mt ContinuousMessages: performance::stream(Mode::Plain, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
-blake3-servil-mt ContinuousBatches: performance::stream(Mode::Plain, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again
-blake3-servil-st ContinuousMessages: convenience::hash(input), one message after another, each read into a kept buffer of the program's and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)
-blake3-servil-st ContinuousBatches: performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, one batch after another, each read into a kept buffer of the program's and hashed on its thread
-blake3-servil-mt ContinuousCollection: performance::stream(Mode::Plain, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
-blake3-servil-st ContinuousCollection: convenience::hash(input), the collection's messages one after another, each read into a kept buffer of the program's and hashed on its thread
-blake3-servil-st LentMessages: convenience::hash(input), one message after another, each read into a kept buffer and lent until the call returns
-blake3-servil-st Interleaved: a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; performance::update_each per turn, then performance::finalize_each for the messages that ended in it, each buffer lent until the calls return
-blake3-servil-st Collection: performance::hash_each(Mode::Plain, items, out), every item of the collection in one call, in memory
-blake3-servil-st LentBatches: performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, batches one after another, each read into a kept buffer and lent with kept digests until the call returns
-blake3-servil-mt LentMessages: performance::hash_multithreaded(Mode::Plain, blocks, len), one message after another, each read into a kept buffer and lent until the call returns
-blake3-servil-mt Interleaved: a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; performance::update_each_multithreaded per turn, then performance::finalize_each for the messages that ended in it, each buffer lent until the calls return
-blake3-servil-mt Collection: performance::hash_each_multithreaded(Mode::Plain, items, out), every item of the collection in one call, in memory
-blake3-servil-mt LentBatches: performance::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, batches one after another, each read into a kept buffer and lent with kept digests until the call returns
+blake3-servil-st ManyMessages: throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work
+blake3-servil-mt OneMessage: throughput::hash_multithreaded(Mode::Plain, blocks, len), each call after other work
+blake3-servil-mt ManyMessages: throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work
+blake3-servil-st ManyLongMessages: throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work
+blake3-servil-mt ManyLongMessages: throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work
+blake3-servil-mt ContinuousMessages: throughput::stream(Mode::Plain, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
+blake3-servil-mt ContinuousBatches: throughput::stream(Mode::Plain, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again
+blake3-servil-st ContinuousMessages: throughput::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)
+blake3-servil-st ContinuousBatches: throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, one batch after another, each read into a kept buffer of the program's and hashed on its thread
+blake3-servil-mt ContinuousCollection: throughput::stream(Mode::Plain, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
+blake3-servil-st ContinuousCollection: throughput::hash(Mode::Plain, blocks, len), the collection's messages one after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread
+blake3-servil-st LentMessages: throughput::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer in whole blocks and lent until the call returns
+blake3-servil-st Interleaved: a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; throughput::update_each per turn, then throughput::finalize_each for the messages that ended in it, each buffer lent until the calls return
+blake3-servil-st Collection: throughput::hash_each(Mode::Plain, items, out), every item of the collection in one call, in memory
+blake3-servil-st LentBatches: throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, batches one after another, each read into a kept buffer and lent with kept digests until the call returns
+blake3-servil-mt LentMessages: throughput::hash_multithreaded(Mode::Plain, blocks, len), one message after another, each read into a kept buffer and lent until the call returns
+blake3-servil-mt Interleaved: a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; throughput::update_each_multithreaded per turn, then throughput::finalize_each for the messages that ended in it, each buffer lent until the calls return
+blake3-servil-mt Collection: throughput::hash_each_multithreaded(Mode::Plain, items, out), every item of the collection in one call, in memory
+blake3-servil-mt LentBatches: throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, batches one after another, each read into a kept buffer and lent with kept digests until the call returns
 blake3-servil-st IdleOneMessage: convenience::hash(input), each call after idling
-blake3-servil-st IdleManyMessages: performance::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling
-blake3-servil-mt IdleOneMessage: performance::hash_multithreaded(Mode::Plain, blocks, len), each call after idling
-blake3-servil-mt IdleManyMessages: performance::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling
+blake3-servil-st IdleManyMessages: throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling
+blake3-servil-mt IdleOneMessage: throughput::hash_multithreaded(Mode::Plain, blocks, len), each call after idling
+blake3-servil-mt IdleManyMessages: throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after idling
 overview cell: solo OneMessage 64 B, blake3-servil-st (64 B)
 overview cell: solo OneMessage 1 KiB, blake3-servil-st (1 KiB)
 overview cell: solo OneMessage 1 MiB, blake3-servil-st (1 MiB)

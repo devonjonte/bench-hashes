@@ -17,6 +17,14 @@ jobs:
       CARGO_PROFILE_RELEASE_DEBUG: line-tables-only
     steps:
       - uses: actions/checkout@v4
+      - name: Pinned runner and fault controls
+        if: runner.os == 'Linux'
+        run: python3 tools/pinned-run/check.py --output "${{ runner.temp }}/pinned-run-check"
+      - uses: actions/upload-artifact@v4
+        if: always() && runner.os == 'Linux'
+        with:
+          name: pinned-run-check-${{ matrix.os }}
+          path: ${{ runner.temp }}/pinned-run-check/
       - uses: dtolnay/rust-toolchain@stable
         with:
           # check's coverage uses the toolchain's llvm-profdata and llvm-cov,
@@ -26,6 +34,9 @@ jobs:
       - run: cargo build --release
       # Each test in its own process (AGENTS: "Tests run under nextest").
       - run: cargo nextest run --release
+      # The default suite checks the instrument's logic. The machine
+      # profile runs on quiet benchmark hosts; hosted macOS CI has shown
+      # 1.68-3.01 CPUs of unrelated work, which invalidates its load checks.
       # A quick run takes about a minute. On Linux, one that is still
       # running after ten prints every thread's stack and fails, so a hang
       # shows where it is.

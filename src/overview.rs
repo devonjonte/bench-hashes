@@ -1,7 +1,7 @@
 //! `bench-hashes overview OUT.html DIR...`: one page above the maps. Each
 //! row is a machine (one published results directory), each column one
 //! representative measurement (FROZEN's "The overview"), and each cell the
-//! ratio of a competitor's time to BLAKE3 servil's in that run: read across
+//! ratio of a competitor's time to BLAKE3-Servil's in that run: read across
 //! a row for one machine, down a column for one use across machines. The
 //! cells are read from the same samples files the maps are drawn from,
 //! through the same reader and summary rule; every figure on the page is
@@ -21,7 +21,7 @@ pub struct Pick {
 }
 
 pub enum Cell {
-    /// A hashing cell: `solo|use_case|point`, BLAKE3 servil's contender in
+    /// A hashing cell: `solo|use_case|point`, BLAKE3-Servil's contender in
     /// it, and whether BLAKE3 official's multithreaded form is the fair
     /// comparison (where servil's is multithreaded).
     Hashing {
@@ -62,7 +62,7 @@ pub const PICKS: [Pick; 7] = [
     },
     Pick {
         column: "64 KiB messages, one after another",
-        situation: "messages arriving one after another, as fast as the program can feed them; BLAKE3 servil's stream hashes them on its threads, the others on the calling thread",
+        situation: "messages arriving one after another, as fast as the program can feed them; BLAKE3-Servil's stream hashes them on its threads, the others on the calling thread",
         cell: Cell::Hashing { use_case: UseCase::ContinuousMessages, point: "64 KiB", servil: Algorithm::Blake3ServilMt },
     },
     Pick {
@@ -107,7 +107,7 @@ pub fn frozen_lines() -> String {
     text
 }
 
-/// The b3sum names the fork's build goes by in a run, newest convention
+/// The b3sum names BLAKE3-Servil's build goes by in a run, newest convention
 /// first (bench-hashes #55 settles on `b3sum`), and the competitors shown.
 pub const FORK_B3SUM: [&str; 3] = ["b3sum", "devon", "fork"];
 /// (run key, name shown, identity, colour, striped): b3sum's bars join
@@ -146,10 +146,10 @@ pub struct Bar {
     pub note: &'static str,
 }
 
-/// A cell's bars: BLAKE3 servil's forms first, then each competitor's.
+/// A cell's bars: BLAKE3-Servil's forms first, then each competitor's.
 pub type Bars = Vec<Bar>;
 
-/// Whether a bar is one of BLAKE3 servil's forms (b3sum's shares the
+/// Whether a bar is one of BLAKE3-Servil's forms (b3sum's shares the
 /// multi-threaded form's key).
 fn is_servil(b: &Bar) -> bool {
     b.id == Algorithm::Blake3ServilSt.key() || b.id == Algorithm::Blake3ServilMt.key()
@@ -292,7 +292,7 @@ fn b3sum_bars(file: &SamplesFile, cache: &str, input: &str) -> Bars {
         return Vec::new();
     };
     let mut bars = vec![bar(
-        "b3sum, BLAKE3 servil's",
+        "b3sum, BLAKE3-Servil's",
         Algorithm::Blake3ServilMt.key(),
         Algorithm::Blake3ServilMt.color(),
         true,
@@ -320,8 +320,8 @@ fn paint(color: &str, striped: bool) -> String {
 /// A contender's name in plain words: the map's "st" and "mt" spelled out.
 fn plain_name(a: Algorithm) -> &'static str {
     match a {
-        Algorithm::Blake3ServilSt => "BLAKE3 servil, single-threaded",
-        Algorithm::Blake3ServilMt => "BLAKE3 servil, multi-threaded",
+        Algorithm::Blake3ServilSt => "BLAKE3-Servil, single-threaded",
+        Algorithm::Blake3ServilMt => "BLAKE3-Servil, multi-threaded",
         Algorithm::Blake3 => "BLAKE3 official, single-threaded",
         Algorithm::Blake3Rayon => "BLAKE3 official, multi-threaded",
         other => other.name(),
@@ -437,11 +437,7 @@ fn described(headers: &[(String, String)], link: String, cells: Vec<Bars>, stale
     } else {
         os.to_owned()
     };
-    let fork = headers
-        .iter()
-        .find(|(k, _)| k.starts_with("source blake3-servil"))
-        .and_then(|(_, v)| v.split("commit ").nth(1))
-        .map_or(String::new(), |c| c[..c.len().min(7)].to_owned());
+    let fork = crate::map::servil_version(headers);
     let identity = header(headers, "cpu identity");
     Row {
         machine: short_name(header(headers, "cpu type")),
@@ -502,7 +498,7 @@ pub fn text(rows: &[Row]) -> String {
     for row in rows {
         let _ = writeln!(
             out,
-            "{}{}, {} CPUs, {} · {} · bench-hashes {}, BLAKE3 servil {}",
+            "{}{}, {} CPUs, {} · {} · bench-hashes {}, BLAKE3-Servil {}",
             if row.virtual_machine { "(VM) " } else { "" },
             row.machine,
             row.cpus,
@@ -650,7 +646,7 @@ fn plain(row: &Row) -> String {
 const EVERYDAY: usize = 1;
 const HEADLINE: usize = 4;
 
-/// The first view: a row per machine, three bars (BLAKE3 servil, BLAKE3
+/// The first view: a row per machine, three bars (BLAKE3-Servil, BLAKE3
 /// official, the fastest SHA-256). A bar's full length is the headline
 /// case, the darker part inside it the everyday case; log scale, one for
 /// every machine, so bars compare across rows. No figure on the page; the
@@ -704,8 +700,8 @@ fn families_by_machine(all: &[Row], shown: &[usize]) -> String {
         // form's cells, so every button shows or hides its form here as in
         // the grid (the page opens on servil multi-threaded and SHA-256).
         for (form, family) in [
-            (Algorithm::Blake3ServilSt, "BLAKE3 servil"),
-            (Algorithm::Blake3ServilMt, "BLAKE3 servil"),
+            (Algorithm::Blake3ServilSt, "BLAKE3-Servil"),
+            (Algorithm::Blake3ServilMt, "BLAKE3-Servil"),
             (Algorithm::Blake3, "BLAKE3 official"),
             (Algorithm::Blake3Rayon, "BLAKE3 official"),
             (Algorithm::Sha256, "SHA-256"),
@@ -758,7 +754,7 @@ fn families_by_machine(all: &[Row], shown: &[usize]) -> String {
 /// family's column.
 fn door(rows: &[Row], shown: &[usize]) -> String {
     let mut out = format!(
-        "<details class=\"more\" id=\"more\"><summary><b>All {} machines measured</b>: choose which one stands for each kind</summary><p class=\"glance-key\">Under each machine: BLAKE3 servil against SHA-256, on a stream of messages. Click a machine to put it in the grid above.</p><div class=\"cards\">",
+        "<details class=\"more\" id=\"more\"><summary><b>All {} machines measured</b>: choose which one stands for each kind</summary><p class=\"glance-key\">Under each machine: BLAKE3-Servil against SHA-256, on a stream of messages. Click a machine to put it in the grid above.</p><div class=\"cards\">",
         rows.len()
     );
     for f in FAMILIES {
@@ -775,7 +771,7 @@ fn door(rows: &[Row], shown: &[usize]) -> String {
                 (Some(o), Some(h)) => {
                     let top = o.gbps.max(h.gbps);
                     format!(
-                        "<span class=\"glance\" title=\"{}: BLAKE3 servil, multi-threaded, {} against SHA-256, {}\"><i style=\"width:{:.0}%;background:{}\"></i><i style=\"width:{:.0}%;background:{}\"></i><em>{}</em></span>",
+                        "<span class=\"glance\" title=\"{}: BLAKE3-Servil, multi-threaded, {} against SHA-256, {}\"><i style=\"width:{:.0}%;background:{}\"></i><i style=\"width:{:.0}%;background:{}\"></i><em>{}</em></span>",
                         escape(PICKS[HEADLINE].column),
                         speed(o.gbps),
                         speed(h.gbps),
@@ -807,7 +803,7 @@ fn door(rows: &[Row], shown: &[usize]) -> String {
 }
 
 /// The page: a row per machine, a column per situation, and in each cell
-/// a small bar chart in the map's colours, BLAKE3 servil's bar first and
+/// a small bar chart in the map's colours, BLAKE3-Servil's bar first and
 /// each competitor's under it, lengths in proportion to speed (the fastest
 /// in the cell fills the width, its speed at the end as the scale). The
 /// legend's buttons are the hashes drawn, each in its bar's colour, and
@@ -926,7 +922,7 @@ pub fn html(rows: &[Row]) -> String {
         let others = rows.iter().filter(|r| family(r) == family(row)).count() - 1;
         let _ = write!(
             body,
-            "<th {}><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span class=\"kind\">{}</span><span>{} CPUs, {} · {}</span><span><a class=\"run\" href=\"{}/bench-hashes.map.html#run\" title=\"the run's record: commits, compiler, power, load\">BLAKE3 servil {} · bench-hashes {}</a></span>{}{}</th>",
+            "<th {}><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span class=\"kind\">{}</span><span>{} CPUs, {} · {}</span><span><a class=\"run\" href=\"{}/bench-hashes.map.html#run\" title=\"the run's record: commits, compiler, power, load\">BLAKE3-Servil {} · bench-hashes {}</a></span>{}{}</th>",
             col(i),
             escape(&row.link),
             escape(&row.machine),
@@ -1206,8 +1202,8 @@ mod tests {
     /// multi-threaded form).
     fn bar(name: &str, gbps: f64, note: &'static str) -> Bar {
         let (a, id) = match name {
-            "BLAKE3 servil st" => (Algorithm::Blake3ServilSt, Algorithm::Blake3ServilSt.key()),
-            "BLAKE3 servil mt" | "b3sum, BLAKE3 servil's" => {
+            "BLAKE3-Servil st" => (Algorithm::Blake3ServilSt, Algorithm::Blake3ServilSt.key()),
+            "BLAKE3-Servil mt" | "b3sum, BLAKE3-Servil's" => {
                 (Algorithm::Blake3ServilMt, Algorithm::Blake3ServilMt.key())
             }
             "BLAKE3 official" => (Algorithm::Blake3, Algorithm::Blake3.key()),
@@ -1240,12 +1236,12 @@ mod tests {
         let mut cells: Vec<Bars> = PICKS.iter().map(|_| Vec::new()).collect();
         // Servil 0.9× official (official fills the width), 1.2× SHA-256.
         cells[0] = vec![
-            bar("BLAKE3 servil st", 0.9, ""),
+            bar("BLAKE3-Servil st", 0.9, ""),
             bar("BLAKE3 official", 1.0, ""),
             bar("SHA-256", 0.75, ""),
         ];
         cells[3] = vec![
-            bar("BLAKE3 servil mt", 12.0, ""),
+            bar("BLAKE3-Servil mt", 12.0, ""),
             bar(
                 "BLAKE3 official",
                 1.0,
@@ -1253,7 +1249,7 @@ mod tests {
             ),
         ];
         cells[6] = vec![
-            bar("b3sum, BLAKE3 servil's", 30.0, ""),
+            bar("b3sum, BLAKE3-Servil's", 30.0, ""),
             bar("b3sum, official BLAKE3's", 10.0, ""),
             bar("md5sum", 1.5, ""),
         ];
@@ -1311,7 +1307,7 @@ mod tests {
         );
         assert!(!page.contains(">b3sum, official BLAKE3's</button>"));
         assert!(text(&rows).contains(
-            "1000 files, b3sum:                   30 GB/s b3sum, BLAKE3 servil's; 10 GB/s b3sum, official BLAKE3's (3.0×); 1.5 GB/s md5sum (20×)"
+            "1000 files, b3sum:                   30 GB/s b3sum, BLAKE3-Servil's; 10 GB/s b3sum, official BLAKE3's (3.0×); 1.5 GB/s md5sum (20×)"
         ));
     }
 

@@ -10,16 +10,16 @@ a web browser.
 
 <img src="benchmark-results/AppleM4Max.darwin25/bench-hashes.chart.svg" alt="Hashing one 128 MiB message after a pause on an Apple M4 Max: BLAKE3 multi-core and on one core beside SHA-256, SHA3-256 and SHA-1, in GB/s" width="720">
 
-[The overview](https://johnservil.github.io/bench-hashes/) is one page
+[The overview](https://servil-software-factory.github.io/bench-hashes/) is one page
 for every machine measured: a column per machine, a row per way a program
 hashes, and in each row the hashes' speeds as bars, with how many times
 faster the fastest ran. Each machine's own map, every size, is a click
 away from there; four of the nine:
 
-- [Apple M4 Max, macOS](https://johnservil.github.io/bench-hashes/benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html)
-- [AMD EPYC 9255, Linux](https://johnservil.github.io/bench-hashes/benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html)
-- [Intel i7-12700K, Linux](https://johnservil.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70042generic/bench-hashes.map.html)
-- [A Linux VM on that Mac](https://johnservil.github.io/bench-hashes/benchmark-results/aarch64.linux618520virt/bench-hashes.map.html)
+- [Apple M4 Max, macOS](https://servil-software-factory.github.io/bench-hashes/benchmark-results/AppleM4Max.darwin25/bench-hashes.map.html)
+- [AMD EPYC 9255, Linux](https://servil-software-factory.github.io/bench-hashes/benchmark-results/AMDEPYC925524CoreProcessor.linux70038generic/bench-hashes.map.html)
+- [Intel i7-12700K, Linux](https://servil-software-factory.github.io/bench-hashes/benchmark-results/12thGenIntelRCoreTMi712700K.linux70042generic/bench-hashes.map.html)
+- [A Linux VM on that Mac](https://servil-software-factory.github.io/bench-hashes/benchmark-results/aarch64.linux618520virt/bench-hashes.map.html)
 
 ## Run it on your computer
 
@@ -28,14 +28,14 @@ tools on macOS (`xcode-select --install`), or gcc or clang on Linux.
 (Windows is unsupported since blake3-servil 0.8.) Then:
 
 ```sh
-git clone https://github.com/johnservil/bench-hashes
+git clone https://github.com/servil-software-factory/bench-hashes
 cd bench-hashes
 cargo run --release
 ```
 
 To measure a released version, so that others can compare their results
 with yours, check out its tag first: `git checkout` followed by a tag
-that [Releases](https://github.com/johnservil/bench-hashes/releases)
+that [Releases](https://github.com/servil-software-factory/bench-hashes/releases)
 lists.
 
 The first build takes a minute or two; the run then measures for about
@@ -72,15 +72,17 @@ Below the grid, a second grid shows the two multithreaded hashes as two
 programs running at once on two cores under one cache; a computer with
 several caches adds a third, the two programs under two.
 
-Its columns say how the program calls: now and then, *after other work*
-or *after a pause*, and nonstop, *waiting for each call* or
-*pipelined*. Point at a row's or a column's name, or tap it, to see
+Its columns say how the program calls: now and then, *after other work*,
+*after a brief pause* (20 μs) or *after a pause* (5 ms; and, where the
+bench ran as root, the same pause with the core's deep rest switched
+off), and nonstop,
+*waiting for each call* or *pipelined*. Point at a row's or a column's name, or tap it, to see
 what it means. Open a chart to read its values under the pointer or
 where you tap; a hash's name hides or shows its lines; each call's name
 links to its documentation.
 
 Each library keeps one colour, its multi-threaded form drawn as a double
-line. At a chart's right end a bracket joins BLAKE3 servil's line (the
+line. At a chart's right end a bracket joins BLAKE3-Servil's line (the
 faster of its forms shown) and its strongest rival's, and says how many
 times faster the winner ran, in the winner's colour.
 
@@ -104,11 +106,11 @@ slow the results, and battery power changes which cores run them.
 
 The contenders:
 
-- **BLAKE3 servil mt**: [`blake3-servil`](https://github.com/johnservil/BLAKE3),
+- **BLAKE3-Servil mt**: [`blake3-servil`](https://github.com/servil-software-factory/BLAKE3),
   faster than official BLAKE3 on 64-bit Arm (above all on Apple M4-class
   chips) and on x86-64, with its own threads to spread large inputs over
   your CPU cores and a stream for inputs that come one after another.
-- **BLAKE3 servil st**: the same on one thread.
+- **BLAKE3-Servil st**: the same on one thread.
 - **SHA-256** (the `sha2` crate) and **SHA-256 ring** (the `ring`
   crate): SHA-256 with the CPU's SHA-256 instructions where it has them;
   two implementations, since each is fastest at some sizes on some
@@ -123,7 +125,7 @@ name (`--list` shows the names).
 
 The servil crate's documentation has a table, "Which call to use", that
 leads from what a program hashes to one call:
-https://johnservil.github.io/BLAKE3/blake3_servil/. The map's rows are
+https://servil-software-factory.github.io/BLAKE3/blake3_servil/. The map's rows are
 the same cases, so each row's chart shows that call's measured speed here.
 
 ## How fast is b3sum?
@@ -142,7 +144,7 @@ macOS, evicted from it before each run (read from storage):
 A contender is `NAME=COMMAND`, a `b3sum` and its flags, or any program
 that hashes the files it is given (the files are appended);
 `tools/b3sum-contenders.py` builds official BLAKE3's `b3sum` 1.8.7 and
-the fork's at given commits, official's and (for one commit) the fork's
+BLAKE3-Servil's at given commits, official's and (for one commit) BLAKE3-Servil's
 on one thread too (`--num-threads 1`), and adds the system's `sha256sum`, `sha1sum` and
 `md5sum`, the programs a user chooses between. The first contender
 is the one the others are compared with. `--files` chooses where the files live:
@@ -185,7 +187,7 @@ opens the map in a browser sees it as you do.
 Or publish them on the web from your own copy of this repository, as the
 results above are:
 
-1. On GitHub, fork `johnservil/bench-hashes`. If you cloned it before
+1. On GitHub, fork `servil-software-factory/bench-hashes`. If you cloned it before
    forking, point your clone at your fork:
    `git remote set-url origin https://github.com/YOU/bench-hashes`
 2. Commit your results and push them:
@@ -202,7 +204,7 @@ A minute later your map is at
 where FOLDER is the folder the run created.
 
 We would be glad to add your results to ours: once they are pushed to
-your fork, open a pull request to `johnservil/bench-hashes` on GitHub.
+your fork, open a pull request to `servil-software-factory/bench-hashes` on GitHub.
 Say in it what computer you ran on. Results from a machine we already
 have go beside ours, so rename your folder first,
 for example

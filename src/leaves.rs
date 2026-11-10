@@ -4,7 +4,7 @@
  * and hashes each as a leaf. N 64-byte messages come from the simplest
  * producer there is, a counter (the buffer's 64-bit words count up from
  * 0, so message i holds 8i .. 8i + 7), the same in every variant; the
- * variants differ in how the program hands them to BLAKE3 servil:
+ * variants differ in how the program hands them to BLAKE3-Servil:
  *
  *   lend-oneshot   produced into the program's buffer, then lent to
  *                  hash_many_multithreaded
@@ -50,7 +50,7 @@ fn produce(first: usize, out: &mut [u8]) {
 struct Program {
     /// The messages, in blocks: the batch calls' input (64 bytes on a
     /// 64-byte boundary; MESSAGE_LEN messages leave no padding).
-    buffer: Vec<blake3_servil::performance::Block>,
+    buffer: Vec<blake3_servil::throughput::Block>,
     digests: Vec<[u8; 32]>,
     /// The stream variants' places for the digests (kept, as `digests`).
     places: Vec<blake3_servil::Hash>,
@@ -59,7 +59,7 @@ struct Program {
 impl Program {
     fn new(count: usize) -> Program {
         Program {
-            buffer: vec![blake3_servil::performance::Block::ZERO; count * MESSAGE_LEN / 64],
+            buffer: vec![blake3_servil::throughput::Block::ZERO; count * MESSAGE_LEN / 64],
             digests: vec![[0u8; 32]; count],
             places: vec![blake3_servil::Hash::from_bytes([0; 32]); count],
         }
@@ -78,11 +78,11 @@ impl Program {
         let blocks = &mut self.buffer[..count * MESSAGE_LEN / 64];
         match variant {
             "lend-oneshot" => {
-                produce(0, blake3_servil::performance::Block::bytes_mut(blocks));
+                produce(0, blake3_servil::throughput::Block::bytes_mut(blocks));
                 let digests = &mut self.digests[..count];
-                blake3_servil::performance::hash_many_multithreaded(
+                blake3_servil::throughput::hash_many_multithreaded(
                     blake3_servil::Mode::Plain,
-                    &blake3_servil::performance::Batch::from_blocks(blocks, MESSAGE_LEN),
+                    &blake3_servil::throughput::Batch::from_blocks(blocks, MESSAGE_LEN),
                     digests,
                 );
                 // Sound: a Hash is its 32 bytes.
@@ -96,10 +96,10 @@ impl Program {
             // The stream's variants write the digests into the same kept
             // space as lend-oneshot, then fold them as it does.
             "lend-stream" => {
-                produce(0, blake3_servil::performance::Block::bytes_mut(blocks));
-                let buffer = blake3_servil::performance::Batch::from_blocks(blocks, MESSAGE_LEN);
+                produce(0, blake3_servil::throughput::Block::bytes_mut(blocks));
+                let buffer = blake3_servil::throughput::Batch::from_blocks(blocks, MESSAGE_LEN);
                 let places = &mut self.places[..count];
-                blake3_servil::performance::stream(
+                blake3_servil::throughput::stream(
                     blake3_servil::Mode::Plain,
                     |_| {},
                     |s| {
@@ -110,10 +110,10 @@ impl Program {
                 fold(&self.places[..count]);
             }
             "copy-ring" => {
-                produce(0, blake3_servil::performance::Block::bytes_mut(blocks));
-                let buffer = blake3_servil::performance::Block::bytes(blocks);
+                produce(0, blake3_servil::throughput::Block::bytes_mut(blocks));
+                let buffer = blake3_servil::throughput::Block::bytes(blocks);
                 let places = &mut self.places[..count];
-                blake3_servil::performance::stream(
+                blake3_servil::throughput::stream(
                     blake3_servil::Mode::Plain,
                     |_| {},
                     |s| {
@@ -132,7 +132,7 @@ impl Program {
             }
             "write-ring" => {
                 let places = &mut self.places[..count];
-                blake3_servil::performance::stream(
+                blake3_servil::throughput::stream(
                     blake3_servil::Mode::Plain,
                     |_| {},
                     |s| {
@@ -374,11 +374,13 @@ mod tests {
                 time_ns: 10,
                 cycles: 20,
                 instructions: 0,
+                ..clocks::Level::default()
             },
             e: clocks::Level {
                 time_ns: 30,
                 cycles: 40,
                 instructions: 0,
+                ..clocks::Level::default()
             },
         };
         let mut batches = vec![
@@ -404,7 +406,7 @@ mod tests {
         assert_eq!(fields[6], "3,3,3,3,3,3");
         assert_eq!(fields[7], "6000,6000,6000,6000,6000,6000");
         assert_eq!(fields[8], "-");
-        assert_eq!(fields[9], ["10:20:30:40"; 6].join(","));
+        assert_eq!(fields[9], ["10:20:0:0:0:30:40:0:0:0"; 6].join(","));
         // All six samples count ((5 * 4000 + 4_000_000) ns / 24 messages = 167500ns/message).
         // All raw CPU time gives 36000ns/24 messages = 1500ns/message.
         assert!(report.contains("167500.000 ns 1500.000 CPU ns"), "{report}");
