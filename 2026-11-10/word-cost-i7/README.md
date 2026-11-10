@@ -5,8 +5,9 @@ tasks lived in places named by a ring of words, and the multithreaded
 stream of 64 B messages ran about 7% slower than with the tasks in the
 ring itself. Which mechanism costs that time?
 
-**Verdict: unanswered, with three causes excluded and one lean.** The
-hour was the budget. The measured cost stands (5 to 7% here, again).
+**Verdict: narrowed, not closed.** Over 32 pairs the cost is 4 to 8%,
+and it stays when the word is stored and loaded but never followed. Three
+causes are excluded by test. The hour was the budget.
 
 | | new side | ns/B, base → new | P-core cycles | instructions | L1D load misses |
 |---|---|---|---|---|---|
@@ -42,19 +43,32 @@ agree with each other more closely than the three ratios do.
    So step 2 of the earlier study had a confound, and it did not change
    that study's conclusion.
 
-**A lean, from the last test (`stat4`).** With the word still written at
-each publication and read before each claim, and the task found by its
-number as in the base, the cell reads 0.300 ns/B: between the base's
-0.288 to 0.293 and the experiment's 0.308 to 0.313. So the word's own
-traffic and following it to the task may each carry part of the cost.
-Six runs a side cannot say how much: the three runs of the same
-comparison above range from x1.051 to x1.076. That experiment has
-BLAKE3 #302's race again (its two controls fail), so it is a
-measurement only.
+## The verdicts: 32 pairs each (`pairs.stdout.txt`, samples in `pairs-*/`)
 
-**Left to test,** if the question earns more time: the same four
-executables over 32 pairs with `bench-hashes check`, so the split has a
-verdict.
+`bench-hashes check --layouts 32 --points "continuous 64 B"`, each new
+side against the base c7936a5f (`pairs.sh`):
+
+| new side | solo | shared, one cache |
+|---|---|---|
+| 43836b15: the experiment as it was, the word used | **+6.6% slower** | **+8.3% slower** |
+| e469b30e: its counter moved off the workers' line | **+4.8% slower** | **+8.1% slower** |
+| 3f9c1553: the word stored and loaded, but unused | **+4.3% slower** | **+7.5% slower** |
+
+**What they say.** The cost stays when the word is no longer followed to
+the task (the third row finds the task by its number, as the base does).
+So following the word is a small part at most. What remains is common to
+all three: the word's store at each publication and its load before each
+claim, or the code shape those bring (a separate array of places beside
+the ring, the claim loop's extra load).
+
+**The six-run figures above understated the third row** (0.300 ns/B, a
+lean of x1.027): over 32 pairs it is +4.3% and +7.5%. Leans from a few
+runs mislead here; the pairs are the result.
+
+**The one test left,** if the question earns more time: 43836b15 with the
+word's store and load both deleted and everything else kept. Level with
+the base would name the word's traffic; still slower would name the code
+shape. About 18 minutes on the i7.
 
 **A by-product.** `ACTIVE` shares its cache line with whatever the linker
 puts beside it: in these executables, the bench's own statics. Here that
