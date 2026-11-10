@@ -28,6 +28,8 @@ Steps 1 to 5 priced a word a publication. The pipeline's task carries three word
 
 In step 4 the base's executable (`target/check/old/bench-hashes-10`, c7936a5f, which lacks the repair) stopped in the pipeline's ContinuousBatches 16384 cell: `thread 'blake3-worker-1' panicked at .../stream/receiver.rs:504:29: one task takes the published batch job` (`4-final-gate/gate.stderr.txt`). A batch's task ran twice: what #302 predicts when a claimer held before its copy has its slot written over. It is the second native sighting, after Sam Shackleton's Ice Lake gate (#296). With #329 the second run stops at a check; on `next` without #329 the batch job is a box, and the second run frees it twice.
 
+**A follow-up on step 2** (November 10): `../../2026-11-10/word-cost-i7/` looked for the mechanism of the word's cost for an hour. It excluded three causes, found step 2's experiment had a confound that did not change its result, and left the mechanism unanswered.
+
 ## What it means
 
 The repair costs the stream nothing, and the pipeline's small cells are 5 to 11% faster with it than without. The named-places version (steps 3 to 5) cost the pipeline's smallest shared batch cell 3.8%, for a word a task that its publisher writes and its workers read; the stream showed the same cost when it carried the word (steps 1 and 2). The ring of actions carries three words in place of that one and of the task's 26 cache lines.
