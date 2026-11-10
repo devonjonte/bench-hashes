@@ -1,4 +1,4 @@
-# bench-hashes 0.21.0
+# bench-hashes 0.21.0+84236bf0f0c832f6619b8f99ce7bc878c7800ef0
 
 **One copy of the timing code.** The code that reads every clock and load measurement is now part of bench-hashes itself, so a result's bench-hashes version names exactly what timed it. It measures as before: the code is the same.
 
