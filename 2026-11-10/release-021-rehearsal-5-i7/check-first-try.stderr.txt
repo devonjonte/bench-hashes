@@ -1,0 +1,84 @@
+check: BLAKE3-Servil's 5663b129e2c0ac19897a8d4e148b32abe99bb9c5 (5663b129e2c0) against b5b988d8 (b5b988d8982b)
+check: the change touches 20140 added and 6514 deleted lines in 164 files: .config/nextest.toml (+32/-9), .github/workflows/ci.yml (+9/-8), .github/workflows/docs.yml (+3/-3), .github/workflows/one-assignee.yml (+23/-0), AGENTS.md (+34/-18), ANNOUNCE.md (+2/-2), CONTRIBUTING.md (+73/-42), Cargo.toml (+16/-4), QUALITY.md (+1/-1), README.md (+11/-9), b3sum/Cargo.lock (+14/-2), b3sum/Cargo.toml (+5/-3), and 152 more
+check: its hunks sit in: slow-timeout = { period = "60s", terminate-after = 1 }, fail-fast = true, fail-fast = false, jobs:, on:, Use one clear mechanism wherever it serves. When approaches perform similarly, c, Sixteen actions that improve writing:, Keep what serves one reader and reads cleanly to the others; an item legible to, A computation is correct when it delivers the right result, at the costs (includ, Until a problem reaches one of these outcomes it stays open: it goes on the next, Whenever code is timed (a probe, a benchmark, a throwaway loop in a scratch dire, Most of a measurement's uncertainty lies between runs, not inside one: where a p, and 587 more
+check: the old side with the bench at 3363bee8 (3363bee8ff5e)
+check: --old-bench: the sides' benches differ, and the older may predate pinning; regress --unpinned
+regress: --unpinned: the OS places every run's measuring thread
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt,blake3-servil-pipeline
+
+thread 'main' (2968157) panicked at src/main.rs:7908:9:
+/home/agent/BLAKE3-m3/target/check/old/bench-hashes-0 --calibrate-only failed
+unknown contender "blake3-servil-pipeline"
+
+bench-hashes: hash speed by input size and by messages per batch, alone
+and, for the multithreaded contenders, as two programs at once
+
+  bench-hashes                     BLAKE3-Servil st and mt
+                                   and SHA-256 (sha2 and ring)
+  bench-hashes --all               every contender this machine can run
+  bench-hashes --contenders K,...  exactly these, in this column order
+  bench-hashes --list              contenders and their availability here
+
+Keys: blake3-servil-st, blake3-servil-mt, sha256, sha256-ring,
+      blake3-official, blake3-official-mt,
+      sha1dc, sha256-cc, sha3-256
+
+A run takes under a minute (the default contenders) or two (--all): every
+point, to 128 MiB inputs and batches of 262144 messages, 96 rounds, each
+cell sampled in a share of them.
+
+  --quick                          seconds: inputs to 512 KiB and batches to
+                                   8192 messages, 24 rounds; may misread a
+                                   cell now and then; leaves SHA-1DC out of
+                                   --all
+  --points LABEL,...               measure only these points (labels as in the
+                                   report: "64 B", "8 MiB", "1024" messages,
+                                   "interleaved 256", "continuous 64 KiB",
+                                   "continuous batch 1024"); with
+                                   --contenders only
+  --rounds N                       N sample rounds (default 96; --quick 24)
+  --for-regression-check           the visits a regression check's run takes
+                                   (regress passes it): a cell after a gap in
+                                   24 rounds, a nonstop cell in 6 (default:
+                                   12 and 6, to measure speed)
+  --train W_MS,S                   a nonstop visit's warm-up (ms) and samples
+                                   (default 100,6), for settling and variance
+                                   studies: 0,N gives settling curves
+  --nonstop-visits N               a nonstop cell's visits (default 2)
+  --threads N                      BLAKE3-Servil mt on N threads in all, its
+                                   caller among them (default: one a CPU); the
+                                   results name the count
+  --expect-servil COMMIT           stop before measuring unless this build's
+                                   BLAKE3-Servil is BLAKE3-Servil at COMMIT (a full
+                                   hash), from a clean tree: a run says what it
+                                   measures, and refuses to measure anything else
+
+  bench-hashes compare OLD.tsv... -- NEW.tsv...
+                                   compare runs' samples files in pairs (the
+                                   i-th old with the i-th new), each cell's
+                                   verdict as regress gives it, after each
+                                   side's builds (as provenance prints them)
+  bench-hashes provenance          this build's bench-hashes and BLAKE3-Servil
+                                   commits, each with its tree's state
+  bench-hashes regress [--full | --contenders A,B [--points P,Q]] OLD_EXE... -- NEW_EXE...
+                                   whether the new build is slower: pair i
+                                   runs the i-th of each side (fresh
+                                   layouts: BLAKE3-Servil's tools/perf_regress.py),
+                                   in alternating order; all cells judged at
+                                   once; exit 0, 1 (slower), or 2 (no
+                                   verdict); --full: every default cell;
+                                   --contenders (and --points): the cells
+                                   a run with them measures, every one judged
+
+  bench-hashes check --fork DIR    whether a change to BLAKE3-Servil's checkout
+                                   is slower than its base (CONTRIBUTING.md)
+  bench-hashes build-against DIR   build against BLAKE3-Servil's checkout at DIR
+  bench-hashes map DIR             draw a results folder's map again
+  bench-hashes chart SAMPLES.tsv   draw a run's chart again
+  bench-hashes overview OUT DIR    the overview page from every folder's run
+  bench-hashes b3sum ...           time b3sum builds on files (README.md)
+  bench-hashes crowd               many programs at once, one a CPU (README.md)
+  bench-hashes leaves              a Merkle tree's leaves, four ways to hand
+                                   them over (src/leaves.rs)
+  Each says its own usage when run without what it needs.
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
