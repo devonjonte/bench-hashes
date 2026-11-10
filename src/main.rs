@@ -1457,10 +1457,14 @@ enum Algorithm {
     /// digest delivered on the caller's thread. Evolving; measured here to
     /// decide its design and whether it replaces the stream.
     Blake3ServilPipeline,
+    /// SCRATCH: BLAKE3-Servil 0.8's two forms, drawn from an earlier
+    /// bench's samples, never measured by this build.
+    Blake3Servil08St,
+    Blake3Servil08Mt,
 }
 
 impl Algorithm {
-    const ALL: [Algorithm; 10] = [
+    const ALL: [Algorithm; 12] = [
         Algorithm::Blake3,
         Algorithm::Sha256,
         Algorithm::Sha1Dc,
@@ -1471,7 +1475,18 @@ impl Algorithm {
         Algorithm::Blake3ServilMt,
         Algorithm::Sha3_256,
         Algorithm::Blake3ServilPipeline,
+        Algorithm::Blake3Servil08St,
+        Algorithm::Blake3Servil08Mt,
     ];
+
+    /// SCRATCH: today's form of a 0.8 contender.
+    fn now(self) -> Option<Algorithm> {
+        match self {
+            Self::Blake3Servil08St => Some(Self::Blake3ServilSt),
+            Self::Blake3Servil08Mt => Some(Self::Blake3ServilMt),
+            _ => None,
+        }
+    }
 
     /// Command-line key, as in `--contenders blake3,sha256-cc`.
     fn key(self) -> &'static str {
@@ -1486,6 +1501,8 @@ impl Algorithm {
             Self::Blake3ServilMt => "blake3-servil-mt",
             Self::Sha3_256 => "sha3-256",
             Self::Blake3ServilPipeline => "blake3-servil-pipeline",
+            Self::Blake3Servil08St => "blake3-servil-0.8-st",
+            Self::Blake3Servil08Mt => "blake3-servil-0.8-mt",
         }
     }
 
@@ -1511,6 +1528,9 @@ impl Algorithm {
         /* The pipeline takes part where bytes arrive over time (a message
          * received in fragments) and where batches go round one after
          * another (BLAKE3 #317). Elsewhere it has no call. */
+        if let Some(now) = self.now() {
+            return now.takes_part(use_case);
+        }
         if self == Self::Blake3ServilPipeline {
             return matches!(
                 use_case,
@@ -1558,6 +1578,7 @@ impl Algorithm {
             | Self::Blake3ServilMt
             | Self::Sha3_256
             | Self::Blake3ServilPipeline => Ok(()),
+            Self::Blake3Servil08St | Self::Blake3Servil08Mt => Err("BLAKE3-Servil 0.8, drawn from an earlier bench's samples".to_owned()),
             Self::Sha256CommonCrypto => {
                 if cfg!(target_vendor = "apple") {
                     Ok(())
@@ -1580,6 +1601,8 @@ impl Algorithm {
             Self::Blake3ServilMt => "BLAKE3-Servil mt",
             Self::Sha3_256 => "SHA3-256",
             Self::Blake3ServilPipeline => "BLAKE3-Servil pipeline",
+            Self::Blake3Servil08St => "BLAKE3-Servil 0.8 st",
+            Self::Blake3Servil08Mt => "BLAKE3-Servil 0.8 mt",
         }
     }
 
@@ -1600,6 +1623,7 @@ impl Algorithm {
             Self::Sha256CommonCrypto => "#0e9aa7",
             Self::Sha256Ring => "#c2410c",
             Self::Sha3_256 => "#db2777",
+            Self::Blake3Servil08St | Self::Blake3Servil08Mt => "#111827",
         }
     }
 
@@ -1609,7 +1633,7 @@ impl Algorithm {
     fn multithreaded(self) -> bool {
         matches!(
             self,
-            Self::Blake3Rayon | Self::Blake3ServilMt | Self::Blake3ServilPipeline
+            Self::Blake3Rayon | Self::Blake3ServilMt | Self::Blake3ServilPipeline | Self::Blake3Servil08Mt
         )
     }
 
@@ -1626,6 +1650,7 @@ impl Algorithm {
             Self::Blake3ServilMt => BLAKE3_SERVIL_SOURCE_INFO,
             Self::Sha3_256 => SHA3_SOURCE_INFO,
             Self::Blake3ServilPipeline => BLAKE3_SERVIL_SOURCE_INFO,
+            Self::Blake3Servil08St | Self::Blake3Servil08Mt => "blake3-servil 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861 (commit b5b988d8), measured by bench-hashes 3363bee8, the last that builds against it",
         }
     }
 
@@ -1643,6 +1668,8 @@ impl Algorithm {
             Self::Blake3Rayon => "multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread",
             Self::Blake3ServilMt => "multithreaded; throughput::hash_multithreaded for one message, throughput::hash_many_multithreaded for a batch, throughput::update_multithreaded into a convenience::Hasher per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: BLAKE3-Servil chooses when to wake its worker threads",
             Self::Blake3ServilPipeline => "multithreaded; throughput::pipeline: one Stream kept for the process, a Message per message, each arriving piece written into the room Message::input gives and committed, Message::end, the digest delivered by value to the Stream's handler on the caller's thread; BLAKE3-Servil's workers hash meanwhile",
+            Self::Blake3Servil08St => "single-threaded; BLAKE3-Servil 0.8's calls, as bench-hashes 3363bee8 made them",
+            Self::Blake3Servil08Mt => "multithreaded; BLAKE3-Servil 0.8's calls, as bench-hashes 3363bee8 made them",
         }
     }
 }
@@ -4286,6 +4313,7 @@ fn observe_call(call: &'static str) {
 /// once, before the gap; every result remains observable to the optimizer.
 fn one_message_call(algorithm: Algorithm) -> fn(&[u8], usize) {
     match algorithm {
+        Algorithm::Blake3Servil08St | Algorithm::Blake3Servil08Mt => unreachable!("0.8 is drawn from an earlier bench's samples, never measured here"),
         Algorithm::Blake3 => |blocks, len| use_digest(blake3::hash(&blocks[..len]).as_bytes()),
         Algorithm::Blake3ServilSt => |blocks, len| {
             let input = &blocks[..len];
@@ -4516,6 +4544,7 @@ fn hash_messages(
     }
     let input = if batch { input } else { &input[..message_len] };
     match algorithm {
+        Algorithm::Blake3Servil08St | Algorithm::Blake3Servil08Mt => unreachable!("0.8 is drawn from an earlier bench's samples, never measured here"),
         Algorithm::Blake3ServilPipeline => {
             unreachable!("the pipeline takes no part in in-memory cells")
         }
@@ -4801,6 +4830,7 @@ fn hash_stream_from<const RECEIVING: bool>(
     use sha1_checked::digest::Update as _;
     use sha2::Digest as _;
     match algorithm {
+        Algorithm::Blake3Servil08St | Algorithm::Blake3Servil08Mt => unreachable!("0.8 is drawn from an earlier bench's samples, never measured here"),
         Algorithm::Blake3ServilPipeline => {
             assert!(
                 RECEIVING,
@@ -4941,6 +4971,7 @@ fn hash_interleaved(
     use sha2::Digest as _;
     let key = algorithm.key();
     match algorithm {
+        Algorithm::Blake3Servil08St | Algorithm::Blake3Servil08Mt => unreachable!("0.8 is drawn from an earlier bench's samples, never measured here"),
         Algorithm::Blake3ServilPipeline => {
             unreachable!("the pipeline takes no part in the interleaved cells yet")
         }
@@ -5534,6 +5565,7 @@ fn hash_tree_layer(
     let messages = input.len() / message_len;
     let prefix = [node.prefix()];
     match algorithm {
+        Algorithm::Blake3Servil08St | Algorithm::Blake3Servil08Mt => unreachable!("0.8 is drawn from an earlier bench's samples, never measured here"),
         Algorithm::Blake3ServilPipeline => {
             unreachable!("the pipeline takes no part in a tree's layers")
         }

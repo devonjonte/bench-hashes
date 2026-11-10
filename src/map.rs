@@ -15,6 +15,18 @@ use std::path::Path;
 /// servil mt (the servil contender shown when the page opens), and that
 /// call's page in the documentation.
 fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'static str) {
+    let (row, column, call, page) = place_mt(use_case);
+    // SCRATCH: the single-threaded view names the single-threaded calls.
+    if std::env::var("BENCH_MAP_VIEW").as_deref() == Ok("core") {
+        let one = |s: &str| -> &'static str {
+            Box::leak(s.replace("throughput::hash_multithreaded", "convenience::hash").replace("fn.hash_multithreaded", "fn.hash").replace("_multithreaded", "").into_boxed_str())
+        };
+        return (row, column, one(call), one(page));
+    }
+    (row, column, call, page)
+}
+
+fn place_mt(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'static str) {
     match use_case {
         UseCase::OneMessage => (
             "one",
@@ -799,7 +811,15 @@ fn hashing(path: &Path) -> Section {
         colors: algorithms.iter().map(|a| a.color()).map(str::to_owned).collect(),
         striped: algorithms.iter().map(|a| a.multithreaded()).collect(),
         ours: algorithms.iter().map(|a| matches!(a, Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt)).collect(),
-        shown: algorithms.iter().map(|a| SHOWN_AT_FIRST.contains(a)).collect(),
+        shown: algorithms
+            .iter()
+            .map(|a| match std::env::var("BENCH_MAP_VIEW").as_deref() {
+                // SCRATCH: both versions of BLAKE3-Servil, and official BLAKE3's counterpart.
+                Ok("core") => matches!(a, Algorithm::Blake3ServilSt | Algorithm::Blake3Servil08St | Algorithm::Blake3),
+                Ok("sync") => matches!(a, Algorithm::Blake3ServilMt | Algorithm::Blake3Servil08Mt | Algorithm::Blake3Rayon),
+                _ => SHOWN_AT_FIRST.contains(a),
+            })
+            .collect(),
         cells,
         about: about(&file.headers, &file.load),
         details: details(&file.headers, &file.load, &file.power, "bench-hashes.samples.tsv"),
