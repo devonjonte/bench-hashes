@@ -7306,7 +7306,10 @@ fn cell_instructions(file: &SamplesFile) -> crate::Map<String, u128> {
                 .iter()
                 .map(|s| u128::from(s[2] + s[LEVEL_FIELDS + 2]))
                 .sum();
-            Some((key.clone(), (instructions << 64) / units.max(1)))
+            // Counts all zero are counts not taken (an older bench on a
+            // platform whose counts it could not read writes them so): no
+            // evidence, as a missing column is, and nothing to divide by.
+            (instructions > 0).then(|| (key.clone(), (instructions << 64) / units.max(1)))
         })
         .collect()
 }
@@ -9751,6 +9754,18 @@ mod correctness_tests {
         );
         let none = read_samples(&write("none.tsv", 0, false));
         assert!(cell_instructions(&none).is_empty(), "no counts: none");
+        // Counts present and all zero: an older bench where it read none
+        // (the Mac's check against 0.8 stopped dividing by them,
+        // bench-hashes #173).
+        let zeros = format!(
+            "{SAMPLES_VERSION}\n# bench-hashes version: test\n# load: quiet\n# power: mains power\n{SAMPLES_COLUMNS}\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t100/64,100/64,100/64\t1,2,3\t-\t-\t1000:4000:0:7:1:0:0:0:2:1,1000:4000:0:7:1:0:0:0:2:1,1000:4000:0:7:1:0:0:0:2:1\t0,0,0\n"
+        );
+        let path = dir.join("zero-counts.tsv");
+        std::fs::write(&path, zeros).unwrap();
+        assert!(
+            cell_instructions(&read_samples(path.to_str().unwrap())).is_empty(),
+            "counts of zero: none"
+        );
         assert_eq!(cell_means(none).len(), 1);
         // A CPU-time column of zeros (a platform that counts none writes
         // "-", but a zero is the same absence) reads as none.
