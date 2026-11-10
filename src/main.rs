@@ -6860,6 +6860,17 @@ fn compare_command(arguments: &[String]) {
     // them) its CPU time and energy per unit: all the samples' CPU time, or
     // energy, over their units, in the same fixed point.
     let (mut old_builds, mut new_builds) = (Vec::new(), Vec::new());
+    // DIAGNOSTIC (scratch, bench-hashes #166): each pair's instruction
+    // ratio a cell, as regress collects it.
+    let mut diag_ratios: std::collections::BTreeMap<String, Vec<u64>> = Default::default();
+    for (old_path, new_path) in old.iter().zip(new) {
+        let (o, n) = (cell_instructions(&read_samples(old_path)), cell_instructions(&read_samples(new_path)));
+        for (key, old_count) in &o {
+            if let Some(new_count) = n.get(key) {
+                diag_ratios.entry(key.clone()).or_default().push(clocks::summary::ratio_permille(*new_count, *old_count));
+            }
+        }
+    }
     let means = |path: &String, builds: &mut Vec<String>| {
         let file = read_samples(path);
         let build = file_provenance(&file);
@@ -6906,7 +6917,35 @@ fn compare_command(arguments: &[String]) {
     // Only cells every pair measured.
     order.retain(|key| cells[key].0.len() == old.len());
     let tested: Vec<Pairs> = order.iter().map(|key| cells[key].0.clone()).collect();
-    let (judged, _) = judge_once(&tested);
+    let (judged, measurement) = judge_once(&tested);
+    {
+        // DIAGNOSTIC: the suspects regress would name from these samples,
+        // by the old order (every moved count first) and in turn.
+        let moved = instructions_moved(&diag_ratios, old.len());
+        let (mut by_count, mut by_wall): (Vec<(usize, &String)>, Vec<(usize, &String)>) = (Vec::new(), Vec::new());
+        let mut slower = 0;
+        for (i, (key, judgment)) in order.iter().zip(&judged).enumerate() {
+            let first = measurement[i] == i;
+            if judgment.verdict == clocks::summary::Verdict::Level {
+                if first && moved.iter().any(|(k, _)| k == key) {
+                    by_count.push((moved.iter().position(|(k, _)| k == key).unwrap(), key));
+                } else if first && judgment.ratio_permille > 1000 + REGRESS_MARGIN_PERMILLE {
+                    by_wall.push((judgment.rank, key));
+                }
+            } else if judgment.verdict == clocks::summary::Verdict::Slower {
+                slower += usize::from(first);
+            }
+        }
+        by_count.sort();
+        by_wall.sort();
+        let c: Vec<&str> = by_count.iter().map(|(_, k)| k.as_str()).collect();
+        let w: Vec<&str> = by_wall.iter().map(|(_, k)| k.as_str()).collect();
+        let old_order: Vec<&str> = c.iter().chain(w.iter()).copied().take(REGRESS_SUSPECTS).collect();
+        eprintln!("diagnostic: {} cells judged, {slower} slower in the first stage; {} level cells with moved counts, {} level cells slower beyond the margin", order.len(), c.len(), w.len());
+        eprintln!("diagnostic: the slower-beyond-the-margin cells, strongest evidence first: {}", w.iter().take(6).copied().collect::<Vec<_>>().join("; "));
+        eprintln!("diagnostic: suspects, every moved count first (before #166): {}", old_order.join("; "));
+        eprintln!("diagnostic: suspects, in turn (#166): {}", suspects_in_turn(&c, &w).join("; "));
+    }
     let times = |permille: u64| format!("x{}.{:03}", permille / 1000, permille % 1000);
     for (key, judgment) in order.into_iter().zip(judged) {
         let (wall, cpu, energy) = &cells[&key];
