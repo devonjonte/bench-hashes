@@ -7005,8 +7005,26 @@ const REGRESS_MARGIN_PERMILLE: u64 = 30;
 /// The most level cells a regression run names as suspects for a second
 /// stage, and so the largest family that stage judges (bench-hashes #66).
 const REGRESS_SUSPECTS: usize = 8;
+/// The second stage's suspects, at most REGRESS_SUSPECTS: the level cells
+/// whose instruction counts moved (`moved`, the largest move first) and
+/// the level cells slower beyond the margin (`slower`, the strongest
+/// evidence first), taken in turn, a moved count first. Each kind keeps
+/// places of its own: when the moved counts alone took every place, as
+/// they did before every wall-ranked cell, a release check's 17 moved
+/// counts left no place for a cell 38% slower in every pair, and the
+/// check read "no cell slower" (bench-hashes #166).
+fn suspects_in_turn<'a>(moved: &[&'a str], slower: &[&'a str]) -> Vec<&'a str> {
+    let mut suspects = Vec::new();
+    for i in 0..moved.len().max(slower.len()) {
+        suspects.extend(moved.get(i));
+        suspects.extend(slower.get(i));
+    }
+    suspects.truncate(REGRESS_SUSPECTS);
+    suspects
+}
+
 /// The margin beyond which a level cell's instructions, moved, name it a
-/// suspect ahead of the wall-ranked ones (Zooko, November 4, 2026, on
+/// suspect beside the wall-ranked ones (Zooko, November 4, 2026, on
 /// John's rule; bench-hashes #127): instructions retired are the same
 /// count whatever the core's clock or state, so a move is the code's,
 /// and #119's cold code moved them 1.2% in every pair where wall missed
@@ -7493,10 +7511,11 @@ fn regress_command(arguments: &[String]) -> i32 {
     let tested: Vec<Vec<(u128, u128)>> = judged.iter().map(|k| pairs_means[*k].clone()).collect();
     let (judgments, measurement) = judge_once(&tested);
     let mut slower = 0;
-    let mut suspects: Vec<(usize, &String)> = Vec::new();
-    // The level cells whose instructions moved beyond their margin: the
-    // code's doing, so the strongest suspects (rank 0), ahead of the
-    // wall-ranked ones.
+    // The level cells a second stage may take: those whose instructions
+    // moved beyond their margin (the code's doing), by their place among
+    // the moved, and those slower beyond the wall margin, by their rank.
+    let mut moved_suspects: Vec<(usize, &String)> = Vec::new();
+    let mut slower_suspects: Vec<(usize, &String)> = Vec::new();
     let moved = instructions_moved(&instruction_ratios, pairs);
     for (i, (key, judgment)) in judged.into_iter().zip(judgments).enumerate() {
         // A row whose measurement an earlier row holds (an owned cell
@@ -7506,9 +7525,9 @@ fn regress_command(arguments: &[String]) -> i32 {
             if first && moved.iter().any(|(k, _)| k == key) {
                 // Its place among the moved, the largest move first.
                 let place = moved.iter().position(|(k, _)| k == key).unwrap();
-                suspects.push((place, key));
+                moved_suspects.push((place, key));
             } else if first && judgment.ratio_permille > 1000 + REGRESS_MARGIN_PERMILLE {
-                suspects.push((moved.len() + judgment.rank, key));
+                slower_suspects.push((judgment.rank, key));
             }
             continue;
         }
@@ -7535,7 +7554,11 @@ fn regress_command(arguments: &[String]) -> i32 {
         // pairs, ranked by ratio, #119's slowed cells were among the 8 in
         // 42 resamplings of 55, ranked by evidence in 52 (the data branch,
         // 2026-10-31/check-errors-i7).
-        suspects.sort();
+        moved_suspects.sort();
+        slower_suspects.sort();
+        let moved_in_order: Vec<&str> = moved_suspects.iter().map(|(_, k)| k.as_str()).collect();
+        let slower_in_order: Vec<&str> = slower_suspects.iter().map(|(_, k)| k.as_str()).collect();
+        let suspects = suspects_in_turn(&moved_in_order, &slower_in_order);
         if instruction_ratios.is_empty() {
             println!("regress: this machine counts no instructions; the suspects are wall's alone");
         } else if moved.is_empty() {
@@ -7556,12 +7579,7 @@ fn regress_command(arguments: &[String]) -> i32 {
             );
         }
         if !suspects.is_empty() {
-            let named: Vec<&str> = suspects
-                .iter()
-                .take(REGRESS_SUSPECTS)
-                .map(|(_, k)| k.as_str())
-                .collect();
-            println!("regress: suspects: {}", named.join(";"));
+            println!("regress: suspects: {}", suspects.join(";"));
         }
     }
     println!("{power}");
@@ -8973,6 +8991,36 @@ mod correctness_tests {
             power_line(&sizes_context(&roster, &machine, None)),
             power_line(&at_80),
             "the source sizes"
+        );
+    }
+
+    /// The second stage's eight places go to the two kinds of suspect in
+    /// turn. The case is bench-hashes #166's: 17 level cells with moved
+    /// counts and two cells slower beyond the margin; both slower cells
+    /// keep a place.
+    #[test]
+    fn a_slower_cell_keeps_a_place_among_many_moved_counts() {
+        let moved: Vec<String> = (0..17).map(|i| format!("st|solo|moved {i}")).collect();
+        let moved: Vec<&str> = moved.iter().map(String::as_str).collect();
+        let slower = [
+            "mt|shared-one-cache|ContinuousMessages|4 MiB",
+            "mt|shared-one-cache|ContinuousMessages|16 MiB",
+        ];
+        let suspects = suspects_in_turn(&moved, &slower);
+        assert_eq!(
+            suspects,
+            [moved[0], slower[0], moved[1], slower[1], moved[2], moved[3], moved[4], moved[5]],
+            "in turn, a moved count first; the moved counts fill what the slower cells leave"
+        );
+        // Either kind alone takes the places in its own order.
+        assert_eq!(suspects_in_turn(&moved, &[]), moved[..REGRESS_SUSPECTS]);
+        assert_eq!(suspects_in_turn(&[], &slower), slower);
+        // Many of both: four places each.
+        let many: Vec<String> = (0..9).map(|i| format!("mt|shared|slower {i}")).collect();
+        let many: Vec<&str> = many.iter().map(String::as_str).collect();
+        assert_eq!(
+            suspects_in_turn(&moved, &many),
+            [moved[0], many[0], moved[1], many[1], moved[2], many[2], moved[3], many[3]]
         );
     }
 
