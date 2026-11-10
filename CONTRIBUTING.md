@@ -195,7 +195,10 @@ machine runs again. In order:
    - BLAKE3-Servil's release check and, beside it, the same check with the same
      library on both sides (`--against` the measured commit, `--old-bench`
      the previous bench). A cell slower in the first and level in the
-     second is the library's; slower in both, the bench's;
+     second is the library's; slower in both, the bench's.
+     Where the library's API has changed since its last release, the
+     release check takes `--old-bench` too, a bench that builds against
+     that release; the issue for the release names both commands;
      the same-library check's "instructions moved" line must name no
      cell: the same code retires the same instructions a unit in every
      single-threaded solo cell (within 1% on the i7-12700K, the

@@ -553,7 +553,8 @@ Its author reads that summary and names the scope: `--points` for the
 gate, `--probe` for a three-pair survey before the change is built, or
 `--cells all` for every point. With no scope named, the check stops
 before any build. An explicit `--old-bench REV` compares benchmark versions even when the
-library trees are identical. With one benchmark for both sides, identical
+library trees are identical. Across two benchmark versions it compares the
+contenders the older one knows too, and names each one left out. With one benchmark for both sides, identical
 library trees need no measurement. It then builds the working tree and the target commit,
 relinks each side with fresh random function orders (each link run
 twice), and runs the named cells. The check records how many points it

@@ -30,7 +30,7 @@ read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
-**Changes for 0.21, November 6-9, 2026** (after the release rehearsal of
+**Changes for 0.21, November 6-10, 2026** (after the release rehearsal of
 bench-hashes #154; John Servil's decisions to November 9, Devon Jonte's
 from then, each entry naming its decider):
 - **Every samples file records what the counts' own reads cost** (Devon
@@ -155,6 +155,15 @@ from then, each entry naming its decider):
   regress used three quiet pairs, but the probe's report reread four,
   including an abandoned busy pair. The load and comparison rules stay
   as they were.
+- **An old-benchmark comparison runs the contenders both benches know**
+  (Devon Jonte, November 10, 2026). `check --old-bench REV` asks the old
+  side's bench for its contenders (`--list`) and compares BLAKE3-Servil's
+  that it lists, naming each one left out. The pipeline contender joined
+  after BLAKE3-Servil 0.8, and a bench from before it stops on its name:
+  0.21's rehearsal of the library's release check against 0.8, with
+  `--cells all`, ended there with no verdict. A contender one side lacks
+  has nothing to be compared with. With one bench for both sides, every
+  contender runs as before.
 - **An old-benchmark comparison runs with unchanged library trees**
   (John Servil, November 7, 2026). `check --old-bench REV` compares the
   instruments even when both sides use the same library. The early

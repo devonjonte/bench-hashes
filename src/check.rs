@@ -125,6 +125,21 @@ const SUBJECTS: [&str; 3] = [
     "blake3-servil-pipeline",
 ];
 
+/// The contenders a comparison across two benches runs: those the older
+/// bench knows too, from its `--list` (each line starts with a key). A
+/// contender one side lacks has nothing to be compared with: the pipeline
+/// joined after BLAKE3-Servil 0.8, whose bench stops on its name.
+fn shared_subjects(old_list: &str) -> Vec<&'static str> {
+    let known: BTreeSet<&str> = old_list
+        .lines()
+        .filter_map(|line| line.split_whitespace().next())
+        .collect();
+    SUBJECTS
+        .into_iter()
+        .filter(|subject| known.contains(subject))
+        .collect()
+}
+
 /// Equal library trees settle a comparison only when both use this bench.
 /// An explicit old bench is a comparison of the instrument itself.
 fn unchanged_inputs(library_changed: bool, old_bench: Option<&str>) -> bool {
@@ -368,15 +383,28 @@ pub fn command(arguments: &[String]) -> i32 {
     let old_exe = side(&fork, &old_bench, &cache, "old", &old);
     let new_exe = side(&fork, &bench, &cache, "new", &new);
     // The scope: every point, or the points named before the builds.
-    // Every contender that calls the changed library participates.
-    let (contenders, points): (Vec<String>, Option<Vec<String>>) = if all {
-        (SUBJECTS.iter().map(|s| s.to_string()).collect(), None)
+    // Every contender that calls the changed library participates; across
+    // two benches, every one the older bench knows too.
+    let subjects: Vec<&str> = if old_bench_rev.is_some() {
+        let out = Command::new(&old_exe)
+            .arg("--list")
+            .output()
+            .unwrap_or_else(|e| panic!("{} --list: {e}", old_exe.display()));
+        assert!(out.status.success(), "{} --list failed", old_exe.display());
+        let shared = shared_subjects(&String::from_utf8_lossy(&out.stdout));
+        for left_out in SUBJECTS.iter().filter(|s| !shared.contains(s)) {
+            eprintln!("check: --old-bench: the old bench has no contender {left_out}; its cells are left out");
+        }
+        assert!(
+            !shared.is_empty(),
+            "--old-bench: the old bench knows none of BLAKE3-Servil's contenders"
+        );
+        shared
     } else {
-        (
-            SUBJECTS.iter().map(|s| s.to_string()).collect(),
-            named_points,
-        )
+        SUBJECTS.to_vec()
     };
+    let contenders: Vec<String> = subjects.iter().map(|s| s.to_string()).collect();
+    let points: Option<Vec<String>> = if all { None } else { named_points };
     let olds = each_run(
         layouts(&old_bench, &cache, "old", &old_exe, 0..layouts_a_side),
         FIRST_RUNS,
@@ -1307,6 +1335,24 @@ mod tests {
             super::first_of(&(0..15).map(|n| n.to_string()).collect::<Vec<_>>(), 12),
             "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, and 3 more"
         );
+    }
+
+    /// Across two benches the comparison runs the contenders the older one
+    /// lists: a bench from before the pipeline leaves it out, in the
+    /// subjects' own order, and a bench that lists all three keeps all.
+    #[test]
+    fn an_older_bench_compares_the_contenders_it_knows() {
+        let before_the_pipeline = "  blake3-official      BLAKE3 official        available\n  blake3-servil-st     BLAKE3-Servil st       available\n  sha256               SHA-256                available\n  blake3-servil-mt     BLAKE3-Servil mt       available\n";
+        assert_eq!(
+            super::shared_subjects(before_the_pipeline),
+            ["blake3-servil-st", "blake3-servil-mt"]
+        );
+        let today = format!(
+            "{before_the_pipeline}  blake3-servil-pipeline BLAKE3-Servil pipeline available\n"
+        );
+        assert_eq!(super::shared_subjects(&today), super::SUBJECTS);
+        // A name inside another word is no contender of that bench.
+        assert!(super::shared_subjects("  not-blake3-servil-st  x  available\n").is_empty());
     }
 
     #[test]
