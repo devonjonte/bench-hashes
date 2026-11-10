@@ -1,0 +1,39 @@
+check: BLAKE3-Servil's candidate/devon-task-places (887fa7cd03ed) against c3e1f905 (c3e1f90551ba)
+check: the change touches 448 added and 52 deleted lines in 6 files: src/lanes.rs (+257/-35), src/stream.rs (+104/-1), src/stream/receiver.rs (+63/-14), src/test.rs (+12/-0), tools/mutants/known-aarch64.txt (+4/-2), tools/mutants/known-x86_64.txt (+8/-0)
+check: its hunks sit in: pub(crate) mod sources {, const ENTRIES: usize = 1024;, impl Storage {, mod test {, use crate::incremental::{HasherCore, STAGE_LEN};, impl Receiver {, impl Message {, mod ring_bound {, fn test_official_kernels_and_ours_stay_apart() {, src/lanes.rs	replace + with * in Pool::run_job	1	OPEN: the pool's scheduling und, src/stream.rs	replace + with *	1	equivalent: the long message's stack keeps MAX_, src/stream.rs	replace + with -	1	equivalent: the long message's stack keeps MAX_, and 4 more
+check: measuring the 4 named points (4 of 276 points; the rest unmeasured in this check): continuous batch 16, continuous batch 64, receive saturated, receive 2 μs
+check: the change alters the bench's code here: .data.rel.ro, .dynamic, .eh_frame, .eh_frame_hdr, .gcc_except_table, .got.plt, .init, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .text; 12 functions of another size or on one side alone (<blake3_servil::lanes::Pool>::run_job; <blake3_servil::lanes::Pool>::serve; <blake3_servil::lanes::sources::Source>::publish_part; <blake3_servil::lanes::sources::Source>::take_task; <blake3_servil::stream::Storage>::take; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#0}>>::submit_long::<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#1}::{closure#0}>; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_messages<bench_hashes::use_digest>::{closure#0}>>::submit_long::<bench_hashes::hash_continuous_messages<bench_hashes::use_digest>::{closure#1}::{closure#0}>; <blake3_servil::stream::receiver::Message>::submit; <core::cell::once::OnceCell<blake3_servil::lanes::sources::Held>>::try_init::<<core::cell::once::OnceCell<blake3_servil::lanes::sources::Held>>::get_or_init<blake3_servil::lanes::sources::job_source::{closure#0}::{closure#0}>::{closure#0}, !>; bench_hashes::hash_batch::<bench_hashes::use_digest>; bench_hashes::hash_continuous_messages::<bench_hashes::use_digest>; bench_hashes::pipeline::pipeline); 1374 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&[u8; 32] as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; <&alloc::vec::Vec<u8> as core::fmt::Debug>::fmt; and 1362 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,2,4,6,8,10,12,14,16,17,18,19
+regress: 32 new builds against 32 old, 32 pairs over --contenders blake3-servil-st,blake3-servil-mt,blake3-servil-pipeline --points "continuous batch 16,continuous batch 64,receive saturated,receive 2 μs"
+regress: pair 1 of 32 in 9.5 s
+regress: pair 2 of 32 in 9.5 s
+regress: pair 3 of 32 in 9.5 s
+regress: pair 4 of 32 in 9.5 s
+regress: pair 5 of 32 in 9.5 s
+regress: pair 6 of 32 in 9.5 s
+regress: pair 7 of 32 in 9.5 s
+regress: pair 8 of 32 in 9.5 s
+regress: pair 9 of 32 in 9.5 s
+regress: pair 10 of 32 in 9.5 s
+regress: pair 11 of 32 in 9.5 s
+regress: pair 12 of 32 in 9.5 s
+regress: pair 13 of 32 in 9.5 s
+regress: pair 14 of 32 in 9.5 s
+regress: pair 15 of 32 in 9.5 s
+regress: pair 16 of 32 in 9.5 s
+regress: pair 17 of 32 in 9.5 s
+regress: pair 18 of 32 in 9.5 s
+regress: pair 19 of 32 in 9.5 s
+regress: pair 20 of 32 in 9.5 s
+regress: pair 21 of 32 in 9.5 s
+regress: pair 22 of 32 in 9.5 s
+regress: pair 23 of 32 in 9.5 s
+regress: pair 24 of 32 in 9.5 s
+regress: pair 25 of 32 in 9.5 s
+regress: pair 26 of 32 in 9.5 s
+regress: pair 27 of 32 in 9.5 s
+regress: pair 28 of 32 in 9.5 s
+regress: pair 29 of 32 in 9.5 s
+regress: pair 30 of 32 in 9.5 s
+regress: pair 31 of 32 in 9.5 s
+regress: pair 32 of 32 in 9.5 s

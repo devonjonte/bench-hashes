@@ -1,0 +1,39 @@
+regress: old side: bench f43ff077761b clean; servil c3e1f90551ba clean
+regress: new side: bench f43ff077761b clean; servil fcbdea5280a3 clean
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: suspects: blake3-servil-pipeline|shared-one-cache|ContinuousBatches|1024
+regress: power during the check: mains power, no battery, CPU frequency governor powersave, energy-performance preference performance
+check: the probe's cells over 3 pairs (compare; no verdict: the full check's is the gate)
+compare: old side: bench f43ff077761b clean; servil c3e1f90551ba clean
+compare: new side: bench f43ff077761b clean; servil fcbdea5280a3 clean
+blake3-servil-st|solo|ContinuousBatches|16: 12.909 -> 12.949 ns/unit  x1.003 level, 1 of 3 pairs faster; CPU time x1.003; energy x1.007
+blake3-servil-st|solo|ContinuousBatches|64: 12.238 -> 12.166 ns/unit  x0.994 level, 3 of 3 pairs faster; CPU time x0.994; energy x1.022
+blake3-servil-st|solo|ContinuousBatches|1024: 12.972 -> 12.951 ns/unit  x0.998 level, 2 of 3 pairs faster; CPU time x0.999; energy x0.908
+blake3-servil-st|solo|ContinuousBatches|16384: 14.110 -> 13.896 ns/unit  x0.985 level, 3 of 3 pairs faster; CPU time x0.985; energy x0.830
+blake3-servil-st|solo|ReceivingMessage|saturated: 0.236 -> 0.235 ns/unit  x0.995 level, 2 of 3 pairs faster; CPU time x0.995; energy x0.986
+blake3-servil-st|solo|ReceivingMessage|2 μs: 0.240 -> 0.245 ns/unit  x1.019 level, 1 of 3 pairs faster; CPU time x1.019; energy x1.067
+blake3-servil-mt|solo|ContinuousBatches|16: 4.025 -> 4.049 ns/unit  x1.006 level, 2 of 3 pairs faster; CPU time x0.989; energy x1.011
+blake3-servil-mt|solo|ContinuousBatches|64: 4.030 -> 3.895 ns/unit  x0.966 level, 3 of 3 pairs faster; CPU time x0.970; energy x1.027
+blake3-servil-mt|solo|ContinuousBatches|1024: 3.786 -> 3.761 ns/unit  x0.993 level, 2 of 3 pairs faster; CPU time x0.975; energy x0.904
+blake3-servil-mt|solo|ContinuousBatches|16384: 3.875 -> 3.974 ns/unit  x1.026 level, 0 of 3 pairs faster; CPU time x1.041; energy x0.993
+blake3-servil-mt|solo|ReceivingMessage|saturated: 0.237 -> 0.235 ns/unit  x0.988 level, 2 of 3 pairs faster; CPU time x0.988; energy x0.940
+blake3-servil-mt|solo|ReceivingMessage|2 μs: 0.246 -> 0.243 ns/unit  x0.989 level, 2 of 3 pairs faster; CPU time x0.989; energy x0.926
+blake3-servil-mt|shared-one-cache|ContinuousBatches|16: 4.851 -> 4.804 ns/unit  x0.990 level, 2 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|64: 4.303 -> 4.287 ns/unit  x0.996 level, 2 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|1024: 3.974 -> 4.005 ns/unit  x1.008 level, 1 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|16384: 4.205 -> 4.209 ns/unit  x1.001 level, 1 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ReceivingMessage|saturated: 0.248 -> 0.247 ns/unit  x0.995 level, 2 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ReceivingMessage|2 μs: 0.251 -> 0.250 ns/unit  x0.998 level, 2 of 3 pairs faster
+blake3-servil-pipeline|solo|ContinuousBatches|16: 59.479 -> 49.383 ns/unit  x0.830 level, 3 of 3 pairs faster; CPU time x0.933; energy x0.809
+blake3-servil-pipeline|solo|ContinuousBatches|64: 23.134 -> 22.187 ns/unit  x0.959 level, 2 of 3 pairs faster; CPU time x0.941; energy x0.880
+blake3-servil-pipeline|solo|ContinuousBatches|1024: 10.639 -> 10.522 ns/unit  x0.989 level, 2 of 3 pairs faster; CPU time x0.999; energy x0.937
+blake3-servil-pipeline|solo|ContinuousBatches|16384: 10.057 -> 9.789 ns/unit  x0.973 level, 2 of 3 pairs faster; CPU time x0.984; energy x0.926
+blake3-servil-pipeline|solo|ReceivingMessage|saturated: 0.0783 -> 0.0772 ns/unit  x0.987 level, 3 of 3 pairs faster; CPU time x1.170; energy x0.925
+blake3-servil-pipeline|solo|ReceivingMessage|2 μs: 0.0927 -> 0.0936 ns/unit  x1.009 level, 1 of 3 pairs faster; CPU time x0.978; energy x0.987
+blake3-servil-pipeline|shared-one-cache|ContinuousBatches|16: 55.376 -> 50.022 ns/unit  x0.903 level, 3 of 3 pairs faster
+blake3-servil-pipeline|shared-one-cache|ContinuousBatches|64: 22.355 -> 21.435 ns/unit  x0.959 level, 3 of 3 pairs faster
+blake3-servil-pipeline|shared-one-cache|ContinuousBatches|1024: 12.388 -> 13.287 ns/unit  x1.073 level, 0 of 3 pairs faster
+blake3-servil-pipeline|shared-one-cache|ContinuousBatches|16384: 11.287 -> 11.377 ns/unit  x1.008 level, 0 of 3 pairs faster
+blake3-servil-pipeline|shared-one-cache|ReceivingMessage|saturated: 0.102 -> 0.0950 ns/unit  x0.929 level, 3 of 3 pairs faster
+blake3-servil-pipeline|shared-one-cache|ReceivingMessage|2 μs: 0.106 -> 0.0972 ns/unit  x0.919 level, 3 of 3 pairs faster
