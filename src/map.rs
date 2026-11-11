@@ -14,6 +14,42 @@ use std::path::Path;
 /// Where each use case sits: its row, its column, the call of BLAKE3
 /// servil mt (the servil contender shown when the page opens), and that
 /// call's page in the documentation.
+/// BLAKE3-Servil st's call where `place` names mt's, in map column
+/// `column`: the convenience call for one message after a gap,
+/// `throughput::hash` for one after another, and elsewhere the call
+/// without its `_multithreaded`.
+fn one_thread_call(column: &str, call: &str, doc: &str) -> (String, String) {
+    if call == "throughput::hash_multithreaded" {
+        return if matches!(column, "lent" | "piped") {
+            (
+                "throughput::hash".to_owned(),
+                doc.replace("fn.hash_multithreaded", "fn.hash"),
+            )
+        } else {
+            (
+                "convenience::hash".to_owned(),
+                "convenience/fn.hash.html".to_owned(),
+            )
+        };
+    }
+    if call == "throughput::Hasher::update_multithreaded" {
+        return (
+            "convenience::Hasher::update".to_owned(),
+            "convenience/struct.Hasher.html#method.update".to_owned(),
+        );
+    }
+    (
+        call.replace("_multithreaded", ""),
+        doc.replace("_multithreaded", ""),
+    )
+}
+
+/// A use case's row and column on the map, by their ids.
+pub fn row_and_column(use_case: UseCase) -> (&'static str, &'static str) {
+    let (row, column, _, _) = place(use_case);
+    (row, column)
+}
+
 fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'static str) {
     match use_case {
         UseCase::OneMessage => (
@@ -652,7 +688,15 @@ fn hashing(path: &Path) -> Section {
     algorithms.sort_by_key(|a| Algorithm::ALL.iter().position(|b| b == a));
     let mut cells = Vec::new();
     for use_case in UseCase::ALL {
-        let (_, _, call, doc) = place(use_case);
+        let (_, column, call, doc) = place(use_case);
+        // A page without BLAKE3-Servil mt names the one-thread calls.
+        let one_thread = !algorithms.contains(&Algorithm::Blake3ServilMt);
+        let (call, doc) = if one_thread {
+            one_thread_call(column, call, doc)
+        } else {
+            (call.to_owned(), doc.to_owned())
+        };
+        let (call, doc) = (call.as_str(), doc.as_str());
         for scenario in crate::Scenario::ALL.map(|s| s.key()) {
             let points = &POINTS[use_case.points()];
             // Every chart in bytes per second, so one axis serves them all:
@@ -799,7 +843,11 @@ fn hashing(path: &Path) -> Section {
         colors: algorithms.iter().map(|a| a.color()).map(str::to_owned).collect(),
         striped: algorithms.iter().map(|a| a.multithreaded()).collect(),
         ours: algorithms.iter().map(|a| matches!(a, Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt)).collect(),
-        shown: algorithms.iter().map(|a| SHOWN_AT_FIRST.contains(a)).collect(),
+        // Where the run has no BLAKE3-Servil mt, its one-thread form opens shown.
+        shown: algorithms
+            .iter()
+            .map(|a| SHOWN_AT_FIRST.contains(a) || (*a == Algorithm::Blake3ServilSt && !algorithms.contains(&Algorithm::Blake3ServilMt)))
+            .collect(),
         cells,
         about: about(&file.headers, &file.load),
         details: details(&file.headers, &file.load, &file.power, "bench-hashes.samples.tsv"),
@@ -1114,6 +1162,43 @@ pub fn command(args: &[String]) {
 
 #[cfg(test)]
 mod tests {
+    /// A page without BLAKE3-Servil mt names st's calls: the convenience
+    /// call for one message after a gap, throughput::hash for one after
+    /// another, and the batch, grouped and collection calls without their
+    /// `_multithreaded`.
+    #[test]
+    fn a_one_thread_page_names_the_one_thread_calls() {
+        let call = |use_case| {
+            let (_, column, call, doc) = super::place(use_case);
+            super::one_thread_call(column, call, doc)
+        };
+        assert_eq!(call(super::UseCase::OneMessage).0, "convenience::hash");
+        assert_eq!(
+            call(super::UseCase::IdleOneMessage),
+            (
+                "convenience::hash".to_owned(),
+                "convenience/fn.hash.html".to_owned()
+            )
+        );
+        assert_eq!(call(super::UseCase::LentMessages).0, "throughput::hash");
+        assert_eq!(
+            call(super::UseCase::ManyMessages).0,
+            "throughput::hash_many"
+        );
+        assert_eq!(
+            call(super::UseCase::InterleavedTurn).0,
+            "throughput::update_each"
+        );
+        assert_eq!(call(super::UseCase::Collection).0, "throughput::hash_each");
+        assert_eq!(
+            call(super::UseCase::ReceivingMessage).0,
+            "convenience::Hasher::update"
+        );
+        for use_case in super::UseCase::ALL {
+            assert!(!call(use_case).0.contains("multithreaded"), "{use_case:?}");
+        }
+    }
+
     /// A run names BLAKE3-Servil to a reader by its version line where the
     /// record has one, and an older record, whose version could name a
     /// release's code through later commits, by its commit.

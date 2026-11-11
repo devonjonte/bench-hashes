@@ -31,6 +31,19 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Devon Jonte's decisions, each dated):
+- **The release before, beside this one, from a check's runs** (Devon
+  Jonte, November 11, 2026; Zooko's request of November 10). `bench-hashes
+  beside OUT --check KEPT --run DIR [--without NAME,...]` joins a release
+  check's paired runs (`check --old-bench ... --keep KEPT`) into two
+  results folders and draws the map of the new beside the old, by the
+  map's own `--beside`: the release before dashed, a chip to hide it.
+  Today's bench cannot build against a library whose calls have changed,
+  and one full run a version misleads (a single link layout moved a 64 B
+  cell 25%), so the paired runs are the source; the other contenders are
+  a full run's. `--without` leaves out rows, columns, or the contenders
+  of one kind (`one-thread`, `every-core`), for a page of the calls one
+  crate offers. Two things follow on any map with no BLAKE3-Servil mt:
+  st opens shown, and the calls named are st's. Nothing measured changes.
 - **Without a stream, BLAKE3-Servil mt takes the continuous cells as
   every other contender does** (Devon Jonte, November 11, 2026,
   bench-hashes #169). BLAKE3-Servil 0.9 ships no streaming API: the

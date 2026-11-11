@@ -2434,6 +2434,9 @@ cell sampled in a share of them.
   bench-hashes map DIR             draw a results folder's map again
   bench-hashes chart SAMPLES.tsv   draw a run's chart again
   bench-hashes overview OUT DIR    the overview page from every folder's run
+  bench-hashes beside OUT --check KEPT --run DIR
+                                   a map with the release before beside this
+                                   run's, from a check's runs (src/beside.rs)
   bench-hashes b3sum ...           time b3sum builds on files (README.md)
   bench-hashes crowd               many programs at once, one a CPU (README.md)
   bench-hashes quiet [--wait]      whether the machine is quiet: ten seconds with
@@ -3050,6 +3053,9 @@ fn main() {
     }
     if arguments.first().map(String::as_str) == Some("chart") {
         return chart::command(&arguments[1..]);
+    }
+    if arguments.first().map(String::as_str) == Some("beside") {
+        return beside::command(&arguments[1..]);
     }
     if arguments.first().map(String::as_str) == Some("overview") {
         overview::command(&arguments[1..]);
@@ -8955,6 +8961,7 @@ fn xml_escape(input: &str) -> String {
 }
 
 mod b3sum;
+mod beside;
 mod chart;
 mod check;
 mod diag_alloc;
