@@ -1617,7 +1617,7 @@ impl Algorithm {
             | Self::Sha3_256 => "single-threaded",
             Self::Blake3ServilSt => "single-threaded; convenience::hash for one message after a gap and throughput::hash for one after another, throughput::hash_many for a batch, convenience::Hasher::update per piece for many messages at once",
             Self::Blake3Rayon => "multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread",
-            Self::Blake3ServilMt => "multithreaded; throughput::hash_multithreaded for one message, throughput::hash_many_multithreaded for a batch, throughput::update_multithreaded into a convenience::Hasher per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: BLAKE3-Servil chooses when to wake its worker threads",
+            Self::Blake3ServilMt => "multithreaded; throughput::hash_multithreaded for one message, throughput::hash_many_multithreaded for a batch, throughput::update_multithreaded into a convenience::Hasher per piece for many messages at once; continuous loads through the same calls, one input after another (no streaming API in this library): BLAKE3-Servil chooses when to wake its worker threads",
         }
     }
 }
@@ -2441,8 +2441,6 @@ cell sampled in a share of them.
                                    apply (exit 0, else 2 with the reason); with
                                    --wait, until it is: for a job script to run
                                    first
-  bench-hashes leaves              a Merkle tree's leaves, four ways to hand
-                                   them over (src/leaves.rs)
   Each says its own usage when run without what it needs.
 ";
 
@@ -3043,9 +3041,6 @@ fn main() {
     }
     if arguments.first().map(String::as_str) == Some("b3sum") {
         return b3sum::command(&arguments[1..]);
-    }
-    if arguments.first().map(String::as_str) == Some("leaves") {
-        return leaves::command(&arguments[1..]);
     }
     if arguments.first().map(String::as_str) == Some("crowd") {
         return crowd::command(&arguments[1..]);
@@ -4645,36 +4640,6 @@ fn hash_continuous_collection(
     mut consume: impl FnMut(&[u8]),
 ) {
     let items = items_of(point, input);
-    if algorithm == Algorithm::Blake3ServilMt {
-        let mut places = take_places(STREAM_PLACES_PER_MESSAGE);
-        let free = std::cell::RefCell::new(places.chunks_mut(1).collect::<Vec<_>>());
-        blake3_servil::throughput::stream(
-            blake3_servil::Mode::Plain,
-            |place: &mut [blake3_servil::Hash]| {
-                consume(place[0].as_bytes());
-                free.borrow_mut().push(place);
-            },
-            |s| {
-                for _ in 0..iterations {
-                    for &(offset, len) in items {
-                        let item = black_box(&input[offset..offset + len]);
-                        let place = free_place(&free, s);
-                        s.submit_with(
-                            len,
-                            |at, room| {
-                                room.copy_from_slice(&item[at..][..room.len()]);
-                                room.len()
-                            },
-                            &mut place[0],
-                        );
-                    }
-                }
-                s.finish();
-            },
-        );
-        drop(free);
-        return keep_places(places);
-    }
     let longest = items.iter().map(|&(_, len)| len).max().unwrap_or(0);
     let mut buffers = take_buffers(1, longest + BLOCK_SPARE);
     for _ in 0..iterations {
@@ -5186,39 +5151,6 @@ fn read_into_buffer<S>(
     }
 }
 
-/// The places a ContinuousMessages stream keeps for its digests: the
-/// stream's own limit of messages in flight, so that places never bound
-/// it (32 bytes each).
-const STREAM_PLACES_PER_MESSAGE: usize = 1024;
-
-thread_local! {
-    /// The stream cells' places, made once and kept (by size).
-    static STREAM_PLACES: std::cell::RefCell<crate::Map<usize, Vec<blake3_servil::Hash>>> = std::cell::RefCell::new(crate::Map::default());
-}
-
-fn take_places(n: usize) -> Vec<blake3_servil::Hash> {
-    STREAM_PLACES
-        .with(|kept| kept.borrow_mut().remove(&n))
-        .unwrap_or_else(|| vec![blake3_servil::Hash::from_bytes([0; 32]); n])
-}
-
-fn keep_places(places: Vec<blake3_servil::Hash>) {
-    STREAM_PLACES.with(|kept| kept.borrow_mut().insert(places.len(), places));
-}
-
-/// A free place from `free`, handing places back (collect) until one is.
-fn free_place<'a, D: FnMut(&'a mut [blake3_servil::Hash])>(
-    free: &std::cell::RefCell<Vec<&'a mut [blake3_servil::Hash]>>,
-    s: &mut blake3_servil::throughput::Stream<'a, D>,
-) -> &'a mut [blake3_servil::Hash] {
-    loop {
-        if let Some(place) = free.borrow_mut().pop() {
-            return place;
-        }
-        s.collect();
-    }
-}
-
 /*
  * The continuous messages use case: `iterations` messages, each a copy of
  * `input` read into a buffer of the program's (a memory copy, the
@@ -5239,13 +5171,14 @@ fn free_place<'a, D: FnMut(&'a mut [blake3_servil::Hash])>(
 ///
 /// Whether a contender's continuous cell with buffers owned runs the same
 /// calls on the same input as its cell with buffers lent, at a message of
-/// `len` bytes (a batch: `None`): every contender but BLAKE3-Servil's stream,
-/// at messages that arrive in one buffer (up to PIECE_LEN) and at batches.
-/// The owned cells dispatch through it (hash_continuous_messages,
-/// hash_continuous_batches), so a contender that gains a path of its own
-/// for owned buffers changes it.
-fn owned_runs_lent(algorithm: Algorithm, len: Option<usize>) -> bool {
-    algorithm != Algorithm::Blake3ServilMt && len.is_none_or(|len| len <= PIECE_LEN)
+/// `len` bytes (a batch: `None`): every contender, at messages that arrive
+/// in one buffer (up to PIECE_LEN) and at batches. BLAKE3-Servil's stream
+/// was the exception until the library dropped it (bench-hashes #169);
+/// its Pipeline will be the next. The owned cells dispatch through it
+/// (hash_continuous_messages, hash_continuous_batches), so a contender
+/// that gains a path of its own for owned buffers changes it.
+fn owned_runs_lent(_algorithm: Algorithm, len: Option<usize>) -> bool {
+    len.is_none_or(|len| len <= PIECE_LEN)
 }
 
 /// Each owned cell measured as its lent twin (lent_twin) takes the twin's
@@ -5295,41 +5228,10 @@ fn hash_continuous_messages(
     blocks: &[u8],
     len: usize,
     iterations: usize,
-    mut consume: impl FnMut(&[u8]),
+    consume: impl FnMut(&[u8]),
 ) {
     // The message's `len` bytes; `blocks`, its whole blocks (UseCase::in_blocks).
     let input = &blocks[..len];
-    if algorithm == Algorithm::Blake3ServilMt {
-        // Each message read straight into the stream's ring (submit_with),
-        // its digest into a kept place, used as the place comes back and
-        // the place used again.
-        let mut places = take_places(STREAM_PLACES_PER_MESSAGE);
-        let free = std::cell::RefCell::new(places.chunks_mut(1).collect::<Vec<_>>());
-        blake3_servil::throughput::stream(
-            blake3_servil::Mode::Plain,
-            |place: &mut [blake3_servil::Hash]| {
-                consume(place[0].as_bytes());
-                free.borrow_mut().push(place);
-            },
-            |s| {
-                for _ in 0..iterations {
-                    let message = black_box(input);
-                    let place = free_place(&free, s);
-                    s.submit_with(
-                        message.len(),
-                        |at, room| {
-                            room.copy_from_slice(&message[at..][..room.len()]);
-                            room.len()
-                        },
-                        &mut place[0],
-                    );
-                }
-                s.finish();
-            },
-        );
-        drop(free);
-        return keep_places(places);
-    }
     if !owned_runs_lent(algorithm, Some(len)) {
         return hash_stream(algorithm, input, iterations, consume);
     }
@@ -5357,45 +5259,8 @@ fn hash_continuous_batches(
     input: &[u8],
     point: Point,
     iterations: usize,
-    mut consume: impl FnMut(&[u8]),
+    consume: impl FnMut(&[u8]),
 ) {
-    if !owned_runs_lent(algorithm, None) {
-        // Each batch read straight into the stream's ring (submit_batch_with),
-        // its digests into a kept place of the batch's size, handed to
-        // `consume` whole as the place comes back, as the queue's batch is,
-        // and the place used again. Sound: a Hash is its 32 bytes
-        // (repr(transparent)).
-        let batches = ((8 << 20) / input.len().max(1)).clamp(2, 1024);
-        let mut places = take_places(batches * point.messages);
-        let free =
-            std::cell::RefCell::new(places.chunks_mut(point.messages.max(1)).collect::<Vec<_>>());
-        blake3_servil::throughput::stream(
-            blake3_servil::Mode::Plain,
-            |place: &mut [blake3_servil::Hash]| {
-                consume(unsafe {
-                    core::slice::from_raw_parts(place.as_ptr().cast::<u8>(), place.len() * 32)
-                });
-                free.borrow_mut().push(place);
-            },
-            |s| {
-                for _ in 0..iterations {
-                    let batch = black_box(input);
-                    let place = free_place(&free, s);
-                    s.submit_batch_with(
-                        MESSAGE_LEN,
-                        |at, room| {
-                            room.copy_from_slice(&batch[at..][..room.len()]);
-                            room.len()
-                        },
-                        &mut place[..point.messages],
-                    );
-                }
-                s.finish();
-            },
-        );
-        drop(free);
-        return keep_places(places);
-    }
     // The lent cell's calls (owned_runs_lent): each batch read into a kept
     // buffer, then hashed through the batch call (the point's own use
     // case: in blocks and a batch, as the lent one is).
@@ -5993,11 +5858,11 @@ const SERVIL_CALLS: [(Algorithm, UseCase, &str); 32] = [
     (Algorithm::Blake3ServilMt, UseCase::ManyMessages, "throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work"),
     (Algorithm::Blake3ServilSt, UseCase::ManyLongMessages, "throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work"),
     (Algorithm::Blake3ServilMt, UseCase::ManyLongMessages, "throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work"),
-    (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "throughput::stream(Mode::Plain, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
-    (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "throughput::stream(Mode::Plain, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "throughput::hash_multithreaded(Mode::Plain, blocks, len), one message after another, each read into a kept buffer of the program's in whole blocks and hashed before the next is read (above 64 KiB a Hasher fed 64 KiB pieces by update_multithreaded)"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, one batch after another, each read into a kept buffer of the program's and hashed before the next is read"),
     (Algorithm::Blake3ServilSt, UseCase::ContinuousMessages, "throughput::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)"),
     (Algorithm::Blake3ServilSt, UseCase::ContinuousBatches, "throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, one batch after another, each read into a kept buffer of the program's and hashed on its thread"),
-    (Algorithm::Blake3ServilMt, UseCase::ContinuousCollection, "throughput::stream(Mode::Plain, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousCollection, "throughput::hash_multithreaded(Mode::Plain, blocks, len), the collection's messages one after another, each read into a kept buffer of the program's in whole blocks and hashed before the next is read"),
     (Algorithm::Blake3ServilSt, UseCase::ContinuousCollection, "throughput::hash(Mode::Plain, blocks, len), the collection's messages one after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread"),
     (Algorithm::Blake3ServilSt, UseCase::LentMessages, "throughput::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer in whole blocks and lent until the call returns"),
     (Algorithm::Blake3ServilSt, UseCase::Interleaved, "a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; throughput::update_each per turn, then throughput::finalize_each for the messages that ended in it, each buffer lent until the calls return"),
@@ -9101,7 +8966,6 @@ mod require_nextest {
     include!("../tools/require_nextest.rs");
 }
 mod crowd;
-mod leaves;
 mod map;
 mod overview;
 
@@ -10157,6 +10021,8 @@ mod correctness_tests {
             point("4 KiB", UseCase::ContinuousMessages),
             point("4 KiB", UseCase::LentMessages),
             point("64 B", UseCase::ContinuousMessages),
+            point("1 MiB", UseCase::ContinuousMessages),
+            point("1 MiB", UseCase::LentMessages),
         ];
         points.sort_unstable();
         let roster = Roster::new(
@@ -10167,16 +10033,20 @@ mod correctness_tests {
             &TO_MEASURE_SPEED,
             None,
         );
-        let (owned, lent, small) = (
+        let (owned, lent, small, long_owned, long_lent) = (
             point("4 KiB", UseCase::ContinuousMessages),
             point("4 KiB", UseCase::LentMessages),
             point("64 B", UseCase::ContinuousMessages),
+            point("1 MiB", UseCase::ContinuousMessages),
+            point("1 MiB", UseCase::LentMessages),
         );
         let mut sizes = vec![vec![1usize; POINT_COUNT]; 2];
         for (a, row) in sizes.iter_mut().enumerate() {
             row[owned] = 1;
             row[lent] = 1000 + a;
             row[small] = 77;
+            row[long_owned] = 5;
+            row[long_lent] = 2000 + a;
         }
         twins_take_their_sizes(&roster, &mut sizes);
         assert_eq!(
@@ -10184,8 +10054,13 @@ mod correctness_tests {
             "servil st's owned 4 KiB is its lent twin: the twin's size"
         );
         assert_eq!(
-            sizes[1][owned], 1,
-            "servil mt's stream is measured on its own: its own size"
+            sizes[1][owned], 1001,
+            "servil mt's owned 4 KiB is its lent twin too, with no stream"
+        );
+        assert_eq!(
+            (sizes[0][long_owned], sizes[1][long_owned]),
+            (5, 5),
+            "above 64 KiB an owned message is fed in pieces, measured on its own: its own size"
         );
         assert_eq!(sizes[0][small], 77, "no twin in the run: its own size");
         let path = std::env::temp_dir().join(format!("twin-sizes-{}.tsv", std::process::id()));
@@ -10200,14 +10075,17 @@ mod correctness_tests {
     }
 
     /// An owned cell whose calls are its lent twin's (owned_runs_lent) is
-    /// measured once, as the twin: its samples are the twin's; BLAKE3-Servil's
-    /// stream, whose owned calls differ, is measured on its own.
+    /// measured once, as the twin: its samples are the twin's; a message
+    /// above 64 KiB, whose owned calls differ (fed in pieces), is measured
+    /// on its own.
     #[test]
     fn owned_cells_with_lent_calls_take_the_lent_samples() {
         blake3_servil::initialize();
         let mut points = vec![
             point("4 KiB", UseCase::ContinuousMessages),
             point("4 KiB", UseCase::LentMessages),
+            point("1 MiB", UseCase::ContinuousMessages),
+            point("1 MiB", UseCase::LentMessages),
         ];
         points.sort_unstable();
         let mut roster = Roster::new(
@@ -10234,11 +10112,22 @@ mod correctness_tests {
             ns(&samples.solo[0][lent]),
             "servil st: the owned cell is the lent cell"
         );
-        assert_ne!(
+        assert_eq!(
             ns(&samples.solo[1][owned]),
             ns(&samples.solo[1][lent]),
-            "servil mt's stream is measured on its own"
+            "servil mt, with no stream: the owned cell is the lent cell"
         );
+        let (long_owned, long_lent) = (
+            point("1 MiB", UseCase::ContinuousMessages),
+            point("1 MiB", UseCase::LentMessages),
+        );
+        for contender in 0..2 {
+            assert_ne!(
+                ns(&samples.solo[contender][long_owned]),
+                ns(&samples.solo[contender][long_lent]),
+                "above 64 KiB the owned message is measured on its own"
+            );
+        }
     }
 
     /// Every shared sample is taken under contention (#105): over many

@@ -109,7 +109,7 @@ The contenders:
 - **BLAKE3-Servil mt**: [`blake3-servil`](https://github.com/servil-software-factory/BLAKE3),
   faster than official BLAKE3 on 64-bit Arm (above all on Apple M4-class
   chips) and on x86-64, with its own threads to spread large inputs over
-  your CPU cores and a stream for inputs that come one after another.
+  your CPU cores.
 - **BLAKE3-Servil st**: the same on one thread.
 - **SHA-256** (the `sha2` crate) and **SHA-256 ring** (the `ring`
   crate): SHA-256 with the CPU's SHA-256 instructions where it has them;

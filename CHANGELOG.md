@@ -1,5 +1,7 @@
 # bench-hashes 0.22.0
 
+**BLAKE3-Servil mt's continuous cells make its one-shot calls.** BLAKE3-Servil 0.9 has no streaming API: its stream left with its first pipeline, and the Pipeline that replaces both is still to come. The multithreaded contender's continuous cells called the stream; they now read each input and hash it before reading the next, as every other contender's do. The cells keep their places, so a check against 0.8 shows what the stream gave. `bench-hashes leaves`, a study of the stream's ways to take Merkle leaves, goes with it.
+
 **The pipeline contender is gone.** BLAKE3-Servil removes its first pipeline (`throughput::pipeline`); the one streaming API that replaces it and the stream is still to come. `blake3-servil-pipeline` leaves the received-message cells and the continuous batch cells, which keep their other contenders. 0.21 holds its numbers.
 
 # bench-hashes 0.21.0+84236bf0f0c832f6619b8f99ce7bc878c7800ef0

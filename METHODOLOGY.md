@@ -158,16 +158,9 @@ timed from the first read to the last digest. Every contender but BLAKE3
 servil mt hashes each input after reading it, so reading and hashing take
 turns: a message of up to 64 KiB through its one-shot call, a longer one
 through its incremental API per 64 KiB piece, a batch as the batch use
-case hashes it. BLAKE3-Servil mt takes them through BLAKE3-Servil's stream,
-built for throughput: each message read straight into the stream's ring
-(`submit_with`), each batch likewise (`submit_batch_with`), their digests
-into places the program keeps: 1024 for messages, and for batches enough
-places of a batch's size that the ring fills first. The stream hands each
-place back, its digests in it, to its handler on the program's thread,
-which uses the digests and frees the place for another input, so reading
-and hashing overlap. The places are made once and kept, and the stream's
-storage is the thread's from its first stream on, so after warm-up neither
-the program nor the stream allocates. The servil single-threaded contender measures continuous load in the
+case hashes it. That holds for BLAKE3-Servil mt too: the library has no
+streaming API between its stream, which left with 0.9, and the Pipeline
+to come, whose cells these will be (bench-hashes #169). The servil single-threaded contender measures continuous load in the
 lent-buffer tasks, where its synchronous calls serve the one-thread
 column of the API plan.
 
@@ -340,8 +333,7 @@ the entry points its users call, with no cap, pool, or wrapper of its
 own. Those entry points are the one-message call (`hash`,
 `hash_multithreaded`, `Hasher::update_rayon`, `digest`), the batch call
 where one exists (`hash_many`, `hash_many_multithreaded`, `Platform::hash_many`),
-the incremental API (`update`, `update_multithreaded`), and for servil mt
-its `stream`. It asks for no machine capacity, sets no environment, and
+and the incremental API (`update`, `update_multithreaded`). It asks for no machine capacity, sets no environment, and
 checks no digests.
 
 SHA-256 CommonCrypto, on Apple platforms only, calls the system's
@@ -835,24 +827,6 @@ the samples file carry them, so a result
 names the exact code it measured. `Cargo.lock` is checked in, so every
 build of one commit measures the same code.
 
-
-## Produced leaves (`bench-hashes leaves`)
-
-`bench-hashes leaves` times a program that computes a Merkle tree's
-leaves and hashes each one, as a zero-knowledge prover's encoder does.
-All four variants run the same producer (N 64-byte messages, 16,384 or
-1,048,576, filled from a 64-bit counter) and differ in how the program
-hands the messages to `blake3-servil`:
-- `lend-oneshot`: produced into a buffer and lent to `hash_many_multithreaded`.
-- `lend-stream`: produced into a buffer and lent to a stream's `submit_batch`.
-- `copy-ring`: produced into a buffer and copied into the stream's ring.
-- `write-ring`: produced straight into the stream's ring via `submit_batch_with`. A sample times whole jobs, from
-producing the first message to having read every digest, nothing
-subtracted. Each sample records, solo, the process's CPU time across it
-(all its threads), as the main run's samples do; `solo` is one program,
-`shared` two at once, each with its own samples (their CPU time is both
-programs', so none is recorded). It writes `leaves.samples.tsv` in the
-main run's samples format, which `bench-hashes compare` reads.
 
 ## Choices that stay settled, and why
 

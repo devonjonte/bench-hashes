@@ -118,8 +118,7 @@ to `clocks/` is a change to this repository, its tests among the ones
 
 - **Contenders are black boxes.** The benchmark lists a contender, calls
   its plain entry point (single-threaded, multithreaded, a batch call, or
-  its incremental API for messages in pieces; for BLAKE3-Servil's multithreaded
-  contender, its stream for inputs one after another) with no pool, cap,
+  its incremental API for messages in pieces) with no pool, cap,
   or wrapper of its own. A contender without a batch entry point hashes a
   batch as `for m in batch { hash(m) }`.
 - **What the benchmark asks of BLAKE3-Servil is frozen.** `FROZEN.md` lists

@@ -55,8 +55,8 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
         UseCase::ContinuousMessages => (
             "one",
             "piped",
-            "throughput::Stream::submit_with",
-            "performance/struct.Stream.html#method.submit_with",
+            "throughput::hash_multithreaded",
+            "performance/fn.hash_multithreaded.html",
         ),
         UseCase::ManyMessages => (
             "batch",
@@ -97,8 +97,8 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
         UseCase::ContinuousBatches => (
             "batch",
             "piped",
-            "throughput::Stream::submit_batch_with",
-            "performance/struct.Stream.html#method.submit_batch_with",
+            "throughput::hash_many_multithreaded",
+            "performance/fn.hash_many_multithreaded.html",
         ),
         UseCase::Interleaved => (
             "many",
@@ -139,8 +139,8 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'stat
         UseCase::ContinuousCollection => (
             "coll",
             "piped",
-            "throughput::Stream::submit_with",
-            "performance/struct.Stream.html#method.submit_with",
+            "throughput::hash_multithreaded",
+            "performance/fn.hash_multithreaded.html",
         ),
         UseCase::MerkleTree => (
             "merkle",

@@ -31,6 +31,20 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Devon Jonte's decisions, each dated):
+- **Without a stream, BLAKE3-Servil mt takes the continuous cells as
+  every other contender does** (Devon Jonte, November 11, 2026,
+  bench-hashes #169). BLAKE3-Servil 0.9 ships no streaming API: the
+  stream leaves with the first pipeline, and their successor, the
+  Pipeline, is still to be built (BLAKE3 #356, #357). The multithreaded
+  contender's continuous cells (messages, batches, a collection) called
+  the stream; they now make its one-shot calls, each input read into the
+  program's buffer and hashed before the next is read, as the cells of
+  every contender without a stream do. Where that is the lent cell's
+  work, the cell is measured once, as its lent twin. The cells keep
+  their places on the map, so the check against 0.8 shows what the
+  stream gave until the Pipeline takes them. `bench-hashes leaves`,
+  whose four ways to hand leaves over were three of the stream's, goes
+  with it, to return with the Pipeline.
 - **The pipeline contender goes with its API** (Devon Jonte, November
   10, 2026, bench-hashes #170). BLAKE3-Servil removes its first pipeline
   (`throughput::pipeline`): the one streaming API to come is built on the
@@ -1263,11 +1277,11 @@ blake3-servil-mt OneMessage: throughput::hash_multithreaded(Mode::Plain, blocks,
 blake3-servil-mt ManyMessages: throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, each call after other work
 blake3-servil-st ManyLongMessages: throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work
 blake3-servil-mt ManyLongMessages: throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work
-blake3-servil-mt ContinuousMessages: throughput::stream(Mode::Plain, handler, body), one a sample: one message after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
-blake3-servil-mt ContinuousBatches: throughput::stream(Mode::Plain, handler, body), one a sample: one batch after another, each read straight into the stream's ring (submit_batch_with), its digests into a kept place of the batch's size (enough that the ring fills first, up to 1024), the place used whole as it comes back and used again
+blake3-servil-mt ContinuousMessages: throughput::hash_multithreaded(Mode::Plain, blocks, len), one message after another, each read into a kept buffer of the program's in whole blocks and hashed before the next is read (above 64 KiB a Hasher fed 64 KiB pieces by update_multithreaded)
+blake3-servil-mt ContinuousBatches: throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, one batch after another, each read into a kept buffer of the program's and hashed before the next is read
 blake3-servil-st ContinuousMessages: throughput::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)
 blake3-servil-st ContinuousBatches: throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, one batch after another, each read into a kept buffer of the program's and hashed on its thread
-blake3-servil-mt ContinuousCollection: throughput::stream(Mode::Plain, handler, body), one a sample: the collection's messages one after another, each read straight into the stream's ring (submit_with), its digest into one of 1024 kept places, used as the place comes back and the place used again
+blake3-servil-mt ContinuousCollection: throughput::hash_multithreaded(Mode::Plain, blocks, len), the collection's messages one after another, each read into a kept buffer of the program's in whole blocks and hashed before the next is read
 blake3-servil-st ContinuousCollection: throughput::hash(Mode::Plain, blocks, len), the collection's messages one after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread
 blake3-servil-st LentMessages: throughput::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer in whole blocks and lent until the call returns
 blake3-servil-st Interleaved: a Hasher per open message, 256 messages open at once, the pieces arriving in turns of 64, each read into its own kept buffer; throughput::update_each per turn, then throughput::finalize_each for the messages that ended in it, each buffer lent until the calls return
