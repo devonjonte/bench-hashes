@@ -746,7 +746,11 @@ fn families_by_machine(all: &[Row], shown: &[usize]) -> String {
     );
     let hi_g = 10f64.powf(all.iter().cloned().fold(0.0, f64::max).log10().ceil());
     let width = |g: f64| 100.0 * (g.log10() - lo_g.log10()) / (hi_g.log10() - lo_g.log10());
-    let mut out = String::from("<div class=\"families\">");
+    // The chart's own legend, drawn with it: a page with no such chart
+    // (no machine with both cells) shows no key to it.
+    let mut out = String::from(
+        "<div class=\"fam-legend\"><span><i class=\"lo\"></i> one short message</span><span><i class=\"hi\"></i> a stream of messages, every core</span></div><div class=\"families\">",
+    );
     for (i, r) in &rows {
         let _ = write!(
             out,
@@ -1262,6 +1266,10 @@ mod tests {
             super::ours(bars, &super::PICKS[pick]).map(|b| b.id),
             Some("blake3-servil-st")
         );
+        // This machine has the long cell alone, so the page draws no chart
+        // of one short message inside a stream, and no key to one.
+        assert_eq!(super::families_by_machine(&[row], &[0]), "");
+        assert!(!include_str!("overview.html").contains("class=\"fam-legend\""));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
