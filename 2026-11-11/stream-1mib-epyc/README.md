@@ -20,7 +20,22 @@ it the library's or the bench's (the release check crosses two benches)?
   wrong. `wall.sh` (16 pairs) gave a hint toward the bench that the
   64-pair runs did not bear out.
 
-**Next.** A bisect with one bench on both sides of each step, 64 pairs.
+**Later the same day, each with one bench on both sides, 64 pairs:**
+- `segments-368/` (`log.txt`): db3cab99 -> 85bf73a6, the first pipeline's
+  landing, under bench f24b6f4d: 16.4% slower one cache, 14.8% two
+  caches, 8.3% alone. The other segments were not measured (stopped).
+- `chain-368/` (`log.txt`, `removal.*`): the first pipeline's removal
+  (b6377425 against its parent 0a23cb70, bench 4fcff35f): slower again,
+  13.5% two caches, 7.6% alone; one cache not reported. Its bisect of
+  the landing was stopped at its first step.
+- `aa-368/`: the control. 0a23cb70 against itself with a `black_box` in
+  `Hasher::new` (which these cells never call; `check` declines to
+  measure two sides with the same instructions: `refused*.stdout.txt`),
+  asked both ways round: **no cell slower** either way. So the check has
+  no lean toward its new side in these cells, and the readings above are
+  the code's.
+
+**Next.** John's decision (BLAKE3 #368): the stream leaves 0.9's API; these cells are the Pipeline's baseline.
 
 **Machine.** Two EPYC 7443, 96 threads, Linux 7.0.0-42, `performance`.
 **Posted.** BLAKE3 #368.

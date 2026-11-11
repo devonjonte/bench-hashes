@@ -1,0 +1,30 @@
+check: BLAKE3-Servil's 4eda049c (4eda049c89c2) against 85bf73a6 (85bf73a62ed6)
+check: the change touches 148 added and 84 deleted lines in 16 files: b3sum/tests/cli_tests.rs (+3/-1), capi/README.md (+1/-0), capi/b3.h (+6/-4), capi/src/lib.rs (+19/-12), capi/tests/guard_pages.rs (+4/-1), capi/tests/guards.rs (+3/-3), capi/tests/vectors.rs (+5/-2), src/convenience.rs (+9/-3), src/each.rs (+12/-10), src/incremental.rs (+30/-20), src/lanes.rs (+6/-1), src/lib.rs (+6/-1), and 4 more
+check: its hunks sit in: fn test_hash_length_and_seek() {, The `--static` flag supplies the system libraries Rust's static library needs., void b3_hasher_update(b3_hasher *hasher, const void *input, size_t len);, b3_digest b3_hasher_finalize(const b3_hasher *hasher);, unsafe fn mode<'a>(mode: *const B3Mode) -> &'a B3Mode {, pub unsafe extern "C" fn b3_hasher_update(hasher: *mut B3Hasher, input: *const c, pub unsafe extern "C" fn b3_hasher_finalize(hasher: *const B3Hasher) -> Digest {, pub unsafe extern "C" fn b3_hasher_finalize_xof(hasher: *const B3Hasher, offset:, fn every_call_inside_guard_pages() {, unsafe fn bad_call(case: &str) {, fn adjacent_ranges_and_empty_null_ranges_are_allowed() {, fn every_call_against_the_test_vectors() {, and 23 more
+check: measuring the 1 named points (1 of 269 points; the rest unmeasured in this check): continuous 1 MiB
+
+thread 'main' (124636) panicked at src/check.rs:919:5:
+check: same: building bench-hashes against BLAKE3-Servil at 4eda049c89c2:
+error[E0507]: cannot move out of a mutable reference
+   --> src/b3sum.rs:183:5
+    |
+183 | /     blake3_servil::convenience::Hasher::new(blake3_servil::Mode::Plain, None)
+184 | |         .update(name.as_bytes())
+    | |________________________________^ move occurs because value has type `blake3_servil::convenience::Hasher`, which does not implement the `Copy` trait
+185 |           .finalize_xof()
+    |            -------------- value moved due to this method call
+    |
+note: `blake3_servil::convenience::Hasher::finalize_xof` takes ownership of the receiver `self`, which moves value
+   --> /home/devon/work/BLAKE3/target/check/same/src/src/incremental.rs:313:25
+    |
+313 |     pub fn finalize_xof(self) -> OutputReader {
+    |                         ^^^^
+help: consider cloning the value if the performance cost is acceptable
+    |
+184 |         .update(name.as_bytes()).clone()
+    |                                 ++++++++
+
+For more information about this error, try `rustc --explain E0507`.
+error: could not compile `bench-hashes` (bin "bench-hashes") due to 1 previous error
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
