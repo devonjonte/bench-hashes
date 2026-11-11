@@ -1,0 +1,23 @@
+check: BLAKE3-Servil's 3ab4584a (3ab4584a045c) against 9f7caef3 (9f7caef38058)
+check: the change touches 252 added and 52 deleted lines in 8 files: src/admission.rs (+2/-0), src/lanes.rs (+4/-6), src/lib.rs (+3/-4), src/stream.rs (+2/-2), src/stream/frontend.rs (+149/-26), src/stream/receiver.rs (+24/-6), src/stream_prototype.rs (+2/-8), src/throughput.rs (+66/-0)
+check: its hunks sit in: pub(crate) struct Resource<P: Deref<Target = Pool<T>> + Unpin, T> {, impl<T> Pool<T> {, pub(crate) mod sources {, pub(crate) struct Task {, impl Task {, mod finish_sync {, mod admission;, impl<D> Drop for Stream<'_, D> {, mod prototype;, use std::sync::{Arc, Mutex};, pub(super) struct Limits {, pub(super) enum Event<T> {, and 18 more
+check: measuring the 1 named points (1 of 266 points; the rest unmeasured in this check): continuous 1 MiB
+check: the change alters the bench's code here: .dynamic, .eh_frame, .eh_frame_hdr, .got.plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .text; 12 functions of another size or on one side alone (<blake3_servil::incremental::Hasher>::final_output; <blake3_servil::incremental::Hasher>::finalize; <blake3_servil::incremental::HasherCore>::final_output; <blake3_servil::lanes::Task>::run; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#0}>>::submit_long::<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#1}::{closure#0}>; <blake3_servil::stream::Stream<bench_hashes::hash_continuous_messages<bench_hashes::use_digest>::{closure#0}>>::submit_long::<bench_hashes::hash_continuous_messages<bench_hashes::use_digest>::{closure#1}::{closure#0}>; bench_hashes::b3sum::ensure_file; bench_hashes::hash_batch::<bench_hashes::use_digest>; bench_hashes::hash_interleaved::<bench_hashes::use_digest>; bench_hashes::leaves::measure_program::{closure#0}; blake3_servil::self_test::incremental; blake3_servil::self_test::xof); 1327 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&[u8; 32] as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; <&alloc::vec::Vec<u8> as core::fmt::Debug>::fmt; and 1315 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,1,6,7,12,13,18,19,24,25,30,31,36,37,42,43
+regress: 16 new builds against 16 old, 16 pairs over --contenders blake3-servil-st,blake3-servil-mt --points "continuous 1 MiB"
+regress: pair 1 of 16 in 1.8 s
+regress: pair 2 of 16 in 1.8 s
+regress: pair 3 of 16 in 1.8 s
+regress: pair 4 of 16 in 1.8 s
+regress: pair 5 of 16 in 1.8 s
+regress: pair 6 of 16 in 1.8 s
+regress: pair 7 of 16 in 1.8 s
+regress: pair 8 of 16 in 1.8 s
+regress: pair 9 of 16 in 1.8 s
+regress: pair 10 of 16 in 1.8 s
+regress: pair 11 of 16 in 1.8 s
+regress: pair 12 of 16 in 1.8 s
+regress: pair 13 of 16 in 1.8 s
+regress: pair 14 of 16 in 1.8 s
+regress: pair 15 of 16 in 1.8 s
+regress: pair 16 of 16 in 1.8 s

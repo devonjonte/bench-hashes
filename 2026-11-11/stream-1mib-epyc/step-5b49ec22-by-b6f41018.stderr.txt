@@ -1,0 +1,28 @@
+check: BLAKE3-Servil's 2037118ca1da85710aef55d7f13b3abd9095b485 (2037118ca1da) against 5b49ec226710b4085ef7e75612b0b3701be8e909 (5b49ec226710)
+check: the change touches 6723 added and 735 deleted lines in 79 files: .config/nextest.toml (+8/-6), .github/workflows/one-assignee.yml (+23/-0), AGENTS.md (+20/-6), CONTRIBUTING.md (+33/-19), Cargo.toml (+4/-1), README.md (+4/-2), b3sum/Cargo.lock (+7/-2), b3sum/Cargo.toml (+2/-2), b3sum/src/main.rs (+1/-1), build.rs (+3/-0), c/blake3_output16.S (+623/-0), capi/Cargo.toml (+1/-1), and 67 more
+check: its hunks sit in: default-filter = "not binary(pool_fairness)", Use one clear mechanism wherever it serves. When approaches perform similarly, c, Sixteen actions that improve writing:, Whenever code is timed (a probe, a benchmark, a throwaway loop in a scratch dire, The part above (Philosophy, Strategy, Style) reads the same in the `AGENTS.md` o, Misuse and misfortune (several of a program's threads calling at once, other loa, A fact that concerns several audiences goes in each audience's document, phrased, In the VM, run `sh /workspace/blake3-servil/vm/setup.sh` before any other comman, The open work is in the issues of both repositories (servil-software-factory/BLA, Speed is this fork's purpose. Every commit that can change the machine code the, fast-forward of its tip (so what was checked is what lands) once:, commit's "long proofs" status). The proofs' inputs are the kernels, and 224 more
+check: measuring the 1 named points (1 of 276 points; the rest unmeasured in this check): continuous 1 MiB
+check: the old side with the bench at b6f41018 (b6f41018c6c8)
+
+thread 'main' (120330) panicked at src/check.rs:952:5:
+check: old: building bench-hashes against BLAKE3-Servil at 5b49ec226710:
+error[E0061]: this function takes 7 arguments but 6 arguments were supplied
+   --> /home/devon/work/BLAKE3/target/check/old/src/src/stream/receiver.rs:492:9
+    |
+492 |         crate::many::hash_many_on(input, job.message_len, &job.key, job.flags, out, platform);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^                         -------- argument #3 of type `usize` is missing
+    |
+note: function defined here
+   --> /home/devon/work/BLAKE3/target/check/old/src/src/many.rs:70:15
+    |
+ 70 | pub(crate) fn hash_many_on(input: &[u8], len: usize, slot: usize, key: &CVWords, flags: u8, outputs: &mut [[u8; OUT_LEN]], platform...
+    |               ^^^^^^^^^^^^                           -----------
+help: provide the argument
+    |
+492 |         crate::many::hash_many_on(input, job.message_len, /* usize */, &job.key, job.flags, out, platform);
+    |                                                           ++++++++++++
+
+For more information about this error, try `rustc --explain E0061`.
+error: could not compile `blake3-servil` (lib) due to 1 previous error
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
