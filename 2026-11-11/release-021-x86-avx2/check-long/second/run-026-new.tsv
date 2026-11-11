@@ -1,0 +1,43 @@
+# bench-hashes samples v10
+# timestamp: 2026-11-11 05:45:10 UTC
+# bench-hashes version: 0.21.0+84236bf0f0c832f6619b8f99ce7bc878c7800ef0
+# bench-hashes source: https://github.com/servil-software-factory/bench-hashes
+# git commit: 9434d50e50de4b93dc962ccbf52346db5442358e
+# git clean status: clean
+# blake3-servil version: 0.8.0+dev.2037118ca1da85710aef55d7f13b3abd9095b485
+# dependency lock: blake3 6c8c21a0d3070655a7049fd12c84b039ca1f634a2a1baa4b19e1241360701376 of Cargo.lock
+# rust compiler: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+# c compiler: cc: cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+# rustflags: none
+# build target: x86_64-unknown-linux-gnu
+# target features: fxsr,sse,sse2
+# sample clock: CLOCK_MONOTONIC_RAW (stops during suspend; the raw counter, no NTP slew)
+# clocks source: clocks 0.1.0; this repository's clocks/, at its commit
+# cpu type: AMD EPYC 7443 24-Core Processor
+# cpu count: 96
+# os type: linux7.0.0-42-generic
+# cpu identity: model name: AMD EPYC 7443 24-Core Processor · microcode: 0xa0011df · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology nonstop_tsc cpuid extd_apicid aperfmperf rapl pni pclmulqdq monitor ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt tce topoext perfctr_core perfctr_nb bpext perfctr_llc mwaitx cpb cat_l3 cdp_l3 hw_pstate ssbd mba ibrs ibpb stibp vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local user_shstk clzero irperf xsaveerptr rdpru wbnoinvd amd_ppin brs arat npt lbrv svm_lock nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload vgif v_spec_ctrl umip pku ospke vaes vpclmulqdq rdpid overflow_recov succor smca fsrm sev sev_es sev_snp debug_swap · machine: AS -2124BT-HTR
+# idle states: none listed (no cpuidle driver; the kernel's default idle)
+# effective idle states: not measured (no cstate_core counters readable here)
+# idle control: none (no cpuidle states the bench can switch off: run as root for the controlled cells)
+# shared placements: one cache: CPUs 0 and 1; two caches: CPUs 0 and 6; each copy's input on its CPU's memory node
+# counts read overhead: not measured
+# source blake3-servil-mt: blake3-servil (local checkout); source https://github.com/servil-software-factory/BLAKE3; branch HEAD; commit 2037118ca1da85710aef55d7f13b3abd9095b485; clean
+# contenders: --contenders blake3-servil-mt
+# rounds: 24
+# measuring thread: placed by the OS
+# sample sizes: from /tmp/bench-hashes-regress-sizes-4184341.tsv (--sizes)
+# buffers owned: where a contender makes the same calls as with buffers lent, one measurement, shown in both rows
+# nonstop train: 100 ms warm-up, 6 samples a visit
+# points: 1 MiB,4 MiB
+# power: mains power, no battery, CPU frequency governor performance
+# load: quiet: other programs kept 0.00 CPUs busy on average, 0.00 in the busiest window
+# load measured by: bench-hashes regress, around the run (the windows below are the run's own)
+# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1328:7:0
+contender	scenario	use_case	point	unit	ns/units	start ms	cpu ns	energy nJ	core counts	cpu
+blake3-servil-mt	solo	ContinuousMessages	1 MiB	B	783041/6291456,814981/6291456,924570/6291456,832271/6291456,832650/6291456,1025120/6291456,882921/6291456,870941/6291456,813710/6291456,867141/6291456,907490/6291456,965901/6291456	453,453,454,455,456,457,1105,1106,1107,1108,1109,1110	2620411,2221242,2795720,2767580,2672182,2809250,2851745,2685610,2711210,2606841,2408530,2893150	-	-	26,26,26,26,26,26,26,26,26,26,26,26
+blake3-servil-mt	solo	ContinuousMessages	4 MiB	B	1384811/8388608,1380400/8388608,1268111/8388608,1553180/8388608,1441340/8388608,1400061/8388608,1743181/8388608,1750481/8388608,1730780/8388608,1734591/8388608,1755131/8388608,1745010/8388608	119,120,122,123,125,126,774,776,777,779,781,783	4210249,4043430,3361332,4222011,4198260,4070790,4558872,4299190,4494452,4356602,4437420,4297172	-	-	26,26,26,26,26,26,26,26,26,26,26,26
+blake3-servil-mt	shared-one-cache	ContinuousMessages	1 MiB	B	714320/6291456,869260/6291456,885231/6291456,696681/6291456,679250/6291456,714220/6291456,796220/6291456,756580/6291456,735441/6291456,803011/6291456,811260/6291456,640550/6291456,691270/6291456,746480/6291456,664251/6291456,693870/6291456,915061/6291456,1031890/6291456,1009870/6291456,926660/6291456,910891/6291456,939331/6291456,1030220/6291456,998870/6291456	558,558,559,559,560,560,561,560,562,561,562,562,1211,1211,1212,1212,1212,1212,1213,1213,1214,1214,1215,1215	-	-	-	0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1
+blake3-servil-mt	shared-one-cache	ContinuousMessages	4 MiB	B	1411441/8388608,1310251/8388608,1094040/8388608,876340/8388608,905370/8388608,961971/8388608,1270611/8388608,966180/8388608,1179020/8388608,1185740/8388608,1080370/8388608,1031440/8388608,1078941/8388608,1069031/8388608,994180/8388608,1085370/8388608,975650/8388608,926481/8388608,1175051/8388608,1626230/8388608,1583821/8388608,1218150/8388608,1024050/8388608,1080051/8388608	234,235,236,237,237,237,238,238,239,239,240,241,885,886,886,887,887,888,888,889,889,891,891,892	-	-	-	0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1
+blake3-servil-mt	shared-two-caches	ContinuousMessages	1 MiB	B	833380/6291456,1263650/6291456,796340/6291456,1271340/6291456,632660/6291456,1285091/6291456,935160/6291456,1275531/6291456,813290/6291456,1254320/6291456,712081/6291456,1276331/6291456,830421/6291456,1477081/6291456,766500/6291456,1362821/6291456,786950/6291456,1423191/6291456,830251/6291456,1470551/6291456,844170/6291456,1270670/6291456,823060/6291456,1157911/6291456	664,664,665,665,666,666,666,668,667,669,668,670,1318,1318,1319,1320,1320,1321,1321,1322,1321,1324,1322,1325	-	-	-	0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6
+blake3-servil-mt	shared-two-caches	ContinuousMessages	4 MiB	B	1051700/8388608,1414980/8388608,1126921/8388608,1455371/8388608,1014150/8388608,1242811/8388608,1105861/8388608,1446210/8388608,1002420/8388608,1488981/8388608,1196141/8388608,1440981/8388608,919730/8388608,1305801/8388608,1016861/8388608,1300691/8388608,1034250/8388608,1380090/8388608,1046551/8388608,1352011/8388608,913900/8388608,1378050/8388608,1023031/8388608,1298301/8388608	343,343,344,344,345,346,346,347,347,349,348,350,994,994,995,996,996,997,997,998,998,1000,999,1001	-	-	-	0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6
