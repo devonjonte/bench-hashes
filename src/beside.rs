@@ -212,6 +212,13 @@ pub fn command(arguments: &[String]) {
     std::fs::write(out.join("before/bench-hashes.samples.tsv"), before).unwrap();
     std::fs::write(out.join("bench-hashes.samples.tsv"), now).unwrap();
     crate::map::write(&out, Some(&out.join("before")));
+    // This folder's map is the one with the release before beside it: the
+    // overview links a folder's `bench-hashes.map.html`.
+    std::fs::copy(
+        out.join("bench-hashes.beside.map.html"),
+        out.join("bench-hashes.map.html"),
+    )
+    .unwrap();
 }
 
 #[cfg(test)]

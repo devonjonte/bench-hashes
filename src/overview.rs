@@ -170,13 +170,25 @@ fn trio<'a>(bars: &'a [Bar], form: Algorithm) -> [Option<&'a Bar>; 3] {
     [servil, official, find(Algorithm::Sha256)]
 }
 
-/// The row's own servil bar: its pick's form (b3sum's, in its row).
+/// BLAKE3-Servil's other form.
+fn other_form(servil: Algorithm) -> Algorithm {
+    if servil == Algorithm::Blake3ServilMt {
+        Algorithm::Blake3ServilSt
+    } else {
+        Algorithm::Blake3ServilMt
+    }
+}
+
+/// The row's own servil bar: its pick's form (b3sum's, in its row), or on
+/// a page without that form, the other.
 fn ours<'a>(bars: &'a [Bar], pick: &Pick) -> Option<&'a Bar> {
     let form = match &pick.cell {
-        Cell::Hashing { servil, .. } => servil.key(),
-        Cell::B3sum { .. } => Algorithm::Blake3ServilMt.key(),
+        Cell::Hashing { servil, .. } => *servil,
+        Cell::B3sum { .. } => Algorithm::Blake3ServilMt,
     };
-    bars.iter().find(|b| b.id == form)
+    bars.iter()
+        .find(|b| b.id == form.key())
+        .or_else(|| bars.iter().find(|b| b.id == other_form(form).key()))
 }
 
 /// One machine's row.
@@ -216,7 +228,18 @@ fn cell<'a>(file: &'a SamplesFile, key: &str) -> Option<&'a [Measured]> {
         .map(|(_, s)| s.as_slice())
 }
 
-fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algorithm) -> Bars {
+/// The ids of BLAKE3-Servil's two forms as of the release before, drawn
+/// where a machine's folder holds `before/` (`bench-hashes beside`).
+const BEFORE_ST: &str = "blake3-servil-st@before";
+const BEFORE_MT: &str = "blake3-servil-mt@before";
+
+fn hashing_bars(
+    file: &SamplesFile,
+    before: Option<&SamplesFile>,
+    use_case: UseCase,
+    point: &str,
+    servil: Algorithm,
+) -> Bars {
     let key = |a: Algorithm| format!("{}|solo|{use_case:?}|{point}", a.key());
     let per_unit = match super::POINTS
         .iter()
@@ -237,7 +260,9 @@ fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algo
     // each library the run measured, in the legend's order (servil's
     // single- and multi-threaded, official's), so the reader's choice of
     // forms holds in every row.
-    if cell(file, &key(servil)).is_none() {
+    // On a page of one kind of contender (bench-hashes beside --without),
+    // the form the page has stands for the row.
+    if cell(file, &key(servil)).is_none() && cell(file, &key(other_form(servil))).is_none() {
         return Vec::new();
     }
     let mut bars: Bars = [
@@ -249,6 +274,38 @@ fn hashing_bars(file: &SamplesFile, use_case: UseCase, point: &str, servil: Algo
     .into_iter()
     .filter_map(|a| cell(file, &key(a)).map(|s| bar(a, s, "")))
     .collect();
+    // BLAKE3-Servil as of the release before, each form ahead of today's:
+    // dark, named by its version's part before the `+`.
+    if let Some(before) = before {
+        let version = crate::map::servil_version(&before.headers);
+        let version = version.split('+').next().unwrap_or("");
+        for (a, id, at) in [
+            (Algorithm::Blake3ServilMt, BEFORE_MT, 1),
+            (Algorithm::Blake3ServilSt, BEFORE_ST, 0),
+        ] {
+            if let Some(samples) = cell(before, &key(a)) {
+                let at = bars
+                    .iter()
+                    .position(|b| b.id == a.key())
+                    .unwrap_or(at.min(bars.len()));
+                bars.insert(
+                    at,
+                    Bar {
+                        name: plain_name(a).replacen(
+                            "BLAKE3-Servil",
+                            &format!("BLAKE3-Servil {version}"),
+                            1,
+                        ),
+                        id,
+                        color: "#111827",
+                        striped: a.multithreaded(),
+                        gbps: gbps(samples, per_unit),
+                        note: "the release before",
+                    },
+                );
+            }
+        }
+    }
     // The fastest SHA-256 the run measured in this cell.
     let sha = [
         Algorithm::Sha256,
@@ -405,6 +462,10 @@ pub fn row(directory: &Path, link: String) -> Row {
         .then(|| read_samples(hashing.to_str().expect("a path in UTF-8")));
     let b3sum = (b3sum.exists() && current(&b3sum))
         .then(|| read_samples(b3sum.to_str().expect("a path in UTF-8")));
+    // The release before, where `bench-hashes beside` put it.
+    let before = directory.join("before/bench-hashes.samples.tsv");
+    let before = (before.exists() && current(&before))
+        .then(|| read_samples(before.to_str().expect("a path in UTF-8")));
     let about = hashing
         .as_ref()
         .or(b3sum.as_ref())
@@ -416,9 +477,9 @@ pub fn row(directory: &Path, link: String) -> Row {
                 use_case,
                 point,
                 servil,
-            } => hashing
-                .as_ref()
-                .map_or(Vec::new(), |f| hashing_bars(f, *use_case, point, *servil)),
+            } => hashing.as_ref().map_or(Vec::new(), |f| {
+                hashing_bars(f, before.as_ref(), *use_case, point, *servil)
+            }),
             Cell::B3sum { cache, input } => b3sum
                 .as_ref()
                 .map_or(Vec::new(), |f| b3sum_bars(f, cache, input)),
@@ -845,11 +906,17 @@ pub fn html(rows: &[Row]) -> String {
         Algorithm::Sha256Ring,
         Algorithm::Sha256CommonCrypto,
     ];
+    // A form of the release before stands just ahead of today's.
     let rank = |id: &str| {
+        let (today, before) = match id {
+            BEFORE_ST => (Algorithm::Blake3ServilSt.key(), 0),
+            BEFORE_MT => (Algorithm::Blake3ServilMt.key(), 0),
+            other => (other, 1),
+        };
         order
             .iter()
-            .position(|a| a.key() == id)
-            .unwrap_or(usize::MAX)
+            .position(|a| a.key() == today)
+            .map_or(usize::MAX, |p| 2 * p + before)
     };
     drawn.sort_by_key(|(_, id, _, _)| rank(id));
     // A library's two forms, single- and multi-threaded, stand one above
@@ -947,6 +1014,11 @@ pub fn html(rows: &[Row]) -> String {
     }
     body.push_str("</tr></thead><tbody>\n");
     for (i, pick) in PICKS.iter().enumerate() {
+        // A use no machine of the page measured under this release has no
+        // row (a page of one crate's calls, `bench-hashes beside --without`).
+        if rows.iter().all(|r| r.stale || r.cells[i].is_empty()) && rows.iter().any(|r| !r.stale) {
+            continue;
+        }
         {
             let column = pick.column;
             let _ = write!(
@@ -1132,6 +1204,67 @@ pub fn command(args: &[String]) {
 
 #[cfg(test)]
 mod tests {
+    /// A machine's folder with `before/` beside its samples (bench-hashes
+    /// beside) draws BLAKE3-Servil as of the release before as a bar of
+    /// its own, just ahead of today's form, named by its version; and on a
+    /// page without the pick's form of BLAKE3-Servil the other form stands
+    /// for the row.
+    #[test]
+    fn the_release_before_is_a_bar_ahead_of_todays() {
+        let dir =
+            std::env::temp_dir().join(format!("bench-overview-before-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("before")).unwrap();
+        let file = |version: &str, ns: u32, sha: bool| {
+            let row = |who: &str, ns: u32| {
+                format!("{who}\tsolo\tOneMessage\t128 MiB\tB\t{ns}/64,{ns}/64\t1,2\t-\t-\t-\t0,0\n")
+            };
+            format!(
+                "{}\n# bench-hashes version: test\n# blake3-servil version: {version}\n# load: quiet\n# power: mains power\n{}\n{}{}",
+                super::SAMPLES_VERSION,
+                crate::SAMPLES_COLUMNS,
+                row("blake3-servil-st", ns),
+                if sha { row("sha256", 4 * ns) } else { String::new() }
+            )
+        };
+        std::fs::write(
+            dir.join("bench-hashes.samples.tsv"),
+            file("0.9.0+dev.abc", 80, true),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("before/bench-hashes.samples.tsv"),
+            file("0.8.0+b3c5", 100, false),
+        )
+        .unwrap();
+        let row = super::row(&dir, "x".to_owned());
+        // The 128 MiB pick's own form is the multi-threaded one, which this page lacks.
+        let pick = super::PICKS
+            .iter()
+            .position(|p| p.column == "128 MiB")
+            .unwrap();
+        let bars = &row.cells[pick];
+        assert_eq!(
+            bars.iter()
+                .map(|b| (b.id, b.name.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                (super::BEFORE_ST, "BLAKE3-Servil 0.8.0, single-threaded"),
+                ("blake3-servil-st", "BLAKE3-Servil, single-threaded"),
+                ("sha256", "SHA-256"),
+            ]
+        );
+        assert!(
+            bars[1].gbps > bars[0].gbps,
+            "today's 80 ns against the release before's 100"
+        );
+        assert_eq!(
+            super::ours(bars, &super::PICKS[pick]).map(|b| b.id),
+            Some("blake3-servil-st")
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     use super::*;
 
     #[test]

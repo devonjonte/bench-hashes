@@ -44,6 +44,14 @@ the notes) may still change, to say it better.
   of one kind (`one-thread`, `every-core`), for a page of the calls one
   crate offers. Two things follow on any map with no BLAKE3-Servil mt:
   st opens shown, and the calls named are st's. Nothing measured changes.
+  The overview draws such a folder too (November 11): where a machine's
+  folder holds `before/`, each cell gains BLAKE3-Servil as of the release
+  before as bars of their own, dark, just ahead of today's, with their
+  own names in the legend; the page opens on the release before beside
+  today's. On a page without the multi-threaded form the single-threaded
+  one stands for a row and opens shown, and a use no machine of the page
+  measured has no row. The published overview is as it was, bar the
+  script's opening rule.
 - **Without a stream, BLAKE3-Servil mt takes the continuous cells as
   every other contender does** (Devon Jonte, November 11, 2026,
   bench-hashes #169). BLAKE3-Servil 0.9 ships no streaming API: the

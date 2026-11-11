@@ -267,7 +267,12 @@ repeating-linear-gradient(135deg, #3b82f6 0 3px, #3b82f673 3px 5px)	b3sum, offic
   for (const b of document.querySelectorAll(".legend button")) b.addEventListener("click", () => apply(b, !b.classList.contains("off")));
   // The page opens on BLAKE3-Servil, multi-threaded, beside SHA-256
   // (Zooko, October 27); the other forms and hashes wait in the legend.
-  const OPENS_ON = ["blake3-servil-mt", "sha256"];
+  // A page without the multi-threaded form opens on the single-threaded
+  // one; a page with the release before (bench-hashes beside) opens on it
+  // too, beside today's.
+  const has = k => [...document.querySelectorAll(".legend button")].some(b => b.dataset.k === k);
+  const form = has("blake3-servil-mt") ? "blake3-servil-mt" : "blake3-servil-st";
+  const OPENS_ON = [form, form + "@before", "sha256"];
   for (const b of document.querySelectorAll(".legend button")) if (!OPENS_ON.includes(b.dataset.k)) apply(b, true);
   // The tooltip: each hash shown, its speed, and servil's over it; the two
   // compared in bold. Follows the pointer; on a touch screen a tap shows
