@@ -1,0 +1,173 @@
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/fork && git checkout --quiet --force --detach dad0a6fc20ff0f2f1e06c237e13eec02e43a8547)
+$ (cd /Users/benchrunner/checkouts/fork && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/fork && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/bench && git checkout --quiet --force --detach 828e8500b938d423b825ef2d030d20b543847ea6)
+$ (cd /Users/benchrunner/checkouts/bench && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/bench && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && cargo run --release --quiet -- check --fork /Users/benchrunner/checkouts/fork --against b5b988d8982bea9490c38c79ec4b8c5c2428270c --when-quiet --keep /Users/benchrunner/tmp/3055-bisect364-dad0a6fc.20261111T080911Z-mac-m6/samples --points 4,8,7935 B)
+warning: function `describe_pause` is never used
+    --> src/main.rs:8061:4
+     |
+8061 | fn describe_pause(ns: u64) -> String {
+     |    ^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `EFFECTIVE_IDLE_PAUSES` is never used
+    --> src/main.rs:8070:7
+     |
+8070 | const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
+     |       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `describe_effective_idle_states` is never used
+    --> src/main.rs:8221:4
+     |
+8221 | fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+waiting for a quiet machine (other programs kept 7.07 CPUs busy in one of the last 10 seconds); reading again in 30 s
+waiting for a quiet machine (other programs kept 4.23 CPUs busy in one of the last 10 seconds); reading again in 30 s
+waiting for a quiet machine (other programs kept 2.66 CPUs busy in one of the last 10 seconds); reading again in 30 s
+check: BLAKE3-Servil's working tree (dad0a6fc20ff) against b5b988d8982bea9490c38c79ec4b8c5c2428270c (b5b988d8982b)
+check: the change touches 5237 added and 4752 deleted lines in 98 files: .github/workflows/ci.yml (+7/-8), .github/workflows/docs.yml (+1/-1), AGENTS.md (+24/-16), ANNOUNCE.md (+2/-2), CONTRIBUTING.md (+29/-16), Cargo.toml (+12/-3), QUALITY.md (+1/-1), README.md (+7/-7), b3sum/Cargo.lock (+7/-0), b3sum/Cargo.toml (+3/-1), b3sum/README.md (+27/-4), b3sum/src/main.rs (+55/-18), and 86 more
+check: its hunks sit in: jobs:, Use one clear mechanism wherever it serves. When approaches perform similarly, c, Sixteen actions that improve writing:, Keep what serves one reader and reads cleanly to the others; an item legible to, A computation is correct when it delivers the right result, at the costs (includ, Until a problem reaches one of these outcomes it stays open: it goes on the next, Whenever code is timed (a probe, a benchmark, a throwaway loop in a scratch dire, Most of a measurement's uncertainty lies between runs, not inside one: where a p, We never write "defensive code" — code that complicates a contract to ease the, The part above (Philosophy, Strategy, Style) reads the same in the `AGENTS.md` o, Misuse and misfortune (several of a program's threads calling at once, other loa, In the VM, run `sh /workspace/blake3-servil/vm/setup.sh` before any other comman, and 294 more
+check: measuring the 3 named points (3 of 266 points; the rest unmeasured in this check): 4, 8, 7935 B
+check: no same-code comparison on this machine's executable format (ELF only); measuring
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt --points "4,8,7935 B"
+regress: pair 1 of 4 in 1.5 s
+clocks: other programs kept 1.86 CPUs busy from 11.9 s to 12.7 s; measurements in that time may read slower than this machine runs
+regress: pair 2 again: busy: other programs kept 1.86 CPUs busy on average, 1.86 in the busiest window; busy in 1 of 1 windows (11.9-12.7 s)
+regress: pair 2 of 4 in 3.2 s
+clocks: other programs kept 1.87 CPUs busy from 15.1 s to 15.9 s; measurements in that time may read slower than this machine runs
+regress: pair 3 again: busy: other programs kept 1.87 CPUs busy on average, 1.87 in the busiest window; busy in 1 of 1 windows (15.1-15.9 s)
+regress: pair 3 of 4 in 3.2 s
+clocks: other programs kept 1.55 CPUs busy from 18.2 s to 19.0 s; measurements in that time may read slower than this machine runs
+regress: pair 4 again: busy: other programs kept 1.55 CPUs busy on average, 1.55 in the busiest window; busy in 1 of 1 windows (18.2-19.0 s)
+regress: pair 4 of 4 in 3.2 s
+regress: old side: bench 828e8500b938 clean; servil b5b988d8982b clean
+regress: new side: bench 828e8500b938 clean; servil dad0a6fc20ff clean
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: suspects: blake3-servil-mt|solo|ManyMessages|4;blake3-servil-mt|solo|ManyMessages|8;blake3-servil-st|solo|ManyMessages|8;blake3-servil-st|solo|ManyMessages|4
+regress: power during the check: mains power
+check: a second stage for 4 suspects on 64 fresh pairs: blake3-servil-mt|solo|ManyMessages|4, blake3-servil-mt|solo|ManyMessages|8, blake3-servil-st|solo|ManyMessages|8, blake3-servil-st|solo|ManyMessages|4
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 64 new builds against 64 old, 64 pairs over --contenders blake3-servil-mt,blake3-servil-st --points "4,8"
+clocks: other programs kept 1.73 CPUs busy from 10.9 s to 11.6 s; measurements in that time may read slower than this machine runs
+regress: pair 1 again: busy: other programs kept 1.73 CPUs busy on average, 1.73 in the busiest window; busy in 1 of 1 windows (10.9-11.6 s)
+regress: pair 1 of 64 in 2.5 s
+clocks: other programs kept 1.50 CPUs busy from 13.4 s to 14.1 s; measurements in that time may read slower than this machine runs
+regress: pair 2 again: busy: other programs kept 1.50 CPUs busy on average, 1.50 in the busiest window; busy in 1 of 1 windows (13.4-14.1 s)
+regress: pair 2 of 64 in 2.6 s
+regress: pair 3 of 64 in 1.3 s
+regress: pair 4 of 64 in 1.3 s
+regress: pair 5 of 64 in 1.4 s
+regress: pair 6 of 64 in 1.3 s
+regress: pair 7 of 64 in 1.3 s
+regress: pair 8 of 64 in 1.3 s
+clocks: other programs kept 1.77 CPUs busy from 24.1 s to 24.7 s; measurements in that time may read slower than this machine runs
+regress: pair 9 again: busy: other programs kept 1.77 CPUs busy on average, 1.77 in the busiest window; busy in 1 of 1 windows (24.1-24.7 s)
+clocks: other programs kept 1.62 CPUs busy from 25.4 s to 26.0 s; measurements in that time may read slower than this machine runs
+regress: pair 9 again: busy: other programs kept 1.62 CPUs busy on average, 1.62 in the busiest window; busy in 1 of 1 windows (25.4-26.0 s)
+regress: pair 9 of 64 in 3.8 s
+regress: pair 10 of 64 in 1.3 s
+clocks: other programs kept 1.52 CPUs busy from 29.3 s to 29.9 s; measurements in that time may read slower than this machine runs
+regress: pair 11 again: busy: other programs kept 1.52 CPUs busy on average, 1.52 in the busiest window; busy in 1 of 1 windows (29.3-29.9 s)
+regress: pair 11 of 64 in 2.6 s
+clocks: other programs kept 2.33 CPUs busy from 31.9 s to 32.5 s; measurements in that time may read slower than this machine runs
+regress: pair 12 again: busy: other programs kept 2.33 CPUs busy on average, 2.33 in the busiest window; busy in 1 of 1 windows (31.9-32.5 s)
+regress: pair 12 of 64 in 2.6 s
+regress: pair 13 of 64 in 1.3 s
+regress: pair 14 of 64 in 1.3 s
+regress: pair 15 of 64 in 1.3 s
+regress: pair 16 of 64 in 1.3 s
+clocks: other programs kept 1.64 CPUs busy from 39.8 s to 40.4 s; measurements in that time may read slower than this machine runs
+regress: pair 17 again: busy: other programs kept 1.64 CPUs busy on average, 1.64 in the busiest window; busy in 1 of 1 windows (39.8-40.4 s)
+regress: pair 17 of 64 in 2.5 s
+regress: pair 18 of 64 in 1.3 s
+clocks: other programs kept 1.84 CPUs busy from 43.5 s to 44.1 s; measurements in that time may read slower than this machine runs
+regress: pair 19 again: busy: other programs kept 1.84 CPUs busy on average, 1.84 in the busiest window; busy in 1 of 1 windows (43.5-44.1 s)
+regress: pair 19 of 64 in 2.5 s
+regress: pair 20 of 64 in 1.3 s
+regress: pair 21 of 64 in 1.2 s
+regress: pair 22 of 64 in 1.2 s
+regress: pair 23 of 64 in 1.2 s
+regress: pair 24 of 64 in 1.2 s
+regress: pair 25 of 64 in 1.2 s
+regress: pair 26 of 64 in 1.3 s
+regress: pair 27 of 64 in 1.3 s
+regress: pair 28 of 64 in 1.3 s
+clocks: other programs kept 1.58 CPUs busy from 57.3 s to 58.0 s; measurements in that time may read slower than this machine runs
+regress: pair 29 again: busy: other programs kept 1.58 CPUs busy on average, 1.58 in the busiest window; busy in 1 of 1 windows (57.3-58.0 s)
+regress: pair 29 of 64 in 2.5 s
+clocks: other programs kept 1.58 CPUs busy from 59.8 s to 60.5 s; measurements in that time may read slower than this machine runs
+regress: pair 30 again: busy: other programs kept 1.58 CPUs busy on average, 1.58 in the busiest window; busy in 1 of 1 windows (59.8-60.5 s)
+clocks: other programs kept 1.62 CPUs busy from 61.1 s to 61.7 s; measurements in that time may read slower than this machine runs
+regress: pair 30 again: busy: other programs kept 1.62 CPUs busy on average, 1.62 in the busiest window; busy in 1 of 1 windows (61.1-61.7 s)
+regress: pair 30 of 64 in 3.8 s
+clocks: other programs kept 1.69 CPUs busy from 63.6 s to 64.3 s; measurements in that time may read slower than this machine runs
+regress: pair 31 again: busy: other programs kept 1.69 CPUs busy on average, 1.69 in the busiest window; busy in 1 of 1 windows (63.6-64.3 s)
+regress: pair 31 of 64 in 2.5 s
+regress: pair 32 of 64 in 1.3 s
+regress: pair 33 of 64 in 1.3 s
+regress: pair 34 of 64 in 1.3 s
+clocks: other programs kept 1.62 CPUs busy from 69.9 s to 70.6 s; measurements in that time may read slower than this machine runs
+regress: pair 35 again: busy: other programs kept 1.62 CPUs busy on average, 1.62 in the busiest window; busy in 1 of 1 windows (69.9-70.6 s)
+regress: pair 35 of 64 in 2.5 s
+clocks: other programs kept 1.82 CPUs busy from 72.5 s to 73.1 s; measurements in that time may read slower than this machine runs
+regress: pair 36 again: busy: other programs kept 1.82 CPUs busy on average, 1.82 in the busiest window; busy in 1 of 1 windows (72.5-73.1 s)
+regress: pair 36 of 64 in 2.6 s
+regress: pair 37 of 64 in 1.3 s
+regress: pair 38 of 64 in 1.3 s
+clocks: other programs kept 1.77 CPUs busy from 77.5 s to 78.2 s; measurements in that time may read slower than this machine runs
+regress: pair 39 again: busy: other programs kept 1.77 CPUs busy on average, 1.77 in the busiest window; busy in 1 of 1 windows (77.5-78.2 s)
+clocks: other programs kept 1.62 CPUs busy from 78.8 s to 79.4 s; measurements in that time may read slower than this machine runs
+regress: pair 39 again: busy: other programs kept 1.62 CPUs busy on average, 1.62 in the busiest window; busy in 1 of 1 windows (78.8-79.4 s)
+regress: pair 39 of 64 in 3.8 s
+clocks: other programs kept 1.64 CPUs busy from 81.3 s to 82.0 s; measurements in that time may read slower than this machine runs
+regress: pair 40 again: busy: other programs kept 1.64 CPUs busy on average, 1.64 in the busiest window; busy in 1 of 1 windows (81.3-82.0 s)
+regress: pair 40 of 64 in 2.5 s
+clocks: other programs kept 1.85 CPUs busy from 83.8 s to 84.5 s; measurements in that time may read slower than this machine runs
+regress: pair 41 again: busy: other programs kept 1.85 CPUs busy on average, 1.85 in the busiest window; busy in 1 of 1 windows (83.8-84.5 s)
+regress: pair 41 of 64 in 2.5 s
+regress: pair 42 of 64 in 1.3 s
+regress: pair 43 of 64 in 1.3 s
+regress: pair 44 of 64 in 1.3 s
+clocks: other programs kept 1.22 CPUs busy from 90.2 s to 90.8 s; measurements in that time may read slower than this machine runs
+regress: pair 45 again: busy: other programs kept 1.22 CPUs busy on average, 1.22 in the busiest window; busy in 1 of 1 windows (90.2-90.8 s)
+clocks: other programs kept 1.63 CPUs busy from 91.5 s to 92.1 s; measurements in that time may read slower than this machine runs
+regress: pair 45 again: busy: other programs kept 1.63 CPUs busy on average, 1.63 in the busiest window; busy in 1 of 1 windows (91.5-92.1 s)
+regress: pair 45 of 64 in 3.8 s
+regress: pair 46 of 64 in 1.3 s
+regress: pair 47 of 64 in 1.3 s
+regress: pair 48 of 64 in 1.3 s
+regress: pair 49 of 64 in 1.3 s
+regress: pair 50 of 64 in 1.3 s
+regress: pair 51 of 64 in 1.3 s
+regress: pair 52 of 64 in 1.3 s
+regress: pair 53 of 64 in 1.3 s
+regress: pair 54 of 64 in 1.3 s
+regress: pair 55 of 64 in 1.3 s
+regress: pair 56 of 64 in 1.3 s
+regress: pair 57 of 64 in 1.3 s
+regress: pair 58 of 64 in 1.3 s
+clocks: other programs kept 1.60 CPUs busy from 110.4 s to 111.1 s; measurements in that time may read slower than this machine runs
+regress: pair 59 again: busy: other programs kept 1.60 CPUs busy on average, 1.60 in the busiest window; busy in 1 of 1 windows (110.4-111.1 s)
+regress: pair 59 of 64 in 2.5 s
+regress: pair 60 of 64 in 1.3 s
+regress: pair 61 of 64 in 1.3 s
+clocks: other programs kept 1.52 CPUs busy from 115.5 s to 116.1 s; measurements in that time may read slower than this machine runs
+regress: pair 62 again: busy: other programs kept 1.52 CPUs busy on average, 1.52 in the busiest window; busy in 1 of 1 windows (115.5-116.1 s)
+regress: pair 62 of 64 in 2.5 s
+regress: pair 63 of 64 in 1.3 s
+regress: pair 64 of 64 in 1.3 s
+regress: old side: bench 828e8500b938 clean; servil b5b988d8982b clean
+regress: new side: bench 828e8500b938 clean; servil dad0a6fc20ff clean
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: power during the check: mains power

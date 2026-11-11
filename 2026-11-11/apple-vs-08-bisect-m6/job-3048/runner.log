@@ -1,0 +1,51 @@
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/fork && git checkout --quiet --force --detach b6b2e12f456a6014fb0acd3d3938ac8eea20ad57)
+$ (cd /Users/benchrunner/checkouts/fork && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/fork && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/bench && git checkout --quiet --force --detach 828e8500b938d423b825ef2d030d20b543847ea6)
+$ (cd /Users/benchrunner/checkouts/bench && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/bench && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && cargo run --release --quiet -- check --fork /Users/benchrunner/checkouts/fork --against b5b988d8982bea9490c38c79ec4b8c5c2428270c --when-quiet --keep /Users/benchrunner/tmp/3048-bisect364-b6b2e12f.20261111T045845Z-mac-m6/samples --points 4,8,7935 B)
+warning: function `describe_pause` is never used
+    --> src/main.rs:8061:4
+     |
+8061 | fn describe_pause(ns: u64) -> String {
+     |    ^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `EFFECTIVE_IDLE_PAUSES` is never used
+    --> src/main.rs:8070:7
+     |
+8070 | const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
+     |       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `describe_effective_idle_states` is never used
+    --> src/main.rs:8221:4
+     |
+8221 | fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+waiting for a quiet machine (other programs kept 3.05 CPUs busy in one of the last 10 seconds); reading again in 30 s
+check: BLAKE3-Servil's working tree (b6b2e12f456a) against b5b988d8982bea9490c38c79ec4b8c5c2428270c (b5b988d8982b)
+check: the change touches 3114 added and 4562 deleted lines in 75 files: .github/workflows/ci.yml (+4/-8), AGENTS.md (+23/-15), CONTRIBUTING.md (+23/-10), Cargo.toml (+10/-1), b3sum/Cargo.lock (+7/-0), b3sum/Cargo.toml (+2/-0), b3sum/README.md (+25/-2), b3sum/src/main.rs (+54/-17), b3sum/src/unit_tests.rs (+22/-22), b3sum/tests/cli_tests.rs (+50/-0), c2sp/pr/0001-BLAKE3-add-a-Lean-specification-definitive-where-the.patch (+0/-1092), c2sp/pr/PULL_REQUEST.md (+0/-28), and 63 more
+check: its hunks sit in: jobs:, Use one clear mechanism wherever it serves. When approaches perform similarly, c, Sixteen actions that improve writing:, Keep what serves one reader and reads cleanly to the others; an item legible to, A computation is correct when it delivers the right result, at the costs (includ, Until a problem reaches one of these outcomes it stays open: it goes on the next, Whenever code is timed (a probe, a benchmark, a throwaway loop in a scratch dire, Most of a measurement's uncertainty lies between runs, not inside one: where a p, We never write "defensive code" — code that complicates a contract to ease the, The part above (Philosophy, Strategy, Style) reads the same in the `AGENTS.md` o, Misuse and misfortune (several of a program's threads calling at once, other loa, The open work is in the issues of both repositories (johnservil/BLAKE3 and johns, and 210 more
+check: measuring the 3 named points (3 of 266 points; the rest unmeasured in this check): 4, 8, 7935 B
+check: no same-code comparison on this machine's executable format (ELF only); measuring
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt --points "4,8,7935 B"
+regress: pair 1 of 4 in 1.7 s
+regress: pair 2 of 4 in 1.8 s
+regress: pair 3 of 4 in 1.8 s
+clocks: other programs kept 1.61 CPUs busy from 15.5 s to 16.4 s; measurements in that time may read slower than this machine runs
+regress: pair 4 again: busy: other programs kept 1.61 CPUs busy on average, 1.61 in the busiest window; busy in 1 of 1 windows (15.5-16.4 s)
+regress: pair 4 of 4 in 3.4 s
+regress: old side: bench 828e8500b938 clean; servil b5b988d8982b clean
+regress: new side: bench 828e8500b938 clean; servil b6b2e12f456a clean
+  SLOWER blake3-servil-mt|solo|ManyMessages|8: +7.9% (the pairs' geometric mean; 4 pairs: +4.0% +8.0% +11.0% +8.5%)
+  faster blake3-servil-mt|solo|OneMessage|7935 B: -3.7% (the pairs' geometric mean; 4 pairs: -6.0% -2.2% -2.9% -3.5%)
+regress: REGRESSION: 1 cells slower
+regress: power during the check: mains power

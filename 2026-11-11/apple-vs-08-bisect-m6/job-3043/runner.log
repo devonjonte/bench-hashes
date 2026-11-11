@@ -1,0 +1,66 @@
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/fork && git checkout --quiet --force --detach 27717b3f4309d1bdd461c92fef57a3c4799b363f)
+$ (cd /Users/benchrunner/checkouts/fork && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/fork && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/bench && git checkout --quiet --force --detach 828e8500b938d423b825ef2d030d20b543847ea6)
+$ (cd /Users/benchrunner/checkouts/bench && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/bench && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && cargo run --release --quiet -- check --fork /Users/benchrunner/checkouts/fork --against b5b988d8982bea9490c38c79ec4b8c5c2428270c --when-quiet --keep /Users/benchrunner/tmp/3043-bisect364-a-08-to-27717b3f.20261111T040402Z-mac-m6/samples --points 3,4,8,1 KiB,3839 B,7935 B,16 KiB)
+warning: function `describe_pause` is never used
+    --> src/main.rs:8061:4
+     |
+8061 | fn describe_pause(ns: u64) -> String {
+     |    ^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `EFFECTIVE_IDLE_PAUSES` is never used
+    --> src/main.rs:8070:7
+     |
+8070 | const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
+     |       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `describe_effective_idle_states` is never used
+    --> src/main.rs:8221:4
+     |
+8221 | fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+waiting for a quiet machine (other programs kept 1.40 CPUs busy in one of the last 10 seconds); reading again in 30 s
+waiting for a quiet machine (other programs kept 1.46 CPUs busy in one of the last 10 seconds); reading again in 30 s
+waiting for a quiet machine (other programs kept 1.34 CPUs busy in one of the last 10 seconds); reading again in 30 s
+waiting for a quiet machine (other programs kept 1.36 CPUs busy in one of the last 10 seconds); reading again in 30 s
+check: BLAKE3-Servil's working tree (27717b3f4309) against b5b988d8982bea9490c38c79ec4b8c5c2428270c (b5b988d8982b)
+check: the change touches 5956 added and 5346 deleted lines in 103 files: .config/nextest.toml (+24/-3), .github/workflows/ci.yml (+7/-8), .github/workflows/docs.yml (+1/-1), AGENTS.md (+27/-17), ANNOUNCE.md (+2/-2), CONTRIBUTING.md (+33/-19), Cargo.toml (+12/-3), QUALITY.md (+1/-1), README.md (+7/-7), b3sum/Cargo.lock (+7/-0), b3sum/Cargo.toml (+3/-1), b3sum/README.md (+27/-4), and 91 more
+check: its hunks sit in: slow-timeout = { period = "60s", terminate-after = 1 }, fail-fast = false, jobs:, Use one clear mechanism wherever it serves. When approaches perform similarly, c, Sixteen actions that improve writing:, Keep what serves one reader and reads cleanly to the others; an item legible to, A computation is correct when it delivers the right result, at the costs (includ, Until a problem reaches one of these outcomes it stays open: it goes on the next, Whenever code is timed (a probe, a benchmark, a throwaway loop in a scratch dire, Most of a measurement's uncertainty lies between runs, not inside one: where a p, We never write "defensive code" — code that complicates a contract to ease the, The part above (Philosophy, Strategy, Style) reads the same in the `AGENTS.md` o, and 363 more
+check: measuring the 7 named points (7 of 266 points; the rest unmeasured in this check): 3, 4, 8, 1 KiB, 3839 B, 7935 B, 16 KiB
+check: no same-code comparison on this machine's executable format (ELF only); measuring
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt --points "3,4,8,1 KiB,3839 B,7935 B,16 KiB"
+regress: pair 1 of 4 in 3.0 s
+clocks: other programs kept 1.03 CPUs busy from 13.5 s to 14.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.09 CPUs busy from 15.1 s to 16.1 s; measurements in that time may read slower than this machine runs
+regress: pair 2 again: busy: other programs kept 0.81 CPUs busy on average, 1.09 in the busiest window; busy in 1 of 2 windows (15.1-16.1 s); busy: other programs kept 0.66 CPUs busy on average, 1.03 in the busiest window; busy in 1 of 2 windows (13.5-14.5 s)
+regress: pair 2 of 4 in 6.2 s
+clocks: other programs kept 1.01 CPUs busy from 19.7 s to 20.7 s; measurements in that time may read slower than this machine runs
+regress: pair 3 again: busy: other programs kept 0.80 CPUs busy on average, 1.01 in the busiest window; busy in 1 of 2 windows (19.7-20.7 s)
+regress: pair 3 of 4 in 6.2 s
+clocks: other programs kept 1.47 CPUs busy from 25.9 s to 26.9 s; measurements in that time may read slower than this machine runs
+regress: pair 4 again: busy: other programs kept 1.23 CPUs busy on average, 1.47 in the busiest window; busy in 1 of 2 windows (25.9-26.9 s)
+regress: pair 4 of 4 in 6.2 s
+regress: old side: bench 828e8500b938 clean; servil b5b988d8982b clean
+regress: new side: bench 828e8500b938 clean; servil 27717b3f4309 clean
+  SLOWER blake3-servil-mt|solo|ManyMessages|3: +64.9% (the pairs' geometric mean; 4 pairs: +58.1% +60.3% +88.8% +54.3%)
+  SLOWER blake3-servil-mt|solo|ManyMessages|4: +126.4% (the pairs' geometric mean; 4 pairs: +138.9% +126.4% +139.1% +103.0%)
+  SLOWER blake3-servil-mt|solo|ManyMessages|8: +83.8% (the pairs' geometric mean; 4 pairs: +101.2% +77.3% +89.2% +69.2%)
+  SLOWER blake3-servil-mt|solo|OneMessage|16 KiB: +44.6% (the pairs' geometric mean; 4 pairs: +42.3% +44.1% +46.6% +45.4%)
+  SLOWER blake3-servil-mt|solo|OneMessage|3839 B: +71.5% (the pairs' geometric mean; 4 pairs: +65.6% +69.4% +79.6% +71.8%)
+  SLOWER blake3-servil-mt|solo|OneMessage|7935 B: +108.5% (the pairs' geometric mean; 4 pairs: +116.3% +110.3% +106.3% +101.3%)
+  SLOWER blake3-servil-st|solo|ManyMessages|3: +78.6% (the pairs' geometric mean; 4 pairs: +67.2% +73.3% +88.5% +86.2%)
+  SLOWER blake3-servil-st|solo|ManyMessages|4: +147.0% (the pairs' geometric mean; 4 pairs: +157.6% +149.7% +147.5% +133.7%)
+  SLOWER blake3-servil-st|solo|ManyMessages|8: +90.4% (the pairs' geometric mean; 4 pairs: +106.3% +68.7% +102.7% +86.1%)
+regress: REGRESSION: 9 cells slower
+regress: power during the check: mains power
