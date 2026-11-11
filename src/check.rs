@@ -1202,12 +1202,64 @@ fn fork_patch(copy: &Path, checkout: &Path) -> String {
         .trim_matches('"');
     format!(
         "patch.\"{git}\".blake3-servil.path=\"{}\"",
-        checkout.display()
+        servil_crate(checkout).display()
     )
+}
+
+/// Where the `blake3-servil` crate sits in a checkout of BLAKE3-Servil's
+/// repository: its root while the library is one crate, `threads/` where
+/// the root is `blake3-servil-core` and the crate of that name is the one
+/// on top of it (BLAKE3 #335). Read from the manifests' package names.
+fn servil_crate(checkout: &Path) -> std::path::PathBuf {
+    let named = |dir: &Path| {
+        std::fs::read_to_string(dir.join("Cargo.toml")).is_ok_and(|manifest| {
+            manifest
+                .lines()
+                .skip_while(|l| l.trim() != "[package]")
+                .find_map(|l| l.trim().strip_prefix("name = "))
+                .is_some_and(|name| name.trim_matches('"') == "blake3-servil")
+        })
+    };
+    [checkout.to_owned(), checkout.join("threads")]
+        .into_iter()
+        .find(|dir| named(dir))
+        .unwrap_or_else(|| {
+            panic!(
+                "{}: no crate named blake3-servil at its root or in threads/",
+                checkout.display()
+            )
+        })
 }
 
 #[cfg(test)]
 mod tests {
+    /// The patch points at the crate named blake3-servil: the checkout's
+    /// root for one crate, threads/ where the root is the core (BLAKE3
+    /// #335); a threads/ of another name is passed over.
+    #[test]
+    fn the_patch_points_at_the_crate_named_blake3_servil() {
+        let dir = std::env::temp_dir().join(format!("bench-servil-crate-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let write = |sub: &str, name: &str| {
+            std::fs::create_dir_all(dir.join(sub)).unwrap();
+            std::fs::write(
+                dir.join(sub).join("Cargo.toml"),
+                format!("[package]\nname = \"{name}\"\nversion = \"0.8.0+dev\"\n\n[dependencies]\nname = \"blake3-servil\"\n"),
+            )
+            .unwrap();
+        };
+        write("one", "blake3-servil");
+        write("one/threads", "something-else");
+        assert_eq!(super::servil_crate(&dir.join("one")), dir.join("one"));
+        write("two", "blake3-servil-core");
+        write("two/threads", "blake3-servil");
+        assert_eq!(
+            super::servil_crate(&dir.join("two")),
+            dir.join("two/threads")
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn old_bench_is_compared_even_when_the_library_is_identical() {
         use super::unchanged_inputs;
