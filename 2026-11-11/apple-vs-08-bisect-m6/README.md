@@ -17,8 +17,8 @@ other work no longer gets the prefetch 0.8's clock gave it.
 
 Ten commits after dad0a6fc touch the library's code. The M6 then stayed
 busy and the measured bisect stopped. b2dad43c is one of the ten, and its
-message lists these cells with these sizes from its own check (Mac job
-1934). A confirming check of it against its parent is queued (job 3058).
+message lists these cells with these sizes from its own check (Mac check
+1933). A confirming check of it against its parent is queued (job 3058).
 
 **The log shows two wrong passes.** The first two took job 3048's
 "regression" status for the signature and searched commits 0 to 57; the
