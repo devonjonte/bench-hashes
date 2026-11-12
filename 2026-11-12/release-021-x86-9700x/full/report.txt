@@ -1,0 +1,401 @@
+Hash speed on AMD Ryzen 7 9700X 8-Core Processor (linux7.0.0-42-generic, 16 CPUs), 2026-11-12 05:04:50 UTC
+Full run: 96 rounds. Each cell is the mean time per unit (total time over total work), lower is better.
+
+In “Messages one after another, buffers owned”, “Batches one after another, buffers owned”, “Messages one after another, buffers lent”, “Many messages at once, each arriving in pieces, buffers lent”, “A collection's messages, each hashed once, in memory”, “Batches one after another, buffers lent”, “A collection's messages one after another, each read into a buffer, then hashed”, and “A Merkle tree over leaves just written into place, every layer kept”, the program hashes one input after another, as fast as it can, alone and with a second program doing the same at once.
+In “A message in one buffer, after other work”, “A batch of 64-byte messages, after other work”, “A batch of 4 KiB messages, after other work”, and “Many messages at once, a turn of their pieces after other work”, the program hashes, runs other code and reads 128 MiB of memory (at least 1 ms), and hashes again, as a program hashes between its other tasks; the second call, with the write of its input, is timed.
+In “A message in one buffer, after idling 20 μs”, “A batch of 64-byte messages, after idling 20 μs”, and “Many messages at once, a turn of their pieces after idling 20 μs”, the program hashes, sleeps 20 μs, and hashes again, as a server handles a request, waits a moment, and handles the next; the second call, with the write of its input, is timed.
+In “A message in one buffer, after idling 5 ms”, “A batch of 64-byte messages, after idling 5 ms”, and “Many messages at once, a turn of their pieces after idling 5 ms”, the program hashes, sleeps 5 ms, and hashes again, as a server handles a request, waits, and handles the next; the second call, with the write of its input, is timed.
+In “A message received in fragments, timed end to end”, 16777216 B per message; fragment cycle 1448, 4096, 16384, 65536 B; arrival spacing saturated: 0 ns, 2 μs: 2000 ns, 20 μs: 20000 ns; deadlines fixed from the first arrival, independent of consumer work; receiving through finalization timed together.
+
+SOLO: one copy of each contender, on one thread.
+
+  A message in one buffer, after other work (ns/B)
+  size         B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring  B3 official mt    B3 servil mt        SHA3-256
+  64 B              8.307          11.585          65.792           6.229          14.101          12.449           9.145          15.112 
+  128 B             4.523           6.210          32.523           4.197           7.168           6.682           4.959           7.910 
+  256 B             3.385           3.194          17.174           2.543           3.865           4.488           2.954           6.085 
+  512 B             2.187           1.765           9.355           1.711           2.066           2.584           2.164           3.653 
+  1 KiB             1.534           1.070           6.426           1.351           1.296           1.723           1.543           2.851 
+  1536 B            1.623           0.870           4.567           1.200           0.995           1.904           1.525           2.427 
+  2 KiB             0.893           0.778           3.873           0.852           0.897           1.242           0.895           2.206 
+  2304 B            1.079           0.706           3.451           1.041           0.791           1.443           1.095           1.913 
+  3 KiB             1.048           0.690           2.960           0.744           0.690           1.244           0.817           1.868 
+  3839 B            1.071           0.630           2.547           0.907           0.639           1.281           0.969           1.811 
+  4 KiB             0.610           0.574           2.382           0.651           0.635           0.777           0.667           1.765 
+  4470 B            0.677           0.586           2.268           0.659           0.589           0.815           0.681           1.686 
+  7935 B            0.646           0.486           1.847           0.420           0.515           0.769           0.415           1.601 
+  8 KiB             0.482           0.488           1.777           0.310           0.505           0.535           0.325           1.605 
+  16 KiB            0.280           0.450           1.500           0.189           0.460           0.304           0.198           1.527 
+  32 KiB            0.214           0.436           1.387           0.175           0.439           0.491           0.180           1.483 
+  64 KiB            0.165           0.425           1.300           0.156           0.415           0.374           0.158           1.468 
+  128 KiB           0.140           0.415           1.268           0.123           0.411           0.210           0.122           1.518 
+  256 KiB           0.126           0.408           1.257           0.108           0.408           0.126           0.107           1.452 
+  512 KiB           0.112           0.404           1.262          0.0919           0.406          0.0804          0.0626           1.450 
+  1 MiB             0.107           0.401           1.236          0.0861           0.400          0.0591          0.0489           1.446 
+  2 MiB             0.105           0.399           1.228          0.0846           0.399          0.0480          0.0430           1.448 
+  3 MiB             0.106           0.399           1.227          0.0856           0.399          0.0479          0.0423           1.451 
+  4 MiB             0.107           0.400           1.226          0.0861           0.399          0.0441          0.0395           1.450 
+  8 MiB             0.110           0.401           1.227          0.0886           0.400          0.0402          0.0384           1.451 
+  32 MiB            0.158           0.427           1.251           0.134           0.427          0.0765          0.0764           1.480 
+  64 MiB            0.158           0.430           1.254           0.135           0.430          0.0757          0.0762           1.483 
+  128 MiB           0.159           0.429           1.250           0.134           0.429          0.0756          0.0760           1.481 
+
+  A batch of 64-byte messages, after other work (ns/msg)
+  messages     B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring    B3 servil mt        SHA3-256
+  1              1104.625         952.292        4454.917         356.976        1042.278         359.967        1205.417 
+  2               511.958         568.847        2275.958         182.865         595.771         182.653         805.229 
+  3               398.667         453.944        1621.111         146.883         452.264         163.278         628.819 
+  4               297.927         326.156        1256.938          98.118         369.958         112.760         522.583 
+  6               244.125         239.764         923.944         109.050         291.451         114.228         472.986 
+  8               308.625         198.849         734.688         161.089         232.792         168.060         372.573 
+  12              235.646         166.601         658.931         129.560         188.618         128.345         330.417 
+  16              134.844         137.609         536.365          89.349         157.078          97.068         305.266 
+  24              121.309          99.451         414.990          37.537         122.799          38.003         274.573 
+  32               58.391          95.956         354.279          22.268         107.492          23.741         255.992 
+  48               39.488          85.245         300.825          17.784          89.972          18.604         243.858 
+  64               33.931          79.163         262.676          16.151          87.275          14.949         241.182 
+  128              24.251          65.294         221.176          16.382          73.517          16.179         229.452 
+  256              19.261          61.482         198.948          13.394          68.716          13.450         223.845 
+  512              15.216          59.554         191.607          10.942          66.569          11.762         220.233 
+  1024             12.135          58.330         185.608           9.151          63.885           9.128         218.306 
+  2048             10.349          56.738         182.193           7.944          63.240           7.927         217.553 
+  4096              9.576          56.295         182.074           7.821          62.799           7.840         217.642 
+  8192              8.387          55.915         181.576           7.102          62.172           3.375         217.389 
+  16384             7.738          55.566         180.734           6.759          62.028           2.801         217.077 
+  32768             7.658          55.618         180.435           6.752          62.152           2.800         217.397 
+  65536             7.952          55.656         180.467           6.764          62.140           2.498         217.522 
+  131072            8.425          55.740         180.478           6.981          62.342           2.596         217.691 
+  262144            9.190          56.069         180.695           7.466          62.525           3.105         218.009 
+
+  A batch of 4 KiB messages, after other work (ns/msg)
+  messages     B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring    B3 servil mt        SHA3-256
+  4              1587.167        1954.833        6376.604        1479.000        1975.417        1491.542        6507.833 
+  16             1363.547        1764.771        5430.714        1347.995        1785.745        1334.641        6255.792 
+  64             1265.223        1704.940        5236.980         468.525        1733.639         472.461        6172.197 
+  256            1232.434        1665.120        5166.294         433.354        1678.248         243.379        6126.222 
+
+  A message in one buffer, after idling 5 ms (ns/B)
+  size         B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring  B3 official mt    B3 servil mt        SHA3-256
+  64 B              3.764           3.578           7.206           3.472           4.251           3.918           3.590           6.842 
+  128 B             2.574           2.019           4.446           2.500           2.333           2.555           2.473           3.482 
+  256 B             2.168           1.304           2.900           1.954           1.442           2.023           1.910           2.959 
+  512 B             1.861           0.904           2.349           1.671           1.010           1.809           1.661           2.591 
+  1 KiB             1.548           0.737           2.097           1.557           0.759           1.568           1.511           2.437 
+  1536 B            1.594           0.683           1.982           1.152           0.712           1.682           1.149           2.232 
+  2 KiB             0.799           0.654           1.922           0.842           0.664           0.911           0.841           2.228 
+  2304 B            0.996           0.639           1.788           0.948           0.646           0.945           0.903           2.285 
+  3 KiB             1.015           0.608           1.786           0.652           0.620           0.976           0.621           2.078 
+  3839 B            1.089           0.606           1.617           0.740           0.612           1.101           0.807           2.137 
+  4 KiB             0.465           0.560           1.617           0.492           0.616           0.443           0.443           2.159 
+  4470 B            0.577           0.595           1.644           0.546           0.595           0.538           0.558           1.994 
+  7935 B            0.759           0.571           1.725           0.418           0.560           0.788           0.377           1.963 
+  8 KiB             0.259           0.587           1.660           0.280           0.528           0.275           0.260           2.065 
+  16 KiB            0.139           0.543           1.716           0.155           0.580           0.156           0.143           2.020 
+  32 KiB            0.129           0.528           1.709           0.108           0.530           0.378          0.0999           2.015 
+  64 KiB            0.119           0.541           1.618          0.0947           0.548           0.342          0.0957           2.102 
+  128 KiB           0.116           0.542           1.648          0.0884           0.532           0.203          0.0937           2.021 
+  256 KiB           0.120           0.551           1.761          0.0905           0.540           0.115          0.0881           2.022 
+  512 KiB           0.121           0.548           1.713          0.0950           0.555          0.0763          0.0573           1.897 
+  1 MiB             0.127           0.535           1.514           0.100           0.538          0.0577          0.0488           1.712 
+  2 MiB             0.130           0.501           1.325           0.101           0.523          0.0493          0.0459           1.530 
+  3 MiB             0.122           0.459           1.288          0.0968           0.447          0.0491          0.0420           1.515 
+  4 MiB             0.122           0.459           1.264           0.101           0.474          0.0446          0.0405           1.494 
+  8 MiB             0.125           0.420           1.242          0.0966           0.426          0.0403          0.0381           1.464 
+  32 MiB            0.150           0.420           1.246           0.129           0.420          0.0682          0.0689           1.469 
+  64 MiB            0.154           0.424           1.248           0.133           0.424          0.0741          0.0749           1.474 
+  128 MiB           0.159           0.428           1.248           0.135           0.428          0.0752          0.0758           1.477 
+
+  A batch of 64-byte messages, after idling 5 ms (ns/msg)
+  messages     B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring    B3 servil mt        SHA3-256
+  1               256.583         236.094         485.500         253.241         272.967         254.167         449.067 
+  2               129.958         170.979         383.667         125.319         180.674         124.796         390.958 
+  3               106.894         142.256         343.093         104.958         144.867         107.750         363.417 
+  4                65.773         123.125         332.906          66.815         132.063          65.589         331.729 
+  6                55.506         116.639         309.479          55.063         120.681          56.210         339.257 
+  8                35.180         117.035         331.656          36.077         114.549          35.273         358.188 
+  12               34.250          94.000         306.340          31.543         102.642          31.925         365.965 
+  16               18.818          97.786         299.870          18.069         102.958          17.921         318.932 
+  24               16.697          83.227         261.847          16.077          88.990          16.080         299.837 
+  32               13.052          84.872         275.279          12.632          95.943          12.875         316.969 
+  48               11.276          85.108         246.519          11.144          89.856          11.505         299.295 
+  64               10.289          81.924         250.924           9.990          88.228          10.294         320.734 
+  128               9.284          78.142         238.364           9.021          83.269           9.054         301.326 
+  256               9.609          79.759         247.988           8.715          85.505           7.971         307.330 
+  512               9.143          79.806         249.336           7.757          85.611           7.873         313.411 
+  1024              8.475          75.226         256.820           7.806          88.660           7.472         298.120 
+  2048              8.261          75.094         243.450           7.505          86.154           7.239         283.253 
+  4096              8.597          75.491         236.489           7.905          86.466           7.315         262.246 
+  8192              9.265          76.165         217.751           7.777          87.317           3.223         249.342 
+  16384             8.634          71.657         192.925           7.492          70.592           2.840         230.892 
+  32768             8.905          62.926         187.917           8.015          68.346           2.735         222.919 
+  65536             9.251          59.450         183.949           7.877          64.971           2.470         219.370 
+  131072            7.832          56.703         181.244           7.607          62.988           2.420         218.237 
+  262144            9.220          56.272         180.379           7.657          62.461           2.837         217.678 
+
+  A message in one buffer, after idling 20 μs (ns/B)
+  size         B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring  B3 official mt    B3 servil mt        SHA3-256
+  64 B              2.587           2.390           5.037           2.368           2.805           2.573           2.409           4.697 
+  128 B             1.763           1.384           3.045           1.673           1.577           1.758           1.685           2.333 
+  256 B             1.456           0.885           2.102           1.338           0.984           1.435           1.350           1.959 
+  512 B             1.230           0.628           1.589           1.156           0.681           1.222           1.164           1.743 
+  1 KiB             1.118           0.505           1.456           1.075           0.530           1.119           1.078           1.639 
+  1536 B            1.102           0.464           1.325           0.806           0.480           1.112           0.807           1.598 
+  2 KiB             0.577           0.441           1.283           0.582           0.453           0.581           0.583           1.577 
+  2304 B            0.650           0.434           1.264           0.651           0.446           0.644           0.652           1.490 
+  3 KiB             0.726           0.420           1.243           0.417           0.429           0.738           0.418           1.493 
+  3839 B            0.785           0.413           1.216           0.535           0.419           0.805           0.534           1.496 
+  4 KiB             0.309           0.409           1.189           0.312           0.414           0.310           0.311           1.494 
+  4470 B            0.383           0.402           1.160           0.382           0.406           0.376           0.383           1.459 
+  7935 B            0.515           0.394           1.174           0.283           0.396           0.540           0.283           1.455 
+  8 KiB             0.177           0.393           1.170           0.179           0.396           0.178           0.178           1.457 
+  16 KiB           0.0991           0.386           1.176           0.101           0.388          0.0991           0.100           1.449 
+  32 KiB           0.0988           0.398           1.229          0.0765           0.384           0.299          0.0767           1.491 
+  64 KiB           0.0859           0.383           1.225          0.0707           0.384           0.288          0.0701           1.428 
+  128 KiB          0.0837           0.381           1.194          0.0628           0.380           0.145          0.0632           1.430 
+  256 KiB          0.0821           0.381           1.219          0.0620           0.380          0.0993          0.0617           1.429 
+  512 KiB          0.0864           0.393           1.280          0.0690           0.384          0.0650          0.0458           1.433 
+  1 MiB            0.0897           0.387           1.216          0.0701           0.387          0.0512          0.0425           1.435 
+  2 MiB            0.0907           0.388           1.212          0.0707           0.388          0.0411          0.0377           1.438 
+  3 MiB            0.0892           0.387           1.211          0.0700           0.387          0.0395          0.0365           1.438 
+  4 MiB            0.0890           0.390           1.214          0.0689           0.387          0.0361          0.0342           1.438 
+  8 MiB            0.0898           0.386           1.211          0.0699           0.387          0.0309          0.0308           1.439 
+  32 MiB            0.151           0.421           1.247           0.130           0.421          0.0684          0.0694           1.473 
+  64 MiB            0.156           0.425           1.250           0.135           0.425          0.0749          0.0758           1.478 
+  128 MiB           0.159           0.429           1.252           0.135           0.429          0.0757          0.0761           1.481 
+
+  A batch of 64-byte messages, after idling 20 μs (ns/msg)
+  messages     B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring    B3 servil mt        SHA3-256
+  1               173.014         170.911         340.417         167.444         185.288         170.153         317.393 
+  2                89.997         114.009         264.000          84.962         123.968          86.010         268.594 
+  3                75.669          97.639         240.528          74.289         103.254          74.593         252.417 
+  4                45.300          88.851         223.292          44.161          92.653          44.122         243.361 
+  6                38.514          77.219         208.667          37.572          81.794          37.554         235.153 
+  8                24.166          71.383         200.333          23.310          77.826          23.362         229.875 
+  12               21.353          66.275         207.597          20.627          73.030          20.903         227.313 
+  16               12.458          63.299         201.932          12.241          70.396          12.347         223.854 
+  24               11.764          60.431         187.889          11.126          66.149          11.314         220.830 
+  32                8.957          58.820         182.193           8.619          64.914           8.669         220.078 
+  48                7.777          57.207         180.458           7.492          63.344           7.537         218.167 
+  64                7.216          56.294         176.983           6.841          62.564           6.822         220.283 
+  128               6.462          55.188         176.248           5.907          61.490           5.960         216.586 
+  256               6.465          54.784         176.085           5.608          61.415           5.616         215.840 
+  512               6.115          54.542         176.694           5.417          60.979           5.429         215.727 
+  1024              5.931          54.464         177.005           5.340          62.092           5.355         216.528 
+  2048              5.882          54.524         177.623           5.262          60.900           5.288         215.905 
+  4096              5.896          54.631         179.461           5.258          60.830           5.274         215.968 
+  8192              6.268          54.638         180.239           5.580          61.149           2.747         216.623 
+  16384             6.457          54.843         179.907           5.682          61.308           2.408         216.638 
+  32768             6.480          54.896         179.780           5.726          61.284           2.273         217.700 
+  65536             6.527          54.892         179.713           5.753          61.296           2.121         216.799 
+  131072            6.692          54.893         179.614           5.856          61.434           1.910         216.974 
+  262144            8.196          55.449         180.249           6.981          61.823           2.551         217.767 
+
+  Messages one after another, buffers owned (ns/B)
+  size         B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring  B3 official mt    B3 servil mt        SHA3-256
+  64 B              1.179           0.847           2.703           0.743           0.948           1.121           0.203           3.188 
+  128 B             0.891           0.609           1.886           0.852           0.664           0.898          0.0975           1.575 
+  256 B             0.942           0.491           1.467           0.911           0.522           0.945          0.0598           1.567 
+  512 B             0.968           0.432           1.249           0.939           0.478           0.970          0.0403           1.532 
+  1 KiB             0.978           0.404           1.244           0.957           0.432           0.978          0.0355           1.528 
+  4 KiB             0.282           0.385           1.124           0.284           0.390           0.284          0.0259           1.471 
+  16 KiB           0.0901           0.378           1.145          0.0906           0.379          0.0904          0.0226           1.435 
+  64 KiB           0.0853           0.381           1.161          0.0651           0.381           0.155          0.0225           1.433 
+  256 KiB          0.0863           0.381           1.188          0.0679           0.381           0.158          0.0231           1.436 
+  1 MiB            0.0880           0.382           1.208          0.0701           0.382           0.158          0.0220           1.436 
+  4 MiB            0.0904           0.384           1.209          0.0719           0.384           0.155          0.0230           1.439 
+  16 MiB           0.0906           0.384           1.208          0.0719           0.385           0.158          0.0232           1.439 
+  64 MiB            0.103           0.395           1.220          0.0845           0.397           0.173          0.0300           1.451 
+
+  Batches one after another, buffers owned (ns/msg)
+  messages     B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring    B3 servil mt        SHA3-256  BLAKE3-Servil pipeline
+  16                6.069          54.283         176.787           6.152          59.211           2.388         215.452          37.625 
+  64                5.520          54.194         172.457           5.371          58.739           1.783         214.502           9.615 
+  256               5.580          54.077         175.210           5.312          58.466           1.774         214.393           6.395 
+  1024              5.956          54.318         176.857           5.606          58.543           1.804         214.601           4.860 
+  4096              5.802          54.375         179.597           5.466          59.557           1.810         214.755           4.393 
+  16384             6.423          54.760         180.530           6.095          61.021           1.728         215.062           4.339 
+  65536             6.530          54.831         180.681           6.147          61.086           1.898         215.200           3.963 
+
+  Messages one after another, buffers lent (ns/B)
+  size         B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring  B3 official mt    B3 servil mt        SHA3-256
+  64 B              1.179           0.847           2.703           0.743           0.948           1.121           0.744           3.188 
+  128 B             0.891           0.609           1.886           0.852           0.664           0.898           0.855           1.575 
+  256 B             0.942           0.491           1.467           0.911           0.522           0.945           0.911           1.567 
+  512 B             0.968           0.432           1.249           0.939           0.478           0.970           0.938           1.532 
+  1 KiB             0.978           0.404           1.244           0.957           0.432           0.978           0.955           1.528 
+  4 KiB             0.282           0.385           1.124           0.284           0.390           0.284           0.284           1.471 
+  16 KiB           0.0901           0.378           1.145          0.0906           0.379          0.0904          0.0907           1.435 
+  64 KiB           0.0853           0.381           1.161          0.0651           0.381           0.155          0.0650           1.433 
+  256 KiB          0.0824           0.379           1.184          0.0613           0.379          0.0580          0.0613           1.432 
+  1 MiB            0.0892           0.386           1.211          0.0694           0.387          0.0437          0.0382           1.440 
+  4 MiB            0.0889           0.385           1.212          0.0693           0.385          0.0345          0.0311           1.440 
+  16 MiB           0.0968           0.392           1.218          0.0770           0.392          0.0307          0.0293           1.446 
+  64 MiB            0.157           0.423           1.249           0.136           0.423          0.0736          0.0757           1.477 
+
+  Many messages at once, each arriving in pieces, buffers lent (ns/B)
+  messages open     B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring  B3 official mt    B3 servil mt        SHA3-256
+  256               0.559           0.386           1.253           0.109           0.386           0.559           0.110           1.446 
+
+  A collection's messages, each hashed once, in memory (ns/B)
+  collection     B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring  B3 official mt    B3 servil mt        SHA3-256
+  git objects          0.142           0.376           1.212          0.0942           0.376           0.183          0.0175           1.433 
+  Nix files          0.148           0.375           1.209          0.0861           0.376           0.155          0.0177           1.432 
+
+  Batches one after another, buffers lent (ns/msg)
+  messages     B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring    B3 servil mt        SHA3-256
+  16                6.069          54.283         176.787           6.152          59.211           6.202         215.452 
+  64                5.520          54.194         172.457           5.371          58.739           5.371         214.502 
+  256               5.580          54.077         175.210           5.312          58.466           5.315         214.393 
+  1024              5.956          54.318         176.857           5.606          58.543           5.611         214.601 
+  4096              5.802          54.375         179.597           5.466          59.557           5.460         214.755 
+  16384             6.423          54.760         180.530           6.095          61.021           2.592         215.062 
+  65536             6.530          54.831         180.681           6.147          61.086           2.341         215.200 
+
+  A collection's messages one after another, each read into a buffer, then hashed (ns/B)
+  collection     B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring  B3 official mt    B3 servil mt        SHA3-256
+  git objects          0.146           0.399           1.235           0.111           0.400           0.196          0.0320           1.458 
+  Nix files          0.157           0.396           1.232           0.119           0.399           0.177          0.0326           1.456 
+
+  A Merkle tree over leaves just written into place, every layer kept (ns/B)
+  leaves       B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring    B3 servil mt        SHA3-256
+  1024              0.100           0.846           1.868          0.0985           0.959          0.0987           2.447 
+  4096              0.109           0.853           1.888           0.107           0.968          0.0573           2.456 
+  16384             0.108           0.851           1.917           0.106           0.967          0.0446           2.453 
+  65536             0.122           0.863           1.985           0.119           0.978          0.0408           2.466 
+  262144            0.162           0.897           2.019           0.159           1.012          0.0912           2.504 
+  65536 x 32 B          1.818           3.457           6.502           1.689           4.140           0.239          13.322 
+  1048576 x 32 B          2.100           3.677           6.565           1.774           4.366           0.249          13.538 
+  1048576 x 16 B          3.804           6.995          12.979           3.470           8.412           0.420          26.677 
+
+  Many messages at once, a turn of their pieces after other work (ns/B)
+  messages open     B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring  B3 official mt    B3 servil mt        SHA3-256
+  256               0.671           0.451           1.350           0.239           0.451           0.669           0.241           1.505 
+  1024 x 1 KiB          1.080           0.411           1.397           0.939           0.418           1.077           0.936           1.613 
+
+  Many messages at once, a turn of their pieces after idling 5 ms (ns/B)
+  messages open     B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring  B3 official mt    B3 servil mt        SHA3-256
+  256               0.858           0.544           1.820           0.227           0.547           0.842           0.225           2.037 
+  1024 x 1 KiB          1.310           0.562           1.596           1.077           0.576           1.298           1.180           1.817 
+
+  Many messages at once, a turn of their pieces after idling 20 μs (ns/B)
+  messages open     B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring  B3 official mt    B3 servil mt        SHA3-256
+  256               0.601           0.393           1.282           0.177           0.394           0.600           0.179           1.450 
+  1024 x 1 KiB          0.984           0.387           1.374           0.912           0.396           0.985           0.910           1.590 
+
+  A message received in fragments, timed end to end (ns/B)
+  arrival spacing     B3 official         SHA-256         SHA-1DC    B3 servil st    SHA-256 ring  B3 official mt    B3 servil mt        SHA3-256  BLAKE3-Servil pipeline
+  saturated          0.244           0.383           1.209           0.144           0.383           0.304           0.145           1.439          0.0470 
+  2 μs              0.246           0.385           1.210           0.146           0.386           0.307           0.146           1.439          0.0924 
+  20 μs             0.915           0.916           1.211           0.915           0.916           0.915           0.915           1.440           0.915 
+
+SHARED, ONE CACHE: the multithreaded contenders, two copies at once on two cores under one last-level cache, each hashing its own input on its own thread, inputs one after another; the time of each copy.
+
+  Messages one after another, buffers owned (ns/B)
+  size      B3 official mt    B3 servil mt
+  64 B              1.196           0.171 
+  128 B             0.908          0.0968 
+  256 B             0.951          0.0587 
+  512 B             0.973          0.0438 
+  1 KiB             0.980          0.0400 
+  4 KiB             0.284          0.0474 
+  16 KiB           0.0903          0.0357 
+  64 KiB            0.131          0.0296 
+  256 KiB           0.133          0.0299 
+  1 MiB             0.132          0.0298 
+  4 MiB             0.130          0.0310 
+  16 MiB            0.145          0.0394 
+  64 MiB            0.157          0.0495 
+
+  Batches one after another, buffers owned (ns/msg)
+  messages    B3 servil mt  BLAKE3-Servil pipeline
+  16                2.637          32.456 
+  64                2.326          11.999 
+  256               2.230           6.840 
+  1024              2.169           5.547 
+  4096              2.188           5.237 
+  16384             2.174           4.915 
+  65536             2.252           5.864 
+
+  Messages one after another, buffers lent (ns/B)
+  size      B3 official mt    B3 servil mt
+  64 B              1.196           0.743 
+  128 B             0.908           0.856 
+  256 B             0.951           0.909 
+  512 B             0.973           0.938 
+  1 KiB             0.980           0.954 
+  4 KiB             0.284           0.284 
+  16 KiB           0.0903          0.0907 
+  64 KiB            0.131          0.0651 
+  256 KiB          0.0704          0.0611 
+  1 MiB            0.0571          0.0460 
+  4 MiB            0.0446          0.0370 
+  16 MiB           0.0786          0.0714 
+  64 MiB            0.134           0.135 
+
+  Many messages at once, each arriving in pieces, buffers lent (ns/B)
+  messages open  B3 official mt    B3 servil mt
+  256               0.558           0.109 
+
+  A collection's messages, each hashed once, in memory (ns/B)
+  collection  B3 official mt    B3 servil mt
+  git objects          0.206          0.0435 
+  Nix files          0.173          0.0367 
+
+  Batches one after another, buffers lent (ns/msg)
+  messages    B3 servil mt
+  16                6.234 
+  64                5.337 
+  256               5.291 
+  1024              5.581 
+  4096              5.428 
+  16384             3.005 
+  65536             2.644 
+
+  A collection's messages one after another, each read into a buffer, then hashed (ns/B)
+  collection  B3 official mt    B3 servil mt
+  git objects          0.214          0.0482 
+  Nix files          0.190          0.0494 
+
+  A Merkle tree over leaves just written into place, every layer kept (ns/B)
+  leaves      B3 servil mt
+  1024             0.0986 
+  4096             0.0615 
+  16384            0.0490 
+  65536             0.120 
+  262144            0.184 
+  65536 x 32 B          0.325 
+  1048576 x 32 B          0.476 
+  1048576 x 16 B          0.823 
+
+  A message received in fragments, timed end to end (ns/B)
+  arrival spacing  B3 official mt    B3 servil mt  BLAKE3-Servil pipeline
+  saturated          0.341           0.156          0.0610 
+  2 μs              0.335           0.157          0.0924 
+  20 μs             0.915           0.915           0.915 
+
+SHARED, TWO CACHES: the multithreaded contenders, two copies at once on two cores under two last-level caches, each hashing its own input on its own thread, inputs one after another; the time of each copy.
+
+SHARED, PLACED BY THE OS: the multithreaded contenders, two copies at once wherever the operating system runs them (it lets no program choose its CPUs here), each hashing its own input on its own thread, inputs one after another; the time of each copy.
+
+PROVENANCE
+  bench-hashes 0.21.0+84236bf0f0c832f6619b8f99ce7bc878c7800ef0, https://github.com/servil-software-factory/bench-hashes, commit 9434d50e50de4b93dc962ccbf52346db5442358e (clean)
+  contenders: every contender available on this machine
+  BLAKE3 official: blake3 1.8.7; crate archive SHA-256 6d9e454fc11f76977dc803893aff6304ed33d6a26efae8696573bea74baa27ae; source registry+https://github.com/rust-lang/crates.io-index; single-threaded; blake3::hash for one message, the crate's hidden batch function blake3::platform::Platform::hash_many::<N> for a batch, sixteen messages per call
+  SHA-256: sha2 0.11.0; crate archive SHA-256 446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4; source registry+https://github.com/rust-lang/crates.io-index; single-threaded
+  SHA-1DC: sha1-checked 0.10.0; crate archive SHA-256 89f599ac0c323ebb1c6082821a54962b839832b03984598375bff3975b804423; source registry+https://github.com/rust-lang/crates.io-index; single-threaded
+  BLAKE3-Servil st: blake3-servil (local checkout); source https://github.com/servil-software-factory/BLAKE3; branch HEAD; commit 2037118ca1da85710aef55d7f13b3abd9095b485; clean; single-threaded; convenience::hash for one message after a gap and throughput::hash for one after another, throughput::hash_many for a batch, convenience::Hasher::update per piece for many messages at once
+  SHA-256 ring: ring 0.17.14; crate archive SHA-256 a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7; source registry+https://github.com/rust-lang/crates.io-index; single-threaded
+  BLAKE3 official mt: blake3 1.8.7; crate archive SHA-256 6d9e454fc11f76977dc803893aff6304ed33d6a26efae8696573bea74baa27ae; source registry+https://github.com/rust-lang/crates.io-index; multithreaded; Hasher::update_rayon (per piece, for a stream) on Rayon's global pool, the crate's own multithreading as a program gets it by default: the tree splits recursively over the pool, and inputs under a few chunks stay on the caller's thread
+  BLAKE3-Servil mt: blake3-servil (local checkout); source https://github.com/servil-software-factory/BLAKE3; branch HEAD; commit 2037118ca1da85710aef55d7f13b3abd9095b485; clean; multithreaded; throughput::hash_multithreaded for one message, throughput::hash_many_multithreaded for a batch, throughput::update_multithreaded into a convenience::Hasher per piece for many messages at once; for continuous loads its stream: Stream::submit_with for messages, Stream::submit_batch_with for batches, each digest into a place the program keeps: BLAKE3-Servil chooses when to wake its worker threads
+  SHA3-256: sha3 0.11.0; crate archive SHA-256 be176f1a57ce4e3d31c1a166222d9768de5954f811601fb7ca06fc8203905ce1; source registry+https://github.com/rust-lang/crates.io-index; single-threaded
+  BLAKE3-Servil pipeline: blake3-servil (local checkout); source https://github.com/servil-software-factory/BLAKE3; branch HEAD; commit 2037118ca1da85710aef55d7f13b3abd9095b485; clean; multithreaded; throughput::pipeline: one Stream kept for the process, a Message per message, each arriving piece written into the room Message::input gives and committed, Message::end, the digest delivered by value to the Stream's handler on the caller's thread; BLAKE3-Servil's workers hash meanwhile
+  CPU: model name: AMD Ryzen 7 9700X 8-Core Processor · microcode: 0xb404035 · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good amd_lbr_v2 nopl xtopology nonstop_tsc cpuid extd_apicid aperfmperf rapl pni pclmulqdq monitor ssse3 fma cx16 sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt tce topoext perfctr_core perfctr_nb bpext perfctr_llc mwaitx cpuid_fault cpb cat_l3 cdp_l3 hw_pstate ssbd mba perfmon_v2 ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local user_shstk avx_vnni avx512_bf16 clzero irperf xsaveerptr rdpru wbnoinvd cppc arat npt lbrv svm_lock nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold avic v_vmsave_vmload vgif x2avic v_spec_ctrl vnmi avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid bus_lock_detect movdiri movdir64b overflow_recov succor smca fsrm avx512_vp2intersect flush_l1d amd_lbr_pmc_freeze · machine: AS -3015MR-H8TNR
+  rustc 1.99.1 (58cf8f9c3 2026-10-13); target x86_64-unknown-linux-gnu; features fxsr,sse,sse2
+  clock: CLOCK_MONOTONIC_RAW (stops during suspend; the raw counter, no NTP slew)
+  clocks: clocks 0.1.0; this repository's clocks/, at its commit
+  load during the run: quiet: other programs kept 0.00 CPUs busy on average, 0.06 in the busiest window
+  power: mains power, no battery, CPU frequency governor performance, energy-performance preference performance
+# Data results (text) are in "benchmark-results/AMDRyzen79700X8CoreProcessor.linux70042generic/bench-hashes.result.txt" .
+# Samples (TSV) are in "benchmark-results/AMDRyzen79700X8CoreProcessor.linux70042generic/bench-hashes.samples.tsv" .
+# Map (HTML) is in "benchmark-results/AMDRyzen79700X8CoreProcessor.linux70042generic/bench-hashes.map.html" .
+# Speed chart (SVG) is in "benchmark-results/AMDRyzen79700X8CoreProcessor.linux70042generic/bench-hashes.chart.svg" .
