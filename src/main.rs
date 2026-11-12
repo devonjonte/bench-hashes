@@ -7619,6 +7619,44 @@ fn regress_load(start_ns: u64, end_ns: u64) -> String {
     }
 }
 
+/// A ratio in thousandths as the signed change it is: 1,206 is "+20.6%".
+fn percent(permille: u64) -> String {
+    let d = permille as i64 - 1000;
+    format!(
+        "{}{}.{}%",
+        if d < 0 { "-" } else { "+" },
+        d.abs() / 10,
+        d.abs() % 10
+    )
+}
+
+/// A judged cell's line: its verdict and the ratio judged, then how far
+/// the pairs spread (each pair is its own link layout, so the spread is
+/// what a layout and a run can move this cell), then every pair.
+fn judged_line(word: &str, key: &str, ratio_permille: u64, pairs: &[u64]) -> String {
+    let (least, most) = (
+        pairs
+            .iter()
+            .copied()
+            .min()
+            .expect("a judged cell has pairs"),
+        pairs
+            .iter()
+            .copied()
+            .max()
+            .expect("a judged cell has pairs"),
+    );
+    let all: Vec<String> = pairs.iter().map(|&r| percent(r)).collect();
+    format!(
+        "  {word} {key}: {} (the pairs' geometric mean; {} pairs, from {} to {}: {})",
+        percent(ratio_permille),
+        pairs.len(),
+        percent(least),
+        percent(most),
+        all.join(" ")
+    )
+}
+
 fn regress_command(arguments: &[String]) -> i32 {
     let usage = "usage: bench-hashes regress [--contenders A,B [--points P,Q]] [--judge CELL;CELL] [--pairs N] [--rounds K] [--keep DIR] [--unpinned] OLD_EXE... -- NEW_EXE... (pair i runs the i-th of each, round robin; bench-hashes check builds the sides and runs the cells its caller names; each pair's runs take their samples after a gap on one CPU, pairs alternating core parity, unless --unpinned)";
     let mut arguments = arguments;
@@ -7888,15 +7926,6 @@ fn regress_command(arguments: &[String]) -> i32 {
         println!("{power}");
         return 2;
     }
-    let percent = |permille: u64| {
-        let d = permille as i64 - 1000;
-        format!(
-            "{}{}.{}%",
-            if d < 0 { "-" } else { "+" },
-            d.abs() / 10,
-            d.abs() % 10
-        )
-    };
     // The cells judged (the points' solo cells; with --full or a chosen
     // selection, every cell every pair measured), all at once
     // (clocks::summary::discoveries).
@@ -7943,12 +7972,9 @@ fn regress_command(arguments: &[String]) -> i32 {
         } else {
             "faster"
         };
-        let pairs: Vec<String> = ratios[key].iter().map(|&r| percent(r)).collect();
         println!(
-            "  {word} {key}: {} (the pairs' geometric mean; {} pairs: {})",
-            percent(judgment.ratio_permille),
-            pairs.len(),
-            pairs.join(" ")
+            "{}",
+            judged_line(word, key, judgment.ratio_permille, &ratios[key])
         );
     }
     if slower > 0 {
@@ -9225,6 +9251,17 @@ mod correctness_tests {
             let r = std::panic::catch_unwind(|| expect_servil(expected, info));
             assert!(r.is_err(), "{expected} accepted {info}");
         }
+    }
+
+    /// A judged cell's line says how far its pairs spread, beside their
+    /// mean and before the pairs themselves: each pair is a link layout of
+    /// its own, so the spread is what a layout and a run move the cell.
+    #[test]
+    fn a_judged_line_says_how_far_its_pairs_spread() {
+        assert_eq!(
+            super::judged_line("SLOWER", "blake3-servil-mt|solo|MerkleTree|16384", 1206, &[2946, 730, 1599, 1000]),
+            "  SLOWER blake3-servil-mt|solo|MerkleTree|16384: +20.6% (the pairs' geometric mean; 4 pairs, from -27.0% to +194.6%: +194.6% -27.0% +59.9% +0.0%)"
+        );
     }
 
     #[test]

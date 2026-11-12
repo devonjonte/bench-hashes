@@ -31,6 +31,12 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Devon Jonte's decisions, each dated):
+- **A judged cell's line says how far its pairs spread** (Devon Jonte,
+  November 12, 2026; Zooko's question of that day). `regress` and `check`
+  print, beside the ratio judged and before the pairs, "from -27.0% to
+  +194.6%": each pair is a link layout of its own, so the spread is what
+  a layout and a run move that cell, which a reader of the mean alone
+  could not see. Nothing measured or judged changes.
 - **The release before, beside this one, from a check's runs** (Devon
   Jonte, November 11, 2026; Zooko's request of November 10). `bench-hashes
   beside OUT --check KEPT --run DIR [--without NAME,...]` joins a release

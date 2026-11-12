@@ -1,5 +1,7 @@
 # bench-hashes 0.22.0
 
+**A verdict says how far its pairs spread.** Each line `check` and `regress` print for a slower or faster cell now reads "+20.6% (the pairs' geometric mean; 64 pairs, from -27.0% to +194.6%: ...)". Every pair runs under a link layout of its own, so the spread shows how much layout and one run move that cell, beside the mean.
+
 **A map of this release beside the last.** `bench-hashes beside` draws a machine's map with BLAKE3-Servil as of the release before beside this one's, dashed, with a chip to hide it. The two versions come from a release check's paired runs, since one bench cannot build both; `--without` leaves out rows, columns, or one kind of contender, for a page of one crate's calls.
 
 **BLAKE3-Servil mt's continuous cells make its one-shot calls.** BLAKE3-Servil 0.9 has no streaming API: its stream left with its first pipeline, and the Pipeline that replaces both is still to come. The multithreaded contender's continuous cells called the stream; they now read each input and hash it before reading the next, as every other contender's do. The cells keep their places, so a check against 0.8 shows what the stream gave. `bench-hashes leaves`, a study of the stream's ways to take Merkle leaves, goes with it.
