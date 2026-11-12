@@ -640,8 +640,21 @@ fn scope_points(scope: &String) -> Vec<String> {
 /// the choice of cells; it chooses none.
 fn change_summary(fork: &Path, old: &str, new: &str) -> bool {
     let numstat = git(fork, &["diff", "--numstat", &format!("{old}..{new}")]);
+    let diff = git(fork, &["diff", "--unified=0", &format!("{old}..{new}")]);
+    let lines = summary_lines(&numstat, &diff);
+    for line in &lines {
+        eprintln!("{line}");
+    }
+    !lines.is_empty()
+}
+
+/// The summary's lines, from `git diff --numstat` and `git diff
+/// --unified=0`: the files with their added and deleted lines and the
+/// totals, then the items the hunks sit in, each once (none where no hunk
+/// names one); no line at all where nothing changed.
+fn summary_lines(numstat: &str, diff: &str) -> Vec<String> {
     if numstat.trim().is_empty() {
-        return false;
+        return Vec::new();
     }
     let mut files: Vec<String> = Vec::new();
     let (mut added, mut deleted) = (0usize, 0usize);
@@ -656,12 +669,11 @@ fn change_summary(fork: &Path, old: &str, new: &str) -> bool {
         deleted += d.parse().unwrap_or(0);
         files.push(format!("{file} (+{a}/-{d})"));
     }
-    eprintln!(
+    let mut lines = vec![format!(
         "check: the change touches {added} added and {deleted} deleted lines in {} files: {}",
         files.len(),
         first_of(&files, 12)
-    );
-    let diff = git(fork, &["diff", "--unified=0", &format!("{old}..{new}")]);
+    )];
     let mut items: Vec<String> = Vec::new();
     for line in diff.lines().filter(|l| l.starts_with("@@")) {
         if let Some(context) = line.split("@@").nth(2).map(str::trim) {
@@ -671,9 +683,9 @@ fn change_summary(fork: &Path, old: &str, new: &str) -> bool {
         }
     }
     if !items.is_empty() {
-        eprintln!("check: its hunks sit in: {}", first_of(&items, 12));
+        lines.push(format!("check: its hunks sit in: {}", first_of(&items, 12)));
     }
-    true
+    lines
 }
 
 /// The first `n` of a list, joined, with how many more follow.
@@ -1124,6 +1136,19 @@ fn walk(dir: &Path) -> Vec<PathBuf> {
     files
 }
 
+/// The functions `nm` lists (its `t` and `T` lines of three fields), each
+/// once, sorted: what a layout's order file orders.
+fn functions_named(nm: &str) -> Vec<&str> {
+    nm.lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split_whitespace().collect();
+            (f.len() == 3 && matches!(f[1], "t" | "T")).then(|| f[2])
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
 /// `exe` relinked once per seed, its functions in a fresh random order
 /// each (a linker order file: lld on Linux, ld's -order_file on macOS).
 /// The bench crate alone relinks; its dependencies stay built.
@@ -1136,15 +1161,7 @@ fn layouts(
 ) -> Vec<String> {
     let nm = Command::new("nm").arg(exe).output().expect("nm runs");
     let text = String::from_utf8_lossy(&nm.stdout).into_owned();
-    let mut symbols: Vec<&str> = text
-        .lines()
-        .filter_map(|l| {
-            let f: Vec<&str> = l.split_whitespace().collect();
-            (f.len() == 3 && matches!(f[1], "t" | "T")).then(|| f[2])
-        })
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect();
+    let mut symbols = functions_named(&text);
     let side_dir = cache.join(name);
     let copy = bench_copy(&side_dir.join("target"));
     let checkout = side_dir.join("src");
@@ -1514,6 +1531,231 @@ mod tests {
         assert_eq!(super::shared_subjects(&both), super::SUBJECTS);
         // A name inside another word is no contender of that bench.
         assert!(super::shared_subjects("  not-blake3-servil-st  x  available\n").is_empty());
+    }
+
+    // The shuffle's orders of "abcdefgh" for seeds 0 to 3, computed apart from
+    // it (the same generator and Fisher-Yates, written in Python).
+    const ORDER_0: &str = "ecfhadgb";
+    const ORDER_1: &str = "acbhdfeg";
+    const ORDER_2: &str = "ehfbagcd";
+    const ORDER_3: &str = "bfgchdea";
+
+    /// The layouts' shuffle: a permutation, the same for a seed on every
+    /// machine (these orders are fixed here), another for another seed. A
+    /// shuffle that did nothing would make every "layout" one layout, with
+    /// no check the wiser.
+    #[test]
+    fn the_shuffle_is_a_fixed_permutation_for_each_seed() {
+        let order = |seed: u64| {
+            let mut items = ["a", "b", "c", "d", "e", "f", "g", "h"];
+            super::shuffle(&mut items, seed);
+            items.concat()
+        };
+        let sorted = |s: &str| {
+            let mut c: Vec<char> = s.chars().collect();
+            c.sort();
+            c.into_iter().collect::<String>()
+        };
+        let orders: Vec<String> = (0..4).map(order).collect();
+        for o in &orders {
+            assert_eq!(sorted(o), "abcdefgh", "a permutation: {o}");
+        }
+        assert_eq!(orders, [ORDER_0, ORDER_1, ORDER_2, ORDER_3]);
+        // Over 64 seeds every item is seen in every place: no place is fixed.
+        for place in 0..8 {
+            let seen: std::collections::BTreeSet<char> = (0..64)
+                .map(|seed| order(seed).chars().nth(place).unwrap())
+                .collect();
+            assert_eq!(seen.len(), 8, "place {place} takes every item: {seen:?}");
+        }
+    }
+
+    /// The change's summary: whether the trees differ, read from a
+    /// repository made here.
+    #[test]
+    fn a_change_is_summarized_from_its_diff() {
+        let dir = std::env::temp_dir().join(format!("bench-check-summary-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let git = |args: &[&str]| {
+            let out = std::process::Command::new("git")
+                .args([
+                    "-c",
+                    "user.name=t",
+                    "-c",
+                    "user.email=t@t",
+                    "-c",
+                    "commit.gpgsign=false",
+                ])
+                .args(args)
+                .current_dir(&dir)
+                .output()
+                .unwrap();
+            assert!(
+                out.status.success(),
+                "git {args:?}: {}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+        };
+        git(&["init", "-q"]);
+        std::fs::write(dir.join("a.rs"), "fn one() {\n    1;\n}\n").unwrap();
+        git(&["add", "-A"]);
+        git(&["commit", "-q", "-m", "one"]);
+        git(&["tag", "first"]);
+        assert!(
+            !super::change_summary(&dir, "first", "first"),
+            "the same tree: no change"
+        );
+        std::fs::write(dir.join("a.rs"), "fn one() {\n    2;\n}\n").unwrap();
+        git(&["commit", "-q", "-am", "two"]);
+        assert!(
+            super::change_summary(&dir, "first", "HEAD"),
+            "a changed line: a change"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The summary's lines, exactly: the totals over the files, each file
+    /// with its counts, and each item the hunks sit in once; a hunk with no
+    /// item names none, and an unchanged tree has no line.
+    #[test]
+    fn the_summary_counts_lines_and_names_each_item_once() {
+        let numstat = "3\t1\tsrc/a.rs\n10\t0\tsrc/b.rs\n";
+        let diff = "@@ -1 +1 @@ fn one() {\n-x\n+y\n@@ -9 +9,2 @@ fn one() {\n+z\n@@ -20 +21 @@\n+w\n@@ -30 +32 @@ impl Two {\n+v\n";
+        assert_eq!(
+            super::summary_lines(numstat, diff),
+            [
+                "check: the change touches 13 added and 1 deleted lines in 2 files: src/a.rs (+3/-1), src/b.rs (+10/-0)",
+                "check: its hunks sit in: fn one() {, impl Two {",
+            ]
+        );
+        assert_eq!(
+            super::summary_lines("1\t1\tREADME.md\n", "@@ -1 +1 @@\n-a\n+b\n"),
+            ["check: the change touches 1 added and 1 deleted lines in 1 files: README.md (+1/-1)"],
+            "a hunk outside any item: no second line"
+        );
+        assert!(super::summary_lines("", "").is_empty());
+        assert!(super::summary_lines("  \n", "").is_empty());
+    }
+
+    /// The functions a layout orders: nm's text symbols, local and global,
+    /// each once, sorted; data, undefined names and other lines left out.
+    #[test]
+    fn a_layout_orders_nms_functions() {
+        let nm = "0000000000001000 T main\n0000000000002000 t helper\n0000000000003000 D data\n                 U extern_fn\n0000000000004000 t helper\n0000000000005000 T with extra field\n";
+        assert_eq!(super::functions_named(nm), ["helper", "main"]);
+    }
+
+    /// A list's first few, and how many more: nothing more said where the
+    /// list is exactly as long as asked.
+    #[test]
+    fn a_long_list_says_how_many_more() {
+        let items: Vec<String> = ["a", "b", "c"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(super::first_of(&items, 3), "a, b, c");
+        assert_eq!(super::first_of(&items, 2), "a, b, and 1 more");
+        assert_eq!(super::first_of(&items, 5), "a, b, c");
+    }
+
+    /// The bench's copy for a side: every source file, written where it
+    /// differs and left alone where it is the same (so Cargo rebuilds real
+    /// changes only); a file the source no longer has is removed; the
+    /// copy's own lock, target and results stay; a first copy takes the
+    /// source's lock.
+    #[test]
+    fn the_benchs_copy_follows_its_sources_and_keeps_its_own_lock() {
+        let dir = std::env::temp_dir().join(format!("bench-check-copy-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let (from, to) = (dir.join("from"), dir.join("to"));
+        let write = |p: std::path::PathBuf, text: &str| {
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(p, text).unwrap();
+        };
+        write(from.join("src/main.rs"), "one");
+        write(from.join("Cargo.toml"), "manifest");
+        write(from.join("Cargo.lock"), "the source's lock");
+        write(from.join("target/built"), "never copied");
+        write(from.join("benchmark-results/m/x.tsv"), "never copied");
+        write(from.join("tmp/scratch"), "never copied");
+        super::copy_bench(&from, &to);
+        let read = |p: &str| std::fs::read_to_string(to.join(p)).ok();
+        assert_eq!(read("src/main.rs").as_deref(), Some("one"));
+        assert_eq!(read("Cargo.toml").as_deref(), Some("manifest"));
+        assert_eq!(
+            read("Cargo.lock").as_deref(),
+            Some("the source's lock"),
+            "a first copy takes the lock"
+        );
+        assert_eq!(read("target/built"), None);
+        assert_eq!(read("benchmark-results/m/x.tsv"), None);
+        assert_eq!(read("tmp/scratch"), None);
+        // The copy's own things, and a file the source drops.
+        write(to.join("Cargo.lock"), "the copy's lock");
+        write(to.join("target/its-build"), "kept");
+        write(to.join("benchmark-results/its-run"), "kept");
+        write(to.join("src/gone.rs"), "the source no longer has this");
+        write(from.join("src/main.rs"), "two");
+        let untouched = std::fs::metadata(to.join("Cargo.toml"))
+            .unwrap()
+            .modified()
+            .unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        super::copy_bench(&from, &to);
+        assert_eq!(
+            read("src/main.rs").as_deref(),
+            Some("two"),
+            "a changed file is written"
+        );
+        assert_eq!(read("src/gone.rs"), None, "a dropped file is removed");
+        assert_eq!(
+            read("Cargo.lock").as_deref(),
+            Some("the copy's lock"),
+            "the copy keeps its lock"
+        );
+        assert_eq!(read("target/its-build").as_deref(), Some("kept"));
+        assert_eq!(read("benchmark-results/its-run").as_deref(), Some("kept"));
+        assert_eq!(
+            std::fs::metadata(to.join("Cargo.toml"))
+                .unwrap()
+                .modified()
+                .unwrap(),
+            untouched,
+            "an unchanged file is left alone"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The patch line names the repository the bench's manifest takes
+    /// BLAKE3-Servil from, and the crate's place in the checkout.
+    #[test]
+    fn the_patch_names_the_manifests_repository_and_the_crate() {
+        let dir = std::env::temp_dir().join(format!("bench-check-patch-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let (copy, checkout) = (dir.join("copy"), dir.join("checkout"));
+        std::fs::create_dir_all(&copy).unwrap();
+        std::fs::create_dir_all(checkout.join("threads")).unwrap();
+        std::fs::write(
+            copy.join("Cargo.toml"),
+            "[package]\nname = \"bench-hashes\"\n\n[dependencies.blake3-servil]\ngit = \"https://example.org/B3\"\nrev = \"abc\"\n",
+        )
+        .unwrap();
+        std::fs::write(
+            checkout.join("Cargo.toml"),
+            "[package]\nname = \"blake3-servil-core\"\n",
+        )
+        .unwrap();
+        std::fs::write(
+            checkout.join("threads/Cargo.toml"),
+            "[package]\nname = \"blake3-servil\"\n",
+        )
+        .unwrap();
+        assert_eq!(
+            super::fork_patch(&copy, &checkout),
+            format!(
+                "patch.\"https://example.org/B3\".blake3-servil.path=\"{}\"",
+                checkout.join("threads").display()
+            )
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     /// A check pins its pairs, with an older bench on one side as without:
