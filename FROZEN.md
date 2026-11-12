@@ -31,6 +31,21 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Devon Jonte's decisions, each dated):
+- **A check across two benches pins its pairs, as every check does**
+  (Devon Jonte, November 12, 2026). `check --old-bench` passed
+  `--unpinned` to `regress`, in case the older bench was from before
+  pinning; every release check against 0.8 ran so. Unpinned, the core a
+  run lands on is a difference between a pair's sides, and the small
+  cells after other work swing with it (the entry of November 5, below).
+  On an EPYC 9275F, one library on both sides and two benches whose
+  measured code is the same: unpinned, single-threaded 4 KiB after other
+  work read 0.551 to 0.675 ns/B a side from session to session, and one
+  session judged seven such cells 12 to 21% slower; pinned, six sessions
+  read no cell slower or faster (0.581 to 0.645). The five cells the
+  core's gate against 0.8 read 3 to 6.5% slower there read level pinned.
+  0.8's bench takes the pin. `--unpinned` is now an option, for a bench
+  from before pinning, which `regress` names when it meets one. (The
+  data branch, 2026-11-12/old-bench-pinned-9275f.)
 - **`check --contenders KEYS` narrows a check to one form of
   BLAKE3-Servil** (Devon Jonte, November 12, 2026). `blake3-servil-st`
   is what the crate `blake3-servil-core` offers; a check of it alone is

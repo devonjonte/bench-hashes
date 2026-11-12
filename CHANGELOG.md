@@ -1,5 +1,7 @@
 # bench-hashes 0.22.0
 
+**A check against an older bench is pinned like any other.** `check --old-bench`, the form every check against a past release takes, left each run's thread wherever the system put it, and the small cells measured after other work then moved by 10 to 20% from one check to the next for no change in the code. It now keeps each pair of runs on one core, as checks within one bench do. `--unpinned` is there for a bench older than pinning.
+
 **`check --contenders` checks one form of BLAKE3-Servil.** `check --contenders blake3-servil-st` judges the single-threaded contender alone, which is the crate `blake3-servil-core`; the check says whose cells it left out.
 
 **A verdict says how far its pairs spread.** Each line `check` and `regress` print for a slower or faster cell now reads "+20.6% (the pairs' geometric mean; 64 pairs, from -27.0% to +194.6%: ...)". Every pair runs under a link layout of its own, so the spread shows how much layout and one run move that cell, beside the mean.

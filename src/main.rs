@@ -7575,7 +7575,7 @@ fn regress_run(
             .unwrap_or("not stated");
         assert!(
             line.starts_with(&format!("pinned to CPU {cpu} ")),
-            "{exe}: asked to pin its measuring thread to CPU {cpu}, its samples say \"{line}\" (a bench older than pinning: run regress with --unpinned)"
+            "{exe}: asked to pin its measuring thread to CPU {cpu}, its samples say \"{line}\" (a bench older than pinning: run check or regress with --unpinned)"
         );
     }
     let load = regress_load(run.started_ns, run.started_ns + run.wall_ns);

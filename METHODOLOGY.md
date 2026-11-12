@@ -560,9 +560,10 @@ with 24 visits per run for cells after a gap and 2 trains for nonstop
 cells.
 Each pair's two runs take their samples after a gap with the measuring
 thread pinned to one CPU, the pairs alternating the core's parity over
-the cache domains (`--unpinned` leaves them to the OS; an older bench on
-one side, `check --old-bench`, runs so): the core is then no difference
-between a pair's sides (the table below).
+the cache domains, with an older bench on one side (`check --old-bench`)
+as with one bench on both: the core is then no difference between a
+pair's sides (the table below). `--unpinned` leaves the runs to the OS,
+for a bench from before pinning, which `regress` names when it meets one.
 Before the pairs start, `regress` calibrates sample sizes once per side
 so both sides perform the same work per sample and no timed run pays for
 calibration. Giving each pair a fresh link layout averages out code

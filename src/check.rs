@@ -1,4 +1,4 @@
-//! `bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS | --cells all] [--contenders KEYS] [--layouts N] [--keep DIR] [--when-quiet]`:
+//! `bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS | --cells all] [--contenders KEYS] [--layouts N] [--keep DIR] [--when-quiet] [--unpinned]`:
 //! did a change to BLAKE3-Servil hurt its speed in the cells its author names?
 //! Run from a checkout of bench-hashes, it compares BLAKE3-Servil's working
 //! tree (or `--new REV`) with a commit (`--against`, HEAD by default) and
@@ -150,6 +150,17 @@ fn shared_subjects(old_list: &str) -> Vec<&'static str> {
         .collect()
 }
 
+/// What a check tells regress about pinning: nothing (regress pins each
+/// pair's runs to one CPU), or `--unpinned` where the caller asked, for a
+/// bench on one side from before pinning.
+fn pinning(unpinned: bool) -> Vec<String> {
+    if unpinned {
+        vec!["--unpinned".into()]
+    } else {
+        Vec::new()
+    }
+}
+
 /// The contenders `--contenders KEYS` names, in SUBJECTS' order; the first
 /// key that is none of them otherwise.
 fn chosen_subjects(keys: &str) -> Result<Vec<&'static str>, String> {
@@ -167,10 +178,11 @@ fn unchanged_inputs(library_changed: bool, old_bench: Option<&str>) -> bool {
 }
 
 pub fn command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS | --cells all] [--contenders KEYS] [--layouts N] [--keep DIR] [--when-quiet]";
+    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS | --cells all] [--contenders KEYS] [--layouts N] [--keep DIR] [--when-quiet] [--unpinned]";
     let (mut against, mut all, mut layouts_a_side, mut keep) =
         ("HEAD".to_string(), false, LAYOUTS, None::<PathBuf>);
     let mut when_quiet = false;
+    let mut unpinned = false;
     let mut only = None::<Vec<&'static str>>;
     let mut probe = None::<String>;
     let mut named = None::<String>;
@@ -233,6 +245,7 @@ pub fn command(arguments: &[String]) -> i32 {
                     })))
             }
             "--when-quiet" => when_quiet = true,
+            "--unpinned" => unpinned = true,
             "--new" => {
                 new_rev = Some(
                     it.next()
@@ -476,14 +489,15 @@ pub fn command(arguments: &[String]) -> i32 {
         FIRST_RUNS,
     );
     // Each pair's runs on one CPU (regress's default, bench-hashes #69),
-    // where both sides are this bench's; an older bench at --old-bench may
-    // predate pinning, so its comparison leaves both sides to the OS.
-    let pinning: Vec<String> = if old_bench_rev.is_some() {
-        eprintln!("check: --old-bench: the sides' benches differ, and the older may predate pinning; regress --unpinned");
-        vec!["--unpinned".into()]
-    } else {
-        Vec::new()
-    };
+    // across two benches as within one: unpinned, the core a run happened
+    // on is a difference between a pair's sides, and the small cells after
+    // other work swing with it. regress stops, naming the side, where a
+    // build ignores the pin (a bench older than pinning); `--unpinned`
+    // then leaves both sides to the OS.
+    let pinning = pinning(unpinned);
+    if unpinned {
+        eprintln!("check: --unpinned: the OS places every run's measuring thread, on both sides");
+    }
     let mut regress: Vec<String> = vec![
         "regress".into(),
         "--pairs".into(),
@@ -1500,6 +1514,14 @@ mod tests {
         assert_eq!(super::shared_subjects(&both), super::SUBJECTS);
         // A name inside another word is no contender of that bench.
         assert!(super::shared_subjects("  not-blake3-servil-st  x  available\n").is_empty());
+    }
+
+    /// A check pins its pairs, with an older bench on one side as without:
+    /// only `--unpinned` leaves the runs to the OS.
+    #[test]
+    fn a_check_pins_unless_asked_otherwise() {
+        assert!(super::pinning(false).is_empty());
+        assert_eq!(super::pinning(true), ["--unpinned"]);
     }
 
     /// `--contenders` takes BLAKE3-Servil's own contenders, in their own
