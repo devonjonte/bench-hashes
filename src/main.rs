@@ -5290,6 +5290,42 @@ fn lent_twin(roster: &Roster, algorithm: Algorithm, point_index: usize) -> Optio
     roster.measures(twin).then_some(twin)
 }
 
+/// SCRATCH (BLAKE3 #368): the stream's loop of hash_continuous_messages in
+/// a function of its own, never inlined, so no other contender's code in
+/// that function shifts how this loop compiles.
+#[inline(never)]
+fn continuous_stream(input: &[u8], iterations: usize, mut consume: impl FnMut(&[u8])) {
+    // Each message read straight into the stream's ring (submit_with),
+    // its digest into a kept place, used as the place comes back and
+    // the place used again.
+    let mut places = take_places(STREAM_PLACES_PER_MESSAGE);
+    let free = std::cell::RefCell::new(places.chunks_mut(1).collect::<Vec<_>>());
+    blake3_servil::throughput::stream(
+        blake3_servil::Mode::Plain,
+        |place: &mut [blake3_servil::Hash]| {
+            consume(place[0].as_bytes());
+            free.borrow_mut().push(place);
+        },
+        |s| {
+            for _ in 0..iterations {
+                let message = black_box(input);
+                let place = free_place(&free, s);
+                s.submit_with(
+                    message.len(),
+                    |at, room| {
+                        room.copy_from_slice(&message[at..][..room.len()]);
+                        room.len()
+                    },
+                    &mut place[0],
+                );
+            }
+            s.finish();
+        },
+    );
+    drop(free);
+    keep_places(places);
+}
+
 fn hash_continuous_messages(
     algorithm: Algorithm,
     blocks: &[u8],
@@ -5300,35 +5336,7 @@ fn hash_continuous_messages(
     // The message's `len` bytes; `blocks`, its whole blocks (UseCase::in_blocks).
     let input = &blocks[..len];
     if algorithm == Algorithm::Blake3ServilMt {
-        // Each message read straight into the stream's ring (submit_with),
-        // its digest into a kept place, used as the place comes back and
-        // the place used again.
-        let mut places = take_places(STREAM_PLACES_PER_MESSAGE);
-        let free = std::cell::RefCell::new(places.chunks_mut(1).collect::<Vec<_>>());
-        blake3_servil::throughput::stream(
-            blake3_servil::Mode::Plain,
-            |place: &mut [blake3_servil::Hash]| {
-                consume(place[0].as_bytes());
-                free.borrow_mut().push(place);
-            },
-            |s| {
-                for _ in 0..iterations {
-                    let message = black_box(input);
-                    let place = free_place(&free, s);
-                    s.submit_with(
-                        message.len(),
-                        |at, room| {
-                            room.copy_from_slice(&message[at..][..room.len()]);
-                            room.len()
-                        },
-                        &mut place[0],
-                    );
-                }
-                s.finish();
-            },
-        );
-        drop(free);
-        return keep_places(places);
+        return continuous_stream(input, iterations, consume);
     }
     if !owned_runs_lent(algorithm, Some(len)) {
         return hash_stream(algorithm, input, iterations, consume);
