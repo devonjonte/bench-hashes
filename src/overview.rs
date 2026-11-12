@@ -675,12 +675,14 @@ pub fn shown(rows: &[Row]) -> Vec<usize> {
 
 /// Each machine measured in plain words (its kind, design and year), for
 /// its column and its card: (the CPU as the page names it, the words).
-const KNOWN: [(&str, &str); 8] = [
+const KNOWN: [(&str, &str); 10] = [
     ("Apple M4 Max", "Apple laptop or desktop, 2024"),
     ("AMD Ryzen 7 9700X", "AMD desktop, Zen 5, 2024"),
     ("AMD EPYC 9255", "AMD server, Zen 5, 2024"),
     ("AMD EPYC 9254", "AMD server, Zen 4, 2022"),
+    ("AMD EPYC 9275F", "AMD server, Zen 5, 2024"),
     ("AMD EPYC 7443P", "AMD server, Zen 3, 2021"),
+    ("AMD EPYC 7443", "AMD server, two sockets, Zen 3, 2021"),
     ("Intel Core i7-12700K", "Intel desktop, Alder Lake, 2021"),
     ("Intel Xeon Gold 6330", "Intel server, Ice Lake, 2021"),
     (
