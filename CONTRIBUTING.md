@@ -76,11 +76,28 @@ probe's line in its pull request.
 
 ### When a check reads a cell slower
 
-A cell that reads slower holds the landing until three things exist
-(Zooko, November 12, 2026): **the explanation** of why it reads slower,
-**the fix** of that cause, in the library or in this bench, and **the
-test** that shows the fix removed it. These questions get the
-explanation, each a check of a few minutes on the machine that read it:
+There is no rule for this, on purpose (Zooko, November 12, 2026: goals,
+and good judgment in their service). The goals:
+
+- **A user is never surprised by a slowdown we could have known.** A
+  real one is fixed, or said plainly where users read (the changelog),
+  with an owner.
+- **We do not fool ourselves.** A reading the code did not cause is worth
+  understanding far enough to stop it recurring, because unexplained
+  flags teach everyone to skip flags, the real ones with them.
+- **Releases come soon.** An hour spent chasing a cell is an hour, and is
+  weighed against what the chase can buy.
+
+Whoever lands the change or cuts the release decides what a slower cell
+means for it, and says why in a sentence where the others will read it
+(the pull request, the release's issue). What bears on the call: how
+large the reading is, whether it repeats, how many machines agree,
+whether a user's call can reach the cell, what finding out would cost,
+and what being wrong would cost (a release is harder to take back than a
+landing). When the call is hard and the stakes are high, ask.
+
+These questions have found causes quickly, each a check of a few minutes
+on the machine that read the cell:
 
 1. **Does it repeat by name?** Run the check again with the cell and its
    neighbours as `--points` (and `--contenders` for one form): a named
