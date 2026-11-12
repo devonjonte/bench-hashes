@@ -1,0 +1,36 @@
+== 1: thresholds in turn
+regress: old side: bench c40fc128f5a1 clean; servil 3313686b9460 clean
+regress: new side: bench c40fc128f5a1 clean; servil 40b38526fa89 clean
+  faster blake3-servil-st|solo|MerkleTree|1048576 x 16 B: -53.5% (the pairs' geometric mean; 4 pairs: -56.6% -51.7% -52.8% -52.8%)
+  faster blake3-servil-st|solo|MerkleTree|1048576 x 32 B: -46.5% (the pairs' geometric mean; 4 pairs: -48.6% -42.4% -47.4% -47.3%)
+  faster blake3-servil-st|solo|MerkleTree|65536 x 32 B: -54.4% (the pairs' geometric mean; 4 pairs: -54.2% -54.5% -54.4% -54.4%)
+regress: no cell slower
+regress: this machine counts no instructions; the suspects are wall's alone
+regress: suspects: blake3-servil-mt|solo|MerkleTree|1048576 x 32 B;blake3-servil-mt|solo|MerkleTree|1048576 x 16 B
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+regress: old side: bench c40fc128f5a1 clean; servil 3313686b9460 clean
+regress: new side: bench c40fc128f5a1 clean; servil 40b38526fa89 clean
+  SLOWER blake3-servil-mt|solo|MerkleTree|1048576 x 32 B: +8.6% (the pairs' geometric mean; 64 pairs: +9.0% +14.1% -1.3% +4.2% +0.3% +28.5% +4.5% -0.4% +4.5% +6.4% +12.1% +23.8% +23.3% -5.5% +3.2% +12.5% +0.4% +1.4% +4.0% -4.2% +1.0% +20.6% -6.5% +4.0% +8.2% +24.4% +31.5% -5.0% +2.1% +22.0% +4.6% +11.1% +7.4% +24.0% +17.5% -1.3% -2.3% +11.2% +9.7% +8.4% -1.4% +9.5% +28.9% +18.7% +20.1% +10.4% -0.8% +28.7% +4.3% -11.6% -0.4% +0.0% +10.8% +10.7% +23.3% +29.8% +2.3% +31.8% -0.9% +28.4% -4.5% -2.6% -4.6% +22.8%)
+regress: REGRESSION: 1 cells slower
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+check exit 1 17:43
+== 2: thin LTO, 16 codegen units
+regress: old side: bench 4fcff35f2967 clean; servil 3313686b9460 clean
+regress: new side: bench 4fcff35f2967 clean; servil 40b38526fa89 clean
+  SLOWER blake3-servil-mt|shared-one-cache|MerkleTree|65536 x 32 B: +4.4% (the pairs' geometric mean; 4 pairs: +2.1% +5.8% +4.8% +5.1%)
+  faster blake3-servil-st|solo|MerkleTree|1048576 x 16 B: -52.3% (the pairs' geometric mean; 4 pairs: -52.1% -52.3% -54.5% -50.2%)
+  faster blake3-servil-st|solo|MerkleTree|1048576 x 32 B: -44.9% (the pairs' geometric mean; 4 pairs: -46.7% -42.7% -48.0% -42.1%)
+  faster blake3-servil-st|solo|MerkleTree|65536 x 32 B: -54.3% (the pairs' geometric mean; 4 pairs: -54.5% -54.7% -54.4% -53.7%)
+regress: REGRESSION: 1 cells slower
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+check exit 1 17:46
+== 3: the bench's own compilation, again
+regress: old side: bench 4fcff35f2967 clean; servil 3313686b9460 clean
+regress: new side: bench 4fcff35f2967 clean; servil 40b38526fa89 clean
+  SLOWER blake3-servil-mt|shared-two-caches|MerkleTree|1048576 x 32 B: +4.8% (the pairs' geometric mean; 4 pairs: +5.0% +5.0% +5.9% +3.4%)
+  faster blake3-servil-st|solo|MerkleTree|1048576 x 16 B: -51.6% (the pairs' geometric mean; 4 pairs: -51.1% -52.5% -51.4% -51.5%)
+  faster blake3-servil-st|solo|MerkleTree|1048576 x 32 B: -45.3% (the pairs' geometric mean; 4 pairs: -42.8% -44.5% -48.2% -45.5%)
+  faster blake3-servil-st|solo|MerkleTree|65536 x 32 B: -54.2% (the pairs' geometric mean; 4 pairs: -55.0% -54.2% -53.1% -54.4%)
+regress: REGRESSION: 1 cells slower
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+check exit 1 17:53

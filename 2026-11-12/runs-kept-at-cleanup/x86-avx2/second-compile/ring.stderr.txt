@@ -1,0 +1,78 @@
+check: BLAKE3-Servil's 2037118c^ (72889426d4ca) against 2037118c (2037118ca1da)
+check: the change touches 10 added and 28 deleted lines in 2 files: src/lib.rs (+1/-1), src/stream.rs (+9/-27)
+check: its hunks sit in: const RING_BYTES: usize = 2 << 20;, const LONG_RING_BYTES: usize = 8 << 20;, impl<'env, D: FnMut(&'env mut [Hash])> Stream<'env, D> {, mod test {
+check: measuring the 1 named points (1 of 276 points; the rest unmeasured in this check): continuous 4 MiB
+check: the change alters the bench's code here: .eh_frame, .eh_frame_hdr, .rela.dyn, .rodata, .text; 4 functions of another size or on one side alone (<blake3_servil::stream::Storage>::take; blake3_servil::stream::stream::<bench_hashes::hash_continuous_batches<bench_hashes::use_digest>::{closure#0}, (), bench_hashes::hash_continuous_batches<bench_hashes::use_digest>::{closure#1}>; blake3_servil::stream::stream::<bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#0}, (), bench_hashes::hash_continuous_collection<bench_hashes::use_digest>::{closure#1}>; blake3_servil::stream::stream::<bench_hashes::hash_continuous_messages<bench_hashes::use_digest>::{closure#0}, (), bench_hashes::hash_continuous_messages<bench_hashes::use_digest>::{closure#1}>); 1299 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&() as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::ffi::c_str::CString as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Display>::fmt; <&alloc::vec::Vec<u8> as core::fmt::Debug>::fmt; <&core::ffi::c_str::CStr as core::fmt::Debug>::fmt; <&core::io::error::Error as core::fmt::Debug>::fmt; <&core::num::error::IntErrorKind as core::fmt::Debug>::fmt; <&core::option::Option<std::ffi::os_str::OsString> as core::fmt::Debug>::fmt; <&core::option::Option<usize> as core::fmt::Debug>::fmt; and 1287 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,1,6,7
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt --points "continuous 4 MiB"
+regress: pair 1 of 4 in 2.0 s
+regress: pair 2 of 4 in 2.0 s
+regress: pair 3 of 4 in 2.0 s
+regress: pair 4 of 4 in 2.0 s
+check: a second stage for 3 suspects on 64 fresh pairs: blake3-servil-mt|shared-one-cache|ContinuousMessages|4 MiB, blake3-servil-mt|shared-two-caches|ContinuousMessages|4 MiB, blake3-servil-mt|solo|ContinuousMessages|4 MiB
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47
+regress: 64 new builds against 64 old, 64 pairs over --contenders blake3-servil-mt --points "continuous 4 MiB"
+regress: pair 1 of 64 in 1.8 s
+regress: pair 2 of 64 in 1.7 s
+regress: pair 3 of 64 in 1.8 s
+regress: pair 4 of 64 in 1.8 s
+regress: pair 5 of 64 in 1.8 s
+regress: pair 6 of 64 in 1.8 s
+regress: pair 7 of 64 in 1.8 s
+regress: pair 8 of 64 in 1.7 s
+regress: pair 9 of 64 in 1.8 s
+regress: pair 10 of 64 in 1.7 s
+regress: pair 11 of 64 in 1.8 s
+regress: pair 12 of 64 in 1.8 s
+regress: pair 13 of 64 in 1.8 s
+regress: pair 14 of 64 in 1.7 s
+regress: pair 15 of 64 in 1.8 s
+regress: pair 16 of 64 in 1.8 s
+regress: pair 17 of 64 in 1.8 s
+regress: pair 18 of 64 in 1.7 s
+regress: pair 19 of 64 in 1.8 s
+regress: pair 20 of 64 in 1.8 s
+regress: pair 21 of 64 in 1.8 s
+regress: pair 22 of 64 in 1.7 s
+regress: pair 23 of 64 in 1.8 s
+regress: pair 24 of 64 in 1.8 s
+regress: pair 25 of 64 in 1.8 s
+regress: pair 26 of 64 in 1.8 s
+regress: pair 27 of 64 in 1.8 s
+regress: pair 28 of 64 in 1.8 s
+regress: pair 29 of 64 in 1.8 s
+regress: pair 30 of 64 in 1.7 s
+regress: pair 31 of 64 in 1.8 s
+regress: pair 32 of 64 in 1.8 s
+regress: pair 33 of 64 in 1.8 s
+regress: pair 34 of 64 in 1.8 s
+regress: pair 35 of 64 in 1.8 s
+regress: pair 36 of 64 in 1.8 s
+regress: pair 37 of 64 in 1.8 s
+regress: pair 38 of 64 in 1.8 s
+regress: pair 39 of 64 in 1.8 s
+regress: pair 40 of 64 in 1.8 s
+regress: pair 41 of 64 in 1.8 s
+regress: pair 42 of 64 in 1.8 s
+regress: pair 43 of 64 in 1.8 s
+regress: pair 44 of 64 in 1.8 s
+regress: pair 45 of 64 in 1.8 s
+regress: pair 46 of 64 in 1.8 s
+regress: pair 47 of 64 in 1.8 s
+regress: pair 48 of 64 in 1.8 s
+regress: pair 49 of 64 in 1.8 s
+regress: pair 50 of 64 in 1.7 s
+regress: pair 51 of 64 in 1.8 s
+regress: pair 52 of 64 in 1.8 s
+regress: pair 53 of 64 in 1.8 s
+regress: pair 54 of 64 in 1.7 s
+regress: pair 55 of 64 in 1.8 s
+regress: pair 56 of 64 in 1.7 s
+regress: pair 57 of 64 in 1.8 s
+regress: pair 58 of 64 in 1.7 s
+regress: pair 59 of 64 in 1.8 s
+regress: pair 60 of 64 in 1.7 s
+regress: pair 61 of 64 in 1.8 s
+regress: pair 62 of 64 in 1.8 s
+regress: pair 63 of 64 in 1.8 s
+regress: pair 64 of 64 in 1.8 s

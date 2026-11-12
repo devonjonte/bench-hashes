@@ -1,0 +1,43 @@
+# bench-hashes samples v10
+# timestamp: 2026-11-12 16:12:13 UTC
+# bench-hashes version: 0.21.0+84236bf0f0c832f6619b8f99ce7bc878c7800ef0
+# bench-hashes source: https://github.com/servil-software-factory/bench-hashes
+# git commit: 1d74552536af84f7d06fd9c3a16ecc8b6e82b0ac
+# git clean status: clean
+# blake3-servil version: 0.8.0+dev.d9c2c209b9155f21ee69710907a6ae4e5a8af5a8
+# dependency lock: blake3 6c8c21a0d3070655a7049fd12c84b039ca1f634a2a1baa4b19e1241360701376 of Cargo.lock
+# rust compiler: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+# c compiler: cc: cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+# rustflags: none
+# build target: x86_64-unknown-linux-gnu
+# target features: fxsr,sse,sse2
+# sample clock: CLOCK_MONOTONIC_RAW (stops during suspend; the raw counter, no NTP slew)
+# clocks source: clocks 0.1.0; this repository's clocks/, at its commit
+# cpu type: AMD EPYC 7443 24-Core Processor
+# cpu count: 96
+# os type: linux7.0.0-42-generic
+# cpu identity: model name: AMD EPYC 7443 24-Core Processor · microcode: 0xa0011df · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology nonstop_tsc cpuid extd_apicid aperfmperf rapl pni pclmulqdq monitor ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt tce topoext perfctr_core perfctr_nb bpext perfctr_llc mwaitx cpb cat_l3 cdp_l3 hw_pstate ssbd mba ibrs ibpb stibp vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local user_shstk clzero irperf xsaveerptr rdpru wbnoinvd amd_ppin brs arat npt lbrv svm_lock nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload vgif v_spec_ctrl umip pku ospke vaes vpclmulqdq rdpid overflow_recov succor smca fsrm sev sev_es sev_snp debug_swap · machine: AS -2124BT-HTR
+# idle states: none listed (no cpuidle driver; the kernel's default idle)
+# effective idle states: not measured (no cstate_core counters readable here)
+# idle control: none (no cpuidle states the bench can switch off: run as root for the controlled cells)
+# shared placements: one cache: CPUs 0 and 1; two caches: CPUs 0 and 6; each copy's input on its CPU's memory node
+# counts read overhead: not measured
+# source blake3-servil-mt: blake3-servil (local checkout); source https://github.com/servil-software-factory/BLAKE3; branch HEAD; commit d9c2c209b9155f21ee69710907a6ae4e5a8af5a8; clean
+# contenders: --contenders blake3-servil-mt
+# rounds: 24
+# measuring thread: pinned to CPU 33 around each sample after a gap (bench-hashes regress)
+# sample sizes: from /tmp/bench-hashes-regress-sizes-1618826.tsv (--sizes)
+# buffers owned: where a contender makes the same calls as with buffers lent, one measurement, shown in both rows
+# nonstop train: 100 ms warm-up, 6 samples a visit
+# points: 4096,16384
+# power: mains power, no battery, CPU frequency governor performance
+# load: quiet: other programs kept 0.00 CPUs busy on average, 0.00 in the busiest window
+# load measured by: bench-hashes regress, around the run (the windows below are the run's own)
+# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1512:0:0
+contender	scenario	use_case	point	unit	ns/units	start ms	cpu ns	energy nJ	core counts	cpu
+blake3-servil-mt	solo	MerkleTree	4096	B	940070/2097152,948930/2097152,936780/2097152,931100/2097152,952571/2097152,951590/2097152,910291/2097152,908010/2097152,894451/2097152,907750/2097152,949671/2097152,936840/2097152	524,525,526,527,528,529,1260,1261,1262,1263,1263,1264	18908720,19634413,18202101,19011760,18468674,19188321,18927810,18664248,19728860,19445420,20242876,20657440	-	-	85,85,85,85,85,85,85,85,85,85,85,85
+blake3-servil-mt	solo	MerkleTree	16384	B	1527871/4194304,1638591/4194304,1632851/4194304,1615871/4194304,1659621/4194304,1673911/4194304,2005381/4194304,2012131/4194304,2081261/4194304,2006431/4194304,1860421/4194304,1851890/4194304	122,124,125,127,129,130,878,880,882,884,886,888	26757480,29251278,28564900,27134841,27797007,28060981,33943782,33504330,33809791,32140003,30727251,32102280	-	-	85,85,85,85,85,85,85,85,85,85,85,85
+blake3-servil-mt	shared-one-cache	MerkleTree	4096	B	1341110/2097152,1290380/2097152,1323461/2097152,1404371/2097152,1335210/2097152,1464451/2097152,1230871/2097152,1415510/2097152,1169490/2097152,1435611/2097152,1321211/2097152,1363911/2097152,2382591/2097152,2385421/2097152,2246861/2097152,2362241/2097152,2337651/2097152,2309381/2097152,2260701/2097152,2307811/2097152,2155911/2097152,2294401/2097152,2295741/2097152,2101481/2097152	631,631,632,633,633,634,635,635,636,637,637,638,1366,1368,1368,1370,1371,1373,1373,1375,1375,1377,1377,1379	-	-	-	0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1
+blake3-servil-mt	shared-one-cache	MerkleTree	16384	B	5096832/4194304,5195752/4194304,5095792/4194304,5231082/4194304,4992992/4194304,5224012/4194304,5109252/4194304,5164493/4194304,6000253/4194304,6587074/4194304,7420593/4194304,7338894/4194304,4390812/4194304,3587361/4194304,3706752/4194304,3905552/4194304,4047222/4194304,4018242/4194304,3923791/4194304,4088321/4194304,3983452/4194304,3861172/4194304,4370292/4194304,5188162/4194304	240,242,245,247,250,252,255,258,260,263,266,269,991,994,996,998,999,1001,1003,1005,1007,1010,1011,1013	-	-	-	0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1
+blake3-servil-mt	shared-two-caches	MerkleTree	4096	B	1259631/2097152,5235812/2097152,1092231/2097152,4793483/2097152,1173461/2097152,5265672/2097152,1129941/2097152,5113162/2097152,1202401/2097152,5218522/2097152,1184741/2097152,5050762/2097152,1270340/2097152,3949051/2097152,1377110/2097152,4175081/2097152,1395721/2097152,4011042/2097152,1297690/2097152,4086352/2097152,1382291/2097152,3873362/2097152,1381811/2097152,3917911/2097152	742,745,743,751,744,755,745,761,746,766,747,771,1483,1485,1484,1489,1486,1493,1487,1497,1488,1501,1490,1505	-	-	-	0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6
+blake3-servil-mt	shared-two-caches	MerkleTree	16384	B	5185853/4194304,6203693/4194304,4809911/4194304,5464012/4194304,5238472/4194304,5516143/4194304,5411782/4194304,5505703/4194304,5522803/4194304,5427002/4194304,5328212/4194304,5249102/4194304,4697652/4194304,3788062/4194304,4669862/4194304,3734062/4194304,5307413/4194304,3621371/4194304,4935462/4194304,2655121/4194304,5045752/4194304,3967652/4194304,4741622/4194304,4714992/4194304	382,389,387,395,392,401,397,406,403,412,408,417,1125,1123,1130,1127,1135,1131,1140,1134,1145,1137,1150,1141	-	-	-	0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6,0,6
