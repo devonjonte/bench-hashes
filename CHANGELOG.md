@@ -6,6 +6,12 @@
 
 **The pipeline contender is gone.** BLAKE3-Servil removes its first pipeline (`throughput::pipeline`); the one streaming API that replaces it and the stream is still to come. `blake3-servil-pipeline` leaves the received-message cells and the continuous batch cells, which keep their other contenders. 0.21 holds its numbers.
 
+**`check` runs where a machine counts no instructions.** On some Macs the cells after a pause carry instruction counts of zero; 0.21's `check` divided by them and stopped ("a ratio needs a divisor"). A cell whose counts are all zero is now a cell without counts, judged by wall time alone.
+
+**`check` and `build-against` take a two-crate BLAKE3-Servil.** They find the crate at the checkout's root or in `threads/`, so a commit on either side of the library's split into `blake3-servil-core` and `blake3-servil` builds and compares.
+
+**`check --layouts` says what many layouts cost.** Every layout is a link of each side; beyond twice the default, `check` says how many links come before the first pair and that the second stage already gives its suspects 64 pairs.
+
 # bench-hashes 0.21.0+84236bf0f0c832f6619b8f99ce7bc878c7800ef0
 
 **One copy of the timing code.** The code that reads every clock and load measurement is now part of bench-hashes itself, so a result's bench-hashes version names exactly what timed it. It measures as before: the code is the same.
