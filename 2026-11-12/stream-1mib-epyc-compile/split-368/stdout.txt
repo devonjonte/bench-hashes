@@ -1,0 +1,24 @@
+== 1: R1 against 0a23cb70 (everything but lanes.rs)
+regress: old side: bench 4fcff35f2967 clean; servil 0a23cb7071bc clean
+regress: new side: bench 4fcff35f2967 clean; servil 0c131a084cb8 clean
+  faster blake3-servil-mt|shared-one-cache|ContinuousMessages|1 MiB: -15.9% (the pairs' geometric mean; 4 pairs: -3.6% -19.5% -20.9% -18.3%)
+  SLOWER blake3-servil-mt|shared-two-caches|ContinuousMessages|1 MiB: +9.0% (the pairs' geometric mean; 4 pairs: +7.3% +13.9% +11.3% +3.6%)
+  SLOWER blake3-servil-mt|solo|ContinuousMessages|1 MiB: +14.9% (the pairs' geometric mean; 4 pairs: +18.5% +7.1% +15.1% +19.3%)
+regress: REGRESSION: 2 cells slower
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+check exit 1 04:00
+== 2: b6377425 against R1 (lanes.rs alone)
+regress: old side: bench 4fcff35f2967 clean; servil 0c131a084cb8 clean
+regress: new side: bench 4fcff35f2967 clean; servil b6377425e1eb clean
+regress: no cell slower
+regress: this machine counts no instructions; the suspects are wall's alone
+regress: suspects: blake3-servil-mt|shared-two-caches|ContinuousMessages|1 MiB;blake3-servil-mt|solo|ContinuousMessages|1 MiB;blake3-servil-mt|shared-one-cache|ContinuousMessages|1 MiB
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+regress: old side: bench 4fcff35f2967 clean; servil 0c131a084cb8 clean
+regress: new side: bench 4fcff35f2967 clean; servil b6377425e1eb clean
+regress: no cell slower
+regress: this machine counts no instructions; the suspects are wall's alone
+regress: suspects: blake3-servil-mt|shared-one-cache|ContinuousMessages|1 MiB;blake3-servil-mt|shared-two-caches|ContinuousMessages|1 MiB
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+check exit 0 04:22
+== done
