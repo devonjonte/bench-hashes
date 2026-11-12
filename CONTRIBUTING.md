@@ -74,6 +74,54 @@ build. `--cells all` measures every point, for a release or a change its
 author judges can act anywhere. A change to the library carries its
 probe's line in its pull request.
 
+### When a check reads a cell slower
+
+A cell that reads slower holds the landing until three things exist
+(Zooko, November 12, 2026): **the explanation** of why it reads slower,
+**the fix** of that cause, in the library or in this bench, and **the
+test** that shows the fix removed it. These questions get the
+explanation, each a check of a few minutes on the machine that read it:
+
+1. **Does it repeat by name?** Run the check again with the cell and its
+   neighbours as `--points` (and `--contenders` for one form): a named
+   cell gets the second stage's 64 pairs. Its line says how far the
+   pairs spread ("from -27.0% to +194.6%"). Then run the same check once
+   more: a verdict that changes between two runs of one comparison is
+   the measurement's.
+2. **Whose is it, the library's or the bench's?** A check against a past
+   release crosses two benches (`--old-bench`). Change one thing at a
+   time: the two library commits under one bench; then one library under
+   the two benches (`--new C --against C --old-bench OLD`).
+3. **Is it the logic, or how this one build compiled?** Run the same
+   check with both sides compiled another way:
+   `CARGO_PROFILE_RELEASE_LTO=thin CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
+   bench-hashes check ...`. Slower both ways is the change's own doing.
+   Slower one way alone is the compiler's: the change moved how code it
+   left alone was inlined or laid out.
+4. **Which code changed?** `check`'s first lines name the functions whose
+   compiled size differs between the sides, the changed lines' own and
+   the others. The others, on the cell's path, are the suspects of a
+   compiler's effect.
+
+Cases of November 12, each on the data branch under `2026-11-12/`:
+- Step 1 and 2 (`old-bench-pinned-9275f`): five cells of a gate against
+  0.8 read 3 to 6.5% slower. One bench, two libraries: level. One
+  library, two benches: 21% slower in one run, level in the next. The
+  cause was this bench's: checks across two benches ran unpinned.
+- Step 3 (`stream-1mib-epyc-compile`): a deletion of code the stream
+  did not run read the stream 8 to 15% slower in six checks, and level
+  compiled the second way; a change that really cost it (the long ring,
+  BLAKE3 #349) read 11 to 30% slower compiled the second way too.
+
+A compiler's effect is still an effect: a program compiled once meets it.
+Its fix is in the source, where it can be seen and held: the function
+that must stay inlined (`#[inline(always)]`) or stay a call
+(`#[inline(never)]`), in the library or in this bench. Its test is the
+check of step 1, level under both compilations of step 3.
+
+Nothing else runs on a machine while it measures: queue the check under
+the machine's lock and read its files when it has ended.
+
 The BLAKE3-Servil contenders (`blake3-servil-st`, `blake3-servil-mt`) use
 the crate `blake3-servil`, a git dependency on
 [github.com/servil-software-factory/BLAKE3](https://github.com/servil-software-factory/BLAKE3) at

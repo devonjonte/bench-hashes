@@ -39,7 +39,7 @@ the notes) may still change, to say it better.
   cells after other work swing with it (the entry of November 5, below).
   On an EPYC 9275F, one library on both sides and two benches whose
   measured code is the same: unpinned, single-threaded 4 KiB after other
-  work read 0.551 to 0.675 ns/B a side from session to session, and one
+  work read 0.549 to 0.675 ns/B a side over eight sessions, and one
   session judged seven such cells 12 to 21% slower; pinned, six sessions
   read no cell slower or faster (0.581 to 0.645). The five cells the
   core's gate against 0.8 read 3 to 6.5% slower there read level pinned.
