@@ -292,4 +292,167 @@ mod tests {
         assert!(now[1].starts_with("sha256\t"));
         std::fs::remove_dir_all(&dir).unwrap();
     }
+
+    /// Runs of one sample each: the time and work columns still join end
+    /// to end, and a later column's one entry, which nothing tells apart
+    /// from a mark for the whole run, is kept once.
+    #[test]
+    fn one_sample_runs_join_their_times_and_keep_a_single_mark_once() {
+        let row = |ns: u32| {
+            format!("blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t{ns}/64\t1\t-\t-\t1:2:3:0:0:0:0:0:0:0\t0")
+                .split('\t')
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        };
+        let run = |ns: u32| Run {
+            headers: Vec::new(),
+            rows: vec![row(ns)],
+        };
+        let cells = joined(&[run(100), run(110)]);
+        assert_eq!(cells.len(), 1);
+        assert_eq!(cells[0][5], "100/64,110/64");
+        assert_eq!(cells[0][6], "1,1");
+        assert_eq!(cells[0][9], "1:2:3:0:0:0:0:0:0:0");
+    }
+
+    /// The release before is named by its version: a bench from before the
+    /// version line gives it on its source line, and a bench that writes
+    /// the line has it once.
+    #[test]
+    fn the_release_before_carries_its_version_once() {
+        let dir = std::env::temp_dir().join(format!("bench-beside-version-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let st = "blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t100/64,100/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0";
+        let with = |name: &str, header: &str| {
+            let path = dir.join(name);
+            std::fs::write(
+                &path,
+                format!(
+                    "{}\n# bench-hashes version: test\n{header}\n{}\n{st}\n",
+                    crate::SAMPLES_VERSION,
+                    crate::SAMPLES_COLUMNS
+                ),
+            )
+            .unwrap();
+            path
+        };
+        let new = [with("run-002-new.tsv", "# load: quiet")];
+        let full = with("full.tsv", "# load: quiet");
+        let versions = |before: &str| {
+            before
+                .lines()
+                .filter(|l| l.starts_with("# blake3-servil version: "))
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        };
+        let old = [with(
+            "run-001-old.tsv",
+            "# source blake3-servil-st: blake3-servil 0.8.0+b3c5 (https://example); commit b5b9",
+        )];
+        assert_eq!(
+            versions(&merge(&full, &old, &new, &[]).0),
+            ["# blake3-servil version: 0.8.0+b3c5"],
+            "from the source line"
+        );
+        let old = [with(
+            "run-001-old.tsv",
+            "# blake3-servil version: 0.9.0+dev.abc\n# source blake3-servil-st: blake3-servil 0.9.0 x",
+        )];
+        assert_eq!(
+            versions(&merge(&full, &old, &new, &[]).0),
+            ["# blake3-servil version: 0.9.0+dev.abc"],
+            "its own line, once"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The command end to end: OUT wherever it stands among the options,
+    /// the check's runs chosen by their names (`run-*-old.tsv`,
+    /// `run-*-new.tsv`: a neighbour that only ends alike, or only starts
+    /// alike, is left alone), `--without` applied, both files and both
+    /// maps written.
+    #[test]
+    fn the_command_reads_a_checks_folder_and_writes_the_page() {
+        let dir = std::env::temp_dir().join(format!("bench-beside-command-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let (kept, full, out) = (dir.join("kept"), dir.join("full"), dir.join("out"));
+        std::fs::create_dir_all(&kept).unwrap();
+        std::fs::create_dir_all(&full).unwrap();
+        let st = |ns: &str| {
+            format!("blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t{ns}/64,{ns}/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0")
+        };
+        let mt = "blake3-servil-mt\tsolo\tOneMessage\t64 B\tB\t9/64,9/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0";
+        run(&kept, "run-001-old.tsv", &[&st("100"), mt]);
+        run(&kept, "run-002-new.tsv", &[&st("80"), mt]);
+        // Neither is a run of the check's: one only ends as the old side's do, one only starts as a run does.
+        run(&kept, "notes-old.tsv", &[&st("5")]);
+        run(&kept, "run-003-new.tsv.bak", &[&st("6")]);
+        run(&full, "bench-hashes.samples.tsv", &[&st("999")]);
+        let text = |p: &str| p.to_owned();
+        command(&[
+            text("--check"),
+            kept.display().to_string(),
+            out.display().to_string(),
+            text("--without"),
+            text("every-core"),
+            text("--run"),
+            full.display().to_string(),
+        ]);
+        let read = |p: &str| std::fs::read_to_string(out.join(p)).unwrap();
+        let before = read("before/bench-hashes.samples.tsv");
+        let now = read("bench-hashes.samples.tsv");
+        assert!(
+            before.contains("\t100/64,100/64\t") && !before.contains("\t5/64"),
+            "{before}"
+        );
+        assert!(
+            now.contains("\t80/64,80/64\t") && !now.contains("\t6/64"),
+            "{now}"
+        );
+        assert!(
+            !before.contains("blake3-servil-mt") && !now.contains("blake3-servil-mt"),
+            "--without every-core"
+        );
+        assert!(out.join("bench-hashes.map.html").exists());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A whole, valid command's arguments over a fresh fixture, then
+    /// `extra`: what the two tests below add must stop it by itself.
+    fn valid_command_and(name: &str, extra: &[&str]) -> Vec<String> {
+        let dir = std::env::temp_dir().join(format!("bench-beside-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let (kept, full) = (dir.join("kept"), dir.join("full"));
+        std::fs::create_dir_all(&kept).unwrap();
+        std::fs::create_dir_all(&full).unwrap();
+        let st = "blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t100/64,100/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0";
+        run(&kept, "run-001-old.tsv", &[st]);
+        run(&kept, "run-002-new.tsv", &[st]);
+        run(&full, "bench-hashes.samples.tsv", &[st]);
+        let mut arguments = vec![
+            "--check".to_owned(),
+            kept.display().to_string(),
+            "--run".to_owned(),
+            full.display().to_string(),
+        ];
+        arguments.extend(
+            extra
+                .iter()
+                .map(|a| a.replace("DIR", &dir.display().to_string())),
+        );
+        arguments
+    }
+
+    #[test]
+    #[should_panic(expected = "usage: bench-hashes beside")]
+    fn an_unknown_option_stops_with_the_usage() {
+        command(&valid_command_and("unknown", &["--bogus", "DIR/out"]));
+    }
+
+    #[test]
+    #[should_panic(expected = "usage: bench-hashes beside")]
+    fn a_second_folder_stops_with_the_usage() {
+        command(&valid_command_and("second", &["DIR/out", "DIR/another"]));
+    }
 }
