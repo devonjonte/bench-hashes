@@ -1,5 +1,7 @@
 # bench-hashes 0.22.0
 
+**Every cell's timed code is compiled by itself.** Each contender's loop for each use case is now a function of its own, so a change in one contender's code cannot shift how another's cell is laid out. Until now a use case's loops for every contender shared one large function, and on one machine that moved a cell 8 to 15% when unrelated code changed. The calls measured are the same.
+
 **A check against an older bench is pinned like any other.** `check --old-bench`, the form every check against a past release takes, left each run's thread wherever the system put it, and the small cells measured after other work then moved by 10 to 20% from one check to the next for no change in the code. It now keeps each pair of runs on one core, as checks within one bench do. `--unpinned` is there for a bench older than pinning.
 
 **`check --contenders` checks one form of BLAKE3-Servil.** `check --contenders blake3-servil-st` judges the single-threaded contender alone, which is the crate `blake3-servil-core`; the check says whose cells it left out.

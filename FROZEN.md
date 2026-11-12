@@ -31,6 +31,30 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Devon Jonte's decisions, each dated):
+- **Every cell's timed code is a function of its own** (Devon Jonte,
+  November 12, 2026). `hash_batch` chose a contender and a use case
+  inside one set of functions, so every contender's loop for a use case
+  compiled into one large function, and a change in how one contender's
+  calls inlined could move another contender's cell. On two EPYC 7443
+  the multithreaded stream's 1 MiB cells read 8 to 15% slower when code
+  they never run was deleted, six checks by two people; with the stream's
+  loop in a function of its own the same two commits read level over 64
+  pairs (BLAKE3 #368; the data branch, 2026-11-12/stream-1mib-epyc-compile).
+  Now `hash_batch` picks `timed_cell::<A, U>` by the contender's and the
+  use case's places in their `ALL` lists: one function a cell, never
+  inlined, the contender and the use case constants inside it. The calls
+  a cell makes, its gaps and its samples are unchanged. Against the bench
+  before it, one library on both sides, every cell: no cell slower in
+  either stage on an EPYC 9275F, a Ryzen 9700X and an Apple M6. On the
+  two EPYC 7443 the 64 B continuous and lent cells read 9 to 11% faster
+  (the shared function cost them about that there; 3% on the M6, nothing
+  on Zen 5), and one cell reads slower: the multithreaded tree of 16384
+  leaves, two programs on two caches, by 21% and 13% in two checks. That
+  cell reads level with both sides compiled another way (thin LTO), and
+  level when the library alone is perturbed: it is that one build's
+  compilation of that cell, of the kind this change exists to stop, and
+  it is accepted as such. Under this bench the slower tree cell of
+  BLAKE3 #372 reads level on that machine.
 - **A check across two benches pins its pairs, as every check does**
   (Devon Jonte, November 12, 2026). `check --old-bench` passed
   `--unpinned` to `regress`, in case the older bench was from before
