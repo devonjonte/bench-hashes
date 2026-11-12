@@ -130,6 +130,7 @@ const B3SUM_COMPETITORS: [(&str, &str, &str, &str, bool); 4] = [
 ];
 
 /// One bar: a hash's speed in a cell.
+#[derive(Clone)]
 pub struct Bar {
     pub name: String,
     /// Which hash it is, for the legend's buttons: a contender's key (a
@@ -901,36 +902,31 @@ pub fn html(rows: &[Row]) -> String {
             drawn.push((form_name(b.id).unwrap_or(&b.name), b.id, b.color, b.striped));
         }
     }
-    // Servil's two first, then official's two, then the SHA-256s, then the
-    // rest as drawn (sha1sum, md5sum).
+    // The release before's two forms first, then servil's two, official's
+    // two, the SHA-256s, then the rest as drawn (sha1sum, md5sum).
     let order = [
-        Algorithm::Blake3ServilSt,
-        Algorithm::Blake3ServilMt,
-        Algorithm::Blake3,
-        Algorithm::Blake3Rayon,
-        Algorithm::Sha256,
-        Algorithm::Sha256Ring,
-        Algorithm::Sha256CommonCrypto,
+        BEFORE_ST,
+        BEFORE_MT,
+        Algorithm::Blake3ServilSt.key(),
+        Algorithm::Blake3ServilMt.key(),
+        Algorithm::Blake3.key(),
+        Algorithm::Blake3Rayon.key(),
+        Algorithm::Sha256.key(),
+        Algorithm::Sha256Ring.key(),
+        Algorithm::Sha256CommonCrypto.key(),
     ];
-    // A form of the release before stands just ahead of today's.
-    let rank = |id: &str| {
-        let (today, before) = match id {
-            BEFORE_ST => (Algorithm::Blake3ServilSt.key(), 0),
-            BEFORE_MT => (Algorithm::Blake3ServilMt.key(), 0),
-            other => (other, 1),
-        };
-        order
-            .iter()
-            .position(|a| a.key() == today)
-            .map_or(usize::MAX, |p| 2 * p + before)
-    };
-    drawn.sort_by_key(|(_, id, _, _)| rank(id));
+    drawn.sort_by_key(|(_, id, _, _)| order.iter().position(|o| o == id).unwrap_or(usize::MAX));
     // A library's two forms, single- and multi-threaded, stand one above
     // the other: they are one contender in two forms, which SHA-256 is
-    // related to in neither (Zooko, October 23).
+    // related to in neither (Zooko, October 23). The release before is
+    // such a contender too.
     let pairs = [
-        (Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt),
-        (Algorithm::Blake3, Algorithm::Blake3Rayon),
+        (BEFORE_ST, BEFORE_MT),
+        (
+            Algorithm::Blake3ServilSt.key(),
+            Algorithm::Blake3ServilMt.key(),
+        ),
+        (Algorithm::Blake3.key(), Algorithm::Blake3Rayon.key()),
     ];
     let button = |name: &str, id: &str, color: &str, striped: bool| {
         format!(
@@ -945,12 +941,11 @@ pub fn html(rows: &[Row]) -> String {
         if done.contains(id) {
             continue;
         }
-        match pairs.iter().find(|(a, b)| a.key() == *id || b.key() == *id) {
+        match pairs.iter().find(|(a, b)| a == id || b == id) {
             Some((a, b)) => {
                 legend.push_str("<span class=\"pair\">");
                 for form in [a, b] {
-                    if let Some((n, k, c, st)) = drawn.iter().find(|(_, k, _, _)| *k == form.key())
-                    {
+                    if let Some((n, k, c, st)) = drawn.iter().find(|(_, k, _, _)| k == form) {
                         legend.push_str(&button(n, k, c, *st));
                         done.push(k);
                     }
@@ -1564,5 +1559,341 @@ mod tests {
         let mut labels: Vec<&str> = PICKS.iter().map(|p| p.column).collect();
         labels.dedup();
         assert_eq!(labels.len(), PICKS.len(), "each row its own label");
+    }
+
+    /// The three families of a cell: official's form follows servil's
+    /// (its multi-threaded one where servil's is and the run has it, else
+    /// its one thread).
+    #[test]
+    fn officials_form_follows_servils() {
+        let bars = vec![
+            bar("BLAKE3-Servil st", 2.0, ""),
+            bar("BLAKE3-Servil mt", 9.0, ""),
+            bar("BLAKE3 official", 1.0, ""),
+            bar("b3sum, official BLAKE3's", 5.0, ""),
+            bar("SHA-256", 0.5, ""),
+        ];
+        let ids = |form| trio(&bars, form).map(|b| b.map(|b| b.id));
+        let (st, mt) = (Algorithm::Blake3ServilSt, Algorithm::Blake3ServilMt);
+        let (official, rayon, sha) = (
+            Algorithm::Blake3.key(),
+            Algorithm::Blake3Rayon.key(),
+            Algorithm::Sha256.key(),
+        );
+        assert_eq!(ids(mt), [Some(mt.key()), Some(rayon), Some(sha)]);
+        assert_eq!(
+            ids(st),
+            [Some(st.key()), Some(official), Some(sha)],
+            "one thread beside one thread"
+        );
+        let without_rayon: Vec<Bar> = bars.iter().filter(|b| b.id != rayon).cloned().collect();
+        assert_eq!(
+            trio(&without_rayon, mt).map(|b| b.map(|b| b.id)),
+            [Some(mt.key()), Some(official), Some(sha)],
+            "a run without official's multi-threaded form"
+        );
+    }
+
+    /// Each form of the release before stands just ahead of today's form in
+    /// a cell's bars; in the legend its two forms are a pair ahead of
+    /// today's pair, whatever order the page met them in.
+    #[test]
+    fn each_release_before_stands_just_ahead_of_todays_form() {
+        let dir = std::env::temp_dir().join(format!("bench-overview-both-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("before")).unwrap();
+        let file = |version: &str, rows: &[(&str, u32)]| {
+            let rows: String = rows
+                .iter()
+                .map(|(who, ns)| {
+                    format!(
+                        "{who}\tsolo\tOneMessage\t128 MiB\tB\t{ns}/64,{ns}/64\t1,2\t-\t-\t-\t0,0\n"
+                    )
+                })
+                .collect();
+            format!(
+                "{}\n# bench-hashes version: test\n# blake3-servil version: {version}\n# load: quiet\n# power: mains power\n{}\n{rows}",
+                super::SAMPLES_VERSION,
+                crate::SAMPLES_COLUMNS
+            )
+        };
+        std::fs::write(
+            dir.join("bench-hashes.samples.tsv"),
+            file(
+                "0.9.0+dev.abc",
+                &[
+                    ("blake3-servil-st", 80),
+                    ("blake3-servil-mt", 20),
+                    ("blake3-official", 90),
+                    ("sha256", 400),
+                ],
+            ),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("before/bench-hashes.samples.tsv"),
+            file(
+                "0.8.0+b3c5",
+                &[("blake3-servil-st", 100), ("blake3-servil-mt", 25)],
+            ),
+        )
+        .unwrap();
+        let row = super::row(&dir, "x".to_owned());
+        let pick = PICKS.iter().position(|p| p.column == "128 MiB").unwrap();
+        let ids: Vec<&str> = row.cells[pick].iter().map(|b| b.id).collect();
+        assert_eq!(
+            ids,
+            [
+                BEFORE_ST,
+                "blake3-servil-st",
+                BEFORE_MT,
+                "blake3-servil-mt",
+                "blake3-official",
+                "sha256"
+            ]
+        );
+        // The legend: the same order, though the page meets the bars in another.
+        let mut scrambled = row.cells[pick].clone();
+        scrambled.reverse();
+        let mut cells: Vec<Bars> = PICKS.iter().map(|_| Vec::new()).collect();
+        cells[pick] = scrambled;
+        let page = html(&[self::row("AMD Ryzen 7 9700X", false, cells)]);
+        let legend = &page[page.find("<div class=\"legend\">").unwrap()..];
+        let legend = &legend[..legend.find("</div>").unwrap()];
+        let keys: Vec<&str> = legend
+            .split("data-k=\"")
+            .skip(1)
+            .map(|rest| &rest[..rest.find('"').unwrap()])
+            .collect();
+        assert_eq!(
+            keys,
+            [
+                BEFORE_ST,
+                BEFORE_MT,
+                "blake3-servil-st",
+                "blake3-servil-mt",
+                "blake3-official",
+                "sha256"
+            ],
+            "the release before's two forms as a pair, ahead of today's pair"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A use no machine of the page measured under this release has no row;
+    /// a page whose machines all await a run under this release keeps every
+    /// row, empty.
+    #[test]
+    fn a_row_no_fresh_machine_measured_is_left_out() {
+        let label = |pick: usize| format!(">{}<", PICKS[pick].column);
+        let mut cells: Vec<Bars> = PICKS.iter().map(|_| Vec::new()).collect();
+        cells[0] = vec![bar("BLAKE3-Servil st", 2.0, ""), bar("SHA-256", 1.0, "")];
+        let fresh = row("AMD Ryzen 7 9700X", false, cells);
+        let page = html(std::slice::from_ref(&fresh));
+        assert!(page.contains(&label(0)));
+        assert!(!page.contains(&label(1)), "nothing measured the second row");
+        let mut awaited = row(
+            "Apple M4 Max",
+            false,
+            PICKS.iter().map(|_| Vec::new()).collect(),
+        );
+        awaited.stale = true;
+        let page = html(&[awaited]);
+        assert!(
+            page.contains(&label(0)) && page.contains(&label(1)),
+            "every row, awaiting its run"
+        );
+    }
+
+    /// The first chart draws a machine that has both of its cells, the
+    /// headline and the everyday one; a machine with one alone has no row there.
+    #[test]
+    fn the_first_chart_needs_both_of_its_cells() {
+        let both = vec![bar("BLAKE3-Servil mt", 9.0, ""), bar("SHA-256", 1.0, "")];
+        for present in [HEADLINE, EVERYDAY] {
+            let mut cells: Vec<Bars> = PICKS.iter().map(|_| Vec::new()).collect();
+            cells[present] = both.clone();
+            assert_eq!(
+                families_by_machine(&[row("AMD Ryzen 7 9700X", false, cells)], &[0]),
+                ""
+            );
+        }
+        let mut cells: Vec<Bars> = PICKS.iter().map(|_| Vec::new()).collect();
+        cells[HEADLINE] = both.clone();
+        cells[EVERYDAY] = both;
+        assert!(
+            families_by_machine(&[row("AMD Ryzen 7 9700X", false, cells)], &[0])
+                .contains("fam-row")
+        );
+    }
+
+    /// A cell whose bars all measure zero draws bars of no width, never a
+    /// width that is not a number.
+    #[test]
+    fn bars_of_zero_speed_have_no_width() {
+        let mut cells: Vec<Bars> = PICKS.iter().map(|_| Vec::new()).collect();
+        cells[0] = vec![bar("BLAKE3-Servil st", 0.0, ""), bar("SHA-256", 0.0, "")];
+        let page = html(&[row("AMD Ryzen 7 9700X", false, cells)]);
+        assert!(page.contains("width:0.0%"));
+        assert!(!page.contains("width:NaN") && !page.contains("width:inf"));
+    }
+
+    /// A generation or a core count is dropped as the pair of words it is:
+    /// a number alone, or "Gen" alone, stays.
+    #[test]
+    fn a_number_or_gen_alone_stays_in_the_name() {
+        assert_eq!(short_name("Foo 9th Wonder"), "Foo 9th Wonder");
+        assert_eq!(short_name("Foo Bar Gen Baz"), "Foo Bar Gen Baz");
+    }
+
+    /// A machine is virtual by any one of its three signs.
+    #[test]
+    fn a_virtual_machine_is_known_by_any_one_sign() {
+        let with = |os: &str, identity: &str| {
+            let headers = vec![
+                ("os type".to_owned(), os.to_owned()),
+                ("cpu identity".to_owned(), identity.to_owned()),
+                ("cpu type".to_owned(), "Some CPU".to_owned()),
+            ];
+            described(&headers, "x".to_owned(), Vec::new(), false).virtual_machine
+        };
+        assert!(with("linux 7.0 virt", "GenuineIntel"));
+        assert!(with("linux 7.0", "a virtual CPU"));
+        assert!(with("linux 7.0", "QEMU TCG"));
+        assert!(!with("linux 7.0", "GenuineIntel"));
+    }
+
+    /// A folder is a machine's results by either of its samples files, and
+    /// a folder with one file of this release and one of another reads the
+    /// first alone.
+    #[test]
+    fn a_results_folder_holds_either_samples_file() {
+        let dir = std::env::temp_dir().join(format!("bench-overview-dirs-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        for (name, files) in [
+            ("a-hashing", &["bench-hashes.samples.tsv"][..]),
+            ("b-b3sum", &["b3sum.samples.tsv"][..]),
+            ("c-neither", &["notes.txt"][..]),
+        ] {
+            std::fs::create_dir_all(dir.join(name)).unwrap();
+            for file in files {
+                std::fs::write(dir.join(name).join(file), "x").unwrap();
+            }
+        }
+        let names: Vec<String> = results_dirs(&dir)
+            .iter()
+            .map(|p| p.file_name().unwrap().to_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(names, ["a-hashing", "b-b3sum"]);
+        // One file of this release, the other of an older one: the row is
+        // this release's, read from the first, with the older file left alone.
+        let both = dir.join("d-both");
+        std::fs::create_dir_all(&both).unwrap();
+        std::fs::write(
+            both.join("bench-hashes.samples.tsv"),
+            format!(
+                "{}\n# bench-hashes version: test\n# load: quiet\n# power: mains power\n{}\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t80/64,80/64\t1,2\t-\t-\t-\t0,0\n",
+                SAMPLES_VERSION,
+                crate::SAMPLES_COLUMNS
+            ),
+        )
+        .unwrap();
+        std::fs::write(
+            both.join("b3sum.samples.tsv"),
+            "# an older release's file\nnot this format\n",
+        )
+        .unwrap();
+        let row = super::row(&both, "x".to_owned());
+        assert!(!row.stale);
+        assert_eq!(
+            row.cells[0].len(),
+            1,
+            "the 64 B cell from this release's file"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A batch cell's speed counts its own messages' length: a batch of 16
+    /// messages of 4 KiB, whose label a batch of 16 messages of 64 B shares.
+    #[test]
+    fn a_batch_cells_speed_is_by_its_own_messages_length() {
+        let dir = std::env::temp_dir().join(format!("bench-overview-long-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("bench-hashes.samples.tsv");
+        // 4,096 ns a message of 4,096 bytes: 1 GB/s.
+        std::fs::write(
+            &path,
+            format!(
+                "{}\n# bench-hashes version: test\n# load: quiet\n# power: mains power\n{}\nblake3-servil-st\tsolo\tManyLongMessages\t16\tB\t409600/100,409600/100\t1,2\t-\t-\t-\t0,0\n",
+                SAMPLES_VERSION,
+                crate::SAMPLES_COLUMNS
+            ),
+        )
+        .unwrap();
+        let file = read_samples(path.to_str().unwrap());
+        let bars = hashing_bars(
+            &file,
+            None,
+            UseCase::ManyLongMessages,
+            "16",
+            Algorithm::Blake3ServilSt,
+        );
+        assert_eq!(bars.len(), 1);
+        assert_eq!(bars[0].gbps, 1.0);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A folder with b3sum's samples alone is a row: the hashing file it
+    /// lacks is not looked into.
+    #[test]
+    fn a_folder_of_b3sums_samples_alone_is_a_row() {
+        let dir = std::env::temp_dir().join(format!("bench-overview-b3-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("b3sum.samples.tsv"),
+            format!(
+                "{}\n# bench-hashes version: test\n# cpu type: AMD Ryzen 7 9700X 8-Core Processor\n# load: quiet\n# power: mains power\n{}\n",
+                SAMPLES_VERSION,
+                crate::SAMPLES_COLUMNS
+            ),
+        )
+        .unwrap();
+        let row = super::row(&dir, "x".to_owned());
+        assert!(!row.stale);
+        assert_eq!(row.machine, "AMD Ryzen 7 9700X");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The command writes the page it names from the results it is given.
+    #[test]
+    fn the_command_writes_the_page() {
+        let dir =
+            std::env::temp_dir().join(format!("bench-overview-command-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let machine = dir.join("benchmark-results/m");
+        std::fs::create_dir_all(&machine).unwrap();
+        std::fs::write(
+            machine.join("bench-hashes.samples.tsv"),
+            format!(
+                "{}\n# bench-hashes version: test\n# cpu type: AMD Ryzen 7 9700X 8-Core Processor\n# load: quiet\n# power: mains power\n{}\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t80/64,80/64\t1,2\t-\t-\t-\t0,0\n",
+                SAMPLES_VERSION,
+                crate::SAMPLES_COLUMNS
+            ),
+        )
+        .unwrap();
+        let out = dir.join("index.html");
+        command(&[
+            out.display().to_string(),
+            dir.join("benchmark-results").display().to_string(),
+        ]);
+        let page = std::fs::read_to_string(&out).unwrap();
+        assert!(page.contains("AMD Ryzen 7 9700X"), "the machine's name");
+        assert!(
+            page.contains("benchmark-results/m/bench-hashes.map.html"),
+            "its map, by a path from the page"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }
