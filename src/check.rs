@@ -109,6 +109,20 @@ const FIRST_RUNS: usize = 1;
 /// measurement cheap).
 const PROBE_LAYOUTS: usize = 3;
 
+/// What `--layouts n` costs where it is more than a check needs, said
+/// before the builds start: every layout is a relink on each side, and
+/// the second stage gives its suspects SECOND_PAIRS pairs whatever the
+/// first stage's count. (November 12, 2026: about ten checks at `--layouts 64`
+/// each spent about 45 minutes linking for four minutes of measuring.)
+fn layouts_cost(n: usize) -> Option<String> {
+    (n > 2 * LAYOUTS).then(|| {
+        format!(
+            "check: --layouts {n}: {} links before the first pair, about 18 s each; the default {LAYOUTS} choose the suspects, and the second stage gives them {SECOND_PAIRS} pairs",
+            2 * n
+        )
+    })
+}
+
 /// `exes`, each `times` times, in turn: the same layouts run again cost a
 /// run each, where a new layout costs a relink.
 fn each_run(exes: Vec<String>, times: usize) -> Vec<String> {
@@ -185,7 +199,10 @@ pub fn command(arguments: &[String]) -> i32 {
                     .next()
                     .and_then(|v| v.parse().ok())
                     .filter(|&n| n >= 3)
-                    .unwrap_or_else(|| panic!("--layouts takes a count of 3 or more (regress's rule needs three pairs)\n{usage}"))
+                    .unwrap_or_else(|| panic!("--layouts takes a count of 3 or more (regress's rule needs three pairs)\n{usage}"));
+                if let Some(cost) = layouts_cost(layouts_a_side) {
+                    eprintln!("{cost}");
+                }
             }
             "--keep" => {
                 keep =
@@ -1230,6 +1247,18 @@ fn servil_crate(checkout: &Path) -> std::path::PathBuf {
 
 #[cfg(test)]
 mod tests {
+    /// `--layouts` beyond twice the default says what it costs; up to
+    /// there (the default, a probe's three, `--layouts 8`) it says nothing.
+    #[test]
+    fn many_layouts_say_their_cost() {
+        assert_eq!(super::layouts_cost(3), None);
+        assert_eq!(super::layouts_cost(8), None);
+        assert_eq!(
+            super::layouts_cost(64).as_deref(),
+            Some("check: --layouts 64: 128 links before the first pair, about 18 s each; the default 4 choose the suspects, and the second stage gives them 64 pairs")
+        );
+    }
+
     /// The patch points at the crate named blake3-servil: the checkout's
     /// root for one crate, threads/ where the root is the core (BLAKE3
     /// #335); a threads/ of another name is passed over.
