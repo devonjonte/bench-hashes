@@ -634,22 +634,19 @@ fn run_regress(exe: &Path, bench: &Path, arguments: &[String]) -> (i32, String) 
     (out.status.code().unwrap_or(2), text)
 }
 
-/// BLAKE3-Servil's checkout that --fork names: a git repository holding
-/// `Cargo.toml` with `name = "blake3-servil"`, wherever it sits.
+/// BLAKE3-Servil's checkout that --fork names, wherever it sits: a git
+/// repository whose crate named `blake3-servil` is at its root or, where
+/// the library is two crates, in `threads/` (`servil_crate`'s rule, which
+/// stops on any other directory).
 fn fork_checkout(dir: &Path) -> PathBuf {
     let fork = std::fs::canonicalize(dir)
         .unwrap_or_else(|e| panic!("check: --fork {}: {e}", dir.display()));
-    let manifest = std::fs::read_to_string(fork.join("Cargo.toml")).unwrap_or_else(|e| {
-        panic!(
-            "check: {} holds no Cargo.toml: {e}; --fork names BLAKE3-Servil's checkout",
-            fork.display()
-        )
-    });
     assert!(
-        manifest.contains("name = \"blake3-servil\""),
-        "check: {} is not BLAKE3-Servil",
+        fork.join("Cargo.toml").is_file(),
+        "check: {} holds no Cargo.toml; --fork names BLAKE3-Servil's checkout",
         fork.display()
     );
+    servil_crate(&fork);
     fork
 }
 
@@ -1256,6 +1253,37 @@ mod tests {
         assert_eq!(
             super::servil_crate(&dir.join("two")),
             dir.join("two/threads")
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// --fork takes a checkout of either shape by its root (BLAKE3 #335:
+    /// the root of two crates is blake3-servil-core, and the hook, the
+    /// runner and CONTRIBUTING all name the root), and stops on a
+    /// directory that holds no crate named blake3-servil.
+    #[test]
+    fn fork_names_a_checkout_of_one_crate_or_two_by_its_root() {
+        let dir = std::env::temp_dir().join(format!("bench-fork-checkout-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let write = |sub: &str, name: &str| {
+            std::fs::create_dir_all(dir.join(sub)).unwrap();
+            std::fs::write(
+                dir.join(sub).join("Cargo.toml"),
+                format!("[package]\nname = \"{name}\"\nversion = \"0.9.0+dev\"\n"),
+            )
+            .unwrap();
+        };
+        write("one", "blake3-servil");
+        write("two", "blake3-servil-core");
+        write("two/threads", "blake3-servil");
+        write("other", "blake3-servil-core");
+        let canonical = |sub: &str| std::fs::canonicalize(dir.join(sub)).unwrap();
+        assert_eq!(super::fork_checkout(&dir.join("one")), canonical("one"));
+        assert_eq!(super::fork_checkout(&dir.join("two")), canonical("two"));
+        let refused = std::panic::catch_unwind(|| super::fork_checkout(&dir.join("other")));
+        assert!(
+            refused.is_err(),
+            "a core with no blake3-servil beside it is no checkout to check"
         );
         std::fs::remove_dir_all(&dir).unwrap();
     }
