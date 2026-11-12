@@ -1079,8 +1079,13 @@ fn layouts(
     let checkout = side_dir.join("src");
     let patch_fork = fork_patch(&copy, &checkout);
     let mut exes = Vec::new();
+    let first = seeds.start;
     for seed in seeds {
         shuffle(&mut symbols, seed as u64);
+        // SCRATCH (BLAKE3 #368): each layout is also a compilation of its
+        // own: the inliner's threshold varies with the layout's place on
+        // its side, the same for the two sides of a pair.
+        let threshold = [225usize, 150, 325, 100, 275, 400, 190, 500][(seed - first) % 8];
         let order = side_dir.join(format!("order-{seed}.txt"));
         std::fs::write(&order, symbols.join("\n") + "\n").unwrap();
         let flags: Vec<String> = if cfg!(target_os = "macos") {
@@ -1106,6 +1111,7 @@ fn layouts(
                 "--",
             ])
             .args(&flags)
+            .arg(format!("-Cllvm-args=-inline-threshold={threshold}"))
             .current_dir(&copy)
             .env("CARGO_TARGET_DIR", side_dir.join("target"))
             .env("BENCH_HASHES_CHECKOUT", bench)
