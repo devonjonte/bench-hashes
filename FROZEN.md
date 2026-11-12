@@ -31,6 +31,15 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Devon Jonte's decisions, each dated):
+- **`check --contenders KEYS` narrows a check to one form of
+  BLAKE3-Servil** (Devon Jonte, November 12, 2026). `blake3-servil-st`
+  is what the crate `blake3-servil-core` offers; a check of it alone is
+  that crate's check. It also lets a check against 0.8 reach its second
+  stage: there the multithreaded contender's continuous cells always read
+  slower (0.8's bench called the stream, which the library no longer has;
+  today's makes one-shot calls), and a first stage with a slower cell
+  names no suspects. The check says which contender's cells it left out.
+  The cells, the pairs and the rule are unchanged.
 - **A judged cell's line says how far its pairs spread** (Devon Jonte,
   November 12, 2026; Zooko's question of that day). `regress` and `check`
   print, beside the ratio judged and before the pairs, "from -27.0% to

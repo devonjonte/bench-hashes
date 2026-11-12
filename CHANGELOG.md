@@ -1,5 +1,7 @@
 # bench-hashes 0.22.0
 
+**`check --contenders` checks one form of BLAKE3-Servil.** `check --contenders blake3-servil-st` judges the single-threaded contender alone, which is the crate `blake3-servil-core`; the check says whose cells it left out.
+
 **A verdict says how far its pairs spread.** Each line `check` and `regress` print for a slower or faster cell now reads "+20.6% (the pairs' geometric mean; 64 pairs, from -27.0% to +194.6%: ...)". Every pair runs under a link layout of its own, so the spread shows how much layout and one run move that cell, beside the mean.
 
 **A map of this release beside the last.** `bench-hashes beside` draws a machine's map with BLAKE3-Servil as of the release before beside this one's, dashed, with a chip to hide it. The two versions come from a release check's paired runs, since one bench cannot build both; `--without` leaves out rows, columns, or one kind of contender, for a page of one crate's calls.

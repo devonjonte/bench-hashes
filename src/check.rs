@@ -1,4 +1,4 @@
-//! `bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS | --cells all] [--layouts N] [--keep DIR] [--when-quiet]`:
+//! `bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS | --cells all] [--contenders KEYS] [--layouts N] [--keep DIR] [--when-quiet]`:
 //! did a change to BLAKE3-Servil hurt its speed in the cells its author names?
 //! Run from a checkout of bench-hashes, it compares BLAKE3-Servil's working
 //! tree (or `--new REV`) with a commit (`--against`, HEAD by default) and
@@ -150,6 +150,16 @@ fn shared_subjects(old_list: &str) -> Vec<&'static str> {
         .collect()
 }
 
+/// The contenders `--contenders KEYS` names, in SUBJECTS' order; the first
+/// key that is none of them otherwise.
+fn chosen_subjects(keys: &str) -> Result<Vec<&'static str>, String> {
+    let named: Vec<&str> = keys.split(',').collect();
+    if let Some(unknown) = named.iter().find(|k| !SUBJECTS.contains(k)) {
+        return Err((*unknown).to_owned());
+    }
+    Ok(SUBJECTS.into_iter().filter(|s| named.contains(s)).collect())
+}
+
 /// Equal library trees settle a comparison only when both use this bench.
 /// An explicit old bench is a comparison of the instrument itself.
 fn unchanged_inputs(library_changed: bool, old_bench: Option<&str>) -> bool {
@@ -157,10 +167,11 @@ fn unchanged_inputs(library_changed: bool, old_bench: Option<&str>) -> bool {
 }
 
 pub fn command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS | --cells all] [--layouts N] [--keep DIR] [--when-quiet]";
+    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS | --cells all] [--contenders KEYS] [--layouts N] [--keep DIR] [--when-quiet]";
     let (mut against, mut all, mut layouts_a_side, mut keep) =
         ("HEAD".to_string(), false, LAYOUTS, None::<PathBuf>);
     let mut when_quiet = false;
+    let mut only = None::<Vec<&'static str>>;
     let mut probe = None::<String>;
     let mut named = None::<String>;
     let mut new_rev = None::<String>;
@@ -193,6 +204,17 @@ pub fn command(arguments: &[String]) -> i32 {
                     .unwrap_or_else(|| panic!("--cells takes `all`\n{usage}"));
                 assert_eq!(value, "all", "--cells takes `all`\n{usage}");
                 all = true;
+            }
+            "--contenders" => {
+                let keys = it.next().unwrap_or_else(|| {
+                    panic!("--contenders takes BLAKE3-Servil's contenders, by key\n{usage}")
+                });
+                only = Some(chosen_subjects(keys).unwrap_or_else(|unknown| {
+                    panic!(
+                        "--contenders: {unknown} is none of {}\n{usage}",
+                        SUBJECTS.join(", ")
+                    )
+                }));
             }
             "--layouts" => {
                 layouts_a_side = it
@@ -415,6 +437,27 @@ pub fn command(arguments: &[String]) -> i32 {
         shared
     } else {
         SUBJECTS.to_vec()
+    };
+    // --contenders narrows the check to the forms named (one crate's
+    // calls): the others' cells are left out, and the check says so.
+    let subjects: Vec<&str> = match &only {
+        Some(only) => {
+            let kept: Vec<&str> = subjects
+                .iter()
+                .copied()
+                .filter(|s| only.contains(s))
+                .collect();
+            assert!(
+                !kept.is_empty(),
+                "--contenders: the old bench has none of {}",
+                only.join(", ")
+            );
+            for left_out in subjects.iter().filter(|s| !kept.contains(s)) {
+                eprintln!("check: --contenders: {left_out}'s cells are left out");
+            }
+            kept
+        }
+        None => subjects,
     };
     let contenders: Vec<String> = subjects.iter().map(|s| s.to_string()).collect();
     let points: Option<Vec<String>> = if all { None } else { named_points };
@@ -1457,6 +1500,25 @@ mod tests {
         assert_eq!(super::shared_subjects(&both), super::SUBJECTS);
         // A name inside another word is no contender of that bench.
         assert!(super::shared_subjects("  not-blake3-servil-st  x  available\n").is_empty());
+    }
+
+    /// `--contenders` takes BLAKE3-Servil's own contenders, in their own
+    /// order whatever order they are named in, and names a key that is
+    /// none of them.
+    #[test]
+    fn contenders_are_chosen_among_blake3_servils() {
+        assert_eq!(
+            super::chosen_subjects("blake3-servil-st"),
+            Ok(vec!["blake3-servil-st"])
+        );
+        assert_eq!(
+            super::chosen_subjects("blake3-servil-mt,blake3-servil-st"),
+            Ok(super::SUBJECTS.to_vec())
+        );
+        assert_eq!(
+            super::chosen_subjects("blake3-servil-st,sha256"),
+            Err("sha256".to_owned())
+        );
     }
 
     #[test]
