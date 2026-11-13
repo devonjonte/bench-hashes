@@ -30,7 +30,7 @@ read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
-**Changes for the next release** (Devon Jonte's decisions, each dated):
+**Changes for 0.22, November 12-13, 2026** (Devon Jonte's decisions, each dated):
 - **The pin is BLAKE3-Servil 0.9.0** (Devon Jonte, November 13, 2026):
   commit bf2da8b957f5e0c80babb57952de3e53f95c921a, the release
   `0.9.0+73ee859efce085d28f1c2b22c35a5703403476f7`, two crates and no
