@@ -1,4 +1,4 @@
-# bench-hashes 0.22.0
+# bench-hashes 0.22.0+d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41
 
 **Every cell's timed code is compiled by itself.** Each contender's loop for each use case is now a function of its own, so a change in one contender's code cannot shift how another's cell is laid out. Until now a use case's loops for every contender shared one large function, and on one machine that moved a cell 8 to 15% when unrelated code changed. The calls measured are the same.
 
