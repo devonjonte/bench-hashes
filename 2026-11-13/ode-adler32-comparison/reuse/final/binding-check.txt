@@ -1,0 +1,83 @@
+Both libraries loaded as distinct shared objects; compressor and decoder entry addresses differ.
+
+    82: 0000000000010cd0     0 NOTYPE  LOCAL  DEFAULT   12 b3l_adler32
+    96: 0000000000010cd0     0 NOTYPE  LOCAL  DEFAULT   12 _b3l_adler32
+
+
+/home/agent/bench-hashes-validation/ode-adler-comparison/reuse-private-out/ode/libdeflate.so:     file format elf64-x86-64
+
+
+Disassembly of section .init:
+
+Disassembly of section .plt:
+
+Disassembly of section .plt.got:
+
+Disassembly of section .text:
+
+000000000000e800 <libdeflate_zlib_compress>:
+    e800:	f3 0f 1e fa          	endbr64
+    e804:	49 83 f8 06          	cmp    $0x6,%r8
+    e808:	77 06                	ja     e810 <libdeflate_zlib_compress+0x10>
+    e80a:	31 c0                	xor    %eax,%eax
+    e80c:	c3                   	ret
+    e80d:	0f 1f 00             	nopl   (%rax)
+    e810:	41 57                	push   %r15
+    e812:	49 89 d7             	mov    %rdx,%r15
+    e815:	41 56                	push   %r14
+    e817:	49 89 f6             	mov    %rsi,%r14
+    e81a:	53                   	push   %rbx
+    e81b:	48 89 cb             	mov    %rcx,%rbx
+    e81e:	48 83 ec 10          	sub    $0x10,%rsp
+    e822:	4c 89 44 24 08       	mov    %r8,0x8(%rsp)
+    e827:	48 89 3c 24          	mov    %rdi,(%rsp)
+    e82b:	e8 c0 c9 ff ff       	call   b1f0 <libdeflate_get_compression_level>
+    e830:	48 8b 3c 24          	mov    (%rsp),%rdi
+    e834:	4c 8b 44 24 08       	mov    0x8(%rsp),%r8
+    e839:	89 c2                	mov    %eax,%edx
+    e83b:	b8 78 01 00 00       	mov    $0x178,%eax
+    e840:	83 fa 01             	cmp    $0x1,%edx
+    e843:	76 0a                	jbe    e84f <libdeflate_zlib_compress+0x4f>
+    e845:	b8 78 5e 00 00       	mov    $0x5e78,%eax
+    e84a:	83 fa 05             	cmp    $0x5,%edx
+    e84d:	77 61                	ja     e8b0 <libdeflate_zlib_compress+0xb0>
+    e84f:	66 89 03             	mov    %ax,(%rbx)
+    e852:	48 8d 4b 02          	lea    0x2(%rbx),%rcx
+    e856:	49 83 e8 06          	sub    $0x6,%r8
+    e85a:	4c 89 fa             	mov    %r15,%rdx
+    e85d:	4c 89 f6             	mov    %r14,%rsi
+    e860:	48 89 0c 24          	mov    %rcx,(%rsp)
+    e864:	e8 07 28 ff ff       	call   1070 <libdeflate_deflate_compress@plt>
+    e869:	48 85 c0             	test   %rax,%rax
+    e86c:	74 32                	je     e8a0 <libdeflate_zlib_compress+0xa0>
+    e86e:	48 8b 0c 24          	mov    (%rsp),%rcx
+    e872:	4c 89 fe             	mov    %r15,%rsi
+    e875:	4c 89 f7             	mov    %r14,%rdi
+    e878:	48 01 c1             	add    %rax,%rcx
+    e87b:	48 89 0c 24          	mov    %rcx,(%rsp)
+    e87f:	e8 4c 24 00 00       	call   10cd0 <_b3l_adler32>
+    e884:	48 8b 0c 24          	mov    (%rsp),%rcx
+    e888:	0f c8                	bswap  %eax
+    e88a:	89 01                	mov    %eax,(%rcx)
+    e88c:	48 83 c4 10          	add    $0x10,%rsp
+    e890:	48 8d 41 04          	lea    0x4(%rcx),%rax
+    e894:	48 29 d8             	sub    %rbx,%rax
+    e897:	5b                   	pop    %rbx
+    e898:	41 5e                	pop    %r14
+    e89a:	41 5f                	pop    %r15
+    e89c:	c3                   	ret
+    e89d:	0f 1f 00             	nopl   (%rax)
+    e8a0:	48 83 c4 10          	add    $0x10,%rsp
+    e8a4:	31 c0                	xor    %eax,%eax
+    e8a6:	5b                   	pop    %rbx
+    e8a7:	41 5e                	pop    %r14
+    e8a9:	41 5f                	pop    %r15
+    e8ab:	c3                   	ret
+    e8ac:	0f 1f 40 00          	nopl   0x0(%rax)
+    e8b0:	83 fa 08             	cmp    $0x8,%edx
+    e8b3:	19 c0                	sbb    %eax,%eax
+    e8b5:	66 25 00 c2          	and    $0xc200,%ax
+    e8b9:	66 2d 88 25          	sub    $0x2588,%ax
+    e8bd:	eb 90                	jmp    e84f <libdeflate_zlib_compress+0x4f>
+
+Disassembly of section .fini:

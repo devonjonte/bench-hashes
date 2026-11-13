@@ -1,0 +1,56 @@
+--- a/lib/zlib_compress.c
++++ b/lib/zlib_compress.c
+@@ -27,6 +27,7 @@
+ 
+ #include "deflate_compress.h"
+ #include "zlib_constants.h"
++#include "ode_adler32.h"
+ 
+ LIBDEFLATEAPI size_t
+ libdeflate_zlib_compress(struct libdeflate_compressor *c,
+@@ -67,7 +68,7 @@
+ 	out_next += deflate_size;
+ 
+ 	/* ADLER32  */
+-	put_unaligned_be32(libdeflate_adler32(1, in, in_nbytes), out_next);
++	put_unaligned_be32((u32)b3l_adler32(in, in_nbytes), out_next);
+ 	out_next += 4;
+ 
+ 	return out_next - (u8 *)out;
+--- a/lib/zlib_decompress.c
++++ b/lib/zlib_decompress.c
+@@ -27,6 +27,7 @@
+ 
+ #include "lib_common.h"
+ #include "zlib_constants.h"
++#include "ode_adler32.h"
+ 
+ LIBDEFLATEAPI enum libdeflate_result
+ libdeflate_zlib_decompress_ex(struct libdeflate_decompressor *d,
+@@ -81,7 +82,7 @@
+ 	in_next += actual_in_nbytes;
+ 
+ 	/* ADLER32  */
+-	if (libdeflate_adler32(1, out, actual_out_nbytes) !=
++	if ((u32)b3l_adler32(out, actual_out_nbytes) !=
+ 	    get_unaligned_be32(in_next))
+ 		return LIBDEFLATE_BAD_DATA;
+ 	in_next += 4;
+--- /dev/null
++++ b/lib/ode_adler32.h
+@@ -0,0 +1,5 @@
++/* Experiment: original proved Ode checksum, seed 1, readable buffer. */
++#include <stdint.h>
++#include <stddef.h>
++_Static_assert(sizeof(size_t) == sizeof(uint64_t), "Ode ABI needs 64-bit size_t");
++extern uint64_t b3l_adler32(const void *input, uint64_t length);
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -389,3 +389,7 @@
+ if(LIBDEFLATE_BUILD_GZIP OR LIBDEFLATE_BUILD_TESTS)
+     add_subdirectory(programs)
+ endif()
++
++# Experiment: bind the checked Ode body privately inside this consumer.
++target_link_libraries(libdeflate_shared PRIVATE "${ODE_ADLER_ARCHIVE}")
++target_link_options(libdeflate_shared PRIVATE "LINKER:--exclude-libs,libode-adler.a")
