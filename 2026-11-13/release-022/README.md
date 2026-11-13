@@ -25,8 +25,8 @@ M6 ran the full run, b3sum and crowd as Mac jobs 3111 to 3113, with no check.
 **Reading.** The Zen 5 cells of one message at 4 KiB belong to the cost
 already recorded for 0.9 (BLAKE3 #376). The others are reported on
 bench-hashes #205 for John's judgment; none was looked at again by name
-here. The six x86-64 hosts counted no instructions (ops asked for them),
-so every verdict is wall time's alone. The M6's home prefix reads
+here. The five rented x86-64 hosts counted no instructions (asked for in ops),
+so their verdicts are wall time's alone; the i7 counted them. The M6's home prefix reads
 `<runner-home>`; every measured value is as recorded.
 
 **Published.** bench-hashes `next` df96f117 (`benchmark-results/`, the
