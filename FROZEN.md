@@ -31,6 +31,12 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Devon Jonte's decisions, each dated):
+- **The pin is BLAKE3-Servil 0.9.0** (Devon Jonte, November 13, 2026):
+  commit bf2da8b957f5e0c80babb57952de3e53f95c921a, the release
+  `0.9.0+73ee859efce085d28f1c2b22c35a5703403476f7`, two crates and no
+  streaming API. Since the last pin (c10d6804) the library changed its
+  startup self-test, an AArch64 binding and its version strings. No call
+  the benchmark makes changed.
 - **Every cell's timed code is a function of its own** (Devon Jonte,
   November 12, 2026). `hash_batch` chose a contender and a use case
   inside one set of functions, so every contender's loop for a use case
