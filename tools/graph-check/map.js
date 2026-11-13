@@ -122,7 +122,8 @@ const { chromium } = require('playwright');
   // A name in the open chart is its contender's toggle: a tap hides its
   // lines (fewer drawn), marks the name off, and the chart stays open; a
   // second tap brings them back.
-  const lines = async () => phone.locator('.zoom polyline').count();
+  // A contender's marks: a line as a polyline or a path, a lone point as a circle.
+  const lines = async () => phone.locator('.zoom svg polyline, .zoom svg path, .zoom svg circle').count();
   const all = await lines();
   const shown = phone.locator('.zoom .key button:not(.off)').first();
   const name = await shown.textContent();
