@@ -11,12 +11,12 @@ The job's successful exit establishes completion. A quiet-machine speed
 comparison remains unavailable.
 
 This folder publishes the complete numeric evidence and its source-matched
-views, with that qualification. The release map's b3sum cells remain withheld
-while [the publication tracker](https://github.com/servil-software-factory/bench-hashes/issues/201)
-is open. Devon owns the next move: give the public map and overview a visible
-way to distinguish busy snapshots from quiet results, then decide whether to
-include this qualified snapshot. Further repetitions solely to obtain a quiet
-flag have little value. The workstation's background load is part of this record.
+views, with that qualification. [The publication follow-up](publication/README.md)
+now includes this qualified snapshot on the release map and overview, with each
+run's load warning visible. [Tracker](https://github.com/servil-software-factory/bench-hashes/issues/201).
+Further repetitions solely to obtain a quiet flag have little value. The
+workstation's background load remains part of this record. The initial derived
+views below and original evidence stay preserved alongside the publication.
 
 ## Evidence and reproduction
 
