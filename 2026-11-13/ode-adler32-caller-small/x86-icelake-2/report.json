@@ -1,0 +1,139 @@
+{
+  "format": "ode-observe-v1",
+  "function": "adler32",
+  "target": "x86_64-linux-gnu",
+  "proof": "Lean checked Proof_adler32.adler32_meets on the lifted x86-64 model; see proof.log for axioms",
+  "source": {
+    "sha256": "d9da90fc7065b5f4a05635d5e02b2152e4cd336ac7ce8d78470a45f497568af0",
+    "blake3": "0dc8190a5035f363939d86ee7dbf63266094b18df111389133149c77b51ccdbb"
+  },
+  "compiler": {
+    "commit": "2aa3d245305b494143223b341e564642a4eb2d20",
+    "files": {
+      "tools/verify/machine/observe.py": {
+        "sha256": "92009f92a4941316571e0d6ca913e2c7e53a64728b6db592165184732623043e",
+        "blake3": "fe932d81baeeef0e178de39c5fb0c73f68f03226d5e21358d5980a4f684009e8"
+      },
+      "tools/verify/machine/lang/odec.py": {
+        "sha256": "ddc3ef69b3914c7b782d23607ef74b23f62c3453125e28110c5536da5ee8eece",
+        "blake3": "907a97188af979ec7db341e9e1959b5f9d6142129735e0b4792edbd458e29636"
+      },
+      "tools/verify/machine/lang/Lang.lean": {
+        "sha256": "15e823d0a8f8beba6b34c43564f13e963382cf6a9e70e9b8794e4301df590a0c",
+        "blake3": "a5c829a38cf2b24712f7583bd72c0ac7fda0b4751d1e6dc5a23103c392a94a3c"
+      }
+    },
+    "lean": "Lean (version 4.34.1, x86_64-unknown-linux-gnu, commit 5045d0056413266e57c625dcd7c365b10e377c52, Release)",
+    "assembler": "cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+    "disassembler": "Ubuntu LLVM version 21.1.8"
+  },
+  "text": {
+    "bytes": 171,
+    "sha256": "ed38656722fce06636eab6715fcbdb7788cd4c06e377525613c21a9438f88a5d",
+    "blake3": "f67520009433c35e163a04460db140c160a5db7fda3163116357168a9f432eb3"
+  },
+  "static_instructions": 55,
+  "static_calls": 0,
+  "static_conditional_branches": 3,
+  "saved_registers": [
+    "rbx",
+    "rbp",
+    "r12",
+    "r13",
+    "r14"
+  ],
+  "frame_reservation_bytes": 0,
+  "layout": [
+    "saved rbx rbp r12 r13 r14",
+    "frame 0",
+    "home input rbx",
+    "home n rbp",
+    "home a r12",
+    "home b r13",
+    "home i r14"
+  ],
+  "scope": "isolated .text; includes prologue and epilogue; excludes callees and linked placement; static counts are not execution costs",
+  "libdeflate_width_control": {
+    "original": {
+      "sha256": "8d65fe23968f99f012157086a59c756c7a66c5111d930f3e4a832b9f481b0113",
+      "blake3": "d93ee05ce1567ca3c4366a583d4594188905f1eb93ed5f22707798a830f2858e"
+    },
+    "exposed": {
+      "sha256": "b014229c292775835714de46d9feb843eccdfbfdedec35900e7ee177ad860664",
+      "blake3": "1363230584f781900ad7e2216e204289f4c025210c39b9fee40adee306ca4582"
+    },
+    "globalized": [
+      "adler32_x86_avx512_vl512_vnni",
+      "adler32_impl"
+    ],
+    "check": "all archive members' section contents, headers and relocations unchanged"
+  },
+  "experimental_probes": {
+    "proof": "UNVERIFIED experimental implementations; no optimized machine theorem",
+    "isa_l": "7c3479e0a9dac17f448603ec1ad64c7c625f530c",
+    "native_probe_chunk": 16384,
+    "widths": [
+      32,
+      64
+    ],
+    "prefix_accumulators": [
+      1,
+      4
+    ],
+    "reduce32": "additional 512/four-prefix variant: u32 A; u32 B at blocks <=5552, otherwise u64",
+    "alignment": "probe512-align and probe4096: shared seed-one scalar peel to 64 B, only at lengths >65536",
+    "raw4096": "Ode source kernel, 4096 B packed raw sums; UNVERIFIED C caller, u32 reductions, existing probe512-r32 tails",
+    "raw4096_flags": "C caller -O3 -DNDEBUG -fno-lto; raw assembly unchanged from source printer",
+    "batch4": "probe4096-batch: four raw calls before reduction; u32 A and u64 B; per4096 remainder unchanged",
+    "entry_split": "probe4096-entry: noinline large body with the same per4096 reductions; tiny entry tail-calls r32",
+    "small_seed": "probe512-small: aligned probe plus direct masked vector at <=64 B; A needs no reduction, B only above22 B",
+    "source_kernel_printer": {
+      "sha256": "7c2a3dbd5b672309f165e578a2adaa4611b67c9f53b1a33b63b14c0bf15ff9df",
+      "blake3": "c43274d27b9ab290a85f23f2753b4419518a893bbc59ff2971eb041187faf65d"
+    },
+    "flags": "-O3 -DNDEBUG -fno-lto -mavx512bw -mavx512vl -mavx512vnni -mavx512dq; prefer vector width matching probe"
+  },
+  "comparison": {
+    "seed": 1,
+    "sources": {
+      "zlib": "99623ef7097352da7993ba614161fd6a311e046e",
+      "zlib-ng": "12731092979c6d07f42da27da673a9f6c7b13586",
+      "libdeflate": "92e6a0db9fa848d742f9eb286c92afc60f2c3dda"
+    },
+    "build": "CMake Release, each project's default optimization flags, runtime dispatch enabled, static linking, no LTO"
+  },
+  "benchmark_files": {
+    "bench.rs": {
+      "sha256": "bf486c86a5a952e909f15406bdfa7fea1b8e1be1ba828efeb34a27406db6ad91",
+      "blake3": "7ea1e993f968e6e6bb4270af7b71c325af8ebc7e5f340b421b62692e7243a454"
+    },
+    "bench_build.rs": {
+      "sha256": "f0a8a89010d9f06e3b130f4bcb0f60175a5740ed8a72f35b53c9eb744a1b5afe",
+      "blake3": "e659c13b928e3f12c62b76336166b1c3699654c5072db4579ae858126f312989"
+    },
+    "prepare_bench.py": {
+      "sha256": "5708f66d89877037b67f1c2e546ad76c83d34d1c9f0b7e8ca9d2b00be336f111",
+      "blake3": "e15373f42ddfc67738c62d86a0fa0492bc34e770add609b42eeef162068bd1f1"
+    },
+    "probe.c": {
+      "sha256": "5ba359eb549b707fccf1a7ee433f3b28f03abf27b25266ad30d346b1ea755778",
+      "blake3": "9eef2ba06169996bb81443010e2265c029668d028b56d88d29cb5ba8dc49176f"
+    },
+    "align.h": {
+      "sha256": "371ea458c4539343d27b89e9828f662694000d9a4b725190f606f2f3d6134707",
+      "blake3": "fe542e177c7365f901ac568ba88d7724dc76a77e796f1a711d6a66b7327b8b7e"
+    },
+    "probe4096.c": {
+      "sha256": "83e2f41ac2bc40151543faf6dfeaa09a147099e1defa190298ab14d416cb53e4",
+      "blake3": "80c3f529c3ebc399bf6106d38cc7d74581ba07df6c26124faeb12331a7546f33"
+    },
+    "raw4096.ode": {
+      "sha256": "453be5c315e08168de9ce24caf1ca312abe1542e8444577d39adafa900c6cda3",
+      "blake3": "6adb1fd918ee82d6afa3f33be05596bc6c8c5664fda22bde442f905ce63f0dbe"
+    },
+    "raw4096.S": {
+      "sha256": "7b5a0173c63b6ac8ce7340506bb3206a96bb007dfbe523211ad091229096f16b",
+      "blake3": "8a2b3b18882180a83c71c2a7c8beb5191015f4de7166188118ec49c7b61257ec"
+    }
+  }
+}
