@@ -432,20 +432,29 @@ fn header<'a>(headers: &'a [(String, String)], key: &str) -> &'a str {
         .map_or("", |(_, v)| v.as_str())
 }
 
+/// The samples reader carries clocks' load classification. Present its warning
+/// on both pages without recomputing load or changing the recorded samples.
+pub(crate) fn load_warning(load: &str) -> Option<String> {
+    if load.starts_with("quiet") {
+        return None;
+    }
+    let busy = load.split("busy in ").nth(1).and_then(|rest| {
+        let mut words = rest.split_whitespace();
+        Some((words.next()?, words.nth(1)?))
+    });
+    Some(match busy {
+        Some((n, of)) => format!("other programs busy in {n} of {of} windows; times may be slower"),
+        None if load.starts_with("busy") => "other programs busy; times may be slower".to_owned(),
+        None => "background load unobserved; times need qualification".to_owned(),
+    })
+}
+
 /// The run a samples file holds, in a line for every reader: the machine,
 /// the day, and whether other programs kept it busy (the details are
 /// behind the run's door).
 fn about(headers: &[(String, String)], load: &str) -> String {
     let day = header(headers, "timestamp").split(' ').next().unwrap_or("");
-    let busy = load.split("busy in ").nth(1).and_then(|rest| {
-        let mut words = rest.split_whitespace();
-        Some((words.next()?.to_owned(), words.nth(1)?.to_owned()))
-    });
-    let load = match busy {
-        Some((n, of)) => format!("other programs busy in {n} of {of} seconds"),
-        None if load.starts_with("quiet") => "the machine quiet".to_owned(),
-        None => "load not measured".to_owned(),
-    };
+    let load = load_warning(load).unwrap_or_else(|| "the machine quiet".to_owned());
     let os = header(headers, "os type");
     let os = if os.starts_with("darwin") {
         "macOS"
@@ -1114,6 +1123,26 @@ pub fn command(args: &[String]) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn load_warnings_carry_the_recorded_classification() {
+        assert_eq!(
+            super::load_warning("quiet: other programs kept 0.20 CPUs busy"),
+            None
+        );
+        assert_eq!(super::load_warning("busy: other programs kept 0.26 CPUs busy; busy in 1 of 486 windows (452.1-453.1 s)"),
+                   Some("other programs busy in 1 of 486 windows; times may be slower".to_owned()));
+        assert_eq!(
+            super::load_warning("busy"),
+            Some("other programs busy; times may be slower".to_owned())
+        );
+        for unobserved in ["not measured", "unobserved", ""] {
+            assert_eq!(
+                super::load_warning(unobserved),
+                Some("background load unobserved; times need qualification".to_owned())
+            );
+        }
+    }
+
     /// A run names BLAKE3-Servil to a reader by its version line where the
     /// record has one, and an older record, whose version could name a
     /// release's code through later commits, by its commit.

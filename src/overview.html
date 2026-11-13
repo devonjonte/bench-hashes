@@ -119,11 +119,11 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
   .bars { width: 150px; }
   #tip { pointer-events: auto; }
 }
+.fam-machine span.load-warning, .card span.load-warning, th span.load-warning { display: block; color: #92400e; font-size: 11px; font-weight: 400; margin-top: 4px; }
 </style></head><body>
 <h1>How fast BLAKE3-Servil runs</h1>
 <p class="sub">Longer is faster. The bracket: how many times faster the faster one ran. Hover over a bar for more information.</p>
 <div class="legend"><span class="show">Show:</span>@LEGEND@<span class="hint">click a name to show or hide it</span></div>
-<div class="fam-legend"><span><i class="lo"></i> one short message</span><span><i class="hi"></i> a stream of messages, every core</span></div>
 @FAMILIES@
 <h2>By machine and by use case</h2>
 @BODY@
@@ -230,7 +230,12 @@ h2 { font-size: 17px; font-weight: 600; color: #111827; margin: 22px 0 6px; }
   for (const b of document.querySelectorAll(".legend button")) b.addEventListener("click", () => apply(b, !b.classList.contains("off")));
   // The page opens on BLAKE3-Servil, multi-threaded, beside SHA-256
   // (Zooko, October 27); the other forms and hashes wait in the legend.
-  const OPENS_ON = ["blake3-servil-mt", "sha256"];
+  // A page without the multi-threaded form opens on the single-threaded
+  // one; a page with the release before (bench-hashes beside) opens on it
+  // too, beside today's.
+  const has = k => [...document.querySelectorAll(".legend button")].some(b => b.dataset.k === k);
+  const form = has("blake3-servil-mt") ? "blake3-servil-mt" : "blake3-servil-st";
+  const OPENS_ON = [form, form + "@before", "sha256"];
   for (const b of document.querySelectorAll(".legend button")) if (!OPENS_ON.includes(b.dataset.k)) apply(b, true);
   // The tooltip: each hash shown, its speed, and servil's over it; the two
   // compared in bold. Follows the pointer; on a touch screen a tap shows

@@ -192,6 +192,8 @@ pub struct Row {
     pub link: String,
     /// One entry per pick: its bars, or none where the run lacks the cell.
     pub cells: Vec<Bars>,
+    /// Warnings from each present run (library or files), shared with the map.
+    pub load_notes: Vec<String>,
     /// Set where the run is of another release of the benchmark: its
     /// samples are not read (their rule is their own release's), the row
     /// names the machine and links its map, and says a run under this
@@ -424,7 +426,14 @@ pub fn row(directory: &Path, link: String) -> Row {
                 .map_or(Vec::new(), |f| b3sum_bars(f, cache, input)),
         })
         .collect();
-    described(&about.headers, link, cells, false)
+    let mut row = described(&about.headers, link, cells, false);
+    row.load_notes = [("Library", hashing.as_ref()), ("Files", b3sum.as_ref())]
+        .into_iter()
+        .filter_map(|(label, file)| {
+            crate::map::load_warning(&file?.load).map(|warning| format!("{label}: {warning}"))
+        })
+        .collect();
+    row
 }
 
 /// A row from a run's headers and its cells.
@@ -459,6 +468,7 @@ fn described(headers: &[(String, String)], link: String, cells: Vec<Bars>, stale
             .to_owned(),
         link,
         cells,
+        load_notes: Vec::new(),
         stale,
     }
 }
@@ -507,6 +517,9 @@ pub fn text(rows: &[Row]) -> String {
             row.version,
             row.fork
         );
+        for note in &row.load_notes {
+            let _ = writeln!(out, "  {note}");
+        }
         if row.stale {
             let _ = writeln!(
                 out,
@@ -614,12 +627,14 @@ pub fn shown(rows: &[Row]) -> Vec<usize> {
 
 /// Each machine measured in plain words (its kind, design and year), for
 /// its column and its card: (the CPU as the page names it, the words).
-const KNOWN: [(&str, &str); 8] = [
+const KNOWN: [(&str, &str); 10] = [
     ("Apple M4 Max", "Apple laptop or desktop, 2024"),
     ("AMD Ryzen 7 9700X", "AMD desktop, Zen 5, 2024"),
     ("AMD EPYC 9255", "AMD server, Zen 5, 2024"),
     ("AMD EPYC 9254", "AMD server, Zen 4, 2022"),
+    ("AMD EPYC 9275F", "AMD server, Zen 5, 2024"),
     ("AMD EPYC 7443P", "AMD server, Zen 3, 2021"),
+    ("AMD EPYC 7443", "AMD server, two sockets, Zen 3, 2021"),
     ("Intel Core i7-12700K", "Intel desktop, Alder Lake, 2021"),
     ("Intel Xeon Gold 6330", "Intel server, Ice Lake, 2021"),
     (
@@ -641,6 +656,13 @@ fn plain(row: &Row) -> String {
             || format!("{} machine, {} CPUs", family(row), row.cpus),
             |(_, w)| (*w).to_owned(),
         )
+}
+
+fn load_notes(row: &Row) -> String {
+    row.load_notes
+        .iter()
+        .map(|note| format!("<span class=\"load-warning\">{}</span>", escape(note)))
+        .collect()
 }
 
 const EVERYDAY: usize = 1;
@@ -685,16 +707,17 @@ fn families_by_machine(all: &[Row], shown: &[usize]) -> String {
     );
     let hi_g = 10f64.powf(all.iter().cloned().fold(0.0, f64::max).log10().ceil());
     let width = |g: f64| 100.0 * (g.log10() - lo_g.log10()) / (hi_g.log10() - lo_g.log10());
-    let mut out = String::from("<div class=\"families\">");
+    let mut out = String::from("<div class=\"fam-legend\"><span><i class=\"lo\"></i> one short message</span><span><i class=\"hi\"></i> a stream of messages, every core</span></div><div class=\"families\">");
     for (i, r) in &rows {
         let _ = write!(
             out,
-            "<div class=\"fam-row col{}\" data-m=\"{i}\" data-f=\"{}\"><div class=\"fam-machine\"><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span>{}</span></div><div class=\"fam-bars\">",
+            "<div class=\"fam-row col{}\" data-m=\"{i}\" data-f=\"{}\"><div class=\"fam-machine\"><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span>{}</span>{load}</div><div class=\"fam-bars\">",
             if shown.contains(i) { "" } else { " alt" },
             family(r),
             escape(&r.link),
             escape(&r.machine),
-            escape(&plain(r))
+            escape(&plain(r)),
+            load = load_notes(r)
         );
         // A bar a form, in the legend's order, each part from its own
         // form's cells, so every button shows or hides its form here as in
@@ -786,14 +809,15 @@ fn door(rows: &[Row], shown: &[usize]) -> String {
             };
             let _ = write!(
                 out,
-                "<div class=\"card{}\" data-m=\"{i}\"><button type=\"button\" class=\"use\" data-m=\"{i}\"><b>{}</b><span>{} · {} CPUs, {} · {}</span>{glance}<span class=\"state\">in the grid</span></button><a href=\"{}/bench-hashes.map.html\">its map \u{203A}</a></div>",
+                "<div class=\"card{}\" data-m=\"{i}\"><button type=\"button\" class=\"use\" data-m=\"{i}\"><b>{}</b><span>{} · {} CPUs, {} · {}</span>{load}{glance}<span class=\"state\">in the grid</span></button><a href=\"{}/bench-hashes.map.html\">its map \u{203A}</a></div>",
                 if shown.contains(&i) { " on" } else { "" },
                 escape(&plain(r)),
                 escape(&r.machine),
                 escape(&r.cpus),
                 escape(&r.os),
                 escape(&r.day),
-                escape(&r.link)
+                escape(&r.link),
+                load = load_notes(r)
             );
         }
         out.push_str("</div>");
@@ -922,7 +946,7 @@ pub fn html(rows: &[Row]) -> String {
         let others = rows.iter().filter(|r| family(r) == family(row)).count() - 1;
         let _ = write!(
             body,
-            "<th {}><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span class=\"kind\">{}</span><span>{} CPUs, {} · {}</span><span><a class=\"run\" href=\"{}/bench-hashes.map.html#run\" title=\"the run's record: commits, compiler, power, load\">BLAKE3-Servil {} · bench-hashes {}</a></span>{}{}</th>",
+            "<th {}><a href=\"{}/bench-hashes.map.html\"><b>{}</b></a><span class=\"kind\">{}</span><span>{} CPUs, {} · {}</span><span><a class=\"run\" href=\"{}/bench-hashes.map.html#run\" title=\"the run's record: commits, compiler, power, load\">BLAKE3-Servil {} · bench-hashes {}</a></span>{load}{}{}</th>",
             col(i),
             escape(&row.link),
             escape(&row.machine),
@@ -942,7 +966,8 @@ pub fn html(rows: &[Row]) -> String {
                 )
             } else {
                 String::new()
-            }
+            },
+            load = load_notes(row)
         );
     }
     body.push_str("</tr></thead><tbody>\n");
@@ -1135,6 +1160,58 @@ mod tests {
     use super::*;
 
     #[test]
+    fn each_runs_load_is_visible_without_changing_its_bars() {
+        let dir = std::env::temp_dir().join(format!("overview-load-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = |load: &str, rows: &str| {
+            format!(
+            "{SAMPLES_VERSION}\n# bench-hashes version: test\n# cpu type: Example\n# load: {load}\n# power: mains power\n{}\n{rows}",
+            crate::SAMPLES_COLUMNS
+        )
+        };
+        let hashing = "blake3-servil-st\tsolo\tOneMessage\t1 KiB\tB\t80/64,80/64\t1,2\t-\t-\t-\t0,0\nblake3-servil-mt\tsolo\tContinuousMessages\t64 KiB\tB\t80/64,80/64\t1,2\t-\t-\t-\t0,0\n";
+        let files = "b3sum\twarm\tb3sum\tmixed tree, 1000 files, 74 MiB\tB\t160/64,160/64\t1,2\t-\t-\t-\t0,0\n";
+        std::fs::write(
+            dir.join("bench-hashes.samples.tsv"),
+            file("busy: busy in 1 of 362 windows", hashing),
+        )
+        .unwrap();
+        std::fs::write(dir.join("b3sum.samples.tsv"), file("not measured", files)).unwrap();
+        let qualified = super::row(&dir, "example".to_owned());
+        assert_eq!(
+            qualified.load_notes,
+            [
+                "Library: other programs busy in 1 of 362 windows; times may be slower",
+                "Files: background load unobserved; times need qualification"
+            ]
+        );
+        let page = html(std::slice::from_ref(&qualified));
+        assert_eq!(
+            page.matches("class=\"load-warning\"").count(),
+            6,
+            "both warnings on the first view, grid header and machine card"
+        );
+        assert!(text(std::slice::from_ref(&qualified)).contains(&qualified.load_notes[1]));
+        std::fs::write(dir.join("bench-hashes.samples.tsv"), file("quiet", hashing)).unwrap();
+        std::fs::write(dir.join("b3sum.samples.tsv"), file("quiet", files)).unwrap();
+        let quiet = super::row(&dir, "example".to_owned());
+        assert!(quiet.load_notes.is_empty());
+        assert!(!html(std::slice::from_ref(&quiet)).contains("class=\"load-warning\""));
+        let speeds = |r: &Row| {
+            r.cells
+                .iter()
+                .map(|bars| bars.iter().map(|b| b.gbps).collect::<Vec<_>>())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            speeds(&qualified),
+            speeds(&quiet),
+            "load qualification leaves arithmetic summaries unchanged"
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn a_speed_is_bytes_over_the_shared_rule_s_mean() {
         // Each cell's mean is the shared rule's (clocks::summary::mean), the
         // map's: total time over total work, every sample counted. 1500 ns
@@ -1193,6 +1270,7 @@ mod tests {
             virtual_machine: vm,
             link: "benchmark-results/x".to_owned(),
             cells,
+            load_notes: Vec::new(),
             stale: false,
         }
     }
