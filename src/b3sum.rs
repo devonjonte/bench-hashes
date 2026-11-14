@@ -1,6 +1,7 @@
 //! `bench-hashes b3sum NAME=COMMAND...`: how long b3sum takes to hash files,
 //! from its start to its exit, as the person who runs it waits (README,
-//! "b3sum"). Builds of b3sum, and its ways of reading files, side by side on
+//! "b3sum"). In a command, `{OUT}` is the contender's own output directory,
+//! prepared empty before each run outside the timed process. Builds of b3sum, and its ways of reading files, side by side on
 //! the same files. Every run through `clocks::child::run`; each cell's
 //! summary its mean, and each comparison the pairs' verdict
 //! (`clocks::summary`), as the rest of bench-hashes; its samples file in
@@ -447,6 +448,38 @@ impl Contender {
     fn build(&self, round: u64) -> &Build {
         &self.builds[(round % self.builds.len() as u64) as usize]
     }
+
+    /// The command's arguments as one run gets them: `{OUT}` names the
+    /// contender's own output directory (a command that writes files, as
+    /// `b3sum --outboard {OUT}` does).
+    fn run_args(&self) -> Vec<String> {
+        self.args
+            .iter()
+            .map(|a| {
+                if a == "{OUT}" {
+                    self.out_dir().display().to_string()
+                } else {
+                    a.clone()
+                }
+            })
+            .collect()
+    }
+
+    fn out_dir(&self) -> PathBuf {
+        PathBuf::from("b3sum-out").join(&self.name)
+    }
+
+    /// An empty output directory for the next run, made outside the timed
+    /// child process. A contender without `{OUT}` has nothing to prepare.
+    fn prepare_out(&self) {
+        if self.args.iter().any(|a| a == "{OUT}") {
+            let dir = self.out_dir();
+            if dir.exists() {
+                fs::remove_dir_all(&dir).expect("emptying the contender's output directory");
+            }
+            fs::create_dir_all(&dir).expect("making the contender's output directory");
+        }
+    }
 }
 
 /// The contenders the arguments name, in the order first named: a name
@@ -608,7 +641,7 @@ pub fn command(args: &[String]) {
         |c: &Contender, round: u64, input: &Input, files: &[PathBuf]| -> clocks::child::Run {
             let mut command = Command::new(&c.build(round).program);
             command
-                .args(&c.args)
+                .args(c.run_args())
                 .args(files)
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
@@ -617,7 +650,7 @@ pub fn command(args: &[String]) {
             if !run.success() {
                 // Show what it said, then stop: a failing contender measures nothing.
                 let _ = Command::new(&c.build(round).program)
-                    .args(&c.args)
+                    .args(c.run_args())
                     .args(files)
                     .stdout(Stdio::null())
                     .status();
@@ -626,6 +659,8 @@ pub fn command(args: &[String]) {
             run
         };
     let run_once = |c: &Contender, round: u64, input: &Input| -> clocks::child::Run {
+        // Output storage is emptied here, outside the timed child processes.
+        c.prepare_out();
         if !input.each {
             return run_files(c, round, input, &input.files);
         }
@@ -1098,6 +1133,52 @@ mod tests {
             blake3_servil::Hash::from(first).to_hex().as_str(),
             "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"
         );
+    }
+
+    /// `{OUT}` names the contender's own directory, prepared empty outside
+    /// the timed run; other arguments and contenders stay as written.
+    #[test]
+    fn out_placeholder_prepares_an_empty_contender_directory() {
+        let scratch = std::env::temp_dir().join(format!("b3sum-out-test-{}", std::process::id()));
+        fs::create_dir_all(&scratch).unwrap();
+        let old = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&scratch).unwrap();
+        let writer = Contender {
+            name: "servil-outboard".to_owned(),
+            builds: Vec::new(),
+            args: vec!["--outboard".to_owned(), "{OUT}".to_owned()],
+            version: String::new(),
+        };
+        assert_eq!(
+            writer.run_args(),
+            [
+                "--outboard".to_owned(),
+                writer.out_dir().display().to_string()
+            ]
+        );
+        writer.prepare_out();
+        let leftover = writer.out_dir().join("left-over.obao4");
+        fs::write(&leftover, b"stale").unwrap();
+        writer.prepare_out();
+        assert!(writer.out_dir().is_dir());
+        assert!(
+            !leftover.exists(),
+            "each run starts with an empty directory"
+        );
+        let plain = Contender {
+            name: "official".to_owned(),
+            builds: Vec::new(),
+            args: vec!["--num-threads".to_owned(), "1".to_owned()],
+            version: String::new(),
+        };
+        assert_eq!(plain.run_args(), plain.args);
+        plain.prepare_out();
+        assert!(
+            !plain.out_dir().exists(),
+            "no directory without the placeholder"
+        );
+        std::env::set_current_dir(old).unwrap();
+        fs::remove_dir_all(scratch).unwrap();
     }
 
     /// The mixed tree's interleaving takes every file once.
