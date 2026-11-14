@@ -1,0 +1,95 @@
+diff --git a/src/samecode.rs b/src/samecode.rs
+index 1ccf357ba..c557c0e57 100644
+--- a/src/samecode.rs
++++ b/src/samecode.rs
+@@ -293,6 +293,35 @@ mod tests {
+         std::hint::black_box(x).wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ 0x1234
+     }
+ 
++    #[repr(C)]
++    struct FileLimit {
++        path: &'static str,
++        max_bytes: u32,
++        flags: u32,
++    }
++
++    #[used]
++    static FILE_LIMIT: FileLimit = FileLimit {
++        path: "input.rs",
++        max_bytes: 111,
++        flags: 0,
++    };
++
++    fn symbol_address(exe: &Path, name: &str) -> u64 {
++        let out = Command::new("nm")
++            .args(["-S", "-C", "--defined-only"])
++            .arg(exe)
++            .output()
++            .unwrap();
++        assert!(out.status.success());
++        let text = String::from_utf8_lossy(&out.stdout);
++        let line = text
++            .lines()
++            .find(|line| line.contains(name))
++            .expect("the named symbol");
++        u64::from_str_radix(line.split_whitespace().next().unwrap(), 16).unwrap()
++    }
++
+     /// A copy of this test binary in a directory of the test's own, changed by `edit`.
+     fn copy_with(tag: &str, edit: impl FnOnce(&mut Vec<u8>)) -> std::path::PathBuf {
+         let exe = std::env::current_exe().unwrap();
+@@ -344,17 +373,7 @@ mod tests {
+             .iter()
+             .find(|(n, _)| n.ends_with("samecode::tests::marker_function"))
+             .expect("the marker in the symbol table");
+-        let nm = Command::new("nm")
+-            .args(["-S", "-C", "--defined-only"])
+-            .arg(&exe)
+-            .output()
+-            .unwrap();
+-        let line = String::from_utf8_lossy(&nm.stdout)
+-            .lines()
+-            .find(|l| l.contains("samecode::tests::marker_function"))
+-            .unwrap()
+-            .to_string();
+-        let addr = u64::from_str_radix(line.split(' ').next().unwrap(), 16).unwrap();
++        let addr = symbol_address(&exe, "samecode::tests::marker_function");
+         let copy = copy_with("function", |data| {
+             let o = offset_of(data, ".text", addr);
+             data[o] ^= 0xFF;
+@@ -400,6 +419,35 @@ mod tests {
+         std::fs::remove_dir_all(copy.parent().unwrap()).unwrap();
+     }
+ 
++    #[test]
++    fn ordinary_data_with_a_rust_filename_still_differs() {
++        let exe = std::env::current_exe().unwrap();
++        assert_eq!(std::hint::black_box(&FILE_LIMIT).max_bytes, 111);
++        assert_eq!(std::mem::size_of::<FileLimit>(), 24);
++        let addr = symbol_address(&exe, "samecode::tests::FILE_LIMIT");
++        let image = read(&exe).unwrap();
++        let section = image
++            .sections
++            .iter()
++            .find(|(_, (start, size, _))| (*start..start + size).contains(&addr))
++            .map(|(name, _)| name.clone())
++            .expect("the file-limit record is allocated data");
++        let copy = copy_with("file-limit", |data| {
++            let o = offset_of(data, &section, addr) + std::mem::offset_of!(FileLimit, max_bytes);
++            assert_eq!(u32_at(data, o), 111);
++            data[o..o + 4].copy_from_slice(&222u32.to_le_bytes());
++        });
++        assert!(
++            matches!(
++                compare(&exe, &copy, &[], true),
++                Some(Verdict::Differs { sections, resized, changed })
++                    if sections == [section] && resized.is_empty() && changed.is_empty()
++            ),
++            "an ordinary limit beside a .rs filename affects the program"
++        );
++        std::fs::remove_dir_all(copy.parent().unwrap()).unwrap();
++    }
++
+     #[test]
+     fn a_moved_line_is_masked_and_only_with_the_mask() {
+         let exe = std::env::current_exe().unwrap();

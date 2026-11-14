@@ -49,15 +49,43 @@ and dual binary fingerprints. Binary products are excluded from the archive.
 Recipes/logs replace the development home prefix with `<development-home>`.
 Published-file SHA-256 and BLAKE3 manifests bind the record separately.
 
-## Decision to make
+## Correction under review
 
-A conservative comparison would retain these data words. It would also send
-changes that only move panic source locations to the normal measurement path.
-Removing the recognizer would simplify the tool while giving up those early
-exits. Inferring semantic use from more binary patterns would add complexity
-and still need its own correctness evidence.
+Candidate **efe3dac3d74426053371be0c9bcf9c4dc1950ad9**, based on landed
+**6b88d24ae8691b7152fe521d5bcdf054da3eff2c**, removes the location recognizer,
+its boolean option and its relocation-only state/parser. It keeps these data
+words. The explicit cost is that line-only location changes may now proceed
+to measurement. Declared provenance masks and ELF-note exclusion remain the
+comparison's existing boundaries. The timed calls and sampled statistical rule
+stay unchanged.
+
+The permanent Rust test binds an ordinary file-limit record by its symbol,
+independently of the recognizer, then changes its stored 111 to 222. It **fails
+on the old implementation**. After correction, all **193 release tests pass**
+(sixteen machine/ignored tests skipped), formatting/diff checks pass, and the
+same C binaries produce these corrected comparisons:
+
+| Inputs | Corrected result |
+|---|---|
+| `input.rs`, 111→222 | Differs: `.data.rel.ro` |
+| `input.bin`, 111→222 | Differs: `.data.rel.ro` |
+| Either filename, same executable on both sides | Same |
+
+`corrected/` preserves the original failing Rust control, its patch against
+candidate 60e0f720, the corrected tests and C replays, and the exact new source.
+Candidate 60e0f720 and landed 6b88d24a have identical trees. The symbol lookup is
+shared with the existing changed-function test. One heuristic, option and
+relocation map leave production; a fixed-symbol fixture holds the regression.
+This is a targeted comparison correction, with no estimate of historical
+false-Same frequency.
+
+To replay the corrected reader after building the C fixtures above:
+
+```sh
+rustc --edition=2024 corrected/compare.rs -o build/compare-corrected
+build/compare-corrected build/rs-111 build/rs-222
+```
 
 Tracked in [Same-code shortcut can mask ordinary configuration data](https://github.com/servil-software-factory/bench-hashes/issues/219).
-Devon owns the benchmark's next decision. Production code remains unchanged by
-this diagnostic. The next move is to weigh that explicit trade and add a
-permanent regression test before changing the shortcut.
+Devon's next move is final CI and landing. Performance collection is skipped:
+the changed decision precedes measurement and alters no hashing workload.
