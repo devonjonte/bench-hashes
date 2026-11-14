@@ -1,0 +1,21 @@
+const { pathToFileURL } = require('url');
+const { chromium } = require('playwright');
+(async () => {
+  const out = '<development-home>/bench-hashes-validation/autonomous-20261114/phone-publication';
+  const url = pathToFileURL('<development-home>/bench-phone-published/benchmark-results/AppleM6.darwin27/bench-hashes.map.html').href;
+  const browser = await chromium.launch({ executablePath: chromium.executablePath(), args: ['--no-sandbox'] });
+  const desktop = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+  await desktop.goto(url);
+  await desktop.screenshot({ path: out+'/desktop.png' });
+  await desktop.locator('.cell:not(.empty)').first().click({ position: { x: 100, y: 30 } });
+  await desktop.waitForTimeout(300);
+  await desktop.screenshot({ path: out+'/desktop-open.png' });
+  const phone = await browser.newPage({ viewport: { width: 420, height: 860 }, hasTouch: true, isMobile: true });
+  await phone.goto(url);
+  await phone.screenshot({ path: out+'/phone.png' });
+  await phone.locator('.cell:not(.empty)').first().tap();
+  await phone.waitForTimeout(300);
+  await phone.screenshot({ path: out+'/phone-open.png' });
+  console.log('Desktop and phone views captured from the repaired M6 map');
+  await browser.close();
+})().catch(error => { console.error(error); process.exit(1); });

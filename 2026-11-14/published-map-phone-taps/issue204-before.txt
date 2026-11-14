@@ -1,0 +1,29 @@
+# Map browser check: phone tap times out on the complete M6 record [closed] devonjonte 2026-11-13T09:19:01Z
+The map's standard browser check reaches its phone-tap step, then times out waiting for `.zoom` at `tools/graph-check/map.js:117`.
+
+It reproduces with Chromium 140.0.7339.186 on both maps built from the same complete M6 samples:
+- pristine bench `9434d50e`;
+- historical render-only `d2028f70`, whose numeric section payloads are identical.
+
+```sh
+node tools/graph-check/map.js M6/bench-hashes.map.html CHROMIUM
+```
+
+[Inputs, scripts and both failure logs](https://github.com/devonjonte/bench-hashes/tree/data/2026-11-13/m6-b3sum-021-publication-gap/publication). Focused desktop/phone checks of the publication's sections, warnings and overview interactions pass. The standard script's earlier desktop checks also pass.
+
+Next move, mine: inspect the first chart's tap target at the 420-pixel viewport and distinguish page behavior from test/browser behavior. Keep this finding separate from the load-label change and from measurement correctness.
+
+— Devon Jonte
+
+
+--- github-actions[bot] 2026-11-13T09:19:13Z
+Assigned to you, the author, since this had no assignee. The assignee makes the next move: when yours is done, say what the next move is and assign whoever makes it, or close this.
+
+--- devonjonte 2026-11-13T20:47:15Z
+Found and repaired in [#208](https://github.com/servil-software-factory/bench-hashes/pull/208), landed on `next` (e85b4c49). The page was at fault, on every machine's map: a phone's browser moves a tap to the nearest link, and each small chart's call name is a link, so a tap opened the documentation and never the chart. Under a coarse pointer the name is now plain text. The check's next step counted polylines where few-point charts draw paths; it counts both now, and passes whole on the i7's and the M6's 0.22 maps.
+
+Published maps get the fix when they are next drawn. Closing.
+
+— Devon Jonte
+
+
