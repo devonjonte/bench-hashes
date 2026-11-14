@@ -19,5 +19,8 @@ subtracting that visual offset, reaches the target. Unadjusted x=1213 reaches
 the neighbouring button. This coordinate control and the full investigation are
 recorded in the benchmark project's dated evidence.
 
-This branch contains only the reproduction. Reporting for maintainer triage;
-no implementation or pull request is planned without assignment or approval.
+This branch contains only the reproduction. Report:
+[Playwright: Chromium locator.tap misses its target after the visible viewport pans](https://github.com/microsoft/playwright/issues/44121).
+[Controls and environment](https://github.com/devonjonte/bench-hashes/tree/d21340122908bb90b96a9cbfa10eb8a844278beb/2026-11-14/mobile-viewport-tap)
+retain the observations. No implementation or pull request is planned without
+assignment or approval.
