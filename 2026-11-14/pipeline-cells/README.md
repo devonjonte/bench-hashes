@@ -136,7 +136,7 @@ causes still open.
 
 Devon owns the benchmark and its follow-up controls. John reviews the
 library costs in [the caller-cost issue](https://github.com/servil-software-factory/BLAKE3/issues/389)
-and chooses a library change. The adapter is ready for promotion after CI;
+and chooses a library change. The adapter has landed on `next`;
 its benchmark records these costs while library optimization proceeds.
 
 ## Native Apple M6 pilot
@@ -198,5 +198,12 @@ Candidate `4a3d25a768be1215546aaaad94ee5e2454026550` merges the already-landed
 workload-context documentation into the measured candidate. Only
 CONTRIBUTING and METHODOLOGY changed in that merge; the measured calls and
 comparison code are identical to `55436819e`.
+
+All six final CI checks passed. The adapter landed on `next` as
+[`8d9eb92ada887ed57b4d2102d3f913344067f84a`](https://github.com/servil-software-factory/bench-hashes/commit/8d9eb92ada887ed57b4d2102d3f913344067f84a).
+The merge request returned HTTP 502 after updating the branch; the PR's
+state remained open. Devon verified the landed commit and exact tree, then
+closed the PR manually with that explanation. Integration tracker #169 is
+closed; library costs remain tracked separately.
 
 SHA-256 and BLAKE3 manifests cover the files other than the manifests themselves.
