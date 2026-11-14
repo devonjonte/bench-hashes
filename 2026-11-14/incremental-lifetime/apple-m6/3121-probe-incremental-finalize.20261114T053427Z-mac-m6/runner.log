@@ -1,0 +1,121 @@
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/fork && git checkout --quiet --force --detach 0932d4a610e2dcc96e16af424f8d75d12cd4b360)
+$ (cd /Users/benchrunner/checkouts/fork && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/fork && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/bench && git checkout --quiet --force --detach 2c8676842feab053fa7855d4cb3393bdea26ed4a)
+$ (cd /Users/benchrunner/checkouts/bench && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/bench && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && cargo run --release --quiet -- check --fork /Users/benchrunner/checkouts/fork --against c5d8331c7c3c89ac4890693f0c096336291d2639 --when-quiet --keep /Users/benchrunner/tmp/3121-probe-incremental-finalize.20261114T053427Z-mac-m6/samples --probe incremental 64 B,incremental 1 KiB,incremental 4 KiB,lent incremental 64 B,lent incremental 1 KiB,lent incremental 4 KiB,64 B,1 KiB,4 KiB,lent 64 B,lent 1 KiB,lent 4 KiB --layouts 4 --old-bench 2c8676842feab053fa7855d4cb3393bdea26ed4a)
+warning: unused imports: `c_int`, `c_long`, and `c_void`
+  --> clocks/src/events.rs:27:16
+   |
+27 | use std::ffi::{c_int, c_long, c_void};
+   |                ^^^^^  ^^^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `OwnedFd`
+  --> clocks/src/events.rs:28:39
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                                       ^^^^^^^
+
+warning: unused import: `AsRawFd`
+  --> clocks/src/events.rs:28:19
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                   ^^^^^^^
+
+warning: unused import: `FromRawFd`
+  --> clocks/src/events.rs:28:28
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                            ^^^^^^^^^
+
+warning: function `describe_pause` is never used
+    --> src/main.rs:8571:4
+     |
+8571 | fn describe_pause(ns: u64) -> String {
+     |    ^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `EFFECTIVE_IDLE_PAUSES` is never used
+    --> src/main.rs:8580:7
+     |
+8580 | const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
+     |       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `describe_effective_idle_states` is never used
+    --> src/main.rs:8731:4
+     |
+8731 | fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+check: BLAKE3-Servil's working tree (0932d4a610e2) against c5d8331c7c3c89ac4890693f0c096336291d2639 (c5d8331c7c3c)
+check: the change touches 13 added and 11 deleted lines in 2 files: src/incremental.rs (+12/-10), src/test.rs (+1/-1)
+check: its hunks sit in: impl Hasher {, impl SubtreeHasher for crate::Hasher {
+check: measuring the 12 named points (12 of 282 points; the rest unmeasured in this check): incremental 64 B, incremental 1 KiB, incremental 4 KiB, lent incremental 64 B, lent incremental 1 KiB, lent incremental 4 KiB, 64 B, 1 KiB, 4 KiB, lent 64 B, lent 1 KiB, lent 4 KiB
+check: the old side with the bench at 2c8676842feab053fa7855d4cb3393bdea26ed4a (2c8676842fea)
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt --points "incremental 64 B,incremental 1 KiB,incremental 4 KiB,lent incremental 64 B,lent incremental 1 KiB,lent incremental 4 KiB,64 B,1 KiB,4 KiB,lent 64 B,lent 1 KiB,lent 4 KiB"
+regress: pair 1 of 4 in 10.1 s
+regress: pair 2 of 4 in 10.2 s
+regress: pair 3 of 4 in 10.2 s
+regress: pair 4 of 4 in 10.2 s
+regress: old side: bench 2c8676842fea clean; servil c5d8331c7c3c clean
+regress: new side: bench 2c8676842fea clean; servil 0932d4a610e2 clean
+  faster blake3-servil-mt|shared-os|LentIncrementalMessage|1 KiB: -17.6% (the pairs' geometric mean; 4 pairs, from -17.8% to -17.4%: -17.7% -17.4% -17.7% -17.8%)
+  faster blake3-servil-mt|shared-os|LentIncrementalMessage|4 KiB: -12.2% (the pairs' geometric mean; 4 pairs, from -12.9% to -10.9%: -10.9% -12.9% -12.5% -12.7%)
+  faster blake3-servil-mt|shared-os|LentIncrementalMessage|64 B: -42.6% (the pairs' geometric mean; 4 pairs, from -47.2% to -37.9%: -41.9% -43.1% -47.2% -37.9%)
+  faster blake3-servil-mt|solo|IncrementalMessage|4 KiB: -5.5% (the pairs' geometric mean; 4 pairs, from -8.0% to -3.7%: -5.0% -8.0% -5.1% -3.7%)
+  faster blake3-servil-mt|solo|IncrementalMessage|64 B: -15.6% (the pairs' geometric mean; 4 pairs, from -21.6% to -10.4%: -21.6% -17.3% -12.9% -10.4%)
+  faster blake3-servil-mt|solo|LentIncrementalMessage|1 KiB: -17.2% (the pairs' geometric mean; 4 pairs, from -18.1% to -15.4%: -15.4% -17.5% -18.1% -17.5%)
+  faster blake3-servil-mt|solo|LentIncrementalMessage|4 KiB: -11.0% (the pairs' geometric mean; 4 pairs, from -11.6% to -10.4%: -11.4% -11.6% -10.7% -10.4%)
+  faster blake3-servil-mt|solo|LentIncrementalMessage|64 B: -42.7% (the pairs' geometric mean; 4 pairs, from -45.3% to -40.8%: -40.8% -41.3% -45.3% -43.2%)
+  faster blake3-servil-st|solo|IncrementalMessage|1 KiB: -10.7% (the pairs' geometric mean; 4 pairs, from -13.5% to -8.3%: -13.5% -12.4% -8.6% -8.3%)
+  faster blake3-servil-st|solo|IncrementalMessage|4 KiB: -8.4% (the pairs' geometric mean; 4 pairs, from -10.4% to -6.4%: -9.6% -10.4% -7.3% -6.4%)
+  faster blake3-servil-st|solo|IncrementalMessage|64 B: -18.5% (the pairs' geometric mean; 4 pairs, from -22.7% to -9.2%: -22.7% -20.2% -21.2% -9.2%)
+  faster blake3-servil-st|solo|LentIncrementalMessage|1 KiB: -16.5% (the pairs' geometric mean; 4 pairs, from -18.0% to -15.1%: -18.0% -15.1% -16.2% -16.9%)
+  faster blake3-servil-st|solo|LentIncrementalMessage|4 KiB: -11.1% (the pairs' geometric mean; 4 pairs, from -13.0% to -9.3%: -10.0% -13.0% -9.3% -12.1%)
+  faster blake3-servil-st|solo|LentIncrementalMessage|64 B: -40.1% (the pairs' geometric mean; 4 pairs, from -45.1% to -29.9%: -29.9% -44.9% -39.1% -45.1%)
+regress: no cell slower
+regress: instructions moved beyond +0.5% in 6 level cells, suspects first: blake3-servil-st|solo|LentIncrementalMessage|64 B -40.0%; blake3-servil-st|solo|IncrementalMessage|64 B -27.0%; blake3-servil-st|solo|LentIncrementalMessage|1 KiB -14.0%; blake3-servil-st|solo|IncrementalMessage|1 KiB -12.0%; blake3-servil-st|solo|LentIncrementalMessage|4 KiB -6.3%; blake3-servil-st|solo|IncrementalMessage|4 KiB -5.9%
+regress: suspects: blake3-servil-mt|solo|OneMessage|64 B;blake3-servil-mt|shared-os|LentMessages|64 B;blake3-servil-mt|solo|OneMessage|1 KiB
+regress: power during the check: mains power
+check: the probe's cells over 4 pairs (compare; no verdict: the full check's is the gate)
+compare: old side: bench 2c8676842fea clean; servil c5d8331c7c3c clean
+compare: new side: bench 2c8676842fea clean; servil 0932d4a610e2 clean
+blake3-servil-st|solo|OneMessage|64 B: 5.991 -> 5.969 ns/unit  x0.996 level, 2 of 4 pairs faster
+blake3-servil-st|solo|OneMessage|1 KiB: 1.009 -> 1.039 ns/unit  x1.030 level, 0 of 4 pairs faster
+blake3-servil-st|solo|OneMessage|4 KiB: 0.598 -> 0.601 ns/unit  x1.005 level, 2 of 4 pairs faster
+blake3-servil-st|solo|LentMessages|64 B: 0.687 -> 0.698 ns/unit  x1.016 level, 1 of 4 pairs faster; CPU time x1.016
+blake3-servil-st|solo|LentMessages|1 KiB: 0.675 -> 0.670 ns/unit  x0.992 level, 2 of 4 pairs faster; CPU time x0.991
+blake3-servil-st|solo|LentMessages|4 KiB: 0.290 -> 0.291 ns/unit  x1.002 level, 1 of 4 pairs faster; CPU time x1.002
+blake3-servil-st|solo|IncrementalMessage|64 B: 16.578 -> 13.516 ns/unit  x0.815 faster, 4 of 4 pairs faster
+blake3-servil-st|solo|IncrementalMessage|1 KiB: 1.598 -> 1.427 ns/unit  x0.893 faster, 4 of 4 pairs faster
+blake3-servil-st|solo|IncrementalMessage|4 KiB: 0.786 -> 0.719 ns/unit  x0.916 faster, 4 of 4 pairs faster
+blake3-servil-st|solo|LentIncrementalMessage|64 B: 6.504 -> 3.899 ns/unit  x0.599 faster, 4 of 4 pairs faster; CPU time x0.600
+blake3-servil-st|solo|LentIncrementalMessage|1 KiB: 1.023 -> 0.853 ns/unit  x0.835 faster, 4 of 4 pairs faster; CPU time x0.834
+blake3-servil-st|solo|LentIncrementalMessage|4 KiB: 0.395 -> 0.351 ns/unit  x0.889 faster, 4 of 4 pairs faster; CPU time x0.889
+blake3-servil-mt|solo|OneMessage|64 B: 6.067 -> 6.852 ns/unit  x1.129 level, 0 of 4 pairs faster
+blake3-servil-mt|solo|OneMessage|1 KiB: 1.046 -> 1.088 ns/unit  x1.039 level, 2 of 4 pairs faster
+blake3-servil-mt|solo|OneMessage|4 KiB: 0.884 -> 0.903 ns/unit  x1.021 level, 1 of 4 pairs faster
+blake3-servil-mt|solo|LentMessages|64 B: 0.707 -> 0.708 ns/unit  x1.000 level, 2 of 4 pairs faster; CPU time x1.000
+blake3-servil-mt|solo|LentMessages|1 KiB: 0.679 -> 0.673 ns/unit  x0.992 level, 3 of 4 pairs faster; CPU time x0.991
+blake3-servil-mt|solo|LentMessages|4 KiB: 0.290 -> 0.290 ns/unit  x1.002 level, 1 of 4 pairs faster; CPU time x1.002
+blake3-servil-mt|solo|IncrementalMessage|64 B: 16.195 -> 13.663 ns/unit  x0.844 faster, 4 of 4 pairs faster
+blake3-servil-mt|solo|IncrementalMessage|1 KiB: 1.613 -> 1.438 ns/unit  x0.891 level, 4 of 4 pairs faster
+blake3-servil-mt|solo|IncrementalMessage|4 KiB: 1.034 -> 0.977 ns/unit  x0.945 faster, 4 of 4 pairs faster
+blake3-servil-mt|solo|LentIncrementalMessage|64 B: 6.370 -> 3.652 ns/unit  x0.573 faster, 4 of 4 pairs faster; CPU time x0.574
+blake3-servil-mt|solo|LentIncrementalMessage|1 KiB: 1.031 -> 0.854 ns/unit  x0.828 faster, 4 of 4 pairs faster; CPU time x0.829
+blake3-servil-mt|solo|LentIncrementalMessage|4 KiB: 0.394 -> 0.351 ns/unit  x0.890 faster, 4 of 4 pairs faster; CPU time x0.890
+blake3-servil-mt|shared-os|LentMessages|64 B: 0.720 -> 0.750 ns/unit  x1.041 level, 2 of 4 pairs faster
+blake3-servil-mt|shared-os|LentMessages|1 KiB: 0.692 -> 0.692 ns/unit  x1.000 level, 2 of 4 pairs faster
+blake3-servil-mt|shared-os|LentMessages|4 KiB: 0.295 -> 0.294 ns/unit  x0.997 level, 2 of 4 pairs faster
+blake3-servil-mt|shared-os|LentIncrementalMessage|64 B: 7.433 -> 4.264 ns/unit  x0.574 faster, 4 of 4 pairs faster
+blake3-servil-mt|shared-os|LentIncrementalMessage|1 KiB: 1.065 -> 0.877 ns/unit  x0.824 faster, 4 of 4 pairs faster
+blake3-servil-mt|shared-os|LentIncrementalMessage|4 KiB: 0.404 -> 0.354 ns/unit  x0.878 faster, 4 of 4 pairs faster

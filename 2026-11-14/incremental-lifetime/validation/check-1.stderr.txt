@@ -1,0 +1,72 @@
+warning: Cargo.toml: version requirement `=0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d` for dependency `sigilcode` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: Cargo.toml: version requirement `=0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d` for dependency `sigilcode` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `bench-hashes` (manifest) generated 2 warnings
+   Compiling find-msvc-tools v0.1.11
+   Compiling shlex v2.0.1
+    Checking typenum v1.20.1
+    Checking cfg-if v1.0.4
+   Compiling version_check v0.9.5
+   Compiling crossbeam-utils v0.8.23
+   Compiling crossbeam-epoch v0.9.21
+   Compiling libc v0.2.189
+   Compiling blake3-servil-version v0.9.0+dev (https://github.com/servil-software-factory/BLAKE3?rev=f62bc6ac0bc1c86861659d61ffbf4e9546bc8aec#f62bc6ac)
+   Compiling rayon-core v1.13.0
+   Compiling crossbeam-deque v0.8.8
+   Compiling cpufeatures v0.3.0
+    Checking const-oid v0.9.6
+   Compiling arrayvec v0.7.8
+    Checking constant_time_eq v0.4.2
+   Compiling sigilcode v0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d
+    Checking cpufeatures v0.2.17
+    Checking keccak v0.2.2
+    Checking untrusted v0.9.0
+    Checking once_cell v1.21.4
+    Checking rand_core v0.9.5
+    Checking clocks v0.1.0 (/home/agent/bench-incremental-lifetime/clocks)
+   Compiling cc v1.4.4
+    Checking wyhash v0.6.0
+   Compiling generic-array v0.14.7
+    Checking hybrid-array v0.4.15
+    Checking getrandom v0.2.17
+    Checking sysinfo v0.30.13
+   Compiling blake3 v1.8.7
+   Compiling blake3-servil-core v0.9.0+dev (https://github.com/servil-software-factory/BLAKE3?rev=f62bc6ac0bc1c86861659d61ffbf4e9546bc8aec#f62bc6ac)
+   Compiling ring v0.17.14
+   Compiling blake3-servil v0.9.0+dev (https://github.com/servil-software-factory/BLAKE3?rev=f62bc6ac0bc1c86861659d61ffbf4e9546bc8aec#f62bc6ac)
+    Checking block-buffer v0.10.4
+    Checking crypto-common v0.1.7
+    Checking crypto-common v0.2.2
+    Checking block-buffer v0.12.1
+    Checking digest v0.10.7
+    Checking sha1 v0.10.7
+    Checking sha1-checked v0.10.0
+    Checking digest v0.11.3
+    Checking sha2 v0.11.0
+    Checking sha3 v0.11.0
+   Compiling bench-hashes v0.22.0+d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41 (/home/agent/bench-incremental-lifetime)
+error[E0004]: non-exhaustive patterns: `UseCase::IncrementalMessage` and `UseCase::LentIncrementalMessage` not covered
+    --> src/main.rs:1549:15
+     |
+1549 |         match use_case {
+     |               ^^^^^^^^ patterns `UseCase::IncrementalMessage` and `UseCase::LentIncrementalMessage` not covered
+     |
+note: `UseCase` defined here
+    --> src/main.rs:851:6
+     |
+ 851 | enum UseCase {
+     |      ^^^^^^^
+...
+ 911 |     IncrementalMessage,
+     |     ------------------ not covered
+ 912 |     /// The same lifetime under sustained synchronous calls, input copied once.
+ 913 |     LentIncrementalMessage,
+     |     ---------------------- not covered
+     = note: the matched value is of type `UseCase`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern, a match arm with multiple or-patterns as shown, or multiple match arms
+     |
+1571 ~             | UseCase::ControlledIdleInterleavedTurn => true,
+1572 ~             UseCase::IncrementalMessage | UseCase::LentIncrementalMessage => todo!(),
+     |
+
+For more information about this error, try `rustc --explain E0004`.
+error: could not compile `bench-hashes` (bin "bench-hashes" test) due to 1 previous error

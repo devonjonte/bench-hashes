@@ -1,0 +1,101 @@
+warning: Cargo.toml: version requirement `=0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d` for dependency `sigilcode` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: Cargo.toml: version requirement `=0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d` for dependency `sigilcode` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `bench-hashes` (manifest) generated 2 warnings
+   Compiling bench-hashes v0.22.0+d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41 (/home/agent/bench-incremental-lifetime)
+    Finished `release` profile [optimized] target(s) in 1m 41s
+────────────
+ Nextest run ID eef8af81-bf3a-4ea5-8a9d-51b442e762e3 with nextest profile: default
+    Starting 5 tests across 3 binaries (201 tests skipped)
+        FAIL [   0.002s] (1/5) bench-hashes::bin/bench-hashes incremental::tests::fixed_vectors_cover_whole_and_fragmented_fresh_lifetimes
+  stdout ───
+
+    running 1 test
+    test incremental::tests::fixed_vectors_cover_whole_and_fragmented_fresh_lifetimes ... FAILED
+
+    failures:
+
+    failures:
+        incremental::tests::fixed_vectors_cover_whole_and_fragmented_fresh_lifetimes
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 133 filtered out; finished in 0.00s
+
+  stderr ───
+
+    thread 'incremental::tests::fixed_vectors_cover_whole_and_fragmented_fresh_lifetimes' (1353602) panicked at src/incremental.rs:132:17:
+    assertion `left == right` failed: blake3-servil-st chunks 3
+      left: []
+     right: ["6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85"]
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+  Cancelling due to test failure: 4 tests still running
+        FAIL [   0.003s] (2/5) bench-hashes::bin/bench-hashes incremental::tests::each_axis_size_delivers_all_bytes_and_starts_a_fresh_hasher
+  stdout ───
+
+    running 1 test
+    test incremental::tests::each_axis_size_delivers_all_bytes_and_starts_a_fresh_hasher ... FAILED
+
+    failures:
+
+    failures:
+        incremental::tests::each_axis_size_delivers_all_bytes_and_starts_a_fresh_hasher
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 133 filtered out; finished in 0.00s
+
+  stderr ───
+
+    thread 'incremental::tests::each_axis_size_delivers_all_bytes_and_starts_a_fresh_hasher' (1353603) panicked at src/incremental.rs:195:21:
+    assertion `left == right` failed: blake3-servil-st 64 IncrementalMessage
+      left: []
+     right: [[24, 36, 117, 82, 72, 26, 252, 162, 252, 155, 74, 225, 162, 15, 124, 33, 94, 114, 232, 148, 87, 34, 135, 241, 92, 170, 73, 34, 178, 193, 43, 177], [24, 36, 117, 82, 72, 26, 252, 162, 252, 155, 74, 225, 162, 15, 124, 33, 94, 114, 232, 148, 87, 34, 135, 241, 92, 170, 73, 34, 178, 193, 43, 177], [24, 36, 117, 82, 72, 26, 252, 162, 252, 155, 74, 225, 162, 15, 124, 33, 94, 114, 232, 148, 87, 34, 135, 241, 92, 170, 73, 34, 178, 193, 43, 177]]
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [   0.004s] (3/5) bench-hashes::bin/bench-hashes incremental::tests::short_dispatch_consumes_every_digest_and_ignores_padding
+  stdout ───
+
+    running 1 test
+    test incremental::tests::short_dispatch_consumes_every_digest_and_ignores_padding ... FAILED
+
+    failures:
+
+    failures:
+        incremental::tests::short_dispatch_consumes_every_digest_and_ignores_padding
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 133 filtered out; finished in 0.00s
+
+  stderr ───
+
+    thread 'incremental::tests::short_dispatch_consumes_every_digest_and_ignores_padding' (1353608) panicked at src/incremental.rs:160:17:
+    assertion `left == right` failed: blake3-servil-st IncrementalMessage
+      left: []
+     right: ["6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85", "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85", "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85"]
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        PASS [   0.004s] (4/5) bench-hashes::bin/bench-hashes incremental::tests::axes_and_selectors_hold_the_six_point_contract
+        FAIL [   0.100s] (5/5) bench-hashes::bin/bench-hashes incremental::tests::cold_selection_and_nonstop_calls_use_fresh_incremental_lifetimes
+  stdout ───
+
+    running 1 test
+    test incremental::tests::cold_selection_and_nonstop_calls_use_fresh_incremental_lifetimes ... FAILED
+
+    failures:
+
+    failures:
+        incremental::tests::cold_selection_and_nonstop_calls_use_fresh_incremental_lifetimes
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 133 filtered out; finished in 0.10s
+
+  stderr ───
+
+    thread 'incremental::tests::cold_selection_and_nonstop_calls_use_fresh_incremental_lifetimes' (1353606) panicked at src/incremental.rs:232:13:
+    assertion `left == right` failed
+      left: 0
+     right: 5
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+────────────
+     Summary [   0.100s] 5 tests run: 1 passed, 4 failed, 201 skipped
+        FAIL [   0.002s] (1/5) bench-hashes::bin/bench-hashes incremental::tests::fixed_vectors_cover_whole_and_fragmented_fresh_lifetimes
+        FAIL [   0.003s] (2/5) bench-hashes::bin/bench-hashes incremental::tests::each_axis_size_delivers_all_bytes_and_starts_a_fresh_hasher
+        FAIL [   0.004s] (3/5) bench-hashes::bin/bench-hashes incremental::tests::short_dispatch_consumes_every_digest_and_ignores_padding
+        FAIL [   0.100s] (5/5) bench-hashes::bin/bench-hashes incremental::tests::cold_selection_and_nonstop_calls_use_fresh_incremental_lifetimes
+error: test run failed
