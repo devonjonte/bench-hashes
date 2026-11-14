@@ -50,30 +50,97 @@ tests and formatting pass. `workhorse/` holds the original commands and logs.
 Local tests are correctness checks on the interactive i7; no performance
 timing ran there.
 
-## Pilot status
+## EPYC pilot results
 
-Measurement jobs were queued under the host lock on EPYC 9275F:
+Both measurement jobs completed under the host lock on EPYC 9275F:
 
 1. `pipeline-pilot-55436819`: candidate/candidate and synchronous/Pipeline,
    four fresh-layout pairs per question.
 2. `pipeline-added-work-7090f6b1`: candidate/extra-work control, four pairs,
    after testing that the control preserves the outputs.
 
-Each question uses the same predeclared 19-cell selected scope. The exact
-commands, bounds and interpretation are in `code/pilot-plan.md`,
-`code/added-work-plan.md` and their shell scripts. The existing probe path
-avoids adaptive second-stage context changes. This is a solo pilot; shared
-and cross-platform conclusions require their own evidence.
+All 24 measured runs report quiet load; the busiest recorded window was
+0.04 CPUs of other work. Wall and whole-process CPU time are available.
+Cycle, instruction and energy counts are absent. Each comparison takes four
+fresh-layout pairs, without an adaptive second stage. `code/archive-results.py`
+replays all three comparisons through the candidate's Rust reader; each
+plain-text result reproduces the delivered comparison byte for byte.
 
-**Performance verdict pending.** The scripts request standard raw samples,
-CPU time and available counts. Busy/abstaining/error results stay in the
-record. Small effects remain unresolved until the controls support an
-interpretation at their observed size. The added byte-work fraction does
-not prescribe its wall-time cost, and large-effect detection alone cannot
-validate small-effect sensitivity.
+### Scope correction, November 14
 
-Delivery is to local `bench-hashes-validation/inbox/`. Results will be added
-here after inspection, retaining original logs and source-matched reader
-output. The candidate remains a draft until review and measurements finish.
+The original plan called this solo-only. The command actually measured
+**19 named points in each of three scenarios**: solo, two callers under one
+cache, and two callers under different caches. All three questions used
+that same actual scope: 57 cells per run. The original plans remain intact,
+with this correction beside them. CPU pinning in `regress` applies to calls
+after gaps; these continuous solo samples were OS-placed. The shared copies
+used the placements recorded in each samples header.
+
+### Pipeline versus synchronous calls, same library
+
+Selected solo readings from the [complete Rust table](x86-epyc-9275f/pipeline-pilot-55436819/kept-api-change/comparison.md):
+
+| workload | elapsed-time ratio | rule's verdict | process CPU-time ratio |
+|---|---:|---|---:|
+| message 64 B | 1.458 | level | 2.912 |
+| message 4 KiB | 0.411 | faster | 1.643 |
+| message 64 KiB | 1.592 | slower | 3.153 |
+| message 1 MiB | 1.321 | slower | 2.668 |
+| batch of 16 messages | 1.839 | slower | 4.344 |
+| batch of 256 messages | 1.635 | slower | 3.425 |
+| batch of 4096 messages | 1.213 | slower | 3.590 |
+| collection: Git objects | 0.890 | level | 2.166 |
+| collection: Nix files | 0.799 | faster | 1.597 |
+| receiving: saturated | 0.692 | faster | 1.379 |
+| receiving: 2 μs arrivals | 0.659 | faster | 1.248 |
+| receiving: 20 μs arrivals | 1.000 | level | 1.483 |
+
+Ratios are Pipeline/synchronous, lower better. These compare caller/API
+choices in one library version, rather than a library-version regression.
+Even the faster cases use more process CPU time. The unchanged lent-call
+wall ratios are close to one. Their CPU cost can still move: lent 1 MiB
+reads 1.406 times as much process CPU time with the Pipeline-capable bench.
+Kept Pipelines change the process environment beyond their own cells.
+
+Shared results show the same main trade-offs: batches slower in both
+placements, 4 KiB messages and receiving faster. Large-message shared
+readings vary more. Keep their complete tables and pair spreads in view.
+
+### Controls and limits
+
+The [unchanged-code comparison](x86-epyc-9275f/pipeline-pilot-55436819/kept-samecode/comparison.md)
+labels all 57 cells level. Some shared point estimates move by over 10%,
+so this is limited evidence of precision, especially for small effects.
+
+The [extra-work control](x86-epyc-9275f/pipeline-added-work-7090f6b1/kept/comparison.md)
+raises each solo message cell's time in all four pairs. Geometric-mean
+increases are 9.5–18.5%, yet all four solo cells remain level under the
+57-cell rule. Only shared-one-cache 4 KiB passes the slower threshold,
+at +21.2%. This demonstrates weak four-pair sensitivity even at some
+meaningful observed costs. Level provides no assurance of equivalence.
+The plant's five output/delivery tests pass before it measures.
+
+The large API differences merit investigation. Claims about small changes,
+universal Pipeline speed or release acceptance need further evidence.
+No comparison rule changes follow from this pilot.
+
+## Caller review and next action
+
+`CALLER-REVIEW.md` records the source review. The adapter uses owned batch
+storage, performs one producer copy, consumes every digest and recycles
+returned storage. Sample sizes cover several rounds of the bounded input
+buffers. The review found no demonstrated adapter defect that explains the
+large costs. Worker handoffs, room processing and retained Pipeline sources
+remain concrete library/caller interactions to investigate, with their
+causes still open.
+
+Devon owns the benchmark and its follow-up controls. John reviews the
+library costs and chooses a library change. The candidate remains draft
+while this review and the native-Mac pilot complete.
+
+Mac jobs 3117/3118 are queued with the same points and four layouts, through
+the existing mixed-use Mini runner. Its check adapter includes both Servil
+forms, plus OS-placed shared mt calls. `code/mac-plan.md` records that
+platform-specific scope and the rule to retain busy abstentions.
 
 SHA-256 and BLAKE3 manifests cover the files other than the manifests themselves.
