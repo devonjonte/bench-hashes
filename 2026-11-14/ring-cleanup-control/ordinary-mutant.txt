@@ -1,0 +1,72 @@
+   Compiling ring-cleanup-control v0.0.0 (<development-home>/bench-hashes-validation/progress-failfast/ring-control)
+warning: struct `Ring` is never constructed
+ --> src/lib.rs:3:8
+  |
+3 | struct Ring<X> {
+  |        ^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated items `new`, `len`, `is_empty`, `front`, `push_back`, and `pop_front` are never used
+  --> src/lib.rs:10:8
+   |
+ 9 | impl<X> Ring<X> {
+   | --------------- associated items in this implementation
+10 |     fn new(cap: usize) -> Self {
+   |        ^^^
+...
+15 |     fn len(&self) -> usize {
+   |        ^^^
+...
+20 |     fn is_empty(&self) -> bool {
+   |        ^^^^^^^^
+...
+25 |     fn front(&self) -> Option<&X> {
+   |        ^^^^^
+...
+30 |     fn push_back(&mut self, item: X) {
+   |        ^^^^^^^^^
+...
+39 |     fn pop_front(&mut self) -> Option<X> {
+   |        ^^^^^^^^^
+
+warning: methods `is_empty` and `front` are never used
+  --> src/lib.rs:20:8
+   |
+ 9 | impl<X> Ring<X> {
+   | --------------- methods in this implementation
+...
+20 |     fn is_empty(&self) -> bool {
+   |        ^^^^^^^^
+...
+25 |     fn front(&self) -> Option<&X> {
+   |        ^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `ring-cleanup-control` (lib) generated 2 warnings
+warning: `ring-cleanup-control` (lib test) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.06s
+────────────
+ Nextest run ID 36a12a71-30d5-43e0-9c6d-5cf2e4a80ae4 with nextest profile: mutants
+    Starting 1 test across 1 binary (1 test skipped)
+        SKIP [         ] (───) ring-cleanup-control tests::protected_cleanup
+ TERMINATING [> 15.000s] (───) ring-cleanup-control tests::ordinary_cleanup
+     TIMEOUT [  15.002s] (1/1) ring-cleanup-control tests::ordinary_cleanup
+  stdout ───
+
+    running 1 test
+  stderr ───
+
+    thread 'tests::ordinary_cleanup' (1414215) panicked at src/lib.rs:73:9:
+    assertion `left == right` failed: popping the sole token empties the ring
+      left: 1
+     right: 0
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+    (test timed out)
+
+  Cancelling due to test failure
+────────────
+     Summary [  15.003s] 1 test run: 0 passed, 1 timed out, 1 skipped
+error: test run failed

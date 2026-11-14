@@ -1,0 +1,56 @@
+   Compiling ring-cleanup-control v0.0.0 (<development-home>/bench-hashes-validation/progress-failfast/ring-control)
+warning: struct `Ring` is never constructed
+ --> src/lib.rs:3:8
+  |
+3 | struct Ring<X> {
+  |        ^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated items `new`, `len`, `is_empty`, `front`, `push_back`, and `pop_front` are never used
+  --> src/lib.rs:10:8
+   |
+ 9 | impl<X> Ring<X> {
+   | --------------- associated items in this implementation
+10 |     fn new(cap: usize) -> Self {
+   |        ^^^
+...
+15 |     fn len(&self) -> usize {
+   |        ^^^
+...
+20 |     fn is_empty(&self) -> bool {
+   |        ^^^^^^^^
+...
+25 |     fn front(&self) -> Option<&X> {
+   |        ^^^^^
+...
+30 |     fn push_back(&mut self, item: X) {
+   |        ^^^^^^^^^
+...
+39 |     fn pop_front(&mut self) -> Option<X> {
+   |        ^^^^^^^^^
+
+warning: methods `is_empty` and `front` are never used
+  --> src/lib.rs:20:8
+   |
+ 9 | impl<X> Ring<X> {
+   | --------------- methods in this implementation
+...
+20 |     fn is_empty(&self) -> bool {
+   |        ^^^^^^^^
+...
+25 |     fn front(&self) -> Option<&X> {
+   |        ^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `ring-cleanup-control` (lib) generated 2 warnings
+warning: `ring-cleanup-control` (lib test) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.07s
+────────────
+ Nextest run ID ef9a132c-3ad9-496f-aeba-7c43e8ab50b7 with nextest profile: mutants
+    Starting 2 tests across 1 binary
+        PASS [   0.003s] (1/2) ring-cleanup-control tests::ordinary_cleanup
+        PASS [   0.003s] (2/2) ring-cleanup-control tests::protected_cleanup
+────────────
+     Summary [   0.003s] 2 tests run: 2 passed, 0 skipped
