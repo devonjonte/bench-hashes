@@ -100,7 +100,9 @@ Recipes and logs redact home prefixes as `<development-home>` / `<runner-home>`.
 Source modules retain their bytes. Published-file SHA-256 and BLAKE3 manifests
 bind the complete record separately from the binary fingerprints.
 
-Tracking: [Same-code data issue](https://github.com/servil-software-factory/bench-hashes/issues/219)
-and [Keep ordinary data in the same-code comparison](https://github.com/servil-software-factory/bench-hashes/pull/220).
-Devon's next move is fresh final CI and landing. Dedicated performance collection
-is skipped because these changes govern the pre-measurement comparison.
+[Keep ordinary data in the same-code comparison](https://github.com/servil-software-factory/bench-hashes/pull/220)
+landed as **eb2d8dec91409d58dd26378e6d2ecab14e6b5f4b** on `next`. All six final CI
+checks passed (`final/ci.json`), and the landed tree matches reviewed source
+`fb6f00b1` exactly. [The same-code data issue](https://github.com/servil-software-factory/bench-hashes/issues/219)
+is closed. Dedicated performance collection was skipped because these changes
+govern the pre-measurement comparison.
