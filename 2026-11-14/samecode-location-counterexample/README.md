@@ -8,7 +8,7 @@ a pointer and length for a string ending in `.rs`, followed by two 32-bit words.
 An ordinary file-limit record has that same shape.
 
 Two translation units at identical build paths produce a pair of programs. One
-record names `input.rs`; its `max_bytes` changes from111 to222. Each program prints
+record names `input.rs`; its `max_bytes` changes from 111 to 222. Each program prints
 its limit. Their output is independently checked against those constants.
 
 | Record's filename | Program outputs | Comparison without location mask | With location mask |
@@ -36,7 +36,7 @@ On Linux x86-64 with a C compiler, Rust and GNU binutils:
 mkdir -p build
 cc -O2 -fPIE -fno-lto -c main.c -o build/main.o
 rustc --edition=2024 compare.rs -o build/compare
-# For each suffix rs/bin and limit111/222:
+# For each suffix rs/bin and limit 111/222:
 cc -O2 -fPIE -fno-lto -DNAME='"input.rs"' -DLIMIT=111 -c limit.c -o build/limit.o
 cc -pie build/main.o build/limit.o -o build/program
 # Retain each program under its own name, then:
@@ -57,6 +57,7 @@ Removing the recognizer would simplify the tool while giving up those early
 exits. Inferring semantic use from more binary patterns would add complexity
 and still need its own correctness evidence.
 
+Tracked in [Same-code shortcut can mask ordinary configuration data](https://github.com/servil-software-factory/bench-hashes/issues/219).
 Devon owns the benchmark's next decision. Production code remains unchanged by
 this diagnostic. The next move is to weigh that explicit trade and add a
 permanent regression test before changing the shortcut.

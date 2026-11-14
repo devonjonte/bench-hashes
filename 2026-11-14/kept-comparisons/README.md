@@ -19,7 +19,7 @@ existing behavior. Workloads, timing and statistical rules remain unchanged.
 after correction**, with sixteen machine/ignored tests skipped. Formatting and
 diff checks passed. The two negative controls preserve their failure output:
 accepting a populated directory and returning zero when the child exits seven.
-The corrected test also exercises child exit101, normal exit0, exact old/new
+The corrected test also exercises child exit 101, normal exit 0, exact old/new
 ordering, exclusion of retried pairs, new/empty folders and file preservation.
 Both command entry points reject occupied directories before any load reading,
 checkout or child process. The team runner and offset-check caller already use
@@ -36,7 +36,7 @@ cargo nextest run --release --locked \
   -E 'test(kept_results_require) | test(a_probe_compares)'
 ```
 
-Expect both tests to fail. On candidate60e0f720, run the same tests or the full
+Expect both tests to fail. On candidate 60e0f720, run the same tests or the full
 `cargo nextest run --release --locked`; expect success. The tests use fixed files
 and a short `/bin/sh` child that records arguments and exits with a chosen status.
 They perform no performance collection. Original failing and corrected logs,
@@ -48,5 +48,8 @@ explicit failed children exercise failure handling again, so another equivalent
 source mutation would duplicate that evidence. Performance collection is skipped:
 the change affects setup and reporting, with timed calls untouched.
 
-Tracking: [Preserve saved comparison runs and propagate probe failures](https://github.com/servil-software-factory/bench-hashes/issues/217).
-Devon owns final CI and landing. SHA-256 and BLAKE3 manifests bind this record.
+Landed through [Preserve saved comparisons and report probe failures](https://github.com/servil-software-factory/bench-hashes/pull/218)
+as **6b88d24ae8691b7152fe521d5bcdf054da3eff2c** on `next`, with all seven final CI
+checks successful (`ci.json`). The landed tree matches candidate 60e0f720 exactly.
+[The saved-record issue](https://github.com/servil-software-factory/bench-hashes/issues/217)
+is closed. SHA-256 and BLAKE3 manifests bind this record.
