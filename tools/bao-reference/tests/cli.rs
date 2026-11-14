@@ -9,6 +9,7 @@ fn complete_files_include_empty_partial_groups_and_reused_storage() {
     let root = std::env::temp_dir().join(format!("bao-reference-{}", std::process::id()));
     std::fs::create_dir_all(&root).unwrap();
     let out = root.join("out");
+    std::fs::create_dir(&out).unwrap();
     let mut paths = Vec::<PathBuf>::new();
     let mut expected = Vec::new();
     for (i, len) in [1_048_593usize, 3, 0, 16_384, 16_385, 32_773]

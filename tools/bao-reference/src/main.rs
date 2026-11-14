@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "usage: bao-reference --outboard DIR FILE..."
     );
     let directory = PathBuf::from(&args[1]);
-    std::fs::create_dir_all(&directory)?;
+    debug_assert!(directory.is_dir(), "the output directory must exist");
     let mut outboard: PreOrderMemOutboard = Default::default();
     for input in &args[2..] {
         let path = PathBuf::from(input);

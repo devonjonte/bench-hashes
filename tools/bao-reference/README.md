@@ -11,6 +11,7 @@ BAO_REFERENCE_SOURCE=$(git rev-parse HEAD) cargo build --release --locked --mani
 tools/bao-reference/target/release/bao-reference --outboard OUT INPUT...
 ```
 
+The output directory must already exist, as for the compared b3sum command.
 Inputs must be regular files whose contents stay unchanged while mapped. Empty
 files use the empty slice. Each process keeps its output allocation across files;
 input mappings end after their file. Writes use ordinary filesystem completion,
