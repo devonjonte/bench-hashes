@@ -1,0 +1,74 @@
+warning: Cargo.toml: version requirement `=0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d` for dependency `sigilcode` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: Cargo.toml: version requirement `=0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d` for dependency `sigilcode` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `bench-hashes` (manifest) generated 2 warnings
+   Compiling bench-hashes v0.22.0+d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41 (/home/agent/bench-pipeline)
+    Finished `release` profile [optimized] target(s) in 1m 10s
+────────────
+ Nextest run ID 82159731-0c91-4772-9085-ad86eb9570ab with nextest profile: default
+    Starting 5 tests across 3 binaries (196 tests skipped)
+        PASS [   0.003s] (1/5) bench-hashes::bin/bench-hashes pipeline::tests::receiving_preserves_fragment_order_waits_and_finalization
+        FAIL [   0.004s] (2/5) bench-hashes::bin/bench-hashes pipeline::tests::fixed_vectors_keep_order_across_backpressure_and_reuse
+  stdout ───
+
+    running 1 test
+    test pipeline::tests::fixed_vectors_keep_order_across_backpressure_and_reuse ... FAILED
+
+    failures:
+
+    failures:
+        pipeline::tests::fixed_vectors_keep_order_across_backpressure_and_reuse
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 128 filtered out; finished in 0.00s
+
+  stderr ───
+
+    thread 'pipeline::tests::fixed_vectors_keep_order_across_backpressure_and_reuse' (1345217) panicked at src/pipeline.rs:250:13:
+    assertion `left == right` failed
+      left: ["af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262", "91525ff00a3755a8df93c626b59f6e36cf021d85ebccecdedc38f3f1890a15fc", "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262", "91525ff00a3755a8df93c626b59f6e36cf021d85ebccecdedc38f3f1890a15fc", "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262", "91525ff00a3755a8df93c626b59f6e36cf021d85ebccecdedc38f3f1890a15fc", "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262", "91525ff00a3755a8df93c626b59f6e36cf021d85ebccecdedc38f3f1890a15fc", "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"]
+     right: ["af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262", "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85", "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262", "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85", "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262", "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85", "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262", "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85", "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"]
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+  Cancelling due to test failure: 3 tests still running
+        PASS [   0.004s] (3/5) bench-hashes::bin/bench-hashes pipeline::tests::batches_return_storage_and_every_digest_before_reuse
+        FAIL [   0.004s] (4/5) bench-hashes::bin/bench-hashes pipeline::tests::room_boundaries_and_partial_room_reuse_deliver_every_byte
+  stdout ───
+
+    running 1 test
+    test pipeline::tests::room_boundaries_and_partial_room_reuse_deliver_every_byte ... FAILED
+
+    failures:
+
+    failures:
+        pipeline::tests::room_boundaries_and_partial_room_reuse_deliver_every_byte
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 128 filtered out; finished in 0.00s
+
+  stderr ───
+
+    thread 'pipeline::tests::room_boundaries_and_partial_room_reuse_deliver_every_byte' (1345216) panicked at src/pipeline.rs:284:13:
+    assertion `left == right` failed
+      left: [[175, 19, 73, 185, 245, 249, 161, 166, 160, 64, 77, 234, 54, 220, 201, 73, 155, 203, 37, 201, 173, 193, 18, 183, 204, 154, 147, 202, 228, 31, 50, 98], [45, 58, 222, 223, 241, 27, 97, 241, 76, 136, 110, 53, 175, 160, 54, 115, 109, 205, 135, 167, 77, 39, 181, 193, 81, 2, 37, 208, 245, 146, 226, 19], [153, 10, 109, 32, 133, 157, 143, 67, 134, 90, 189, 89, 217, 42, 7, 170, 239, 28, 37, 194, 37, 125, 1, 125, 176, 119, 16, 21, 45, 6, 192, 213], [77, 0, 105, 118, 99, 106, 134, 150, 217, 9, 166, 48, 164, 8, 26, 173, 77, 124, 80, 248, 26, 253, 238, 4, 2, 11, 240, 80, 134, 171, 106, 85], [166, 247, 145, 218, 119, 7, 227, 160, 90, 119, 66, 36, 142, 239, 228, 63, 154, 212, 98, 111, 194, 27, 99, 103, 83, 103, 195, 209, 214, 158, 201, 28], [232, 211, 3, 178, 72, 48, 154, 97, 29, 236, 163, 57, 26, 123, 7, 173, 252, 167, 30, 152, 217, 30, 33, 107, 210, 61, 171, 80, 164, 118, 94, 227], [2, 105, 229, 2, 79, 202, 211, 150, 201, 66, 110, 148, 97, 222, 224, 131, 81, 50, 232, 229, 133, 77, 229, 162, 130, 155, 74, 138, 56, 165, 195, 127], [59, 222, 175, 143, 142, 152, 120, 11, 49, 129, 6, 170, 253, 195, 202, 37, 127, 115, 223, 18, 61, 151, 182, 145, 18, 178, 96, 68, 201, 26, 125, 86], [1, 119, 159, 228, 221, 76, 4, 65, 149, 0, 150, 72, 213, 178, 75, 163, 10, 99, 243, 183, 196, 149, 133, 41, 228, 35, 167, 218, 55, 102, 186, 249], [33, 249, 23, 158, 112, 20, 38, 91, 129, 94, 115, 130, 4, 30, 183, 107, 77, 209, 180, 33, 2, 220, 61, 250, 56, 209, 250, 204, 187, 26, 53, 149]]
+     right: [[175, 19, 73, 185, 245, 249, 161, 166, 160, 64, 77, 234, 54, 220, 201, 73, 155, 203, 37, 201, 173, 193, 18, 183, 204, 154, 147, 202, 228, 31, 50, 98], [45, 58, 222, 223, 241, 27, 97, 241, 76, 136, 110, 53, 175, 160, 54, 115, 109, 205, 135, 167, 77, 39, 181, 193, 81, 2, 37, 208, 245, 146, 226, 19], [81, 129, 238, 90, 155, 149, 118, 224, 165, 213, 199, 150, 235, 229, 23, 183, 235, 26, 38, 0, 205, 62, 170, 253, 193, 62, 219, 118, 1, 241, 88, 126], [24, 36, 117, 82, 72, 26, 252, 162, 252, 155, 74, 225, 162, 15, 124, 33, 94, 114, 232, 148, 87, 34, 135, 241, 92, 170, 73, 34, 178, 193, 43, 177], [172, 162, 104, 127, 31, 20, 79, 216, 244, 206, 213, 198, 241, 88, 44, 143, 249, 38, 103, 185, 221, 122, 31, 121, 58, 43, 182, 223, 55, 245, 17, 200], [57, 13, 117, 251, 82, 2, 255, 160, 226, 239, 184, 107, 225, 18, 106, 247, 152, 49, 47, 47, 165, 230, 47, 36, 248, 154, 179, 202, 103, 246, 154, 162], [188, 220, 242, 250, 2, 63, 12, 102, 149, 163, 89, 178, 126, 226, 112, 158, 13, 36, 126, 95, 177, 73, 126, 46, 78, 96, 245, 54, 5, 1, 14, 132], [5, 147, 63, 166, 69, 165, 52, 91, 151, 16, 177, 4, 121, 122, 206, 23, 218, 156, 103, 121, 236, 176, 153, 33, 131, 224, 52, 17, 159, 153, 121, 221], [117, 242, 229, 253, 79, 125, 184, 147, 75, 89, 2, 22, 176, 160, 233, 53, 82, 6, 11, 137, 217, 3, 5, 27, 20, 21, 137, 231, 206, 69, 251, 97], [111, 53, 229, 226, 19, 197, 147, 129, 101, 101, 90, 85, 219, 91, 11, 133, 210, 154, 119, 53, 4, 214, 115, 162, 50, 39, 171, 100, 31, 43, 37, 83]]
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+     SIGABRT [   0.067s] (5/5) bench-hashes::bin/bench-hashes pipeline::tests::shared_producers_keep_independent_inputs_and_completions
+  stdout ───
+
+    running 1 test
+  stderr ───
+
+    thread '<unnamed>' (1345212) panicked at src/pipeline.rs:346:33:
+    assertion `left == right` failed
+      left: [60, 69, 130, 68, 239, 54, 50, 225, 148, 151, 107, 154, 152, 161, 162, 82, 69, 99, 47, 162, 186, 128, 116, 82, 227, 232, 48, 159, 226, 115, 47, 126]
+     right: [64, 205, 25, 57, 61, 131, 163, 221, 85, 133, 205, 11, 220, 168, 211, 27, 34, 155, 178, 200, 218, 56, 8, 95, 224, 193, 9, 74, 189, 8, 180, 224]
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+    blake3-servil: Pipeline dropped while worker tasks are still in flight
+
+    (test aborted with signal 6: SIGABRT)
+
+────────────
+     Summary [   0.067s] 5 tests run: 2 passed, 3 failed, 196 skipped
+        FAIL [   0.004s] (2/5) bench-hashes::bin/bench-hashes pipeline::tests::fixed_vectors_keep_order_across_backpressure_and_reuse
+        FAIL [   0.004s] (4/5) bench-hashes::bin/bench-hashes pipeline::tests::room_boundaries_and_partial_room_reuse_deliver_every_byte
+     SIGABRT [   0.067s] (5/5) bench-hashes::bin/bench-hashes pipeline::tests::shared_producers_keep_independent_inputs_and_completions
+error: test run failed

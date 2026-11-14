@@ -1,0 +1,70 @@
+warning: Cargo.toml: version requirement `=0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d` for dependency `sigilcode` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: Cargo.toml: version requirement `=0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d` for dependency `sigilcode` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `bench-hashes` (manifest) generated 2 warnings
+   Compiling typenum v1.20.1
+   Compiling cfg-if v1.0.4
+   Compiling crossbeam-utils v0.8.23
+   Compiling libc v0.2.189
+   Compiling arrayvec v0.7.8
+   Compiling const-oid v0.9.6
+   Compiling constant_time_eq v0.4.2
+   Compiling clocks v0.1.0 (/home/agent/bench-pipeline/clocks)
+   Compiling blake3-servil-version v0.9.0+dev (https://github.com/servil-software-factory/BLAKE3?rev=f62bc6ac0bc1c86861659d61ffbf4e9546bc8aec#f62bc6ac)
+   Compiling cpufeatures v0.3.0
+   Compiling cpufeatures v0.2.17
+   Compiling rand_core v0.9.5
+   Compiling bench-hashes v0.22.0+d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41 (/home/agent/bench-pipeline)
+   Compiling once_cell v1.21.4
+   Compiling untrusted v0.9.0
+   Compiling sigilcode v0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d
+   Compiling keccak v0.2.2
+   Compiling wyhash v0.6.0
+   Compiling blake3-servil-core v0.9.0+dev (https://github.com/servil-software-factory/BLAKE3?rev=f62bc6ac0bc1c86861659d61ffbf4e9546bc8aec#f62bc6ac)
+   Compiling crossbeam-epoch v0.9.21
+   Compiling crossbeam-deque v0.8.8
+   Compiling generic-array v0.14.7
+   Compiling hybrid-array v0.4.15
+   Compiling getrandom v0.2.17
+   Compiling sysinfo v0.30.13
+   Compiling rayon-core v1.13.0
+   Compiling ring v0.17.14
+   Compiling blake3-servil v0.9.0+dev (https://github.com/servil-software-factory/BLAKE3?rev=f62bc6ac0bc1c86861659d61ffbf4e9546bc8aec#f62bc6ac)
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling block-buffer v0.12.1
+   Compiling crypto-common v0.2.2
+   Compiling sha1 v0.10.7
+   Compiling blake3 v1.8.7
+   Compiling sha1-checked v0.10.0
+   Compiling digest v0.11.3
+   Compiling sha3 v0.11.0
+   Compiling sha2 v0.11.0
+error[E0308]: mismatched types
+   --> src/pipeline.rs:227:54
+    |
+227 |         blake3_servil::initialize_multithreaded(Some(2));
+    |                                                 ---- ^ expected `NonZero<usize>`, found integer
+    |                                                 |
+    |                                                 arguments to this enum variant are incorrect
+    |
+    = note: expected struct `std::num::NonZero<usize>`
+                 found type `{integer}`
+help: the type constructed contains `{integer}` due to the type of the argument passed
+   --> src/pipeline.rs:227:49
+    |
+227 |         blake3_servil::initialize_multithreaded(Some(2));
+    |                                                 ^^^^^-^
+    |                                                      |
+    |                                                      this argument influences the type of `Some`
+note: tuple variant defined here
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/option.rs:606:4
+help: consider calling `NonZero::new`
+    |
+227 |         blake3_servil::initialize_multithreaded(Some(NonZero::new(2).unwrap()));
+    |                                                      +++++++++++++ ++++++++++
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `bench-hashes` (bin "bench-hashes" test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: command `/home/agent/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo '--color=auto' test --no-run --message-format json-render-diagnostics --release` exited with code 101
