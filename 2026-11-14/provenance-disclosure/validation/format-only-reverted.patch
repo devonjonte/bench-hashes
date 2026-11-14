@@ -1,0 +1,119 @@
+diff --git a/src/overview.rs b/src/overview.rs
+index a0571397d..f95defe97 100644
+--- a/src/overview.rs
++++ b/src/overview.rs
+@@ -7,7 +7,7 @@
+ //! through the same reader and summary rule; every figure on the page is
+ //! computed here, none typed.
+ 
+-use super::{read_samples, Algorithm, Measured, SamplesFile, UseCase, SAMPLES_VERSION};
++use super::{Algorithm, Measured, SAMPLES_VERSION, SamplesFile, UseCase, read_samples};
+ use std::fmt::Write as _;
+ use std::path::Path;
+ 
+@@ -43,37 +43,64 @@ pub const PICKS: [Pick; 7] = [
+     Pick {
+         column: "64 B",
+         situation: "a key, an identifier, a small record, hashed between a program's other work",
+-        cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "64 B", servil: Algorithm::Blake3ServilSt },
++        cell: Cell::Hashing {
++            use_case: UseCase::OneMessage,
++            point: "64 B",
++            servil: Algorithm::Blake3ServilSt,
++        },
+     },
+     Pick {
+         column: "1 KiB",
+         situation: "a small record, hashed between a program's other work",
+-        cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "1 KiB", servil: Algorithm::Blake3ServilSt },
++        cell: Cell::Hashing {
++            use_case: UseCase::OneMessage,
++            point: "1 KiB",
++            servil: Algorithm::Blake3ServilSt,
++        },
+     },
+     Pick {
+         column: "1 MiB",
+         situation: "a buffer the size of a file",
+-        cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "1 MiB", servil: Algorithm::Blake3ServilSt },
++        cell: Cell::Hashing {
++            use_case: UseCase::OneMessage,
++            point: "1 MiB",
++            servil: Algorithm::Blake3ServilSt,
++        },
+     },
+     Pick {
+         column: "128 MiB",
+         situation: "a download or a disk image",
+-        cell: Cell::Hashing { use_case: UseCase::OneMessage, point: "128 MiB", servil: Algorithm::Blake3ServilMt },
++        cell: Cell::Hashing {
++            use_case: UseCase::OneMessage,
++            point: "128 MiB",
++            servil: Algorithm::Blake3ServilMt,
++        },
+     },
+     Pick {
+         column: "64 KiB messages, one after another",
+         situation: "messages arriving one after another, as fast as the program can feed them; BLAKE3-Servil's stream hashes them on its threads, the others on the calling thread",
+-        cell: Cell::Hashing { use_case: UseCase::ContinuousMessages, point: "64 KiB", servil: Algorithm::Blake3ServilMt },
++        cell: Cell::Hashing {
++            use_case: UseCase::ContinuousMessages,
++            point: "64 KiB",
++            servil: Algorithm::Blake3ServilMt,
++        },
+     },
+     Pick {
+         column: "1024 messages of 64 B, batched",
+         situation: "a Merkle layer, a content-addressed store, a database's keys: 1024 messages of 64 bytes in one call",
+-        cell: Cell::Hashing { use_case: UseCase::ManyMessages, point: "1024", servil: Algorithm::Blake3ServilSt },
++        cell: Cell::Hashing {
++            use_case: UseCase::ManyMessages,
++            point: "1024",
++            servil: Algorithm::Blake3ServilSt,
++        },
+     },
+     Pick {
+         column: "1000 files, b3sum",
+         situation: "b3sum over a directory of 1000 files of assorted sizes, 74 MiB, in the page cache: the command itself, start to exit",
+-        cell: Cell::B3sum { cache: "warm", input: "mixed tree, 1000 files, 74 MiB" },
++        cell: Cell::B3sum {
++            cache: "warm",
++            input: "mixed tree, 1000 files, 74 MiB",
++        },
+     },
+ ];
+ 
+@@ -1102,7 +1207,6 @@ pub fn html(rows: &[Row]) -> String {
+                     escape(&map),
+                     escape(&row.machine),
+                     escape(column),
+-
+                     escape(&tip.join("\n"))
+                 );
+                 for b in bars {
+@@ -1248,7 +1353,11 @@ mod tests {
+                 super::SAMPLES_VERSION,
+                 crate::SAMPLES_COLUMNS,
+                 row("blake3-servil-st", ns),
+-                if sha { row("sha256", 4 * ns) } else { String::new() }
++                if sha {
++                    row("sha256", 4 * ns)
++                } else {
++                    String::new()
++                }
+             )
+         };
+         std::fs::write(
+@@ -1301,9 +1410,9 @@ mod tests {
+         std::fs::create_dir_all(&dir).unwrap();
+         let file = |load: &str, rows: &str| {
+             format!(
+-            "{SAMPLES_VERSION}\n# bench-hashes version: test\n# cpu type: Example\n# load: {load}\n# power: mains power\n{}\n{rows}",
+-            crate::SAMPLES_COLUMNS
+-        )
++                "{SAMPLES_VERSION}\n# bench-hashes version: test\n# cpu type: Example\n# load: {load}\n# power: mains power\n{}\n{rows}",
++                crate::SAMPLES_COLUMNS
++            )
+         };
+         let hashing = "blake3-servil-st\tsolo\tOneMessage\t1 KiB\tB\t80/64,80/64\t1,2\t-\t-\t-\t0,0\nblake3-servil-mt\tsolo\tContinuousMessages\t64 KiB\tB\t80/64,80/64\t1,2\t-\t-\t-\t0,0\n";
+         let files = "b3sum\twarm\tb3sum\tmixed tree, 1000 files, 74 MiB\tB\t160/64,160/64\t1,2\t-\t-\t-\t0,0\n";

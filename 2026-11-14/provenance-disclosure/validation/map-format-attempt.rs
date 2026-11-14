@@ -1,0 +1,1507 @@
+//! `bench-hashes.map.html`: the map of a run's results. Every measurement is
+//! a small chart, placed by what the program hashes (row) and how it calls
+//! (column); a chart opens in place, with its headers lit and the values
+//! under the pointer; each call's name links to its documentation. Drawn
+//! from the samples files in a results directory: `bench-hashes.samples.tsv`
+//! for the hashing section, `b3sum.samples.tsv` for b3sum's. A full run and
+//! a b3sum run each draw it again; `bench-hashes map DIR` draws it from
+//! stored files.
+
+use super::{Algorithm, POINTS, SHOWN_AT_FIRST, UseCase, read_samples};
+use std::fmt::Write as _;
+use std::path::Path;
+
+/// Where each use case sits: its row, its column, the call of BLAKE3
+/// servil mt (the servil contender shown when the page opens), and that
+/// call's page in the documentation.
+/// BLAKE3-Servil st's call where `place` names mt's, in map column
+/// `column`: the convenience call for one message after a gap,
+/// `throughput::hash` for one after another, and elsewhere the call
+/// without its `_multithreaded`.
+fn one_thread_call(column: &str, call: &str, doc: &str) -> (String, String) {
+    if call.starts_with("throughput::Pipeline") {
+        return match column {
+            "receiving" => (
+                "convenience::Hasher::update".to_owned(),
+                "convenience/struct.Hasher.html#method.update".to_owned(),
+            ),
+            "piped" if call.ends_with("::batch") => (
+                "throughput::hash_many".to_owned(),
+                "throughput/fn.hash_many.html".to_owned(),
+            ),
+            "piped" => (
+                "throughput::hash".to_owned(),
+                "throughput/fn.hash.html".to_owned(),
+            ),
+            _ => unreachable!("Pipeline serves owned and receiving cells"),
+        };
+    }
+    if call == "throughput::hash_multithreaded" {
+        return if matches!(column, "lent" | "piped") {
+            (
+                "throughput::hash".to_owned(),
+                doc.replace("fn.hash_multithreaded", "fn.hash"),
+            )
+        } else {
+            (
+                "convenience::hash".to_owned(),
+                "convenience/fn.hash.html".to_owned(),
+            )
+        };
+    }
+    if call == "throughput::Hasher::update_multithreaded" {
+        return (
+            "convenience::Hasher::update".to_owned(),
+            "convenience/struct.Hasher.html#method.update".to_owned(),
+        );
+    }
+    (
+        call.replace("_multithreaded", ""),
+        doc.replace("_multithreaded", ""),
+    )
+}
+
+/// A use case's row and column on the map, by their ids.
+pub fn row_and_column(use_case: UseCase) -> (&'static str, &'static str) {
+    let (row, column, _, _) = place(use_case);
+    (row, column)
+}
+
+fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str, &'static str) {
+    match use_case {
+        UseCase::OneMessage => (
+            "one",
+            "busy",
+            "throughput::hash_multithreaded",
+            "performance/fn.hash_multithreaded.html",
+        ),
+        UseCase::IdleOneMessage => (
+            "one",
+            "idle",
+            "throughput::hash_multithreaded",
+            "performance/fn.hash_multithreaded.html",
+        ),
+        UseCase::BriefIdleOneMessage => (
+            "one",
+            "brief",
+            "throughput::hash_multithreaded",
+            "performance/fn.hash_multithreaded.html",
+        ),
+        UseCase::ControlledIdleOneMessage => (
+            "one",
+            "controlled",
+            "throughput::hash_multithreaded",
+            "performance/fn.hash_multithreaded.html",
+        ),
+        UseCase::IncrementalMessage => (
+            "incremental",
+            "busy",
+            "convenience::Hasher",
+            "convenience/struct.Hasher.html",
+        ),
+        UseCase::LentIncrementalMessage => (
+            "incremental",
+            "lent",
+            "convenience::Hasher",
+            "convenience/struct.Hasher.html",
+        ),
+        UseCase::ReceivingMessage => (
+            "one",
+            "receiving",
+            "throughput::Pipeline::commit",
+            "throughput/struct.Pipeline.html#method.commit",
+        ),
+        UseCase::LentMessages => (
+            "one",
+            "lent",
+            "throughput::hash_multithreaded",
+            "performance/fn.hash_multithreaded.html",
+        ),
+        UseCase::ContinuousMessages => (
+            "one",
+            "piped",
+            "throughput::Pipeline::commit",
+            "throughput/struct.Pipeline.html#method.commit",
+        ),
+        UseCase::ManyMessages => (
+            "batch",
+            "busy",
+            "throughput::hash_many_multithreaded",
+            "performance/fn.hash_many_multithreaded.html",
+        ),
+        UseCase::ManyLongMessages => (
+            "long",
+            "busy",
+            "throughput::hash_many_multithreaded",
+            "performance/fn.hash_many_multithreaded.html",
+        ),
+        UseCase::IdleManyMessages => (
+            "batch",
+            "idle",
+            "throughput::hash_many_multithreaded",
+            "performance/fn.hash_many_multithreaded.html",
+        ),
+        UseCase::BriefIdleManyMessages => (
+            "batch",
+            "brief",
+            "throughput::hash_many_multithreaded",
+            "performance/fn.hash_many_multithreaded.html",
+        ),
+        UseCase::ControlledIdleManyMessages => (
+            "batch",
+            "controlled",
+            "throughput::hash_many_multithreaded",
+            "performance/fn.hash_many_multithreaded.html",
+        ),
+        UseCase::LentBatches => (
+            "batch",
+            "lent",
+            "throughput::hash_many_multithreaded",
+            "performance/fn.hash_many_multithreaded.html",
+        ),
+        UseCase::ContinuousBatches => (
+            "batch",
+            "piped",
+            "throughput::Pipeline::batch",
+            "throughput/struct.Pipeline.html#method.batch",
+        ),
+        UseCase::Interleaved => (
+            "many",
+            "lent",
+            "throughput::update_each_multithreaded",
+            "performance/fn.update_each_multithreaded.html",
+        ),
+        UseCase::InterleavedTurn => (
+            "many",
+            "busy",
+            "throughput::update_each_multithreaded",
+            "performance/fn.update_each_multithreaded.html",
+        ),
+        UseCase::IdleInterleavedTurn => (
+            "many",
+            "idle",
+            "throughput::update_each_multithreaded",
+            "performance/fn.update_each_multithreaded.html",
+        ),
+        UseCase::BriefIdleInterleavedTurn => (
+            "many",
+            "brief",
+            "throughput::update_each_multithreaded",
+            "performance/fn.update_each_multithreaded.html",
+        ),
+        UseCase::ControlledIdleInterleavedTurn => (
+            "many",
+            "controlled",
+            "throughput::update_each_multithreaded",
+            "performance/fn.update_each_multithreaded.html",
+        ),
+        UseCase::Collection => (
+            "coll",
+            "lent",
+            "throughput::hash_each_multithreaded",
+            "performance/fn.hash_each_multithreaded.html",
+        ),
+        UseCase::ContinuousCollection => (
+            "coll",
+            "piped",
+            "throughput::Pipeline::commit",
+            "throughput/struct.Pipeline.html#method.commit",
+        ),
+        UseCase::MerkleTree => (
+            "merkle",
+            "lent",
+            "throughput::hash_many_multithreaded",
+            "performance/fn.hash_many_multithreaded.html",
+        ),
+    }
+}
+
+/// The map's address of a use case's chart: `scenario|row|col`, as a link
+/// to `bench-hashes.map.html#…` opens it.
+pub fn cell_key(scenario: &str, use_case: UseCase) -> String {
+    let (row, col, _, _) = place(use_case);
+    format!("{scenario}|{row}|{col}")
+}
+
+const DOCS: &str = "https://servil-software-factory.github.io/BLAKE3/blake3_servil/";
+
+/// What a chart's points are, with their unit: the opened chart's x axis
+/// and the tooltip's heading.
+fn axis(use_case: UseCase) -> &'static str {
+    match use_case {
+        UseCase::Interleaved
+        | UseCase::InterleavedTurn
+        | UseCase::IdleInterleavedTurn
+        | UseCase::BriefIdleInterleavedTurn
+        | UseCase::ControlledIdleInterleavedTurn => "messages open at once",
+        UseCase::MerkleTree => "leaves (256 B each)",
+        UseCase::ReceivingMessage => "arrival spacing",
+        UseCase::Collection | UseCase::ContinuousCollection => "collection",
+        UseCase::ManyLongMessages => "messages in the batch (4 KiB each)",
+        _ if use_case.batch() => "messages in the batch (64 B each)",
+        _ => "message size",
+    }
+}
+
+/// What one unit of a point's time pays for, in the tooltip's words.
+fn what(use_case: UseCase) -> &'static str {
+    match use_case {
+        UseCase::Collection | UseCase::ContinuousCollection => "the collection",
+        UseCase::Interleaved => "a megabyte of pieces",
+        UseCase::InterleavedTurn
+        | UseCase::IdleInterleavedTurn
+        | UseCase::BriefIdleInterleavedTurn
+        | UseCase::ControlledIdleInterleavedTurn => "a turn",
+        UseCase::MerkleTree => "a tree",
+        _ if use_case.batch() => "a batch",
+        _ => "a message",
+    }
+}
+
+/// A cell's mean time per unit in nanoseconds, for drawing (the one place
+/// it leaves integers: clocks::summary::mean is Q64.64).
+fn mean_ns(samples: &[super::Measured]) -> f64 {
+    let mean = clocks::summary::mean(samples.iter().map(|m| (m.ns, m.units)));
+    mean as f64 / 18_446_744_073_709_551_616.0
+}
+
+/// A cell's CPU time (ns) or energy (nJ) per unit, for drawing: all its
+/// samples' figures in `column` (the samples file's `cpu` or `energy`) over
+/// their units, where the file records them (solo nonstop cells, b3sum's
+/// runs), else None.
+fn per_unit(column: &[(String, Vec<u64>)], key: &str, samples: &[super::Measured]) -> Option<f64> {
+    let (_, v) = column.iter().find(|(k, _)| k == key)?;
+    let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
+    Some(v.iter().map(|&n| u128::from(n)).sum::<u128>() as f64 / units as f64).filter(|&x| x > 0.0)
+}
+
+/// A cell's core counts summed over its samples: [E share, P GHz, E GHz].
+/// The distinct CPUs a cell's samples ended on, ascending, as "3,7".
+fn cpus_of(column: &[(String, Vec<u32>)], key: &str) -> Option<String> {
+    let (_, v) = column.iter().find(|(k, _)| k == key)?;
+    let mut c: Vec<u32> = v.clone();
+    c.sort_unstable();
+    c.dedup();
+    Some(c.iter().map(u32::to_string).collect::<Vec<_>>().join(","))
+}
+
+fn where_ran(
+    column: &[(String, Vec<[u64; super::LEVEL_FIELDS * 2]>)],
+    key: &str,
+) -> Option<[f64; 3]> {
+    let (_, v) = column.iter().find(|(k, _)| k == key)?;
+    // Time and cycles per kind; instructions and the cache counts are the
+    // samples' to keep, not this chart's to show.
+    const E: usize = super::LEVEL_FIELDS;
+    let [pt, pc, et, ec] = v.iter().fold([0u128; 4], |a, c| {
+        [
+            a[0] + u128::from(c[0]),
+            a[1] + u128::from(c[1]),
+            a[2] + u128::from(c[E]),
+            a[3] + u128::from(c[E + 1]),
+        ]
+    });
+    let ghz = |cycles: u128, ns: u128| {
+        if ns > 0 {
+            cycles as f64 / ns as f64
+        } else {
+            0.0
+        }
+    };
+    (pt + et > 0).then(|| [et as f64 / (pt + et) as f64, ghz(pc, pt), ghz(ec, et)])
+}
+
+/// `text` as a JSON string, safe inside a script element.
+fn json(text: &str) -> String {
+    let mut out = String::from("\"");
+    for c in text.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '<' => out.push_str("\\u003c"),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// One small chart's data, as the page's script reads it.
+struct Chart {
+    sizes: Vec<String>,
+    unit: &'static str,
+    call: String,
+    doc: String,
+    cases: bool,
+    per: Vec<u64>,
+    what: &'static str,
+    /// What the points are (axis).
+    axis: &'static str,
+    series: Vec<Option<Vec<f64>>>,
+    /// An earlier run's means at the same points, by contender (a map
+    /// drawn beside it; empty otherwise): None where it has none.
+    before: Vec<Option<Vec<Option<f64>>>>,
+    /// CPU time per unit at the same points, by contender (per_unit): None
+    /// where the run recorded none.
+    cpu: Vec<Option<Vec<Option<f64>>>>,
+    /// Energy per unit (nJ), alike.
+    energy: Vec<Option<Vec<Option<f64>>>>,
+    /// Where the calling thread ran at each point, by contender, from the
+    /// samples' core counts: [share of its time on E cores, P GHz, E GHz]
+    /// (a clock 0 where it spent no time on that kind); None where none.
+    cores: Vec<Option<Vec<Option<[f64; 3]>>>>,
+    /// The CPUs the samples' threads ended on at each point, by contender,
+    /// as "0,2" (distinct, ascending; the shared copies' together): the
+    /// placement the run chose (the header's `shared placements`), seen
+    /// from the samples themselves (bench-hashes #108, #116). None where
+    /// none.
+    cpus: Vec<Option<Vec<Option<String>>>>,
+}
+
+impl Chart {
+    fn json(&self) -> String {
+        let sizes: Vec<String> = self.sizes.iter().map(|s| json(s)).collect();
+        let per: Vec<String> = self.per.iter().map(u64::to_string).collect();
+        let series: Vec<String> = self
+            .series
+            .iter()
+            .map(|s| match s {
+                Some(v) => format!(
+                    "[{}]",
+                    v.iter()
+                        .map(|x| format!("{x:.6}"))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                ),
+                None => "null".to_owned(),
+            })
+            .collect();
+        let optional = |lines: &[Option<Vec<Option<f64>>>]| {
+            lines
+                .iter()
+                .map(|s| match s {
+                    Some(v) => format!(
+                        "[{}]",
+                        v.iter()
+                            .map(|x| x.map_or("null".to_owned(), |x| format!("{x:.6}")))
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    ),
+                    None => "null".to_owned(),
+                })
+                .collect::<Vec<String>>()
+                .join(",")
+        };
+        format!(
+            "{{\"sizes\":[{}],\"unit\":{},\"call\":{},\"doc\":{},\"cases\":{},\"per\":[{}],\"what\":{},\"axis\":{},\"series\":[{}],\"before\":[{}],\"cpu\":[{}],\"energy\":[{}],\"cores\":[{}],\"cpus\":[{}]}}",
+            sizes.join(","),
+            json(self.unit),
+            json(&self.call),
+            json(&self.doc),
+            self.cases,
+            per.join(","),
+            json(self.what),
+            json(self.axis),
+            series.join(","),
+            optional(&self.before),
+            optional(&self.cpu),
+            optional(&self.energy),
+            self.cores
+                .iter()
+                .map(|c| match c {
+                    Some(v) => format!(
+                        "[{}]",
+                        v.iter()
+                            .map(|x| x.map_or("null".to_owned(), |[e, p, q]| format!(
+                                "[{e:.4},{p:.3},{q:.3}]"
+                            )))
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    ),
+                    None => "null".to_owned(),
+                })
+                .collect::<Vec<_>>()
+                .join(","),
+            self.cpus
+                .iter()
+                .map(|c| match c {
+                    Some(v) => format!(
+                        "[{}]",
+                        v.iter()
+                            .map(|x| x.as_ref().map_or("null".to_owned(), |s| json(s)))
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    ),
+                    None => "null".to_owned(),
+                })
+                .collect::<Vec<_>>()
+                .join(",")
+        )
+    }
+}
+
+struct Section {
+    title: &'static str,
+    /// Rows, columns, and layers: (key, name, what it means).
+    rows: Vec<(&'static str, &'static str, &'static str)>,
+    cols: Vec<(&'static str, &'static str, &'static str)>,
+    layers: Vec<(&'static str, &'static str, &'static str)>,
+    names: Vec<String>,
+    colors: Vec<String>,
+    /// Each contender's pattern: a library's multi-threaded form is drawn
+    /// in its single-threaded form's colour, as a double line.
+    striped: Vec<bool>,
+    /// Which contenders are BLAKE3-Servil's: a bracket joins servil's line
+    /// and its strongest rival's.
+    ours: Vec<bool>,
+    shown: Vec<bool>,
+    cells: Vec<(String, Chart)>,
+    about: String,
+    /// The run's provenance, behind its door: (label, text, link or "").
+    details: Vec<(String, String, String)>,
+    /// The run's name, as an earlier run beside a later one is named.
+    run: String,
+    /// The earlier run drawn beside this one, dashed: its name and its
+    /// line (empty when there is none).
+    before: (String, String),
+}
+
+impl Section {
+    fn json(&self) -> String {
+        let triples = |v: &[(&str, &str, &str)]| {
+            v.iter()
+                .map(|(a, b, c)| format!("[{},{},{}]", json(a), json(b), json(c)))
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        let names = self
+            .names
+            .iter()
+            .map(|n| json(n))
+            .collect::<Vec<_>>()
+            .join(",");
+        let colors = self
+            .colors
+            .iter()
+            .map(|n| json(n))
+            .collect::<Vec<_>>()
+            .join(",");
+        let shown = self
+            .shown
+            .iter()
+            .map(bool::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        let striped = self
+            .striped
+            .iter()
+            .map(bool::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        let ours = self
+            .ours
+            .iter()
+            .map(bool::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        let cells = self
+            .cells
+            .iter()
+            .map(|(k, c)| format!("{}:{}", json(k), c.json()))
+            .collect::<Vec<_>>()
+            .join(",");
+        let details = self
+            .details
+            .iter()
+            .map(|(a, b, c)| format!("[{},{},{}]", json(a), json(b), json(c)))
+            .collect::<Vec<_>>()
+            .join(",");
+        format!(
+            "{{\"title\":{},\"rows\":[{}],\"cols\":[{}],\"layers\":[{}],\"names\":[{}],\"colors\":[{}],\"striped\":[{}],\"ours\":[{}],\"shown\":[{}],\"cells\":{{{}}},\"about\":{},\"details\":[{}],\"run\":{},\"before\":[{},{}]}}",
+            json(self.title),
+            triples(&self.rows),
+            triples(&self.cols),
+            triples(&self.layers),
+            names,
+            colors,
+            striped,
+            ours,
+            shown,
+            cells,
+            json(&self.about),
+            details,
+            json(&self.run),
+            json(&self.before.0),
+            json(&self.before.1)
+        )
+    }
+}
+
+fn header<'a>(headers: &'a [(String, String)], key: &str) -> &'a str {
+    headers
+        .iter()
+        .find(|(k, _)| k == key)
+        .map_or("", |(_, v)| v.as_str())
+}
+
+/// The samples reader carries clocks' load classification. Present its warning
+/// on both pages without recomputing load or changing the recorded samples.
+pub(crate) fn load_warning(load: &str) -> Option<String> {
+    if load.starts_with("quiet") {
+        return None;
+    }
+    let busy = load.split("busy in ").nth(1).and_then(|rest| {
+        let mut words = rest.split_whitespace();
+        Some((words.next()?, words.nth(1)?))
+    });
+    Some(match busy {
+        Some((n, of)) => format!("other programs busy in {n} of {of} windows; times may be slower"),
+        None if load.starts_with("busy") => "other programs busy; times may be slower".to_owned(),
+        None => "background load unobserved; times need qualification".to_owned(),
+    })
+}
+
+/// The run a samples file holds, in a line for every reader: the machine,
+/// the day, and whether other programs kept it busy (the details are
+/// behind the run's door).
+fn about(headers: &[(String, String)], load: &str) -> String {
+    let day = header(headers, "timestamp").split(' ').next().unwrap_or("");
+    let load = load_warning(load).unwrap_or_else(|| "the machine quiet".to_owned());
+    let os = header(headers, "os type");
+    let os = if os.starts_with("darwin") {
+        "macOS"
+    } else if os.starts_with("linux") {
+        "Linux"
+    } else {
+        os
+    };
+    format!(
+        "{}, {} CPUs, {os} · {day} · {load}",
+        header(headers, "cpu type"),
+        header(headers, "cpu count")
+    )
+}
+
+/// The run's provenance, behind its door, for the readers who want it:
+/// every line of the samples file's header (bench-hashes #103). The ones a
+/// reader asks about first come first, under plain labels: when and where
+/// it ran, the software at its exact commits (links to them), each
+/// contender's source as the run recorded it, the build, the power and the
+/// load; then every other header line under its own name (the CPU's
+/// identity, the target features, the clock, the sizes...), and the samples
+/// file. The load windows alone stay in the file: "Other programs" sums
+/// them up.
+pub(super) fn details(
+    headers: &[(String, String)],
+    load: &str,
+    power: &str,
+    samples: &str,
+) -> Vec<(String, String, String)> {
+    let mut out: Vec<(String, String, String)> = Vec::new();
+    let mut add = |label: &str, text: String, link: String| {
+        if !text.is_empty() {
+            out.push((label.to_owned(), text, link));
+        }
+    };
+    add(
+        "Measured",
+        header(headers, "timestamp").to_owned(),
+        String::new(),
+    );
+    let identity = header(headers, "cpu identity");
+    let cores = |level: &str| {
+        identity.split(" · ").find_map(|f| {
+            f.strip_prefix(&format!("hw.perflevel{level}.physicalcpu: "))
+                .map(str::to_owned)
+        })
+    };
+    let machine = match (cores("0"), cores("1")) {
+        (Some(p), Some(e)) => format!(
+            "{}, {p} performance and {e} efficiency cores, {}",
+            header(headers, "cpu type"),
+            header(headers, "os type")
+        ),
+        _ => format!(
+            "{}, {} CPUs, {}",
+            header(headers, "cpu type"),
+            header(headers, "cpu count"),
+            header(headers, "os type")
+        ),
+    };
+    add("Machine", machine, String::new());
+    add("Power", power.to_owned(), String::new());
+    add("Other programs", load.to_owned(), String::new());
+    add(
+        "Idle states",
+        header(headers, "idle states").to_owned(),
+        String::new(),
+    );
+    add(
+        "Effective idle states",
+        header(headers, "effective idle states").to_owned(),
+        String::new(),
+    );
+    add(
+        "Idle control",
+        header(headers, "idle control").to_owned(),
+        String::new(),
+    );
+    add(
+        "Shared placements",
+        header(headers, "shared placements").to_owned(),
+        String::new(),
+    );
+    let version = header(headers, "bench-hashes version");
+    let commit = header(headers, "git commit");
+    let clean = header(headers, "git clean status");
+    // The repository the benchmark was built from, as its header records it.
+    let bench = header(headers, "bench-hashes source");
+    let bench = bench.strip_prefix("https://").unwrap_or(bench);
+    add("bench-hashes", version.to_owned(), String::new());
+    add(
+        "bench-hashes commit",
+        format!(
+            "{bench} at {commit}{}",
+            if clean.is_empty() || clean == "clean" {
+                String::new()
+            } else {
+                format!(" ({clean})")
+            }
+        ),
+        format!("https://{bench}/tree/{commit}"),
+    );
+    let servil = servil_source(headers);
+    if let Some(at) = servil.split("; commit ").nth(1) {
+        let fork = at.split([';', ' ']).next().unwrap_or("");
+        // The repository the run's code came from, as its header records it:
+        // none where the checkout's origin is a local path (a clone of a
+        // clone), and then the row has no link. (An expect here once ended
+        // a run after it had measured, before its report and map.)
+        let repo = servil
+            .split("; source https://")
+            .nth(1)
+            .and_then(|r| r.split(';').next());
+        // Its source as the run recorded it (version, commit, clean status),
+        // linked to the commit where the repository is known.
+        add(
+            "BLAKE3-Servil",
+            servil.to_owned(),
+            repo.map_or(String::new(), |repo| format!("https://{repo}/tree/{fork}")),
+        );
+    }
+    // Every other contender's source, as the run recorded it.
+    for (k, v) in headers
+        .iter()
+        .filter(|(k, _)| k.starts_with("source ") && !k.starts_with("source blake3-servil"))
+    {
+        let key = &k["source ".len()..];
+        let name = Algorithm::ALL
+            .into_iter()
+            .find(|a| a.key() == key)
+            .map_or(key.to_owned(), |a| a.name().to_owned());
+        add(&name, v.to_owned(), String::new());
+    }
+    for (label, key) in [
+        ("Rust compiler", "rust compiler"),
+        ("C compiler", "c compiler"),
+        ("RUSTFLAGS", "rustflags"),
+        ("Dependencies", "dependency lock"),
+        ("Target", "build target"),
+        ("Files", "files"),
+    ] {
+        add(label, header(headers, key).to_owned(), String::new());
+    }
+    for (_, v) in headers.iter().filter(|(k, _)| k == "contender") {
+        let (name, how) = v
+            .split_once(": ")
+            .expect("a contender line names its contender first");
+        add(&format!("b3sum {name}"), how.to_owned(), String::new());
+    }
+    // Every header line not shown above, under its own name.
+    let shown = [
+        "timestamp",
+        "cpu type",
+        "cpu count",
+        "os type",
+        "bench-hashes version",
+        "bench-hashes source",
+        "git commit",
+        "git clean status",
+        "rust compiler",
+        "c compiler",
+        "rustflags",
+        "dependency lock",
+        "build target",
+        "files",
+        "idle states",
+        "shared placements",
+        "effective idle states",
+        "idle control",
+        "contender",
+    ];
+    for (k, v) in headers.iter().filter(|(k, _)| {
+        !shown.contains(&k.as_str()) && !k.starts_with("source ") && !k.starts_with("load windows")
+    }) {
+        let mut label = k.replacen("cpu ", "CPU ", 1);
+        if let Some(first) = label.get_mut(0..1) {
+            first.make_ascii_uppercase();
+        }
+        add(&label, v.clone(), String::new());
+    }
+    add("Samples", samples.to_owned(), samples.to_owned());
+    out
+}
+
+fn hashing(path: &Path) -> Section {
+    let file = read_samples(path.to_str().expect("a path in UTF-8"));
+    let mut algorithms: Vec<Algorithm> = Algorithm::ALL
+        .into_iter()
+        .filter(|a| {
+            file.cells
+                .iter()
+                .any(|(k, _)| k.split('|').next() == Some(a.key()))
+        })
+        .collect();
+    algorithms.sort_by_key(|a| Algorithm::ALL.iter().position(|b| b == a));
+    let mut cells = Vec::new();
+    for use_case in UseCase::ALL {
+        let (_, column, call, doc) = place(use_case);
+        // A page without BLAKE3-Servil mt names the one-thread calls.
+        let one_thread = !algorithms.contains(&Algorithm::Blake3ServilMt);
+        let (call, doc) = if one_thread {
+            one_thread_call(column, call, doc)
+        } else {
+            (call.to_owned(), doc.to_owned())
+        };
+        let (call, doc) = (call.as_str(), doc.as_str());
+        for scenario in crate::Scenario::ALL.map(|s| s.key()) {
+            let points = &POINTS[use_case.points()];
+            // Every chart in bytes per second, so one axis serves them all:
+            // a batch's time per message over its message's bytes.
+            let per_byte = |label: &str| match points.iter().find(|p| p.label == label) {
+                Some(p) if use_case.batch() => p.message_len() as f64,
+                _ => 1.0,
+            };
+            let mean = |a: &Algorithm, label: &str| {
+                let key = format!("{}|{scenario}|{use_case:?}|{label}", a.key());
+                file.cells
+                    .iter()
+                    .find(|(k, _)| *k == key)
+                    .map(|(_, s)| mean_ns(s) / per_byte(label))
+            };
+            let column = |col: &[(String, Vec<u64>)], a: &Algorithm, label: &str| {
+                let key = format!("{}|{scenario}|{use_case:?}|{label}", a.key());
+                file.cells
+                    .iter()
+                    .find(|(k, _)| *k == key)
+                    .and_then(|(_, s)| per_unit(col, &key, s))
+                    .map(|v| v / per_byte(label))
+            };
+            // The points this run measured for some contender, in axis order.
+            let measured: Vec<_> = points
+                .iter()
+                .filter(|p| algorithms.iter().any(|a| mean(a, p.label).is_some()))
+                .collect();
+            if measured.is_empty() {
+                continue;
+            }
+            let series: Vec<Option<Vec<f64>>> = algorithms
+                .iter()
+                .map(|a| measured.iter().map(|p| mean(a, p.label)).collect())
+                .collect();
+            // A line of `col` for each contender.
+            let lines = |col: &[(String, Vec<u64>)]| -> Vec<Option<Vec<Option<f64>>>> {
+                algorithms
+                    .iter()
+                    .map(|a| {
+                        let line: Vec<Option<f64>> =
+                            measured.iter().map(|p| column(col, a, p.label)).collect();
+                        line.iter().any(Option::is_some).then_some(line)
+                    })
+                    .collect()
+            };
+            let (cpu_lines, energy_lines) = (lines(&file.cpu), lines(&file.energy));
+            let cores: Vec<Option<Vec<Option<[f64; 3]>>>> = algorithms
+                .iter()
+                .map(|a| {
+                    let line: Vec<Option<[f64; 3]>> = measured
+                        .iter()
+                        .map(|p| {
+                            where_ran(
+                                &file.cores,
+                                &format!("{}|{scenario}|{use_case:?}|{}", a.key(), p.label),
+                            )
+                        })
+                        .collect();
+                    line.iter().any(Option::is_some).then_some(line)
+                })
+                .collect();
+            let cpus: Vec<Option<Vec<Option<String>>>> = algorithms
+                .iter()
+                .map(|a| {
+                    let line: Vec<Option<String>> = measured
+                        .iter()
+                        .map(|p| {
+                            cpus_of(
+                                &file.cpus,
+                                &format!("{}|{scenario}|{use_case:?}|{}", a.key(), p.label),
+                            )
+                        })
+                        .collect();
+                    line.iter().any(Option::is_some).then_some(line)
+                })
+                .collect();
+            cells.push((
+                cell_key(scenario, use_case),
+                Chart {
+                    sizes: measured.iter().map(|p| p.label.to_owned()).collect(),
+                    unit: "GB/s",
+                    call: call.to_owned(),
+                    doc: format!("{DOCS}{doc}"),
+                    cases: matches!(
+                        use_case,
+                        UseCase::Interleaved
+                            | UseCase::InterleavedTurn
+                            | UseCase::IdleInterleavedTurn
+                            | UseCase::BriefIdleInterleavedTurn
+                            | UseCase::ControlledIdleInterleavedTurn
+                            | UseCase::Collection
+                            | UseCase::ContinuousCollection
+                            | UseCase::ReceivingMessage
+                    ),
+                    per: measured.iter().map(|p| p.bytes as u64).collect(),
+                    what: what(use_case),
+                    axis: axis(use_case),
+                    series,
+                    before: Vec::new(),
+                    cpu: cpu_lines,
+                    energy: energy_lines,
+                    cores,
+                    cpus,
+                },
+            ));
+        }
+    }
+    Section {
+        title: "How fast each hash runs, by what a program hashes and how it calls",
+        rows: vec![
+            ("one", "one message", "One logical message."),
+            (
+                "incremental",
+                "one short message, fresh hasher",
+                "Create an incremental hasher, update once with the complete message, finalize and consume its digest. A fresh hasher for every message.",
+            ),
+            (
+                "batch",
+                "a batch of short messages",
+                "Many 64-byte messages hashed together, such as a Merkle tree's nodes; the axis counts the messages.",
+            ),
+            (
+                "long",
+                "a batch of longer messages",
+                "Many 4 KiB messages hashed together, such as a store's blocks or a backup's chunks; the axis counts the messages.",
+            ),
+            (
+                "merkle",
+                "a Merkle tree",
+                "A Merkle tree over 256-byte leaves the program has just written into place, leaves and parents hashed apart, every layer kept, as a zero-knowledge prover commits to its Reed-Solomon codeword (WHIR); the axis counts the leaves.",
+            ),
+            (
+                "many",
+                "many messages at once, in pieces",
+                "256 messages in progress at once, their pieces arriving 64 at a time, as a server's uploads arrive.",
+            ),
+            (
+                "coll",
+                "a collection of messages",
+                "A collection of messages of every size, such as a repository's objects or a store's files, hashed together.",
+            ),
+        ],
+        cols: vec![
+            (
+                "receiving",
+                "receive + hash, including waits",
+                "A message arrives in fragments on a fixed schedule, independent of the hash calls. A saturated source supplies the next fragment immediately. The time includes receiving, waiting, hashing and finalization; its rate is end-to-end reception, not hashing alone.",
+            ),
+            (
+                "busy",
+                "now and then, after other work",
+                "The program hashes now and then and does other work in between, which pushes the hash's code and data out of the CPU's caches.",
+            ),
+            (
+                "brief",
+                "now and then, after a brief pause",
+                "The program hashes now and then and waits 20 μs in between (a reply arrives at once), so the core keeps its clock and its shallowest rest.",
+            ),
+            (
+                "idle",
+                "now and then, after a pause",
+                "The program hashes now and then and waits 5 ms in between (for the network, say), so the core rests deeply and starts the next hash slowly.",
+            ),
+            (
+                "controlled",
+                "now and then, after a pause, deep rest off",
+                "The same 5 ms pause with the core's deep idle states switched off (the bench ran as root), so the call meets the core awake: the library's own cost, apart from the machine's rest.",
+            ),
+            (
+                "lent",
+                "nonstop, waiting for each call",
+                "The program hashes input after input as fast as it can, reading each input once the hash before it has returned.",
+            ),
+            (
+                "piped",
+                "nonstop, pipelined",
+                "The program hashes input after input as fast as it can, and reads the next inputs while earlier ones hash: it hands its inputs to BLAKE3-Servil's stream, which hashes them on other threads. The other hashes have no such call and hash on the program's thread.",
+            ),
+        ],
+        // A layer the run did not measure (two caches on a one-cache
+        // machine) has no cells, and the page leaves it out.
+        layers: vec![
+            (
+                "solo",
+                "one program",
+                "One program hashes; the machine is otherwise quiet.",
+            ),
+            (
+                "shared-one-cache",
+                "two programs at once, one cache",
+                "Two programs hash at the same moment, nonstop, on two cores under one last-level cache: they share the cache and the memory path, as two programs on a busy machine most often do.",
+            ),
+            (
+                "shared-two-caches",
+                "two programs at once, two caches",
+                "Two programs hash at the same moment, nonstop, on two cores under different last-level caches: they share the memory path and little else.",
+            ),
+            (
+                "shared-os",
+                "two programs at once, placed by the OS",
+                "Two programs hash at the same moment, nonstop, wherever the operating system runs them: this machine lets no program choose its CPUs, so the two may share a cluster's cache or not, sample by sample.",
+            ),
+        ],
+        // A run with --threads N names servil mt's count (its pool is the run's).
+        names: {
+            let threads = header(&file.headers, "contenders")
+                .split("; --threads ")
+                .nth(1)
+                .and_then(|rest| rest.split("; ").next())
+                .map(str::to_owned);
+            algorithms
+                .iter()
+                .map(|a| match (&threads, a) {
+                    (Some(n), Algorithm::Blake3ServilMt) => format!("{}, {n} threads", a.name()),
+                    _ => a.name().to_owned(),
+                })
+                .collect()
+        },
+        colors: algorithms
+            .iter()
+            .map(|a| a.color())
+            .map(str::to_owned)
+            .collect(),
+        striped: algorithms.iter().map(|a| a.multithreaded()).collect(),
+        ours: algorithms
+            .iter()
+            .map(|a| matches!(a, Algorithm::Blake3ServilSt | Algorithm::Blake3ServilMt))
+            .collect(),
+        // Where the run has no BLAKE3-Servil mt, its one-thread form opens shown.
+        shown: algorithms
+            .iter()
+            .map(|a| {
+                SHOWN_AT_FIRST.contains(a)
+                    || (*a == Algorithm::Blake3ServilSt
+                        && !algorithms.contains(&Algorithm::Blake3ServilMt))
+            })
+            .collect(),
+        cells,
+        about: about(&file.headers, &file.load),
+        details: details(
+            &file.headers,
+            &file.load,
+            &file.power,
+            "bench-hashes.samples.tsv",
+        ),
+        run: run_name(&file.headers),
+        before: (String::new(), String::new()),
+    }
+}
+
+fn b3sum(path: &Path) -> Section {
+    let file = read_samples(path.to_str().expect("a path in UTF-8"));
+    let mut names: Vec<String> = Vec::new();
+    let mut inputs: Vec<String> = Vec::new();
+    for (key, _) in &file.cells {
+        let mut parts = key.split('|');
+        let (name, _cache, _, input) = (
+            parts.next().unwrap(),
+            parts.next().unwrap(),
+            parts.next().unwrap(),
+            parts.next().unwrap(),
+        );
+        if !names.iter().any(|n| n == name) {
+            names.push(name.to_owned());
+        }
+        if !inputs.iter().any(|i| i == input) {
+            inputs.push(input.to_owned());
+        }
+    }
+    // Single files are "4 KiB" and the like; anything else is a tree of files.
+    let single = |i: &str| {
+        i.split_once(' ').is_some_and(|(n, unit)| {
+            n.parse::<u64>().is_ok() && ["KiB", "MiB", "GiB"].contains(&unit)
+        })
+    };
+    // Each b3sum in its library's colour, as on the hashing section: the
+    // fork's and official's on every core striped, their one-thread forms
+    // solid; sha256sum in SHA-256's; sha1sum and md5sum the overview's
+    // drab greys. Another name takes the next colour of the palette.
+    let palette = ["#0e9aa7", "#db2777", "#8a7a1e"];
+    let fork = |n: &str| {
+        super::overview::FORK_B3SUM
+            .iter()
+            .any(|f| n == *f || n.strip_prefix(f).is_some_and(|rest| rest.starts_with('-')))
+    };
+    let style = |i: usize, n: &str| -> (String, bool) {
+        let one_thread = n.ends_with("-1-thread");
+        match n.trim_end_matches("-1-thread") {
+            _ if fork(n) => ("#7c3aed".to_owned(), !one_thread),
+            "official" => ("#3b82f6".to_owned(), !one_thread),
+            "sha256sum" => ("#e07a45".to_owned(), false),
+            "sha1sum" => ("#b4b0a8".to_owned(), false),
+            "md5sum" => ("#cfcbc3".to_owned(), false),
+            _ => (palette[i % palette.len()].to_owned(), false),
+        }
+    };
+    let mut cells = Vec::new();
+    for (cache, col) in [("warm", "cached"), ("cold", "storage")] {
+        for (row, points) in [
+            (
+                "file",
+                inputs.iter().filter(|i| single(i)).collect::<Vec<_>>(),
+            ),
+            ("tree", inputs.iter().filter(|i| !single(i)).collect()),
+        ] {
+            let cell = |name: &str, input: &str| {
+                file.cells
+                    .iter()
+                    .find(|(k, _)| *k == format!("{name}|{cache}|b3sum|{input}"))
+                    .map(|(_, s)| s)
+            };
+            if points.is_empty()
+                || names
+                    .iter()
+                    .all(|n| points.iter().all(|p| cell(n, p).is_none()))
+            {
+                continue;
+            }
+            let lines = |col: &[(String, Vec<u64>)]| -> Vec<Option<Vec<Option<f64>>>> {
+                names
+                    .iter()
+                    .map(|n| {
+                        let line: Vec<Option<f64>> = points
+                            .iter()
+                            .map(|p| {
+                                cell(n, p).and_then(|s| {
+                                    per_unit(col, &format!("{n}|{cache}|b3sum|{p}"), s)
+                                })
+                            })
+                            .collect();
+                        line.iter().any(Option::is_some).then_some(line)
+                    })
+                    .collect()
+            };
+            cells.push((
+                format!("solo|{row}|{col}"),
+                Chart {
+                    sizes: points.iter().map(|p| p.to_string()).collect(),
+                    unit: "GB/s",
+                    call: "b3sum".to_owned(),
+                    doc: format!("{}/tree/servil/b3sum", env!("BENCH_SERVIL_GIT")),
+                    cases: row == "tree",
+                    per: points
+                        .iter()
+                        .map(|p| {
+                            names
+                                .iter()
+                                .find_map(|n| cell(n, p))
+                                .map_or(0, |s| s[0].units)
+                        })
+                        .collect(),
+                    what: "a run",
+                    axis: if row == "tree" { "tree" } else { "file size" },
+                    series: names
+                        .iter()
+                        .map(|n| {
+                            points
+                                .iter()
+                                .map(|p| cell(n, p).map(|s| mean_ns(s)))
+                                .collect()
+                        })
+                        .collect(),
+                    before: Vec::new(),
+                    cpu: lines(&file.cpu),
+                    energy: lines(&file.energy),
+                    cores: names.iter().map(|_| None).collect(),
+                    cpus: names.iter().map(|_| None).collect(),
+                },
+            ));
+        }
+    }
+    Section {
+        title: "How fast b3sum hashes files, from its start to its exit",
+        rows: vec![
+            (
+                "file",
+                "a file",
+                "One file, of the size along the chart's axis.",
+            ),
+            (
+                "tree",
+                "a tree of files",
+                "Many files, given to b3sum in one run.",
+            ),
+        ],
+        cols: vec![
+            (
+                "cached",
+                "in the page cache",
+                "Each file was read moments before, so the operating system holds it in memory.",
+            ),
+            (
+                "storage",
+                "read from storage",
+                "Each file was dropped from the operating system's memory before the run, so b3sum reads it from the disk.",
+            ),
+        ],
+        layers: vec![(
+            "solo",
+            "one program",
+            "One program hashes; the machine is otherwise quiet.",
+        )],
+        colors: names
+            .iter()
+            .enumerate()
+            .map(|(i, n)| style(i, n).0)
+            .collect(),
+        striped: names
+            .iter()
+            .enumerate()
+            .map(|(i, n)| style(i, n).1)
+            .collect(),
+        ours: names.iter().map(|n| fork(n)).collect(),
+        shown: names.iter().map(|_| true).collect(),
+        names,
+        cells,
+        about: about(&file.headers, &file.load),
+        details: details(&file.headers, &file.load, &file.power, "b3sum.samples.tsv"),
+        run: run_name(&file.headers),
+        before: (String::new(), String::new()),
+    }
+}
+
+/// Draw `directory`'s map from the samples files in it; true if it held any.
+/// BLAKE3-Servil's source as the run recorded it (either servil contender's
+/// line: one crate), or "" where the run measured neither.
+fn servil_source(headers: &[(String, String)]) -> &str {
+    headers
+        .iter()
+        .find(|(k, _)| k.starts_with("source blake3-servil"))
+        .map_or("", |(_, v)| v.as_str())
+}
+
+/// BLAKE3-Servil as a run names it to a reader: its `blake3-servil version`
+/// line (from bench-hashes 0.21: the release, or "+dev" for newer, then
+/// what names the code), or for an older record, whose version could name
+/// a release's code through later commits, its commit's first seven
+/// digits; "" where the run measured neither servil contender.
+pub(crate) fn servil_version(headers: &[(String, String)]) -> String {
+    if let Some((_, version)) = headers.iter().find(|(k, _)| k == "blake3-servil version") {
+        return version.clone();
+    }
+    servil_source(headers)
+        .split("commit ")
+        .nth(1)
+        .map_or(String::new(), |c| c[..c.len().min(7)].to_owned())
+}
+
+/// A run's name: its bench-hashes release and BLAKE3-Servil's build version.
+fn run_name(headers: &[(String, String)]) -> String {
+    let version = header(headers, "bench-hashes version")
+        .split('+')
+        .next()
+        .unwrap_or("");
+    let servil = servil_version(headers);
+    if servil.is_empty() {
+        format!("bench-hashes {version}")
+    } else {
+        format!("bench-hashes {version}, BLAKE3-Servil {servil}")
+    }
+}
+
+/// Draw `old`'s runs beside `new`'s: each chart's earlier means, for the
+/// contenders and points both runs hold.
+fn beside(new: &mut Section, old: &Section) {
+    // Its day and load; the machine is the run's own.
+    let when = old
+        .about
+        .split_once(" · ")
+        .map_or(old.about.as_str(), |(_, rest)| rest);
+    new.before = (old.run.clone(), when.to_owned());
+    for (key, chart) in &mut new.cells {
+        let Some((_, was)) = old.cells.iter().find(|(k, _)| k == key) else {
+            continue;
+        };
+        chart.before = new
+            .names
+            .iter()
+            .map(|name| {
+                let j = old.names.iter().position(|n| n == name)?;
+                let series = was.series[j].as_ref()?;
+                Some(
+                    chart
+                        .sizes
+                        .iter()
+                        .map(|size| was.sizes.iter().position(|s| s == size).map(|k| series[k]))
+                        .collect(),
+                )
+            })
+            .collect();
+    }
+}
+
+/// Whether a samples file is this release's to read (its first line);
+/// another release's is left to its own tools, with a line saying so.
+fn this_release(path: &Path) -> bool {
+    let first = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+    let first = first.lines().next().unwrap_or("");
+    if first != super::SAMPLES_VERSION {
+        println!(
+            "# {} is another release's ({first}): read with the tools of the commit that wrote it; its section is left out of the map until a run under this release.",
+            path.display()
+        );
+    }
+    first == super::SAMPLES_VERSION
+}
+
+fn sections(directory: &Path) -> Vec<Section> {
+    let mut sections = Vec::new();
+    let hashing_path = directory.join("bench-hashes.samples.tsv");
+    if hashing_path.exists() && this_release(&hashing_path) {
+        sections.push(hashing(&hashing_path));
+    }
+    let b3sum_path = directory.join("b3sum.samples.tsv");
+    if b3sum_path.exists() && this_release(&b3sum_path) {
+        sections.push(b3sum(&b3sum_path));
+    }
+    sections
+}
+
+/// Write `directory`'s map (`bench-hashes.map.html`), from its samples
+/// files; with `old`, a results directory of an earlier run, its map
+/// beside that run (`bench-hashes.beside.map.html`), the earlier lines
+/// dashed. Whether there was anything to draw.
+pub fn write(directory: &Path, old: Option<&Path>) -> bool {
+    let mut sections = sections(directory);
+    if sections.iter().all(|s| s.cells.is_empty()) {
+        return false;
+    }
+    if let Some(old) = old {
+        let old = sections_of(old);
+        for section in &mut sections {
+            if let Some(was) = old.iter().find(|o| o.title == section.title) {
+                beside(section, was);
+            }
+        }
+    }
+    let data = format!(
+        "[{}]",
+        sections
+            .iter()
+            .map(Section::json)
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+    let page = include_str!("map.html").replace("@SECTIONS@", &data);
+    let out = directory.join(if old.is_some() {
+        "bench-hashes.beside.map.html"
+    } else {
+        "bench-hashes.map.html"
+    });
+    std::fs::write(&out, page).unwrap_or_else(|e| panic!("cannot write {}: {e}", out.display()));
+    println!("# Map (HTML) is in \"{}\" .", out.display());
+    true
+}
+
+fn sections_of(directory: &Path) -> Vec<Section> {
+    let sections = sections(directory);
+    assert!(
+        sections.iter().any(|s| !s.cells.is_empty()),
+        "{} holds no samples file with cells",
+        directory.display()
+    );
+    sections
+}
+
+/// `bench-hashes map DIR [--beside OLD_DIR]`: draw DIR's map from its
+/// samples files, or (with --beside) beside an earlier run's.
+pub fn command(args: &[String]) {
+    let usage = "usage: bench-hashes map DIR [--beside OLD_DIR] (results directories)";
+    let (dir, old) = match args {
+        [dir] => (dir, None),
+        [dir, flag, old] if flag == "--beside" => (dir, Some(Path::new(old))),
+        _ => panic!("{usage}"),
+    };
+    assert!(
+        write(Path::new(dir), old),
+        "{dir} holds no samples file with cells (bench-hashes.samples.tsv, b3sum.samples.tsv)"
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn load_warnings_carry_the_recorded_classification() {
+        assert_eq!(
+            super::load_warning("quiet: other programs kept 0.20 CPUs busy"),
+            None
+        );
+        assert_eq!(
+            super::load_warning(
+                "busy: other programs kept 0.26 CPUs busy; busy in 1 of 486 windows (452.1-453.1 s)"
+            ),
+            Some("other programs busy in 1 of 486 windows; times may be slower".to_owned())
+        );
+        assert_eq!(
+            super::load_warning("busy"),
+            Some("other programs busy; times may be slower".to_owned())
+        );
+        for unobserved in ["not measured", "unobserved", ""] {
+            assert_eq!(
+                super::load_warning(unobserved),
+                Some("background load unobserved; times need qualification".to_owned())
+            );
+        }
+    }
+
+    /// A page without BLAKE3-Servil mt names st's calls: the convenience
+    /// call for one message after a gap, throughput::hash for one after
+    /// another, and the batch, grouped and collection calls without their
+    /// `_multithreaded`.
+    #[test]
+    fn a_one_thread_page_names_the_one_thread_calls() {
+        let call = |use_case| {
+            let (_, column, call, doc) = super::place(use_case);
+            super::one_thread_call(column, call, doc)
+        };
+        assert_eq!(call(super::UseCase::OneMessage).0, "convenience::hash");
+        assert_eq!(
+            call(super::UseCase::IdleOneMessage),
+            (
+                "convenience::hash".to_owned(),
+                "convenience/fn.hash.html".to_owned()
+            )
+        );
+        assert_eq!(call(super::UseCase::LentMessages).0, "throughput::hash");
+        for use_case in [
+            super::UseCase::IncrementalMessage,
+            super::UseCase::LentIncrementalMessage,
+        ] {
+            assert_eq!(call(use_case).0, "convenience::Hasher");
+            assert_eq!(super::row_and_column(use_case).0, "incremental");
+        }
+        for use_case in [
+            super::UseCase::ContinuousMessages,
+            super::UseCase::ContinuousCollection,
+        ] {
+            assert_eq!(call(use_case).0, "throughput::hash");
+            assert_eq!(super::place(use_case).2, "throughput::Pipeline::commit");
+        }
+        assert_eq!(
+            call(super::UseCase::ContinuousBatches).0,
+            "throughput::hash_many"
+        );
+        assert_eq!(
+            super::place(super::UseCase::ContinuousBatches).2,
+            "throughput::Pipeline::batch"
+        );
+        assert_eq!(
+            super::place(super::UseCase::ReceivingMessage).2,
+            "throughput::Pipeline::commit"
+        );
+        assert_eq!(
+            call(super::UseCase::ManyMessages).0,
+            "throughput::hash_many"
+        );
+        assert_eq!(
+            call(super::UseCase::InterleavedTurn).0,
+            "throughput::update_each"
+        );
+        assert_eq!(call(super::UseCase::Collection).0, "throughput::hash_each");
+        assert_eq!(
+            call(super::UseCase::ReceivingMessage).0,
+            "convenience::Hasher::update"
+        );
+        for use_case in super::UseCase::ALL {
+            assert!(!call(use_case).0.contains("multithreaded"), "{use_case:?}");
+        }
+    }
+
+    /// A run names BLAKE3-Servil to a reader by its version line where the
+    /// record has one, and an older record, whose version could name a
+    /// release's code through later commits, by its commit.
+    #[test]
+    fn a_run_names_blake3_servil_by_its_version_line_else_its_commit() {
+        let c = "9c25ed9ef6b3cb12c2ca8c77955663feeb2f09fa";
+        let source = (
+            "source blake3-servil-st".to_owned(),
+            format!("blake3-servil 0.8.0+b3c5; source https://x/BLAKE3; commit {c}; clean"),
+        );
+        let version = ("blake3-servil version".to_owned(), format!("0.8.0+dev.{c}"));
+        let bench = ("bench-hashes version".to_owned(), "0.21.0+abc".to_owned());
+        assert_eq!(
+            super::servil_version(&[source.clone(), version.clone()]),
+            format!("0.8.0+dev.{c}")
+        );
+        assert_eq!(
+            super::run_name(&[bench.clone(), source.clone(), version]),
+            format!("bench-hashes 0.21.0, BLAKE3-Servil 0.8.0+dev.{c}")
+        );
+        assert_eq!(
+            super::servil_version(&[source.clone()]),
+            "9c25ed9",
+            "an older record: its commit"
+        );
+        assert_eq!(super::run_name(&[bench]), "bench-hashes 0.21.0");
+    }
+
+    /// The door's BLAKE3-Servil row: linked to its commit where the source
+    /// names a repository, and unlinked, not a panic, where the checkout's
+    /// origin is a local path.
+    #[test]
+    fn the_servil_row_links_its_commit_where_the_repository_is_known() {
+        let c = "9c25ed9ef6b3cb12c2ca8c77955663feeb2f09fa";
+        let row = |source: &str| {
+            let line = format!(
+                "blake3-servil (local checkout); source {source}; branch HEAD; commit {c}; clean; multithreaded"
+            );
+            let headers = vec![("source blake3-servil-mt".to_owned(), line)];
+            super::details(&headers, "", "", "bench-hashes.samples.tsv")
+                .into_iter()
+                .find(|(label, _, _)| label == "BLAKE3-Servil")
+                .expect("a BLAKE3-Servil row")
+        };
+        let (_, text, link) = row("https://github.com/johnservil/BLAKE3");
+        assert_eq!(
+            link,
+            format!("https://github.com/johnservil/BLAKE3/tree/{c}")
+        );
+        assert!(text.contains(c));
+        let (_, text, link) = row("/root/pinned-runs/run/probe");
+        assert_eq!(link, "");
+        assert!(text.contains("source /root/pinned-runs/run/probe"));
+    }
+}

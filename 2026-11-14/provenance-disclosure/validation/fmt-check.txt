@@ -1,0 +1,73 @@
+Diff in <development-home>/bench-provenance-door/src/map.rs:610:
+     // The repository the benchmark was built from, as its header records it.
+     let bench = header(headers, "bench-hashes source");
+     let bench = bench.strip_prefix("https://").unwrap_or(bench);
+[32m+    add("bench-hashes", version.to_owned(), String::new());
+(B[m     add(
+[31m-        "bench-hashes",
+(B[m[31m-        version.to_owned(),
+(B[m[31m-        String::new(),
+(B[m[31m-    );
+(B[m[31m-    add(
+(B[m         "bench-hashes commit",
+         format!(
+             "{bench} at {commit}{}",
+Diff in <development-home>/bench-provenance-door/src/map.rs:672:
+         let (name, how) = v
+             .split_once(": ")
+             .expect("a contender line names its contender first");
+[31m-        add(
+(B[m[31m-            &format!("b3sum {name}"),
+(B[m[31m-            how.to_owned(),
+(B[m[31m-            String::new(),
+(B[m[31m-        );
+(B[m[32m+        add(&format!("b3sum {name}"), how.to_owned(), String::new());
+(B[m     }
+     // Every header line not shown above, under its own name.
+     let shown = [
+Diff in <development-home>/bench-provenance-door/src/overview.rs:2082:
+         }
+         let row = super::row(&dir, "benchmark-results/example".to_owned());
+         assert_eq!(row.records.len(), 3);
+[31m-        assert!(
+(B[m[31m-            row.records[1]
+(B[m[31m-                .details
+(B[m[31m-                .iter()
+(B[m[31m-                .any(|(label, value, _)| label == "b3sum servil" && value == command)
+(B[m[31m-        );
+(B[m[32m+        assert!(row.records[1]
+(B[m[32m+            .details
+(B[m[32m+            .iter()
+(B[m[32m+            .any(|(label, value, _)| label == "b3sum servil" && value == command));
+(B[m         for (record, label, source, path) in [
+             (
+                 &row.records[0],
+Diff in <development-home>/bench-provenance-door/src/overview.rs:2105:
+         ] {
+             assert_eq!(record.label, label);
+             assert!(record.details.iter().any(|(_, text, _)| text == source));
+[31m-            assert!(
+(B[m[31m-                record
+(B[m[31m-                    .details
+(B[m[31m-                    .iter()
+(B[m[31m-                    .any(|(name, text, _)| name == "bench-hashes" && text == bench)
+(B[m[31m-            );
+(B[m[31m-            assert!(
+(B[m[31m-                record
+(B[m[31m-                    .details
+(B[m[31m-                    .iter()
+(B[m[31m-                    .any(|(name, _, link)| name == "Samples"
+(B[m[31m-                        && link == &format!("benchmark-results/example/{path}"))
+(B[m[31m-            );
+(B[m[32m+            assert!(record
+(B[m[32m+                .details
+(B[m[32m+                .iter()
+(B[m[32m+                .any(|(name, text, _)| name == "bench-hashes" && text == bench));
+(B[m[32m+            assert!(record
+(B[m[32m+                .details
+(B[m[32m+                .iter()
+(B[m[32m+                .any(|(name, _, link)| name == "Samples"
+(B[m[32m+                    && link == &format!("benchmark-results/example/{path}")));
+(B[m         }
+         let page = html(&[row]);
+         let (results, about) = page

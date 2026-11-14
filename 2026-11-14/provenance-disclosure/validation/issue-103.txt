@@ -1,0 +1,78 @@
+# Provenance: the records lost their result reports and charts on Oct 29; the site shows a part of what the samples record [closed] devonjonte 2026-11-01T22:21:59Z
+**The published site shows less provenance than the bench records, and some of it left the records by accident.** Zooko asked whether we lost the provenance and reproducibility metadata we used to show. His examples of good practice are bench-allocators' [`COMBINED-REPORT.md`](https://raw.githubusercontent.com/zooko/bench-allocators/refs/heads/main/benchmark-results/AppleM4Max.darwin25/COMBINED-REPORT.md) and [`simd-json.graph.svg`](https://raw.githubusercontent.com/zooko/bench-allocators/refs/heads/main/benchmark-results/AppleM4Max.darwin25/simd-json.graph.svg), whose chart draws its own record into the image: timestamp, source, commit, tag, clean status, CPU, OS, CPU count and the allocator's version. Reading the git history, I found two losses, one gap, and one mislabelling.
+
+**1. Oct 29: the records lost their result reports and charts, apparently by accident.** b2324e98 ("Records: blake3-servil 0.8's release runs on nine machines…") deleted every folder's `bench-hashes.result.txt`, `bench-hashes.chart.svg`, `b3sum.result.txt` and `b3sum.chart.svg` (i7, EPYC 9255, M4 Max, VM). The new machines' folders never had them. The commit message doesn't mention the removal.
+- Each `result.txt` ended with the fullest provenance block we publish: the bench's version, commit and clean status; each contender's version, source, commit and clean status, with its crate archive's SHA-256; the CPU's microcode and flags; rustc, the target and its features; the sample clock; load; and power.
+- Each chart carried one line drawn into the image (`i7-12700K, 20 CPUs · bench-hashes 0.17.0 on 2026-10-23`).
+- Today a folder holds only its samples and its map. My i7 records in #99 now carry both reports and charts again. The 0.8 runs' reports are in their run directories, if we want them back for the other machines.
+
+**2. Oct 4: the in-image provenance went with the graph.** Until 4c771277 ("The map replaces the graph…", Zooko, October 5), every `bench-hashes.graph.svg` drew, in the image itself:
+- the machine, load and toolchain;
+- the run's time and the bench's version, tag and clean status;
+- each source's commit;
+- each hash's version and settings.
+
+This was bench-allocators' practice. The map took a part of it into its "About this run" door, which is closed by default, and the door has held the same fields since:
+- it shows measured, machine, power, other programs' load, the bench's version and commit with its status, servil's commit, each contender's crate version, rustc, cc, RUSTFLAGS, the lock's hash, the target, and a link to the samples;
+- it leaves out servil's version and clean status, the crate archives' hashes, the CPU's microcode and flags, the target features, the sample clock, where the sample sizes came from, and the clocks' source.
+
+The samples file's header records all of these, so nothing is lost from the record. It's missing only from what a reader sees.
+
+**3. The overview never showed more than a line.** Since it became the front page (89dbbf19, Oct 22), each machine has a line such as `BLAKE3 servil 934dee8 · bench-hashes 0.18.1 · 2026-10-27`, with short hashes, and no link to the run's full record.
+
+**4. The records labelled 0.8 measured a commit before the release.** All nine machines' 0.8 records measured 934dee89 (b2324e98's message says so, and the overview shows `934dee8`). The 0.8 tag is b5b988d8, and between them `src/` differs by 380 insertions and 159 deletions across 10 files. Those changes include the #204/#205 fixes and two speed fixes for small batches (b8ebc5a7, and 8abaf0c7, "the Mac's one-thread small batches ran 11-21% slower without"). The page names the commit it measured truthfully, so this isn't wrong. But a reader of the release's page sees a pre-release candidate, not 0.8. The 0.19 records, mine included, measure b5b988d8.
+
+**A proposal, in the order I'd take it:**
+1. Every folder carries its run's `result.txt` and charts again, as the release process's step 5 (CONTRIBUTING).
+2. The map's door lists every line of the samples header that names what ran, so one mechanism shows the whole record: the bench's lines, each contender's `source` line, the CPU, the toolchain, the clock, the sizes and the clocks.
+3. The charts draw a footer with the run's date, the bench's version and commit, servil's commit and clean status, and the machine, as bench-allocators' do. A chart then carries its record wherever it's copied.
+4. Each overview column links its line to that map's door, with the full commits.
+
+— Devon Jonte
+
+
+--- samshackleton-tech 2026-11-02T02:26:11Z
+#101 (EPYC 9255) and #102 (Xeon pair) now carry their runs' reports and charts too, so all of 0.19.3's x86 records I've sent follow your proposal's first point. On point 2, as a reader: the report's provenance block lists the crate archives' SHA-256, the CPU's microcode and flags, and the target features, and the map's "About this run" door doesn't. That's where I'd look first when a number surprises me, so I'd support showing every `source` line there.
+
+— Sam Shackleton
+
+
+--- johnservil 2026-11-02T06:04:43Z
+Point 1 for the M4 Max: its 0.19 record is on `records/0.19-mac` (`998f3f9c`). The folder holds its run's report, chart and samples as the runner wrote them (jobs 1828 and 1829, AC power, quiet), the map drawn by 0.19.5, and both manifests, checked. The VM's follows when the Mac's runner is back, since its earlier runs were lost with a reboot. With #99, #101 and #102, that makes five of the overview's nine machines at 0.19.
+
+**A question for the overview's 0.19 page:** four machines still hold 0.8's runs under 0.18.3: the Ryzen 7 9700X, the EPYC 9254, the EPYC 7443P and the Xeon E5-1650 v4. The Ryzen is one of the three columns above the fold (`overview::CHOSEN`). Who runs each, and can they run 0.19.5? If some can't, I'd draw 0.19's page with the machines that ran it, and keep the Ryzen's column for the next machine of its family that does. A page that mixes releases would read two different measurements as one.
+
+— John Servil
+
+
+--- devonjonte 2026-11-02T06:24:56Z
+The four are Sam's rentals (the Ryzen 9700X, the EPYCs 9254 and 7443P, the Xeon E5-1650 v4), as her October 27 runs were. Drawing 0.19's page from the machines that ran it reads right to me; a mixed page would need a mark on every column that says which release it measured, and the reader would have to hold two measurements in mind.
+
+— Devon Jonte
+
+
+--- johnservil 2026-11-02T06:29:39Z
+Thank you, Devon. Then 0.19's page draws the machines that ran 0.19.
+
+@samshackleton-tech, the Ryzen 7 9700X is the overview's AMD column above the fold. If renting it again for one 0.19.5 release run (the full run and b3sum, at the tag) is easy, it keeps that column. If not, the EPYC 9255 takes the AMD column for 0.19, and the 9700X returns whenever it runs a release again. The EPYC 9254, the 7443P and the E5-1650 v4 can wait for a later release, as you like.
+
+— John Servil
+
+
+--- samshackleton-tech 2026-11-02T07:34:39Z
+The Ryzen 7 9700X is out of stock at Cherry in all three of its regions (Chicago, Amsterdam, Tokyo) right now. An order is retrying every 5 minutes. When the box arrives I'll do the release run there (full run and b3sum, at the tag), at 0.19.6 unless you'd rather keep 0.19.5. If it doesn't come back in time for the page, the EPYC 9255 taking the AMD column reads right to me.
+
+— Sam Shackleton
+
+
+--- johnservil 2026-11-02T07:59:52Z
+Thank you, Sam. 0.19.6 is right: everything from 0.19.0 to 0.19.6 measures the same, and 0.19.6's samples also record the machine's idle states. If 0.20 is released before the box comes back (#110 or Sam's shape, which Zooko decides in the morning), run that instead, so the 9700X joins the page of its release.
+
+— John Servil
+
+--- johnservil 2026-11-03T03:06:12Z
+Closing: every record since 0.19.3 carries its report and chart beside its samples, with both manifests, and 0.20's do too (#119, #120, #122, #123). The 9700X's run is tracked on #118. Thank you, Devon, for catching the loss.
+
+— John Servil
+
+
