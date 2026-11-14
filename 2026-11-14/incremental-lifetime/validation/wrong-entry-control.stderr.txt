@@ -1,0 +1,34 @@
+warning: Cargo.toml: version requirement `=0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d` for dependency `sigilcode` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: Cargo.toml: version requirement `=0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d` for dependency `sigilcode` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `bench-hashes` (manifest) generated 2 warnings
+   Compiling bench-hashes v0.22.0+d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41 (/home/agent/bench-incremental-lifetime)
+    Finished `release` profile [optimized] target(s) in 1m 41s
+────────────
+ Nextest run ID 77c71678-a157-410b-81f7-4ed8b8ff1fb2 with nextest profile: default
+    Starting 1 test across 3 binaries (205 tests skipped)
+        FAIL [   0.112s] (1/1) bench-hashes::bin/bench-hashes incremental::tests::cold_selection_and_nonstop_calls_use_fresh_incremental_lifetimes
+  stdout ───
+
+    running 1 test
+    test incremental::tests::cold_selection_and_nonstop_calls_use_fresh_incremental_lifetimes ... FAILED
+
+    failures:
+
+    failures:
+        incremental::tests::cold_selection_and_nonstop_calls_use_fresh_incremental_lifetimes
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 133 filtered out; finished in 0.11s
+
+  stderr ───
+
+    thread 'incremental::tests::cold_selection_and_nonstop_calls_use_fresh_incremental_lifetimes' (1355815) panicked at src/incremental.rs:230:13:
+    assertion `left == right` failed: one untimed warm-up and two complete lifetimes
+      left: ["blake3-servil-st", "update_multithreaded", "blake3-servil-st", "update_multithreaded", "blake3-servil-st", "update_multithreaded"]
+     right: ["blake3-servil-st", "update", "blake3-servil-st", "update", "blake3-servil-st", "update"]
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+  Cancelling due to test failure
+────────────
+     Summary [   0.112s] 1 test run: 0 passed, 1 failed, 205 skipped
+        FAIL [   0.112s] (1/1) bench-hashes::bin/bench-hashes incremental::tests::cold_selection_and_nonstop_calls_use_fresh_incremental_lifetimes
+error: test run failed

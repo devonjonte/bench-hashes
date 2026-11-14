@@ -30,8 +30,12 @@ focused debug tests (incremental and receiving) pass on the workhorse.
 Published `abc` vectors anchor outputs. Axis-size differential checks,
 nonzero padding, lifecycle accounting and selector tests supplement them.
 Emptying Servil st's updates fails three tests; discarding its results fails
-four. Both controls were restored and the suite passes. Original logs stay
-in `validation/`, including the first compile's missing enum-match arm.
+four. Both controls were restored and the suite passes. A final test-only
+follow-up, `aaab7390e74f0be18a9a3900105fe7a3dc695acf`, records the chosen
+Servil update entry point. Reversing that selector fails the lifecycle test;
+restoration passes all 190 tests again. Production calls stay unchanged.
+Original logs stay in `validation/`, including the first compile's missing
+enum-match arm.
 
 A map rendered from an accepted native-Mac sample passes the browser check:
 six charts, documentation links, toggles and touch. Desktop and phone views
