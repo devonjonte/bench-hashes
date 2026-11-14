@@ -1,0 +1,29 @@
+Usage: servil-b3sum [OPTIONS] [FILE]...
+
+Arguments:
+  [FILE]...  Files to hash, or checkfiles to check
+
+Options:
+      --keyed                 Use the keyed mode, reading the 32-byte key from stdin
+      --derive-key <CONTEXT>  Use the key derivation mode, with the given context string
+  -l, --length <LEN>          The number of output bytes, before hex or sigil encoding [default: 32]
+      --seek <SEEK>           The starting output byte offset, before hex or sigil encoding
+                              [default: 0]
+      --num-threads <NUM>     The most threads hashing at once [default: as fast as b3sum can]
+      --no-mmap               No effect: b3sum chooses between reading and mapping each file
+      --no-names              Omit filenames in the output
+      --raw                   Write raw output bytes to stdout, rather than hex
+      --sigilcode             Write each hash as a sigil (25 characters for 32 bytes; see
+                              johnservil/sigil), rather than hex; with --check, read sigils as well
+                              as hex
+      --tag                   Output BSD-style checksums: BLAKE3 ([FILE]) = [HASH]
+  -c, --check                 Read BLAKE3 sums from the [FILE]s and check them
+      --quiet                 Skip printing OK for each checked file
+      --outboard <DIR>        Also write each file's outboard to DIR/<HASH>.obao4: its BLAKE3 tree
+                              over 16 KiB chunk groups in bao-tree's pre-order form, for verified
+                              streaming
+  -h, --help                  Print help
+  -V, --version               Print version
+
+More information: b3sum/README.md at
+https://github.com/servil-software-factory/BLAKE3/blob/servil/b3sum/README.md
