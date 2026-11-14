@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     let directory = PathBuf::from(&args[1]);
     std::fs::create_dir_all(&directory)?;
-    let mut outboard = PreOrderMemOutboard::default();
+    let mut outboard: PreOrderMemOutboard = Default::default();
     for input in &args[2..] {
         let path = PathBuf::from(input);
         let file = File::open(&path)?;
