@@ -43,8 +43,8 @@ uses only the shared DOM interaction contract; the full checker retains its
 current measurement/legend checks. Historical payloads and scripts stay intact.
 This is **15 full checks plus 20 target checks**, with no data compatibility mode.
 
-No new timing or Rust validation was needed: the change affects presentation and
-browser tests only. Normal repository CI and deployment verification follow.
+Dedicated timing and Rust validation were skipped because the change affects
+presentation and browser tests only. All seven final repository CI checks passed.
 
 ## Sources, steps and records
 
@@ -74,7 +74,13 @@ on all receipt-listed pages and exercises both controls. It uses Playwright's
 installed Chromium path. Script/log home prefixes are redacted as
 `<development-home>`; HTML, images and CSS retain their exact bytes.
 
+[Publish the phone-tap repair on stored maps](https://github.com/servil-software-factory/bench-hashes/pull/222)
+landed as **2059ff5e2235af6423d80c49de31f87cfd355f0c** on `next`. Its tree matches
+the reviewed candidate. The cache-busted live M6 URL then matched that HTML byte
+for byte and passed the shared phone-target check at 12:17 UTC. `ci.json` and
+`phone-live.*` retain the final checks; both live-page digests were verified.
+
 The data branch preserves source, logs and screenshots. Both manifests bind all
-published files, including the historical checksum records. Next move: Devon
-checks final CI, lands the candidate and verifies the live M6 page. The existing
-layout issue remains a separate task.
+published files, including historical checksum records.
+[Expanded phone-header overlap](https://github.com/servil-software-factory/bench-hashes/issues/221)
+remains Devon's next layout task.
