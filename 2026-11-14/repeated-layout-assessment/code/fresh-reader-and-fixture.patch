@@ -1,0 +1,272 @@
+diff --git a/clocks/examples/layout_repeat_control.rs b/clocks/examples/layout_repeat_control.rs
+new file mode 100644
+index 000000000..ccb557be2
+--- /dev/null
++++ b/clocks/examples/layout_repeat_control.rs
+@@ -0,0 +1,54 @@
++//! Synthetic assumption check, EXPERIMENT ONLY. No machine is timed.
++//! Independent layout pairs contain a fast and a slow copy of identical code;
++//! their side assignment is a fair coin. Repeats share that pair's layout.
++//! This stress test establishes no empirical false-call rate for real runs.
++use clocks::summary::{discoveries, mean, Verdict};
++
++fn choose(n: usize, k: usize) -> u128 {
++    (1..=k.min(n - k)).fold(1, |c, i| c * (n + 1 - i) as u128 / i as u128)
++}
++
++fn pairs(layouts: usize, positive: usize, repeats: usize, fast: u64, slow: u64) -> Vec<(u128, u128)> {
++    let (f, s) = (mean([(fast, 1)]), mean([(slow, 1)]));
++    (0..repeats).flat_map(|_| (0..layouts).map(move |i| if i < positive { (f, s) } else { (s, f) })).collect()
++}
++
++fn judge(pairs: Vec<(u128, u128)>, family: usize) -> Verdict {
++    let neutral = mean([(1000, 1)]);
++    let mut cells = vec![vec![(neutral, neutral); pairs.len()]; family];
++    cells[0] = pairs;
++    discoveries(&cells, 50, 30)[0].verdict
++}
++
++fn main() {
++    // Independent anchors: paired t is 1 with 16 observations (10 positive,
++    // 6 negative equal log magnitudes). Copying each observation four times
++    // makes it sqrt(63/15), about 2.049; the df63 two-sided 5% cutoff is 1.998.
++    // The geometric-mean effect exceeds 3% for the 5/4 ratio.
++    assert_eq!(judge(pairs(16, 10, 1, 4, 5), 1), Verdict::Level);
++    assert_eq!(judge(pairs(16, 10, 4, 4, 5), 1), Verdict::Slower);
++    let q = |n| mean([(n, 1)]);
++    assert_eq!(judge(vec![(q(1000), q(1000)); 64], 8), Verdict::Level);
++    assert_eq!(judge(vec![(q(1000), q(1060)); 64], 8), Verdict::Slower);
++    println!("# Synthetic layout-repeat assumption check; no timing, no empirical calibration claim");
++    println!("# One noisy null cell; any other family members are exactly level");
++    println!("fast\tslow\tlayout_pairs\trepeats\tfamily\tslower_assignments\tfaster_assignments\ttotal_assignments\tfalse_call_ppm");
++    for (fast, slow) in [(10, 11), (4, 5)] {
++        for family in [1, 8] {
++            for (layouts, repeats) in [(16, 1), (16, 4), (64, 1)] {
++                let (mut slower, mut faster) = (0u128, 0u128);
++                for positive in 0..=layouts {
++                    let weight = choose(layouts, positive);
++                    match judge(pairs(layouts, positive, repeats, fast, slow), family) {
++                        Verdict::Slower => slower += weight,
++                        Verdict::Faster => faster += weight,
++                        Verdict::Level => {}
++                    }
++                }
++                let total = 1u128 << layouts;
++                let ppm = ((slower + faster) * 1_000_000 + total / 2) / total;
++                println!("{fast}\t{slow}\t{layouts}\t{repeats}\t{family}\t{slower}\t{faster}\t{total}\t{ppm}");
++            }
++        }
++    }
++}
+diff --git a/clocks/src/summary.rs b/clocks/src/summary.rs
+index 33e17357c..bee0be007 100644
+--- a/clocks/src/summary.rs
++++ b/clocks/src/summary.rs
+@@ -89,7 +89,8 @@ pub struct Judgment {
+ 
+ /// The mean of the pairs' log ratios, ln(new / old). Requires some pairs,
+ /// every mean positive.
+-fn mean_log_ratio(pairs: &[(u128, u128)]) -> f64 {
++// Experiment-only visibility for the offline repeated-layout assessment.
++pub fn mean_log_ratio(pairs: &[(u128, u128)]) -> f64 {
+     assert!(!pairs.is_empty(), "a ratio needs pairs");
+     pairs
+         .iter()
+diff --git a/src/layout_audit.rs b/src/layout_audit.rs
+new file mode 100644
+index 000000000..3ee57dd81
+--- /dev/null
++++ b/src/layout_audit.rs
+@@ -0,0 +1,172 @@
++//! EXPERIMENT ONLY: existing 64-pair second stages, grouped by their 16
++//! reused layout pairs. Uses this producer-matched reader and judgment rule.
++//! Grouping is a counterfactual analysis, not a proposed production verdict.
++use std::collections::BTreeMap;
++use std::path::Path;
++
++const LAYOUTS: usize = 16;
++const REPEATS: usize = 4;
++
++type Pairs = Vec<(u128, u128)>;
++
++fn variance(x: &[f64]) -> f64 {
++    let mean = x.iter().sum::<f64>() / x.len() as f64;
++    x.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (x.len() - 1) as f64
++}
++
++fn dependence(logs: &[f64]) -> Option<(f64, f64)> {
++    assert_eq!(logs.len(), LAYOUTS * REPEATS);
++    let raw_var = variance(logs);
++    if raw_var == 0.0 {
++        return None;
++    }
++    let means: Vec<_> = (0..LAYOUTS)
++        .map(|g| (0..REPEATS).map(|r| logs[g + r * LAYOUTS]).sum::<f64>() / REPEATS as f64)
++        .collect();
++    let between = REPEATS as f64 * variance(&means);
++    let within = (0..LAYOUTS)
++        .map(|g| {
++            (0..REPEATS)
++                .map(|r| (logs[g + r * LAYOUTS] - means[g]).powi(2))
++                .sum::<f64>()
++        })
++        .sum::<f64>()
++        / (LAYOUTS * (REPEATS - 1)) as f64;
++    let icc = (between - within) / (between + (REPEATS - 1) as f64 * within);
++    Some((icc, (REPEATS as f64 * variance(&means) / raw_var).sqrt()))
++}
++
++pub fn command(arguments: &[String]) {
++    // Independent algebraic anchors: perfect group repeats, and balanced
++    // within-group noise with zero between-group variance.
++    let repeated: Vec<_> = (0..64)
++        .map(|i| if i % 16 < 10 { 1.0 } else { -1.0 })
++        .collect();
++    let (icc, se) = dependence(&repeated).unwrap();
++    assert!((icc - 1.0).abs() < 1e-12 && (se - (63.0f64 / 15.0).sqrt()).abs() < 1e-12);
++    let within: Vec<_> = (0..64)
++        .map(|i| if i / 16 < 2 { 1.0 } else { -1.0 })
++        .collect();
++    let (icc, se) = dependence(&within).unwrap();
++    assert!((icc + 1.0 / 3.0).abs() < 1e-12 && se == 0.0);
++    assert_eq!(dependence(&[0.0; 64]), None);
++    assert!(
++        !arguments.is_empty(),
++        "layout-audit KEPT_SECOND_STAGE_DIR..."
++    );
++    println!("# Offline diagnostic: 16 layout pairs, each repeated four times in turn");
++    println!("# Groups also share order and can share core placement; correlation does not identify a cause");
++    println!("# Grouped means are geometric means of run means, preserving the overall log-ratio estimate");
++    println!("# This counterfactual grouping is not a calibration or a production rule");
++    println!("directory\tcell\traw_ratio_permille\tgrouped_ratio_permille\traw_verdict\tgrouped_verdict\tICC_permille\tgroup_SE_over_raw_SE_permille");
++    for directory in arguments {
++        assess(Path::new(directory));
++    }
++}
++
++fn assess(directory: &Path) {
++    let entries: Vec<_> = std::fs::read_dir(directory)
++        .unwrap()
++        .map(|e| e.unwrap().path())
++        .collect();
++    let files = |ending: &str| {
++        let mut paths: Vec<_> = entries
++            .iter()
++            .filter(|p| {
++                p.file_name().unwrap().to_str().unwrap().starts_with("run-")
++                    && p.to_str().unwrap().ends_with(ending)
++            })
++            .cloned()
++            .collect();
++        paths.sort();
++        paths
++    };
++    let (old, new) = (files("-old.tsv"), files("-new.tsv"));
++    assert_eq!(
++        old.len(),
++        LAYOUTS * REPEATS,
++        "{} old runs",
++        directory.display()
++    );
++    assert_eq!(new.len(), old.len());
++    let mut cells: BTreeMap<String, Pairs> = BTreeMap::new();
++    let mut pins = Vec::new();
++    for (o, n) in old.iter().zip(&new) {
++        let read = |path: &Path| {
++            let file = crate::read_samples(path.to_str().unwrap());
++            assert!(
++                file.load.starts_with("quiet"),
++                "{}: {}",
++                path.display(),
++                file.load
++            );
++            let pin = file
++                .headers
++                .iter()
++                .find(|(k, _)| k == "measuring thread")
++                .map(|(_, v)| v.clone())
++                .expect("these records declare measuring-thread placement");
++            (
++                crate::cell_means(file)
++                    .into_iter()
++                    .map(|(k, m, _, _)| (k, m))
++                    .collect::<BTreeMap<_, _>>(),
++                pin,
++            )
++        };
++        let (o, op) = read(o);
++        let (n, np) = read(n);
++        assert_eq!(o.keys().collect::<Vec<_>>(), n.keys().collect::<Vec<_>>());
++        pins.push((op, np));
++        for (key, a) in o {
++            cells.entry(key.clone()).or_default().push((a, n[&key]));
++        }
++    }
++    let same_pins = (0..LAYOUTS)
++        .filter(|&g| (1..REPEATS).all(|r| pins[g] == pins[g + r * LAYOUTS]))
++        .count();
++    println!("# {}: {same_pins}/{LAYOUTS} groups retain their header pin across repeats (gap cells only)", directory.display());
++    let raw: Vec<_> = cells.values().cloned().collect();
++    assert!(raw.iter().all(|p| p.len() == LAYOUTS * REPEATS));
++    let grouped: Vec<Pairs> = raw
++        .iter()
++        .map(|pairs| {
++            (0..LAYOUTS)
++                .map(|g| {
++                    (
++                        crate::geometric_mean((0..REPEATS).map(|r| pairs[g + r * LAYOUTS].0)),
++                        crate::geometric_mean((0..REPEATS).map(|r| pairs[g + r * LAYOUTS].1)),
++                    )
++                })
++                .collect()
++        })
++        .collect();
++    let (rj, _) = crate::judge_once(&raw);
++    let (gj, _) = crate::judge_once(&grouped);
++    for (((key, pairs), r), g) in cells.into_iter().zip(rj).zip(gj) {
++        let logs: Vec<_> = pairs
++            .iter()
++            .map(|p| clocks::summary::mean_log_ratio(&[*p]))
++            .collect();
++        let (icc, se_ratio) = dependence(&logs)
++            .map(|(icc, se)| {
++                (
++                    format!("{:.0}", 1000.0 * icc),
++                    format!("{:.0}", 1000.0 * se),
++                )
++            })
++            .unwrap_or_else(|| ("NA".to_owned(), "NA".to_owned()));
++        assert!(
++            r.ratio_permille.abs_diff(g.ratio_permille) <= 1,
++            "the same overall log-ratio estimate"
++        );
++        println!(
++            "{}\t{key}\t{}\t{}\t{:?}\t{:?}\t{icc}\t{se_ratio}",
++            directory.display(),
++            r.ratio_permille,
++            g.ratio_permille,
++            r.verdict,
++            g.verdict
++        );
++    }
++}
+diff --git a/src/main.rs b/src/main.rs
+index 1235f5fa6..48e2e29c6 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -1,4 +1,5 @@
+ mod incremental;
++mod layout_audit;
+ mod pipeline;
+ mod receive;
+ 
+@@ -3072,6 +3073,9 @@ fn main() {
+     // pool's threads, made later, inherit it).
+     clocks::tight_timers();
+     let arguments: Vec<String> = std::env::args().skip(1).collect();
++    if arguments.first().map(String::as_str) == Some("layout-audit") {
++        return layout_audit::command(&arguments[1..]);
++    }
+     if arguments.first().map(String::as_str) == Some("compare") {
+         return compare_command(&arguments[1..]);
+     }
