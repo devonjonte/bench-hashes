@@ -138,6 +138,14 @@ The evidence supports no blanket unchanged-speed claim. A library decision
 that depends on a modest shared-Pipeline difference needs stronger controls;
 this study changes neither the rule nor the Pipeline to seek a passing label.
 
+A later [source/configuration review](source-review/README.md) confirms that the
+old point lists remain prefixes, the scheduler and placement source blocks stay
+identical, and all 24 common-context headers retain their declared configuration.
+Git still uses one iteration. Unselected points nevertheless add bookkeeping
+allocations, while compiled addresses and library-worker placement remain open
+questions. A fixed-image storage control is proposed, with its cost to be weighed
+before implementation. This inspection adds no timing evidence or attribution.
+
 ## Display-only invocation failure
 
 After its three successful comparisons, the EPYC job's display command used
