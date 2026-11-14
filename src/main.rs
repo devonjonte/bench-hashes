@@ -1,4 +1,5 @@
 mod incremental;
+mod layout_audit;
 mod pipeline;
 mod receive;
 
@@ -3072,6 +3073,9 @@ fn main() {
     // pool's threads, made later, inherit it).
     clocks::tight_timers();
     let arguments: Vec<String> = std::env::args().skip(1).collect();
+    if arguments.first().map(String::as_str) == Some("layout-audit") {
+        return layout_audit::command(&arguments[1..]);
+    }
     if arguments.first().map(String::as_str) == Some("compare") {
         return compare_command(&arguments[1..]);
     }

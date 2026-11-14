@@ -89,7 +89,8 @@ pub struct Judgment {
 
 /// The mean of the pairs' log ratios, ln(new / old). Requires some pairs,
 /// every mean positive.
-fn mean_log_ratio(pairs: &[(u128, u128)]) -> f64 {
+// Experiment-only visibility for the offline repeated-layout assessment.
+pub fn mean_log_ratio(pairs: &[(u128, u128)]) -> f64 {
     assert!(!pairs.is_empty(), "a ratio needs pairs");
     pairs
         .iter()
