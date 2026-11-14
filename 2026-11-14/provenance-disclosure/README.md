@@ -27,12 +27,14 @@ makes those identities reachable through the same reader-facing section.
 
 - Base: `da6fe3c478e3e25c23ab05514a1723e1e20f5e2f`.
 - Final candidate: **`86e4687ac9b306f62da1608a805d3023f555c98f`**.
+- [Landed repair](https://github.com/servil-software-factory/bench-hashes/pull/228):
+  **`5c0efb96b05fbc294769b967899a4c680d0ee7b2`**, exact candidate tree.
 - Final renderer/test source: `adc20bdd76f7346e263b4d533afc596c0de383d5`.
 - Earlier checkpoints: `adf9fc857`, `9e831b8f6`, `9418b5b58`, `1f06c2289`.
 
 The source checkpoints skipped hosted CI while the overview needed regeneration.
-The final artifact commit runs normal CI. Source, rendered index, recipes, logs,
-controls and images are retained here. Build executables remain local.
+The final artifact commit passed all four hosted checks. Source, rendered index,
+recipes, logs, controls and images are retained here. Build executables remain local.
 
 All **392 bar elements, values, labels and plot links remain exact**. The twenty
 stored maps receive only a shared record-style patch; reversing it restores
@@ -77,8 +79,13 @@ identities ahead of run conditions. Accidental edition 2024 formatter churn was
 reverted; the crate uses 2021.
 
 Dedicated performance comparisons were skipped: timed calls and statistical rules
-are unchanged. These are UI/correctness checks, with no new speed claim. Hosted CI,
-landing-tree and live-deployment verification are the final publication steps.
+are unchanged. These are UI/correctness checks, with no new speed claim.
+
+At **18:21 UTC**, the live index and M6 map matched the reviewed files byte for
+byte. Both digests were checked. The deployed overview then passed the complete
+desktop/phone source checks: 15 machines, 30 records and 334 identity entries per
+view. Live screenshots and verification logs are under `live/`. Publication and
+landing verification are complete.
 
 ## Reproduction
 
