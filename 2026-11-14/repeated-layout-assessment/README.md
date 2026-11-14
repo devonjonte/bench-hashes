@@ -10,12 +10,12 @@ can make repeated observations correlated. This assessment establishes the
 risk and finds it in stored and fresh measurements, but it does not establish
 a calibrated replacement procedure or an empirical false-call rate.
 
-The immediate, well-supported repair is clearer reporting: the current
-second stage uses 16 linked layouts per side four times, while its expanded
-argument list makes `regress` announce “64 new builds against 64 old”. That
-count is wrong. Matching source labels also cannot by themselves establish
-an unchanged-code experiment when build or run settings differ. The reporting
-candidate corrects those facts without changing measurements or decisions.
+The assessment led to a factual reporting repair. The second stage uses
+16 linked layouts per side four times; its expanded argument list had made
+`regress` announce “64 new builds against 64 old”. Matching source labels also
+leave build and runtime differences open. [Precise run/layout reporting](https://github.com/servil-software-factory/bench-hashes/pull/216)
+landed as `81e4b45a84e60f06b0ad93509403c5c33b2ad2c4`, with 191 release tests and
+seven CI checks passing. Measurements and statistical decisions stay unchanged.
 
 The assessment stopped after one fresh null and one known-change experiment.
 No original verdict has been replaced by the counterfactual labels below.
@@ -131,10 +131,9 @@ independence claims. They do not yet demonstrate that a statistical redesign
 improves the whole tool's decisions at an acceptable cost. Grouping can also
 bundle controlled order or core effects, so its interpretation needs care.
 
-No further control campaign was launched to seek a preferred label. The
-productive immediate change is factual run/layout reporting; a larger rule
-change requires its own predeclared acceptance evidence. The fresh adverse
-reading and all historical labels remain available for their owners' review.
+The bounded control campaign is complete, and the reporting repair is landed.
+A larger rule change requires its own predeclared acceptance evidence. The fresh
+adverse reading and all historical labels remain available for their owners' review.
 
 ## Reproduction
 
