@@ -1,0 +1,57 @@
+warning: Cargo.toml: version requirement `=0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d` for dependency `sigilcode` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: Cargo.toml: version requirement `=0.1.0+81af550bfd3eb2aff85c3ddf0a21446e78a1809d` for dependency `sigilcode` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `bench-hashes` (manifest) generated 2 warnings
+   Compiling clocks v0.1.0 (<development-home>/bench-kept-comparisons/clocks)
+   Compiling bench-hashes v0.22.0+d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41 (<development-home>/bench-kept-comparisons)
+    Finished `release` profile [optimized] target(s) in 1m 40s
+────────────
+ Nextest run ID 6a771890-a3af-44f5-ad11-857ee615c522 with nextest profile: default
+    Starting 2 tests across 3 binaries (207 tests skipped)
+        FAIL [   0.004s] (1/2) bench-hashes::bin/bench-hashes correctness_tests::kept_results_require_a_new_or_empty_directory
+  stdout ───
+
+    running 1 test
+    test correctness_tests::kept_results_require_a_new_or_empty_directory ... FAILED
+
+    failures:
+
+    failures:
+        correctness_tests::kept_results_require_a_new_or_empty_directory
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 136 filtered out; finished in 0.00s
+
+  stderr ───
+
+    thread 'correctness_tests::kept_results_require_a_new_or_empty_directory' (1372669) panicked at src/main.rs:9363:9:
+    reuse must stop before overwriting or mixing records
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+  Cancelling due to test failure: 1 test still running
+        FAIL [   0.005s] (2/2) bench-hashes::bin/bench-hashes check::tests::a_probe_compares_accepted_pairs_and_preserves_the_child_status
+  stdout ───
+
+    running 1 test
+    check: the probe's cells over 3 pairs (compare; no verdict: the full check's is the gate)
+    check: the probe's cells over 3 pairs (compare; no verdict: the full check's is the gate)
+    test check::tests::a_probe_compares_accepted_pairs_and_preserves_the_child_status ... FAILED
+
+    failures:
+
+    failures:
+        check::tests::a_probe_compares_accepted_pairs_and_preserves_the_child_status
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 136 filtered out; finished in 0.00s
+
+  stderr ───
+
+    thread 'check::tests::a_probe_compares_accepted_pairs_and_preserves_the_child_status' (1372670) panicked at src/check.rs:1380:13:
+    assertion `left == right` failed
+      left: 0
+     right: 7
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+────────────
+     Summary [   0.005s] 2 tests run: 0 passed, 2 failed, 207 skipped
+        FAIL [   0.004s] (1/2) bench-hashes::bin/bench-hashes correctness_tests::kept_results_require_a_new_or_empty_directory
+        FAIL [   0.005s] (2/2) bench-hashes::bin/bench-hashes check::tests::a_probe_compares_accepted_pairs_and_preserves_the_child_status
+error: test run failed

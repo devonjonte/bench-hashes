@@ -1,0 +1,177 @@
+diff --git a/src/check.rs b/src/check.rs
+index 256ef62d2..36543aed6 100644
+--- a/src/check.rs
++++ b/src/check.rs
+@@ -538,27 +538,7 @@ pub fn command(arguments: &[String]) -> i32 {
+         // pairs and their ratio (compare), for the question "is this idea
+         // worth building"; the verdict is the full check's, on the change
+         // once built.
+-        let keep = keep.as_ref().unwrap();
+-        let mut runs: Vec<PathBuf> = std::fs::read_dir(keep)
+-            .expect("the probe's kept runs")
+-            .flatten()
+-            .map(|e| e.path())
+-            .filter(|p| {
+-                p.file_name()
+-                    .is_some_and(|n| n.to_string_lossy().starts_with("run-"))
+-            })
+-            .collect();
+-        runs.sort();
+-        let (olds, news): (Vec<_>, Vec<_>) = runs
+-            .iter()
+-            .partition(|p| p.to_string_lossy().ends_with("-old.tsv"));
+-        let mut compare: Vec<String> = vec!["compare".into()];
+-        compare.extend(olds.iter().map(|p| p.display().to_string()));
+-        compare.push("--".into());
+-        compare.extend(news.iter().map(|p| p.display().to_string()));
+-        println!("check: the probe's cells over {} pairs (compare; no verdict: the full check's is the gate)", olds.len());
+-        run_regress(&new_exe, &bench, &compare);
+-        return 0;
++        return report_probe(&new_exe, &bench, keep.as_ref().unwrap());
+     }
+     let suspects: Vec<String> = out
+         .lines()
+@@ -623,6 +603,30 @@ pub fn command(arguments: &[String]) -> i32 {
+     run_regress(&new_exe, &bench, &second).0
+ }
+ 
++/// Compare the accepted pairs in this probe's record directory.
++fn report_probe(exe: &Path, bench: &Path, keep: &Path) -> i32 {
++    let mut runs: Vec<PathBuf> = std::fs::read_dir(keep)
++        .expect("the probe's kept runs")
++        .flatten()
++        .map(|e| e.path())
++        .filter(|p| {
++            p.file_name()
++                .is_some_and(|n| n.to_string_lossy().starts_with("run-"))
++        })
++        .collect();
++    runs.sort();
++    let (olds, news): (Vec<_>, Vec<_>) = runs
++        .iter()
++        .partition(|p| p.to_string_lossy().ends_with("-old.tsv"));
++    let mut compare: Vec<String> = vec!["compare".into()];
++    compare.extend(olds.iter().map(|p| p.display().to_string()));
++    compare.push("--".into());
++    compare.extend(news.iter().map(|p| p.display().to_string()));
++    println!("check: the probe's cells over {} pairs (compare; no verdict: the full check's is the gate)", olds.len());
++    run_regress(exe, bench, &compare);
++    0
++}
++
+ /// A scope's points, as its caller names them: comma-separated, each
+ /// trimmed, empties dropped.
+ fn scope_points(scope: &String) -> Vec<String> {
+@@ -1333,6 +1337,55 @@ mod tests {
+         );
+     }
+ 
++    #[test]
++    fn a_probe_compares_accepted_pairs_and_preserves_the_child_status() {
++        use std::os::unix::fs::PermissionsExt;
++        let dir = std::env::temp_dir().join(format!("bench-probe-report-{}", std::process::id()));
++        let _ = std::fs::remove_dir_all(&dir);
++        let kept = dir.join("samples");
++        std::fs::create_dir_all(kept.join("retried")).unwrap();
++        for name in [
++            "run-001-old.tsv",
++            "run-002-new.tsv",
++            "run-003-new.tsv",
++            "run-004-old.tsv",
++            "run-005-old.tsv",
++            "run-006-new.tsv",
++            "sizes.tsv",
++            "retried/run-007-old.tsv",
++            "retried/run-008-new.tsv",
++        ] {
++            std::fs::write(kept.join(name), "fixed input").unwrap();
++        }
++        let exe = dir.join("compare-child");
++        let expected = [
++            "compare".to_owned(),
++            kept.join("run-001-old.tsv").display().to_string(),
++            kept.join("run-004-old.tsv").display().to_string(),
++            kept.join("run-005-old.tsv").display().to_string(),
++            "--".to_owned(),
++            kept.join("run-002-new.tsv").display().to_string(),
++            kept.join("run-003-new.tsv").display().to_string(),
++            kept.join("run-006-new.tsv").display().to_string(),
++        ]
++        .join("\n")
++            + "\n";
++        for code in [0, 7, 101] {
++            std::fs::write(
++                &exe,
++                format!("#!/bin/sh\nprintf '%s\\n' \"$@\" > arguments.txt\nexit {code}\n"),
++            )
++            .unwrap();
++            std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o700)).unwrap();
++            assert_eq!(super::report_probe(&exe, &dir, &kept), code);
++            assert_eq!(
++                std::fs::read_to_string(dir.join("arguments.txt")).unwrap(),
++                expected
++            );
++        }
++        std::fs::remove_dir_all(dir).unwrap();
++    }
++
+     /// The patch points at the crate named blake3-servil: the checkout's
+     /// root for one crate, threads/ where the root is the core (BLAKE3
+     /// #335); a threads/ of another name is passed over.
+diff --git a/src/main.rs b/src/main.rs
+index f52b89620..20a1c5730 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -7362,6 +7362,12 @@ fn geometric_mean(values: impl Iterator<Item = u128>) -> u128 {
+  */
+ const REGRESS_ROUNDS: usize = 24;
+ const REGRESS_PAIRS: usize = 8;
++/// Prepare the directory that will hold this comparison's records.
++fn prepare_keep_dir(keep: &std::path::Path) {
++    fs::create_dir_all(keep)
++        .unwrap_or_else(|error| panic!("cannot create {}: {error}", keep.display()));
++}
++
+ /// Preserve abandoned attempts as diagnostics. Probe comparisons read only
+ /// the accepted top-level pairs, while the full raw record stays available.
+ fn keep_retried_pair(old: Option<&std::path::Path>, new: Option<&std::path::Path>) {
+@@ -7769,8 +7775,7 @@ fn regress_command(arguments: &[String]) -> i32 {
+         return 2;
+     }
+     if let Some(keep) = &keep {
+-        fs::create_dir_all(keep)
+-            .unwrap_or_else(|error| panic!("cannot create {}: {error}", keep.display()));
++        prepare_keep_dir(keep);
+     }
+     assert!(
+         points.is_none() || contenders.is_some(),
+@@ -9343,6 +9348,29 @@ mod correctness_tests {
+         assert_eq!(merge_sizes(&old, &new), format!("{SIZES_VERSION}\nsha256\t64 B\t40\nblake3-servil-mt\tcontinuous 64 B\t9\nblake3-servil-mt\tcontinuous batch 16\t3\n"));
+     }
+ 
++    #[test]
++    fn kept_results_require_a_new_or_empty_directory() {
++        let dir = std::env::temp_dir().join(format!("bench-keep-directory-{}", std::process::id()));
++        let _ = fs::remove_dir_all(&dir);
++        let kept = dir.join("new/records");
++        prepare_keep_dir(&kept);
++        assert!(kept.is_dir());
++        prepare_keep_dir(&kept);
++        let sample = kept.join("run-001-old.tsv");
++        fs::write(&sample, "earlier evidence").unwrap();
++        let refused = std::panic::catch_unwind(|| prepare_keep_dir(&kept));
++        assert_eq!(fs::read_to_string(&sample).unwrap(), "earlier evidence");
++        assert!(
++            refused.is_err(),
++            "reuse must stop before overwriting or mixing records"
++        );
++        let file = dir.join("a-file");
++        fs::write(&file, "also preserved").unwrap();
++        assert!(std::panic::catch_unwind(|| prepare_keep_dir(&file)).is_err());
++        assert_eq!(fs::read_to_string(file).unwrap(), "also preserved");
++        fs::remove_dir_all(dir).unwrap();
++    }
++
+     #[test]
+     fn retried_pairs_are_kept_outside_the_probe_comparison() {
+         let dir = std::env::temp_dir().join(format!("bench-retried-pair-{}", std::process::id()));
