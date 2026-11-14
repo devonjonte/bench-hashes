@@ -14,7 +14,42 @@ fn variance(x: &[f64]) -> f64 {
     x.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (x.len() - 1) as f64
 }
 
+fn dependence(logs: &[f64]) -> Option<(f64, f64)> {
+    assert_eq!(logs.len(), LAYOUTS * REPEATS);
+    let raw_var = variance(logs);
+    if raw_var == 0.0 {
+        return None;
+    }
+    let means: Vec<_> = (0..LAYOUTS)
+        .map(|g| (0..REPEATS).map(|r| logs[g + r * LAYOUTS]).sum::<f64>() / REPEATS as f64)
+        .collect();
+    let between = REPEATS as f64 * variance(&means);
+    let within = (0..LAYOUTS)
+        .map(|g| {
+            (0..REPEATS)
+                .map(|r| (logs[g + r * LAYOUTS] - means[g]).powi(2))
+                .sum::<f64>()
+        })
+        .sum::<f64>()
+        / (LAYOUTS * (REPEATS - 1)) as f64;
+    let icc = (between - within) / (between + (REPEATS - 1) as f64 * within);
+    Some((icc, (REPEATS as f64 * variance(&means) / raw_var).sqrt()))
+}
+
 pub fn command(arguments: &[String]) {
+    // Independent algebraic anchors: perfect group repeats, and balanced
+    // within-group noise with zero between-group variance.
+    let repeated: Vec<_> = (0..64)
+        .map(|i| if i % 16 < 10 { 1.0 } else { -1.0 })
+        .collect();
+    let (icc, se) = dependence(&repeated).unwrap();
+    assert!((icc - 1.0).abs() < 1e-12 && (se - (63.0f64 / 15.0).sqrt()).abs() < 1e-12);
+    let within: Vec<_> = (0..64)
+        .map(|i| if i / 16 < 2 { 1.0 } else { -1.0 })
+        .collect();
+    let (icc, se) = dependence(&within).unwrap();
+    assert!((icc + 1.0 / 3.0).abs() < 1e-12 && se == 0.0);
+    assert_eq!(dependence(&[0.0; 64]), None);
     assert!(
         !arguments.is_empty(),
         "layout-audit KEPT_SECOND_STAGE_DIR..."
@@ -113,43 +148,25 @@ fn assess(directory: &Path) {
             .iter()
             .map(|p| clocks::summary::mean_log_ratio(&[*p]))
             .collect();
-        let means: Vec<_> = (0..LAYOUTS)
-            .map(|g| (0..REPEATS).map(|r| logs[g + r * LAYOUTS]).sum::<f64>() / REPEATS as f64)
-            .collect();
-        let between = REPEATS as f64 * variance(&means);
-        let within = (0..LAYOUTS)
-            .map(|g| {
-                (0..REPEATS)
-                    .map(|r| (logs[g + r * LAYOUTS] - means[g]).powi(2))
-                    .sum::<f64>()
+        let (icc, se_ratio) = dependence(&logs)
+            .map(|(icc, se)| {
+                (
+                    format!("{:.0}", 1000.0 * icc),
+                    format!("{:.0}", 1000.0 * se),
+                )
             })
-            .sum::<f64>()
-            / (LAYOUTS * (REPEATS - 1)) as f64;
-        let denominator = between + (REPEATS - 1) as f64 * within;
-        let icc = if denominator == 0.0 {
-            0.0
-        } else {
-            (between - within) / denominator
-        };
-        let raw_var = variance(&logs);
-        let se_ratio = if raw_var == 0.0 {
-            1.0
-        } else {
-            (REPEATS as f64 * variance(&means) / raw_var).sqrt()
-        };
+            .unwrap_or_else(|| ("NA".to_owned(), "NA".to_owned()));
         assert!(
             r.ratio_permille.abs_diff(g.ratio_permille) <= 1,
             "the same overall log-ratio estimate"
         );
         println!(
-            "{}\t{key}\t{}\t{}\t{:?}\t{:?}\t{:.0}\t{:.0}",
+            "{}\t{key}\t{}\t{}\t{:?}\t{:?}\t{icc}\t{se_ratio}",
             directory.display(),
             r.ratio_permille,
             g.ratio_permille,
             r.verdict,
-            g.verdict,
-            1000.0 * icc,
-            1000.0 * se_ratio
+            g.verdict
         );
     }
 }
