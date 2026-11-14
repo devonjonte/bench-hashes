@@ -1,0 +1,154 @@
+--- src/map.html
++++ template-2
+@@ -1,5 +1,5 @@
+ <!doctype html>
+-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>How fast BLAKE3-Servil runs, beside other hashes</title>
++<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>How fast BLAKE3 servil runs, beside other hashes</title>
+ <style>
+ body { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: #111827; margin: 24px; background: #fdfdfc; }
+ h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 17px; margin: 34px 0 6px; }
+@@ -37,7 +37,6 @@
+ .layer { font-size: 13px; color: #374151; display: flex; align-items: center; gap: 6px; margin: 14px 0 4px; cursor: help; user-select: none; width: max-content; padding: 2px 6px; border-radius: 6px; position: relative; }
+ .layer:hover, .layer.show { background: #ede9fe; }
+ .grid { position: relative; display: grid; grid-template-columns: 170px 38px repeat(var(--cols), 210px); gap: 6px; width: max-content; }
+-.grid > .gap { visibility: hidden; }
+ .axis-cell { position: relative; }
+ .h { font-size: 12px; color: #4b5563; text-align: center; padding: 4px; border-radius: 6px; cursor: help; user-select: none; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+ .h:hover, .h.show, .h.lit { background: #ede9fe; color: #111827; }
+@@ -72,7 +71,7 @@
+ /* After the rules above, which it narrows for a phone. */
+ @media (max-width: 999px) { .zoom.phone .title { right: 44px; font-size: 12px; line-height: 1.35; } .zoom.phone .close .word { display: none; } }
+ </style></head><body>
+-<h1>How fast BLAKE3-Servil runs, beside other hashes</h1>
++<h1>How fast BLAKE3 servil runs, beside other hashes</h1>
+ <p class="sub">Each small chart is one measurement: its row is what a program hashes, its column how it calls; point at either name for what it means. Open a chart to read its values; its names hide or show their lines.</p>
+ <div id="sections"></div>
+ <div id="tip"></div>
+@@ -98,7 +97,6 @@
+   const r = (x, y, w, h, o = 1) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="1.2" fill="${color}" opacity="${o}"/>`;
+   const g = {
+     one: r(2, 8, 18, 6),
+-    incremental: r(5, 8, 12, 6) + `<path d="M4 4 H1 V18 H4 M18 4 H21 V18 H18" stroke="${color}" stroke-width="1.5" fill="none"/>`,
+     batch: [0, 1, 2].map(j => r(7, 2 + j * 6.5, 8, 5)).join(""),
+     long: [0, 1, 2].map(j => r(2, 2 + j * 6.5, 18, 5)).join(""),
+     many: [0, 1, 2].map(j => r(1 + j * 2, 3 + j * 6, 8 + (j % 2) * 6, 4)).join(""),
+@@ -107,9 +105,6 @@
+     outb: r(1, 15, 20, 5) + `<path d="M11 13 V9 M5 13 V10 H17 V13 M11 9 V4" stroke="${color}" stroke-width="1.6" fill="none"/>` + `<circle cx="11" cy="3.5" r="2.2" fill="${color}"/>`,
+     busy: `<circle cx="11" cy="11" r="4" fill="none" stroke="${color}" stroke-width="2.5"/>` + [0, 45, 90, 135, 180, 225, 270, 315].map(a => `<rect x="10" y="2" width="2" height="4" fill="${color}" transform="rotate(${a} 11 11)"/>`).join(""),
+     idle: `<path d="M14 3 a8 8 0 1 0 5 13 a6.5 6.5 0 1 1 -5 -13 z" fill="${color}"/>`,
+-    receiving: [1, 8, 15].map(x => r(x, 4, 5, 4)).join("") + `<circle cx="11" cy="15" r="5" fill="none" stroke="${color}" stroke-width="1.5"/><path d="M11 15 v-3 m0 3 h3" stroke="${color}" stroke-width="1.5"/>`,
+-    brief: `<circle cx="11" cy="11" r="7.5" fill="none" stroke="${color}" stroke-width="2"/><path d="M11 11 V6 M11 11 L14.5 13" stroke="${color}" stroke-width="2" fill="none" stroke-linecap="round"/>`,
+-    controlled: `<path d="M14 3 a8 8 0 1 0 5 13 a6.5 6.5 0 1 1 -5 -13 z" fill="none" stroke="${color}" stroke-width="1.6"/>`,
+     lent: r(1, 7, 7, 8) + `<path d="M10 11 h6 M14 11 l-2.5 -2.5 M14 11 l-2.5 2.5" stroke="${color}" stroke-width="1.8" fill="none" stroke-linecap="round"/><rect x="17" y="7" width="4" height="8" rx="1" fill="none" stroke="${color}" stroke-width="1.5"/>`,
+     piped: [0, 1, 2].map(j => r(1 + j * 7, 8, 5.5, 6, 1 - j * .3)).join("") + `<path d="M2 18 h18 m-3 -2.5 l3 2.5 l-3 2.5" stroke="${color}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
+     solo: `<circle cx="11" cy="6" r="3.5" fill="${color}"/><path d="M4.5 20 a6.5 6.5 0 0 1 13 0 z" fill="${color}"/>`,
+@@ -153,7 +148,7 @@
+ function timesText(r) {
+   return "×" + Number(r.toPrecision(2)).toLocaleString("en-US", { maximumFractionDigits: 1 });
+ }
+-/* The duel at point k of chart c: BLAKE3-Servil (the faster of its forms
++/* The duel at point k of chart c: BLAKE3 servil (the faster of its forms
+    shown) against its strongest rival (the fastest other shown), as the
+    overview's brackets (Zooko, October 24): {r, w, a, b}, the factor, the
+    winner's index, servil's and the rival's times; null without both. */
+@@ -296,7 +291,6 @@
+ const shown = nsPerByte => SHOW.cost ? nsPerByte : 1 / nsPerByte;
+ /* The chart open now (its cell's key), so a chip that redraws the page keeps it open. */
+ let OPEN = null;
+-let RUN_OPEN = false; /* the first section's record open: a #run link */
+ function render() {
+   /* A redraw keeps the reader's place on the page. */
+   const scrolled = window.scrollY;
+@@ -344,7 +338,7 @@
+     const esc = t => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+     const rows = S.details.map(([k, v, a]) => `<dt>${esc(k)}</dt><dd>${a ? `<a href="${esc(a)}">${esc(v)}</a>` : esc(v)}</dd>`).join("");
+     const vs = S.before[0] ? `<p class="about">Solid lines: ${esc(S.run)}. Dashed lines: ${esc(S.before[0])}, ${esc(S.before[1])}.</p>` : "";
+-    box.innerHTML = `<h2>${S.title}</h2><p class="about">${esc(S.about)}</p>${vs}<details class="run"${si === 0 && RUN_OPEN ? " open" : ""}><summary>About this run</summary><dl>${rows}</dl></details>`;
++    box.innerHTML = `<h2>${S.title}</h2><p class="about">${esc(S.about)}</p>${vs}<details class="run"><summary>About this run</summary><dl>${rows}</dl></details>`;
+     const legend = document.createElement("div"); legend.className = "legend";
+     S.names.forEach((nm, i) => {
+       const b = document.createElement("button"); b.textContent = nm; b.style.setProperty("--c", swatch(S, i));
+@@ -361,47 +355,33 @@
+       legend.appendChild(b);
+     }
+     box.appendChild(legend);
+-    // The layers this run measured (a placement the machine lacks has no cells).
+-    const layers = S.layers.filter(([layer]) => Object.keys(S.cells).some(k => k.startsWith(layer + "|")));
+-    for (const [layer, lname, lnote] of layers) {
+-      if (layers.length > 1) {
++    for (const [layer, lname, lnote] of S.layers) {
++      if (S.layers.length > 1) {
+         const lay = document.createElement("div");
+         lay.className = "layer";
+-        // The two shared placements share the two-figures glyph.
+-        lay.innerHTML = glyph(layer.startsWith("shared") ? "shared" : layer, 18) + lname + `<span class="means">${lnote}</span>`;
++        lay.innerHTML = glyph(layer, 18) + lname + `<span class="means">${lnote}</span>`;
+         lay.onclick = () => lay.classList.toggle("show");
+         box.appendChild(lay);
+       }
+-      // The layer's own rows: a row no column of this layer measures is
+-      // left out. Its columns are every layer's, each at its place, so a
+-      // column reads down through the layers; one this layer doesn't
+-      // measure is a blank track, no box (two programs at once run the
+-      // nonstop calls alone, under the solo layer's nonstop columns).
+-      const has = (r, c) => S.cells[`${layer}|${r}|${c}`];
+-      const cols = S.cols.filter(([c]) => S.layers.some(([l]) => S.rows.some(([r]) => S.cells[`${l}|${r}|${c}`])));
+-      const here = c => S.rows.some(([r]) => has(r, c));
+-      const rows = S.rows.filter(([r]) => cols.some(([c]) => has(r, c)));
+-      const g = document.createElement("div"); g.className = "grid"; g.style.setProperty("--cols", cols.length); box.appendChild(g);
++      const g = document.createElement("div"); g.className = "grid"; g.style.setProperty("--cols", S.cols.length); box.appendChild(g);
+       GRIDS.push(g);
+       g.appendChild(document.createElement("div"));
+       g.appendChild(document.createElement("div"));
+-      for (const [c, cname, cmeans] of cols) {
+-        if (!here(c)) { const gap = document.createElement("div"); gap.className = "gap"; g.appendChild(gap); continue; }
++      for (const [c, cname, cmeans] of S.cols) {
+         const h = document.createElement("div"); h.className = "h";
+         h.innerHTML = glyph(c) + cname + `<span class="means">${cmeans}</span>`; h.dataset.key = "col:" + c; h.onclick = () => h.classList.toggle("show"); g.appendChild(h);
+       }
+-      for (const [r, rname, rmeans] of rows) {
++      for (const [r, rname, rmeans] of S.rows) {
+         const h = document.createElement("div"); h.className = "h row";
+         h.innerHTML = glyph(r) + `<span>${rname}</span><span class="means">${rmeans}</span>`; h.dataset.key = "row:" + r; h.onclick = () => h.classList.toggle("show"); g.appendChild(h);
+         const ax = document.createElement("div"); ax.className = "axis-cell"; ax.innerHTML = rowAxis(); g.appendChild(ax);
+-        for (const [c] of cols) {
+-          if (!here(c)) { const gap = document.createElement("div"); gap.className = "gap"; g.appendChild(gap); continue; }
++        for (const [c] of S.cols) {
+           const cell = document.createElement("div"); cell.className = "cell";
+           const key = `${layer}|${r}|${c}`, q = S.cells[key];
+           if (q) {
+             const nothing = (MEASURES.wall || MEASURES.cpu || MEASURES.energy) && !MEASURES.wall && !(MEASURES.cpu && q.cpu.some(Boolean)) && !(MEASURES.energy && q.energy.some(Boolean));
+             const d = draw(S, q, 208, 94, false);
+-            cell.innerHTML = d.svg + (nothing ? `<span class="note">nothing selected is recorded for this way of calling</span>` : "") + `<span class="call"><a class="doc" href="${q.doc}" target="_blank" title="${q.call}: its documentation">${q.call.split("::").pop()}</a></span>`;
++            cell.innerHTML = d.svg + (nothing ? `<span class="note">nothing selected is recorded for this way of calling</span>` : "") + `<span class="call"><a class="doc" href="${q.doc}" target="_blank" title="${q.call}: its documentation">${q.call}</a></span>`;
+             if (!nothing) hoverTip(cell, S, q, d);
+             cell.querySelector("a.doc").onclick = e => e.stopPropagation();
+             cell.dataset.key = si + ":" + key;
+@@ -422,11 +402,11 @@
+   const rows = q.series.map((s, i) => s && S.shownNow[i] ? [i, 1 / s[k], s[k]] : null).filter(Boolean).sort((a, b) => b[1] - a[1]);
+   /* Beside an earlier run: its rate, and how many times faster the run is. */
+   const was = i => { const v = S.besideNow && q.before[i] && q.before[i][k]; return v ? ` <span class="was">(before: ${(1 / v).toPrecision(3)}; now ×${(v / q.series[i][k]).toFixed(2)})</span>` : ""; };
+-  const time = ns => ns >= 1e6 ? (ns / 1e6).toPrecision(3) + " ms" : ns >= 1e3 ? (ns / 1e3).toPrecision(3) + " μs" : ns.toPrecision(3) + " ns";
++  const time = ns => ns >= 1e6 ? (ns / 1e6).toPrecision(3) + " ms" : ns >= 1e3 ? (ns / 1e3).toPrecision(3) + " µs" : ns.toPrecision(3) + " ns";
+   const cpuOf = i => { const v = q.cpu[i] && q.cpu[i][k]; return v ? `${M.wall ? "; " : ""}CPU ${SHOW.cost ? v.toPrecision(3) + " ns/B · " : ""}${time(v * q.per[k])} ${q.what}` : M.wall ? "" : "no CPU time recorded"; };
+-  const energyOf = i => { const v = q.energy[i] && q.energy[i][k]; if (!v) return ""; const nj = v * q.per[k]; return `${M.wall || M.cpu ? "; " : ""}energy ${SHOW.cost ? v.toPrecision(3) + " nJ/B · " : (1 / v).toPrecision(3) + " GB/J · "}${nj >= 1e6 ? (nj / 1e6).toPrecision(3) + " mJ" : nj >= 1e3 ? (nj / 1e3).toPrecision(3) + " μJ" : nj.toPrecision(3) + " nJ"} ${q.what}`; };
++  const energyOf = i => { const v = q.energy[i] && q.energy[i][k]; if (!v) return ""; const nj = v * q.per[k]; return `${M.wall || M.cpu ? "; " : ""}energy ${SHOW.cost ? v.toPrecision(3) + " nJ/B · " : (1 / v).toPrecision(3) + " GB/J · "}${nj >= 1e6 ? (nj / 1e6).toPrecision(3) + " mJ" : nj >= 1e3 ? (nj / 1e3).toPrecision(3) + " µJ" : nj.toPrecision(3) + " nJ"} ${q.what}`; };
+   /* Where the caller ran: its E-core share and the clocks, where counted. */
+-  const ran = i => { const c = q.cores && q.cores[i] && q.cores[i][k]; const on = q.cpus && q.cpus[i] && q.cpus[i][k]; if (!c && !on) return ""; const where = c ? (([e, p, ee]) => e < 0.005 ? `P cores, ${p.toFixed(2)} GHz` : e > 0.995 ? `E cores, ${ee.toFixed(2)} GHz` : `${(100 * e).toFixed(0)}% on E cores; P ${p.toFixed(2)}, E ${ee.toFixed(2)} GHz`)(c) : ""; return ` <span class="was">[${where}${where && on ? "; " : ""}${on ? `CPU ${on}` : ""}]</span>`; };
++  const ran = i => { const c = q.cores && q.cores[i] && q.cores[i][k]; if (!c) return ""; const [e, p, ee] = c; return ` <span class="was">[${e < 0.005 ? `P cores, ${p.toFixed(2)} GHz` : e > 0.995 ? `E cores, ${ee.toFixed(2)} GHz` : `${(100 * e).toFixed(0)}% on E cores; P ${p.toFixed(2)}, E ${ee.toFixed(2)} GHz`}]</span>`; };
+   /* A contender a block: what wraps indents under its name. */
+   return `${q.axis}: <b>${q.sizes[k]}</b>` + rows.map(([i, rate, t]) => `<div class="row"><span class="sw" style="background:${swatch(S, i)}"></span>${S.names[i]}: ` + (M.wall ? `${SHOW.cost ? t.toPrecision(3) + " ns/B" : rate.toPrecision(3) + " " + q.unit} · ${time(t * q.per[k])} ${q.what}${was(i)}${ran(i)}` : "") + (M.cpu ? cpuOf(i) : "") + (M.energy ? energyOf(i) : "") + "</div>").join("");
+ }
+@@ -530,12 +510,6 @@
+ /* A link to one chart (#solo|one|lent, or #1:solo|file|cached for a later section) opens it. */
+ function openFromHash() {
+   if (location.hash.length < 2) return;
+-  // #run opens the run's record (the overview links each machine's line to it).
+-  if (location.hash === "#run") {
+-    RUN_OPEN = true; render();
+-    document.querySelector("details.run").scrollIntoView({ block: "start" });
+-    return;
+-  }
+   const want = decodeURIComponent(location.hash.slice(1)), key = want.includes(":") ? want : "0:" + want;
+   const cell = document.querySelector(`.cell[data-key="${CSS.escape(key)}"]`);
+   if (!cell || document.querySelector(".zoom")) return;

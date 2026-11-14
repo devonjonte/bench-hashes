@@ -1,0 +1,183 @@
+diff --git a/src/map.html b/src/map.html
+index f03a3e54b..21211e156 100644
+--- a/src/map.html
++++ b/src/map.html
+@@ -55,7 +55,11 @@ a.doc { color: inherit; text-decoration: underline dotted #9ca3af; text-underlin
+ @media (pointer: coarse) { .cell a.doc { pointer-events: none; } }
+-.zoom { position: absolute; background: #fff; border: 1px solid #c4b5fd; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.12); z-index: 5; overflow: hidden; transition: left .2s, top .2s, width .2s, height .2s; cursor: zoom-out; }
+-.zoom .title { position: absolute; left: 14px; top: 10px; font-size: 13px; color: #374151; display: flex; gap: 6px; align-items: center; }
+-.zoom .close { position: absolute; right: 8px; top: 6px; font-size: 12px; color: #4b5563; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 3px 10px; cursor: pointer; }
+-/* An opened chart's contenders: a line each, its toggle. */
+-.zoom .key { position: absolute; right: 10px; display: flex; flex-wrap: wrap; gap: 2px 14px; }
++.zoom { position: absolute; background: #fff; border: 1px solid #c4b5fd; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.12); z-index: 5; overflow: auto; scrollbar-gutter: stable; }
++.zoom .heading { box-sizing: border-box; padding: 10px 14px 6px; }
++.zoom .title { font-size: 13px; line-height: 1.35; color: #374151; overflow-wrap: anywhere; }
++.zoom .title > svg { vertical-align: middle; margin-right: 6px; }
++.zoom .title code { display: block; }
++.zoom > svg { display: block; clear: both; cursor: zoom-out; }
++.zoom .close { position: sticky; float: right; top: 6px; z-index: 1; margin: 6px 8px 0 6px; font-size: 12px; color: #4b5563; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 3px 10px; white-space: nowrap; cursor: pointer; }
++/* Title and contenders share normal flow; their actual height sets the plot's room. */
++.zoom .key { clear: both; display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 6px; }
+ .zoom .key button { font: 600 12px inherit; line-height: 20px; border: none; background: none; padding: 0 4px; margin: 0; cursor: pointer; color: var(--c); border-radius: 4px; }
+@@ -72,3 +76,3 @@ a.doc { color: inherit; text-decoration: underline dotted #9ca3af; text-underlin
+ /* After the rules above, which it narrows for a phone. */
+-@media (max-width: 999px) { .zoom.phone .title { right: 44px; font-size: 12px; line-height: 1.35; } .zoom.phone .close .word { display: none; } }
++@media (max-width: 999px) { .zoom.phone .close .word { display: none; } }
+ </style></head><body>
+@@ -180,8 +184,19 @@ function draw(S, c, w, h, axes) {
+   const [lo, hi] = axisOf();
+-  /* An opened chart names its contenders above the plot, the names its
+-     toggles (open() places them), a phone's title taking two lines and two
+-     names to a row; case labels may take two lines below it. */
+-  const listed = axes ? c.series.filter(Boolean).length : 0;
+-  const tall = axes && narrow(), top = tall ? 72 : 40;
+-  const n = c.sizes.length, L = axes ? (tall ? 50 : 70) : 8, R = Math.max(axes ? 52 : 34, spanRoom(S, c, live, axes)), T = axes ? top + 22 * Math.ceil(listed / (tall ? 2 : 5)) + 8 : 8, B = axes ? (c.cases ? 84 : 62) : 14;
++  const ticks = [];
++  if (axes) {
++    const onNow = ["wall", "cpu", "energy"].filter(m => MEASURES[m]);
++    const unit = onNow.length === 1 && onNow[0] === "wall" ? (SHOW.cost ? " ns/B" : " GB/s") : "";
++    for (let e = Math.floor(Math.log10(Math.exp(lo))) - 1; e <= Math.ceil(Math.log10(Math.exp(hi))); e++) for (const m of [1, 2, 5]) {
++      const v = m * 10 ** e; if (Math.log(v) >= lo && Math.log(v) <= hi) ticks.push([v, `${+v.toPrecision(2)}${unit}`]);
++    }
++  }
++  /* Measure the actual tick strings in their SVG font; the remaining gutter
++     holds the vertical unit label and the gap to the ticks. */
++  let labelWidth = 0;
++  if (axes) {
++    const context = document.createElement("canvas").getContext("2d");
++    context.font = `11px ${getComputedStyle(document.body).fontFamily}`;
++    labelWidth = Math.max(0, ...ticks.map(([, label]) => context.measureText(label).width));
++  }
++  const n = c.sizes.length, L = axes ? Math.ceil(labelWidth) + 32 : 8, R = Math.max(axes ? 52 : 34, spanRoom(S, c, live, axes)), T = axes ? 16 : 8, B = axes ? (c.cases ? 84 : 62) : 14;
+   /* Sizes run edge to edge; separate cases sit in the middles of equal slots. */
+@@ -196,9 +211,6 @@ function draw(S, c, w, h, axes) {
+   if (axes) {
+-    for (let e = Math.floor(Math.log10(Math.exp(lo))) - 1; e <= Math.ceil(Math.log10(Math.exp(hi))); e++) for (const m of [1, 2, 5]) {
+-      const v = m * 10 ** e; if (Math.log(v) < lo || Math.log(v) > hi) continue;
+-      const onNow = ["wall", "cpu", "energy"].filter(m => MEASURES[m]);
+-      const unit = onNow.length === 1 && onNow[0] === "wall" ? (SHOW.cost ? " ns/B" : " GB/s") : "";
+-      s += `<line x1="${L}" x2="${w - R}" y1="${y(v)}" y2="${y(v)}" stroke="#f3f4f6"/><text x="${L - 6}" y="${y(v) + 4}" font-size="11" fill="#6b7280" text-anchor="end">${+v.toPrecision(2)}${unit}</text>`;
++    for (const [v, label] of ticks) {
++      s += `<line x1="${L}" x2="${w - R}" y1="${y(v)}" y2="${y(v)}" stroke="#f3f4f6"/><text x="${L - 6}" y="${y(v) + 4}" font-size="11" fill="#6b7280" text-anchor="end">${label}</text>`;
+     }
+-    /* The title runs up the axis; its arrow, beside its end, points up, as faster lines lie. */
++    /* Units stay beside the plot; the persistent measure bar names the log scale and direction. */
+     /* The axis names every selected measure: solid, dotted, dashed. */
+@@ -206,9 +218,6 @@ function draw(S, c, w, h, axes) {
+     const M = MEASURES, on = ["wall", "cpu", "energy"].filter(m => M[m]);
+-    const title0 = on.length === 1 && on[0] === "wall" && !SHOW.cost ? "gigibytes per second"
++    const title0 = on.length === 1 && on[0] === "wall" && !SHOW.cost ? "gigabytes per second"
+       : SHOW.cost ? on.map(m => ({ wall: "ns", cpu: "CPU ns", energy: "nJ" })[m]).join(" / ") + " per byte" : "GB per " + on.map(m => ({ wall: "second", cpu: "CPU second", energy: "joule" })[m]).join(" / ");
+-    const mid = (T + h - B) / 2, title = `${title0} (log scale), ${SHOW.cost ? "lower" : "higher"} is better`, half = title.length * 3.1;
+-    s += `<text x="14" y="${mid}" font-size="11" fill="#6b7280" transform="rotate(-90 14 ${mid})" text-anchor="middle">${title}</text>`;
+-    s += SHOW.cost
+-      ? `<path d="M10 ${mid + half + 4} V${mid + half + 18} M6.5 ${mid + half + 13} L10 ${mid + half + 18} L13.5 ${mid + half + 13}" stroke="#6b7280" stroke-width="1.3" fill="none"/>`
+-      : `<path d="M10 ${mid - half - 4} V${mid - half - 18} M6.5 ${mid - half - 13} L10 ${mid - half - 18} L13.5 ${mid - half - 13}" stroke="#6b7280" stroke-width="1.3" fill="none"/>`;
++    const mid = (T + h - B) / 2;
++    s += `<text x="14" y="${mid}" font-size="11" fill="#6b7280" transform="rotate(-90 14 ${mid})" text-anchor="middle">${title0}</text>`;
+     /* As many size labels as fit, about 48 px each. */
+@@ -218,3 +227,3 @@ function draw(S, c, w, h, axes) {
+     const wrap = lab => lab.split(" ").reduce((lines, word) => { const last = lines[lines.length - 1]; if (last && (last + " " + word).length <= chars) lines[lines.length - 1] = last + " " + word; else lines.push(word); return lines; }, []);
+-    s += `<text x="${(L + w - R) / 2}" y="${h - 8}" font-size="11" fill="#6b7280" text-anchor="middle">${c.axis} (log scale)</text>`;
++    s += `<text x="${(L + w - R) / 2}" y="${h - 8}" font-size="11" fill="#6b7280" text-anchor="middle">${c.axis}${c.cases ? "" : " (log scale)"}</text>`;
+     c.sizes.forEach((lab, k) => { if (c.cases || k % every === 0 || k === n - 1) s += `<text x="${x(k)}" y="${h - B + 16}" font-size="11" fill="#6b7280" text-anchor="middle">${(c.cases ? wrap(lab) : [lab]).map((t, j) => `<tspan x="${x(k)}" dy="${j ? 13 : 0}">${t}</tspan>`).join("")}</text>`; });
+@@ -450,5 +459,5 @@ function hoverTip(cell, S, q, d) {
+ }
+-/* Opening: the chart grows from its own cell over the cells' area, the headers in view, and shrinks back into it. */
++/* Opening: keep the panel in view and flow its heading before its plot. */
+ function open(S, grid, cell, q, row, col, layer) {
+-  const gr = grid.getBoundingClientRect(), cr = cell.getBoundingClientRect();
++  const gr = grid.getBoundingClientRect();
+   const first = grid.querySelector(".cell").getBoundingClientRect();
+@@ -458,20 +467,16 @@ function open(S, grid, cell, q, row, col, layer) {
+   const bar = document.querySelector(".measures").getBoundingClientRect().bottom;
+-  const X0 = phone ? 6 : first.left - gr.left, Y0 = phone ? bar + 4 : first.top - gr.top;
+-  const W = phone ? screenWidth() - 12 : Math.max(Math.min(gr.width - X0, window.innerWidth - first.left - 6), 640);
+-  const H = phone ? Math.max(360, window.innerHeight - Y0 - 6) : Math.max(gr.height - Y0, 340);
++  const left = phone ? 6 : Math.max(6, first.left), top = Math.max(bar + 4, phone ? 0 : first.top);
++  const X0 = phone ? left : left - gr.left, Y0 = phone ? top : top - gr.top;
++  const W = phone ? screenWidth() - 12 : Math.min(Math.max(gr.right - left, 640), screenWidth() - left - 6);
++  const H = Math.max(0, window.innerHeight - top - 6);
+   const z = document.createElement("div"); z.className = "zoom" + (phone ? " phone" : "");
+-  const start = phone ? { left: cr.left, top: cr.top, width: cr.width, height: cr.height } : { left: cr.left - gr.left, top: cr.top - gr.top, width: cr.width, height: cr.height };
+-  const place = r => Object.assign(z.style, Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v + "px"])));
+-  const instant = cell.dataset.instant === "1";
+   OPEN = cell.dataset.key;
+-  if (instant) z.style.transition = "none";
+-  place(start); (phone ? document.body : grid).appendChild(z);
+-  const d = draw(S, q, W, H, true);
++  Object.assign(z.style, { left: X0 + "px", top: Y0 + "px", width: W + "px", height: H + "px" });
++  (phone ? document.body : grid).appendChild(z);
+   const rn = S.rows.find(r => r[0] === row)[1], cn = S.cols.find(c => c[0] === col)[1];
+   const ln = S.layers.length > 1 ? ", " + S.layers.find(l => l[0] === layer)[1] : "";
+-  z.innerHTML = d.svg + `<div class="title">${glyph(row, 16)}${glyph(col, 16)} ${rn}, ${cn}${ln}: <code><a class="doc" href="${q.doc}" target="_blank" title="its documentation">${q.call}</a></code></div><button class="close">✕<span class="word"> put back</span></button>`;
+-  z.querySelector("a.doc").onclick = e => e.stopPropagation();
++  z.innerHTML = `<button class="close" aria-label="Close chart">✕<span class="word"> put back</span></button><div class="heading"><div class="title">${glyph(row, 16)}${glyph(col, 16)} ${rn}, ${cn}${ln}: <code><a class="doc" href="${q.doc}" target="_blank" title="its documentation">${q.call}</a></code></div></div>`;
++  const heading = z.querySelector(".heading");
+   /* The chart's contenders under its title, each name its toggle. */
+   const key = document.createElement("div"); key.className = "key";
+-  key.style.left = d.L + "px"; key.style.top = (phone && narrow() ? 72 : 40) - 10 + "px";
+   q.series.forEach((v, i) => {
+@@ -482,8 +487,9 @@ function open(S, grid, cell, q, row, col, layer) {
+     b.title = S.shownNow[i] ? "hide its lines" : "show its lines";
+-    b.onclick = e => { e.stopPropagation(); S.shownNow[i] = !S.shownNow[i]; render(); reopen(); };
++    b.onclick = () => { S.shownNow[i] = !S.shownNow[i]; render(); reopen(); };
+     key.appendChild(b);
+   });
+-  z.appendChild(key);
+-  if (instant) { place({ left: X0, top: Y0, width: W, height: H }); requestAnimationFrame(() => { z.style.transition = ""; }); }
+-  else requestAnimationFrame(() => place({ left: X0, top: Y0, width: W, height: H }));
++  heading.appendChild(key);
++  const d = draw(S, q, z.clientWidth, Math.max(300, H - heading.getBoundingClientRect().height), true);
++  z.insertAdjacentHTML("beforeend", d.svg);
++  const plot = z.querySelector(":scope > svg");
+   const lit = [...grid.querySelectorAll(".h")].filter(h => h.dataset.key === "row:" + row || h.dataset.key === "col:" + col);
+@@ -494,5 +500,5 @@ function open(S, grid, cell, q, row, col, layer) {
+   let touch = false;
+-  z.onpointerdown = e => { touch = e.pointerType !== "mouse"; };
++  plot.onpointerdown = e => { touch = e.pointerType !== "mouse"; };
+   const show = e => {
+-    const zr = z.getBoundingClientRect(), mx = e.clientX - zr.left;
++    const zr = plot.getBoundingClientRect(), mx = e.clientX - zr.left;
+     const slot = (d.w - d.L - d.R) / (q.cases ? d.n : Math.max(d.n - 1, 1));
+@@ -508,7 +514,7 @@ function open(S, grid, cell, q, row, col, layer) {
+   };
+-  z.onmousemove = e => { if (!touch) show(e); };
++  plot.onmousemove = e => { if (!touch) show(e); };
+   /* A mouse leaving hides the values; after a touch, the emulated mouse events that follow a tap would hide what the tap showed, so they wait for the next tap. */
+-  z.onmouseleave = () => { if (touch) return; tip.style.display = "none"; cur.setAttribute("visibility", "hidden"); };
+-  const close = () => { OPEN = null; document.removeEventListener("click", outside); document.removeEventListener("keydown", onKey); tip.style.display = "none"; lit.forEach(h => h.classList.remove("lit")); place(start); setTimeout(() => z.remove(), 220); };
+-  z.querySelector(".close").onclick = e => { e.stopPropagation(); close(); };
++  plot.onmouseleave = () => { if (touch) return; tip.style.display = "none"; cur.setAttribute("visibility", "hidden"); };
++  const close = () => { OPEN = null; document.removeEventListener("click", outside); document.removeEventListener("keydown", onKey); tip.style.display = "none"; lit.forEach(h => h.classList.remove("lit")); z.remove(); };
++  z.querySelector(".close").onclick = close;
+   /* Escape puts it back too. */
+@@ -516,3 +522,3 @@ function open(S, grid, cell, q, row, col, layer) {
+   document.addEventListener("keydown", onKey); window.onZoomKey = onKey;
+-  z.onclick = e => { if (touch) show(e); else close(); };
++  plot.onclick = e => { if (touch) show(e); else close(); };
+   /* A click anywhere else on the page puts it back too, except on the
+@@ -527,3 +533,3 @@ function reopen() {
+   const cell = document.querySelector(`.cell[data-key="${CSS.escape(key)}"]`);
+-  if (cell) { cell.dataset.instant = "1"; cell.click(); delete cell.dataset.instant; } else OPEN = null;
++  if (cell) cell.click(); else OPEN = null;
+ }
+@@ -543,18 +549,2 @@ function openFromHash() {
+   cell.click();
+-  // The chart grows from the small cell into a larger box (.zoom's 0.2 s
+-  // transition), which can reach below the screen: once grown, bring the
+-  // opened chart itself into view, centred if it fits, else from its top
+-  // (a link from the overview opened it below the fold, Zooko, October 24).
+-  const zoom = document.querySelector(".zoom");
+-  if (!zoom) return;
+-  let done = false;
+-  const show = () => {
+-    if (done) return;
+-    done = true;
+-    zoom.scrollIntoView({ block: zoom.offsetHeight <= innerHeight ? "center" : "start" });
+-  };
+-  // When its growth ends (the last of its transitions), or soon after in
+-  // any case.
+-  zoom.addEventListener("transitionend", () => setTimeout(show, 30));
+-  setTimeout(show, 600);
+ }
