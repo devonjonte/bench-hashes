@@ -1,0 +1,98 @@
+[
+  {
+    "diff": "--- src/pipeline.rs\n+++ replace += with -= in Ring<X>::push_back\n@@ -82,17 +82,17 @@\n     }\n \n     #[inline(always)]\n     fn push_back(&mut self, item: X) {\n         let cap = self.buf.len();\n         debug_assert!(self.len < cap, \"Ring capacity exceeded\");\n         let idx = (self.head + self.len) % cap;\n         self.buf[idx].write(item);\n-        self.len += 1;\n+        self.len -= /* ~ changed by cargo-mutants ~ */ 1;\n     }\n \n     #[inline(always)]\n     fn pop_front(&mut self) -> Option<X> {\n         if self.len == 0 {\n             return None;\n         }\n         let item = unsafe { self.buf[self.head].assume_init_read() };\n",
+    "file": "src/pipeline.rs",
+    "function": {
+      "function_name": "Ring<X>::push_back",
+      "return_type": "",
+      "span": {
+        "end": {
+          "column": 6,
+          "line": 91
+        },
+        "start": {
+          "column": 5,
+          "line": 84
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/pipeline.rs:90:18: replace += with -= in Ring<X>::push_back",
+    "package": "blake3-servil",
+    "replacement": "-=",
+    "span": {
+      "end": {
+        "column": 20,
+        "line": 90
+      },
+      "start": {
+        "column": 18,
+        "line": 90
+      }
+    }
+  },
+  {
+    "diff": "--- src/pipeline.rs\n+++ replace -= with += in Ring<X>::pop_front\n@@ -92,17 +92,17 @@\n \n     #[inline(always)]\n     fn pop_front(&mut self) -> Option<X> {\n         if self.len == 0 {\n             return None;\n         }\n         let item = unsafe { self.buf[self.head].assume_init_read() };\n         self.head = (self.head + 1) % self.buf.len();\n-        self.len -= 1;\n+        self.len += /* ~ changed by cargo-mutants ~ */ 1;\n         Some(item)\n     }\n }\n \n impl<X> Drop for Ring<X> {\n     fn drop(&mut self) {\n         while self.pop_front().is_some() {}\n     }\n",
+    "file": "src/pipeline.rs",
+    "function": {
+      "function_name": "Ring<X>::pop_front",
+      "return_type": "-> Option<X>",
+      "span": {
+        "end": {
+          "column": 6,
+          "line": 102
+        },
+        "start": {
+          "column": 5,
+          "line": 93
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/pipeline.rs:100:18: replace -= with += in Ring<X>::pop_front",
+    "package": "blake3-servil",
+    "replacement": "+=",
+    "span": {
+      "end": {
+        "column": 20,
+        "line": 100
+      },
+      "start": {
+        "column": 18,
+        "line": 100
+      }
+    }
+  },
+  {
+    "diff": "--- src/pipeline.rs\n+++ replace -= with /= in Ring<X>::pop_front\n@@ -92,17 +92,17 @@\n \n     #[inline(always)]\n     fn pop_front(&mut self) -> Option<X> {\n         if self.len == 0 {\n             return None;\n         }\n         let item = unsafe { self.buf[self.head].assume_init_read() };\n         self.head = (self.head + 1) % self.buf.len();\n-        self.len -= 1;\n+        self.len /= /* ~ changed by cargo-mutants ~ */ 1;\n         Some(item)\n     }\n }\n \n impl<X> Drop for Ring<X> {\n     fn drop(&mut self) {\n         while self.pop_front().is_some() {}\n     }\n",
+    "file": "src/pipeline.rs",
+    "function": {
+      "function_name": "Ring<X>::pop_front",
+      "return_type": "-> Option<X>",
+      "span": {
+        "end": {
+          "column": 6,
+          "line": 102
+        },
+        "start": {
+          "column": 5,
+          "line": 93
+        }
+      }
+    },
+    "genre": "BinaryOperator",
+    "name": "src/pipeline.rs:100:18: replace -= with /= in Ring<X>::pop_front",
+    "package": "blake3-servil",
+    "replacement": "/=",
+    "span": {
+      "end": {
+        "column": 20,
+        "line": 100
+      },
+      "start": {
+        "column": 18,
+        "line": 100
+      }
+    }
+  }
+]

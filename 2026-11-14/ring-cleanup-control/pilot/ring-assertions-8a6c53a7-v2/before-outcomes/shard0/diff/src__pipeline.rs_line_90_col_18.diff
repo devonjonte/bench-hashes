@@ -1,0 +1,21 @@
+--- src/pipeline.rs
++++ replace += with -= in Ring<X>::push_back
+@@ -82,17 +82,17 @@
+     }
+ 
+     #[inline(always)]
+     fn push_back(&mut self, item: X) {
+         let cap = self.buf.len();
+         debug_assert!(self.len < cap, "Ring capacity exceeded");
+         let idx = (self.head + self.len) % cap;
+         self.buf[idx].write(item);
+-        self.len += 1;
++        self.len -= /* ~ changed by cargo-mutants ~ */ 1;
+     }
+ 
+     #[inline(always)]
+     fn pop_front(&mut self) -> Option<X> {
+         if self.len == 0 {
+             return None;
+         }
+         let item = unsafe { self.buf[self.head].assume_init_read() };

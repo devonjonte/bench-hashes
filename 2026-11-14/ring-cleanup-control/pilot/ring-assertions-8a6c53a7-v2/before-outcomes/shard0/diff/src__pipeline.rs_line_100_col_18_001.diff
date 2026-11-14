@@ -1,0 +1,21 @@
+--- src/pipeline.rs
++++ replace -= with /= in Ring<X>::pop_front
+@@ -92,17 +92,17 @@
+ 
+     #[inline(always)]
+     fn pop_front(&mut self) -> Option<X> {
+         if self.len == 0 {
+             return None;
+         }
+         let item = unsafe { self.buf[self.head].assume_init_read() };
+         self.head = (self.head + 1) % self.buf.len();
+-        self.len -= 1;
++        self.len /= /* ~ changed by cargo-mutants ~ */ 1;
+         Some(item)
+     }
+ }
+ 
+ impl<X> Drop for Ring<X> {
+     fn drop(&mut self) {
+         while self.pop_front().is_some() {}
+     }

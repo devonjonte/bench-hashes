@@ -1,0 +1,263 @@
+{
+  "outcomes": [
+    {
+      "scenario": "Baseline",
+      "summary": "Success",
+      "log_path": "log/baseline.log",
+      "diff_path": null,
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 6.2619927969999996,
+          "process_status": "Success",
+          "argv": [
+            "<worker-home>/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo",
+            "nextest",
+            "run",
+            "--no-run",
+            "--cargo-profile=mutants",
+            "--verbose",
+            "--package=blake3-servil@0.9.0+dev"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 0.752113627,
+          "process_status": "Success",
+          "argv": [
+            "<worker-home>/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo",
+            "nextest",
+            "run",
+            "--cargo-profile=mutants",
+            "--verbose",
+            "--package=blake3-servil@0.9.0+dev",
+            "--lib",
+            "--tests"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "src/pipeline.rs:90:18: replace += with -= in Ring<X>::push_back",
+          "package": "blake3-servil",
+          "file": "src/pipeline.rs",
+          "function": {
+            "function_name": "Ring<X>::push_back",
+            "return_type": "",
+            "span": {
+              "start": {
+                "line": 84,
+                "column": 5
+              },
+              "end": {
+                "line": 91,
+                "column": 6
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 90,
+              "column": 18
+            },
+            "end": {
+              "line": 90,
+              "column": 20
+            }
+          },
+          "replacement": "-=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/src__pipeline.rs_line_90_col_18.log",
+      "diff_path": "diff/src__pipeline.rs_line_90_col_18.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 1.953684786,
+          "process_status": "Success",
+          "argv": [
+            "<worker-home>/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo",
+            "nextest",
+            "run",
+            "--no-run",
+            "--cargo-profile=mutants",
+            "--verbose",
+            "--package=blake3-servil@0.9.0+dev"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 0.451742664,
+          "process_status": {
+            "Failure": 100
+          },
+          "argv": [
+            "<worker-home>/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo",
+            "nextest",
+            "run",
+            "--cargo-profile=mutants",
+            "--verbose",
+            "--package=blake3-servil@0.9.0+dev",
+            "--lib",
+            "--tests"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "src/pipeline.rs:100:18: replace -= with += in Ring<X>::pop_front",
+          "package": "blake3-servil",
+          "file": "src/pipeline.rs",
+          "function": {
+            "function_name": "Ring<X>::pop_front",
+            "return_type": "-> Option<X>",
+            "span": {
+              "start": {
+                "line": 93,
+                "column": 5
+              },
+              "end": {
+                "line": 102,
+                "column": 6
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 100,
+              "column": 18
+            },
+            "end": {
+              "line": 100,
+              "column": 20
+            }
+          },
+          "replacement": "+=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/src__pipeline.rs_line_100_col_18.log",
+      "diff_path": "diff/src__pipeline.rs_line_100_col_18.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 1.953920703,
+          "process_status": "Success",
+          "argv": [
+            "<worker-home>/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo",
+            "nextest",
+            "run",
+            "--no-run",
+            "--cargo-profile=mutants",
+            "--verbose",
+            "--package=blake3-servil@0.9.0+dev"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 0.601922427,
+          "process_status": {
+            "Failure": 100
+          },
+          "argv": [
+            "<worker-home>/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo",
+            "nextest",
+            "run",
+            "--cargo-profile=mutants",
+            "--verbose",
+            "--package=blake3-servil@0.9.0+dev",
+            "--lib",
+            "--tests"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario": {
+        "Mutant": {
+          "name": "src/pipeline.rs:100:18: replace -= with /= in Ring<X>::pop_front",
+          "package": "blake3-servil",
+          "file": "src/pipeline.rs",
+          "function": {
+            "function_name": "Ring<X>::pop_front",
+            "return_type": "-> Option<X>",
+            "span": {
+              "start": {
+                "line": 93,
+                "column": 5
+              },
+              "end": {
+                "line": 102,
+                "column": 6
+              }
+            }
+          },
+          "span": {
+            "start": {
+              "line": 100,
+              "column": 18
+            },
+            "end": {
+              "line": 100,
+              "column": 20
+            }
+          },
+          "replacement": "/=",
+          "genre": "BinaryOperator"
+        }
+      },
+      "summary": "CaughtMutant",
+      "log_path": "log/src__pipeline.rs_line_100_col_18_001.log",
+      "diff_path": "diff/src__pipeline.rs_line_100_col_18_001.diff",
+      "phase_results": [
+        {
+          "phase": "Build",
+          "duration": 1.953732829,
+          "process_status": "Success",
+          "argv": [
+            "<worker-home>/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo",
+            "nextest",
+            "run",
+            "--no-run",
+            "--cargo-profile=mutants",
+            "--verbose",
+            "--package=blake3-servil@0.9.0+dev"
+          ]
+        },
+        {
+          "phase": "Test",
+          "duration": 0.602679563,
+          "process_status": {
+            "Failure": 100
+          },
+          "argv": [
+            "<worker-home>/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo",
+            "nextest",
+            "run",
+            "--cargo-profile=mutants",
+            "--verbose",
+            "--package=blake3-servil@0.9.0+dev",
+            "--lib",
+            "--tests"
+          ]
+        }
+      ]
+    }
+  ],
+  "total_mutants": 3,
+  "missed": 0,
+  "caught": 3,
+  "timeout": 0,
+  "unviable": 0,
+  "success": 0,
+  "start_time": "2026-11-14T19:34:26.888700188Z",
+  "end_time": "2026-11-14T19:34:41.426958323Z",
+  "cargo_mutants_version": "27.1.0"
+}

@@ -34,11 +34,38 @@ not establish the full library suite's outcome or mutation-run speed. The actual
 suite already terminates running tests immediately after the first failure; that
 mechanism should be reused.
 
-Next, Devon will assess a small test-only change: keep failed Ring assertions from
-invoking damaged cleanup and assert queue length at operation boundaries. Preserve
-the existing destruction check on the passing path. Measure the actual selected
-suite before changing any timeout row. Sam retains testing-policy ownership.
-Production code and global timeouts remain unchanged.
+The test-only candidate **8a6c53a790b5a093eccb9e709047f66ddd9b72af**, on branch
+`candidate/devon-ring-assertions`, adds count assertions and ManuallyDrop to the
+existing Ring test, preserving the passing-path destruction check. Its production
+prefix before the test module is byte-identical to the base.
+
+The actual thread-crate mutation runner on the workhorse already caught all three
+selected variants before the change. It catches all three afterward too:
+
+| Mutation | Before test phase | After test phase |
+|---|---:|---:|
+| push `+=` → `-=` | 0.452 s | 0.452 s |
+| pop `-=` → `+=` | 0.603 s | 0.602 s |
+| pop `-=` → `/=` | 0.602 s | 0.603 s |
+
+These are single operational observations, rounded for presentation from the
+retained cargo-mutants fields. They establish no overall latency improvement.
+Builds cost about 1.9–2.0 s per variant separately. Both unmutated baselines pass.
+The new Ring test reports direct assertions for the two pop faults; previously
+it was interrupted for the first and segfaulted for the second. In the push case
+it is interrupted after another test catches the fault, so it supplies no outcome.
+
+**Decision:** hold the candidate for review, with its diagnostic improvement and
+its unchanged whole-test-phase result explicit. The fixture's 15-second saving
+is not a claim about the library suite. Further Mac/list work belongs to Sam's
+review. No global timeout, known list or production behavior changed.
+
+`pilot/` keeps both complete arms and setup failures. The first attempt missed
+the check module's import path; the next completed the baseline but stopped on
+its own overstrict clean-tree check after the runner wrote its declared `tmp/`
+records. The final invocation continued the candidate arm with that scratch
+folder allowed, preserving the original baseline. The existing runner/profile,
+selector, caps and three named input mutations stayed fixed.
 
 ## Reproduction
 

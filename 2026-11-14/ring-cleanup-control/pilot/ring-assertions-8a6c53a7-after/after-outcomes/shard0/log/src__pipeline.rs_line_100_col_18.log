@@ -1,0 +1,383 @@
+
+*** src/pipeline.rs:100:18: replace -= with += in Ring<X>::pop_front
+
+*** mutation diff:
+--- src/pipeline.rs
++++ replace -= with += in Ring<X>::pop_front
+@@ -92,17 +92,17 @@
+ 
+     #[inline(always)]
+     fn pop_front(&mut self) -> Option<X> {
+         if self.len == 0 {
+             return None;
+         }
+         let item = unsafe { self.buf[self.head].assume_init_read() };
+         self.head = (self.head + 1) % self.buf.len();
+-        self.len -= 1;
++        self.len += /* ~ changed by cargo-mutants ~ */ 1;
+         Some(item)
+     }
+ }
+ 
+ impl<X> Drop for Ring<X> {
+     fn drop(&mut self) {
+         while self.pop_front().is_some() {}
+     }
+
+
+*** <worker-home>/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo nextest run --no-run --cargo-profile=mutants --verbose --package=blake3-servil@0.9.0+dev
+warning: ignoring --test-threads because --no-run is specified
+warning: <worker-home>/work/ring-assertions-8a6c53a7-scratch/blake3-servil-mutants/ring-after-0/Cargo.toml: version requirement `=0.9.0+dev` for dependency `blake3-servil-version` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil-core` (manifest) generated 1 warning
+warning: Cargo.toml: version requirement `=0.9.0+dev` for dependency `blake3-servil-core` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil` (manifest) generated 1 warning
+   Compiling blake3-servil-version v0.9.0+dev (<worker-home>/work/ring-assertions-8a6c53a7-scratch/blake3-servil-mutants/ring-after-0/version)
+   Compiling blake3-servil v0.9.0+dev (<worker-home>/work/ring-assertions-8a6c53a7-scratch/blake3-servil-mutants/ring-after-0/threads)
+   Compiling blake3-servil-core v0.9.0+dev (<worker-home>/work/ring-assertions-8a6c53a7-scratch/blake3-servil-mutants/ring-after-0)
+    Finished `mutants` profile [optimized] target(s) in 1.79s
+info: using target runner `sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner` defined by environment variable `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER`
+
+*** result: Success
+
+*** <worker-home>/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin/cargo nextest run --cargo-profile=mutants --verbose --package=blake3-servil@0.9.0+dev --lib --tests
+warning: <worker-home>/work/ring-assertions-8a6c53a7-scratch/blake3-servil-mutants/ring-after-0/Cargo.toml: version requirement `=0.9.0+dev` for dependency `blake3-servil-version` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil-core` (manifest) generated 1 warning
+warning: Cargo.toml: version requirement `=0.9.0+dev` for dependency `blake3-servil-core` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil` (manifest) generated 1 warning
+    Finished `mutants` profile [optimized] target(s) in 0.02s
+info: using target runner `sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner` defined by environment variable `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER`
+────────────
+ Nextest run ID 8db3c88e-9b85-47ef-a53d-1ddce53b61a0 with nextest profile: mutants
+    Starting 102 tests across 9 binaries (1 binary skipped via profile.mutants.default-filter)
+       START [         ] (  1/102) blake3-servil forms_test::packed_messages_hash_multithreaded_as_each_message_alone
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact forms_test::packed_messages_hash_multithreaded_as_each_message_alone --nocapture
+       START [         ] (  1/102) blake3-servil finish::tests::a_spurious_wake_is_slept_through
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact finish::tests::a_spurious_wake_is_slept_through --nocapture
+       START [         ] (  1/102) blake3-servil finish::tests::every_atomic_in_the_handshake_files_is_seqcst
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact finish::tests::every_atomic_in_the_handshake_files_is_seqcst --nocapture
+       START [         ] (  1/102) blake3-servil finish::tests::finished_unparks_only_a_sleeper_on_the_last_piece
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact finish::tests::finished_unparks_only_a_sleeper_on_the_last_piece --nocapture
+       START [         ] (  1/102) blake3-servil forms_test::test_every_multithreaded_call_inside_guard_pages
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact forms_test::test_every_multithreaded_call_inside_guard_pages --nocapture
+       START [         ] (  1/102) blake3-servil forms_test::test_hash_each_multithreaded
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact forms_test::test_hash_each_multithreaded --nocapture
+       START [         ] (  1/102) blake3-servil forms_test::test_hash_each_multithreaded_past_the_split
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact forms_test::test_hash_each_multithreaded_past_the_split --nocapture
+       START [         ] (  1/102) blake3-servil forms_test::test_hash_each_multithreaded_each_item_against_a_guard_page
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact forms_test::test_hash_each_multithreaded_each_item_against_a_guard_page --nocapture
+       START [         ] (  1/102) blake3-servil forms_test::test_hash_each_multithreaded_splits_at_min_split_len_exactly
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact forms_test::test_hash_each_multithreaded_splits_at_min_split_len_exactly --nocapture
+       START [         ] (  1/102) blake3-servil forms_test::test_hash_many_multithreaded_inside_guard_pages
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact forms_test::test_hash_many_multithreaded_inside_guard_pages --nocapture
+       START [         ] (  1/102) blake3-servil forms_test::test_hash_multithreaded_inside_guard_pages
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact forms_test::test_hash_multithreaded_inside_guard_pages --nocapture
+       START [         ] (  1/102) blake3-servil forms_test::test_hash_many_multithreaded_whole_blocks
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact forms_test::test_hash_many_multithreaded_whole_blocks --nocapture
+       START [         ] (  1/102) blake3-servil lanes::sources::test::a_publication_past_actions_capacity_is_stopped
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::sources::test::a_publication_past_actions_capacity_is_stopped --nocapture
+       START [         ] (  1/102) blake3-servil forms_test::test_update_each_multithreaded
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact forms_test::test_update_each_multithreaded --nocapture
+       START [         ] (  1/102) blake3-servil forms_test::test_hasher_gathers_with_multithreaded_updates
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact forms_test::test_hasher_gathers_with_multithreaded_updates --nocapture
+       START [         ] (  1/102) blake3-servil forms_test::test_pool_from_two_callers
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact forms_test::test_pool_from_two_callers --nocapture
+       START [         ] (  1/102) blake3-servil lanes::sources::test::test_a_finished_threads_source_is_the_next_threads
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::sources::test::test_a_finished_threads_source_is_the_next_threads --nocapture
+       START [         ] (  1/102) blake3-servil lanes::sources::test::test_find_reaches_every_registered_source
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::sources::test::test_find_reaches_every_registered_source --nocapture
+       START [         ] (  1/102) blake3-servil lanes::sources::test::test_a_worker_serves_the_lowest_source_until_it_is_empty
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::sources::test::test_a_worker_serves_the_lowest_source_until_it_is_empty --nocapture
+       START [         ] (  1/102) blake3-servil lanes::sources::test::actions_len_and_run_waiting_action_execute_queued_action
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::sources::test::actions_len_and_run_waiting_action_execute_queued_action --nocapture
+       START [         ] (  1/102) blake3-servil lanes::sources::test::test_take_stream_item_claims_from_registered_action_source
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::sources::test::test_take_stream_item_claims_from_registered_action_source --nocapture
+       START [         ] (  1/102) blake3-servil lanes::sources::test::test_visible_sees_a_waiting_item_and_its_kind
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::sources::test::test_visible_sees_a_waiting_item_and_its_kind --nocapture
+       START [         ] (  1/102) blake3-servil lanes::sources::test::test_unregister_leaves_the_other_sources_registered
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::sources::test::test_unregister_leaves_the_other_sources_registered --nocapture
+       START [         ] (  1/102) blake3-servil lanes::sources::test::test_unregister_gives_the_slot_back
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::sources::test::test_unregister_gives_the_slot_back --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_a_claim_takes_a_share_of_what_waits
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_a_claim_takes_a_share_of_what_waits --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_a_caller_gives_its_place_back
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_a_caller_gives_its_place_back --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_a_caller_polls_for_spin_before_sleep_then_sleeps
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_a_caller_polls_for_spin_before_sleep_then_sleeps --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::equal_members_match_the_reference
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::equal_members_match_the_reference --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_a_job_wakes_one_worker_a_piece_past_its_own
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_a_job_wakes_one_worker_a_piece_past_its_own --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_a_source_unregistered_leaves_its_slot
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_a_source_unregistered_leaves_its_slot --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_a_parked_caller_is_woken_by_the_last_piece
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_a_parked_caller_is_woken_by_the_last_piece --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_a_poller_yields_every_yield_every
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_a_poller_yields_every_yield_every --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_a_stream_is_what_opens_the_sources
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_a_stream_is_what_opens_the_sources --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_concurrent_batch_callers_agree
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_concurrent_batch_callers_agree --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_a_worker_spins_for_spin_while_a_stream_is_open
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_a_worker_spins_for_spin_while_a_stream_is_open --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_a_wake_is_tried_for_the_second_task_waiting
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_a_wake_is_tried_for_the_second_task_waiting --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_cut_messages_shapes
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_cut_messages_shapes --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_cut_items_exactly
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_cut_items_exactly --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_cut_messages_exactly
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_cut_messages_exactly --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_concurrent_callers_agree
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_concurrent_callers_agree --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_hash_matches_serial
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_hash_matches_serial --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_cut_with_prefix_exactly
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_cut_with_prefix_exactly --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_cut_with_prefix_shapes_and_hashes
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_cut_with_prefix_shapes_and_hashes --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_hash_many_pool_agrees
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_hash_many_pool_agrees --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_simd_merge_matches_recursive
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_simd_merge_matches_recursive --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_next_piece_len
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_next_piece_len --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_one_member_runs_alone
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_one_member_runs_alone --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_idle_workers_park_while_a_stream_is_open
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_idle_workers_park_while_a_stream_is_open --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_the_pool_reads_time_through_now
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_the_pool_reads_time_through_now --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_sme2_prefix_exactly
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_sme2_prefix_exactly --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_spin_ends_after_spin_or_with_no_stream_open
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_spin_ends_after_spin_or_with_no_stream_open --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_the_pool_begins_at_min_split_len
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_the_pool_begins_at_min_split_len --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::the_pool_at_rest_counts_its_sme2_thread
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::the_pool_at_rest_counts_its_sme2_thread --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_the_workers_are_every_thread_but_the_caller
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_the_workers_are_every_thread_but_the_caller --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_tree_thread_budget
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_tree_thread_budget --nocapture
+       START [         ] (  1/102) blake3-servil lanes::test::test_update_multithreaded_matches_hash
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact lanes::test::test_update_multithreaded_matches_hash --nocapture
+       START [         ] (  1/102) blake3-servil pipeline::test::active_loan_drop_and_active_pipeline_drop_abort_the_process
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::active_loan_drop_and_active_pipeline_drop_abort_the_process --nocapture
+       START [         ] (  1/102) blake3-servil park::test::wakes_made_and_owed_exactly
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact park::test::wakes_made_and_owed_exactly --nocapture
+       START [         ] (  1/102) blake3-servil pipeline::test::aaa_unit_single_step_every_stage
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::aaa_unit_single_step_every_stage --nocapture
+       START [         ] (  1/102) blake3-servil park::test::a_waker_wakes_at_most_its_fanout_and_owes_the_rest
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact park::test::a_waker_wakes_at_most_its_fanout_and_owes_the_rest --nocapture
+       START [         ] (  1/102) blake3-servil pipeline::test::batches_empty_small_and_large_match_hash_many
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::batches_empty_small_and_large_match_hash_many --nocapture
+       START [         ] (  1/102) blake3-servil pipeline::test::contract_bytes_given_two_ways_panics
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::contract_bytes_given_two_ways_panics --nocapture
+       START [         ] (  1/102) blake3-servil pipeline::test::contract_commit_past_room_len_panics
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::contract_commit_past_room_len_panics --nocapture
+       START [         ] (  1/102) blake3-servil pipeline::test::contract_commit_after_partial_room_panics
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::contract_commit_after_partial_room_panics --nocapture
+        PASS [   0.048s] (  1/102) blake3-servil forms_test::test_hash_each_multithreaded_splits_at_min_split_len_exactly
+       START [         ] (  2/102) blake3-servil pipeline::test::contract_dropped_unfinished_message_panics
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::contract_dropped_unfinished_message_panics --nocapture
+        PASS [   0.061s] (  2/102) blake3-servil finish::tests::every_atomic_in_the_handshake_files_is_seqcst
+       START [         ] (  3/102) blake3-servil pipeline::test::contract_foreign_message_panics
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::contract_foreign_message_panics --nocapture
+        PASS [   0.066s] (  3/102) blake3-servil forms_test::test_pool_from_two_callers
+       START [         ] (  4/102) blake3-servil pipeline::test::contract_foreign_room_panics
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::contract_foreign_room_panics --nocapture
+        PASS [   0.073s] (  4/102) blake3-servil forms_test::packed_messages_hash_multithreaded_as_each_message_alone
+       START [         ] (  5/102) blake3-servil pipeline::test::contract_message_deadlock_all_open_panics
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::contract_message_deadlock_all_open_panics --nocapture
+        PASS [   0.080s] (  5/102) blake3-servil finish::tests::finished_unparks_only_a_sleeper_on_the_last_piece
+       START [         ] (  6/102) blake3-servil pipeline::test::contract_message_deadlock_events_full_panics
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::contract_message_deadlock_events_full_panics --nocapture
+        PASS [   0.082s] (  6/102) blake3-servil forms_test::test_hash_many_multithreaded_whole_blocks
+       START [         ] (  7/102) blake3-servil pipeline::test::contract_ready_with_nothing_ended_panics
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::contract_ready_with_nothing_ended_panics --nocapture
+        PASS [   0.094s] (  7/102) blake3-servil lanes::sources::test::test_find_reaches_every_registered_source
+       START [         ] (  8/102) blake3-servil pipeline::test::contract_room_deadlock_all_held_panics
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::contract_room_deadlock_all_held_panics --nocapture
+        PASS [   0.099s] (  8/102) blake3-servil lanes::sources::test::a_publication_past_actions_capacity_is_stopped
+       START [         ] (  9/102) blake3-servil pipeline::test::contract_room_with_zero_rooms_panics
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::contract_room_with_zero_rooms_panics --nocapture
+        PASS [   0.104s] (  9/102) blake3-servil lanes::test::test_a_job_wakes_one_worker_a_piece_past_its_own
+       START [         ] ( 10/102) blake3-servil pipeline::test::contract_zero_messages_panics
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::contract_zero_messages_panics --nocapture
+        PASS [   0.106s] ( 10/102) blake3-servil finish::tests::a_spurious_wake_is_slept_through
+       START [         ] ( 11/102) blake3-servil pipeline::test::event_backpressure_holds_excess_completions_in_slots_without_loss
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::event_backpressure_holds_excess_completions_in_slots_without_loss --nocapture
+        PASS [   0.108s] ( 11/102) blake3-servil lanes::sources::test::actions_len_and_run_waiting_action_execute_queued_action
+       START [         ] ( 12/102) blake3-servil pipeline::test::guard_pages_catch_any_underread_or_overread_on_owned_and_lent
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::guard_pages_catch_any_underread_or_overread_on_owned_and_lent --nocapture
+        PASS [   0.116s] ( 12/102) blake3-servil forms_test::test_hasher_gathers_with_multithreaded_updates
+       START [         ] ( 13/102) blake3-servil pipeline::test::inline_array_owner_never_aliases_or_corrupts
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::inline_array_owner_never_aliases_or_corrupts --nocapture
+        PASS [   0.124s] ( 13/102) blake3-servil forms_test::test_hash_each_multithreaded_past_the_split
+       START [         ] ( 14/102) blake3-servil pipeline::test::interleaved_messages_deliver_in_end_order_and_handle_aborts
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::interleaved_messages_deliver_in_end_order_and_handle_aborts --nocapture
+        PASS [   0.127s] ( 14/102) blake3-servil lanes::sources::test::test_a_finished_threads_source_is_the_next_threads
+       START [         ] ( 15/102) blake3-servil pipeline::test::rooms_owned_lent_and_modes_match_reference_across_boundaries
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::rooms_owned_lent_and_modes_match_reference_across_boundaries --nocapture
+        PASS [   0.137s] ( 15/102) blake3-servil lanes::sources::test::test_unregister_leaves_the_other_sources_registered
+       START [         ] ( 16/102) blake3-servil pipeline::test::shared_room_many_short_messages_and_fifo_room_cycling
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::shared_room_many_short_messages_and_fifo_room_cycling --nocapture
+        PASS [   0.144s] ( 16/102) blake3-servil forms_test::test_update_each_multithreaded
+       START [         ] ( 17/102) blake3-servil pipeline::test::unit_internal_capacities_group_thresholds_aborts_and_drop_cleanup
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::unit_internal_capacities_group_thresholds_aborts_and_drop_cleanup --nocapture
+        PASS [   0.147s] ( 17/102) blake3-servil lanes::test::test_a_caller_polls_for_spin_before_sleep_then_sleeps
+       START [         ] ( 18/102) blake3-servil pipeline::test::unit_ring_pack_rooms_and_thread_park_primitives
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/blake3_servil-911350db1bf872b0 --exact pipeline::test::unit_ring_pack_rooms_and_thread_park_primitives --nocapture
+        PASS [   0.151s] ( 18/102) blake3-servil lanes::sources::test::test_visible_sees_a_waiting_item_and_its_kind
+       START [         ] ( 19/102) blake3-servil::allocations allocation_counter_sees_a_callers_allocation
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/allocations-cd71fdc07008f3dc --exact allocation_counter_sees_a_callers_allocation --nocapture
+        PASS [   0.161s] ( 19/102) blake3-servil lanes::sources::test::test_a_worker_serves_the_lowest_source_until_it_is_empty
+       START [         ] ( 20/102) blake3-servil::allocations grouped_cycles_reuse_storage_for_every_key_prefix
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/allocations-cd71fdc07008f3dc --exact grouped_cycles_reuse_storage_for_every_key_prefix --nocapture
+        PASS [   0.165s] ( 20/102) blake3-servil forms_test::test_hash_multithreaded_inside_guard_pages
+       START [         ] ( 21/102) blake3-servil::allocations grouped_fragmentation_reuses_storage_at_table_boundaries
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/allocations-cd71fdc07008f3dc --exact grouped_fragmentation_reuses_storage_at_table_boundaries --nocapture
+        PASS [   0.168s] ( 21/102) blake3-servil lanes::test::test_a_parked_caller_is_woken_by_the_last_piece
+       START [         ] ( 22/102) blake3-servil::allocations pipeline_allocates_nothing_after_creation
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/allocations-cd71fdc07008f3dc --exact pipeline_allocates_nothing_after_creation --nocapture
+        PASS [   0.169s] ( 22/102) blake3-servil lanes::test::equal_members_match_the_reference
+       START [         ] ( 23/102) blake3-servil::allocations prepared_multithreaded_cycles_include_the_workers
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/allocations-cd71fdc07008f3dc --exact prepared_multithreaded_cycles_include_the_workers --nocapture
+        PASS [   0.171s] ( 23/102) blake3-servil lanes::test::test_the_pool_begins_at_min_split_len
+       START [         ] ( 24/102) blake3-servil::allocations prepared_pool_calls_allocate_nothing
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/allocations-cd71fdc07008f3dc --exact prepared_pool_calls_allocate_nothing --nocapture
+        PASS [   0.175s] ( 24/102) blake3-servil lanes::test::test_spin_ends_after_spin_or_with_no_stream_open
+       START [         ] ( 25/102) blake3-servil::allocations require_nextest::aaa_require_nextest
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/allocations-cd71fdc07008f3dc --exact require_nextest::aaa_require_nextest --nocapture
+        PASS [   0.180s] ( 25/102) blake3-servil lanes::test::test_a_source_unregistered_leaves_its_slot
+       START [         ] ( 26/102) blake3-servil::allocations short_messages_fed_by_turns_and_finished_together_allocate_nothing
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/allocations-cd71fdc07008f3dc --exact short_messages_fed_by_turns_and_finished_together_allocate_nothing --nocapture
+        PASS [   0.182s] ( 26/102) blake3-servil forms_test::test_hash_many_multithreaded_inside_guard_pages
+       START [         ] ( 27/102) blake3-servil::allocations single_threaded_calls_allocate_as_the_memory_section_says
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/allocations-cd71fdc07008f3dc --exact single_threaded_calls_allocate_as_the_memory_section_says --nocapture
+        PASS [   0.185s] ( 27/102) blake3-servil lanes::test::test_cut_messages_exactly
+       START [         ] ( 28/102) blake3-servil::allocations worker_counter_sees_an_owned_background_allocation
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/allocations-cd71fdc07008f3dc --exact worker_counter_sees_an_owned_background_allocation --nocapture
+        PASS [   0.189s] ( 28/102) blake3-servil lanes::test::test_cut_with_prefix_exactly
+       START [         ] ( 29/102) blake3-servil::forked_child a_forked_childs_multithreaded_calls_panic_and_its_single_threaded_ones_work
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/forked_child-019e0a99643c5fb3 --exact a_forked_childs_multithreaded_calls_panic_and_its_single_threaded_ones_work --nocapture
+        PASS [   0.196s] ( 29/102) blake3-servil lanes::test::test_a_caller_gives_its_place_back
+       START [         ] ( 30/102) blake3-servil::initialize_multithreaded_contract a_multithreaded_call_before_initialize_multithreaded_panics
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/initialize_multithreaded_contract-f39d30e51d29461a --exact a_multithreaded_call_before_initialize_multithreaded_panics --nocapture
+        PASS [   0.209s] ( 30/102) blake3-servil lanes::test::test_next_piece_len
+       START [         ] ( 31/102) blake3-servil::pipeline_pool block_on_finishes_lone_tasks_and_large_batches_after_pauses
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/pipeline_pool-650069917c3f80f5 --exact block_on_finishes_lone_tasks_and_large_batches_after_pauses --nocapture
+        PASS [   0.217s] ( 31/102) blake3-servil lanes::test::test_hash_many_pool_agrees
+       START [         ] ( 32/102) blake3-servil::pipeline_pool external_async_waiter_wakes_a_parked_worker_for_a_lone_task
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/pipeline_pool-650069917c3f80f5 --exact external_async_waiter_wakes_a_parked_worker_for_a_lone_task --nocapture
+        PASS [   0.220s] ( 32/102) blake3-servil lanes::test::test_concurrent_callers_agree
+       START [         ] ( 33/102) blake3-servil::pipeline_pool official_test_vectors_match_across_rooms_owned_and_lent
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/pipeline_pool-650069917c3f80f5 --exact official_test_vectors_match_across_rooms_owned_and_lent --nocapture
+        PASS [   0.226s] ( 33/102) blake3-servil lanes::test::test_a_worker_spins_for_spin_while_a_stream_is_open
+       START [         ] ( 34/102) blake3-servil::pipeline_pool one_thread_pool_makes_progress_without_workers
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/pipeline_pool-650069917c3f80f5 --exact one_thread_pool_makes_progress_without_workers --nocapture
+        PASS [   0.231s] ( 34/102) blake3-servil lanes::test::test_the_workers_are_every_thread_but_the_caller
+       START [         ] ( 35/102) blake3-servil::pipeline_pool pipeline_completes_every_path_when_pinned_to_one_cpu
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/pipeline_pool-650069917c3f80f5 --exact pipeline_completes_every_path_when_pinned_to_one_cpu --nocapture
+        PASS [   0.250s] ( 35/102) blake3-servil park::test::wakes_made_and_owed_exactly
+       START [         ] ( 36/102) blake3-servil::pipeline_pool pipelines_on_several_threads_keep_their_own_order
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/pipeline_pool-650069917c3f80f5 --exact pipelines_on_several_threads_keep_their_own_order --nocapture
+        PASS [   0.252s] ( 36/102) blake3-servil lanes::test::test_cut_with_prefix_shapes_and_hashes
+       START [         ] ( 37/102) blake3-servil::pipeline_pool require_nextest::aaa_require_nextest
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/pipeline_pool-650069917c3f80f5 --exact require_nextest::aaa_require_nextest --nocapture
+        PASS [   0.256s] ( 37/102) blake3-servil lanes::test::test_a_claim_takes_a_share_of_what_waits
+       START [         ] ( 38/102) blake3-servil::pipeline_pool two_thread_pool_makes_progress_with_one_worker
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/pipeline_pool-650069917c3f80f5 --exact two_thread_pool_makes_progress_with_one_worker --nocapture
+        PASS [   0.262s] ( 38/102) blake3-servil lanes::test::test_concurrent_batch_callers_agree
+       START [         ] ( 39/102) blake3-servil::pool_threads one_thread_starts_no_workers
+             command: sh <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/tools/mutants/test-runner <worker-home>/work/lib-devon-ring-assertions-8a6c53a7/threads/target/mutants/ring-after-0/mutants/deps/pool_threads-9b4f65beabf82cba --exact one_thread_starts_no_workers --nocapture
+        PASS [   0.261s] ( 39/102) blake3-servil lanes::test::test_tree_thread_budget
+        PASS [   0.271s] ( 40/102) blake3-servil pipeline::test::active_loan_drop_and_active_pipeline_drop_abort_the_process
+        PASS [   0.277s] ( 41/102) blake3-servil forms_test::test_hash_each_multithreaded
+        PASS [   0.276s] ( 42/102) blake3-servil lanes::test::test_cut_messages_shapes
+        PASS [   0.287s] ( 43/102) blake3-servil lanes::sources::test::test_take_stream_item_claims_from_registered_action_source
+        PASS [   0.292s] ( 44/102) blake3-servil lanes::test::test_a_poller_yields_every_yield_every
+        PASS [   0.292s] ( 45/102) blake3-servil lanes::test::test_hash_matches_serial
+        PASS [   0.296s] ( 46/102) blake3-servil lanes::test::the_pool_at_rest_counts_its_sme2_thread
+        PASS [   0.284s] ( 47/102) blake3-servil lanes::test::test_one_member_runs_alone
+        PASS [   0.289s] ( 48/102) blake3-servil lanes::test::test_simd_merge_matches_recursive
+        PASS [   0.294s] ( 49/102) blake3-servil park::test::a_waker_wakes_at_most_its_fanout_and_owes_the_rest
+        PASS [   0.324s] ( 50/102) blake3-servil lanes::test::test_a_wake_is_tried_for_the_second_task_waiting
+        PASS [   0.312s] ( 51/102) blake3-servil lanes::test::test_sme2_prefix_exactly
+        PASS [   0.318s] ( 52/102) blake3-servil lanes::test::test_the_pool_reads_time_through_now
+        PASS [   0.342s] ( 53/102) blake3-servil lanes::test::test_update_multithreaded_matches_hash
+        PASS [   0.345s] ( 54/102) blake3-servil lanes::test::test_cut_items_exactly
+        PASS [   0.349s] ( 55/102) blake3-servil lanes::sources::test::test_unregister_gives_the_slot_back
+        PASS [   0.290s] ( 56/102) blake3-servil pipeline::test::contract_zero_messages_panics
+        FAIL [   0.284s] ( 57/102) blake3-servil pipeline::test::unit_ring_pack_rooms_and_thread_park_primitives
+  stdout ───
+
+    running 1 test
+    test pipeline::test::unit_ring_pack_rooms_and_thread_park_primitives ... FAILED
+
+    failures:
+
+    failures:
+        pipeline::test::unit_ring_pack_rooms_and_thread_park_primitives
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.00s
+
+  stderr ───
+
+    thread 'pipeline::test::unit_ring_pack_rooms_and_thread_park_primitives' (19892) panicked at src/pipeline.rs:2573:13:
+    assertion `left == right` failed
+      left: 3
+     right: 1
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+  Cancelling due to test failure: immediately terminating 45 tests still running
+     SIGTERM [   0.271s] ( 58/102) blake3-servil::allocations grouped_fragmentation_reuses_storage_at_table_boundaries
+     SIGTERM [   0.179s] ( 59/102) blake3-servil::pipeline_pool two_thread_pool_makes_progress_with_one_worker
+     SIGTERM [   0.250s] ( 60/102) blake3-servil::allocations worker_counter_sees_an_owned_background_allocation
+     SIGTERM [   0.215s] ( 61/102) blake3-servil::pipeline_pool official_test_vectors_match_across_rooms_owned_and_lent
+     SIGTERM [   0.311s] ( 62/102) blake3-servil pipeline::test::interleaved_messages_deliver_in_end_order_and_handle_aborts
+     SIGTERM [   0.267s] ( 63/102) blake3-servil::allocations pipeline_allocates_nothing_after_creation
+     SIGTERM [   0.239s] ( 64/102) blake3-servil::initialize_multithreaded_contract a_multithreaded_call_before_initialize_multithreaded_panics
+     SIGTERM [   0.183s] ( 65/102) blake3-servil::pipeline_pool require_nextest::aaa_require_nextest
+     SIGTERM [   0.226s] ( 66/102) blake3-servil::pipeline_pool block_on_finishes_lone_tasks_and_large_batches_after_pauses
+     SIGTERM [   0.255s] ( 67/102) blake3-servil::allocations short_messages_fed_by_turns_and_finished_together_allocate_nothing
+     SIGTERM [   0.204s] ( 68/102) blake3-servil::pipeline_pool pipeline_completes_every_path_when_pinned_to_one_cpu
+     SIGTERM [   0.267s] ( 69/102) blake3-servil::allocations prepared_multithreaded_cycles_include_the_workers
+     SIGTERM [   0.245s] ( 70/102) blake3-servil::forked_child a_forked_childs_multithreaded_calls_panic_and_its_single_threaded_ones_work
+     SIGTERM [   0.275s] ( 71/102) blake3-servil::allocations grouped_cycles_reuse_storage_for_every_key_prefix
+     SIGTERM [   0.218s] ( 72/102) blake3-servil::pipeline_pool external_async_waiter_wakes_a_parked_worker_for_a_lone_task
+     SIGTERM [   0.209s] ( 73/102) blake3-servil::pipeline_pool one_thread_pool_makes_progress_without_workers
+     SIGTERM [   0.184s] ( 74/102) blake3-servil::pipeline_pool pipelines_on_several_threads_keep_their_own_order
+     SIGTERM [   0.254s] ( 75/102) blake3-servil::allocations single_threaded_calls_allocate_as_the_memory_section_says
+     SIGTERM [   0.260s] ( 76/102) blake3-servil::allocations require_nextest::aaa_require_nextest
+     SIGTERM [   0.292s] ( 77/102) blake3-servil pipeline::test::unit_internal_capacities_group_thresholds_aborts_and_drop_cleanup
+     SIGTERM [   0.285s] ( 78/102) blake3-servil::allocations allocation_counter_sees_a_callers_allocation
+     SIGTERM [   0.320s] ( 79/102) blake3-servil pipeline::test::inline_array_owner_never_aliases_or_corrupts
+     SIGTERM [   0.264s] ( 80/102) blake3-servil::allocations prepared_pool_calls_allocate_nothing
+     SIGTERM [   0.174s] ( 81/102) blake3-servil::pool_threads one_thread_starts_no_workers
+     SIGTERM [   0.299s] ( 82/102) blake3-servil pipeline::test::shared_room_many_short_messages_and_fifo_room_cycling
+     SIGTERM [   0.342s] ( 83/102) blake3-servil pipeline::test::contract_room_deadlock_all_held_panics
+     SIGTERM [   0.436s] ( 84/102) blake3-servil forms_test::test_hash_each_multithreaded_each_item_against_a_guard_page
+     SIGTERM [   0.357s] ( 85/102) blake3-servil pipeline::test::contract_message_deadlock_events_full_panics
+     SIGTERM [   0.331s] ( 86/102) blake3-servil pipeline::test::event_backpressure_holds_excess_completions_in_slots_without_loss
+     SIGTERM [   0.354s] ( 87/102) blake3-servil pipeline::test::contract_ready_with_nothing_ended_panics
+     SIGTERM [   0.419s] ( 88/102) blake3-servil lanes::test::test_idle_workers_park_while_a_stream_is_open
+     SIGTERM [   0.388s] ( 89/102) blake3-servil pipeline::test::contract_dropped_unfinished_message_panics
+     SIGTERM [   0.435s] ( 90/102) blake3-servil pipeline::test::contract_commit_after_partial_room_panics
+     SIGTERM [   0.309s] ( 91/102) blake3-servil pipeline::test::rooms_owned_lent_and_modes_match_reference_across_boundaries
+     SIGTERM [   0.419s] ( 92/102) blake3-servil pipeline::test::contract_bytes_given_two_ways_panics
+     SIGTERM [   0.436s] ( 93/102) blake3-servil lanes::test::test_a_stream_is_what_opens_the_sources
+     SIGTERM [   0.328s] ( 94/102) blake3-servil pipeline::test::guard_pages_catch_any_underread_or_overread_on_owned_and_lent
+     SIGTERM [   0.419s] ( 95/102) blake3-servil pipeline::test::aaa_unit_single_step_every_stage
+     SIGTERM [   0.370s] ( 96/102) blake3-servil pipeline::test::contract_foreign_room_panics
+     SIGTERM [   0.338s] ( 97/102) blake3-servil pipeline::test::contract_room_with_zero_rooms_panics
+     SIGTERM [   0.376s] ( 98/102) blake3-servil pipeline::test::contract_foreign_message_panics
+     SIGTERM [   0.437s] ( 99/102) blake3-servil forms_test::test_every_multithreaded_call_inside_guard_pages
+     SIGTERM [   0.436s] (100/102) blake3-servil pipeline::test::batches_empty_small_and_large_match_hash_many
+     SIGTERM [   0.419s] (101/102) blake3-servil pipeline::test::contract_commit_past_room_len_panics
+     SIGTERM [   0.364s] (102/102) blake3-servil pipeline::test::contract_message_deadlock_all_open_panics
+────────────
+     Summary [   0.438s] 102 tests run: 56 passed, 46 failed, 0 skipped
+error: test run failed
+
+*** result: Failure(100)
