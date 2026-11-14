@@ -1,91 +1,106 @@
-# Same-code comparison can mistake ordinary data for panic locations
+# Same-code comparison: preserve meaningful data
 
-## Fixed-input counterexample
+`check` can skip measurements when its two builds compare as unchanged. Two
+fixed-input counterexamples show that its exclusions could erase meaningful
+data. Candidate **fb6f00b1a70d9b777c1e35e09943b79e4dc2d5f0** keeps those data.
+Within sections marked to occupy memory, only declared source labels and the
+generated build identifier may differ.
 
-The benchmark's ELF comparison can report **Same** for programs with different
-observable behavior. Its panic-location mask recognizes a byte pattern:
-a pointer and length for a string ending in `.rs`, followed by two 32-bit words.
-An ordinary file-limit record has that same shape.
+## Counterexamples and correction
 
-Two translation units at identical build paths produce a pair of programs. One
-record names `input.rs`; its `max_bytes` changes from 111 to 222. Each program prints
-its limit. Their output is independently checked against those constants.
+Each executable pair prints independently fixed outputs, **111 and 222**.
+Function bytes and sizes remain unchanged according to the comparison.
+ELF notes are small records in the executable format Linux uses. A note can
+identify a build or hold application data.
 
-| Record's filename | Program outputs | Comparison without location mask | With location mask |
+| Where the limit lives | Earlier reader | Earlier result | Final reader |
 |---|---|---|---|
-| `input.rs` | 111, 222 | Differs: `.data.rel.ro` | **Same** |
-| `input.bin` | 111, 222 | Differs: `.data.rel.ro` | Differs: `.data.rel.ro` |
+| Ordinary record naming `input.rs` | `60e0f720` | **Same** | Differs: `.data.rel.ro` |
+| Matched record naming `input.bin` | `60e0f720` | Differs: `.data.rel.ro` | Differs: `.data.rel.ro` |
+| Valid allocated application note | `efe3dac3` | **Same** | Differs: `.note.file-limit` |
 
-The second row is the matched control. With ordinary data retained, the comparator
-finds only `.data.rel.ro` changed. It always excludes ELF notes, including build
-IDs, and reports no function-byte or size changes. No performance measurement took place.
-This establishes a deterministic limitation of the recognizer. It gives no
-estimate of its occurrence in existing BLAKE3 builds.
+The first reader recognizes a presumed panic location by its byte pattern: a
+filename pointer/length followed by two words. An ordinary file-limit record
+has that shape. Removing that recognizer fixes the first case. Reviewing the
+remaining exclusions then found the note case: ELF notes can also contain
+program-readable values. The final reader excludes only the named build-ID note,
+with the note section type, while other allocated notes participate.
 
-## Source and reproduction
+**Trade:** changes that only move panic source locations or alter other notes
+may now proceed to measurement. Identical contents and allowed provenance-only
+changes still permit early exits. The timed workloads and sampled statistical
+rule stay unchanged. These are finite correctness controls; the frequency of
+historical false-Same results in BLAKE3 builds remains unmeasured.
 
-The unchanged `samecode.rs` is from bench-hashes commit
-**60e0f7206902a8be45b27754643d447ddc2a0553**, identical to that file at its parent
-**81e4b45a84e60f06b0ad93509403c5c33b2ad2c4**. `check::same_path_verdict` calls this
-comparison with location masking enabled. The wrapper calls that production
-module directly; it contains no replacement comparison implementation.
+## Tests
 
-On Linux x86-64 with a C compiler, Rust and GNU binutils:
+The permanent Rust file-limit test binds its record by its symbol, independently
+of the discarded recognizer, and changes its stored 111 to 222. It fails on the
+old implementation. A second test supplies a fixed, valid ELF object with an
+application note and a GNU build-ID note. It fails when all notes are excluded.
+`readelf` and `nm` independently accept that object's layout; the Rust fixture
+matches an independent Python serializer byte for byte.
+
+After correction, **194 release tests pass**, with sixteen machine/ignored tests
+skipped. Formatting and diff checks pass. Final C replays detect all three
+changed-data pairs. Unchanged executable controls and a build-ID-only change
+remain Same. Existing changed-function and declared-provenance tests pass too.
+The archive retains both failing Rust controls and every earlier comparison.
+
+## A useful early exit on real builds
+
+One build-only workhorse control compares library
+`f62bc6ac0bc1c86861659d61ffbf4e9546bc8aec` with
+`9c0ebbbce7cf0102c648b021b2395e7784b9a189`. Their complete diff is AGENTS.md and two
+b3sum files; the hashing-library source the benchmark uses stays unchanged.
+Both executables are built through the existing `build-against` path, at one
+library checkout path, with benchmark
+`efe3dac3d74426053371be0c9bcf9c4dc1950ad9` and one recorded toolchain.
+
+**All three readers report Same** for that exact executable pair: original
+`60e0f720`, location-only correction `efe3dac3`, and final `fb6f00b1`. The final
+reader replay ran locally on the delivered binaries with the same declared
+commit masks. Thus the simpler comparison retains a useful early exit for this
+real unchanged hashing-library pair. It establishes this case alone.
+
+Two setup attempts stopped before compilation: the first required an unavailable
+b3sum command (exit 127); the second assumed a missing base checkout (exit 128).
+The final attempt creates both source checkouts explicitly, completes within its
+fifteen-minute bound, and delivers its exact inputs for local SHA-256/BLAKE3
+fingerprinting. Both hashes were checked. No timing mode ran in any attempt.
+
+## Records and reproduction
+
+- Root `main.c`, `limit.c`, `limit.h`, `run.sh`, `compare.rs`, `samecode.rs` and
+  outputs reproduce the original filename case, using source `60e0f720`.
+- `corrected/` preserves the first correction's source, failed control and
+  193-test run. That reader still excluded all ELF notes.
+- `notes/` contains the valid note executable's source, observed outputs,
+  original `efe3dac3` reader, ELF dumps and independent fixture serializer.
+- `final/` contains the exact final `samecode.rs`, wrappers, the failed note-scope
+  control, the 194-test run and final replays. Its `noop-reader/` replays the real builds.
+- `build-control/` retains all three job recipes/deliveries, both successful
+  builds' provenance, compiler versions, changed-file list and reader outputs.
+  `local-executable-*SUMS` bind the delivered binaries, which remain local
+  validation artifacts and are excluded from this data branch.
+
+After building the C fixtures with their supplied recipe, replay the final
+reader from this directory:
 
 ```sh
 mkdir -p build
-cc -O2 -fPIE -fno-lto -c main.c -o build/main.o
-rustc --edition=2024 compare.rs -o build/compare
-# For each suffix rs/bin and limit 111/222:
-cc -O2 -fPIE -fno-lto -DNAME='"input.rs"' -DLIMIT=111 -c limit.c -o build/limit.o
-cc -pie build/main.o build/limit.o -o build/program
-# Retain each program under its own name, then:
-build/compare build/rs-111 build/rs-222
+rustc --edition=2024 final/compare.rs -o build/compare-final
+build/compare-final PATH_TO_OLD_EXECUTABLE PATH_TO_NEW_EXECUTABLE
 ```
 
-`run.sh` gives the exact two-pair recipe. This record includes source, actual
-compiler versions, both comparisons, each program's stdout and data-section dump,
-and dual binary fingerprints. Binary products are excluded from the archive.
-Recipes/logs replace the development home prefix with `<development-home>`.
-Published-file SHA-256 and BLAKE3 manifests bind the record separately.
+The original Rust control patch is against `60e0f720`; its tree equals landed
+`6b88d24ae8691b7152fe521d5bcdf054da3eff2c`. The note control patch is against the
+intermediate `efe3dac3`. Tests run under `cargo nextest run --release --locked`.
+Recipes and logs redact home prefixes as `<development-home>` / `<runner-home>`.
+Source modules retain their bytes. Published-file SHA-256 and BLAKE3 manifests
+bind the complete record separately from the binary fingerprints.
 
-## Correction under review
-
-Candidate **efe3dac3d74426053371be0c9bcf9c4dc1950ad9**, based on landed
-**6b88d24ae8691b7152fe521d5bcdf054da3eff2c**, removes the location recognizer,
-its boolean option and its relocation-only state/parser. It keeps these data
-words. The explicit cost is that line-only location changes may now proceed
-to measurement. Declared provenance masks and ELF-note exclusion remain the
-comparison's existing boundaries. The timed calls and sampled statistical rule
-stay unchanged.
-
-The permanent Rust test binds an ordinary file-limit record by its symbol,
-independently of the recognizer, then changes its stored 111 to 222. It **fails
-on the old implementation**. After correction, all **193 release tests pass**
-(sixteen machine/ignored tests skipped), formatting/diff checks pass, and the
-same C binaries produce these corrected comparisons:
-
-| Inputs | Corrected result |
-|---|---|
-| `input.rs`, 111→222 | Differs: `.data.rel.ro` |
-| `input.bin`, 111→222 | Differs: `.data.rel.ro` |
-| Either filename, same executable on both sides | Same |
-
-`corrected/` preserves the original failing Rust control, its patch against
-candidate 60e0f720, the corrected tests and C replays, and the exact new source.
-Candidate 60e0f720 and landed 6b88d24a have identical trees. The symbol lookup is
-shared with the existing changed-function test. One heuristic, option and
-relocation map leave production; a fixed-symbol fixture holds the regression.
-This is a targeted comparison correction, with no estimate of historical
-false-Same frequency.
-
-To replay the corrected reader after building the C fixtures above:
-
-```sh
-rustc --edition=2024 corrected/compare.rs -o build/compare-corrected
-build/compare-corrected build/rs-111 build/rs-222
-```
-
-Tracked in [Same-code shortcut can mask ordinary configuration data](https://github.com/servil-software-factory/bench-hashes/issues/219).
-Devon's next move is final CI and landing. Performance collection is skipped:
-the changed decision precedes measurement and alters no hashing workload.
+Tracking: [Same-code data issue](https://github.com/servil-software-factory/bench-hashes/issues/219)
+and [Keep ordinary data in the same-code comparison](https://github.com/servil-software-factory/bench-hashes/pull/220).
+Devon's next move is fresh final CI and landing. Dedicated performance collection
+is skipped because these changes govern the pre-measurement comparison.
