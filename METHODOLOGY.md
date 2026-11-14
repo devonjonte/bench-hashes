@@ -755,7 +755,12 @@ draws it again), so a stored record draws the same map its run did.
 ## b3sum
 
 `bench-hashes b3sum NAME=COMMAND...` measures builds of `b3sum` as a
-person runs them. Each run is a new process, timed from start to exit (`clocks::child`),
+person runs them. In a command, `{OUT}` names the contender's own output
+directory, prepared empty before each run outside the timed child process,
+so a command that writes files (an outboard beside each hash) starts every
+round with the same storage state as its rivals.
+Each run is a new process, timed
+from start to exit (`clocks::child`),
 along with the operating system's resource counts for the child. Those
 counts include CPU time, peak memory, bytes read from storage, major page
 faults (Linux and macOS), and on macOS cycles and instructions per core

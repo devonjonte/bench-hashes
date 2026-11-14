@@ -142,8 +142,12 @@ macOS, evicted from it before each run (read from storage):
         tr '\n' '\0' | xargs -0 cargo run --release -- b3sum --files ~/b3sum-files
 
 A contender is `NAME=COMMAND`, a `b3sum` and its flags, or any program
-that hashes the files it is given (the files are appended);
-`tools/b3sum-contenders.py` builds official BLAKE3's `b3sum` 1.8.7 and
+that hashes the files it is given (the files are appended). In a command,
+`{OUT}` names that contender's own output directory, emptied before each
+run outside the timed process, for a command that writes files beside its
+hashes (`b3sum --outboard {OUT}`).
+`tools/b3sum-contenders.py` builds official
+BLAKE3's `b3sum` 1.8.7 and
 BLAKE3-Servil's at given commits, official's and (for one commit) BLAKE3-Servil's
 on one thread too (`--num-threads 1`), and adds the system's `sha256sum`, `sha1sum` and
 `md5sum`, the programs a user chooses between. The first contender
