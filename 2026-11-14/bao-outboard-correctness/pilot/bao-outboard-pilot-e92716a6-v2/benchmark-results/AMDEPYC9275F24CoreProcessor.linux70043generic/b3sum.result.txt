@@ -1,0 +1,84 @@
+bench-hashes b3sum: how long b3sum takes to hash files, from its start to its exit
+
+machine:   AMD EPYC 9275F 24-Core Processor, 48 CPUs, linux7.0.0-43-generic
+files on:  ext4 (/dev/md0 on /)
+load:      quiet: other programs kept 0.00 CPUs busy on average, 0.02 in the busiest window
+runs:      5 rounds, each contender once on each input in each
+
+contenders:
+  bao            <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/bao-reference-L0 --outboard {OUT}   (bao-reference 0.1.0+e92716a60fc67b8a1f47abdac6b97e9980d205bc; bao-tree = { version = "=0.17.0", default-features = false }; blake3 = "=1.8.7", blake3 7199986dcf66816a)
+  bao            <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/bao-reference-L1 --outboard {OUT}   (bao-reference 0.1.0+e92716a60fc67b8a1f47abdac6b97e9980d205bc; bao-tree = { version = "=0.17.0", default-features = false }; blake3 = "=1.8.7", blake3 b5fd76f0296d0541)
+  bao            <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/bao-reference-L2 --outboard {OUT}   (bao-reference 0.1.0+e92716a60fc67b8a1f47abdac6b97e9980d205bc; bao-tree = { version = "=0.17.0", default-features = false }; blake3 = "=1.8.7", blake3 b1ddec684a785811)
+  bao            <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/bao-reference-L3 --outboard {OUT}   (bao-reference 0.1.0+e92716a60fc67b8a1f47abdac6b97e9980d205bc; bao-tree = { version = "=0.17.0", default-features = false }; blake3 = "=1.8.7", blake3 38065b13ff7c5581)
+  servil-outboard <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L0 --outboard {OUT}   (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 8ad27a9b7b686a3e)
+  servil-outboard <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L1 --outboard {OUT}   (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 0ee4956e2bc5383a)
+  servil-outboard <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L2 --outboard {OUT}   (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 0f193a039653ec5a)
+  servil-outboard <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L3 --outboard {OUT}   (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 c689f28f64dde74c)
+  servil-hash    <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L0    (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 8ad27a9b7b686a3e)
+  servil-hash    <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L1    (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 0ee4956e2bc5383a)
+  servil-hash    <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L2    (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 0f193a039653ec5a)
+  servil-hash    <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L3    (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 c689f28f64dde74c)
+  servil-1-outboard <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L0 --num-threads 1 --outboard {OUT}   (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 8ad27a9b7b686a3e)
+  servil-1-outboard <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L1 --num-threads 1 --outboard {OUT}   (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 0ee4956e2bc5383a)
+  servil-1-outboard <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L2 --num-threads 1 --outboard {OUT}   (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 0f193a039653ec5a)
+  servil-1-outboard <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L3 --num-threads 1 --outboard {OUT}   (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 c689f28f64dde74c)
+  servil-1-hash  <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L0 --num-threads 1   (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 8ad27a9b7b686a3e)
+  servil-1-hash  <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L1 --num-threads 1   (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 0ee4956e2bc5383a)
+  servil-1-hash  <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L2 --num-threads 1   (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 0f193a039653ec5a)
+  servil-1-hash  <worker-home>/runs/bao-outboard-pilot-e92716a6-v2/contender-builds/b3sum-ed4be07-L3 --num-threads 1   (b3sums 0.9.0+dev.ed4be078701083c6df85e0642982dc57d22e5923, blake3 c689f28f64dde74c)
+
+Files in the page cache (warm: read moments before)
+mean time per run, lower is better; xN: against bao, the ratio judged (the geometric mean of the rounds' ratios), marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 3%)
+input                            bao                 servil-outboard                    servil-hash                        servil-1-outboard                  servil-1-hash
+4 KiB                            321 μs              525 μs x1.641                      434 μs x1.350                      422 μs x1.273                      458 μs x1.439
+64 KiB                           291 μs              399 μs x1.342                      387 μs x1.317                      437 μs x1.520                      447 μs x1.552
+1 MiB                            374 μs 2.81 GB/s    423 μs 2.48 GB/s x1.135 slower     388 μs 2.70 GB/s x1.036            441 μs 2.38 GB/s x1.178 slower     507 μs 2.07 GB/s x1.319
+16 MiB                           2.80 ms 5.99 GB/s   1.27 ms 13.2 GB/s x0.450 faster    1.13 ms 14.8 GB/s x0.403 faster    2.84 ms 5.91 GB/s x1.003           2.08 ms 8.05 GB/s x0.742 faster
+256 MiB                          43.9 ms 6.11 GB/s   3.54 ms 75.7 GB/s x0.081 faster    2.66 ms 101 GB/s x0.061 faster     40.8 ms 6.58 GB/s x0.924           31.3 ms 8.57 GB/s x0.704 faster
+1 GiB                            165 ms 6.51 GB/s    10.8 ms 99.2 GB/s x0.064 faster    6.70 ms 160 GB/s x0.041 faster     153 ms 7.01 GB/s x0.927 faster     114 ms 9.41 GB/s x0.688 faster
+1000 x 16 KiB                    13.3 ms 1.23 GB/s   8.15 ms 2.01 GB/s x0.613 faster    2.49 ms 6.57 GB/s x0.187 faster    10.2 ms 1.61 GB/s x0.767 faster    5.30 ms 3.09 GB/s x0.398 faster
+1000 x 16 KiB, a process each    162 ms 0.101 GB/s   264 ms 0.0621 GB/s x1.629 slower   218 ms 0.0751 GB/s x1.347 slower   242 ms 0.0677 GB/s x1.494 slower   223 ms 0.0734 GB/s x1.379 slower
+mixed tree, 1000 files, 74 MiB   23.7 ms 3.28 GB/s   8.30 ms 9.36 GB/s x0.349 faster    3.46 ms 22.5 GB/s x0.146 faster    21.0 ms 3.71 GB/s x0.884 faster    12.4 ms 6.27 GB/s x0.521 faster
+16 x 64 MiB                      158 ms 6.81 GB/s    11.4 ms 94.0 GB/s x0.072 faster    6.35 ms 169 GB/s x0.040 faster     144 ms 7.44 GB/s x0.915 faster     110 ms 9.76 GB/s x0.696 faster
+
+CPUs busy (CPU time over wall time) and peak memory, medians
+input                            bao                   servil-outboard        servil-hash            servil-1-outboard     servil-1-hash
+4 KiB                            0.94 CPUs, 10 MiB     0.97 CPUs, 10 MiB      0.94 CPUs, 10 MiB      0.94 CPUs, 10 MiB     0.96 CPUs, 10 MiB
+64 KiB                           0.94 CPUs, 10 MiB     0.95 CPUs, 10 MiB      0.96 CPUs, 10 MiB      0.96 CPUs, 10 MiB     0.96 CPUs, 10 MiB
+1 MiB                            0.96 CPUs, 10 MiB     0.96 CPUs, 10 MiB      0.96 CPUs, 10 MiB      0.96 CPUs, 10 MiB     0.96 CPUs, 10 MiB
+16 MiB                           0.99 CPUs, 17 MiB     2.54 CPUs, 17 MiB      5.99 CPUs, 16 MiB      0.99 CPUs, 18 MiB     0.99 CPUs, 18 MiB
+256 MiB                          1.00 CPUs, 258 MiB    15.64 CPUs, 257 MiB    24.63 CPUs, 251 MiB    1.00 CPUs, 260 MiB    1.00 CPUs, 258 MiB
+1 GiB                            1.00 CPUs, 1029 MiB   21.06 CPUs, 1031 MiB   35.82 CPUs, 1021 MiB   1.00 CPUs, 1034 MiB   1.00 CPUs, 1026 MiB
+1000 x 16 KiB                    1.00 CPUs, 10 MiB     3.64 CPUs, 10 MiB      6.11 CPUs, 10 MiB      1.00 CPUs, 10 MiB     1.00 CPUs, 10 MiB
+1000 x 16 KiB, a process each    0.90 CPUs, 10 MiB     0.94 CPUs, 10 MiB      0.93 CPUs, 10 MiB      0.93 CPUs, 10 MiB     0.93 CPUs, 10 MiB
+mixed tree, 1000 files, 74 MiB   1.00 CPUs, 17 MiB     5.27 CPUs, 54 MiB      8.87 CPUs, 49 MiB      1.00 CPUs, 50 MiB     1.00 CPUs, 50 MiB
+16 x 64 MiB                      1.00 CPUs, 65 MiB     15.98 CPUs, 1026 MiB   35.80 CPUs, 1022 MiB   1.00 CPUs, 1026 MiB   1.00 CPUs, 1026 MiB
+
+Files read from storage (cold: evicted from the page cache before each run)
+mean time per run, lower is better; xN: against bao, the ratio judged (the geometric mean of the rounds' ratios), marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 3%)
+input                            bao                  servil-outboard                    servil-hash                        servil-1-outboard                  servil-1-hash
+4 KiB                            489 μs               554 μs x1.095                      452 μs x0.902                      486 μs x0.954                      443 μs x0.884
+64 KiB                           510 μs               597 μs x1.162                      513 μs x0.999                      619 μs x1.197                      547 μs x1.079
+1 MiB                            1.77 ms 0.593 GB/s   1.80 ms 0.584 GB/s x1.017          1.55 ms 0.677 GB/s x0.876          1.82 ms 0.575 GB/s x1.031          1.86 ms 0.563 GB/s x1.053
+16 MiB                           18.2 ms 0.920 GB/s   3.97 ms 4.23 GB/s x0.217 faster    4.39 ms 3.83 GB/s x0.241 faster    8.02 ms 2.09 GB/s x0.441 faster    17.0 ms 0.988 GB/s x0.934
+256 MiB                          275 ms 0.975 GB/s    32.5 ms 8.27 GB/s x0.118 faster    47.0 ms 5.71 GB/s x0.171 faster    120 ms 2.25 GB/s x0.435 faster     275 ms 0.975 GB/s x0.998
+1 GiB                            645 ms 1.66 GB/s     121 ms 8.88 GB/s x0.204 faster     173 ms 6.20 GB/s x0.292 faster     451 ms 2.38 GB/s x0.760            620 ms 1.73 GB/s x0.952
+1000 x 16 KiB                    68.2 ms 0.240 GB/s   8.24 ms 1.99 GB/s x0.125 faster    4.22 ms 3.88 GB/s x0.065 faster    61.0 ms 0.269 GB/s x0.896          9.83 ms 1.67 GB/s x0.151 faster
+1000 x 16 KiB, a process each    243 ms 0.0675 GB/s   349 ms 0.0469 GB/s x1.449 slower   291 ms 0.0562 GB/s x1.208 slower   329 ms 0.0499 GB/s x1.362 slower   302 ms 0.0543 GB/s x1.249 slower
+mixed tree, 1000 files, 74 MiB   177 ms 0.440 GB/s    17.1 ms 4.53 GB/s x0.097 faster    14.2 ms 5.48 GB/s x0.081 faster    153 ms 0.508 GB/s x0.863 faster    40.9 ms 1.90 GB/s x0.233 faster
+16 x 64 MiB                      866 ms 1.24 GB/s     114 ms 9.45 GB/s x0.132 faster     122 ms 8.82 GB/s x0.141 faster     437 ms 2.45 GB/s x0.506 faster     997 ms 1.08 GB/s x1.148
+
+CPUs busy (CPU time over wall time) and peak memory, medians
+input                            bao                   servil-outboard     servil-hash           servil-1-outboard   servil-1-hash
+4 KiB                            0.83 CPUs, 10 MiB     0.86 CPUs, 10 MiB   0.81 CPUs, 10 MiB     0.81 CPUs, 10 MiB   0.81 CPUs, 10 MiB
+64 KiB                           0.69 CPUs, 10 MiB     0.72 CPUs, 10 MiB   0.66 CPUs, 10 MiB     0.73 CPUs, 10 MiB   0.71 CPUs, 10 MiB
+1 MiB                            0.32 CPUs, 10 MiB     0.36 CPUs, 10 MiB   5.57 CPUs, 10 MiB     0.35 CPUs, 10 MiB   0.42 CPUs, 10 MiB
+16 MiB                           0.22 CPUs, 17 MiB     1.60 CPUs, 17 MiB   5.72 CPUs, 13 MiB     0.36 CPUs, 10 MiB   0.26 CPUs, 10 MiB
+256 MiB                          0.20 CPUs, 258 MiB    1.90 CPUs, 97 MiB   2.40 CPUs, 253 MiB    0.31 CPUs, 10 MiB   0.17 CPUs, 10 MiB
+1 GiB                            0.47 CPUs, 1029 MiB   1.45 CPUs, 99 MiB   2.06 CPUs, 1021 MiB   0.32 CPUs, 12 MiB   0.43 CPUs, 10 MiB
+1000 x 16 KiB                    0.30 CPUs, 10 MiB     3.96 CPUs, 10 MiB   6.43 CPUs, 12 MiB     0.28 CPUs, 10 MiB   0.94 CPUs, 10 MiB
+1000 x 16 KiB, a process each    0.64 CPUs, 10 MiB     0.76 CPUs, 10 MiB   0.76 CPUs, 10 MiB     0.76 CPUs, 10 MiB   0.76 CPUs, 10 MiB
+mixed tree, 1000 files, 74 MiB   0.18 CPUs, 17 MiB     3.16 CPUs, 27 MiB   5.04 CPUs, 49 MiB     0.18 CPUs, 20 MiB   0.62 CPUs, 18 MiB
+16 x 64 MiB                      0.26 CPUs, 65 MiB     1.57 CPUs, 98 MiB   3.40 CPUs, 18 MiB     0.34 CPUs, 10 MiB   0.19 CPUs, 10 MiB
+
+Every cold run read its files from storage (by the counts).
