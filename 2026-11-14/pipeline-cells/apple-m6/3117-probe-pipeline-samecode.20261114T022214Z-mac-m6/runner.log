@@ -1,0 +1,137 @@
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/fork && git checkout --quiet --force --detach f62bc6ac0bc1c86861659d61ffbf4e9546bc8aec)
+$ (cd /Users/benchrunner/checkouts/fork && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/fork && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/bench && git checkout --quiet --force --detach 55436819e59a20eaa47a79f81e6594872ea40ff4)
+$ (cd /Users/benchrunner/checkouts/bench && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/bench && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && cargo run --release --quiet -- check --fork /Users/benchrunner/checkouts/fork --against f62bc6ac0bc1c86861659d61ffbf4e9546bc8aec --when-quiet --keep /Users/benchrunner/tmp/3117-probe-pipeline-samecode.20261114T022214Z-mac-m6/samples --probe continuous 64 B,continuous 4 KiB,continuous 64 KiB,continuous 1 MiB,lent 64 B,lent 4 KiB,lent 64 KiB,lent 1 MiB,continuous batch 16,continuous batch 256,continuous batch 4096,lent batch 16,lent batch 256,lent batch 4096,continuous collection git objects,continuous collection Nix files,receive saturated,receive 2 μs,receive 20 μs --layouts 4 --old-bench 55436819e59a20eaa47a79f81e6594872ea40ff4)
+warning: unused imports: `c_int`, `c_long`, and `c_void`
+  --> clocks/src/events.rs:27:16
+   |
+27 | use std::ffi::{c_int, c_long, c_void};
+   |                ^^^^^  ^^^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `OwnedFd`
+  --> clocks/src/events.rs:28:39
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                                       ^^^^^^^
+
+warning: unused import: `AsRawFd`
+  --> clocks/src/events.rs:28:19
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                   ^^^^^^^
+
+warning: unused import: `FromRawFd`
+  --> clocks/src/events.rs:28:28
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                            ^^^^^^^^^
+
+warning: function `describe_pause` is never used
+    --> src/main.rs:8608:4
+     |
+8608 | fn describe_pause(ns: u64) -> String {
+     |    ^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `EFFECTIVE_IDLE_PAUSES` is never used
+    --> src/main.rs:8617:7
+     |
+8617 | const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
+     |       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `describe_effective_idle_states` is never used
+    --> src/main.rs:8768:4
+     |
+8768 | fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+check: BLAKE3-Servil's working tree (f62bc6ac0bc1) against f62bc6ac0bc1c86861659d61ffbf4e9546bc8aec (f62bc6ac0bc1)
+check: the library is unchanged; comparing benchmark versions (--old-bench)
+check: measuring the 19 named points (19 of 276 points; the rest unmeasured in this check): continuous 64 B, continuous 4 KiB, continuous 64 KiB, continuous 1 MiB, lent 64 B, lent 4 KiB, lent 64 KiB, lent 1 MiB, continuous batch 16, continuous batch 256, continuous batch 4096, lent batch 16, lent batch 256, lent batch 4096, continuous collection git objects, continuous collection Nix files, receive saturated, receive 2 μs, receive 20 μs
+check: the old side with the bench at 55436819e59a20eaa47a79f81e6594872ea40ff4 (55436819e59a)
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt --points "continuous 64 B,continuous 4 KiB,continuous 64 KiB,continuous 1 MiB,lent 64 B,lent 4 KiB,lent 64 KiB,lent 1 MiB,continuous batch 16,continuous batch 256,continuous batch 4096,lent batch 16,lent batch 256,lent batch 4096,continuous collection git objects,continuous collection Nix files,receive saturated,receive 2 μs,receive 20 μs"
+regress: pair 1 of 4 in 24.2 s
+clocks: other programs kept 2.90 CPUs busy from 35.3 s to 36.3 s; measurements in that time may read slower than this machine runs
+regress: pair 2 again: busy: other programs kept 0.40 CPUs busy on average, 2.90 in the busiest window; busy in 1 of 12 windows (35.3-36.3 s)
+regress: pair 2 of 4 in 48.7 s
+regress: pair 3 of 4 in 24.5 s
+regress: pair 4 of 4 in 24.6 s
+regress: old side: bench 55436819e59a clean; servil f62bc6ac0bc1 clean
+regress: new side: bench 55436819e59a clean; servil f62bc6ac0bc1 clean
+regress: both sides are one build: an A/A comparison
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: suspects: blake3-servil-mt|solo|LentMessages|1 MiB;blake3-servil-mt|shared-os|ContinuousMessages|64 KiB;blake3-servil-mt|shared-os|LentMessages|1 MiB;blake3-servil-st|solo|LentMessages|1 MiB;blake3-servil-mt|shared-os|ReceivingMessage|saturated
+regress: power during the check: mains power
+check: the probe's cells over 4 pairs (compare; no verdict: the full check's is the gate)
+compare: old side: bench 55436819e59a clean; servil f62bc6ac0bc1 clean
+compare: new side: bench 55436819e59a clean; servil f62bc6ac0bc1 clean
+compare: both sides are one build: an A/A comparison
+blake3-servil-st|solo|ContinuousMessages|64 B: 0.804 -> 0.742 ns/unit  x0.923 level, 3 of 4 pairs faster; CPU time x0.923
+blake3-servil-st|solo|ContinuousMessages|4 KiB: 0.302 -> 0.296 ns/unit  x0.981 level, 2 of 4 pairs faster; CPU time x0.981
+blake3-servil-st|solo|ContinuousMessages|64 KiB: 0.193 -> 0.194 ns/unit  x1.003 level, 1 of 4 pairs faster; CPU time x1.002
+blake3-servil-st|solo|ContinuousMessages|1 MiB: 0.212 -> 0.194 ns/unit  x0.917 level, 4 of 4 pairs faster; CPU time x0.917
+blake3-servil-st|solo|ContinuousBatches|16: 17.738 -> 17.833 ns/unit  x1.005 level, 1 of 4 pairs faster; CPU time x1.005
+blake3-servil-st|solo|ContinuousBatches|256: 13.114 -> 12.633 ns/unit  x0.963 level, 4 of 4 pairs faster; CPU time x0.963
+blake3-servil-st|solo|ContinuousBatches|4096: 9.692 -> 9.967 ns/unit  x1.028 level, 0 of 4 pairs faster; CPU time x1.028
+blake3-servil-st|solo|LentMessages|64 B: 0.804 -> 0.742 ns/unit  x0.923 level, 3 of 4 pairs faster; CPU time x0.923
+blake3-servil-st|solo|LentMessages|4 KiB: 0.302 -> 0.296 ns/unit  x0.981 level, 2 of 4 pairs faster; CPU time x0.981
+blake3-servil-st|solo|LentMessages|64 KiB: 0.193 -> 0.194 ns/unit  x1.003 level, 1 of 4 pairs faster; CPU time x1.002
+blake3-servil-st|solo|LentMessages|1 MiB: 0.139 -> 0.147 ns/unit  x1.057 level, 1 of 4 pairs faster; CPU time x1.057
+blake3-servil-st|solo|LentBatches|16: 17.738 -> 17.833 ns/unit  x1.005 level, 1 of 4 pairs faster; CPU time x1.005
+blake3-servil-st|solo|LentBatches|256: 13.114 -> 12.633 ns/unit  x0.963 level, 4 of 4 pairs faster; CPU time x0.963
+blake3-servil-st|solo|LentBatches|4096: 9.692 -> 9.967 ns/unit  x1.028 level, 0 of 4 pairs faster; CPU time x1.028
+blake3-servil-st|solo|ContinuousCollection|git objects: 0.226 -> 0.211 ns/unit  x0.936 level, 3 of 4 pairs faster; CPU time x0.936
+blake3-servil-st|solo|ContinuousCollection|Nix files: 0.219 -> 0.216 ns/unit  x0.983 level, 3 of 4 pairs faster; CPU time x0.983
+blake3-servil-st|solo|ReceivingMessage|saturated: 0.273 -> 0.271 ns/unit  x0.993 level, 2 of 4 pairs faster; CPU time x0.992
+blake3-servil-st|solo|ReceivingMessage|2 μs: 0.254 -> 0.255 ns/unit  x1.004 level, 2 of 4 pairs faster; CPU time x1.004
+blake3-servil-st|solo|ReceivingMessage|20 μs: 0.916 -> 0.916 ns/unit  x1.000 level, 2 of 4 pairs faster; CPU time x1.004
+blake3-servil-mt|solo|ContinuousMessages|64 B: 0.318 -> 0.323 ns/unit  x1.013 level, 1 of 4 pairs faster; CPU time x1.122
+blake3-servil-mt|solo|ContinuousMessages|4 KiB: 0.0545 -> 0.0548 ns/unit  x1.005 level, 1 of 4 pairs faster; CPU time x1.031
+blake3-servil-mt|solo|ContinuousMessages|64 KiB: 0.0431 -> 0.0407 ns/unit  x0.945 level, 4 of 4 pairs faster; CPU time x0.960
+blake3-servil-mt|solo|ContinuousMessages|1 MiB: 0.0397 -> 0.0398 ns/unit  x1.002 level, 2 of 4 pairs faster; CPU time x0.996
+blake3-servil-mt|solo|ContinuousBatches|16: 3.438 -> 3.406 ns/unit  x0.991 level, 3 of 4 pairs faster; CPU time x1.000
+blake3-servil-mt|solo|ContinuousBatches|256: 3.334 -> 3.221 ns/unit  x0.966 level, 3 of 4 pairs faster; CPU time x1.031
+blake3-servil-mt|solo|ContinuousBatches|4096: 3.775 -> 3.625 ns/unit  x0.960 level, 3 of 4 pairs faster; CPU time x0.996
+blake3-servil-mt|solo|LentMessages|64 B: 0.812 -> 0.728 ns/unit  x0.897 level, 4 of 4 pairs faster; CPU time x0.896
+blake3-servil-mt|solo|LentMessages|4 KiB: 0.301 -> 0.306 ns/unit  x1.015 level, 2 of 4 pairs faster; CPU time x1.015
+blake3-servil-mt|solo|LentMessages|64 KiB: 0.190 -> 0.193 ns/unit  x1.015 level, 2 of 4 pairs faster; CPU time x1.015
+blake3-servil-mt|solo|LentMessages|1 MiB: 0.0891 -> 0.0919 ns/unit  x1.032 level, 0 of 4 pairs faster; CPU time x0.996
+blake3-servil-mt|solo|LentBatches|16: 17.783 -> 17.981 ns/unit  x1.011 level, 0 of 4 pairs faster; CPU time x1.011
+blake3-servil-mt|solo|LentBatches|256: 12.874 -> 12.658 ns/unit  x0.983 level, 1 of 4 pairs faster; CPU time x0.983
+blake3-servil-mt|solo|LentBatches|4096: 9.700 -> 9.974 ns/unit  x1.028 level, 1 of 4 pairs faster; CPU time x1.028
+blake3-servil-mt|solo|ContinuousCollection|git objects: 0.0437 -> 0.0438 ns/unit  x1.003 level, 1 of 4 pairs faster; CPU time x1.006
+blake3-servil-mt|solo|ContinuousCollection|Nix files: 0.0418 -> 0.0424 ns/unit  x1.014 level, 2 of 4 pairs faster; CPU time x1.013
+blake3-servil-mt|solo|ReceivingMessage|saturated: 0.0419 -> 0.0425 ns/unit  x1.012 level, 1 of 4 pairs faster; CPU time x1.009
+blake3-servil-mt|solo|ReceivingMessage|2 μs: 0.0936 -> 0.0936 ns/unit  x0.999 level, 2 of 4 pairs faster; CPU time x1.001
+blake3-servil-mt|solo|ReceivingMessage|20 μs: 0.916 -> 0.916 ns/unit  x1.000 level, 0 of 4 pairs faster; CPU time x1.040
+blake3-servil-mt|shared-os|ContinuousMessages|64 B: 0.334 -> 0.342 ns/unit  x1.024 level, 1 of 4 pairs faster
+blake3-servil-mt|shared-os|ContinuousMessages|4 KiB: 0.144 -> 0.132 ns/unit  x0.916 level, 3 of 4 pairs faster
+blake3-servil-mt|shared-os|ContinuousMessages|64 KiB: 0.0873 -> 0.0956 ns/unit  x1.095 level, 1 of 4 pairs faster
+blake3-servil-mt|shared-os|ContinuousMessages|1 MiB: 0.0869 -> 0.0885 ns/unit  x1.019 level, 1 of 4 pairs faster
+blake3-servil-mt|shared-os|ContinuousBatches|16: 5.863 -> 5.952 ns/unit  x1.015 level, 1 of 4 pairs faster
+blake3-servil-mt|shared-os|ContinuousBatches|256: 5.171 -> 5.207 ns/unit  x1.007 level, 2 of 4 pairs faster
+blake3-servil-mt|shared-os|ContinuousBatches|4096: 4.584 -> 4.563 ns/unit  x0.995 level, 2 of 4 pairs faster
+blake3-servil-mt|shared-os|LentMessages|64 B: 0.775 -> 0.724 ns/unit  x0.934 level, 4 of 4 pairs faster
+blake3-servil-mt|shared-os|LentMessages|4 KiB: 0.318 -> 0.327 ns/unit  x1.030 level, 1 of 4 pairs faster
+blake3-servil-mt|shared-os|LentMessages|64 KiB: 0.227 -> 0.226 ns/unit  x0.994 level, 1 of 4 pairs faster
+blake3-servil-mt|shared-os|LentMessages|1 MiB: 0.0829 -> 0.0911 ns/unit  x1.099 level, 1 of 4 pairs faster
+blake3-servil-mt|shared-os|LentBatches|16: 19.988 -> 19.996 ns/unit  x1.000 level, 2 of 4 pairs faster
+blake3-servil-mt|shared-os|LentBatches|256: 15.644 -> 15.615 ns/unit  x0.998 level, 1 of 4 pairs faster
+blake3-servil-mt|shared-os|LentBatches|4096: 12.719 -> 12.760 ns/unit  x1.003 level, 2 of 4 pairs faster
+blake3-servil-mt|shared-os|ContinuousCollection|git objects: 0.135 -> 0.110 ns/unit  x0.809 level, 3 of 4 pairs faster
+blake3-servil-mt|shared-os|ContinuousCollection|Nix files: 0.113 -> 0.102 ns/unit  x0.905 level, 3 of 4 pairs faster
+blake3-servil-mt|shared-os|ReceivingMessage|saturated: 0.0920 -> 0.0989 ns/unit  x1.076 level, 2 of 4 pairs faster
+blake3-servil-mt|shared-os|ReceivingMessage|2 μs: 0.0945 -> 0.0943 ns/unit  x0.998 level, 3 of 4 pairs faster
+blake3-servil-mt|shared-os|ReceivingMessage|20 μs: 0.916 -> 0.916 ns/unit  x1.000 level, 1 of 4 pairs faster

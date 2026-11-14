@@ -135,12 +135,68 @@ remain concrete library/caller interactions to investigate, with their
 causes still open.
 
 Devon owns the benchmark and its follow-up controls. John reviews the
-library costs and chooses a library change. The candidate remains draft
-while this review and the native-Mac pilot complete.
+library costs in [the caller-cost issue](https://github.com/servil-software-factory/BLAKE3/issues/389)
+and chooses a library change. The adapter is ready for promotion after CI;
+its benchmark records these costs while library optimization proceeds.
 
-Mac jobs 3117/3118 are queued with the same points and four layouts, through
-the existing mixed-use Mini runner. Its check adapter includes both Servil
-forms, plus OS-placed shared mt calls. `code/mac-plan.md` records that
-platform-specific scope and the rule to retain busy abstentions.
+## Native Apple M6 pilot
+
+Mac jobs 3117/3118 completed on the mixed-use Mini at 02:27 and 02:32 UTC,
+on mains power with low-power mode off. Both use the same 19 points and
+four layouts, with Servil st and mt, plus OS-placed shared mt calls. This
+is 57 cells including the single-threaded form, unlike the EPYC's 57 cells
+from mt under three placements. `code/mac-plan.md` preserves the declaration.
+
+The A/A job encountered one busy pair (peak 2.90 CPUs); the existing check
+retried that pair once. The original two files remain under `samples/retried/`.
+All eight accepted A/A files report quiet load (peak 0.98 CPUs). The API
+comparison's eight files report quiet load without retries (peak 0.63 CPUs).
+No new job was submitted to seek a quiet verdict. This remains a scoped
+workstation pilot. The records carry calling-thread cycle/instruction counts
+and whole-process CPU time; energy and worker-cycle counts are unavailable.
+
+Both [A/A](apple-m6/3117-probe-pipeline-samecode.20261114T022214Z-mac-m6/samples/comparison.md)
+and [API comparison](apple-m6/3118-probe-pipeline-calls.20261114T022743Z-mac-m6/samples/comparison.md)
+reproduce the delivered Rust output byte for byte. A/A labels every cell
+level, with some sizeable point-estimate movement (shared collections up to
+19%). The unchanged st cells in the API comparison are all level.
+
+Selected solo mt results, Pipeline/synchronous, lower better:
+
+| workload | elapsed-time ratio | rule's verdict | process CPU-time ratio |
+|---|---:|---|---:|
+| message 64 B | 0.466 | faster | 3.024 |
+| message 4 KiB | 0.230 | faster | 2.169 |
+| message 64 KiB | 0.259 | faster | 2.348 |
+| message 1 MiB | 0.274 | faster | 2.213 |
+| batch of 16 messages | 0.288 | faster | 1.730 |
+| batch of 256 messages | 0.308 | faster | 2.164 |
+| batch of 4096 messages | 0.400 | faster | 2.591 |
+| collection: Git objects | 0.205 | faster | 2.044 |
+| collection: Nix files | 0.227 | faster | 1.695 |
+| receiving: saturated | 0.160 | faster | 1.736 |
+| receiving: 2 μs arrivals | 0.355 | faster | 1.500 |
+| receiving: 20 μs arrivals | 1.000 | level | 0.834 |
+
+Shared mt results also improve substantially in these owned workloads,
+except the arrival-limited 20 μs case, which stays level. These observations
+support a large caller benefit on this Mac and preserve the opposing EPYC
+costs. They establish no universal Pipeline advantage or energy improvement.
+The unchanged lent 1 MiB solo cell reads 8.7% faster with 12.8% greater CPU
+time. Keep that finding beside the explicitly changed calls; its cause
+remains open.
+
+## Promotion decision
+
+Correctness/liveness checks, the caller review and both platform pilots
+support landing the benchmark adapter. The change exposes the intended API
+and its costs. Library speed acceptance is a separate decision, and the
+large EPYC losses remain open with John. The integration adds no statistical
+rule, accepted-regression list or adaptive verdict override.
+
+Candidate `4a3d25a768be1215546aaaad94ee5e2454026550` merges the already-landed
+workload-context documentation into the measured candidate. Only
+CONTRIBUTING and METHODOLOGY changed in that merge; the measured calls and
+comparison code are identical to `55436819e`.
 
 SHA-256 and BLAKE3 manifests cover the files other than the manifests themselves.

@@ -1,0 +1,62 @@
+compare: old side: bench 55436819e59a clean; servil f62bc6ac0bc1 clean
+compare: new side: bench 55436819e59a clean; servil f62bc6ac0bc1 clean
+compare: both sides are one build: an A/A comparison
+| cell | old ns/unit | new ns/unit | new/old | verdict | pairs faster | CPU time | energy |
+|---|---:|---:|---:|---|---:|---:|---:|
+| blake3-servil-st / solo / ContinuousMessages / 64 B | 0.804 | 0.742 | x0.923 | level | 3 of 4 | x0.923 | - |
+| blake3-servil-st / solo / ContinuousMessages / 4 KiB | 0.302 | 0.296 | x0.981 | level | 2 of 4 | x0.981 | - |
+| blake3-servil-st / solo / ContinuousMessages / 64 KiB | 0.193 | 0.194 | x1.003 | level | 1 of 4 | x1.002 | - |
+| blake3-servil-st / solo / ContinuousMessages / 1 MiB | 0.212 | 0.194 | x0.917 | level | 4 of 4 | x0.917 | - |
+| blake3-servil-st / solo / ContinuousBatches / 16 | 17.738 | 17.833 | x1.005 | level | 1 of 4 | x1.005 | - |
+| blake3-servil-st / solo / ContinuousBatches / 256 | 13.114 | 12.633 | x0.963 | level | 4 of 4 | x0.963 | - |
+| blake3-servil-st / solo / ContinuousBatches / 4096 | 9.692 | 9.967 | x1.028 | level | 0 of 4 | x1.028 | - |
+| blake3-servil-st / solo / LentMessages / 64 B | 0.804 | 0.742 | x0.923 | level | 3 of 4 | x0.923 | - |
+| blake3-servil-st / solo / LentMessages / 4 KiB | 0.302 | 0.296 | x0.981 | level | 2 of 4 | x0.981 | - |
+| blake3-servil-st / solo / LentMessages / 64 KiB | 0.193 | 0.194 | x1.003 | level | 1 of 4 | x1.002 | - |
+| blake3-servil-st / solo / LentMessages / 1 MiB | 0.139 | 0.147 | x1.057 | level | 1 of 4 | x1.057 | - |
+| blake3-servil-st / solo / LentBatches / 16 | 17.738 | 17.833 | x1.005 | level | 1 of 4 | x1.005 | - |
+| blake3-servil-st / solo / LentBatches / 256 | 13.114 | 12.633 | x0.963 | level | 4 of 4 | x0.963 | - |
+| blake3-servil-st / solo / LentBatches / 4096 | 9.692 | 9.967 | x1.028 | level | 0 of 4 | x1.028 | - |
+| blake3-servil-st / solo / ContinuousCollection / git objects | 0.226 | 0.211 | x0.936 | level | 3 of 4 | x0.936 | - |
+| blake3-servil-st / solo / ContinuousCollection / Nix files | 0.219 | 0.216 | x0.983 | level | 3 of 4 | x0.983 | - |
+| blake3-servil-st / solo / ReceivingMessage / saturated | 0.273 | 0.271 | x0.993 | level | 2 of 4 | x0.992 | - |
+| blake3-servil-st / solo / ReceivingMessage / 2 μs | 0.254 | 0.255 | x1.004 | level | 2 of 4 | x1.004 | - |
+| blake3-servil-st / solo / ReceivingMessage / 20 μs | 0.916 | 0.916 | x1.000 | level | 2 of 4 | x1.004 | - |
+| blake3-servil-mt / solo / ContinuousMessages / 64 B | 0.318 | 0.323 | x1.013 | level | 1 of 4 | x1.122 | - |
+| blake3-servil-mt / solo / ContinuousMessages / 4 KiB | 0.0545 | 0.0548 | x1.005 | level | 1 of 4 | x1.031 | - |
+| blake3-servil-mt / solo / ContinuousMessages / 64 KiB | 0.0431 | 0.0407 | x0.945 | level | 4 of 4 | x0.960 | - |
+| blake3-servil-mt / solo / ContinuousMessages / 1 MiB | 0.0397 | 0.0398 | x1.002 | level | 2 of 4 | x0.996 | - |
+| blake3-servil-mt / solo / ContinuousBatches / 16 | 3.438 | 3.406 | x0.991 | level | 3 of 4 | x1.000 | - |
+| blake3-servil-mt / solo / ContinuousBatches / 256 | 3.334 | 3.221 | x0.966 | level | 3 of 4 | x1.031 | - |
+| blake3-servil-mt / solo / ContinuousBatches / 4096 | 3.775 | 3.625 | x0.960 | level | 3 of 4 | x0.996 | - |
+| blake3-servil-mt / solo / LentMessages / 64 B | 0.812 | 0.728 | x0.897 | level | 4 of 4 | x0.896 | - |
+| blake3-servil-mt / solo / LentMessages / 4 KiB | 0.301 | 0.306 | x1.015 | level | 2 of 4 | x1.015 | - |
+| blake3-servil-mt / solo / LentMessages / 64 KiB | 0.190 | 0.193 | x1.015 | level | 2 of 4 | x1.015 | - |
+| blake3-servil-mt / solo / LentMessages / 1 MiB | 0.0891 | 0.0919 | x1.032 | level | 0 of 4 | x0.996 | - |
+| blake3-servil-mt / solo / LentBatches / 16 | 17.783 | 17.981 | x1.011 | level | 0 of 4 | x1.011 | - |
+| blake3-servil-mt / solo / LentBatches / 256 | 12.874 | 12.658 | x0.983 | level | 1 of 4 | x0.983 | - |
+| blake3-servil-mt / solo / LentBatches / 4096 | 9.700 | 9.974 | x1.028 | level | 1 of 4 | x1.028 | - |
+| blake3-servil-mt / solo / ContinuousCollection / git objects | 0.0437 | 0.0438 | x1.003 | level | 1 of 4 | x1.006 | - |
+| blake3-servil-mt / solo / ContinuousCollection / Nix files | 0.0418 | 0.0424 | x1.014 | level | 2 of 4 | x1.013 | - |
+| blake3-servil-mt / solo / ReceivingMessage / saturated | 0.0419 | 0.0425 | x1.012 | level | 1 of 4 | x1.009 | - |
+| blake3-servil-mt / solo / ReceivingMessage / 2 μs | 0.0936 | 0.0936 | x0.999 | level | 2 of 4 | x1.001 | - |
+| blake3-servil-mt / solo / ReceivingMessage / 20 μs | 0.916 | 0.916 | x1.000 | level | 0 of 4 | x1.040 | - |
+| blake3-servil-mt / shared-os / ContinuousMessages / 64 B | 0.334 | 0.342 | x1.024 | level | 1 of 4 | - | - |
+| blake3-servil-mt / shared-os / ContinuousMessages / 4 KiB | 0.144 | 0.132 | x0.916 | level | 3 of 4 | - | - |
+| blake3-servil-mt / shared-os / ContinuousMessages / 64 KiB | 0.0873 | 0.0956 | x1.095 | level | 1 of 4 | - | - |
+| blake3-servil-mt / shared-os / ContinuousMessages / 1 MiB | 0.0869 | 0.0885 | x1.019 | level | 1 of 4 | - | - |
+| blake3-servil-mt / shared-os / ContinuousBatches / 16 | 5.863 | 5.952 | x1.015 | level | 1 of 4 | - | - |
+| blake3-servil-mt / shared-os / ContinuousBatches / 256 | 5.171 | 5.207 | x1.007 | level | 2 of 4 | - | - |
+| blake3-servil-mt / shared-os / ContinuousBatches / 4096 | 4.584 | 4.563 | x0.995 | level | 2 of 4 | - | - |
+| blake3-servil-mt / shared-os / LentMessages / 64 B | 0.775 | 0.724 | x0.934 | level | 4 of 4 | - | - |
+| blake3-servil-mt / shared-os / LentMessages / 4 KiB | 0.318 | 0.327 | x1.030 | level | 1 of 4 | - | - |
+| blake3-servil-mt / shared-os / LentMessages / 64 KiB | 0.227 | 0.226 | x0.994 | level | 1 of 4 | - | - |
+| blake3-servil-mt / shared-os / LentMessages / 1 MiB | 0.0829 | 0.0911 | x1.099 | level | 1 of 4 | - | - |
+| blake3-servil-mt / shared-os / LentBatches / 16 | 19.988 | 19.996 | x1.000 | level | 2 of 4 | - | - |
+| blake3-servil-mt / shared-os / LentBatches / 256 | 15.644 | 15.615 | x0.998 | level | 1 of 4 | - | - |
+| blake3-servil-mt / shared-os / LentBatches / 4096 | 12.719 | 12.760 | x1.003 | level | 2 of 4 | - | - |
+| blake3-servil-mt / shared-os / ContinuousCollection / git objects | 0.135 | 0.110 | x0.809 | level | 3 of 4 | - | - |
+| blake3-servil-mt / shared-os / ContinuousCollection / Nix files | 0.113 | 0.102 | x0.905 | level | 3 of 4 | - | - |
+| blake3-servil-mt / shared-os / ReceivingMessage / saturated | 0.0920 | 0.0989 | x1.076 | level | 2 of 4 | - | - |
+| blake3-servil-mt / shared-os / ReceivingMessage / 2 μs | 0.0945 | 0.0943 | x0.998 | level | 3 of 4 | - | - |
+| blake3-servil-mt / shared-os / ReceivingMessage / 20 μs | 0.916 | 0.916 | x1.000 | level | 1 of 4 | - | - |
