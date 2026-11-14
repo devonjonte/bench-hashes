@@ -3,10 +3,16 @@
 November 14, 2026. Question: which old candidate names can be removed while
 keeping their code and benchmark evidence available?
 
-The reviewed proposal contains **37 references**: two in the maintained
-repository and 35 in Devon's fork. [The exact list](PROPOSAL.md) and
-`proposal.json` record every expected tip and retained ancestry. No deletion
-has occurred at this snapshot.
+**Completed at 08:03 UTC.** The 37 proposed references were removed: two
+in the maintained repository and 35 in Devon's fork. [The original list](PROPOSAL.md)
+and `proposal.json` record every expected tip and retained ancestry.
+`receipt.json` records atomic pushes with exact-tip leases and the before/after
+remote heads. Retained heads stayed unchanged; local branches and worktrees
+were left intact. The remote branch counts became 74 and 157 respectively.
+
+The proposal was published before action in
+[the maintenance tracker](https://github.com/servil-software-factory/bench-hashes/issues/215).
+A fresh inventory/citation review and a dry run preceded execution.
 
 ## Why these references
 
@@ -29,12 +35,17 @@ unknown external references remain a consideration.
 This removes stale candidate names from navigation. It changes no program,
 benchmark result or commit. Experimental and cited names remain available.
 
-## Before execution
+## Execution and recovery
 
-Publish the proposal first. Recheck exact remote tips, retained ancestry,
-active work and open PRs. Remove only the listed names with exact-tip leases,
-and keep receipts. A changed precondition stops that deletion. Verify the
-retained histories and records after the operation.
+The execution script reloads the immutable published proposal, reruns the
+eligibility/citation checks, verifies exact remote tips, and uses atomic
+exact-tip-lease pushes. It then checks that the listed names are absent and
+retained heads are unchanged. A changed precondition stops the operation.
+
+The first dry run stopped before any deletion: a custom SSH override bypassed
+the environment's working Git transport and met a system configuration
+permission error. The override was removed. The corrected dry run and actual
+operation passed, using the existing transport. Both logs remain in `logs/`.
 
 Each removed name can be recreated from its recorded tip with ordinary Git:
 

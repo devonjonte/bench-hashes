@@ -1,6 +1,8 @@
 # Pruning proposal: conservative, uncited merged candidates
 
-No deletion performed. All commits remain ancestors of retained heads in the same repository. Active worktrees, differing local tips and open PRs were excluded. Citation search is finite; external references remain a review consideration.
+Original proposal, published before deletion. See README.md for the completed operation.
+
+At proposal time no deletion had been performed. All commits remain ancestors of retained heads in the same repository. Active worktrees, differing local tips and open PRs were excluded. Citation search is finite; external references remain a review consideration.
 
 | repository | branch | exact expected tip | retained ancestry |
 |---|---|---|---|
