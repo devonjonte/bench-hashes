@@ -32,9 +32,9 @@ and energy were unavailable; wall and process CPU time are retained.
 | Aligned continuous 16 MiB | 1.002, Level | 0.986, Level | 0.987 |
 | Irregular saturated receive | 0.998, Level | **0.662, Faster** | 0.662 |
 
-The changed receiving pairs read 33.7–33.9% faster. The aligned case's estimate is
-1.4% faster, with one of three pairs faster, and remains Level. Level is insufficient
-evidence, not equivalence. The unchanged receiving estimate moves 0.2% faster.
+The changed receiving pairs take 33.7–33.9% less wall time. The aligned case's
+wall-time estimate is 1.4% lower, with one of three pairs faster, and remains Level. Level is insufficient
+evidence, not equivalence. The unchanged receiving wall-time estimate is 0.2% lower.
 This is finite-scope sensitivity evidence, neither full-procedure calibration nor
 a release gate. It leaves the adverse full-run readings in the library commit
 under their original scope and owner's judgment.
