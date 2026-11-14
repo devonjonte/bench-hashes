@@ -80,7 +80,16 @@ redacted `<development-home>` prefixes for local recipes; source templates, data
 receipts and images retain their bytes. Generated trial HTML is reproducible from
 the base files and retained patches and is omitted from this archive.
 
-Rust/timing checks were skipped for this presentation-only change. Repository CI
-and live deployment verification remain the final steps. Both manifests bind all
-published evidence. [Expanded phone-chart issue](https://github.com/servil-software-factory/bench-hashes/issues/221)
-is Devon's next move: finish CI, land and verify the deployed page.
+[Lay out expanded charts from visible content](https://github.com/servil-software-factory/bench-hashes/pull/223)
+landed as **e55cecf48b499f1c84b77c7d3761e12844f61f5a**. All seven final CI checks
+passed, and the landed tree matches the reviewed candidate. Playwright 1.65.1 /
+Chromium 159.0.8154.6 also passed the full M6 check. The live page then matched the
+candidate byte for byte and passed geometry/touch checks at all three declared
+live viewports, including 320×568 (`live-checks.json`, `live-versions.json`).
+Both live-page digests were checked.
+
+Dedicated Rust/timing checks were skipped for this presentation-only change.
+Both manifests bind the published evidence.
+[The expanded phone-chart issue](https://github.com/servil-software-factory/bench-hashes/issues/221)
+is complete. The separate [wide-touch selection investigation](https://github.com/servil-software-factory/bench-hashes/issues/224)
+retains its own scope and next move.
