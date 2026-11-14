@@ -1,0 +1,82 @@
+
+<runner-home>/runs/ode-adler-compact-loop-555e2c09/runner-1024:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000050c90 <_b3lloop_raw4096>:
+   50c90:	62 f1 7d 48 ef c0    	vpxord zmm0,zmm0,zmm0
+   50c96:	62 f1 75 48 ef c9    	vpxord zmm1,zmm1,zmm1
+   50c9c:	62 f1 6d 48 ef d2    	vpxord zmm2,zmm2,zmm2
+   50ca2:	62 f1 65 48 ef db    	vpxord zmm3,zmm3,zmm3
+   50ca8:	62 f1 5d 48 ef e4    	vpxord zmm4,zmm4,zmm4
+   50cae:	62 f1 55 48 ef ed    	vpxord zmm5,zmm5,zmm5
+   50cb4:	62 f1 4d 48 ef f6    	vpxord zmm6,zmm6,zmm6
+   50cba:	62 f1 45 48 ef ff    	vpxord zmm7,zmm7,zmm7
+   50cc0:	62 51 3d 48 ef c0    	vpxord zmm8,zmm8,zmm8
+   50cc6:	62 51 35 48 ef c9    	vpxord zmm9,zmm9,zmm9
+   50ccc:	62 51 2d 48 ef d2    	vpxord zmm10,zmm10,zmm10
+   50cd2:	62 51 25 48 ef db    	vpxord zmm11,zmm11,zmm11
+   50cd8:	62 71 fd 48 6f 25 de 	vmovdqa64 zmm12,ZMMWORD PTR [rip+0xfffffffffffc50de]        # 15dc0 <crc_table+0x780>
+   50cdf:	50 fc ff 
+   50ce2:	62 71 fd 48 6f 2d 14 	vmovdqa64 zmm13,ZMMWORD PTR [rip+0xfffffffffffc5114]        # 15e00 <crc_table+0x7c0>
+   50ce9:	51 fc ff 
+   50cec:	b9 10 00 00 00       	mov    ecx,0x10
+   50cf1:	62 71 3d 48 fe c0    	vpaddd zmm8,zmm8,zmm0
+   50cf7:	62 71 fe 48 6f 37    	vmovdqu64 zmm14,ZMMWORD PTR [rdi]
+   50cfd:	62 d2 0d 48 50 e4    	vpdpbusd zmm4,zmm14,zmm12
+   50d03:	62 d2 0d 48 50 c5    	vpdpbusd zmm0,zmm14,zmm13
+   50d09:	62 71 35 48 fe c9    	vpaddd zmm9,zmm9,zmm1
+   50d0f:	62 71 fe 48 6f 77 01 	vmovdqu64 zmm14,ZMMWORD PTR [rdi+0x40]
+   50d16:	62 d2 0d 48 50 ec    	vpdpbusd zmm5,zmm14,zmm12
+   50d1c:	62 d2 0d 48 50 cd    	vpdpbusd zmm1,zmm14,zmm13
+   50d22:	62 71 2d 48 fe d2    	vpaddd zmm10,zmm10,zmm2
+   50d28:	62 71 fe 48 6f 77 02 	vmovdqu64 zmm14,ZMMWORD PTR [rdi+0x80]
+   50d2f:	62 d2 0d 48 50 f4    	vpdpbusd zmm6,zmm14,zmm12
+   50d35:	62 d2 0d 48 50 d5    	vpdpbusd zmm2,zmm14,zmm13
+   50d3b:	62 71 25 48 fe db    	vpaddd zmm11,zmm11,zmm3
+   50d41:	62 71 fe 48 6f 77 03 	vmovdqu64 zmm14,ZMMWORD PTR [rdi+0xc0]
+   50d48:	62 d2 0d 48 50 fc    	vpdpbusd zmm7,zmm14,zmm12
+   50d4e:	62 d2 0d 48 50 dd    	vpdpbusd zmm3,zmm14,zmm13
+   50d54:	48 81 c7 00 01 00 00 	add    rdi,0x100
+   50d5b:	48 83 e9 01          	sub    rcx,0x1
+   50d5f:	75 90                	jne    50cf1 <_b3lloop_raw4096+0x61>
+   50d61:	62 51 3d 48 fe c1    	vpaddd zmm8,zmm8,zmm9
+   50d67:	62 51 2d 48 fe d3    	vpaddd zmm10,zmm10,zmm11
+   50d6d:	62 51 3d 48 fe c2    	vpaddd zmm8,zmm8,zmm10
+   50d73:	62 d1 3d 48 72 f0 08 	vpslld zmm8,zmm8,0x8
+   50d7a:	62 f1 5d 48 fe e5    	vpaddd zmm4,zmm4,zmm5
+   50d80:	62 f1 4d 48 fe f7    	vpaddd zmm6,zmm6,zmm7
+   50d86:	62 f1 5d 48 fe e6    	vpaddd zmm4,zmm4,zmm6
+   50d8c:	62 d1 5d 48 fe e0    	vpaddd zmm4,zmm4,zmm8
+   50d92:	62 71 7d 48 fe c1    	vpaddd zmm8,zmm0,zmm1
+   50d98:	62 d1 3d 48 72 f0 07 	vpslld zmm8,zmm8,0x7
+   50d9f:	62 d1 5d 48 fe e0    	vpaddd zmm4,zmm4,zmm8
+   50da5:	62 71 7d 48 fe c2    	vpaddd zmm8,zmm0,zmm2
+   50dab:	62 d1 3d 48 72 f0 06 	vpslld zmm8,zmm8,0x6
+   50db2:	62 d1 5d 48 fe e0    	vpaddd zmm4,zmm4,zmm8
+   50db8:	62 f1 7d 48 fe c1    	vpaddd zmm0,zmm0,zmm1
+   50dbe:	62 f1 6d 48 fe d3    	vpaddd zmm2,zmm2,zmm3
+   50dc4:	62 f1 7d 48 fe c2    	vpaddd zmm0,zmm0,zmm2
+   50dca:	62 d3 fd 48 3b c6 01 	vextracti64x4 ymm14,zmm0,0x1
+   50dd1:	c4 c1 7d fe c6       	vpaddd ymm0,ymm0,ymm14
+   50dd6:	c4 c3 7d 39 c6 01    	vextracti128 xmm14,ymm0,0x1
+   50ddc:	c4 c1 79 fe c6       	vpaddd xmm0,xmm0,xmm14
+   50de1:	c5 79 70 f0 4e       	vpshufd xmm14,xmm0,0x4e
+   50de6:	c4 c1 79 fe c6       	vpaddd xmm0,xmm0,xmm14
+   50deb:	c5 79 70 f0 b1       	vpshufd xmm14,xmm0,0xb1
+   50df0:	c4 c1 79 fe c6       	vpaddd xmm0,xmm0,xmm14
+   50df5:	c5 f9 7e c0          	vmovd  eax,xmm0
+   50df9:	62 d3 fd 48 3b e6 01 	vextracti64x4 ymm14,zmm4,0x1
+   50e00:	c4 c1 5d fe e6       	vpaddd ymm4,ymm4,ymm14
+   50e05:	c4 c3 7d 39 e6 01    	vextracti128 xmm14,ymm4,0x1
+   50e0b:	c4 c1 59 fe e6       	vpaddd xmm4,xmm4,xmm14
+   50e10:	c5 79 70 f4 4e       	vpshufd xmm14,xmm4,0x4e
+   50e15:	c4 c1 59 fe e6       	vpaddd xmm4,xmm4,xmm14
+   50e1a:	c5 79 70 f4 b1       	vpshufd xmm14,xmm4,0xb1
+   50e1f:	c4 c1 59 fe e6       	vpaddd xmm4,xmm4,xmm14
+   50e24:	c5 f9 7e e1          	vmovd  ecx,xmm4
+   50e28:	48 c1 e1 20          	shl    rcx,0x20
+   50e2c:	48 09 c8             	or     rax,rcx
+   50e2f:	c5 f8 77             	vzeroupper
+   50e32:	c3                   	ret

@@ -1,0 +1,151 @@
+
+<runner-home>/runs/ode-adler-cleanup-dispatch-6065226c/runner-0:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000004dd80 <probe4096_cleanup>:
+   4dd80:	f3 0f 1e fa          	endbr64
+   4dd84:	41 57                	push   r15
+   4dd86:	49 89 ff             	mov    r15,rdi
+   4dd89:	41 56                	push   r14
+   4dd8b:	41 55                	push   r13
+   4dd8d:	41 54                	push   r12
+   4dd8f:	55                   	push   rbp
+   4dd90:	53                   	push   rbx
+   4dd91:	48 83 ec 18          	sub    rsp,0x18
+   4dd95:	48 89 74 24 08       	mov    QWORD PTR [rsp+0x8],rsi
+   4dd9a:	48 81 fe ff 0f 00 00 	cmp    rsi,0xfff
+   4dda1:	0f 86 a9 01 00 00    	jbe    4df50 <probe4096_cleanup+0x1d0>
+   4dda7:	48 81 7c 24 08 00 00 	cmp    QWORD PTR [rsp+0x8],0x10000
+   4ddae:	01 00 
+   4ddb0:	0f 86 8a 00 00 00    	jbe    4de40 <probe4096_cleanup+0xc0>
+   4ddb6:	48 89 f9             	mov    rcx,rdi
+   4ddb9:	40 f6 c7 3f          	test   dil,0x3f
+   4ddbd:	0f 84 7d 00 00 00    	je     4de40 <probe4096_cleanup+0xc0>
+   4ddc3:	31 c0                	xor    eax,eax
+   4ddc5:	bb 01 00 00 00       	mov    ebx,0x1
+   4ddca:	66 66 2e 0f 1f 84 00 	data16 cs nop WORD PTR [rax+rax*1+0x0]
+   4ddd1:	00 00 00 00 
+   4ddd5:	66 66 2e 0f 1f 84 00 	data16 cs nop WORD PTR [rax+rax*1+0x0]
+   4dddc:	00 00 00 00 
+   4dde0:	41 0f b6 17          	movzx  edx,BYTE PTR [r15]
+   4dde4:	49 83 c7 01          	add    r15,0x1
+   4dde8:	01 d3                	add    ebx,edx
+   4ddea:	01 d8                	add    eax,ebx
+   4ddec:	41 f6 c7 3f          	test   r15b,0x3f
+   4ddf0:	75 ee                	jne    4dde0 <probe4096_cleanup+0x60>
+   4ddf2:	48 8b 7c 24 08       	mov    rdi,QWORD PTR [rsp+0x8]
+   4ddf7:	89 c2                	mov    edx,eax
+   4ddf9:	48 01 f9             	add    rcx,rdi
+   4ddfc:	4c 29 f9             	sub    rcx,r15
+   4ddff:	48 89 cf             	mov    rdi,rcx
+   4de02:	48 89 4c 24 08       	mov    QWORD PTR [rsp+0x8],rcx
+   4de07:	b9 71 80 07 80       	mov    ecx,0x80078071
+   4de0c:	48 0f af d1          	imul   rdx,rcx
+   4de10:	49 89 fc             	mov    r12,rdi
+   4de13:	48 c1 ea 2f          	shr    rdx,0x2f
+   4de17:	69 d2 f1 ff 00 00    	imul   edx,edx,0xfff1
+   4de1d:	29 d0                	sub    eax,edx
+   4de1f:	c1 e0 10             	shl    eax,0x10
+   4de22:	09 d8                	or     eax,ebx
+   4de24:	0f b7 db             	movzx  ebx,bx
+   4de27:	c1 e8 10             	shr    eax,0x10
+   4de2a:	41 89 c6             	mov    r14d,eax
+   4de2d:	48 81 ff ff 0f 00 00 	cmp    rdi,0xfff
+   4de34:	77 12                	ja     4de48 <probe4096_cleanup+0xc8>
+   4de36:	e9 99 00 00 00       	jmp    4ded4 <probe4096_cleanup+0x154>
+   4de3b:	0f 1f 44 00 00       	nop    DWORD PTR [rax+rax*1+0x0]
+   4de40:	45 31 f6             	xor    r14d,r14d
+   4de43:	bb 01 00 00 00       	mov    ebx,0x1
+   4de48:	48 8b 44 24 08       	mov    rax,QWORD PTR [rsp+0x8]
+   4de4d:	4d 89 fd             	mov    r13,r15
+   4de50:	bd 71 80 07 80       	mov    ebp,0x80078071
+   4de55:	4d 8d 24 07          	lea    r12,[r15+rax*1]
+   4de59:	0f 1f 80 00 00 00 00 	nop    DWORD PTR [rax+0x0]
+   4de60:	4c 89 ef             	mov    rdi,r13
+   4de63:	49 81 c5 00 10 00 00 	add    r13,0x1000
+   4de6a:	e8 71 08 00 00       	call   4e6e0 <_b3ldirty_raw4096>
+   4de6f:	89 da                	mov    edx,ebx
+   4de71:	48 89 c6             	mov    rsi,rax
+   4de74:	c1 e2 0c             	shl    edx,0xc
+   4de77:	01 c3                	add    ebx,eax
+   4de79:	48 c1 ee 20          	shr    rsi,0x20
+   4de7d:	48 89 d8             	mov    rax,rbx
+   4de80:	01 f2                	add    edx,esi
+   4de82:	48 0f af dd          	imul   rbx,rbp
+   4de86:	41 01 d6             	add    r14d,edx
+   4de89:	4c 89 f2             	mov    rdx,r14
+   4de8c:	4c 0f af f5          	imul   r14,rbp
+   4de90:	48 c1 eb 2f          	shr    rbx,0x2f
+   4de94:	49 c1 ee 2f          	shr    r14,0x2f
+   4de98:	41 69 f6 f1 ff 00 00 	imul   esi,r14d,0xfff1
+   4de9f:	29 f2                	sub    edx,esi
+   4dea1:	41 89 d6             	mov    r14d,edx
+   4dea4:	69 d3 f1 ff 00 00    	imul   edx,ebx,0xfff1
+   4deaa:	29 d0                	sub    eax,edx
+   4deac:	89 c3                	mov    ebx,eax
+   4deae:	4c 89 e0             	mov    rax,r12
+   4deb1:	4c 29 e8             	sub    rax,r13
+   4deb4:	48 3d ff 0f 00 00    	cmp    rax,0xfff
+   4deba:	77 a4                	ja     4de60 <probe4096_cleanup+0xe0>
+   4debc:	48 8b 44 24 08       	mov    rax,QWORD PTR [rsp+0x8]
+   4dec1:	49 89 c4             	mov    r12,rax
+   4dec4:	48 25 00 f0 ff ff    	and    rax,0xfffffffffffff000
+   4deca:	41 81 e4 ff 0f 00 00 	and    r12d,0xfff
+   4ded1:	49 01 c7             	add    r15,rax
+   4ded4:	4d 85 e4             	test   r12,r12
+   4ded7:	75 1f                	jne    4def8 <probe4096_cleanup+0x178>
+   4ded9:	c5 f8 77             	vzeroupper
+   4dedc:	44 89 f0             	mov    eax,r14d
+   4dedf:	48 83 c4 18          	add    rsp,0x18
+   4dee3:	c1 e0 10             	shl    eax,0x10
+   4dee6:	09 d8                	or     eax,ebx
+   4dee8:	5b                   	pop    rbx
+   4dee9:	5d                   	pop    rbp
+   4deea:	41 5c                	pop    r12
+   4deec:	41 5d                	pop    r13
+   4deee:	41 5e                	pop    r14
+   4def0:	41 5f                	pop    r15
+   4def2:	c3                   	ret
+   4def3:	0f 1f 44 00 00       	nop    DWORD PTR [rax+rax*1+0x0]
+   4def8:	81 c3 f0 ff 00 00    	add    ebx,0xfff0
+   4defe:	4c 89 e6             	mov    rsi,r12
+   4df01:	4c 89 ff             	mov    rdi,r15
+   4df04:	e8 f7 e6 ff ff       	call   4c600 <probe512_r32>
+   4df09:	44 0f af e3          	imul   r12d,ebx
+   4df0d:	be 71 80 07 80       	mov    esi,0x80078071
+   4df12:	89 c1                	mov    ecx,eax
+   4df14:	c1 e8 10             	shr    eax,0x10
+   4df17:	43 8d 14 34          	lea    edx,[r12+r14*1]
+   4df1b:	01 d0                	add    eax,edx
+   4df1d:	48 89 c2             	mov    rdx,rax
+   4df20:	48 0f af c6          	imul   rax,rsi
+   4df24:	48 c1 e8 2f          	shr    rax,0x2f
+   4df28:	69 c0 f1 ff 00 00    	imul   eax,eax,0xfff1
+   4df2e:	29 c2                	sub    edx,eax
+   4df30:	0f b7 c1             	movzx  eax,cx
+   4df33:	01 c3                	add    ebx,eax
+   4df35:	41 89 d6             	mov    r14d,edx
+   4df38:	48 89 d8             	mov    rax,rbx
+   4df3b:	48 0f af de          	imul   rbx,rsi
+   4df3f:	48 c1 eb 2f          	shr    rbx,0x2f
+   4df43:	69 d3 f1 ff 00 00    	imul   edx,ebx,0xfff1
+   4df49:	29 d0                	sub    eax,edx
+   4df4b:	89 c3                	mov    ebx,eax
+   4df4d:	eb 8a                	jmp    4ded9 <probe4096_cleanup+0x159>
+   4df4f:	90                   	nop
+   4df50:	48 83 c4 18          	add    rsp,0x18
+   4df54:	5b                   	pop    rbx
+   4df55:	5d                   	pop    rbp
+   4df56:	41 5c                	pop    r12
+   4df58:	41 5d                	pop    r13
+   4df5a:	41 5e                	pop    r14
+   4df5c:	41 5f                	pop    r15
+   4df5e:	e9 9d e6 ff ff       	jmp    4c600 <probe512_r32>
+
+Disassembly of section .init:
+
+Disassembly of section .fini:
+
+Disassembly of section .plt:

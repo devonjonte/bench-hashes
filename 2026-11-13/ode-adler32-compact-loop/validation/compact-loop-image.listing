@@ -1,0 +1,82 @@
+
+<development-home>/bench-hashes-validation/ode-adler-fast/build-compact-loop/target/release/ode-adler-observer:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000051390 <_b3lloop_raw4096>:
+   51390:	62 f1 7d 48 ef c0    	vpxord zmm0,zmm0,zmm0
+   51396:	62 f1 75 48 ef c9    	vpxord zmm1,zmm1,zmm1
+   5139c:	62 f1 6d 48 ef d2    	vpxord zmm2,zmm2,zmm2
+   513a2:	62 f1 65 48 ef db    	vpxord zmm3,zmm3,zmm3
+   513a8:	62 f1 5d 48 ef e4    	vpxord zmm4,zmm4,zmm4
+   513ae:	62 f1 55 48 ef ed    	vpxord zmm5,zmm5,zmm5
+   513b4:	62 f1 4d 48 ef f6    	vpxord zmm6,zmm6,zmm6
+   513ba:	62 f1 45 48 ef ff    	vpxord zmm7,zmm7,zmm7
+   513c0:	62 51 3d 48 ef c0    	vpxord zmm8,zmm8,zmm8
+   513c6:	62 51 35 48 ef c9    	vpxord zmm9,zmm9,zmm9
+   513cc:	62 51 2d 48 ef d2    	vpxord zmm10,zmm10,zmm10
+   513d2:	62 51 25 48 ef db    	vpxord zmm11,zmm11,zmm11
+   513d8:	62 71 fd 48 6f 25 5e 	vmovdqa64 zmm12,ZMMWORD PTR [rip+0xfffffffffffc495e]        # 15d40 <crc_table+0x780>
+   513df:	49 fc ff 
+   513e2:	62 71 fd 48 6f 2d 94 	vmovdqa64 zmm13,ZMMWORD PTR [rip+0xfffffffffffc4994]        # 15d80 <crc_table+0x7c0>
+   513e9:	49 fc ff 
+   513ec:	b9 10 00 00 00       	mov    ecx,0x10
+   513f1:	62 71 3d 48 fe c0    	vpaddd zmm8,zmm8,zmm0
+   513f7:	62 71 fe 48 6f 37    	vmovdqu64 zmm14,ZMMWORD PTR [rdi]
+   513fd:	62 d2 0d 48 50 e4    	vpdpbusd zmm4,zmm14,zmm12
+   51403:	62 d2 0d 48 50 c5    	vpdpbusd zmm0,zmm14,zmm13
+   51409:	62 71 35 48 fe c9    	vpaddd zmm9,zmm9,zmm1
+   5140f:	62 71 fe 48 6f 77 01 	vmovdqu64 zmm14,ZMMWORD PTR [rdi+0x40]
+   51416:	62 d2 0d 48 50 ec    	vpdpbusd zmm5,zmm14,zmm12
+   5141c:	62 d2 0d 48 50 cd    	vpdpbusd zmm1,zmm14,zmm13
+   51422:	62 71 2d 48 fe d2    	vpaddd zmm10,zmm10,zmm2
+   51428:	62 71 fe 48 6f 77 02 	vmovdqu64 zmm14,ZMMWORD PTR [rdi+0x80]
+   5142f:	62 d2 0d 48 50 f4    	vpdpbusd zmm6,zmm14,zmm12
+   51435:	62 d2 0d 48 50 d5    	vpdpbusd zmm2,zmm14,zmm13
+   5143b:	62 71 25 48 fe db    	vpaddd zmm11,zmm11,zmm3
+   51441:	62 71 fe 48 6f 77 03 	vmovdqu64 zmm14,ZMMWORD PTR [rdi+0xc0]
+   51448:	62 d2 0d 48 50 fc    	vpdpbusd zmm7,zmm14,zmm12
+   5144e:	62 d2 0d 48 50 dd    	vpdpbusd zmm3,zmm14,zmm13
+   51454:	48 81 c7 00 01 00 00 	add    rdi,0x100
+   5145b:	48 83 e9 01          	sub    rcx,0x1
+   5145f:	75 90                	jne    513f1 <_b3lloop_raw4096+0x61>
+   51461:	62 51 3d 48 fe c1    	vpaddd zmm8,zmm8,zmm9
+   51467:	62 51 2d 48 fe d3    	vpaddd zmm10,zmm10,zmm11
+   5146d:	62 51 3d 48 fe c2    	vpaddd zmm8,zmm8,zmm10
+   51473:	62 d1 3d 48 72 f0 08 	vpslld zmm8,zmm8,0x8
+   5147a:	62 f1 5d 48 fe e5    	vpaddd zmm4,zmm4,zmm5
+   51480:	62 f1 4d 48 fe f7    	vpaddd zmm6,zmm6,zmm7
+   51486:	62 f1 5d 48 fe e6    	vpaddd zmm4,zmm4,zmm6
+   5148c:	62 d1 5d 48 fe e0    	vpaddd zmm4,zmm4,zmm8
+   51492:	62 71 7d 48 fe c1    	vpaddd zmm8,zmm0,zmm1
+   51498:	62 d1 3d 48 72 f0 07 	vpslld zmm8,zmm8,0x7
+   5149f:	62 d1 5d 48 fe e0    	vpaddd zmm4,zmm4,zmm8
+   514a5:	62 71 7d 48 fe c2    	vpaddd zmm8,zmm0,zmm2
+   514ab:	62 d1 3d 48 72 f0 06 	vpslld zmm8,zmm8,0x6
+   514b2:	62 d1 5d 48 fe e0    	vpaddd zmm4,zmm4,zmm8
+   514b8:	62 f1 7d 48 fe c1    	vpaddd zmm0,zmm0,zmm1
+   514be:	62 f1 6d 48 fe d3    	vpaddd zmm2,zmm2,zmm3
+   514c4:	62 f1 7d 48 fe c2    	vpaddd zmm0,zmm0,zmm2
+   514ca:	62 d3 fd 48 3b c6 01 	vextracti64x4 ymm14,zmm0,0x1
+   514d1:	c4 c1 7d fe c6       	vpaddd ymm0,ymm0,ymm14
+   514d6:	c4 c3 7d 39 c6 01    	vextracti128 xmm14,ymm0,0x1
+   514dc:	c4 c1 79 fe c6       	vpaddd xmm0,xmm0,xmm14
+   514e1:	c5 79 70 f0 4e       	vpshufd xmm14,xmm0,0x4e
+   514e6:	c4 c1 79 fe c6       	vpaddd xmm0,xmm0,xmm14
+   514eb:	c5 79 70 f0 b1       	vpshufd xmm14,xmm0,0xb1
+   514f0:	c4 c1 79 fe c6       	vpaddd xmm0,xmm0,xmm14
+   514f5:	c5 f9 7e c0          	vmovd  eax,xmm0
+   514f9:	62 d3 fd 48 3b e6 01 	vextracti64x4 ymm14,zmm4,0x1
+   51500:	c4 c1 5d fe e6       	vpaddd ymm4,ymm4,ymm14
+   51505:	c4 c3 7d 39 e6 01    	vextracti128 xmm14,ymm4,0x1
+   5150b:	c4 c1 59 fe e6       	vpaddd xmm4,xmm4,xmm14
+   51510:	c5 79 70 f4 4e       	vpshufd xmm14,xmm4,0x4e
+   51515:	c4 c1 59 fe e6       	vpaddd xmm4,xmm4,xmm14
+   5151a:	c5 79 70 f4 b1       	vpshufd xmm14,xmm4,0xb1
+   5151f:	c4 c1 59 fe e6       	vpaddd xmm4,xmm4,xmm14
+   51524:	c5 f9 7e e1          	vmovd  ecx,xmm4
+   51528:	48 c1 e1 20          	shl    rcx,0x20
+   5152c:	48 09 c8             	or     rax,rcx
+   5152f:	c5 f8 77             	vzeroupper
+   51532:	c3                   	ret
