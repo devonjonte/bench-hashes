@@ -180,29 +180,41 @@ mod imp {
         /// not open is left out. Every member opens alone, yet the pinned
         /// group must also fit the PMU's counters together: on a Zen 5, six
         /// fit and the seventh put the leader in error, so every read gave
-        /// nothing and no event was counted (ops #10). The later members go,
-        /// one at a time, until what is left schedules; each kept event's
-        /// count stays exact, and a dropped one reads None as an event the
-        /// PMU lacks does.
+        /// nothing and no event was counted (ops #10). A pinned leader the
+        /// PMU once failed to schedule stays in error, so each narrower try
+        /// is a fresh group: the last member goes, until what is left
+        /// schedules. Each kept event's count stays exact, and a dropped one
+        /// reads None as an event the PMU lacks does.
         pub(super) fn new_from(events: &[Option<Event>]) -> Option<Group> {
-            let leader = open((*events.first()?)?, -1)?;
-            let mut fds = vec![];
-            let mut held = vec![0];
-            for (i, event) in events.iter().enumerate().skip(1) {
-                if let Some(fd) = event.and_then(|e| open(e, leader.as_raw_fd())) {
+            let mut wanted: Vec<usize> = (0..events.len()).filter(|&i| events[i].is_some()).collect();
+            if wanted.first() != Some(&0) {
+                return None;
+            }
+            while !wanted.is_empty() {
+                if let Some(group) = Self::of(events, &mut wanted) {
+                    return Some(group);
+                }
+                wanted.pop();
+            }
+            None
+        }
+
+        /// One try at `wanted`'s events as a fresh group. A member that will
+        /// not open leaves `wanted`, so a narrower retry drops a member that
+        /// opened instead of asking again for one that will not.
+        fn of(events: &[Option<Event>], wanted: &mut Vec<usize>) -> Option<Group> {
+            let leader = open(events[wanted[0]]?, -1)?;
+            let mut fds = vec![leader];
+            let mut held = vec![wanted[0]];
+            for &i in &wanted[1..] {
+                if let Some(fd) = events[i].and_then(|e| open(e, fds[0].as_raw_fd())) {
                     fds.push(fd);
                     held.push(i);
                 }
             }
-            fds.insert(0, leader);
-            let mut group = Group { fds, held };
-            while group.counts().is_none() {
-                if group.held.len() == 1 {
-                    return None;
-                }
-                group.fds.pop();
-                group.held.pop();
-            }
+            *wanted = held.clone();
+            let group = Group { fds, held };
+            group.counts()?;
             Some(group)
         }
 
