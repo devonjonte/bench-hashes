@@ -166,31 +166,54 @@ mod imp {
 
     /// One core kind's group: its leader (cycles), and which of the set's
     /// events it holds, in its read order.
-    struct Group {
+    pub(super) struct Group {
         fds: Vec<OwnedFd>,
         held: Vec<usize>,
     }
 
     impl Group {
         fn new(set: [Option<Event>; NAMES.len()]) -> Option<Group> {
-            let leader = open(set[0]?, -1)?;
+            Self::new_from(&set)
+        }
+
+        /// The events' group: `events[0]` is the leader; a member that will
+        /// not open is left out. Every member opens alone, yet the pinned
+        /// group must also fit the PMU's counters together: on a Zen 5, six
+        /// fit and the seventh put the leader in error, so every read gave
+        /// nothing and no event was counted (ops #10). The later members go,
+        /// one at a time, until what is left schedules; each kept event's
+        /// count stays exact, and a dropped one reads None as an event the
+        /// PMU lacks does.
+        pub(super) fn new_from(events: &[Option<Event>]) -> Option<Group> {
+            let leader = open((*events.first()?)?, -1)?;
             let mut fds = vec![];
             let mut held = vec![0];
-            for (i, event) in set.iter().enumerate().skip(1) {
+            for (i, event) in events.iter().enumerate().skip(1) {
                 if let Some(fd) = event.and_then(|e| open(e, leader.as_raw_fd())) {
                     fds.push(fd);
                     held.push(i);
                 }
             }
             fds.insert(0, leader);
-            let group = Group { fds, held };
-            group.read()?;
+            let mut group = Group { fds, held };
+            while group.counts().is_none() {
+                if group.held.len() == 1 {
+                    return None;
+                }
+                group.fds.pop();
+                group.held.pop();
+            }
             Some(group)
         }
 
-        /// The group's counts; `None` where the PMU could not schedule the
-        /// pinned group whole.
-        fn read(&self) -> Option<Level> {
+        pub(super) fn len(&self) -> usize {
+            self.held.len()
+        }
+
+        /// The group's running time and each held event's count, by its
+        /// place in the events the group was made from; `None` where the
+        /// PMU could not schedule the pinned group whole.
+        pub(super) fn counts(&self) -> Option<(u64, Vec<(usize, u64)>)> {
             // nr, time enabled, time running, then each event's count.
             let mut words = vec![0u64; 3 + self.held.len()];
             // Sound: `words` is writable for the size passed.
@@ -202,11 +225,16 @@ mod imp {
                 return None;
             }
             assert_eq!(n as usize, words.len() * 8, "a perf group read gives its whole record");
+            Some((words[2], self.held.iter().enumerate().map(|(k, &i)| (i, words[3 + k])).collect()))
+        }
+
+        fn read(&self) -> Option<Level> {
+            let (time_ns, counts) = self.counts()?;
             let mut values = [None; NAMES.len()];
-            for (k, &i) in self.held.iter().enumerate() {
-                values[i] = Some(words[3 + k]);
+            for (i, count) in counts {
+                values[i] = Some(count);
             }
-            Some(Level { time_ns: words[2], values })
+            Some(Level { time_ns, values })
         }
     }
 
@@ -278,6 +306,28 @@ mod tests {
         assert_eq!(Events { p, e: Level::default() }.total().values[5], Some(1), "a homogeneous CPU's events are its p's");
         assert_eq!(Events { p: Level { time_ns: 0, ..p }, e }.total().values[5], None, "the kind that ran measured nothing");
         assert_eq!(Events { p, e: Level { time_ns: 0, ..e } }.total().values[5], Some(1), "a kind that did not run adds nothing");
+    }
+
+    /// A pinned group that cannot fit the PMU's counters whole keeps its
+    /// leading members: the tail goes until what is left reads, and the
+    /// kept events still count (this machine's own group, grown past what
+    /// any PMU schedules: 64 extra instruction counters).
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    #[test]
+    fn an_unschedulable_group_keeps_its_leading_members() {
+        if imp::read().is_none() {
+            eprintln!("no perf events here (a container without perf_event_open): nothing to shrink");
+            return;
+        }
+        let instructions = imp::Event { kind: 0, config: 1 };
+        let wide: Vec<Option<imp::Event>> =
+            std::iter::once(Some(imp::Event { kind: 0, config: 0 })).chain(std::iter::repeat_n(Some(instructions), 64)).collect();
+        let group = imp::Group::new_from(&wide).expect("the leader alone schedules");
+        assert!(group.len() < 65, "a PMU holds fewer than 65 counters at once");
+        let (time_ns, counts) = group.counts().expect("the kept group reads");
+        let _ = time_ns;
+        assert_eq!(counts.len(), group.len());
+        assert_eq!(counts[0].0, 0, "the leader stays");
     }
 
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
