@@ -1,0 +1,14 @@
+warning: suspicious definition of the runtime `read` symbol used by the standard library
+  --> probe.rs:21:5
+   |
+21 |     fn read(fd: i32, buffer: *mut u8, size: usize) -> isize;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected `unsafe extern "C" fn(i32, *mut c_void, usize) -> isize` (for the current target)
+           found    `unsafe extern "C" fn(i32, *mut u8, usize) -> isize`
+   = help: either fix the signature or remove any attributes like `#[unsafe(no_mangle)]`, `#[unsafe(export_name = "read")]`, or `#[link_name = "read"]`
+   = help: allow this lint if the signature is compatible
+   = note: `#[warn(suspicious_runtime_symbol_definitions)]` on by default
+
+warning: 1 warning emitted
+
