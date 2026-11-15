@@ -20,6 +20,15 @@ six members, while the seventh put the leader in error, so every read gave
 nothing. `backend_stalls` has no generic event on AMD (ENOENT), as on the
 Intel hosts' generic set.
 
-The repair keeps a too-wide group's leading events
-([PR #229](https://github.com/servil-software-factory/bench-hashes/pull/229)).
-After it lands, `events_check` reruns on all six hosts close this verification.
+The first repair ([PR #229](https://github.com/servil-software-factory/bench-hashes/pull/229))
+popped members of the failed group, and the rerun at `c4e4cbaf` still read
+nothing on all four AMD hosts (kept here): a pinned leader the PMU once failed
+to schedule stays in error. The second repair makes each narrower try a fresh
+group (`fbe67449ac809cc436b0e1ce47b98800c6e82974`).
+
+At that commit **all six hosts count** (`events-check-fbe67449/`): cycles,
+instructions and the L1D/L1I/dTLB misses everywhere, with plausible per-step
+figures on the known work; branch misses count on the Intel hosts and are the
+dropped seventh member on AMD; backend stalls have no generic AMD event. The
+thirteen machine-profile tests pass on every host. This closes the verification;
+the package-energy counter and the cpuidle switch stay separate root questions.
