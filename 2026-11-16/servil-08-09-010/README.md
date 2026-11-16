@@ -2,9 +2,9 @@
 
 Measured November 16, 2026, on six x86-64 Linux machines with
 [bench-hashes](https://github.com/servil-software-factory/bench-hashes) 0.23.
-"0.10 candidate" is commit `7048303103c69b8609ffe9ca0361197ba318107c` of
+"0.10 candidate" is commit `ad163558bd882ca7768e59764c6588fce0f285f9` (`release/0.10.0`, code parent `4e8634b71df01d406906025b4ccda17a828a2aa7`) of
 [BLAKE3-Servil](https://github.com/servil-software-factory/BLAKE3), measured
-before the 0.10.0 tag exists; b3sum is to be measured again at the tag.
+before the 0.10.0 tag exists; `ad163558` is baseline pre-remediation evidence; the final `0.10.0` tag commit will be measured again once audit fixes land.
 
 Every number here is a **time ratio**. It divides the time one program takes by the
 time another takes for the same work in the same run: ×0.66 means 34% less time, and
@@ -22,26 +22,26 @@ in the same rounds on each machine, four separately linked copies of each.
 
 ### Against official b3sum 1.8.7
 
-**b3sum 0.10 candidate against official b3sum 1.8.7** (6 machines; time ratio, below 1 is faster)
+**official b3sum 1.8.7 against b3sum 0.10 candidate (ad163558)** (6 machines; time ratio, above 1 means official took longer)
 
-| input | warm: range | warm: machines faster / slower | cold: range | cold: machines faster / slower |
+| input | warm: range | warm: machines slower / faster | cold: range | cold: machines slower / faster |
 |---|---:|---:|---:|---:|
-| 4 KiB | ×0.10–×0.46 | 6 / 0 | ×0.13–×0.49 | 6 / 0 |
-| 64 KiB | ×0.11–×0.48 | 6 / 0 | ×0.14–×0.68 | 6 / 0 |
-| 1 MiB | ×0.12–×0.60 | 6 / 0 | ×0.27–×0.82 | 6 / 0 |
-| 16 MiB | ×0.33–×0.77 | 6 / 0 | ×0.42–×0.67 | 6 / 0 |
-| 256 MiB | ×0.50–×0.86 | 6 / 0 | ×0.52–×0.71 | 6 / 0 |
-| 1 GiB | ×0.52–×0.97 | 6 / 0 | ×0.50–×0.78 | 6 / 0 |
-| 1000 x 16 KiB | ×0.11–×0.28 | 6 / 0 | ×0.04–×0.12 | 6 / 0 |
-| 1000 x 16 KiB, a process each | ×0.08–×0.38 | 6 / 0 | ×0.11–×0.51 | 6 / 0 |
-| mixed tree, 1000 files, 74 MiB | ×0.10–×0.37 | 6 / 0 | ×0.08–×0.14 | 6 / 0 |
-| 16 x 64 MiB | ×0.35–×0.93 | 6 / 0 | ×0.41–×0.64 | 6 / 0 |
+| 4 KiB | ×2.07–×7.40 | 6 / 0 | ×1.57–×6.86 | 6 / 0 |
+| 64 KiB | ×1.89–×7.62 | 6 / 0 | ×1.51–×6.23 | 6 / 0 |
+| 1 MiB | ×1.56–×6.40 | 6 / 0 | ×1.24–×3.73 | 6 / 0 |
+| 16 MiB | ×1.23–×2.87 | 6 / 0 | ×1.34–×2.26 | 6 / 0 |
+| 256 MiB | ×1.31–×2.54 | 6 / 0 | ×1.39–×1.95 | 6 / 0 |
+| 1 GiB | ×1.16–×2.73 | 6 / 0 | ×1.28–×1.96 | 6 / 0 |
+| 1000 x 16 KiB | ×3.39–×10.02 | 6 / 0 | ×9.62–×27.00 | 6 / 0 |
+| 1000 x 16 KiB, a process each | ×2.56–×11.54 | 6 / 0 | ×1.91–×8.94 | 6 / 0 |
+| mixed tree, 1000 files, 74 MiB | ×2.73–×10.20 | 6 / 0 | ×7.42–×12.87 | 6 / 0 |
+| 16 x 64 MiB | ×1.20–×4.29 | 6 / 0 | ×1.57–×2.31 | 6 / 0 |
 
-- **Faster on every input, warm and cold, on all 6 machines:** from ×0.97 to ×0.04.
+- **Faster on every input, warm and cold, on all 6 machines:** from ×27.00 to ×1.16.
 
 #### On an Apple M6 (macOS)
 
-One run on the dedicated timing Mac, the 0.10 candidate against official b3sum
+One earlier run at `70483031` on the dedicated timing Mac, against official b3sum
 1.8.7, both built there. The Mac queue builds one BLAKE3-Servil version a job, so
 0.9.0 has no column here.
 
@@ -66,27 +66,48 @@ Load: busy: other programs kept 0.25 CPUs busy on average, 1.08 in the busiest w
 
 ### Against b3sum 0.9.0
 
-**b3sum 0.10 candidate against b3sum 0.9.0** (6 machines; time ratio, below 1 is faster)
+**b3sum 0.10 candidate (ad163558) against b3sum 0.9.0** (6 machines; time ratio, below 1 is faster)
 
 | input | warm: range | warm: machines faster / slower | cold: range | cold: machines faster / slower |
 |---|---:|---:|---:|---:|
-| 4 KiB | ×0.98–×1.03 | 0 / 0 | ×0.98–×1.07 | 0 / 0 |
-| 64 KiB | ×1.00–×1.14 | 0 / 0 | ×1.00–×1.09 | 0 / 0 |
-| 1 MiB | ×0.77–×1.00 | 4 / 0 | ×0.98–×1.07 | 0 / 0 |
-| 16 MiB | ×0.96–×1.10 | 0 / 0 | ×0.67–×0.87 | 6 / 0 |
-| 256 MiB | ×0.95–×1.01 | 0 / 0 | ×0.60–×0.81 | 6 / 0 |
-| 1 GiB | ×0.96–×1.03 | 0 / 0 | ×0.54–×0.81 | 6 / 0 |
-| 1000 x 16 KiB | ×0.81–×0.89 | 6 / 0 | ×0.56–×1.05 | 3 / 1 |
-| 1000 x 16 KiB, a process each | ×0.99–×1.02 | 0 / 0 | ×0.99–×1.02 | 0 / 0 |
-| mixed tree, 1000 files, 74 MiB | ×0.86–×0.99 | 4 / 0 | ×0.66–×1.02 | 3 / 0 |
-| 16 x 64 MiB | ×0.54–×0.86 | 6 / 0 | ×0.62–×0.81 | 6 / 0 |
+| 4 KiB | ×0.88–×1.05 | 1 / 0 | ×0.95–×1.05 | 0 / 0 |
+| 64 KiB | ×0.96–×1.08 | 0 / 2 | ×0.98–×1.06 | 0 / 1 |
+| 1 MiB | ×0.78–×0.97 | 4 / 0 | ×1.00–×1.12 | 0 / 2 |
+| 16 MiB | ×0.98–×1.05 | 0 / 0 | ×0.69–×0.84 | 6 / 0 |
+| 256 MiB | ×0.96–×1.01 | 0 / 0 | ×0.60–×0.81 | 6 / 0 |
+| 1 GiB | ×0.96–×1.01 | 0 / 0 | ×0.53–×0.81 | 6 / 0 |
+| 1000 x 16 KiB | ×0.80–×0.87 | 6 / 0 | ×0.54–×1.06 | 4 / 1 |
+| 1000 x 16 KiB, a process each | ×0.99–×1.04 | 0 / 2 | ×0.99–×1.04 | 0 / 2 |
+| mixed tree, 1000 files, 74 MiB | ×0.84–×1.02 | 3 / 0 | ×0.71–×1.02 | 3 / 0 |
+| 16 x 64 MiB | ×0.56–×0.92 | 5 / 0 | ×0.63–×0.81 | 6 / 0 |
 
-- **Faster on all 6 machines:** 1000 x 16 KiB (warm); 16 x 64 MiB (warm and cold); 16 MiB (cold); 256 MiB (cold); 1 GiB (cold).
-- **Faster on some machines:** 1 MiB (warm); mixed tree, 1000 files, 74 MiB (warm and cold); 1000 x 16 KiB (cold).
-- **Level on every machine:** 4 KiB (warm and cold); 64 KiB (warm and cold); 16 MiB (warm); 256 MiB (warm); 1 GiB (warm); 1000 x 16 KiB, a process each (warm and cold); 1 MiB (cold).
-- **Slower on a machine:** 1000 x 16 KiB (cold).
+- **Faster on all 6 machines:** 1000 x 16 KiB (warm); 16 MiB (cold); 256 MiB (cold); 1 GiB (cold); 16 x 64 MiB (cold).
+- **Faster on some machines:** 4 KiB (warm); 1 MiB (warm); mixed tree, 1000 files, 74 MiB (warm and cold); 16 x 64 MiB (warm); 1000 x 16 KiB (cold).
+- **Level on every machine:** 16 MiB (warm); 256 MiB (warm); 1 GiB (warm); 4 KiB (cold).
+- **Slower on a machine:** 64 KiB (warm and cold); 1000 x 16 KiB, a process each (warm and cold); 1 MiB (cold); 1000 x 16 KiB (cold).
 
-**A second run** of the same programs on 6 machines, each machine's 20 cells again: 45 cells are marked faster in both runs, 5 in the first only and 1 in the second only. Marked slower: `x86-avx2` 1000 x 16 KiB, cold (both runs).
+*(A single `ad163558` run ran per host; a repeat run waits on the final `0.10.0` tag commit.)*
+
+#### Quick suite (`100 x 16 KiB`, 5 rounds)
+
+The `--quick` suite adds `100 x 16 KiB` (where `9de026af` ramps reader threads with file count):
+
+**b3sum 0.10 candidate (ad163558) against b3sum 0.9.0 — quick suite (5 rounds, includes `100 x 16 KiB`)** (6 machines; time ratio, below 1 is faster)
+
+| input | warm: range | warm: machines faster / slower | cold: range | cold: machines faster / slower |
+|---|---:|---:|---:|---:|
+| 4 KiB | ×0.88–×1.06 | 0 / 0 | ×0.93–×1.02 | 0 / 0 |
+| 1 MiB | ×0.79–×0.93 | 3 / 0 | ×0.82–×1.06 | 1 / 0 |
+| 16 MiB | ×0.94–×1.15 | 0 / 0 | ×0.69–×0.88 | 4 / 0 |
+| 100 x 16 KiB | ×1.02–×1.08 | 0 / 3 | ×0.60–×1.30 | 0 / 2 |
+| 100 x 16 KiB, a process each | ×1.01–×1.04 | 0 / 1 | ×1.00–×1.05 | 0 / 2 |
+| mixed tree, 100 files, 5 MiB | ×0.89–×1.00 | 0 / 0 | ×0.92–×1.12 | 0 / 0 |
+| 4 x 16 MiB | ×0.57–×1.01 | 3 / 0 | ×0.55–×0.68 | 6 / 0 |
+
+- **Faster on all 6 machines:** 4 x 16 MiB (cold).
+- **Faster on some machines:** 1 MiB (warm and cold); 4 x 16 MiB (warm); 16 MiB (cold).
+- **Level on every machine:** 4 KiB (warm and cold); 16 MiB (warm); mixed tree, 100 files, 5 MiB (warm and cold).
+- **Slower on a machine:** 100 x 16 KiB (warm and cold); 100 x 16 KiB, a process each (warm and cold).
 
 ### 0.8.0 against 0.9.0
 
@@ -97,27 +118,26 @@ In this table 0.8.0 is the program judged: below 1 means 0.8.0 took less time th
 
 | input | warm: range | warm: machines faster / slower | cold: range | cold: machines faster / slower |
 |---|---:|---:|---:|---:|
-| 4 KiB | ×0.95–×1.02 | 0 / 0 | ×0.96–×1.01 | 0 / 0 |
-| 64 KiB | ×0.94–×1.06 | 3 / 0 | ×0.93–×1.07 | 0 / 0 |
-| 1 MiB | ×0.97–×1.00 | 0 / 0 | ×0.91–×1.05 | 0 / 0 |
-| 16 MiB | ×0.92–×1.01 | 3 / 0 | ×0.98–×1.03 | 0 / 0 |
-| 256 MiB | ×0.93–×1.03 | 0 / 0 | ×0.98–×1.01 | 0 / 0 |
-| 1 GiB | ×0.90–×1.06 | 1 / 0 | ×1.00–×1.00 | 0 / 0 |
-| 1000 x 16 KiB | ×0.94–×1.02 | 1 / 0 | ×0.95–×1.02 | 1 / 0 |
-| 1000 x 16 KiB, a process each | ×0.95–×0.96 | 6 / 0 | ×0.95–×0.97 | 3 / 0 |
-| mixed tree, 1000 files, 74 MiB | ×0.89–×1.00 | 2 / 0 | ×0.95–×1.02 | 1 / 0 |
-| 16 x 64 MiB | ×0.79–×1.01 | 0 / 0 | ×0.97–×1.00 | 0 / 0 |
+| 4 KiB | ×0.95–×1.08 | 0 / 0 | ×0.95–×1.10 | 0 / 0 |
+| 64 KiB | ×0.92–×0.98 | 2 / 0 | ×0.95–×0.99 | 0 / 0 |
+| 1 MiB | ×0.94–×1.02 | 2 / 0 | ×0.98–×1.07 | 0 / 0 |
+| 16 MiB | ×0.93–×0.99 | 2 / 0 | ×0.97–×1.01 | 1 / 0 |
+| 256 MiB | ×0.95–×1.05 | 0 / 0 | ×0.98–×1.01 | 0 / 0 |
+| 1 GiB | ×0.95–×1.01 | 0 / 0 | ×0.99–×1.00 | 0 / 0 |
+| 1000 x 16 KiB | ×0.94–×0.97 | 2 / 0 | ×0.96–×0.99 | 1 / 0 |
+| 1000 x 16 KiB, a process each | ×0.95–×0.96 | 6 / 0 | ×0.95–×0.98 | 3 / 0 |
+| mixed tree, 1000 files, 74 MiB | ×0.88–×0.98 | 2 / 0 | ×0.98–×1.03 | 0 / 0 |
+| 16 x 64 MiB | ×0.82–×1.06 | 0 / 0 | ×0.99–×1.00 | 0 / 0 |
 
 - **Faster on all 6 machines:** 1000 x 16 KiB, a process each (warm).
-- **Faster on some machines:** 64 KiB (warm); 16 MiB (warm); 1 GiB (warm); 1000 x 16 KiB (warm and cold); mixed tree, 1000 files, 74 MiB (warm and cold); 1000 x 16 KiB, a process each (cold).
-- **Level on every machine:** 4 KiB (warm and cold); 1 MiB (warm and cold); 256 MiB (warm and cold); 16 x 64 MiB (warm and cold); 64 KiB (cold); 16 MiB (cold); 1 GiB (cold).
+- **Faster on some machines:** 64 KiB (warm); 1 MiB (warm); 16 MiB (warm and cold); 1000 x 16 KiB (warm and cold); mixed tree, 1000 files, 74 MiB (warm); 1000 x 16 KiB, a process each (cold).
+- **Level on every machine:** 4 KiB (warm and cold); 256 MiB (warm and cold); 1 GiB (warm and cold); 16 x 64 MiB (warm and cold); 64 KiB (cold); 1 MiB (cold); mixed tree, 1000 files, 74 MiB (cold).
 - **Slower on a machine:** no input, warm or cold.
 
 The two are close. Where they differ, 0.8.0 is the faster one, most clearly when
 every small file gets its own process; "Known costs" below says what that is.
 
-Each machine's full tables, with the mean times: [`x86-9700x`](b3sum/x86-9700x.md), [`x86-avx2`](b3sum/x86-avx2.md), [`x86-epyc-9255`](b3sum/x86-epyc-9255.md), [`x86-epyc-9275f`](b3sum/x86-epyc-9275f.md), [`x86-icelake`](b3sum/x86-icelake.md), [`x86-icelake-2`](b3sum/x86-icelake-2.md). Each machine's
-second run is beside its page (`b3sum/<machine>-second-run.md`).
+Each machine's full and quick tables, with the mean times: [`x86-9700x`](b3sum/x86-9700x.md), [`x86-avx2`](b3sum/x86-avx2.md), [`x86-epyc-9255`](b3sum/x86-epyc-9255.md), [`x86-epyc-9275f`](b3sum/x86-epyc-9275f.md), [`x86-icelake`](b3sum/x86-icelake.md), [`x86-icelake-2`](b3sum/x86-icelake-2.md).
 
 ### Try it yourself
 
@@ -130,7 +150,7 @@ RUSTFLAGS="-C target-feature=+crt-static" cargo install b3sums --version 0.9.0 \
     --target x86_64-unknown-linux-gnu --root servil-0.9
 RUSTFLAGS="-C target-feature=+crt-static" cargo install b3sums \
     --git https://github.com/servil-software-factory/BLAKE3 \
-    --rev 7048303103c69b8609ffe9ca0361197ba318107c \
+    --rev ad163558bd882ca7768e59764c6588fce0f285f9 \
     --target x86_64-unknown-linux-gnu --root servil-0.10
 ```
 
@@ -166,47 +186,48 @@ beside another busy program. The library has two forms: **one thread**, and
 the old and the new library in alternating pairs and judges every cell.
 
 - **0.8.0 → 0.9.0, one thread** (5 machines): 4 to 16 cells faster and 0 to 5 slower per machine, of 213.
-- **0.9.0 → 0.10 candidate, one thread** (7 machines): 2 to 24 cells faster and 0 to 3 slower per machine, of 220 to 222.
-- **0.9.0 → 0.10 candidate, every core** (7 machines): 0 to 78 cells faster and 0 to 11 slower per machine, of 226 to 265.
-- **0.8.0 → 0.10 candidate, one thread** (6 machines): 7 to 18 cells faster and 0 to 2 slower per machine, of 213.
+- **0.9.0 → 0.10 candidate (ad163558), one thread** (7 machines): 2 to 23 cells faster and 0 to 3 slower per machine, of 222.
+- **0.9.0 → 0.10 candidate (ad163558), every core** (7 machines): 1 to 75 cells faster and 0 to 6 slower per machine, of 231 to 271.
+- **0.8.0 → 0.10 earlier (70483031), one thread** (6 machines): 7 to 18 cells faster and 0 to 2 slower per machine, of 213.
 
 | host | step | form | cells | faster | slower | left out: the benchmark's call changed | largest gain |
 |---|---|---|---:|---:|---:|---:|---|
 | `x86-epyc-9275f` | 0.8.0 → 0.9.0 | one thread | 213 | 11 | 0 |  | solo · IdleOneMessage · 7935 B ×0.541 |
-| `x86-epyc-9275f` | 0.9.0 → 0.10 candidate | one thread | 222 | 16 | 0 |  | solo · ReceivingMessage · saturated ×0.579 |
-| `x86-epyc-9275f` | 0.9.0 → 0.10 candidate | every core | 265 | 47 | 11 | 69 | shared-one-cache · LentBatches · 16384 ×0.385 |
-| `x86-epyc-9275f` | 0.8.0 → 0.10 candidate | one thread | 213 | 15 | 1 |  | solo · IdleOneMessage · 7935 B ×0.546 |
+| `x86-epyc-9275f` | 0.9.0 → 0.10 candidate (ad163558) | one thread | 222 | 12 | 0 |  | solo · ReceivingMessage · saturated ×0.578 |
+| `x86-epyc-9275f` | 0.9.0 → 0.10 candidate (ad163558) | every core | 271 | 51 | 6 | 63 | shared-one-cache · LentBatches · 16384 ×0.365 |
+| `x86-epyc-9275f` | 0.8.0 → 0.10 earlier (70483031) | one thread | 213 | 15 | 1 |  | solo · IdleOneMessage · 7935 B ×0.546 |
 | `x86-epyc-9255` | 0.8.0 → 0.9.0 | one thread | 213 | 16 | 5 |  | solo · IdleOneMessage · 7935 B ×0.538 |
-| `x86-epyc-9255` | 0.9.0 → 0.10 candidate | one thread | 220 | 11 | 1 | 2 | solo · ReceivingMessage · saturated ×0.579 |
-| `x86-epyc-9255` | 0.9.0 → 0.10 candidate | every core | 260 | 50 | 10 | 74 | solo · BriefIdleManyMessages · 8192 ×0.408 |
-| `x86-epyc-9255` | 0.8.0 → 0.10 candidate | one thread | 213 | 18 | 0 |  | solo · IdleOneMessage · 7935 B ×0.543 |
+| `x86-epyc-9255` | 0.9.0 → 0.10 candidate (ad163558) | one thread | 222 | 15 | 0 |  | solo · ReceivingMessage · saturated ×0.577 |
+| `x86-epyc-9255` | 0.9.0 → 0.10 candidate (ad163558) | every core | 267 | 62 | 3 | 67 | solo · BriefIdleManyMessages · 8192 ×0.381 |
+| `x86-epyc-9255` | 0.8.0 → 0.10 earlier (70483031) | one thread | 213 | 18 | 0 |  | solo · IdleOneMessage · 7935 B ×0.543 |
 | `x86-9700x` | 0.8.0 → 0.9.0 | one thread | 213 | 14 | 3 |  | solo · BriefIdleOneMessage · 7935 B ×0.549 |
-| `x86-9700x` | 0.9.0 → 0.10 candidate | one thread | 221 | 5 | 0 | 1 | solo · ReceivingMessage · saturated ×0.581 |
-| `x86-9700x` | 0.9.0 → 0.10 candidate | every core | 230 | 0 | 1 | 48 |  |
-| `x86-9700x` | 0.8.0 → 0.10 candidate | one thread | 213 | 16 | 2 |  | solo · BriefIdleOneMessage · 7935 B ×0.548 |
+| `x86-9700x` | 0.9.0 → 0.10 candidate (ad163558) | one thread | 222 | 7 | 0 |  | solo · ReceivingMessage · saturated ×0.583 |
+| `x86-9700x` | 0.9.0 → 0.10 candidate (ad163558) | every core | 231 | 1 | 0 | 47 | solo · InterleavedTurn · 256 ×0.844 |
+| `x86-9700x` | 0.8.0 → 0.10 earlier (70483031) | one thread | 213 | 16 | 2 |  | solo · BriefIdleOneMessage · 7935 B ×0.548 |
 | `x86-icelake` | 0.8.0 → 0.9.0 | one thread | 213 | 10 | 1 |  | solo · OneMessage · 7935 B ×0.631 |
-| `x86-icelake` | 0.9.0 → 0.10 candidate | one thread | 222 | 2 | 3 |  | solo · ReceivingMessage · saturated ×0.807 |
-| `x86-icelake` | 0.9.0 → 0.10 candidate | every core | 262 | 50 | 3 | 72 | shared-two-caches · MerkleTree · 65536 x 32 B ×0.571 |
-| `x86-icelake` | 0.8.0 → 0.10 candidate | one thread | 213 | 12 | 0 |  | solo · OneMessage · 7935 B ×0.636 |
-| `x86-icelake-2` | 0.9.0 → 0.10 candidate | one thread | 222 | 2 | 1 |  | solo · ReceivingMessage · saturated ×0.806 |
-| `x86-icelake-2` | 0.9.0 → 0.10 candidate | every core | 264 | 40 | 0 | 70 | shared-two-caches · MerkleTree · 65536 x 32 B ×0.607 |
-| `x86-icelake-2` | 0.8.0 → 0.10 candidate | one thread | 213 | 15 | 1 |  | solo · OneMessage · 3839 B ×0.620 |
+| `x86-icelake` | 0.9.0 → 0.10 candidate (ad163558) | one thread | 222 | 2 | 2 |  | solo · ReceivingMessage · saturated ×0.804 |
+| `x86-icelake` | 0.9.0 → 0.10 candidate (ad163558) | every core | 266 | 57 | 2 | 68 | shared-two-caches · MerkleTree · 65536 x 32 B ×0.581 |
+| `x86-icelake` | 0.8.0 → 0.10 earlier (70483031) | one thread | 213 | 12 | 0 |  | solo · OneMessage · 7935 B ×0.636 |
+| `x86-icelake-2` | 0.9.0 → 0.10 candidate (ad163558) | one thread | 222 | 2 | 1 |  | solo · ReceivingMessage · 2 μs ×0.801 |
+| `x86-icelake-2` | 0.9.0 → 0.10 candidate (ad163558) | every core | 265 | 51 | 4 | 69 | shared-two-caches · MerkleTree · 65536 x 32 B ×0.585 |
+| `x86-icelake-2` | 0.8.0 → 0.10 earlier (70483031) | one thread | 213 | 15 | 1 |  | solo · OneMessage · 3839 B ×0.620 |
 | `x86-avx2` | 0.8.0 → 0.9.0 | one thread | 213 | 4 | 1 |  | solo · ContinuousMessages · 64 B ×0.845 |
-| `x86-avx2` | 0.9.0 → 0.10 candidate | one thread | 221 | 24 | 0 | 1 | solo · OneMessage · 4 MiB ×0.772 |
-| `x86-avx2` | 0.9.0 → 0.10 candidate | every core | 265 | 78 | 1 | 69 | shared-one-cache · LentBatches · 65536 ×0.039 |
-| `x86-avx2` | 0.8.0 → 0.10 candidate | one thread | 213 | 7 | 0 |  | solo · BriefIdleOneMessage · 3 KiB ×0.672 |
-| `apple-m6` | 0.9.0 → 0.10 candidate | one thread | 221 | 5 | 0 | 1 | solo · ManyMessages · 1 ×0.888 |
-| `apple-m6` | 0.9.0 → 0.10 candidate | every core | 226 | 4 | 0 | 52 | shared-os · ContinuousMessages · 16 KiB ×0.472 |
+| `x86-avx2` | 0.9.0 → 0.10 candidate (ad163558) | one thread | 222 | 23 | 1 |  | solo · OneMessage · 4 MiB ×0.761 |
+| `x86-avx2` | 0.9.0 → 0.10 candidate (ad163558) | every core | 267 | 75 | 1 | 67 | shared-one-cache · LentBatches · 65536 ×0.052 |
+| `x86-avx2` | 0.8.0 → 0.10 earlier (70483031) | one thread | 213 | 7 | 0 |  | solo · BriefIdleOneMessage · 3 KiB ×0.672 |
+| `apple-m6` | 0.9.0 → 0.10 candidate (ad163558) | one thread | 222 | 6 | 3 |  | solo · ReceivingMessage · saturated ×0.913 |
+| `apple-m6` | 0.9.0 → 0.10 candidate (ad163558) | every core | 232 | 9 | 3 | 46 | shared-os · ContinuousMessages · 16 KiB ×0.568 |
 
 A cell's name reads scenario, use case, then size or count: `solo` is the program
 alone, `shared-…` is beside another busy program.
 
-Steps from 0.8.0 cover the one-thread form. Each library version is measured by
+Steps from 0.8.0 cover the one-thread form (`0.8.0 → 0.10 earlier` measured `70483031` without a `0.21 → 0.23` same-library control). Each library version is measured by
 the bench release of its time, and only cells that both releases define are
-compared. For 0.9.0 → 0.10 the same library was also measured under both bench
-releases; the cells where that control already differs are the benchmark's own
-change of call (the every-core stream cells moved to the library's Pipeline), and
-the counts leave them out. Each machine's page lists them with both ratios.
+compared. For `0.9.0 → 0.10 candidate (ad163558)` the same library was also measured under both bench
+releases; the cells where that control already differs are restricted to the
+every-core Pipeline cells whose call changed in 0.23 (`ContinuousMessages`,
+`ContinuousBatches`, `ContinuousCollection`, `ReceivingMessage`), and the counts leave them out.
+Each machine's page lists them with both ratios.
 
 Each machine's cells by use case, its slower cells by name and its ten largest
 gains: [`apple-m6`](library/apple-m6.md), [`x86-9700x`](library/x86-9700x.md), [`x86-avx2`](library/x86-avx2.md), [`x86-epyc-9255`](library/x86-epyc-9255.md), [`x86-epyc-9275f`](library/x86-epyc-9275f.md), [`x86-icelake-2`](library/x86-icelake-2.md), [`x86-icelake`](library/x86-icelake.md).
@@ -257,22 +278,16 @@ gains: [`apple-m6`](library/apple-m6.md), [`x86-9700x`](library/x86-9700x.md), [
 
 ## Evidence
 
-- **This folder:** `evidence/<machine>/evolution-010/` holds each machine's b3sum
-  report and samples, the kept runs of its 0.8.0 → 0.10 check, the versions and
-  toolchain, and `run.sh`; `evidence/recipe/` holds the three runs of the commands
-  above; `tools/` holds the scripts that wrote this page. `SHA256SUMS` and
-  `BLAKE3SUMS` cover every file.
-- **Apple M6:** its b3sum report and samples are in `evidence/apple-m6/`, as published
-  in bench-hashes' `benchmark-results/AppleM6.darwin27/`.
+- **This folder and `b3sum-0100-ad163558`:** [`../b3sum-0100-ad163558/`](../b3sum-0100-ad163558/README.md) holds each Linux machine's `ad163558` full and quick `b3sum` reports, samples, and `run.sh`; `evidence/<machine>/release-0100-follow/` holds each machine's `b3sum-base-0100` report and `0.9.0 → ad163558` library check (`kept-release/`); `evidence/<machine>/evolution-010/` holds the earlier `0.8.0 → 70483031` library check (`kept-08-to-010/`); `evidence/recipe/` holds the three runs of the commands above; `tools/` holds the scripts that wrote this page. `SHA256SUMS` and `BLAKE3SUMS` cover every file.
+- **Apple M6:** `evidence/apple-m6/` holds the `70483031` `b3sum` report and samples (`benchmark-results/AppleM6.darwin27/`) plus `3244-release-0.10.0-check/` (`0.9.0 → ad163558` library check).
 - **0.8.0 → 0.9.0:** the release runs of bench-hashes 0.22,
   [`2026-11-13/release-022/`](../../2026-11-13/release-022/README.md).
-- **0.9.0 → 0.10 candidate, the same-library control, and b3sum against official:**
-  the release runs of bench-hashes 0.23,
-  [`2026-11-16/release-023/`](../release-023/README.md); the same b3sum results are
+- **Same-library control and earlier `0.10` (`70483031`):**
+  [`2026-11-16/release-023/`](../release-023/README.md); the `70483031` `b3sum` results are
   drawn on the [published overview](https://servil-software-factory.github.io/bench-hashes/).
 - **Versions:** BLAKE3-Servil 0.8.0 `b5b988d8982bea9490c38c79ec4b8c5c2428270c`,
-  0.9.0 `bf2da8b957f5e0c80babb57952de3e53f95c921a`, 0.10 candidate
-  `7048303103c69b8609ffe9ca0361197ba318107c`; official b3sum 1.8.7; bench-hashes
+  0.9.0 `bf2da8b957f5e0c80babb57952de3e53f95c921a`, 0.10 baseline
+  `ad163558bd882ca7768e59764c6588fce0f285f9` (earlier `0.8 → 0.10` and `apple-m6` b3sum used `7048303103c69b8609ffe9ca0361197ba318107c`); official b3sum 1.8.7; bench-hashes
   `0.23.0+ba147639c35454e648847adbb08e2435e450493e`.
 - **How the tables are made:** b3sum cells are copied from each run's report; library
   verdicts are `bench-hashes compare`'s over the kept runs, with the second stage's

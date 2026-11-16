@@ -2,7 +2,7 @@
 
 Measured November 16, 2026, on six x86-64 Linux machines with
 [bench-hashes](https://github.com/servil-software-factory/bench-hashes) 0.23.
-"0.10 candidate" is commit `7048303103c69b8609ffe9ca0361197ba318107c` of
+"0.10 candidate" is commit `ad163558bd882ca7768e59764c6588fce0f285f9` (`release/0.10.0`, code parent `4e8634b71df01d406906025b4ccda17a828a2aa7`) of
 [BLAKE3-Servil](https://github.com/servil-software-factory/BLAKE3), measured
 before the 0.10.0 tag exists; @@STATUS@@
 
@@ -28,7 +28,7 @@ in the same rounds on each machine, four separately linked copies of each.
 
 #### On an Apple M6 (macOS)
 
-One run on the dedicated timing Mac, the 0.10 candidate against official b3sum
+One earlier run at `70483031` on the dedicated timing Mac, against official b3sum
 1.8.7, both built there. The Mac queue builds one BLAKE3-Servil version a job, so
 0.9.0 has no column here.
 
@@ -42,6 +42,14 @@ One run on the dedicated timing Mac, the 0.10 candidate against official b3sum
 
 @@AGAIN-09@@
 
+#### Quick suite (`100 x 16 KiB`, 5 rounds)
+
+The `--quick` suite adds `100 x 16 KiB` (where `9de026af` ramps reader threads with file count):
+
+@@across-010-vs-09-quick@@
+
+@@READING-09-QUICK@@
+
 ### 0.8.0 against 0.9.0
 
 In this table 0.8.0 is the program judged: below 1 means 0.8.0 took less time than
@@ -54,8 +62,7 @@ In this table 0.8.0 is the program judged: below 1 means 0.8.0 took less time th
 The two are close. Where they differ, 0.8.0 is the faster one, most clearly when
 every small file gets its own process; "Known costs" below says what that is.
 
-Each machine's full tables, with the mean times: @@B3SUM-PAGES@@ Each machine's
-second run is beside its page (`b3sum/<machine>-second-run.md`).
+Each machine's full and quick tables, with the mean times: @@B3SUM-PAGES@@
 
 ### Try it yourself
 
@@ -68,7 +75,7 @@ RUSTFLAGS="-C target-feature=+crt-static" cargo install b3sums --version 0.9.0 \
     --target x86_64-unknown-linux-gnu --root servil-0.9
 RUSTFLAGS="-C target-feature=+crt-static" cargo install b3sums \
     --git https://github.com/servil-software-factory/BLAKE3 \
-    --rev 7048303103c69b8609ffe9ca0361197ba318107c \
+    --rev ad163558bd882ca7768e59764c6588fce0f285f9 \
     --target x86_64-unknown-linux-gnu --root servil-0.10
 ```
 
@@ -103,12 +110,13 @@ the old and the new library in alternating pairs and judges every cell.
 A cell's name reads scenario, use case, then size or count: `solo` is the program
 alone, `shared-…` is beside another busy program.
 
-Steps from 0.8.0 cover the one-thread form. Each library version is measured by
+Steps from 0.8.0 cover the one-thread form (`0.8.0 → 0.10 earlier` measured `70483031` without a `0.21 → 0.23` same-library control). Each library version is measured by
 the bench release of its time, and only cells that both releases define are
-compared. For 0.9.0 → 0.10 the same library was also measured under both bench
-releases; the cells where that control already differs are the benchmark's own
-change of call (the every-core stream cells moved to the library's Pipeline), and
-the counts leave them out. Each machine's page lists them with both ratios.
+compared. For `0.9.0 → 0.10 candidate (ad163558)` the same library was also measured under both bench
+releases; the cells where that control already differs are restricted to the
+every-core Pipeline cells whose call changed in 0.23 (`ContinuousMessages`,
+`ContinuousBatches`, `ContinuousCollection`, `ReceivingMessage`), and the counts leave them out.
+Each machine's page lists them with both ratios.
 
 Each machine's cells by use case, its slower cells by name and its ten largest
 gains: @@LIBRARY-PAGES@@

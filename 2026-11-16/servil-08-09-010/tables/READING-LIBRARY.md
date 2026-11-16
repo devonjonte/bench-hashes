@@ -1,4 +1,4 @@
 - **0.8.0 → 0.9.0, one thread** (5 machines): 4 to 16 cells faster and 0 to 5 slower per machine, of 213.
-- **0.9.0 → 0.10 candidate, one thread** (7 machines): 2 to 24 cells faster and 0 to 3 slower per machine, of 220 to 222.
-- **0.9.0 → 0.10 candidate, every core** (7 machines): 0 to 78 cells faster and 0 to 11 slower per machine, of 226 to 265.
-- **0.8.0 → 0.10 candidate, one thread** (6 machines): 7 to 18 cells faster and 0 to 2 slower per machine, of 213.
+- **0.9.0 → 0.10 candidate (ad163558), one thread** (7 machines): 2 to 23 cells faster and 0 to 3 slower per machine, of 222.
+- **0.9.0 → 0.10 candidate (ad163558), every core** (7 machines): 1 to 75 cells faster and 0 to 6 slower per machine, of 231 to 271.
+- **0.8.0 → 0.10 earlier (70483031), one thread** (6 machines): 7 to 18 cells faster and 0 to 2 slower per machine, of 213.

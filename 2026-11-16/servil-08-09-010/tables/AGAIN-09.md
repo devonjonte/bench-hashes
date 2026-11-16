@@ -1,1 +1,1 @@
-**A second run** of the same programs on 6 machines, each machine's 20 cells again: 45 cells are marked faster in both runs, 5 in the first only and 1 in the second only. Marked slower: `x86-avx2` 1000 x 16 KiB, cold (both runs).
+*(A single `ad163558` run ran per host; a repeat run waits on the final `0.10.0` tag commit.)*

@@ -40,159 +40,157 @@ The ten largest gains:
 - `blake3-servil-st|solo|ContinuousMessages|128 B`: ×0.915
 - `blake3-servil-st|solo|LentMessages|128 B`: ×0.915
 
-## 0.9.0 → 0.10 candidate
+## 0.9.0 → 0.10 candidate (ad163558)
 
-`old side: bench d7723f110a6f clean; servil bf2da8b957f5 clean`; `new side: bench cade30fdb716 clean; servil 7048303103c6 clean`
+`old side: bench d7723f110a6f clean; servil bf2da8b957f5 clean`; `new side: bench cade30fdb716 clean; servil ad163558bd88 clean`
 
-486 cells over 4 pairs (16 of them measured again over more pairs and link layouts): **102 faster, 1 slower**, the rest level.
+489 cells over 4 pairs (18 of them measured again over more pairs and link layouts): **98 faster, 2 slower**, the rest level.
 
 | form | scenario | use case | cells | faster | slower | median time ratio | range |
 |---|---|---|---:|---:|---:|---:|---|
-| one thread | solo | OneMessage | 28 | 6 | 0 | ×0.985 | ×0.772–×1.079 |
-| one thread | solo | ManyMessages | 24 | 8 | 0 | ×0.954 | ×0.821–×1.107 |
-| one thread | solo | ManyLongMessages | 4 | 3 | 0 | ×0.951 | ×0.880–×0.959 |
-| one thread | solo | IdleOneMessage | 28 | 1 | 0 | ×0.986 | ×0.882–×1.045 |
-| one thread | solo | IdleManyMessages | 24 | 0 | 0 | ×0.996 | ×0.933–×1.078 |
-| one thread | solo | BriefIdleOneMessage | 28 | 0 | 0 | ×0.991 | ×0.914–×1.028 |
-| one thread | solo | BriefIdleManyMessages | 24 | 2 | 0 | ×0.992 | ×0.884–×1.059 |
-| one thread | solo | ContinuousMessages | 13 | 1 | 0 | ×0.991 | ×0.949–×1.009 |
-| one thread | solo | ContinuousBatches | 7 | 0 | 0 | ×1.002 | ×0.888–×1.036 |
-| one thread | solo | LentMessages | 12 | 0 | 0 | ×0.992 | ×0.912–×1.009 |
-| one thread | solo | Interleaved | 1 | 0 | 0 | ×0.998 | ×0.998–×0.998 |
-| one thread | solo | Collection | 2 | 0 | 0 | ×0.995 | ×0.991–×0.999 |
-| one thread | solo | LentBatches | 7 | 0 | 0 | ×1.002 | ×0.888–×1.036 |
-| one thread | solo | ContinuousCollection | 2 | 0 | 0 | ×0.986 | ×0.982–×0.990 |
-| one thread | solo | MerkleTree | 8 | 1 | 0 | ×0.995 | ×0.924–×1.019 |
-| one thread | solo | InterleavedTurn | 2 | 0 | 0 | ×1.163 | ×0.976–×1.351 |
-| one thread | solo | IdleInterleavedTurn | 2 | 0 | 0 | ×0.994 | ×0.978–×1.010 |
-| one thread | solo | BriefIdleInterleavedTurn | 2 | 0 | 0 | ×1.048 | ×1.013–×1.084 |
-| one thread | solo | ReceivingMessage | 3 | 2 | 0 | ×0.853 | ×0.851–×0.999 |
-| every core | solo | OneMessage | 27 | 10 | 0 | ×0.966 | ×0.311–×1.054 |
-| every core | solo | ManyMessages | 23 | 6 | 0 | ×0.946 | ×0.291–×0.998 |
-| every core | solo | ManyLongMessages | 4 | 3 | 0 | ×0.946 | ×0.318–×0.952 |
-| every core | solo | IdleOneMessage | 28 | 8 | 0 | ×0.964 | ×0.408–×1.041 |
-| every core | solo | IdleManyMessages | 24 | 6 | 0 | ×0.958 | ×0.377–×1.068 |
-| every core | solo | BriefIdleOneMessage | 28 | 7 | 0 | ×0.984 | ×0.291–×1.023 |
-| every core | solo | BriefIdleManyMessages | 24 | 6 | 0 | ×0.992 | ×0.235–×1.040 |
-| every core | solo | ContinuousBatches | 1 | 1 | 0 | ×0.093 | ×0.093–×0.093 |
-| every core | solo | LentMessages | 13 | 3 | 0 | ×0.999 | ×0.215–×1.004 |
-| every core | solo | Interleaved | 1 | 0 | 0 | ×0.980 | ×0.980–×0.980 |
-| every core | solo | Collection | 2 | 0 | 0 | ×0.901 | ×0.874–×0.928 |
-| every core | solo | LentBatches | 7 | 2 | 0 | ×1.002 | ×0.081–×1.063 |
-| every core | solo | MerkleTree | 8 | 6 | 0 | ×0.492 | ×0.126–×1.003 |
-| every core | solo | InterleavedTurn | 2 | 0 | 0 | ×1.117 | ×0.983–×1.251 |
-| every core | solo | IdleInterleavedTurn | 2 | 0 | 0 | ×0.990 | ×0.984–×0.995 |
-| every core | solo | BriefIdleInterleavedTurn | 2 | 0 | 0 | ×1.015 | ×1.009–×1.022 |
+| one thread | solo | OneMessage | 28 | 7 | 0 | ×0.978 | ×0.761–×1.104 |
+| one thread | solo | ManyMessages | 24 | 7 | 0 | ×0.940 | ×0.772–×1.025 |
+| one thread | solo | ManyLongMessages | 4 | 1 | 0 | ×0.986 | ×0.873–×1.006 |
+| one thread | solo | IdleOneMessage | 28 | 0 | 0 | ×0.996 | ×0.939–×1.033 |
+| one thread | solo | IdleManyMessages | 24 | 1 | 0 | ×1.000 | ×0.914–×1.304 |
+| one thread | solo | BriefIdleOneMessage | 28 | 1 | 0 | ×0.993 | ×0.950–×1.407 |
+| one thread | solo | BriefIdleManyMessages | 24 | 3 | 0 | ×1.006 | ×0.882–×1.072 |
+| one thread | solo | ContinuousMessages | 13 | 0 | 0 | ×0.992 | ×0.846–×1.010 |
+| one thread | solo | ContinuousBatches | 7 | 0 | 0 | ×0.966 | ×0.783–×0.996 |
+| one thread | solo | LentMessages | 13 | 0 | 0 | ×0.995 | ×0.846–×1.010 |
+| one thread | solo | Interleaved | 1 | 0 | 0 | ×1.010 | ×1.010–×1.010 |
+| one thread | solo | Collection | 2 | 0 | 0 | ×0.983 | ×0.980–×0.986 |
+| one thread | solo | LentBatches | 7 | 0 | 0 | ×0.966 | ×0.783–×0.996 |
+| one thread | solo | ContinuousCollection | 2 | 0 | 0 | ×0.890 | ×0.862–×0.918 |
+| one thread | solo | MerkleTree | 8 | 0 | 1 | ×0.996 | ×0.938–×1.050 |
+| one thread | solo | InterleavedTurn | 2 | 1 | 0 | ×0.891 | ×0.819–×0.963 |
+| one thread | solo | IdleInterleavedTurn | 2 | 0 | 0 | ×0.942 | ×0.910–×0.973 |
+| one thread | solo | BriefIdleInterleavedTurn | 2 | 0 | 0 | ×1.040 | ×1.011–×1.070 |
+| one thread | solo | ReceivingMessage | 3 | 2 | 0 | ×0.848 | ×0.844–×1.000 |
+| every core | solo | OneMessage | 28 | 8 | 0 | ×0.973 | ×0.322–×1.044 |
+| every core | solo | ManyMessages | 24 | 6 | 0 | ×0.933 | ×0.283–×1.027 |
+| every core | solo | ManyLongMessages | 4 | 1 | 0 | ×0.964 | ×0.337–×0.991 |
+| every core | solo | IdleOneMessage | 28 | 6 | 1 | ×0.976 | ×0.421–×1.082 |
+| every core | solo | IdleManyMessages | 24 | 6 | 0 | ×0.978 | ×0.352–×1.061 |
+| every core | solo | BriefIdleOneMessage | 28 | 6 | 0 | ×0.986 | ×0.282–×1.031 |
+| every core | solo | BriefIdleManyMessages | 24 | 6 | 0 | ×1.003 | ×0.244–×1.027 |
+| every core | solo | ContinuousBatches | 1 | 1 | 0 | ×0.142 | ×0.142–×0.142 |
+| every core | solo | LentMessages | 13 | 2 | 0 | ×0.995 | ×0.239–×1.006 |
+| every core | solo | Interleaved | 1 | 0 | 0 | ×1.006 | ×1.006–×1.006 |
+| every core | solo | Collection | 2 | 1 | 0 | ×0.684 | ×0.538–×0.830 |
+| every core | solo | LentBatches | 7 | 2 | 0 | ×0.960 | ×0.138–×0.996 |
+| every core | solo | MerkleTree | 8 | 7 | 0 | ×0.446 | ×0.088–×1.006 |
+| every core | solo | InterleavedTurn | 2 | 0 | 0 | ×0.978 | ×0.973–×0.984 |
+| every core | solo | IdleInterleavedTurn | 2 | 0 | 0 | ×0.938 | ×0.874–×1.002 |
+| every core | solo | BriefIdleInterleavedTurn | 2 | 0 | 0 | ×1.002 | ×0.995–×1.008 |
 | every core | solo | ReceivingMessage | 1 | 0 | 0 | ×1.000 | ×1.000–×1.000 |
-| every core | shared-one-cache | ContinuousBatches | 1 | 1 | 0 | ×0.084 | ×0.084–×0.084 |
-| every core | shared-one-cache | LentMessages | 13 | 2 | 0 | ×0.992 | ×0.103–×1.004 |
-| every core | shared-one-cache | Interleaved | 1 | 0 | 0 | ×1.029 | ×1.029–×1.029 |
-| every core | shared-one-cache | Collection | 2 | 1 | 0 | ×0.885 | ×0.884–×0.887 |
-| every core | shared-one-cache | LentBatches | 7 | 2 | 0 | ×1.004 | ×0.039–×1.064 |
-| every core | shared-one-cache | MerkleTree | 8 | 3 | 0 | ×0.732 | ×0.079–×1.049 |
+| every core | shared-one-cache | ContinuousBatches | 1 | 1 | 0 | ×0.116 | ×0.116–×0.116 |
+| every core | shared-one-cache | LentMessages | 13 | 3 | 0 | ×0.993 | ×0.115–×1.006 |
+| every core | shared-one-cache | Interleaved | 1 | 0 | 0 | ×1.011 | ×1.011–×1.011 |
+| every core | shared-one-cache | Collection | 2 | 0 | 0 | ×0.944 | ×0.943–×0.944 |
+| every core | shared-one-cache | LentBatches | 7 | 2 | 0 | ×0.963 | ×0.052–×1.004 |
+| every core | shared-one-cache | MerkleTree | 8 | 4 | 0 | ×0.755 | ×0.100–×0.995 |
 | every core | shared-one-cache | ReceivingMessage | 1 | 0 | 0 | ×1.000 | ×1.000–×1.000 |
-| every core | shared-two-caches | ContinuousMessages | 1 | 1 | 0 | ×0.639 | ×0.639–×0.639 |
-| every core | shared-two-caches | ContinuousBatches | 2 | 1 | 0 | ×0.434 | ×0.074–×0.795 |
-| every core | shared-two-caches | LentMessages | 13 | 3 | 1 | ×0.988 | ×0.091–×1.094 |
-| every core | shared-two-caches | Interleaved | 1 | 0 | 0 | ×0.960 | ×0.960–×0.960 |
-| every core | shared-two-caches | Collection | 2 | 1 | 0 | ×0.845 | ×0.774–×0.915 |
-| every core | shared-two-caches | LentBatches | 7 | 2 | 0 | ×0.999 | ×0.075–×1.069 |
-| every core | shared-two-caches | MerkleTree | 8 | 3 | 0 | ×0.708 | ×0.091–×0.996 |
+| every core | shared-two-caches | ContinuousMessages | 1 | 1 | 0 | ×0.661 | ×0.661–×0.661 |
+| every core | shared-two-caches | ContinuousBatches | 2 | 1 | 0 | ×0.460 | ×0.087–×0.834 |
+| every core | shared-two-caches | LentMessages | 13 | 3 | 0 | ×0.989 | ×0.099–×1.005 |
+| every core | shared-two-caches | Interleaved | 1 | 0 | 0 | ×0.986 | ×0.986–×0.986 |
+| every core | shared-two-caches | Collection | 2 | 0 | 0 | ×0.954 | ×0.933–×0.974 |
+| every core | shared-two-caches | LentBatches | 7 | 2 | 0 | ×0.941 | ×0.077–×0.985 |
+| every core | shared-two-caches | MerkleTree | 8 | 6 | 0 | ×0.734 | ×0.093–×1.040 |
 | every core | shared-two-caches | ReceivingMessage | 1 | 0 | 0 | ×1.000 | ×1.000–×1.000 |
 
 Slower cells, each by name:
 
-- `blake3-servil-mt|shared-two-caches|LentMessages|64 MiB`: ×1.094
+- `blake3-servil-st|solo|MerkleTree|1048576 x 32 B`: ×1.050
+- `blake3-servil-mt|solo|IdleOneMessage|3839 B`: ×1.082
 
 The ten largest gains:
 
-- `blake3-servil-mt|shared-one-cache|LentBatches|65536`: ×0.039
-- `blake3-servil-mt|shared-one-cache|LentBatches|16384`: ×0.073
-- `blake3-servil-mt|shared-two-caches|ContinuousBatches|16384`: ×0.074
-- `blake3-servil-mt|shared-two-caches|LentBatches|16384`: ×0.075
-- `blake3-servil-mt|shared-one-cache|MerkleTree|16384`: ×0.079
-- `blake3-servil-mt|shared-two-caches|LentBatches|65536`: ×0.079
-- `blake3-servil-mt|solo|LentBatches|65536`: ×0.081
-- `blake3-servil-mt|shared-one-cache|ContinuousBatches|16384`: ×0.084
-- `blake3-servil-mt|shared-two-caches|LentMessages|4 MiB`: ×0.091
-- `blake3-servil-mt|shared-two-caches|MerkleTree|16384`: ×0.091
+- `blake3-servil-mt|shared-one-cache|LentBatches|65536`: ×0.052
+- `blake3-servil-mt|shared-two-caches|LentBatches|65536`: ×0.077
+- `blake3-servil-mt|shared-two-caches|LentBatches|16384`: ×0.081
+- `blake3-servil-mt|shared-two-caches|ContinuousBatches|16384`: ×0.087
+- `blake3-servil-mt|solo|MerkleTree|65536`: ×0.088
+- `blake3-servil-mt|shared-one-cache|LentBatches|16384`: ×0.090
+- `blake3-servil-mt|shared-two-caches|MerkleTree|16384`: ×0.093
+- `blake3-servil-mt|shared-two-caches|LentMessages|1 MiB`: ×0.099
+- `blake3-servil-mt|shared-one-cache|MerkleTree|16384`: ×0.100
+- `blake3-servil-mt|shared-one-cache|LentMessages|4 MiB`: ×0.115
 
-### Cells that move with the benchmark's own call (70)
+### Cells that move with the benchmark's own call (67)
 
 The two bench releases call the library differently in these cells: the same library (`bench cade30fdb716 clean; servil 7048303103c6 clean`) under both benches already differs, so the tables above leave them out. Each line: the release comparison's ratio, then the same-library control's.
 
-- `blake3-servil-st|solo|LentMessages|16 MiB`: ×0.976 level; control ×1.031 slower
-- `blake3-servil-mt|solo|OneMessage|2 KiB`: ×0.894 level; control ×1.136 slower
-- `blake3-servil-mt|solo|ManyMessages|32768`: ×0.313 faster; control ×0.837 faster
-- `blake3-servil-mt|solo|ContinuousMessages|64 B`: ×0.756 faster; control ×0.674 faster
-- `blake3-servil-mt|solo|ContinuousMessages|128 B`: ×0.363 faster; control ×0.356 faster
-- `blake3-servil-mt|solo|ContinuousMessages|256 B`: ×0.209 faster; control ×0.204 faster
-- `blake3-servil-mt|solo|ContinuousMessages|512 B`: ×0.132 faster; control ×0.131 faster
-- `blake3-servil-mt|solo|ContinuousMessages|1 KiB`: ×0.102 faster; control ×0.099 faster
-- `blake3-servil-mt|solo|ContinuousMessages|4 KiB`: ×0.240 faster; control ×0.233 faster
-- `blake3-servil-mt|solo|ContinuousMessages|16 KiB`: ×0.269 faster; control ×0.253 faster
-- `blake3-servil-mt|solo|ContinuousMessages|64 KiB`: ×0.227 faster; control ×0.232 faster
-- `blake3-servil-mt|solo|ContinuousMessages|256 KiB`: ×0.225 faster; control ×0.239 faster
-- `blake3-servil-mt|solo|ContinuousMessages|1 MiB`: ×0.227 faster; control ×0.233 faster
-- `blake3-servil-mt|solo|ContinuousMessages|4 MiB`: ×0.217 faster; control ×0.210 faster
-- `blake3-servil-mt|solo|ContinuousMessages|16 MiB`: ×0.201 faster; control ×0.208 faster
-- `blake3-servil-mt|solo|ContinuousMessages|64 MiB`: ×0.251 faster; control ×0.264 faster
+- `blake3-servil-mt|solo|ContinuousMessages|64 B`: ×0.683 faster; control ×0.674 faster
+- `blake3-servil-mt|solo|ContinuousMessages|128 B`: ×0.366 faster; control ×0.356 faster
+- `blake3-servil-mt|solo|ContinuousMessages|256 B`: ×0.201 faster; control ×0.204 faster
+- `blake3-servil-mt|solo|ContinuousMessages|512 B`: ×0.137 faster; control ×0.131 faster
+- `blake3-servil-mt|solo|ContinuousMessages|1 KiB`: ×0.101 faster; control ×0.099 faster
+- `blake3-servil-mt|solo|ContinuousMessages|4 KiB`: ×0.234 faster; control ×0.233 faster
+- `blake3-servil-mt|solo|ContinuousMessages|16 KiB`: ×0.277 faster; control ×0.253 faster
+- `blake3-servil-mt|solo|ContinuousMessages|64 KiB`: ×0.243 faster; control ×0.232 faster
+- `blake3-servil-mt|solo|ContinuousMessages|256 KiB`: ×0.241 faster; control ×0.239 faster
+- `blake3-servil-mt|solo|ContinuousMessages|1 MiB`: ×0.235 faster; control ×0.233 faster
+- `blake3-servil-mt|solo|ContinuousMessages|4 MiB`: ×0.208 faster; control ×0.210 faster
+- `blake3-servil-mt|solo|ContinuousMessages|16 MiB`: ×0.205 faster; control ×0.208 faster
+- `blake3-servil-mt|solo|ContinuousMessages|64 MiB`: ×0.242 faster; control ×0.264 faster
 - `blake3-servil-mt|solo|ContinuousBatches|16`: ×0.375 faster; control ×0.378 faster
-- `blake3-servil-mt|solo|ContinuousBatches|64`: ×0.291 faster; control ×0.310 faster
-- `blake3-servil-mt|solo|ContinuousBatches|256`: ×0.264 faster; control ×0.274 faster
-- `blake3-servil-mt|solo|ContinuousBatches|1024`: ×0.249 faster; control ×0.245 faster
-- `blake3-servil-mt|solo|ContinuousBatches|4096`: ×0.276 faster; control ×0.290 faster
-- `blake3-servil-mt|solo|ContinuousBatches|65536`: ×0.159 faster; control ×2.019 slower
-- `blake3-servil-mt|solo|ContinuousCollection|git objects`: ×0.251 faster; control ×0.257 faster
-- `blake3-servil-mt|solo|ContinuousCollection|Nix files`: ×0.224 faster; control ×0.271 faster
-- `blake3-servil-mt|solo|ReceivingMessage|saturated`: ×0.159 faster; control ×0.187 faster
+- `blake3-servil-mt|solo|ContinuousBatches|64`: ×0.361 level; control ×0.310 faster
+- `blake3-servil-mt|solo|ContinuousBatches|256`: ×0.267 faster; control ×0.274 faster
+- `blake3-servil-mt|solo|ContinuousBatches|1024`: ×0.251 faster; control ×0.245 faster
+- `blake3-servil-mt|solo|ContinuousBatches|4096`: ×0.285 faster; control ×0.290 faster
+- `blake3-servil-mt|solo|ContinuousBatches|65536`: ×0.352 faster; control ×2.019 slower
+- `blake3-servil-mt|solo|ContinuousCollection|git objects`: ×0.198 faster; control ×0.257 faster
+- `blake3-servil-mt|solo|ContinuousCollection|Nix files`: ×0.214 faster; control ×0.271 faster
+- `blake3-servil-mt|solo|ReceivingMessage|saturated`: ×0.173 faster; control ×0.187 faster
 - `blake3-servil-mt|solo|ReceivingMessage|2 μs`: ×0.339 faster; control ×0.387 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousMessages|64 B`: ×0.713 faster; control ×0.701 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousMessages|128 B`: ×0.374 faster; control ×0.373 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousMessages|256 B`: ×0.230 faster; control ×0.217 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousMessages|512 B`: ×0.148 faster; control ×0.149 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousMessages|1 KiB`: ×0.116 faster; control ×0.122 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousMessages|4 KiB`: ×0.359 faster; control ×0.372 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousMessages|16 KiB`: ×0.413 faster; control ×0.420 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousMessages|64 KiB`: ×0.341 faster; control ×0.356 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousMessages|256 KiB`: ×0.344 faster; control ×0.350 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousMessages|1 MiB`: ×0.340 faster; control ×0.359 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousMessages|4 MiB`: ×0.346 faster; control ×0.376 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousMessages|16 MiB`: ×0.313 faster; control ×0.323 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousMessages|64 MiB`: ×0.323 faster; control ×0.329 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousBatches|16`: ×0.458 faster; control ×0.459 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousBatches|64`: ×0.420 faster; control ×0.420 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousBatches|256`: ×0.412 faster; control ×0.399 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousBatches|1024`: ×0.374 faster; control ×0.394 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousBatches|4096`: ×0.464 faster; control ×0.471 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousBatches|65536`: ×0.086 faster; control ×2.186 slower
-- `blake3-servil-mt|shared-one-cache|ContinuousCollection|git objects`: ×0.306 faster; control ×0.347 faster
-- `blake3-servil-mt|shared-one-cache|ContinuousCollection|Nix files`: ×0.271 faster; control ×0.400 faster
-- `blake3-servil-mt|shared-one-cache|ReceivingMessage|saturated`: ×0.272 faster; control ×0.307 faster
-- `blake3-servil-mt|shared-one-cache|ReceivingMessage|2 μs`: ×0.328 faster; control ×0.373 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousMessages|64 B`: ×1.299 slower; control ×1.216 slower
-- `blake3-servil-mt|shared-two-caches|ContinuousMessages|256 B`: ×0.388 faster; control ×0.392 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousMessages|512 B`: ×0.211 faster; control ×0.200 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousMessages|1 KiB`: ×0.157 faster; control ×0.155 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousMessages|4 KiB`: ×0.350 faster; control ×0.364 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousMessages|16 KiB`: ×0.431 faster; control ×0.419 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousMessages|64 KiB`: ×0.418 faster; control ×0.426 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousMessages|256 KiB`: ×0.412 faster; control ×0.428 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousMessages|1 MiB`: ×0.373 faster; control ×0.430 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousMessages|4 MiB`: ×0.420 faster; control ×0.417 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousMessages|16 MiB`: ×0.414 faster; control ×0.415 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousMessages|64 MiB`: ×0.440 faster; control ×0.431 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousBatches|64`: ×0.652 faster; control ×0.649 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousBatches|256`: ×0.588 faster; control ×0.588 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousBatches|1024`: ×0.524 faster; control ×0.534 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousBatches|4096`: ×0.540 faster; control ×0.562 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousBatches|65536`: ×0.196 faster; control ×2.963 slower
-- `blake3-servil-mt|shared-two-caches|ContinuousCollection|git objects`: ×0.361 faster; control ×0.400 faster
-- `blake3-servil-mt|shared-two-caches|ContinuousCollection|Nix files`: ×0.317 faster; control ×0.415 faster
-- `blake3-servil-mt|shared-two-caches|ReceivingMessage|saturated`: ×0.339 faster; control ×0.392 faster
-- `blake3-servil-mt|shared-two-caches|ReceivingMessage|2 μs`: ×0.395 faster; control ×0.447 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousMessages|64 B`: ×0.708 faster; control ×0.701 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousMessages|128 B`: ×0.372 faster; control ×0.373 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousMessages|256 B`: ×0.226 faster; control ×0.217 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousMessages|512 B`: ×0.153 faster; control ×0.149 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousMessages|1 KiB`: ×0.111 faster; control ×0.122 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousMessages|4 KiB`: ×0.375 faster; control ×0.372 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousMessages|16 KiB`: ×0.453 faster; control ×0.420 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousMessages|64 KiB`: ×0.340 faster; control ×0.356 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousMessages|256 KiB`: ×0.343 faster; control ×0.350 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousMessages|1 MiB`: ×0.332 faster; control ×0.359 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousMessages|4 MiB`: ×0.352 faster; control ×0.376 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousMessages|16 MiB`: ×0.324 faster; control ×0.323 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousMessages|64 MiB`: ×0.310 faster; control ×0.329 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousBatches|16`: ×0.423 faster; control ×0.459 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousBatches|64`: ×0.408 faster; control ×0.420 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousBatches|256`: ×0.394 faster; control ×0.399 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousBatches|1024`: ×0.372 faster; control ×0.394 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousBatches|4096`: ×0.461 faster; control ×0.471 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousBatches|65536`: ×0.106 faster; control ×2.186 slower
+- `blake3-servil-mt|shared-one-cache|ContinuousCollection|git objects`: ×0.278 faster; control ×0.347 faster
+- `blake3-servil-mt|shared-one-cache|ContinuousCollection|Nix files`: ×0.239 faster; control ×0.400 faster
+- `blake3-servil-mt|shared-one-cache|ReceivingMessage|saturated`: ×0.263 faster; control ×0.307 faster
+- `blake3-servil-mt|shared-one-cache|ReceivingMessage|2 μs`: ×0.325 faster; control ×0.373 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousMessages|64 B`: ×1.050 level; control ×1.216 slower
+- `blake3-servil-mt|shared-two-caches|ContinuousMessages|256 B`: ×0.401 faster; control ×0.392 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousMessages|512 B`: ×0.204 faster; control ×0.200 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousMessages|1 KiB`: ×0.160 faster; control ×0.155 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousMessages|4 KiB`: ×0.358 faster; control ×0.364 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousMessages|16 KiB`: ×0.426 faster; control ×0.419 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousMessages|64 KiB`: ×0.405 faster; control ×0.426 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousMessages|256 KiB`: ×0.413 faster; control ×0.428 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousMessages|1 MiB`: ×0.384 faster; control ×0.430 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousMessages|4 MiB`: ×0.401 faster; control ×0.417 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousMessages|16 MiB`: ×0.401 faster; control ×0.415 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousMessages|64 MiB`: ×0.422 faster; control ×0.431 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousBatches|64`: ×0.639 faster; control ×0.649 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousBatches|256`: ×0.585 faster; control ×0.588 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousBatches|1024`: ×0.504 faster; control ×0.534 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousBatches|4096`: ×0.546 faster; control ×0.562 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousBatches|65536`: ×0.190 faster; control ×2.963 slower
+- `blake3-servil-mt|shared-two-caches|ContinuousCollection|git objects`: ×0.336 faster; control ×0.400 faster
+- `blake3-servil-mt|shared-two-caches|ContinuousCollection|Nix files`: ×0.299 faster; control ×0.415 faster
+- `blake3-servil-mt|shared-two-caches|ReceivingMessage|saturated`: ×0.335 faster; control ×0.392 faster
+- `blake3-servil-mt|shared-two-caches|ReceivingMessage|2 μs`: ×0.379 faster; control ×0.447 faster
 
-## 0.8.0 → 0.10 candidate
+## 0.8.0 → 0.10 earlier (70483031)
 
 `old side: bench 3363bee8ff5e clean; servil b5b988d8982b clean`; `new side: bench cade30fdb716 clean; servil 7048303103c6 clean`
 

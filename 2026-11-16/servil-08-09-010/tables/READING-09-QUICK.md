@@ -1,0 +1,4 @@
+- **Faster on all 6 machines:** 4 x 16 MiB (cold).
+- **Faster on some machines:** 1 MiB (warm and cold); 4 x 16 MiB (warm); 16 MiB (cold).
+- **Level on every machine:** 4 KiB (warm and cold); 16 MiB (warm); mixed tree, 100 files, 5 MiB (warm and cold).
+- **Slower on a machine:** 100 x 16 KiB (warm and cold); 100 x 16 KiB, a process each (warm and cold).

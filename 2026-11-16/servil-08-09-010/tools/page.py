@@ -13,6 +13,8 @@ import evolve
 
 INBOX = Path("/home/agent/bench-hashes-validation/inbox")
 DATA = Path("/home/agent/bench-hashes-data")
+RUN, REPORT, QUICK_REPORT, NEW = "b3sum-0100-ad163558", "b3sum-full.stdout.txt", "b3sum-quick.stdout.txt", "b3sum-0.10.0"
+FOLLOW_RUN, OFFICIAL_REPORT = "release-0100-follow", "b3sum-base-0100.stdout.txt"
 HOSTS = ["x86-epyc-9275f", "x86-epyc-9255", "x86-9700x", "x86-icelake", "x86-icelake-2", "x86-avx2"]
 
 def field(text, name):
@@ -75,11 +77,12 @@ def summary(reports, column, caption):
         out.append("")
     return "\n".join(out)
 
-def across(reports, column, caption):
+def across(reports, column, caption, faster_label="faster", ratio_meaning="below 1 is faster"):
     """Inputs down; per file state the range of the hosts' judged ratios and how many hosts mark it."""
+    slower_label = "slower" if faster_label == "faster" else "faster"
     hosts = list(reports)
-    out = [f"**{caption}** ({len(hosts)} machines; time ratio, below 1 is faster)", "",
-           "| input | warm: range | warm: machines faster / slower | cold: range | cold: machines faster / slower |", "|---|---:|---:|---:|---:|"]
+    out = [f"**{caption}** ({len(hosts)} machines; time ratio, {ratio_meaning})", "",
+           f"| input | warm: range | warm: machines {faster_label} / {slower_label} | cold: range | cold: machines {faster_label} / {slower_label} |", "|---|---:|---:|---:|---:|"]
     first = sections(reports[hosts[0]])
     for name in first[0][2]:
         cells = [name]
@@ -89,12 +92,13 @@ def across(reports, column, caption):
                 _title, names, rows = sections(reports[h])[index]
                 pairs.append(ratio(rows[name][names.index(column)]))
             values = [float(r) for r, _ in pairs]
-            cells += [f"×{min(values):.2f}–×{max(values):.2f}", f"{sum(l == 'faster' for _, l in pairs)} / {sum(l == 'slower' for _, l in pairs)}"]
+            cells += [f"×{min(values):.2f}–×{max(values):.2f}", f"{sum(l == faster_label for _, l in pairs)} / {sum(l == slower_label for _, l in pairs)}"]
         out.append("| " + " | ".join(cells) + " |")
     return "\n".join(out)
 
-def reading(reports, column):
+def reading(reports, column, faster_label="faster"):
     """The across-table said in words: which inputs every machine marks, which some, which none."""
+    slower_label = "slower" if faster_label == "faster" else "faster"
     hosts = list(reports)
     groups = {"all": {}, "some": {}, "level": {}, "slower": {}}
     values_all = []
@@ -106,7 +110,7 @@ def reading(reports, column):
                 _title, names, rows = sections(reports[h])[index]
                 pairs.append(ratio(rows[name][names.index(column)]))
             values_all += [float(r) for r, _ in pairs]
-            faster, slower = sum(l == "faster" for _, l in pairs), sum(l == "slower" for _, l in pairs)
+            faster, slower = sum(l == faster_label for _, l in pairs), sum(l == slower_label for _, l in pairs)
             if slower:
                 groups["slower"].setdefault(name, []).append(state)
             group = "all" if faster == len(hosts) else "some" if faster else None if slower else "level"
@@ -180,10 +184,11 @@ def single(text, column, base):
 
 TRANSITIONS = [
     ("0.8.0 → 0.9.0", lambda h: DATA / "2026-11-13/release-022" / h / "kept-core"),
-    ("0.9.0 → 0.10 candidate", lambda h: mac_job(3210) if h == MAC else INBOX / h / "release-023-cade30fd/kept-release"),
-    ("0.8.0 → 0.10 candidate", lambda h: INBOX / h / "evolution-010/kept-08-to-010"),
+    ("0.9.0 → 0.10 candidate (ad163558)", lambda h: mac_job(3244) if h == MAC else INBOX / h / FOLLOW_RUN / "kept-release"),
+    ("0.8.0 → 0.10 earlier (70483031)", lambda h: INBOX / h / "evolution-010/kept-08-to-010"),
 ]
 
+PIPELINE_CELLS = {"ContinuousMessages", "ContinuousBatches", "ContinuousCollection", "ReceivingMessage"}
 CONTROL = lambda h: mac_job(3211) if h == MAC else INBOX / h / "release-023-cade30fd/kept-control"
 
 def library(host):
@@ -199,7 +204,10 @@ def library(host):
         moved = {}
         if name.startswith("0.9.0") and CONTROL(host).is_dir():
             control_sides, control_rows, _pairs = evolve.compare(CONTROL(host))
-            moved = {r["key"]: r for r in control_rows if r["label"].lower() in ("faster", "slower")}
+            # Only the cells whose call FROZEN changed for 0.23: the every-core form's owned
+            # stream, batch, collection and receiving cells, now through the Pipeline.
+            moved = {r["key"]: r for r in control_rows if r["label"].lower() in ("faster", "slower")
+                     and r["key"].startswith("blake3-servil-mt|") and r["key"].split("|")[2] in PIPELINE_CELLS}
         forms = {}
         for r in rows:
             form = evolve.NAMES.get(r["key"].split("|", 1)[0], r["key"].split("|", 1)[0])
@@ -233,24 +241,34 @@ def library(host):
 
 def main(out_dir):
     out = Path(out_dir); (out / "b3sum").mkdir(parents=True, exist_ok=True); (out / "library").mkdir(exist_ok=True); (out / "tables").mkdir(exist_ok=True)
-    evo, official = {}, {}
+    evo, quick, official = {}, {}, {}
     for h in HOSTS:
-        p = INBOX / h / "evolution-010/b3sum.stdout.txt"
-        if (INBOX / h / "evolution-010/stdout.txt").exists() and "EVOLUTION_EXIT=0" in (INBOX / h / "evolution-010/stdout.txt").read_text():
+        p = INBOX / h / RUN / REPORT
+        if p.exists() and "_EXIT=0" in (INBOX / h / RUN / "stdout.txt").read_text():
             evo[h] = p.read_text()
-            (out / "b3sum" / f"{h}.md").write_text(b3sum_host_page(h, evo[h]))
-        official[h] = (INBOX / h / "release-023-cade30fd/b3sum.stdout.txt").read_text()
-    evo2 = {h: (INBOX / h / "evolution-010-b3sum-again/b3sum.stdout.txt").read_text() for h in evo
-            if (INBOX / h / "evolution-010-b3sum-again/stdout.txt").exists() and "AGAIN_EXIT=0" in (INBOX / h / "evolution-010-b3sum-again/stdout.txt").read_text()}
+            qp = INBOX / h / RUN / QUICK_REPORT
+            if qp.exists():
+                quick[h] = qp.read_text()
+            host_md = b3sum_host_page(h, evo[h])
+            if h in quick:
+                host_md += "\n\n---\n\n" + b3sum_host_page(h, quick[h]).replace(
+                    f"# b3sum 0.8.0, 0.9.0 and the 0.10 candidate:",
+                    "# Quick suite (5 rounds, includes `100 x 16 KiB`):",
+                    1,
+                )
+            (out / "b3sum" / f"{h}.md").write_text(host_md)
+        official[h] = (INBOX / h / FOLLOW_RUN / OFFICIAL_REPORT).read_text()
+    evo2 = {}
     (out / "tables").mkdir(exist_ok=True)
-    (out / "tables" / "AGAIN-09.md").write_text(again(evo, evo2, "b3sum-0.10-candidate") + "\n")
-    for h, text in evo2.items():
-        (out / "b3sum" / f"{h}-second-run.md").write_text(b3sum_host_page(h, text).replace("# b3sum 0.8.0, 0.9.0 and the 0.10 candidate:", "# The second run of b3sum 0.8.0, 0.9.0 and the 0.10 candidate:", 1).replace("in this host's evidence folder", "in this host's `evolution-010-b3sum-again` evidence folder"))
-    a = summary(evo, "b3sum-0.10-candidate", "b3sum 0.10 candidate against b3sum 0.9.0")
+    (out / "tables" / "AGAIN-09.md").write_text("*(A single `ad163558` run ran per host; a repeat run waits on the final `0.10.0` tag commit.)*\n")
+    a = summary(evo, NEW, "b3sum 0.10 candidate (ad163558) against b3sum 0.9.0")
     b = summary(evo, "b3sum-0.8.0", "b3sum 0.8.0 against b3sum 0.9.0")
-    c = summary(official, "b3sum", "b3sum 0.10 candidate against official b3sum 1.8.7")
+    c = summary(official, "official", "official b3sum 1.8.7 against b3sum 0.10 candidate (ad163558)")
     loads = "\n".join(f"- `{h}`: {field(t, 'machine')}; {field(t, 'load')}; {field(t, 'runs')}" for h, t in evo.items())
-    for name, text in [("READING-OFFICIAL", reading(official, "b3sum")), ("READING-09", reading(evo, "b3sum-0.10-candidate")), ("READING-08", reading(evo, "b3sum-0.8.0"))]:
+    for name, text in [("READING-OFFICIAL", reading(official, "official", faster_label="slower")),
+                       ("READING-09", reading(evo, NEW)),
+                       ("READING-09-QUICK", reading(quick, NEW)),
+                       ("READING-08", reading(evo, "b3sum-0.8.0"))]:
         (out / "tables" / f"{name}.md").write_text(text + "\n")
     lib_rows = ["| host | step | form | cells | faster | slower | left out: the benchmark's call changed | largest gain |", "|---|---|---|---:|---:|---:|---:|---|"]
     mac = MAC_B3SUM.read_text()
@@ -273,9 +291,10 @@ def main(out_dir):
         f, sl = [r[1] for r in rows], [r[2] for r in rows]
         words.append(f"- **{step}, {form}** ({len(rows)} machines): {min(f)} to {max(f)} cells faster and {min(sl)} to {max(sl)} slower per machine, of {" to ".join(map(str, sorted({min(r[0] for r in rows), max(r[0] for r in rows)})))}.")
     (out / "tables" / "READING-LIBRARY.md").write_text("\n".join(words) + "\n")
-    for name, text in [("across-010-vs-09", across(evo, "b3sum-0.10-candidate", "b3sum 0.10 candidate against b3sum 0.9.0")),
+    for name, text in [("across-010-vs-09", across(evo, NEW, "b3sum 0.10 candidate (ad163558) against b3sum 0.9.0")),
+                       ("across-010-vs-09-quick", across(quick, NEW, "b3sum 0.10 candidate (ad163558) against b3sum 0.9.0 — quick suite (5 rounds, includes `100 x 16 KiB`)")),
                        ("across-08-vs-09", across(evo, "b3sum-0.8.0", "b3sum 0.8.0 against b3sum 0.9.0")),
-                       ("across-010-vs-official", across(official, "b3sum", "b3sum 0.10 candidate against official b3sum 1.8.7")),
+                       ("across-010-vs-official", across(official, "official", "official b3sum 1.8.7 against b3sum 0.10 candidate (ad163558)", faster_label="slower", ratio_meaning="above 1 means official took longer")),
                        ("b3sum-010-vs-09", a), ("b3sum-08-vs-09", b), ("b3sum-010-vs-official", c), ("hosts", loads), ("library", "\n".join(lib_rows))]:
         (out / "tables" / f"{name}.md").write_text(text + "\n")
     return evo
@@ -315,9 +334,12 @@ def evidence(out_dir):
                 q.write_bytes(data if p.suffix in {".tsv", ".html", ".svg"} else data.replace(b"/home/devon", b"<worker-home>"))
     for h in HOSTS:
         if (out / "b3sum" / f"{h}.md").exists():
-            copy(INBOX / h / "evolution-010", out / "evidence" / h / "evolution-010")
-            if (out / "b3sum" / f"{h}-second-run.md").exists():
-                copy(INBOX / h / "evolution-010-b3sum-again", out / "evidence" / h / "evolution-010-b3sum-again")
+            for run in (FOLLOW_RUN, "evolution-010"):
+                if (INBOX / h / run).is_dir():
+                    copy(INBOX / h / run, out / "evidence" / h / run)
+    mac3244 = mac_job(3244)
+    if mac3244.is_dir():
+        copy(mac3244.parent, out / "evidence/apple-m6/3244-release-0.10.0-check")
     for run in ("recipe-010", "recipe-010-v2", "evict-010"):
         copy(INBOX / "x86-workhorse" / run, out / "evidence/recipe" / run)
     (out / "tools").mkdir(exist_ok=True)
