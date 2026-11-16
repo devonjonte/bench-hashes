@@ -79,8 +79,34 @@ Readings to own:
   `.obao4` file is created per input through two writer threads.
 - **Large warm files favor Servil strongly**: ×0.064 at 1 GiB with default
   threads against the one-thread reference, ×0.93 at matched one-thread budget.
-- Cold cells were collected and retained (storage reads checked); their study,
-  including O_DIRECT behavior, keeps its own later plan.
+- Cold cells were collected and retained (storage reads checked); their reading
+  follows. O_DIRECT behavior keeps its own later plan.
+
+### Cold cells of the same pilot (read November 16)
+
+The same five-round survey, files evicted before each run; ratios against the
+bao-tree reference, copied from `pilot/bao-outboard-pilot-e92716a6-v2/b3sum.stdout.txt`:
+
+| Input, read from storage | bao (ref) | servil-outboard | servil-hash | servil-1-outboard | servil-1-hash |
+|---|---:|---:|---:|---:|---:|
+| 4 KiB | 489 μs | ×1.10 | ×0.90 | ×0.95 | ×0.88 |
+| 1 MiB | 1.77 ms | ×1.02 | ×0.88 | ×1.03 | ×1.05 |
+| 16 MiB | 18.2 ms | ×0.22 faster | ×0.24 faster | ×0.44 faster | ×0.93 |
+| 256 MiB | 275 ms | ×0.12 faster | ×0.17 faster | ×0.44 faster | ×1.00 |
+| 1 GiB | 645 ms | ×0.20 faster | ×0.29 faster | ×0.76 | ×0.95 |
+| 1000×16 KiB, one run | 68.2 ms | ×0.13 faster | ×0.065 faster | ×0.90 | ×0.15 faster |
+| 1000×16 KiB, process each | 243 ms | ×1.45 slower | ×1.21 slower | ×1.36 slower | ×1.25 slower |
+| 16×64 MiB | 866 ms | ×0.13 faster | ×0.14 faster | ×0.51 faster | ×1.15 |
+
+- **From storage, outboard generation beat hash-only at this commit** on large
+  files: 121 against 173 ms at 1 GiB with default threads, and ×0.44 against ×0.93
+  to ×1.00 at 16 and 256 MiB with one hashing thread. The outboard path reads
+  storage differently from the hash path of `ed4be078`.
+- **The library's later hash path closes that gap**: at the 0.10 candidate
+  `70483031`, hash-only reads a cold 1 GiB file in 116 ms on this machine, against
+  174 ms at 0.9.0 ([0.8 → 0.9 → 0.10 page](../../2026-11-16/servil-08-09-010/README.md)).
+- A process per small file stays slower than the reference, warm and cold
+  (BLAKE3 #375).
 
 ## Scope and next move
 
