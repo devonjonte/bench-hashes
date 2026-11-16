@@ -252,7 +252,7 @@ def main(out_dir):
     loads = "\n".join(f"- `{h}`: {field(t, 'machine')}; {field(t, 'load')}; {field(t, 'runs')}" for h, t in evo.items())
     for name, text in [("READING-OFFICIAL", reading(official, "b3sum")), ("READING-09", reading(evo, "b3sum-0.10-candidate")), ("READING-08", reading(evo, "b3sum-0.8.0"))]:
         (out / "tables" / f"{name}.md").write_text(text + "\n")
-    lib_rows = ["| host | step | form | cells | faster | slower | left out: the benchmark's call changed |", "|---|---|---|---:|---:|---:|---:|"]
+    lib_rows = ["| host | step | form | cells | faster | slower | left out: the benchmark's call changed | largest gain |", "|---|---|---|---:|---:|---:|---:|---|"]
     mac = MAC_B3SUM.read_text()
     (out / "tables" / "mac-vs-official.md").write_text(
         f"Load: {field(mac, 'load')}. Runs: {field(mac, 'runs')}.\n\n" + single(mac, "b3sum", "official") + "\n\n" + reading({MAC: mac}, "b3sum").replace("on all 1 machines", "there").replace("on a machine", "there").replace("on every machine", "there") + "\n")

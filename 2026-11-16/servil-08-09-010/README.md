@@ -170,8 +170,8 @@ the old and the new library in alternating pairs and judges every cell.
 - **0.9.0 → 0.10 candidate, every core** (6 machines): 0 to 78 cells faster and 0 to 11 slower per machine, of 230 to 265.
 - **0.8.0 → 0.10 candidate, one thread** (6 machines): 7 to 18 cells faster and 0 to 2 slower per machine, of 213.
 
-| host | step | form | cells | faster | slower | left out: the benchmark's call changed |
-|---|---|---|---:|---:|---:|---:|
+| host | step | form | cells | faster | slower | left out: the benchmark's call changed | largest gain |
+|---|---|---|---:|---:|---:|---:|---|
 | `x86-epyc-9275f` | 0.8.0 → 0.9.0 | one thread | 213 | 11 | 0 |  | solo · IdleOneMessage · 7935 B ×0.541 |
 | `x86-epyc-9275f` | 0.9.0 → 0.10 candidate | one thread | 222 | 16 | 0 |  | solo · ReceivingMessage · saturated ×0.579 |
 | `x86-epyc-9275f` | 0.9.0 → 0.10 candidate | every core | 265 | 47 | 11 | 69 | shared-one-cache · LentBatches · 16384 ×0.385 |
