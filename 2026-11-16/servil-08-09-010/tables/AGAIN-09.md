@@ -1,0 +1,1 @@
+**A second run** of the same programs on 4 machines, each machine's 20 cells again: 32 cells are marked faster in both runs, 4 in the first only and 1 in the second only. Neither run marks a cell slower.
