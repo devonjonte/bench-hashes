@@ -212,7 +212,7 @@ def library(host):
         for form in forms:
             best = min((r for r in rows if r["key"] not in moved and r["label"].lower() == "faster" and evolve.NAMES.get(r["key"].split("|", 1)[0]) == form),
                        key=lambda r: float(r["ratio"]), default=None)
-            forms[form].append(f"`{best['key'].split('|', 1)[1]}` ×{best['ratio']}" if best else "")
+            forms[form].append(f"{' · '.join(best['key'].split('|')[1:])} ×{best['ratio']}" if best else "")
         _sides, head, body = evolve.table(folder, frozenset(moved))
         out += [f"## {name}", "", "`" + "`; `".join(s.removeprefix("compare: ") for s in sides) + "`", "", head, "", body, ""]
         kept = [r for r in rows if r["key"] not in moved]
