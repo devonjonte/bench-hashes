@@ -37,6 +37,10 @@ hyperfine -N --prepare 'dd of=FILE oflag=nocache conv=notrunc,fdatasync count=0'
   [BLAKE3 #403](https://github.com/servil-software-factory/BLAKE3/issues/403)): ×1.05
   against 0.9.0 in both runs there, 10.4 → 10.9 ms, while keeping 5.9 CPUs busy where
   0.9.0 kept 8.7 to 8.9. The same input is faster or level on the other machines.
+- **A turn of 1024 × 1 KiB messages on Ice Lake, 0.9.0 → 0.10** (John Servil,
+  [BLAKE3 #404](https://github.com/servil-software-factory/BLAKE3/issues/404)): 2% to 5%
+  slower on both Xeon pairs, in both forms; the same-library control and the AMD
+  machines are level.
 - **Every other slower cell** is listed by name on its machine's page.
 
 @@EVIDENCE@@

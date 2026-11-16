@@ -166,8 +166,8 @@ beside another busy program. The library has two forms: **one thread**, and
 the old and the new library in alternating pairs and judges every cell.
 
 - **0.8.0 → 0.9.0, one thread** (5 machines): 4 to 16 cells faster and 0 to 5 slower per machine, of 213.
-- **0.9.0 → 0.10 candidate, one thread** (6 machines): 2 to 24 cells faster and 0 to 3 slower per machine, of 220 to 222.
-- **0.9.0 → 0.10 candidate, every core** (6 machines): 0 to 78 cells faster and 0 to 11 slower per machine, of 230 to 265.
+- **0.9.0 → 0.10 candidate, one thread** (7 machines): 2 to 24 cells faster and 0 to 3 slower per machine, of 220 to 222.
+- **0.9.0 → 0.10 candidate, every core** (7 machines): 0 to 78 cells faster and 0 to 11 slower per machine, of 226 to 265.
 - **0.8.0 → 0.10 candidate, one thread** (6 machines): 7 to 18 cells faster and 0 to 2 slower per machine, of 213.
 
 | host | step | form | cells | faster | slower | left out: the benchmark's call changed | largest gain |
@@ -195,6 +195,8 @@ the old and the new library in alternating pairs and judges every cell.
 | `x86-avx2` | 0.9.0 → 0.10 candidate | one thread | 221 | 24 | 0 | 1 | solo · OneMessage · 4 MiB ×0.772 |
 | `x86-avx2` | 0.9.0 → 0.10 candidate | every core | 265 | 78 | 1 | 69 | shared-one-cache · LentBatches · 65536 ×0.039 |
 | `x86-avx2` | 0.8.0 → 0.10 candidate | one thread | 213 | 7 | 0 |  | solo · BriefIdleOneMessage · 3 KiB ×0.672 |
+| `apple-m6` | 0.9.0 → 0.10 candidate | one thread | 221 | 5 | 0 | 1 | solo · ManyMessages · 1 ×0.888 |
+| `apple-m6` | 0.9.0 → 0.10 candidate | every core | 226 | 4 | 0 | 52 | shared-os · ContinuousMessages · 16 KiB ×0.472 |
 
 A cell's name reads scenario, use case, then size or count: `solo` is the program
 alone, `shared-…` is beside another busy program.
@@ -207,7 +209,7 @@ change of call (the every-core stream cells moved to the library's Pipeline), an
 the counts leave them out. Each machine's page lists them with both ratios.
 
 Each machine's cells by use case, its slower cells by name and its ten largest
-gains: [`x86-9700x`](library/x86-9700x.md), [`x86-avx2`](library/x86-avx2.md), [`x86-epyc-9255`](library/x86-epyc-9255.md), [`x86-epyc-9275f`](library/x86-epyc-9275f.md), [`x86-icelake-2`](library/x86-icelake-2.md), [`x86-icelake`](library/x86-icelake.md).
+gains: [`apple-m6`](library/apple-m6.md), [`x86-9700x`](library/x86-9700x.md), [`x86-avx2`](library/x86-avx2.md), [`x86-epyc-9255`](library/x86-epyc-9255.md), [`x86-epyc-9275f`](library/x86-epyc-9275f.md), [`x86-icelake-2`](library/x86-icelake-2.md), [`x86-icelake`](library/x86-icelake.md).
 
 ## Known costs, each with its owner
 
@@ -236,6 +238,10 @@ gains: [`x86-9700x`](library/x86-9700x.md), [`x86-avx2`](library/x86-avx2.md), [
   [BLAKE3 #403](https://github.com/servil-software-factory/BLAKE3/issues/403)): ×1.05
   against 0.9.0 in both runs there, 10.4 → 10.9 ms, while keeping 5.9 CPUs busy where
   0.9.0 kept 8.7 to 8.9. The same input is faster or level on the other machines.
+- **A turn of 1024 × 1 KiB messages on Ice Lake, 0.9.0 → 0.10** (John Servil,
+  [BLAKE3 #404](https://github.com/servil-software-factory/BLAKE3/issues/404)): 2% to 5%
+  slower on both Xeon pairs, in both forms; the same-library control and the AMD
+  machines are level.
 - **Every other slower cell** is listed by name on its machine's page.
 
 ## Scope

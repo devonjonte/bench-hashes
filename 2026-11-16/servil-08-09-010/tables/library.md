@@ -23,3 +23,5 @@
 | `x86-avx2` | 0.9.0 → 0.10 candidate | one thread | 221 | 24 | 0 | 1 | solo · OneMessage · 4 MiB ×0.772 |
 | `x86-avx2` | 0.9.0 → 0.10 candidate | every core | 265 | 78 | 1 | 69 | shared-one-cache · LentBatches · 65536 ×0.039 |
 | `x86-avx2` | 0.8.0 → 0.10 candidate | one thread | 213 | 7 | 0 |  | solo · BriefIdleOneMessage · 3 KiB ×0.672 |
+| `apple-m6` | 0.9.0 → 0.10 candidate | one thread | 221 | 5 | 0 | 1 | solo · ManyMessages · 1 ×0.888 |
+| `apple-m6` | 0.9.0 → 0.10 candidate | every core | 226 | 4 | 0 | 52 | shared-os · ContinuousMessages · 16 KiB ×0.472 |
