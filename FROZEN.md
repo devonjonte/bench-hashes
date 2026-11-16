@@ -30,7 +30,7 @@ read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
-**Changes for the next release** (Devon Jonte, November 14, 2026):
+**Changes for 0.23, November 14-16, 2026** (Devon Jonte's decisions, each dated):
 - **The pin is BLAKE3-Servil at 70483031** (Devon Jonte, November 16, 2026):
   commit `7048303103c69b8609ffe9ca0361197ba318107c`, library next's tip with
   its twenty gates green. Since the 0.22 pin (f62bc6ac, the 0.9 era) the
