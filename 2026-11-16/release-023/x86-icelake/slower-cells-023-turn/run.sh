@@ -1,0 +1,28 @@
+#!/bin/sh
+# 0.23's slower cells on this host, repeated by name (CONTRIBUTING, "When a check reads a
+# cell slower"): the release comparison again on these points only.
+set -eu
+export PATH="$HOME/.cargo/bin:$PATH"
+O="$HOME/runs/slower-cells-023-turn"
+if [ "${BOUNDED_REST:-}" != yes ]; then
+  export BOUNDED_REST=yes
+  status=0
+  timeout --kill-after=30s 7200s sh "$O/run.sh" || status=$?
+  printf 'REST_EXIT=%s UTC=%s\n' "$status" "$(date -u +%FT%TZ)"
+  exit "$status"
+fi
+export CARGO_BUILD_JOBS=8 CARGO_INCREMENTAL=0
+unset CARGO_TARGET_DIR RUSTFLAGS CARGO_ENCODED_RUSTFLAGS
+B="$HOME/work/bench-release-023"
+M="$HOME/work/lib-release-023"
+test "$(git -C "$B" rev-parse HEAD)" = cade30fdb71682719f5fa3e586ff96146ae9fc25
+cd "$B"
+P='turn 1024 x 1 KiB,brief idle turn 1024 x 1 KiB,idle turn 1024 x 1 KiB'
+printf 'points: %s\n' "$P" > "$O/scope.txt"
+status=0
+./target/release/bench-hashes check --fork "$M" --new 7048303103c69b8609ffe9ca0361197ba318107c \
+    --against bf2da8b957f5e0c80babb57952de3e53f95c921a --old-bench d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41 \
+    --points "$P" --when-quiet --keep "$O/kept-repeat" \
+    > "$O/repeat.stdout.txt" 2> "$O/repeat.stderr.txt" || status=$?
+printf 'repeat exit %s\n' "$status" > "$O/verdict.txt"
+printf 'DONE %s\n' "$(date -u +%FT%TZ)"
