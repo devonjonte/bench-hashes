@@ -31,6 +31,14 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Devon Jonte, November 14, 2026):
+- **The pin is BLAKE3-Servil at 70483031** (Devon Jonte, November 16, 2026):
+  commit `7048303103c69b8609ffe9ca0361197ba318107c`, library next's tip with
+  its twenty gates green. Since the 0.22 pin (f62bc6ac, the 0.9 era) the
+  library repaired the short-lived Hasher (finalize by reference, a short
+  message hashed where it lies), sent an update's whole groups to the core
+  with the ragged end staged, gave the pool its cache topology, and fixed
+  the Pipeline's worker-view lifetimes. The records measure that library;
+  comparisons against earlier releases carry the changed-pin qualification.
 - **Provenance where its readers look**
   ([reader contract](https://github.com/servil-software-factory/bench-hashes/issues/226)).
   At Zooko's request, the existing “About the hashes compared” section holds
