@@ -33,8 +33,10 @@ hyperfine -N --prepare 'dd of=FILE oflag=nocache conv=notrunc,fdatasync count=0'
   ([BLAKE3 #376](https://github.com/servil-software-factory/BLAKE3/issues/376)),
   recorded with 0.9.
 - **b3sum on a thousand 16 KiB files read cold in one run, on the two-socket EPYC
-  7443** (Devon Jonte, to repeat and hand over): ×1.05 against 0.9.0, 10.4 → 10.9 ms,
-  in the first run there. The same input is faster on three machines.
+  7443** (John Servil,
+  [BLAKE3 #403](https://github.com/servil-software-factory/BLAKE3/issues/403)): ×1.05
+  against 0.9.0 in both runs there, 10.4 → 10.9 ms, while keeping 5.9 CPUs busy where
+  0.9.0 kept 8.7 to 8.9. The same input is faster or level on the other machines.
 - **Every other slower cell** is listed by name on its machine's page.
 
 @@EVIDENCE@@

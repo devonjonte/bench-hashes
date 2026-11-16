@@ -158,13 +158,33 @@ def again(first, second, column):
     text += ("Marked slower: " + "; ".join(named["slower"]) + "." if named["slower"] else "Neither run marks a cell slower.")
     return text
 
+MAC = "apple-m6"
+MAC_RESULTS = Path("/home/agent/mac-runner/results")
+MAC_B3SUM = Path("/home/agent/bench-pin-move/benchmark-results/AppleM6.darwin27/b3sum.result.txt")
+
+def mac_job(number):
+    """The dedicated timing Mac's kept samples for a job, or a path that is absent."""
+    found = sorted(MAC_RESULTS.glob(f"{number}-*-mac-m6-timing"))
+    return found[-1] / "samples" if found and (found[-1] / "complete.json").exists() else Path("/absent")
+
+def single(text, column, base):
+    """One machine's judged column beside its base, warm and cold."""
+    warm, cold = sections(text)[0], sections(text)[1]
+    out = [f"| input | warm: {base} | warm: {column} | cold: {base} | cold: {column} |", "|---|---:|---:|---:|---:|"]
+    for name in warm[2]:
+        cells = [name]
+        for _title, names, rows in (warm, cold):
+            cells += [short(rows[name][names.index(base)]), short(rows[name][names.index(column)])]
+        out.append("| " + " | ".join(cells) + " |")
+    return "\n".join(out)
+
 TRANSITIONS = [
     ("0.8.0 → 0.9.0", lambda h: DATA / "2026-11-13/release-022" / h / "kept-core"),
-    ("0.9.0 → 0.10 candidate", lambda h: INBOX / h / "release-023-cade30fd/kept-release"),
+    ("0.9.0 → 0.10 candidate", lambda h: mac_job(3210) if h == MAC else INBOX / h / "release-023-cade30fd/kept-release"),
     ("0.8.0 → 0.10 candidate", lambda h: INBOX / h / "evolution-010/kept-08-to-010"),
 ]
 
-CONTROL = lambda h: INBOX / h / "release-023-cade30fd/kept-control"
+CONTROL = lambda h: mac_job(3211) if h == MAC else INBOX / h / "release-023-cade30fd/kept-control"
 
 def library(host):
     """(page text, {step: {form: [cells, faster, slower, moved with the benchmark's call]}})."""
@@ -233,7 +253,12 @@ def main(out_dir):
     for name, text in [("READING-OFFICIAL", reading(official, "b3sum")), ("READING-09", reading(evo, "b3sum-0.10-candidate")), ("READING-08", reading(evo, "b3sum-0.8.0"))]:
         (out / "tables" / f"{name}.md").write_text(text + "\n")
     lib_rows = ["| host | step | form | cells | faster | slower | left out: the benchmark's call changed |", "|---|---|---|---:|---:|---:|---:|"]
-    for h in HOSTS:
+    mac = MAC_B3SUM.read_text()
+    (out / "tables" / "mac-vs-official.md").write_text(
+        f"Load: {field(mac, 'load')}. Runs: {field(mac, 'runs')}.\n\n" + single(mac, "b3sum", "official") + "\n\n" + reading({MAC: mac}, "b3sum").replace("on all 1 machines", "there").replace("on a machine", "there").replace("on every machine", "there") + "\n")
+    for h in HOSTS + [MAC]:
+        if h == MAC and not CONTROL(h).is_dir():
+            continue  # its counts wait for its same-library control
         text, counts = library(h)
         (out / "library" / f"{h}.md").write_text(text)
         for step, forms in counts.items():

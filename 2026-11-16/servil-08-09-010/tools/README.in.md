@@ -26,6 +26,14 @@ in the same rounds on each machine, four separately linked copies of each.
 
 @@READING-OFFICIAL@@
 
+#### On an Apple M6 (macOS)
+
+One run on the dedicated timing Mac, the 0.10 candidate against official b3sum
+1.8.7, both built there. The Mac queue builds one BLAKE3-Servil version a job, so
+0.9.0 has no column here.
+
+@@mac-vs-official@@
+
 ### Against b3sum 0.9.0
 
 @@across-010-vs-09@@
@@ -112,8 +120,9 @@ gains: @@LIBRARY-PAGES@@
 ## Scope
 
 - **Machines:** x86-64 Linux: AMD Zen 5 (EPYC 9275F, EPYC 9255, Ryzen 9700X), AMD
-  Zen 3 (two EPYC 7443), Intel Ice Lake (two pairs of Xeon Gold 6330). Apple
-  silicon and Arm Linux numbers for the 0.10 candidate are still to be measured.
+  Zen 3 (two EPYC 7443), Intel Ice Lake (two pairs of Xeon Gold 6330). One Apple
+  M6, for b3sum against official and for the library's 0.9.0 → 0.10 step. Arm Linux
+  is still to be measured for the 0.10 candidate.
 - **Storage:** cold results depend on the storage; each machine's b3sum page names
   the file system and device.
 - **Programs:** every b3sum here is built from source by one toolchain on the
