@@ -1,0 +1,210 @@
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/fork && git checkout --quiet --force --detach 7048303103c69b8609ffe9ca0361197ba318107c)
+$ (cd /Users/benchrunner/checkouts/fork && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/fork && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/bench && git checkout --quiet --force --detach cade30fdb71682719f5fa3e586ff96146ae9fc25)
+$ (cd /Users/benchrunner/checkouts/bench && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/bench && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && /opt/homebrew/opt/python@3.14/bin/python3.14 tools/b3sum-contenders.py /Users/benchrunner/checkouts/fork /Users/benchrunner/b3sum-contenders 7048303103c69b8609ffe9ca0361197ba318107c)
+warning: struct `Cpu` is never constructed
+    --> /Users/benchrunner/checkouts/fork/target/b3sum-contenders/worktree-7048303/threads/src/lanes.rs:1036:23
+     |
+1036 |     pub(crate) struct Cpu {
+     |                       ^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `assign` is never used
+    --> /Users/benchrunner/checkouts/fork/target/b3sum-contenders/worktree-7048303/threads/src/lanes.rs:1076:19
+     |
+1076 |     pub(crate) fn assign(cpus: &[Cpu], starter: usize, workers: usize) -> Option<Places> {
+     |                   ^^^^^^
+
+warning: methods `wake_all` and `set_places` are never used
+   --> /Users/benchrunner/checkouts/fork/target/b3sum-contenders/worktree-7048303/threads/src/park.rs:114:19
+    |
+ 69 | impl Park {
+    | --------- methods in this implementation
+...
+114 |     pub(crate) fn wake_all(&self) -> usize {
+    |                   ^^^^^^^^
+...
+141 |     pub(crate) fn set_places(&self, places: Box<[Box<[u64]>]>, beside: Box<[Box<[u64]>]>, here: fn() -> usize) {
+    |                   ^^^^^^^^^^
+
+warning: unused dependency `hex`
+  --> Cargo.toml:23:1
+   |
+23 | hex = "0.4.0"
+   | ^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `hex`
+$ (cd /Users/benchrunner/checkouts/bench && cargo run --release --quiet -- build-against /Users/benchrunner/checkouts/fork)
+warning: unused imports: `c_int`, `c_long`, and `c_void`
+  --> clocks/src/events.rs:27:16
+   |
+27 | use std::ffi::{c_int, c_long, c_void};
+   |                ^^^^^  ^^^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `OwnedFd`
+  --> clocks/src/events.rs:28:39
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                                       ^^^^^^^
+
+warning: unused import: `AsRawFd`
+  --> clocks/src/events.rs:28:19
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                   ^^^^^^^
+
+warning: unused import: `FromRawFd`
+  --> clocks/src/events.rs:28:28
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                            ^^^^^^^^^
+
+warning: function `describe_pause` is never used
+    --> src/main.rs:8595:4
+     |
+8595 | fn describe_pause(ns: u64) -> String {
+     |    ^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `EFFECTIVE_IDLE_PAUSES` is never used
+    --> src/main.rs:8604:7
+     |
+8604 | const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
+     |       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `describe_effective_idle_states` is never used
+    --> src/main.rs:8755:4
+     |
+8755 | fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+build-against: bench cade30fdb716 clean; servil 7048303103c6 clean
+$ (cd /Users/benchrunner/tmp/3208-release-023-b3sum.20261116T031232Z-mac-m6 && /Users/benchrunner/checkouts/fork/target/bench-hashes-build/release/bench-cade30fdb716-clean_servil-7048303103c6-clean/bench-hashes b3sum --files /Users/benchrunner/b3sum-bench-files official=/Users/benchrunner/b3sum-contenders/b3sum-official-1.8.7 official-1-thread=/Users/benchrunner/b3sum-contenders/b3sum-official-1.8.7 --num-threads 1 b3sum=/Users/benchrunner/b3sum-contenders/b3sum-7048303 b3sum-1-thread=/Users/benchrunner/b3sum-contenders/b3sum-7048303 --num-threads 1 sha256sum=/sbin/sha256sum sha1sum=/sbin/sha1sum md5sum=/sbin/md5sum)
+bench-hashes b3sum: making the input files in /Users/benchrunner/b3sum-bench-files (kept for later runs)
+clocks: other programs kept 1.22 CPUs busy from 4.0 s to 5.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.17 CPUs busy from 34.2 s to 35.2 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.11 CPUs busy from 35.2 s to 36.2 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.12 CPUs busy from 36.2 s to 37.2 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 1 of 15 done, 29 s
+clocks: other programs kept 1.18 CPUs busy from 66.3 s to 67.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.02 CPUs busy from 69.3 s to 70.3 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 2 of 15 done, 58 s
+clocks: other programs kept 1.02 CPUs busy from 98.5 s to 99.5 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 3 of 15 done, 88 s
+clocks: other programs kept 1.02 CPUs busy from 101.5 s to 102.5 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 4 of 15 done, 117 s
+bench-hashes b3sum: round 5 of 15 done, 147 s
+clocks: other programs kept 1.35 CPUs busy from 165.8 s to 166.8 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 6 of 15 done, 177 s
+clocks: other programs kept 1.28 CPUs busy from 194.9 s to 195.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.40 CPUs busy from 197.9 s to 198.9 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 7 of 15 done, 206 s
+clocks: other programs kept 1.37 CPUs busy from 227.1 s to 228.1 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.34 CPUs busy from 230.1 s to 231.1 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 8 of 15 done, 236 s
+clocks: other programs kept 1.45 CPUs busy from 259.2 s to 260.2 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.12 CPUs busy from 262.2 s to 263.2 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 9 of 15 done, 265 s
+clocks: other programs kept 1.11 CPUs busy from 291.4 s to 292.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.40 CPUs busy from 294.4 s to 295.4 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 10 of 15 done, 295 s
+clocks: other programs kept 1.20 CPUs busy from 323.5 s to 324.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.16 CPUs busy from 326.6 s to 327.6 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 11 of 15 done, 325 s
+clocks: other programs kept 1.09 CPUs busy from 355.7 s to 356.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.28 CPUs busy from 358.7 s to 359.7 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 12 of 15 done, 355 s
+clocks: other programs kept 1.35 CPUs busy from 387.9 s to 388.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.15 CPUs busy from 390.9 s to 391.9 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 13 of 15 done, 384 s
+clocks: other programs kept 1.37 CPUs busy from 420.0 s to 421.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.05 CPUs busy from 423.0 s to 424.0 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 14 of 15 done, 414 s
+clocks: other programs kept 1.24 CPUs busy from 445.1 s to 446.1 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.24 CPUs busy from 452.1 s to 453.1 s; measurements in that time may read slower than this machine runs
+bench-hashes b3sum: round 15 of 15 done, 444 s
+# Map (HTML) is in "benchmark-results/AppleM6.darwin27/bench-hashes.map.html" .
+bench-hashes b3sum: how long b3sum takes to hash files, from its start to its exit
+
+machine:   Apple M6, 12 CPUs, darwin27
+files on:  apfs (on /System/Volumes/Data)
+load:      busy: other programs kept 0.41 CPUs busy on average, 1.45 in the busiest window; busy in 27 of 455 windows (4.0-5.0 s, 34.2-35.2 s, 35.2-36.2 s, 36.2-37.2 s, 66.3-67.3 s, 69.3-70.3 s, 98.5-99.5 s, 101.5-102.5 s, 165.8-166.8 s, 194.9-195.9 s, 197.9-198.9 s, 227.1-228.1 s, 230.1-231.1 s, 259.2-260.2 s, 262.2-263.2 s, 291.4-292.4 s, 294.4-295.4 s, 323.5-324.5 s, 326.6-327.6 s, 355.7-356.7 s, 358.7-359.7 s, 387.9-388.9 s, 390.9-391.9 s, 420.0-421.0 s, 423.0-424.0 s, 445.1-446.1 s, 452.1-453.1 s)
+runs:      15 rounds, each contender once on each input in each
+
+contenders:
+  official       /Users/benchrunner/b3sum-contenders/b3sum-official-1.8.7    (b3sum 1.8.7, blake3 deb8249fc8d3d735)
+  official-1-thread /Users/benchrunner/b3sum-contenders/b3sum-official-1.8.7 --num-threads 1   (b3sum 1.8.7, blake3 deb8249fc8d3d735)
+  b3sum          /Users/benchrunner/b3sum-contenders/b3sum-7048303    (b3sums 0.9.0+dev.7048303103c69b8609ffe9ca0361197ba318107c, blake3 f9f86dcf3746a415)
+  b3sum-1-thread /Users/benchrunner/b3sum-contenders/b3sum-7048303 --num-threads 1   (b3sums 0.9.0+dev.7048303103c69b8609ffe9ca0361197ba318107c, blake3 f9f86dcf3746a415)
+  sha256sum      /sbin/sha256sum    (sha256sum (Darwin) 1.0, blake3 824686913f878509)
+  sha1sum        /sbin/sha1sum    (sha1sum (Darwin) 1.0, blake3 824686913f878509)
+  md5sum         /sbin/md5sum    (md5sum (Darwin) 1.0, blake3 28d4ce417bb63a06)
+
+Files in the page cache (warm: read moments before)
+mean time per run, lower is better; xN: against official, the ratio judged (the geometric mean of the rounds' ratios), marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 3%)
+input                            official             official-1-thread                  b3sum                              b3sum-1-thread                     sha256sum                          sha1sum                            md5sum
+4 KiB                            1.26 ms              1.11 ms x0.886 faster              1.24 ms x0.985                     1.26 ms x0.994                     864 μs x0.684 faster               858 μs x0.681 faster               884 μs x0.700 faster
+64 KiB                           1.16 ms              1.03 ms x0.886 faster              1.12 ms x0.968 faster              1.14 ms x0.978                     808 μs x0.695 faster               795 μs x0.685 faster               848 μs x0.731 faster
+1 MiB                            1.18 ms 0.886 GB/s   1.38 ms 0.758 GB/s x1.170 slower   1.27 ms 0.829 GB/s x1.070 slower   1.26 ms 0.830 GB/s x1.068 slower   1.15 ms 0.911 GB/s x0.973          1.17 ms 0.896 GB/s x0.989          1.95 ms 0.537 GB/s x1.652 slower
+16 MiB                           2.07 ms 8.11 GB/s    7.80 ms 2.15 GB/s x3.772 slower    2.11 ms 7.94 GB/s x1.021           4.27 ms 3.93 GB/s x2.065 slower    7.18 ms 2.34 GB/s x3.469 slower    7.35 ms 2.28 GB/s x3.552 slower    20.1 ms 0.834 GB/s x9.720 slower
+256 MiB                          15.7 ms 17.1 GB/s    111 ms 2.42 GB/s x7.078 slower     13.7 ms 19.5 GB/s x0.874 faster    54.7 ms 4.91 GB/s x3.489 slower    105 ms 2.56 GB/s x6.683 slower     107 ms 2.51 GB/s x6.830 slower     309 ms 0.870 GB/s x19.680 slower
+1 GiB                            58.7 ms 18.3 GB/s    444 ms 2.42 GB/s x7.568 slower     48.1 ms 22.3 GB/s x0.819 faster    218 ms 4.93 GB/s x3.707 slower     410 ms 2.62 GB/s x6.989 slower     423 ms 2.54 GB/s x7.207 slower     1.23 s 0.874 GB/s x20.921 slower
+1000 x 16 KiB                    40.4 ms 0.406 GB/s   16.7 ms 0.984 GB/s x0.413 faster   5.48 ms 2.99 GB/s x0.136 faster    12.2 ms 1.34 GB/s x0.303 faster    14.6 ms 1.12 GB/s x0.362 faster    14.9 ms 1.10 GB/s x0.370 faster    27.2 ms 0.602 GB/s x0.675 faster
+1000 x 16 KiB, a process each    1.07 s 0.0153 GB/s   950 ms 0.0173 GB/s x0.887 faster   1.05 s 0.0156 GB/s x0.980          1.05 s 0.0157 GB/s x0.978          724 ms 0.0226 GB/s x0.677 faster   726 ms 0.0226 GB/s x0.678 faster   735 ms 0.0223 GB/s x0.687 faster
+mixed tree, 1000 files, 74 MiB   35.6 ms 2.18 GB/s    42.2 ms 1.84 GB/s x1.185 slower    7.41 ms 10.5 GB/s x0.208 faster    25.0 ms 3.10 GB/s x0.703 faster    38.9 ms 2.00 GB/s x1.092 slower    39.6 ms 1.96 GB/s x1.112 slower    98.1 ms 0.792 GB/s x2.754 slower
+16 x 64 MiB                      59.3 ms 18.1 GB/s    434 ms 2.47 GB/s x7.320 slower     50.6 ms 21.2 GB/s x0.852 faster    211 ms 5.08 GB/s x3.564 slower     405 ms 2.65 GB/s x6.831 slower     416 ms 2.58 GB/s x7.013 slower     1.23 s 0.875 GB/s x20.695 slower
+
+CPUs busy (CPU time over wall time) and peak memory, medians
+input                            official               official-1-thread     b3sum                  b3sum-1-thread        sha256sum          sha1sum            md5sum
+4 KiB                            1.08 CPUs, 3 MiB       0.78 CPUs, 3 MiB      0.81 CPUs, 3 MiB       0.80 CPUs, 3 MiB      0.71 CPUs, 2 MiB   0.71 CPUs, 2 MiB   0.71 CPUs, 2 MiB
+64 KiB                           1.28 CPUs, 3 MiB       0.78 CPUs, 3 MiB      0.80 CPUs, 3 MiB       0.80 CPUs, 3 MiB      0.72 CPUs, 2 MiB   0.72 CPUs, 2 MiB   0.73 CPUs, 2 MiB
+1 MiB                            1.93 CPUs, 4 MiB       0.84 CPUs, 4 MiB      0.82 CPUs, 4 MiB       0.83 CPUs, 4 MiB      0.80 CPUs, 2 MiB   0.81 CPUs, 2 MiB   0.89 CPUs, 2 MiB
+16 MiB                           5.66 CPUs, 19 MiB      0.97 CPUs, 19 MiB     4.49 CPUs, 20 MiB      0.94 CPUs, 19 MiB     0.97 CPUs, 2 MiB   0.97 CPUs, 2 MiB   0.99 CPUs, 2 MiB
+256 MiB                          10.29 CPUs, 259 MiB    1.00 CPUs, 259 MiB    9.39 CPUs, 260 MiB     0.98 CPUs, 259 MiB    1.00 CPUs, 2 MiB   1.00 CPUs, 2 MiB   1.00 CPUs, 2 MiB
+1 GiB                            10.77 CPUs, 1027 MiB   1.00 CPUs, 1027 MiB   10.40 CPUs, 1028 MiB   0.99 CPUs, 1027 MiB   1.00 CPUs, 2 MiB   1.00 CPUs, 2 MiB   1.00 CPUs, 2 MiB
+1000 x 16 KiB                    7.80 CPUs, 4 MiB       0.98 CPUs, 3 MiB      8.39 CPUs, 5 MiB       0.97 CPUs, 4 MiB      0.98 CPUs, 2 MiB   0.98 CPUs, 2 MiB   0.99 CPUs, 2 MiB
+1000 x 16 KiB, a process each    1.24 CPUs, 3 MiB       0.77 CPUs, 3 MiB      0.79 CPUs, 3 MiB       0.79 CPUs, 3 MiB      0.70 CPUs, 2 MiB   0.70 CPUs, 2 MiB   0.70 CPUs, 2 MiB
+mixed tree, 1000 files, 74 MiB   7.27 CPUs, 20 MiB      0.99 CPUs, 19 MiB     8.96 CPUs, 54 MiB      0.98 CPUs, 51 MiB     0.99 CPUs, 2 MiB   0.99 CPUs, 2 MiB   1.00 CPUs, 2 MiB
+16 x 64 MiB                      10.84 CPUs, 124 MiB    1.00 CPUs, 67 MiB     10.34 CPUs, 1029 MiB   0.99 CPUs, 1027 MiB   1.00 CPUs, 2 MiB   1.00 CPUs, 2 MiB   1.00 CPUs, 2 MiB
+
+Files read from storage (cold: evicted from the page cache before each run)
+mean time per run, lower is better; xN: against official, the ratio judged (the geometric mean of the rounds' ratios), marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 3%)
+input                            official             official-1-thread                  b3sum                              b3sum-1-thread                     sha256sum                          sha1sum                            md5sum
+4 KiB                            1.67 ms              1.42 ms x0.863                     1.56 ms x0.965                     1.57 ms x0.965                     1.20 ms x0.709                     1.21 ms x0.712                     1.18 ms x0.713
+64 KiB                           1.37 ms              1.40 ms x1.024                     1.26 ms x0.923 faster              1.26 ms x0.921 faster              1.17 ms x0.855 faster              1.19 ms x0.865 faster              1.28 ms x0.933 faster
+1 MiB                            1.95 ms 0.538 GB/s   2.78 ms 0.378 GB/s x1.425 slower   1.61 ms 0.651 GB/s x0.827 faster   1.61 ms 0.651 GB/s x0.827 faster   2.13 ms 0.491 GB/s x1.096 slower   2.14 ms 0.490 GB/s x1.099 slower   2.91 ms 0.360 GB/s x1.495 slower
+16 MiB                           6.58 ms 2.55 GB/s    19.1 ms 0.876 GB/s x2.915 slower   4.26 ms 3.94 GB/s x0.648 faster    5.50 ms 3.05 GB/s x0.837 faster    8.58 ms 1.95 GB/s x1.307 slower    8.71 ms 1.93 GB/s x1.326 slower    21.2 ms 0.793 GB/s x3.223 slower
+256 MiB                          85.6 ms 3.14 GB/s    153 ms 1.75 GB/s x1.790 slower     43.5 ms 6.17 GB/s x0.508 faster    51.3 ms 5.24 GB/s x0.599 faster    110 ms 2.45 GB/s x1.280 slower     112 ms 2.39 GB/s x1.312 slower     313 ms 0.859 GB/s x3.653 slower
+1 GiB                            344 ms 3.13 GB/s     611 ms 1.76 GB/s x1.776 slower     166 ms 6.45 GB/s x0.485 faster     194 ms 5.52 GB/s x0.566 faster     427 ms 2.51 GB/s x1.244 slower     438 ms 2.45 GB/s x1.275 slower     1.24 s 0.864 GB/s x3.618 slower
+1000 x 16 KiB                    84.1 ms 0.195 GB/s   45.7 ms 0.358 GB/s x0.544 faster   12.3 ms 1.33 GB/s x0.147 faster    42.0 ms 0.390 GB/s x0.499 faster   42.9 ms 0.382 GB/s x0.511 faster   43.2 ms 0.379 GB/s x0.514 faster   58.4 ms 0.281 GB/s x0.695 faster
+1000 x 16 KiB, a process each    1.14 s 0.0144 GB/s   1.02 s 0.0160 GB/s x0.899 faster   1.11 s 0.0148 GB/s x0.974          1.11 s 0.0147 GB/s x0.979          787 ms 0.0208 GB/s x0.691 faster   785 ms 0.0209 GB/s x0.690 faster   801 ms 0.0205 GB/s x0.703 faster
+mixed tree, 1000 files, 74 MiB   144 ms 0.539 GB/s    174 ms 0.446 GB/s x1.208 slower    21.8 ms 3.56 GB/s x0.151 faster    90.5 ms 0.858 GB/s x0.627 faster   159 ms 0.487 GB/s x1.106 slower    160 ms 0.485 GB/s x1.112 slower    218 ms 0.356 GB/s x1.513 slower
+16 x 64 MiB                      352 ms 3.05 GB/s     589 ms 1.82 GB/s x1.677 slower     179 ms 5.99 GB/s x0.508 faster     217 ms 4.95 GB/s x0.613 faster     452 ms 2.38 GB/s x1.282 slower     459 ms 2.34 GB/s x1.304 slower     1.25 s 0.857 GB/s x3.563 slower
+
+CPUs busy (CPU time over wall time) and peak memory, medians
+input                            official              official-1-thread     b3sum                b3sum-1-thread     sha256sum          sha1sum            md5sum
+4 KiB                            1.39 CPUs, 3 MiB      0.70 CPUs, 3 MiB      0.73 CPUs, 3 MiB     0.73 CPUs, 3 MiB   0.62 CPUs, 2 MiB   0.62 CPUs, 2 MiB   0.62 CPUs, 2 MiB
+64 KiB                           1.66 CPUs, 3 MiB      0.57 CPUs, 3 MiB      0.70 CPUs, 3 MiB     0.71 CPUs, 3 MiB   0.49 CPUs, 2 MiB   0.50 CPUs, 2 MiB   0.49 CPUs, 2 MiB
+1 MiB                            1.79 CPUs, 4 MiB      0.46 CPUs, 4 MiB      0.68 CPUs, 4 MiB     0.68 CPUs, 4 MiB   0.46 CPUs, 2 MiB   0.46 CPUs, 2 MiB   0.61 CPUs, 2 MiB
+16 MiB                           2.29 CPUs, 19 MiB     0.46 CPUs, 19 MiB     2.17 CPUs, 12 MiB    0.73 CPUs, 7 MiB   0.84 CPUs, 2 MiB   0.85 CPUs, 2 MiB   0.95 CPUs, 2 MiB
+256 MiB                          2.22 CPUs, 259 MiB    0.86 CPUs, 259 MiB    2.91 CPUs, 12 MiB    0.97 CPUs, 7 MiB   0.99 CPUs, 2 MiB   0.99 CPUs, 2 MiB   1.00 CPUs, 2 MiB
+1 GiB                            2.20 CPUs, 1027 MiB   0.88 CPUs, 1027 MiB   2.90 CPUs, 12 MiB    0.99 CPUs, 7 MiB   1.00 CPUs, 2 MiB   1.00 CPUs, 2 MiB   1.00 CPUs, 2 MiB
+1000 x 16 KiB                    4.97 CPUs, 4 MiB      0.47 CPUs, 3 MiB      2.71 CPUs, 5 MiB     0.41 CPUs, 4 MiB   0.44 CPUs, 2 MiB   0.44 CPUs, 2 MiB   0.55 CPUs, 2 MiB
+1000 x 16 KiB, a process each    1.41 CPUs, 3 MiB      0.72 CPUs, 3 MiB      0.76 CPUs, 3 MiB     0.76 CPUs, 3 MiB   0.66 CPUs, 2 MiB   0.66 CPUs, 2 MiB   0.66 CPUs, 2 MiB
+mixed tree, 1000 files, 74 MiB   2.50 CPUs, 20 MiB     0.31 CPUs, 19 MiB     2.46 CPUs, 35 MiB    0.32 CPUs, 8 MiB   0.29 CPUs, 2 MiB   0.29 CPUs, 2 MiB   0.48 CPUs, 2 MiB
+16 x 64 MiB                      2.23 CPUs, 67 MiB     0.88 CPUs, 67 MiB     3.01 CPUs, 102 MiB   0.90 CPUs, 7 MiB   0.96 CPUs, 2 MiB   0.96 CPUs, 2 MiB   0.99 CPUs, 2 MiB
+
+Every cold run read its files from storage (by the counts).
+bench-hashes b3sum: report, samples, and map in benchmark-results/AppleM6.darwin27

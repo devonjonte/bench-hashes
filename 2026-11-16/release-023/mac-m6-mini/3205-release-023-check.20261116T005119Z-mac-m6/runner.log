@@ -1,0 +1,277 @@
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/fork && git checkout --quiet --force --detach 7048303103c69b8609ffe9ca0361197ba318107c)
+$ (cd /Users/benchrunner/checkouts/fork && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/fork && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/bench && git checkout --quiet --force --detach cade30fdb71682719f5fa3e586ff96146ae9fc25)
+$ (cd /Users/benchrunner/checkouts/bench && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/bench && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && cargo run --release --quiet -- check --fork /Users/benchrunner/checkouts/fork --against bf2da8b957f5e0c80babb57952de3e53f95c921a --when-quiet --keep /Users/benchrunner/tmp/3205-release-023-check.20261116T005119Z-mac-m6/samples --cells all --old-bench d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41)
+warning: unused imports: `c_int`, `c_long`, and `c_void`
+  --> clocks/src/events.rs:27:16
+   |
+27 | use std::ffi::{c_int, c_long, c_void};
+   |                ^^^^^  ^^^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `OwnedFd`
+  --> clocks/src/events.rs:28:39
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                                       ^^^^^^^
+
+warning: unused import: `AsRawFd`
+  --> clocks/src/events.rs:28:19
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                   ^^^^^^^
+
+warning: unused import: `FromRawFd`
+  --> clocks/src/events.rs:28:28
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                            ^^^^^^^^^
+
+warning: function `describe_pause` is never used
+    --> src/main.rs:8595:4
+     |
+8595 | fn describe_pause(ns: u64) -> String {
+     |    ^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `EFFECTIVE_IDLE_PAUSES` is never used
+    --> src/main.rs:8604:7
+     |
+8604 | const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
+     |       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `describe_effective_idle_states` is never used
+    --> src/main.rs:8755:4
+     |
+8755 | fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+waiting for a quiet machine (other programs kept 3.20 CPUs busy in one of the last 10 seconds); reading again in 30 s
+waiting for a quiet machine (other programs kept 3.13 CPUs busy in one of the last 10 seconds); reading again in 30 s
+waiting for a quiet machine (other programs kept 1.30 CPUs busy in one of the last 10 seconds); reading again in 30 s
+waiting for a quiet machine (other programs kept 2.37 CPUs busy in one of the last 10 seconds); reading again in 30 s
+waiting for a quiet machine (other programs kept 1.49 CPUs busy in one of the last 10 seconds); reading again in 30 s
+waiting for a quiet machine (other programs kept 1.30 CPUs busy in one of the last 10 seconds); reading again in 30 s
+check: BLAKE3-Servil's working tree (7048303103c6) against bf2da8b957f5e0c80babb57952de3e53f95c921a (bf2da8b957f5)
+check: the change touches 11341 added and 3757 deleted lines in 66 files: .github/workflows/ci.yml (+1/-1), AGENTS.md (+8/-0), CONTRIBUTING.md (+27/-5), Cargo.toml (+2/-2), b3sum/Cargo.lock (+138/-4), b3sum/Cargo.toml (+4/-2), b3sum/README.md (+30/-0), b3sum/src/direct.rs (+235/-0), b3sum/src/linux_pipe.rs (+1287/-0), b3sum/src/main.rs (+798/-307), b3sum/src/outboard.rs (+322/-0), b3sum/src/readahead.rs (+0/-230), and 54 more
+check: its hunks sit in: jobs:, Let things persist until the process ends: the typical pattern is also the simpl, A computation is correct when it delivers the right result, at the costs (includ, Misuse and misfortune (several of a program's threads calling at once, other loa, slower in 14 pool cells (BLAKE3 #119), and the i7 then found its fix, on `candidate/<topic>` branches; a candidate joins `next` as a, name = "blake3-servil-core", features = ["serde", "zeroize"], name = "b3sums", dependencies = [, checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da", name = "blake3-servil", and 186 more
+check: the old side with the bench at d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41 (d7723f110a6f)
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 4 run pairs using 4 distinct new executable paths and 4 old, over --contenders blake3-servil-st,blake3-servil-mt
+clocks: other programs kept 1.22 CPUs busy from 72.6 s to 73.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.02 CPUs busy from 74.6 s to 75.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.12 CPUs busy from 104.9 s to 105.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.11 CPUs busy from 137.1 s to 138.1 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.03 CPUs busy from 139.1 s to 140.1 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.02 CPUs busy from 171.6 s to 172.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.15 CPUs busy from 200.9 s to 201.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.08 CPUs busy from 204.9 s to 206.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.19 CPUs busy from 233.2 s to 234.2 s; measurements in that time may read slower than this machine runs
+regress: pair 1 again: busy: other programs kept 0.28 CPUs busy on average, 1.22 in the busiest window; busy in 5 of 101 windows (72.6-73.6 s, 74.6-75.6 s, 104.9-105.9 s, 137.1-138.1 s, 139.1-140.1 s); busy: other programs kept 0.28 CPUs busy on average, 1.19 in the busiest window; busy in 4 of 108 windows (171.6-172.6 s, 200.9-201.9 s, 204.9-206.0 s, 233.2-234.2 s)
+clocks: other programs kept 1.14 CPUs busy from 265.4 s to 266.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.01 CPUs busy from 269.4 s to 270.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.04 CPUs busy from 297.7 s to 298.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.18 CPUs busy from 301.7 s to 302.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.19 CPUs busy from 334.0 s to 335.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.08 CPUs busy from 393.9 s to 394.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.12 CPUs busy from 398.9 s to 400.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.08 CPUs busy from 431.2 s to 432.2 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.16 CPUs busy from 463.4 s to 464.4 s; measurements in that time may read slower than this machine runs
+regress: pair 1 again: busy: other programs kept 0.30 CPUs busy on average, 1.19 in the busiest window; busy in 5 of 101 windows (265.4-266.4 s, 269.4-270.4 s, 297.7-298.7 s, 301.7-302.7 s, 334.0-335.0 s); busy: other programs kept 0.28 CPUs busy on average, 1.16 in the busiest window; busy in 4 of 109 windows (393.9-394.9 s, 398.9-400.0 s, 431.2-432.2 s, 463.4-464.4 s)
+clocks: other programs kept 1.08 CPUs busy from 489.7 s to 490.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.15 CPUs busy from 495.8 s to 496.8 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.16 CPUs busy from 522.0 s to 523.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.19 CPUs busy from 528.0 s to 529.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.17 CPUs busy from 554.2 s to 555.2 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.21 CPUs busy from 560.3 s to 561.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.00 CPUs busy from 626.0 s to 627.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.13 CPUs busy from 650.2 s to 651.2 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.14 CPUs busy from 682.4 s to 683.4 s; measurements in that time may read slower than this machine runs
+regress: pair 1 again: busy: other programs kept 0.28 CPUs busy on average, 1.21 in the busiest window; busy in 6 of 101 windows (489.7-490.7 s, 495.8-496.8 s, 522.0-523.0 s, 528.0-529.0 s, 554.2-555.2 s, 560.3-561.3 s); busy: other programs kept 0.28 CPUs busy on average, 1.14 in the busiest window; busy in 3 of 109 windows (626.0-627.0 s, 650.2-651.2 s, 682.4-683.4 s)
+clocks: other programs kept 1.18 CPUs busy from 714.8 s to 715.8 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.01 CPUs busy from 755.1 s to 756.1 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.10 CPUs busy from 811.0 s to 812.1 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.05 CPUs busy from 826.2 s to 827.2 s; measurements in that time may read slower than this machine runs
+regress: pair 1 of 4 in 848.5 s
+clocks: other programs kept 1.11 CPUs busy from 907.0 s to 908.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.18 CPUs busy from 939.3 s to 940.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.04 CPUs busy from 950.4 s to 951.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.13 CPUs busy from 971.5 s to 972.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.18 CPUs busy from 982.6 s to 983.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.09 CPUs busy from 1003.7 s to 1004.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.12 CPUs busy from 1035.4 s to 1036.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.06 CPUs busy from 1047.5 s to 1048.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.15 CPUs busy from 1067.6 s to 1068.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.05 CPUs busy from 1079.7 s to 1080.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.17 CPUs busy from 1099.8 s to 1100.8 s; measurements in that time may read slower than this machine runs
+regress: pair 2 again: busy: other programs kept 0.28 CPUs busy on average, 1.17 in the busiest window; busy in 5 of 101 windows (1035.4-1036.4 s, 1047.5-1048.5 s, 1067.6-1068.6 s, 1079.7-1080.7 s, 1099.8-1100.8 s); busy: other programs kept 0.28 CPUs busy on average, 1.18 in the busiest window; busy in 6 of 109 windows (907.0-908.0 s, 939.3-940.3 s, 950.4-951.4 s, 971.5-972.5 s, 982.6-983.6 s, 1003.7-1004.7 s)
+clocks: other programs kept 1.02 CPUs busy from 1131.6 s to 1132.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.22 CPUs busy from 1163.9 s to 1164.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.43 CPUs busy from 1168.9 s to 1169.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.26 CPUs busy from 1169.9 s to 1170.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.20 CPUs busy from 1170.9 s to 1171.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.22 CPUs busy from 1171.9 s to 1172.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.14 CPUs busy from 1172.9 s to 1173.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.42 CPUs busy from 1173.9 s to 1175.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.16 CPUs busy from 1196.1 s to 1197.1 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.08 CPUs busy from 1242.6 s to 1243.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.30 CPUs busy from 1274.9 s to 1275.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.06 CPUs busy from 1307.1 s to 1308.1 s; measurements in that time may read slower than this machine runs
+regress: pair 2 again: busy: other programs kept 0.29 CPUs busy on average, 1.30 in the busiest window; busy in 3 of 101 windows (1242.6-1243.6 s, 1274.9-1275.9 s, 1307.1-1308.1 s); busy: other programs kept 0.35 CPUs busy on average, 1.43 in the busiest window; busy in 9 of 109 windows (1131.6-1132.6 s, 1163.9-1164.9 s, 1168.9-1169.9 s, 1169.9-1170.9 s, 1170.9-1171.9 s, 1171.9-1172.9 s, 1172.9-1173.9 s, 1173.9-1175.0 s, 1196.1-1197.1 s)
+clocks: other programs kept 1.05 CPUs busy from 1324.7 s to 1325.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.05 CPUs busy from 1372.1 s to 1373.1 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.13 CPUs busy from 1404.3 s to 1405.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.19 CPUs busy from 1436.7 s to 1437.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.11 CPUs busy from 1452.9 s to 1453.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.05 CPUs busy from 1485.2 s to 1486.2 s; measurements in that time may read slower than this machine runs
+regress: pair 2 again: busy: other programs kept 0.29 CPUs busy on average, 1.19 in the busiest window; busy in 3 of 101 windows (1436.7-1437.7 s, 1452.9-1453.9 s, 1485.2-1486.2 s); busy: other programs kept 0.28 CPUs busy on average, 1.13 in the busiest window; busy in 3 of 109 windows (1324.7-1325.7 s, 1372.1-1373.1 s, 1404.3-1405.3 s)
+clocks: other programs kept 1.01 CPUs busy from 1533.9 s to 1534.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.10 CPUs busy from 1549.0 s to 1550.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.11 CPUs busy from 1581.3 s to 1582.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.13 CPUs busy from 1599.5 s to 1600.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.00 CPUs busy from 1613.6 s to 1614.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.20 CPUs busy from 1631.7 s to 1632.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.04 CPUs busy from 1664.1 s to 1665.1 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.03 CPUs busy from 1677.3 s to 1678.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.25 CPUs busy from 1696.4 s to 1697.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.22 CPUs busy from 1709.5 s to 1710.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.08 CPUs busy from 1726.7 s to 1727.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.45 CPUs busy from 1727.7 s to 1728.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.23 CPUs busy from 1728.7 s to 1729.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.29 CPUs busy from 1741.8 s to 1742.8 s; measurements in that time may read slower than this machine runs
+regress: pair 2 of 4 in 849.2 s
+clocks: other programs kept 1.22 CPUs busy from 1793.5 s to 1794.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.15 CPUs busy from 1805.6 s to 1806.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.06 CPUs busy from 1824.7 s to 1825.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.29 CPUs busy from 1825.7 s to 1826.8 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.36 CPUs busy from 1837.9 s to 1838.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.11 CPUs busy from 1870.2 s to 1871.2 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.21 CPUs busy from 1902.5 s to 1903.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.14 CPUs busy from 1922.6 s to 1923.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.10 CPUs busy from 1923.6 s to 1924.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.07 CPUs busy from 1933.7 s to 1934.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.24 CPUs busy from 1949.8 s to 1950.8 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.17 CPUs busy from 1950.8 s to 1951.8 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.22 CPUs busy from 1951.8 s to 1952.8 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.17 CPUs busy from 1952.8 s to 1953.8 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.43 CPUs busy from 1953.8 s to 1954.8 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.83 CPUs busy from 1954.8 s to 1955.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.89 CPUs busy from 1955.9 s to 1956.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.51 CPUs busy from 1956.9 s to 1957.9 s; measurements in that time may read slower than this machine runs
+regress: pair 3 again: busy: other programs kept 0.44 CPUs busy on average, 1.36 in the busiest window; busy in 5 of 101 windows (1793.5-1794.5 s, 1805.6-1806.6 s, 1824.7-1825.7 s, 1825.7-1826.8 s, 1837.9-1838.9 s); busy: other programs kept 0.56 CPUs busy on average, 1.89 in the busiest window; busy in 13 of 109 windows (1870.2-1871.2 s, 1902.5-1903.5 s, 1922.6-1923.6 s, 1923.6-1924.6 s, 1933.7-1934.7 s, 1949.8-1950.8 s, 1950.8-1951.8 s, 1951.8-1952.8 s, 1952.8-1953.8 s, 1953.8-1954.8 s, 1954.8-1955.9 s, 1955.9-1956.9 s, 1956.9-1957.9 s)
+clocks: other programs kept 1.16 CPUs busy from 1966.0 s to 1967.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.15 CPUs busy from 1988.2 s to 1989.2 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.19 CPUs busy from 1998.3 s to 1999.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.15 CPUs busy from 2020.5 s to 2021.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.19 CPUs busy from 2030.5 s to 2031.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.33 CPUs busy from 2051.7 s to 2052.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 2.08 CPUs busy from 2052.7 s to 2053.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.47 CPUs busy from 2053.7 s to 2054.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.12 CPUs busy from 2094.6 s to 2095.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.20 CPUs busy from 2117.8 s to 2118.8 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.17 CPUs busy from 2126.9 s to 2127.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.17 CPUs busy from 2150.1 s to 2151.1 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.10 CPUs busy from 2159.1 s to 2160.1 s; measurements in that time may read slower than this machine runs
+regress: pair 3 again: busy: other programs kept 0.36 CPUs busy on average, 2.08 in the busiest window; busy in 8 of 101 windows (1966.0-1967.0 s, 1988.2-1989.2 s, 1998.3-1999.3 s, 2020.5-2021.5 s, 2030.5-2031.5 s, 2051.7-2052.7 s, 2052.7-2053.7 s, 2053.7-2054.7 s); busy: other programs kept 0.28 CPUs busy on average, 1.20 in the busiest window; busy in 5 of 109 windows (2094.6-2095.6 s, 2117.8-2118.8 s, 2126.9-2127.9 s, 2150.1-2151.1 s, 2159.1-2160.1 s)
+clocks: other programs kept 1.06 CPUs busy from 2214.8 s to 2215.8 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.10 CPUs busy from 2255.1 s to 2256.2 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.01 CPUs busy from 2279.6 s to 2280.6 s; measurements in that time may read slower than this machine runs
+regress: pair 3 again: busy: other programs kept 0.28 CPUs busy on average, 1.10 in the busiest window; busy in 2 of 101 windows (2214.8-2215.8 s, 2255.1-2256.2 s); busy: other programs kept 0.30 CPUs busy on average, 1.01 in the busiest window; busy in 1 of 109 windows (2279.6-2280.6 s)
+clocks: other programs kept 1.19 CPUs busy from 2383.7 s to 2384.7 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.33 CPUs busy from 2416.0 s to 2417.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.19 CPUs busy from 2442.2 s to 2443.2 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.26 CPUs busy from 2474.5 s to 2475.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.16 CPUs busy from 2512.0 s to 2513.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.13 CPUs busy from 2539.2 s to 2540.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.28 CPUs busy from 2544.3 s to 2545.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.15 CPUs busy from 2571.5 s to 2572.5 s; measurements in that time may read slower than this machine runs
+regress: pair 3 of 4 in 848.8 s
+clocks: other programs kept 1.19 CPUs busy from 2640.3 s to 2641.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.21 CPUs busy from 2672.6 s to 2673.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.00 CPUs busy from 2705.1 s to 2706.1 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.17 CPUs busy from 2797.8 s to 2798.8 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.16 CPUs busy from 2800.8 s to 2801.8 s; measurements in that time may read slower than this machine runs
+regress: pair 4 again: busy: other programs kept 0.29 CPUs busy on average, 1.17 in the busiest window; busy in 3 of 101 windows (2705.1-2706.1 s, 2797.8-2798.8 s, 2800.8-2801.8 s); busy: other programs kept 0.31 CPUs busy on average, 1.21 in the busiest window; busy in 2 of 109 windows (2640.3-2641.3 s, 2672.6-2673.6 s)
+clocks: other programs kept 1.02 CPUs busy from 2864.9 s to 2865.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.17 CPUs busy from 2897.2 s to 2898.2 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.01 CPUs busy from 2927.5 s to 2928.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.23 CPUs busy from 2928.5 s to 2929.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.06 CPUs busy from 2929.5 s to 2930.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.60 CPUs busy from 2960.8 s to 2961.8 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.30 CPUs busy from 2961.8 s to 2962.8 s; measurements in that time may read slower than this machine runs
+regress: pair 4 again: busy: other programs kept 0.28 CPUs busy on average, 1.60 in the busiest window; busy in 5 of 101 windows (2927.5-2928.5 s, 2928.5-2929.5 s, 2929.5-2930.5 s, 2960.8-2961.8 s, 2961.8-2962.8 s); busy: other programs kept 0.27 CPUs busy on average, 1.17 in the busiest window; busy in 2 of 109 windows (2864.9-2865.9 s, 2897.2-2898.2 s)
+clocks: other programs kept 1.14 CPUs busy from 3056.0 s to 3057.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.11 CPUs busy from 3088.2 s to 3089.2 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.18 CPUs busy from 3120.5 s to 3121.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.18 CPUs busy from 3187.3 s to 3188.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.20 CPUs busy from 3206.5 s to 3207.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.17 CPUs busy from 3207.5 s to 3208.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.23 CPUs busy from 3208.5 s to 3209.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.28 CPUs busy from 3209.5 s to 3210.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.26 CPUs busy from 3210.5 s to 3211.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.16 CPUs busy from 3211.5 s to 3212.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.22 CPUs busy from 3212.5 s to 3213.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.20 CPUs busy from 3213.5 s to 3214.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.19 CPUs busy from 3214.5 s to 3215.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.35 CPUs busy from 3215.5 s to 3216.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.97 CPUs busy from 3216.6 s to 3217.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.55 CPUs busy from 3217.6 s to 3218.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.37 CPUs busy from 3218.6 s to 3219.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 2.07 CPUs busy from 3219.6 s to 3220.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.55 CPUs busy from 3220.6 s to 3221.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.19 CPUs busy from 3221.6 s to 3222.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.34 CPUs busy from 3222.6 s to 3223.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.22 CPUs busy from 3223.6 s to 3224.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.22 CPUs busy from 3224.6 s to 3225.6 s; measurements in that time may read slower than this machine runs
+regress: pair 4 again: busy: other programs kept 0.55 CPUs busy on average, 2.07 in the busiest window; busy in 20 of 100 windows (3187.3-3188.3 s, 3206.5-3207.5 s, 3207.5-3208.5 s, 3208.5-3209.5 s, 3209.5-3210.5 s, 3210.5-3211.5 s, 3211.5-3212.5 s, 3212.5-3213.5 s, 3213.5-3214.5 s, 3214.5-3215.5 s, 3215.5-3216.6 s, 3216.6-3217.6 s, 3217.6-3218.6 s, 3218.6-3219.6 s, 3219.6-3220.6 s, 3220.6-3221.6 s, 3221.6-3222.6 s, 3222.6-3223.6 s, 3223.6-3224.6 s, 3224.6-3225.6 s); busy: other programs kept 0.30 CPUs busy on average, 1.18 in the busiest window; busy in 3 of 109 windows (3056.0-3057.0 s, 3088.2-3089.2 s, 3120.5-3121.5 s)
+clocks: other programs kept 1.21 CPUs busy from 3236.3 s to 3237.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.11 CPUs busy from 3237.3 s to 3238.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.17 CPUs busy from 3238.3 s to 3239.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.14 CPUs busy from 3239.3 s to 3240.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.35 CPUs busy from 3240.4 s to 3241.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.12 CPUs busy from 3241.4 s to 3242.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.24 CPUs busy from 3242.4 s to 3243.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.18 CPUs busy from 3243.4 s to 3244.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.19 CPUs busy from 3244.4 s to 3245.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.15 CPUs busy from 3245.4 s to 3246.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.16 CPUs busy from 3246.4 s to 3247.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.20 CPUs busy from 3247.4 s to 3248.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.73 CPUs busy from 3248.4 s to 3249.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 2.05 CPUs busy from 3249.4 s to 3250.4 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.22 CPUs busy from 3250.4 s to 3251.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.51 CPUs busy from 3251.5 s to 3252.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.98 CPUs busy from 3252.5 s to 3253.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.89 CPUs busy from 3253.5 s to 3254.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.61 CPUs busy from 3254.5 s to 3255.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.23 CPUs busy from 3255.5 s to 3256.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.25 CPUs busy from 3256.5 s to 3257.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.10 CPUs busy from 3257.5 s to 3258.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.23 CPUs busy from 3258.5 s to 3259.5 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.11 CPUs busy from 3285.8 s to 3286.8 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.19 CPUs busy from 3318.0 s to 3319.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.11 CPUs busy from 3345.9 s to 3346.9 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.01 CPUs busy from 3351.0 s to 3352.0 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.13 CPUs busy from 3383.3 s to 3384.3 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.16 CPUs busy from 3415.5 s to 3416.5 s; measurements in that time may read slower than this machine runs
+regress: pair 4 of 4 in 849.3 s
+regress: old side: bench d7723f110a6f clean; servil bf2da8b957f5 clean
+regress: new side: bench cade30fdb716 clean; servil 7048303103c6 clean
+regress: other programs kept the machine busy, or clocks saw no load window, during 8 runs. No verdict (exit 2); run again when nothing else runs on the machine.
+  busy: other programs kept 0.28 CPUs busy on average, 1.18 in the busiest window; busy in 2 of 101 windows (714.8-715.8 s, 755.1-756.1 s)
+  busy: other programs kept 0.30 CPUs busy on average, 1.10 in the busiest window; busy in 2 of 109 windows (811.0-812.1 s, 826.2-827.2 s)
+  busy: other programs kept 0.33 CPUs busy on average, 1.45 in the busiest window; busy in 8 of 101 windows (1664.1-1665.1 s, 1677.3-1678.3 s, 1696.4-1697.4 s, 1709.5-1710.5 s, 1726.7-1727.7 s, 1727.7-1728.7 s, 1728.7-1729.7 s, 1741.8-1742.8 s)
+  busy: other programs kept 0.28 CPUs busy on average, 1.20 in the busiest window; busy in 6 of 109 windows (1533.9-1534.9 s, 1549.0-1550.0 s, 1581.3-1582.3 s, 1599.5-1600.5 s, 1613.6-1614.6 s, 1631.7-1632.7 s)
+  busy: other programs kept 0.30 CPUs busy on average, 1.33 in the busiest window; busy in 4 of 101 windows (2383.7-2384.7 s, 2416.0-2417.0 s, 2442.2-2443.2 s, 2474.5-2475.5 s)
+  busy: other programs kept 0.27 CPUs busy on average, 1.28 in the busiest window; busy in 4 of 109 windows (2512.0-2513.0 s, 2539.2-2540.3 s, 2544.3-2545.3 s, 2571.5-2572.5 s)
+  busy: other programs kept 0.30 CPUs busy on average, 1.16 in the busiest window; busy in 4 of 101 windows (3345.9-3346.9 s, 3351.0-3352.0 s, 3383.3-3384.3 s, 3415.5-3416.5 s)
+  busy: other programs kept 0.52 CPUs busy on average, 2.05 in the busiest window; busy in 25 of 109 windows (3236.3-3237.3 s, 3237.3-3238.3 s, 3238.3-3239.3 s, 3239.3-3240.4 s, 3240.4-3241.4 s, 3241.4-3242.4 s, 3242.4-3243.4 s, 3243.4-3244.4 s, 3244.4-3245.4 s, 3245.4-3246.4 s, 3246.4-3247.4 s, 3247.4-3248.4 s, 3248.4-3249.4 s, 3249.4-3250.4 s, 3250.4-3251.5 s, 3251.5-3252.5 s, 3252.5-3253.5 s, 3253.5-3254.5 s, 3254.5-3255.5 s, 3255.5-3256.5 s, 3256.5-3257.5 s, 3257.5-3258.5 s, 3258.5-3259.5 s, 3285.8-3286.8 s, 3318.0-3319.0 s)
+regress: power during the check: mains power
