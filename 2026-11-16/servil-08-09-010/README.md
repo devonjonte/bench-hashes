@@ -86,7 +86,7 @@ Load: busy: other programs kept 0.25 CPUs busy on average, 1.08 in the busiest w
 - **Level on every machine:** 4 KiB (warm and cold); 64 KiB (warm and cold); 16 MiB (warm); 256 MiB (warm); 1 GiB (warm); 1000 x 16 KiB, a process each (warm and cold); 1 MiB (cold).
 - **Slower on a machine:** 1000 x 16 KiB (cold).
 
-**A second run** of the same programs on 5 machines, each machine's 20 cells again: 38 cells are marked faster in both runs, 5 in the first only and 1 in the second only. Marked slower: `x86-avx2` 1000 x 16 KiB, cold (both runs).
+**A second run** of the same programs on 6 machines, each machine's 20 cells again: 45 cells are marked faster in both runs, 5 in the first only and 1 in the second only. Marked slower: `x86-avx2` 1000 x 16 KiB, cold (both runs).
 
 ### 0.8.0 against 0.9.0
 
