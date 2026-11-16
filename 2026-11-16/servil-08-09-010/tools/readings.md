@@ -45,6 +45,8 @@ hyperfine -N --prepare 'dd of=FILE oflag=nocache conv=notrunc,fdatasync count=0'
   toolchain, and `run.sh`; `evidence/recipe/` holds the three runs of the commands
   above; `tools/` holds the scripts that wrote this page. `SHA256SUMS` and
   `BLAKE3SUMS` cover every file.
+- **Apple M6:** its b3sum report and samples are in `evidence/apple-m6/`, as published
+  in bench-hashes' `benchmark-results/AppleM6.darwin27/`.
 - **0.8.0 → 0.9.0:** the release runs of bench-hashes 0.22,
   [`2026-11-13/release-022/`](../../2026-11-13/release-022/README.md).
 - **0.9.0 → 0.10 candidate, the same-library control, and b3sum against official:**

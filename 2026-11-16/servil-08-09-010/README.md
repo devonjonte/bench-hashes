@@ -66,22 +66,22 @@ Load: busy: other programs kept 0.25 CPUs busy on average, 1.08 in the busiest w
 
 ### Against b3sum 0.9.0
 
-**b3sum 0.10 candidate against b3sum 0.9.0** (5 machines; time ratio, below 1 is faster)
+**b3sum 0.10 candidate against b3sum 0.9.0** (6 machines; time ratio, below 1 is faster)
 
 | input | warm: range | warm: machines faster / slower | cold: range | cold: machines faster / slower |
 |---|---:|---:|---:|---:|
 | 4 KiB | ×0.98–×1.03 | 0 / 0 | ×0.98–×1.07 | 0 / 0 |
-| 64 KiB | ×1.00–×1.14 | 0 / 0 | ×1.02–×1.09 | 0 / 0 |
-| 1 MiB | ×0.77–×0.97 | 4 / 0 | ×0.98–×1.07 | 0 / 0 |
-| 16 MiB | ×0.96–×1.10 | 0 / 0 | ×0.67–×0.87 | 5 / 0 |
-| 256 MiB | ×0.95–×1.01 | 0 / 0 | ×0.60–×0.81 | 5 / 0 |
-| 1 GiB | ×0.96–×1.03 | 0 / 0 | ×0.54–×0.81 | 5 / 0 |
-| 1000 x 16 KiB | ×0.81–×0.89 | 5 / 0 | ×0.56–×1.05 | 3 / 1 |
+| 64 KiB | ×1.00–×1.14 | 0 / 0 | ×1.00–×1.09 | 0 / 0 |
+| 1 MiB | ×0.77–×1.00 | 4 / 0 | ×0.98–×1.07 | 0 / 0 |
+| 16 MiB | ×0.96–×1.10 | 0 / 0 | ×0.67–×0.87 | 6 / 0 |
+| 256 MiB | ×0.95–×1.01 | 0 / 0 | ×0.60–×0.81 | 6 / 0 |
+| 1 GiB | ×0.96–×1.03 | 0 / 0 | ×0.54–×0.81 | 6 / 0 |
+| 1000 x 16 KiB | ×0.81–×0.89 | 6 / 0 | ×0.56–×1.05 | 3 / 1 |
 | 1000 x 16 KiB, a process each | ×0.99–×1.02 | 0 / 0 | ×0.99–×1.02 | 0 / 0 |
-| mixed tree, 1000 files, 74 MiB | ×0.86–×0.99 | 3 / 0 | ×0.66–×1.02 | 3 / 0 |
-| 16 x 64 MiB | ×0.54–×0.86 | 5 / 0 | ×0.62–×0.81 | 5 / 0 |
+| mixed tree, 1000 files, 74 MiB | ×0.86–×0.99 | 4 / 0 | ×0.66–×1.02 | 3 / 0 |
+| 16 x 64 MiB | ×0.54–×0.86 | 6 / 0 | ×0.62–×0.81 | 6 / 0 |
 
-- **Faster on all 5 machines:** 1000 x 16 KiB (warm); 16 x 64 MiB (warm and cold); 16 MiB (cold); 256 MiB (cold); 1 GiB (cold).
+- **Faster on all 6 machines:** 1000 x 16 KiB (warm); 16 x 64 MiB (warm and cold); 16 MiB (cold); 256 MiB (cold); 1 GiB (cold).
 - **Faster on some machines:** 1 MiB (warm); mixed tree, 1000 files, 74 MiB (warm and cold); 1000 x 16 KiB (cold).
 - **Level on every machine:** 4 KiB (warm and cold); 64 KiB (warm and cold); 16 MiB (warm); 256 MiB (warm); 1 GiB (warm); 1000 x 16 KiB, a process each (warm and cold); 1 MiB (cold).
 - **Slower on a machine:** 1000 x 16 KiB (cold).
@@ -93,30 +93,30 @@ Load: busy: other programs kept 0.25 CPUs busy on average, 1.08 in the busiest w
 In this table 0.8.0 is the program judged: below 1 means 0.8.0 took less time than
 0.9.0.
 
-**b3sum 0.8.0 against b3sum 0.9.0** (5 machines; time ratio, below 1 is faster)
+**b3sum 0.8.0 against b3sum 0.9.0** (6 machines; time ratio, below 1 is faster)
 
 | input | warm: range | warm: machines faster / slower | cold: range | cold: machines faster / slower |
 |---|---:|---:|---:|---:|
-| 4 KiB | ×0.95–×1.02 | 0 / 0 | ×0.97–×1.01 | 0 / 0 |
-| 64 KiB | ×0.94–×1.06 | 2 / 0 | ×0.97–×1.07 | 0 / 0 |
+| 4 KiB | ×0.95–×1.02 | 0 / 0 | ×0.96–×1.01 | 0 / 0 |
+| 64 KiB | ×0.94–×1.06 | 3 / 0 | ×0.93–×1.07 | 0 / 0 |
 | 1 MiB | ×0.97–×1.00 | 0 / 0 | ×0.91–×1.05 | 0 / 0 |
-| 16 MiB | ×0.92–×1.01 | 2 / 0 | ×0.98–×1.03 | 0 / 0 |
+| 16 MiB | ×0.92–×1.01 | 3 / 0 | ×0.98–×1.03 | 0 / 0 |
 | 256 MiB | ×0.93–×1.03 | 0 / 0 | ×0.98–×1.01 | 0 / 0 |
 | 1 GiB | ×0.90–×1.06 | 1 / 0 | ×1.00–×1.00 | 0 / 0 |
-| 1000 x 16 KiB | ×0.94–×1.02 | 1 / 0 | ×0.95–×1.02 | 0 / 0 |
-| 1000 x 16 KiB, a process each | ×0.95–×0.96 | 5 / 0 | ×0.95–×0.97 | 2 / 0 |
+| 1000 x 16 KiB | ×0.94–×1.02 | 1 / 0 | ×0.95–×1.02 | 1 / 0 |
+| 1000 x 16 KiB, a process each | ×0.95–×0.96 | 6 / 0 | ×0.95–×0.97 | 3 / 0 |
 | mixed tree, 1000 files, 74 MiB | ×0.89–×1.00 | 2 / 0 | ×0.95–×1.02 | 1 / 0 |
 | 16 x 64 MiB | ×0.79–×1.01 | 0 / 0 | ×0.97–×1.00 | 0 / 0 |
 
-- **Faster on all 5 machines:** 1000 x 16 KiB, a process each (warm).
-- **Faster on some machines:** 64 KiB (warm); 16 MiB (warm); 1 GiB (warm); 1000 x 16 KiB (warm); mixed tree, 1000 files, 74 MiB (warm and cold); 1000 x 16 KiB, a process each (cold).
-- **Level on every machine:** 4 KiB (warm and cold); 1 MiB (warm and cold); 256 MiB (warm and cold); 16 x 64 MiB (warm and cold); 64 KiB (cold); 16 MiB (cold); 1 GiB (cold); 1000 x 16 KiB (cold).
+- **Faster on all 6 machines:** 1000 x 16 KiB, a process each (warm).
+- **Faster on some machines:** 64 KiB (warm); 16 MiB (warm); 1 GiB (warm); 1000 x 16 KiB (warm and cold); mixed tree, 1000 files, 74 MiB (warm and cold); 1000 x 16 KiB, a process each (cold).
+- **Level on every machine:** 4 KiB (warm and cold); 1 MiB (warm and cold); 256 MiB (warm and cold); 16 x 64 MiB (warm and cold); 64 KiB (cold); 16 MiB (cold); 1 GiB (cold).
 - **Slower on a machine:** no input, warm or cold.
 
 The two are close. Where they differ, 0.8.0 is the faster one, most clearly when
 every small file gets its own process; "Known costs" below says what that is.
 
-Each machine's full tables, with the mean times: [`x86-9700x`](b3sum/x86-9700x.md), [`x86-avx2`](b3sum/x86-avx2.md), [`x86-epyc-9255`](b3sum/x86-epyc-9255.md), [`x86-epyc-9275f`](b3sum/x86-epyc-9275f.md), [`x86-icelake-2`](b3sum/x86-icelake-2.md). Each machine's
+Each machine's full tables, with the mean times: [`x86-9700x`](b3sum/x86-9700x.md), [`x86-avx2`](b3sum/x86-avx2.md), [`x86-epyc-9255`](b3sum/x86-epyc-9255.md), [`x86-epyc-9275f`](b3sum/x86-epyc-9275f.md), [`x86-icelake`](b3sum/x86-icelake.md), [`x86-icelake-2`](b3sum/x86-icelake-2.md). Each machine's
 second run is beside its page (`b3sum/<machine>-second-run.md`).
 
 ### Try it yourself
@@ -168,7 +168,7 @@ the old and the new library in alternating pairs and judges every cell.
 - **0.8.0 → 0.9.0, one thread** (5 machines): 4 to 16 cells faster and 0 to 5 slower per machine, of 213.
 - **0.9.0 → 0.10 candidate, one thread** (6 machines): 2 to 24 cells faster and 0 to 3 slower per machine, of 220 to 222.
 - **0.9.0 → 0.10 candidate, every core** (6 machines): 0 to 78 cells faster and 0 to 11 slower per machine, of 230 to 265.
-- **0.8.0 → 0.10 candidate, one thread** (5 machines): 7 to 18 cells faster and 0 to 2 slower per machine, of 213.
+- **0.8.0 → 0.10 candidate, one thread** (6 machines): 7 to 18 cells faster and 0 to 2 slower per machine, of 213.
 
 | host | step | form | cells | faster | slower | left out: the benchmark's call changed |
 |---|---|---|---:|---:|---:|---:|
@@ -187,6 +187,7 @@ the old and the new library in alternating pairs and judges every cell.
 | `x86-icelake` | 0.8.0 → 0.9.0 | one thread | 213 | 10 | 1 |  | `solo|OneMessage|7935 B` ×0.631 |
 | `x86-icelake` | 0.9.0 → 0.10 candidate | one thread | 222 | 2 | 3 |  | `solo|ReceivingMessage|saturated` ×0.807 |
 | `x86-icelake` | 0.9.0 → 0.10 candidate | every core | 262 | 50 | 3 | 72 | `shared-two-caches|MerkleTree|65536 x 32 B` ×0.571 |
+| `x86-icelake` | 0.8.0 → 0.10 candidate | one thread | 213 | 12 | 0 |  | `solo|OneMessage|7935 B` ×0.636 |
 | `x86-icelake-2` | 0.9.0 → 0.10 candidate | one thread | 222 | 2 | 1 |  | `solo|ReceivingMessage|saturated` ×0.806 |
 | `x86-icelake-2` | 0.9.0 → 0.10 candidate | every core | 264 | 40 | 0 | 70 | `shared-two-caches|MerkleTree|65536 x 32 B` ×0.607 |
 | `x86-icelake-2` | 0.8.0 → 0.10 candidate | one thread | 213 | 15 | 1 |  | `solo|OneMessage|3839 B` ×0.620 |
@@ -255,6 +256,8 @@ gains: [`x86-9700x`](library/x86-9700x.md), [`x86-avx2`](library/x86-avx2.md), [
   toolchain, and `run.sh`; `evidence/recipe/` holds the three runs of the commands
   above; `tools/` holds the scripts that wrote this page. `SHA256SUMS` and
   `BLAKE3SUMS` cover every file.
+- **Apple M6:** its b3sum report and samples are in `evidence/apple-m6/`, as published
+  in bench-hashes' `benchmark-results/AppleM6.darwin27/`.
 - **0.8.0 → 0.9.0:** the release runs of bench-hashes 0.22,
   [`2026-11-13/release-022/`](../../2026-11-13/release-022/README.md).
 - **0.9.0 → 0.10 candidate, the same-library control, and b3sum against official:**

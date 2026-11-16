@@ -15,6 +15,7 @@
 | `x86-icelake` | 0.8.0 → 0.9.0 | one thread | 213 | 10 | 1 |  | `solo|OneMessage|7935 B` ×0.631 |
 | `x86-icelake` | 0.9.0 → 0.10 candidate | one thread | 222 | 2 | 3 |  | `solo|ReceivingMessage|saturated` ×0.807 |
 | `x86-icelake` | 0.9.0 → 0.10 candidate | every core | 262 | 50 | 3 | 72 | `shared-two-caches|MerkleTree|65536 x 32 B` ×0.571 |
+| `x86-icelake` | 0.8.0 → 0.10 candidate | one thread | 213 | 12 | 0 |  | `solo|OneMessage|7935 B` ×0.636 |
 | `x86-icelake-2` | 0.9.0 → 0.10 candidate | one thread | 222 | 2 | 1 |  | `solo|ReceivingMessage|saturated` ×0.806 |
 | `x86-icelake-2` | 0.9.0 → 0.10 candidate | every core | 264 | 40 | 0 | 70 | `shared-two-caches|MerkleTree|65536 x 32 B` ×0.607 |
 | `x86-icelake-2` | 0.8.0 → 0.10 candidate | one thread | 213 | 15 | 1 |  | `solo|OneMessage|3839 B` ×0.620 |

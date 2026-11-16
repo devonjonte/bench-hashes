@@ -203,3 +203,43 @@ The two bench releases call the library differently in these cells: the same lib
 - `blake3-servil-mt|shared-two-caches|ContinuousCollection|Nix files`: ×0.423 faster; control ×0.426 faster
 - `blake3-servil-mt|shared-two-caches|ReceivingMessage|saturated`: ×0.341 faster; control ×0.403 faster
 - `blake3-servil-mt|shared-two-caches|ReceivingMessage|2 μs`: ×0.344 faster; control ×0.404 faster
+
+## 0.8.0 → 0.10 candidate
+
+`old side: bench 3363bee8ff5e clean; servil b5b988d8982b clean`; `new side: bench cade30fdb716 clean; servil 7048303103c6 clean`
+
+213 cells over 4 pairs (8 of them measured again over more pairs and link layouts): **12 faster, 0 slower**, the rest level.
+
+| form | scenario | use case | cells | faster | slower | median time ratio | range |
+|---|---|---|---:|---:|---:|---:|---|
+| one thread | solo | OneMessage | 28 | 3 | 0 | ×0.992 | ×0.636–×1.044 |
+| one thread | solo | ManyMessages | 24 | 0 | 0 | ×1.007 | ×0.971–×1.064 |
+| one thread | solo | ManyLongMessages | 4 | 0 | 0 | ×1.000 | ×0.994–×1.008 |
+| one thread | solo | IdleOneMessage | 28 | 3 | 0 | ×0.998 | ×0.675–×1.045 |
+| one thread | solo | IdleManyMessages | 24 | 0 | 0 | ×1.002 | ×0.952–×1.088 |
+| one thread | solo | BriefIdleOneMessage | 28 | 3 | 0 | ×1.002 | ×0.685–×1.028 |
+| one thread | solo | BriefIdleManyMessages | 24 | 0 | 0 | ×1.008 | ×0.994–×1.106 |
+| one thread | solo | ContinuousMessages | 13 | 1 | 0 | ×0.990 | ×0.970–×1.187 |
+| one thread | solo | ContinuousBatches | 7 | 0 | 0 | ×1.002 | ×0.996–×1.005 |
+| one thread | solo | LentMessages | 13 | 0 | 0 | ×1.007 | ×0.921–×1.187 |
+| one thread | solo | Interleaved | 1 | 0 | 0 | ×1.000 | ×1.000–×1.000 |
+| one thread | solo | Collection | 2 | 1 | 0 | ×0.976 | ×0.967–×0.984 |
+| one thread | solo | LentBatches | 7 | 0 | 0 | ×1.002 | ×0.979–×1.005 |
+| one thread | solo | ContinuousCollection | 2 | 1 | 0 | ×0.972 | ×0.969–×0.975 |
+| one thread | solo | MerkleTree | 5 | 0 | 0 | ×1.003 | ×1.001–×1.026 |
+| one thread | solo | InterleavedTurn | 1 | 0 | 0 | ×1.013 | ×1.013–×1.013 |
+| one thread | solo | IdleInterleavedTurn | 1 | 0 | 0 | ×1.064 | ×1.064–×1.064 |
+| one thread | solo | BriefIdleInterleavedTurn | 1 | 0 | 0 | ×0.988 | ×0.988–×0.988 |
+
+The ten largest gains:
+
+- `blake3-servil-st|solo|OneMessage|7935 B`: ×0.636
+- `blake3-servil-st|solo|OneMessage|3839 B`: ×0.660
+- `blake3-servil-st|solo|OneMessage|3 KiB`: ×0.663
+- `blake3-servil-st|solo|IdleOneMessage|3 KiB`: ×0.675
+- `blake3-servil-st|solo|BriefIdleOneMessage|3 KiB`: ×0.685
+- `blake3-servil-st|solo|BriefIdleOneMessage|3839 B`: ×0.702
+- `blake3-servil-st|solo|IdleOneMessage|3839 B`: ×0.718
+- `blake3-servil-st|solo|BriefIdleOneMessage|7935 B`: ×0.722
+- `blake3-servil-st|solo|IdleOneMessage|7935 B`: ×0.747
+- `blake3-servil-st|solo|Collection|Nix files`: ×0.967
