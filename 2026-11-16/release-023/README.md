@@ -31,11 +31,29 @@ isolated on both EPYCs with one bench (`slower-cells-023-v2/`; the first try
 died on a point name of mine, kept); the Pipeline's huge owned batches
 ([BLAKE3 #389](https://github.com/servil-software-factory/BLAKE3/issues/389)).
 
+**Repeats by name on the other machines** (`<host>/slower-cells-023-rest/`, the
+release comparison again on each machine's own slower cells; `slower-cells-rest.sh.in`):
+
+| host | cells repeated | reading |
+|---|---|---|
+| x86-9700x | `idle 8` | no cell slower |
+| x86-icelake-2 | `brief idle 8` | no cell slower |
+| x86-avx2 | `continuous 64 B` | shared two caches slower again, +37.0% (4 pairs); solo and shared one cache faster. The control reads the cell too: it is the every-core stream cells' move to the Pipeline ([BLAKE3 #389](https://github.com/servil-software-factory/BLAKE3/issues/389)) |
+| x86-icelake | `8`, `brief idle 4`, `brief idle 8`, both turns of 1024 x 1 KiB, `lent 64 MiB` | none of the six repeats; one neighbour reads slower, the one-thread turn after a brief pause, +3.0% |
+
+**The turn of 1024 x 1 KiB messages on the two Xeon pairs** (`slower-cells-023-turn/`,
+the three turn points by name): on `x86-icelake-2` five of six turn cells read slower,
++3.7% to +4.2%. Both machines' release checks read every turn cell ×1.02 to ×1.05, and
+their same-library controls read them level, so the library carries it
+([BLAKE3 #404](https://github.com/servil-software-factory/BLAKE3/issues/404)).
+
 **Mac.** The mixed-use Mini ran the full run, b3sum and crowd (`ok`, mains);
 its release and control checks read busy windows four times and gave no verdict
-(`mac-m6-mini/`). The dedicated timing Mac takes that set once it is on the
-team queue; its records then replace the Mini's.
+(`mac-m6-mini/`). The dedicated timing Mac then ran the whole set
+(`mac-m6-timing/`, jobs 3207 to 3211, home prefix redacted): the release check and
+the same-library control read no cell slower, and its full run, b3sum and crowd are
+the Apple M6's published records (pull request #236).
 
-**Published.** Records for five machine kinds and the overview: bench-hashes
-`next` 22ffebfb (pull request #234). Sample files keep their bytes; home
+**Published.** Records for five x86-64 machine kinds and the overview: bench-hashes
+`next` 22ffebfb (pull request #234); the Apple M6: `next` 7ec90469 (pull request #236). Sample files keep their bytes; home
 prefixes in logs are redacted; both manifests cover this folder.

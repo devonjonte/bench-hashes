@@ -1,0 +1,217 @@
+$ (cd <runner-home>/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd <runner-home>/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd <runner-home>/checkouts/fork && git checkout --quiet --force --detach 7048303103c69b8609ffe9ca0361197ba318107c)
+$ (cd <runner-home>/checkouts/fork && git rev-parse HEAD)
+$ (cd <runner-home>/checkouts/fork && git clean -ffd --quiet)
+$ (cd <runner-home>/checkouts/bench && git fetch --quiet --prune origin)
+$ (cd <runner-home>/checkouts/bench && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd <runner-home>/checkouts/bench && git checkout --quiet --force --detach cade30fdb71682719f5fa3e586ff96146ae9fc25)
+$ (cd <runner-home>/checkouts/bench && git rev-parse HEAD)
+$ (cd <runner-home>/checkouts/bench && git clean -ffd --quiet)
+$ (cd <runner-home>/checkouts/bench && cargo run --release --quiet -- check --fork <runner-home>/checkouts/fork --against bf2da8b957f5e0c80babb57952de3e53f95c921a --when-quiet --keep <runner-home>/tmp/3210-release-023-check-again.20261116T060913Z-mac-m6-timing/samples --cells all --old-bench d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41)
+warning: unused imports: `c_int`, `c_long`, and `c_void`
+  --> clocks/src/events.rs:27:16
+   |
+27 | use std::ffi::{c_int, c_long, c_void};
+   |                ^^^^^  ^^^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `OwnedFd`
+  --> clocks/src/events.rs:28:39
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                                       ^^^^^^^
+
+warning: unused import: `AsRawFd`
+  --> clocks/src/events.rs:28:19
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                   ^^^^^^^
+
+warning: unused import: `FromRawFd`
+  --> clocks/src/events.rs:28:28
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                            ^^^^^^^^^
+
+warning: function `describe_pause` is never used
+    --> src/main.rs:8595:4
+     |
+8595 | fn describe_pause(ns: u64) -> String {
+     |    ^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `EFFECTIVE_IDLE_PAUSES` is never used
+    --> src/main.rs:8604:7
+     |
+8604 | const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
+     |       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `describe_effective_idle_states` is never used
+    --> src/main.rs:8755:4
+     |
+8755 | fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+check: BLAKE3-Servil's working tree (7048303103c6) against bf2da8b957f5e0c80babb57952de3e53f95c921a (bf2da8b957f5)
+check: the change touches 11341 added and 3757 deleted lines in 66 files: .github/workflows/ci.yml (+1/-1), AGENTS.md (+8/-0), CONTRIBUTING.md (+27/-5), Cargo.toml (+2/-2), b3sum/Cargo.lock (+138/-4), b3sum/Cargo.toml (+4/-2), b3sum/README.md (+30/-0), b3sum/src/direct.rs (+235/-0), b3sum/src/linux_pipe.rs (+1287/-0), b3sum/src/main.rs (+798/-307), b3sum/src/outboard.rs (+322/-0), b3sum/src/readahead.rs (+0/-230), and 54 more
+check: its hunks sit in: jobs:, Let things persist until the process ends: the typical pattern is also the simpl, A computation is correct when it delivers the right result, at the costs (includ, Misuse and misfortune (several of a program's threads calling at once, other loa, slower in 14 pool cells (BLAKE3 #119), and the i7 then found its fix, on `candidate/<topic>` branches; a candidate joins `next` as a, name = "blake3-servil-core", features = ["serde", "zeroize"], name = "b3sums", dependencies = [, checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da", name = "blake3-servil", and 186 more
+check: the old side with the bench at d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41 (d7723f110a6f)
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 4 run pairs using 4 distinct new executable paths and 4 old, over --contenders blake3-servil-st,blake3-servil-mt
+regress: pair 1 of 4 in 209.4 s
+regress: pair 2 of 4 in 210.1 s
+clocks: other programs kept 1.38 CPUs busy from 526.2 s to 527.2 s; measurements in that time may read slower than this machine runs
+regress: pair 3 again: busy: other programs kept 0.30 CPUs busy on average, 1.38 in the busiest window; busy in 1 of 100 windows (526.2-527.2 s)
+regress: pair 3 of 4 in 419.6 s
+clocks: other programs kept 1.94 CPUs busy from 868.1 s to 869.1 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 2.20 CPUs busy from 1037.5 s to 1038.5 s; measurements in that time may read slower than this machine runs
+regress: pair 4 again: busy: other programs kept 0.31 CPUs busy on average, 2.20 in the busiest window; busy in 1 of 100 windows (1037.5-1038.5 s); busy: other programs kept 0.30 CPUs busy on average, 1.94 in the busiest window; busy in 1 of 108 windows (868.1-869.1 s)
+regress: pair 4 of 4 in 419.7 s
+regress: old side: bench d7723f110a6f clean; servil bf2da8b957f5 clean
+regress: new side: bench cade30fdb716 clean; servil 7048303103c6 clean
+  faster blake3-servil-mt|shared-os|ContinuousBatches|1024: -67.0% (the pairs' geometric mean; 4 pairs, from -67.5% to -66.2%: -66.2% -67.1% -67.5% -67.3%)
+  faster blake3-servil-mt|shared-os|ContinuousBatches|16: -70.0% (the pairs' geometric mean; 4 pairs, from -70.8% to -69.4%: -69.6% -69.4% -70.1% -70.8%)
+  faster blake3-servil-mt|shared-os|ContinuousBatches|16384: -12.2% (the pairs' geometric mean; 4 pairs, from -14.2% to -8.4%: -12.7% -13.4% -8.4% -14.2%)
+  faster blake3-servil-mt|shared-os|ContinuousBatches|256: -68.3% (the pairs' geometric mean; 4 pairs, from -69.0% to -67.5%: -67.5% -69.0% -67.5% -69.0%)
+  faster blake3-servil-mt|shared-os|ContinuousBatches|4096: -64.4% (the pairs' geometric mean; 4 pairs, from -65.1% to -63.3%: -65.1% -64.9% -64.3% -63.3%)
+  faster blake3-servil-mt|shared-os|ContinuousBatches|64: -67.6% (the pairs' geometric mean; 4 pairs, from -68.4% to -67.0%: -67.3% -67.7% -68.4% -67.0%)
+  faster blake3-servil-mt|shared-os|ContinuousCollection|Nix files: -51.0% (the pairs' geometric mean; 4 pairs, from -52.5% to -48.4%: -48.4% -52.5% -51.6% -51.2%)
+  faster blake3-servil-mt|shared-os|ContinuousCollection|git objects: -58.7% (the pairs' geometric mean; 4 pairs, from -61.8% to -55.0%: -59.3% -55.0% -58.4% -61.8%)
+  faster blake3-servil-mt|shared-os|ContinuousMessages|1 KiB: -62.4% (the pairs' geometric mean; 4 pairs, from -63.8% to -61.0%: -63.6% -63.8% -61.1% -61.0%)
+  faster blake3-servil-mt|shared-os|ContinuousMessages|1 MiB: -65.5% (the pairs' geometric mean; 4 pairs, from -68.0% to -62.8%: -68.0% -64.8% -66.2% -62.8%)
+  faster blake3-servil-mt|shared-os|ContinuousMessages|128 B: -66.0% (the pairs' geometric mean; 4 pairs, from -67.5% to -64.2%: -64.2% -66.6% -65.8% -67.5%)
+  faster blake3-servil-mt|shared-os|ContinuousMessages|16 KiB: -52.8% (the pairs' geometric mean; 4 pairs, from -56.7% to -44.1%: -44.1% -56.0% -56.7% -53.4%)
+  faster blake3-servil-mt|shared-os|ContinuousMessages|16 MiB: -65.3% (the pairs' geometric mean; 4 pairs, from -68.0% to -63.4%: -68.0% -65.6% -63.9% -63.4%)
+  faster blake3-servil-mt|shared-os|ContinuousMessages|256 B: -68.4% (the pairs' geometric mean; 4 pairs, from -69.6% to -67.4%: -68.8% -67.6% -67.4% -69.6%)
+  faster blake3-servil-mt|shared-os|ContinuousMessages|256 KiB: -64.0% (the pairs' geometric mean; 4 pairs, from -66.5% to -61.4%: -66.5% -63.0% -65.0% -61.4%)
+  faster blake3-servil-mt|shared-os|ContinuousMessages|4 KiB: -51.0% (the pairs' geometric mean; 4 pairs, from -56.9% to -42.8%: -56.9% -42.8% -49.1% -54.2%)
+  faster blake3-servil-mt|shared-os|ContinuousMessages|4 MiB: -65.6% (the pairs' geometric mean; 4 pairs, from -66.3% to -64.8%: -64.8% -66.3% -65.9% -65.3%)
+  faster blake3-servil-mt|shared-os|ContinuousMessages|512 B: -63.2% (the pairs' geometric mean; 4 pairs, from -65.1% to -60.5%: -65.1% -63.1% -64.0% -60.5%)
+  faster blake3-servil-mt|shared-os|ContinuousMessages|64 B: -51.3% (the pairs' geometric mean; 4 pairs, from -55.2% to -47.5%: -47.5% -52.3% -55.2% -50.0%)
+  faster blake3-servil-mt|shared-os|ContinuousMessages|64 KiB: -66.1% (the pairs' geometric mean; 4 pairs, from -67.7% to -63.5%: -66.5% -63.5% -66.4% -67.7%)
+  faster blake3-servil-mt|shared-os|ContinuousMessages|64 MiB: -64.0% (the pairs' geometric mean; 4 pairs, from -65.4% to -62.6%: -62.6% -63.7% -65.4% -64.2%)
+  faster blake3-servil-mt|shared-os|ReceivingMessage|2 μs: -65.0% (the pairs' geometric mean; 4 pairs, from -65.1% to -64.8%: -64.8% -65.1% -65.1% -65.1%)
+  faster blake3-servil-mt|shared-os|ReceivingMessage|saturated: -69.1% (the pairs' geometric mean; 4 pairs, from -70.5% to -67.7%: -70.5% -68.3% -69.8% -67.7%)
+  faster blake3-servil-mt|solo|BriefIdleManyMessages|16384: -9.1% (the pairs' geometric mean; 4 pairs, from -11.3% to -6.8%: -6.8% -10.1% -8.4% -11.3%)
+  faster blake3-servil-mt|solo|BriefIdleManyMessages|8192: -16.8% (the pairs' geometric mean; 4 pairs, from -18.2% to -15.8%: -17.1% -16.1% -15.8% -18.2%)
+  faster blake3-servil-mt|solo|BriefIdleOneMessage|1 MiB: -12.1% (the pairs' geometric mean; 4 pairs, from -13.6% to -11.2%: -12.3% -11.3% -11.2% -13.6%)
+  faster blake3-servil-mt|solo|BriefIdleOneMessage|512 KiB: -12.2% (the pairs' geometric mean; 4 pairs, from -13.9% to -10.5%: -13.9% -12.2% -10.5% -12.1%)
+  faster blake3-servil-mt|solo|Collection|Nix files: -4.1% (the pairs' geometric mean; 4 pairs, from -4.4% to -3.6%: -3.6% -4.4% -4.2% -4.1%)
+  faster blake3-servil-mt|solo|ContinuousBatches|1024: -66.1% (the pairs' geometric mean; 4 pairs, from -67.2% to -64.0%: -64.0% -66.5% -66.5% -67.2%)
+  faster blake3-servil-mt|solo|ContinuousBatches|16: -72.5% (the pairs' geometric mean; 4 pairs, from -75.0% to -71.2%: -71.4% -72.1% -71.2% -75.0%)
+  faster blake3-servil-mt|solo|ContinuousBatches|16384: -46.2% (the pairs' geometric mean; 4 pairs, from -49.0% to -43.8%: -43.8% -47.4% -44.7% -49.0%)
+  faster blake3-servil-mt|solo|ContinuousBatches|256: -69.7% (the pairs' geometric mean; 4 pairs, from -70.5% to -68.9%: -68.9% -69.0% -70.5% -70.4%)
+  faster blake3-servil-mt|solo|ContinuousBatches|4096: -62.2% (the pairs' geometric mean; 4 pairs, from -63.1% to -60.8%: -62.4% -62.4% -60.8% -63.1%)
+  faster blake3-servil-mt|solo|ContinuousBatches|64: -82.2% (the pairs' geometric mean; 4 pairs, from -84.8% to -81.0%: -81.0% -81.1% -81.5% -84.8%)
+  faster blake3-servil-mt|solo|ContinuousBatches|65536: -31.4% (the pairs' geometric mean; 4 pairs, from -32.2% to -29.4%: -29.4% -31.9% -32.2% -31.8%)
+  faster blake3-servil-mt|solo|ContinuousCollection|Nix files: -78.4% (the pairs' geometric mean; 4 pairs, from -78.5% to -78.3%: -78.4% -78.5% -78.3% -78.4%)
+  faster blake3-servil-mt|solo|ContinuousCollection|git objects: -80.9% (the pairs' geometric mean; 4 pairs, from -81.1% to -80.8%: -81.0% -80.9% -80.8% -81.1%)
+  faster blake3-servil-mt|solo|ContinuousMessages|1 KiB: -82.7% (the pairs' geometric mean; 4 pairs, from -83.4% to -82.3%: -82.5% -83.4% -82.3% -82.7%)
+  faster blake3-servil-mt|solo|ContinuousMessages|1 MiB: -74.8% (the pairs' geometric mean; 4 pairs, from -75.4% to -74.3%: -74.3% -74.8% -75.4% -74.6%)
+  faster blake3-servil-mt|solo|ContinuousMessages|128 B: -73.4% (the pairs' geometric mean; 4 pairs, from -74.3% to -72.7%: -72.7% -73.5% -74.3% -72.9%)
+  faster blake3-servil-mt|solo|ContinuousMessages|16 KiB: -80.0% (the pairs' geometric mean; 4 pairs, from -80.4% to -79.7%: -79.8% -79.7% -80.4% -80.1%)
+  faster blake3-servil-mt|solo|ContinuousMessages|16 MiB: -79.8% (the pairs' geometric mean; 4 pairs, from -79.9% to -79.6%: -79.9% -79.6% -79.9% -79.8%)
+  faster blake3-servil-mt|solo|ContinuousMessages|256 B: -73.2% (the pairs' geometric mean; 4 pairs, from -75.1% to -71.2%: -73.7% -72.5% -71.2% -75.1%)
+  faster blake3-servil-mt|solo|ContinuousMessages|256 KiB: -77.6% (the pairs' geometric mean; 4 pairs, from -78.2% to -76.3%: -78.2% -78.2% -76.3% -77.7%)
+  faster blake3-servil-mt|solo|ContinuousMessages|4 KiB: -81.0% (the pairs' geometric mean; 4 pairs, from -81.3% to -80.5%: -81.3% -80.9% -81.1% -80.5%)
+  faster blake3-servil-mt|solo|ContinuousMessages|4 MiB: -79.0% (the pairs' geometric mean; 4 pairs, from -79.3% to -78.9%: -79.0% -78.9% -79.3% -78.9%)
+  faster blake3-servil-mt|solo|ContinuousMessages|512 B: -81.2% (the pairs' geometric mean; 4 pairs, from -82.1% to -80.8%: -80.8% -82.1% -81.1% -80.8%)
+  faster blake3-servil-mt|solo|ContinuousMessages|64 B: -54.8% (the pairs' geometric mean; 4 pairs, from -55.2% to -54.5%: -54.5% -55.2% -54.6% -54.8%)
+  faster blake3-servil-mt|solo|ContinuousMessages|64 KiB: -77.9% (the pairs' geometric mean; 4 pairs, from -78.2% to -77.7%: -77.9% -77.7% -78.2% -77.8%)
+  faster blake3-servil-mt|solo|ContinuousMessages|64 MiB: -79.8% (the pairs' geometric mean; 4 pairs, from -79.9% to -79.7%: -79.8% -79.9% -79.7% -79.9%)
+  faster blake3-servil-mt|solo|InterleavedTurn|256: -3.1% (the pairs' geometric mean; 4 pairs, from -3.8% to -2.2%: -2.2% -3.0% -3.8% -3.6%)
+  faster blake3-servil-mt|solo|Interleaved|256: -3.2% (the pairs' geometric mean; 4 pairs, from -3.5% to -2.8%: -3.5% -2.8% -3.1% -3.4%)
+  faster blake3-servil-mt|solo|LentMessages|1 MiB: -6.6% (the pairs' geometric mean; 4 pairs, from -8.5% to -5.1%: -5.5% -8.5% -5.1% -7.5%)
+  faster blake3-servil-mt|solo|MerkleTree|65536 x 32 B: -22.7% (the pairs' geometric mean; 4 pairs, from -25.1% to -16.7%: -24.9% -25.1% -23.7% -16.7%)
+  faster blake3-servil-mt|solo|ReceivingMessage|2 μs: -64.6% (the pairs' geometric mean; 4 pairs, from -64.9% to -64.3%: -64.3% -64.5% -64.9% -64.7%)
+  faster blake3-servil-mt|solo|ReceivingMessage|saturated: -84.2% (the pairs' geometric mean; 4 pairs, from -84.4% to -84.0%: -84.0% -84.2% -84.4% -84.0%)
+  faster blake3-servil-st|solo|Interleaved|256: -3.2% (the pairs' geometric mean; 4 pairs, from -3.4% to -3.1%: -3.4% -3.3% -3.1% -3.3%)
+  faster blake3-servil-st|solo|ManyMessages|1: -11.2% (the pairs' geometric mean; 4 pairs, from -14.0% to -7.3%: -7.3% -12.4% -11.2% -14.0%)
+  faster blake3-servil-st|solo|OneMessage|64 B: -10.7% (the pairs' geometric mean; 4 pairs, from -12.4% to -8.3%: -11.8% -12.4% -10.1% -8.3%)
+  faster blake3-servil-st|solo|ReceivingMessage|2 μs: -8.9% (the pairs' geometric mean; 4 pairs, from -10.1% to -8.1%: -8.1% -8.6% -8.9% -10.1%)
+  faster blake3-servil-st|solo|ReceivingMessage|saturated: -8.7% (the pairs' geometric mean; 4 pairs, from -9.3% to -7.8%: -7.8% -8.6% -9.3% -9.2%)
+regress: no cell slower
+regress: instructions moved beyond +0.5% in 6 level cells, suspects first: blake3-servil-st|solo|ReceivingMessage|saturated -55.2%; blake3-servil-st|solo|ReceivingMessage|2 μs -55.1%; blake3-servil-st|solo|ReceivingMessage|20 μs -45.8%; blake3-servil-st|solo|ContinuousMessages|256 KiB -2.6%; blake3-servil-st|solo|InterleavedTurn|256 +1.6%; blake3-servil-st|solo|Interleaved|256 +0.6%
+regress: suspects: blake3-servil-st|solo|ReceivingMessage|20 μs;blake3-servil-st|solo|OneMessage|64 KiB;blake3-servil-st|solo|ContinuousMessages|256 KiB;blake3-servil-st|solo|IdleOneMessage|7935 B;blake3-servil-st|solo|InterleavedTurn|256;blake3-servil-st|solo|IdleManyMessages|4;blake3-servil-mt|solo|IdleManyMessages|4;blake3-servil-mt|solo|IdleOneMessage|8 KiB
+regress: power during the check: mains power
+check: a second stage for 8 suspects: 16 new link layouts per side, 4 runs each (64 run pairs): blake3-servil-st|solo|ReceivingMessage|20 μs, blake3-servil-st|solo|OneMessage|64 KiB, blake3-servil-st|solo|ContinuousMessages|256 KiB, blake3-servil-st|solo|IdleOneMessage|7935 B, blake3-servil-st|solo|InterleavedTurn|256, blake3-servil-st|solo|IdleManyMessages|4, blake3-servil-mt|solo|IdleManyMessages|4, blake3-servil-mt|solo|IdleOneMessage|8 KiB
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 64 run pairs using 16 distinct new executable paths and 16 old, over --contenders blake3-servil-mt,blake3-servil-st --points "64 KiB,continuous 256 KiB,idle 4,idle 7935 B,idle 8 KiB,receive 20 μs,turn 256"
+regress: pair 1 of 64 in 9.1 s
+regress: pair 2 of 64 in 9.9 s
+clocks: other programs kept 1.02 CPUs busy from 36.8 s to 37.8 s; measurements in that time may read slower than this machine runs
+regress: pair 3 again: busy: other programs kept 0.66 CPUs busy on average, 1.02 in the busiest window; busy in 1 of 4 windows (36.8-37.8 s)
+regress: pair 3 of 64 in 19.0 s
+regress: pair 4 of 64 in 9.9 s
+regress: pair 5 of 64 in 9.8 s
+regress: pair 6 of 64 in 9.8 s
+regress: pair 7 of 64 in 9.9 s
+regress: pair 8 of 64 in 9.9 s
+regress: pair 9 of 64 in 9.9 s
+regress: pair 10 of 64 in 9.9 s
+regress: pair 11 of 64 in 9.9 s
+regress: pair 12 of 64 in 9.9 s
+regress: pair 13 of 64 in 9.9 s
+regress: pair 14 of 64 in 9.9 s
+regress: pair 15 of 64 in 9.9 s
+regress: pair 16 of 64 in 9.7 s
+regress: pair 17 of 64 in 9.2 s
+regress: pair 18 of 64 in 9.2 s
+regress: pair 19 of 64 in 9.2 s
+regress: pair 20 of 64 in 9.2 s
+regress: pair 21 of 64 in 9.1 s
+regress: pair 22 of 64 in 9.2 s
+regress: pair 23 of 64 in 9.2 s
+regress: pair 24 of 64 in 9.1 s
+regress: pair 25 of 64 in 9.2 s
+regress: pair 26 of 64 in 9.2 s
+regress: pair 27 of 64 in 9.2 s
+regress: pair 28 of 64 in 9.2 s
+regress: pair 29 of 64 in 9.2 s
+clocks: other programs kept 1.06 CPUs busy from 303.6 s to 304.6 s; measurements in that time may read slower than this machine runs
+clocks: other programs kept 1.05 CPUs busy from 304.6 s to 305.7 s; measurements in that time may read slower than this machine runs
+regress: pair 30 again: busy: other programs kept 0.69 CPUs busy on average, 1.06 in the busiest window; busy in 2 of 5 windows (303.6-304.6 s, 304.6-305.7 s)
+regress: pair 30 of 64 in 18.8 s
+regress: pair 31 of 64 in 9.2 s
+regress: pair 32 of 64 in 9.2 s
+regress: pair 33 of 64 in 9.2 s
+regress: pair 34 of 64 in 9.2 s
+regress: pair 35 of 64 in 9.1 s
+regress: pair 36 of 64 in 9.2 s
+regress: pair 37 of 64 in 9.2 s
+regress: pair 38 of 64 in 9.1 s
+regress: pair 39 of 64 in 9.2 s
+regress: pair 40 of 64 in 9.2 s
+regress: pair 41 of 64 in 9.2 s
+regress: pair 42 of 64 in 9.2 s
+regress: pair 43 of 64 in 9.2 s
+regress: pair 44 of 64 in 9.2 s
+regress: pair 45 of 64 in 9.1 s
+regress: pair 46 of 64 in 9.2 s
+regress: pair 47 of 64 in 9.2 s
+regress: pair 48 of 64 in 9.2 s
+regress: pair 49 of 64 in 9.1 s
+regress: pair 50 of 64 in 9.2 s
+regress: pair 51 of 64 in 9.2 s
+regress: pair 52 of 64 in 9.2 s
+regress: pair 53 of 64 in 9.2 s
+regress: pair 54 of 64 in 9.2 s
+regress: pair 55 of 64 in 9.2 s
+regress: pair 56 of 64 in 9.2 s
+regress: pair 57 of 64 in 9.2 s
+regress: pair 58 of 64 in 9.2 s
+regress: pair 59 of 64 in 9.2 s
+regress: pair 60 of 64 in 9.2 s
+regress: pair 61 of 64 in 9.2 s
+regress: pair 62 of 64 in 9.2 s
+regress: pair 63 of 64 in 9.2 s
+regress: pair 64 of 64 in 9.2 s
+regress: old side: bench d7723f110a6f clean; servil bf2da8b957f5 clean
+regress: new side: bench cade30fdb716 clean; servil 7048303103c6 clean
+regress: no cell slower
+regress: instructions moved beyond +0.5% in 2 level cells, suspects first: blake3-servil-st|solo|ReceivingMessage|20 μs -45.8%; blake3-servil-st|solo|ContinuousMessages|256 KiB -2.6%
+regress: suspects: blake3-servil-st|solo|ReceivingMessage|20 μs;blake3-servil-st|solo|ContinuousMessages|256 KiB
+regress: power during the check: mains power
