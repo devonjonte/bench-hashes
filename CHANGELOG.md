@@ -1,5 +1,12 @@
 # bench-hashes next
 
+**Bao outboard generation has end-to-end regression cells.** `bench-hashes
+b3sum` can now select exact input labels with repeated `--input` and one cache state
+with `--cache`. `tools/b3sum-contenders.py --outboard` adds BLAKE3-Servil's
+outboard forms at both thread budgets beside hash-only baselines. The warm
+cells cover 1 MiB, the mixed 1000-file tree, and 1 GiB; a separate cold cell
+covers 1 GiB. Output directories start empty outside each timed process.
+
 **The overview opens each column on its machine's newest record.** A machine
 with records under several kernels showed the first by folder name, so the
 Ryzen 7 9700X's column opened on an older record while its current one waited

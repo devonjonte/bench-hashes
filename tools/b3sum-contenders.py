@@ -1,5 +1,7 @@
 """Build b3sum contenders for `bench-hashes b3sum` into DIR, each named for what it is:
-    python3 tools/b3sum-contenders.py FORK DIR [COMMIT...]
+    python3 tools/b3sum-contenders.py [--outboard] FORK DIR [COMMIT...]
+With --outboard, each BLAKE3-Servil build also has an --outboard {OUT} form,
+beside its unchanged hash-only form (the added-cost baseline).
 FORK is a checkout of github.com/servil-software-factory/BLAKE3.
   DIR/b3sum-official-1.8.7  official BLAKE3's b3sum from crates.io (also as
                             official-1-thread, the same build with
@@ -80,11 +82,27 @@ def relink(name, manifest, built, flags="", *, target, host, layouts, binary="b3
     return contenders
 
 
+def servil_forms(builds, one, outboard):
+    """A Servil build's hash-only and optional outboard contenders."""
+    forms = list(builds)
+    if one:
+        forms += [c.replace("=", "-1-thread=", 1) + " --num-threads 1" for c in builds]
+    if outboard:
+        forms += [c.replace("=", "-outboard=", 1) + " --outboard {OUT}" for c in builds]
+        if one:
+            forms += [c.replace("=", "-outboard-1-thread=", 1) + " --num-threads 1 --outboard {OUT}" for c in builds]
+    return forms
+
+
 def main():
-    fork = out("git", "-C", sys.argv[1], "rev-parse", "--show-toplevel")
-    os.makedirs(sys.argv[2], exist_ok=True)
-    dir = os.path.abspath(sys.argv[2])
-    revs = sys.argv[3:] or ["HEAD"]
+    args = sys.argv[1:]
+    outboard = "--outboard" in args
+    if outboard:
+        args.remove("--outboard")
+    fork = out("git", "-C", args[0], "rev-parse", "--show-toplevel")
+    os.makedirs(args[1], exist_ok=True)
+    dir = os.path.abspath(args[1])
+    revs = args[2:] or ["HEAD"]
     target = os.path.join(os.environ.get("CARGO_TARGET_DIR", os.path.join(fork, "target")), "b3sum-contenders")
     host = next(l.split(": ", 1)[1] for l in out("rustc", "-vV").splitlines() if l.startswith("host: "))
     layouts = int(os.environ.get("LAYOUTS", "1"))
@@ -122,9 +140,7 @@ def main():
             shutil.copy(os.path.join(target, "build", host, "release", "b3sum"), built)
         one = len(revs) == 1
         builds = relink("b3sum" if one else f"b3sum-{commit}", os.path.join(worktree, "b3sum", "Cargo.toml"), built, static, **layout)
-        contenders += builds
-        if one:
-            contenders += [c.replace("b3sum=", "b3sum-1-thread=", 1) + " --num-threads 1" for c in builds]
+        contenders += servil_forms(builds, one, outboard)
     # The system's own sum programs, as a user has them (whichever implementation
     # the platform ships: GNU or uutils coreutils, BSD).
     contenders += [f"{n}={shutil.which(n)}" for n in ("sha256sum", "sha1sum", "md5sum") if shutil.which(n)]

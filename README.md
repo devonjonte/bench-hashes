@@ -157,7 +157,18 @@ on one thread too (`--num-threads 1`), and adds the system's `sha256sum`, `sha1s
 `md5sum`, the programs a user chooses between. The first contender
 is the one the others are compared with. `--files` chooses where the files live:
 put them on the storage you care about (they are made once, 1.4 GiB, and
-kept). `--quick` runs a smaller set in seconds. The report and samples go
+kept). `--quick` runs a smaller set in seconds. Repeat `--input LABEL` to
+select inputs by their exact report labels, and `--cache warm` or `--cache cold`
+selects one cache state. `tools/b3sum-contenders.py --outboard` adds
+BLAKE3-Servil's `--outboard {OUT}` forms at both thread budgets beside the
+hash-only builds. For the outboard regression cells:
+
+    python3 tools/b3sum-contenders.py --outboard /path/to/BLAKE3-fork /tmp/b3c |
+        tr '\n' '\0' | xargs -0 cargo run --release -- b3sum --files ~/b3sum-files \
+        --cache warm --input '1 MiB' --input 'mixed tree, 1000 files, 74 MiB' --input '1 GiB'
+    # The large cold cell is a separate command: --cache cold --input '1 GiB'.
+
+The report and samples go
 to `benchmark-results/`, as `b3sum.result.txt` and `b3sum.samples.tsv`,
 and the map there gains a b3sum section: a file or a tree of files, in
 the page cache or read from storage. `bench-hashes compare` reads the
