@@ -22,3 +22,13 @@ First stage on the EPYC 9255 read st OneMessage 64 B ×1.239 and mt ×1.130 over
 **Recommendation.** Judge the cells both releases share with one bench on both sides: the old bench builds both libraries (the candidate side of these controls is that proof). Leave the new-API cells to the current bench, with no 0.9.0 comparison. Keep a same-library two-bench control as a diagnostic of the instrument, not as a per-cell divisor: its pairs are fresh layouts and processes, so dividing a release mark by it would add the control's variance to the mark.
 
 Each machine folder holds the job, stdout/stderr, versions, and kept samples (first stage and `second/`). Paths are redacted. No binaries.
+
+## Addendum: which placement carries it, and the one-bench check
+
+**Allocator experiment** (EPYC 9255, st OneMessage 64 B, 12 processes each pinned to CPU 0; `diag-pinned/`): with every allocation of 64 bytes or more on a 64-byte boundary, the benches read 3.59 (old) and 3.82 (new) ns/B; at a 48-byte line offset, 3.45 and 3.75; default, 3.67 and 3.98. Buffer placement moves both benches by a few percent and does not close the gap. (`diag-unpinned/` is the same exes unpinned: placement noise swamps it, kept as the control that shows why the pin matters.)
+
+**Per-layout cycles** (kept second stages): at constant instructions (14.5/B) and constant LLC misses, layouts fall in two cycle states, about 24 and about 35 cycles/B. Only the bench executable's link layout differs between those runs.
+
+**One bench on both sides** (EPYC 7443 pair, bench 0.22 for candidate against 0.9.0, `x86-avx2/onebench/`): no cell slower at the first stage; the second stage convicted one, mt OneMessage 64 B +13.6%, while mt OneMessage 128 B read faster (×0.882) and mt IdleOneMessage 128 B faster (×0.880). A fixed per-call cost cannot change sign between 64 B and 128 B; this last mark is a layout draw between two different library builds, of the same kind the controls measure.
+
+**Conclusion.** The carrier is the bench executable's code placement (function order and alignment, which the relink layouts randomize), acting on a call that takes a few nanoseconds after other work with its code cold. Buffer placement is a smaller, independent sensitivity. Neither is the library's code, which the controls hold identical.
