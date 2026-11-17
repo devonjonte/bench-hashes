@@ -198,6 +198,9 @@ pub struct Level {
     pub instructions: u64,
     pub cache_references: u64,
     pub cache_misses: u64,
+    /// Demand misses of the instruction cache (perf's L1I read misses):
+    /// the front-end's bill, beside the last-level cache's (bench-hashes #3).
+    pub icache_misses: u64,
     pub time_ns: u64,
 }
 
@@ -303,6 +306,7 @@ impl Counts {
             instructions: now.instructions - then.instructions,
             cache_references: now.cache_references - then.cache_references,
             cache_misses: now.cache_misses - then.cache_misses,
+            icache_misses: now.icache_misses - then.icache_misses,
             time_ns: now.time_ns - then.time_ns,
         };
         Counts { p: level(self.p, earlier.p), e: level(self.e, earlier.e) }
@@ -315,6 +319,7 @@ impl Counts {
             instructions: a.instructions + b.instructions,
             cache_references: a.cache_references + b.cache_references,
             cache_misses: a.cache_misses + b.cache_misses,
+            icache_misses: a.icache_misses + b.icache_misses,
             time_ns: a.time_ns + b.time_ns,
         };
         Counts { p: level(self.p, other.p), e: level(self.e, other.e) }
@@ -767,7 +772,8 @@ mod tests {
     /// stay apart.
     #[test]
     fn counts_since_and_plus_act_on_every_field_of_each_kind() {
-        let level = |k: u64| Level { cycles: 10 * k, instructions: 20 * k, cache_references: 30 * k, cache_misses: 40 * k, time_ns: 50 * k };
+        let level =
+            |k: u64| Level { cycles: 10 * k, instructions: 20 * k, cache_references: 30 * k, cache_misses: 40 * k, icache_misses: 45 * k, time_ns: 50 * k };
         let earlier = Counts { p: level(1), e: level(2) };
         let later = Counts { p: level(4), e: level(9) };
         assert_eq!(later.since(earlier), Counts { p: level(3), e: level(7) });

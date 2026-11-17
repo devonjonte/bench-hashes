@@ -1,5 +1,15 @@
 # Unreleased
 
+**Every sample also keeps its instruction-cache misses** (samples format
+v11). `clocks::Level` gains `icache_misses`, perf's L1I demand read
+misses, a fifth counter in the routine group beside cycles,
+instructions and the last-level pair. Cycles that move without
+instructions or last-level misses may be code delivery; this names it
+per sample, in the bracket, as the other counts are (bench-hashes #3).
+Files from earlier versions are read with those versions' tools. The
+overview's staleness test waits on the release's fresh runs, as at v10.
+
+
 **Bao outboard generation has end-to-end regression cells.** `bench-hashes
 b3sum` can now select exact input labels with repeated `--input` and one cache state
 with `--cache`. `tools/b3sum-contenders.py --outboard` adds BLAKE3-Servil's

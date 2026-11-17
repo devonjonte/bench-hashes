@@ -31,6 +31,17 @@ documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
 **Changes for the next release** (Devon Jonte, November 14, 2026):
+- **Every sample keeps its instruction-cache misses** (Devon Jonte,
+  November 17, 2026; bench-hashes #3). `clocks::Level` gains
+  `icache_misses` (perf's L1I demand read misses), a fifth counter in
+  the routine group; the `core counts` field carries six numbers a core
+  kind, and the samples format is v11. The reason: on small calls after
+  other work, cycles per byte take two values across link layouts at
+  constant instructions and last-level misses; the icache count, read in
+  the sample's bracket as the other counts are, names code delivery
+  where that is the carrier. A v10 file is read with 0.23's tools, as
+  every version's files are with their own.
+
 - **Provenance where its readers look**
   ([reader contract](https://github.com/servil-software-factory/bench-hashes/issues/226)).
   At Zooko's request, the existing “About the hashes compared” section holds

@@ -6908,7 +6908,9 @@ fn calibrate_batch(algorithm: Algorithm, input: &[u8], point: Point) -> (usize, 
 /// (read_samples) requires: a file in another format is read with the
 /// tools of the commit that wrote it.
 /// The samples format, and with it the rule the samples were taken under:
-/// v10 (0.21) adds each sample's instructions retired, last-level-cache
+/// v11 adds each sample's instruction-cache demand misses beside its
+/// last-level ones (bench-hashes #3: cycles that move without
+/// instructions or last-level misses may be code delivery); v10 (0.21) adds each sample's instructions retired, last-level-cache
 /// references and misses beside its cycles, per core kind, and reads the
 /// raw counter (Zooko, November 4: the most the counters give, kept, and
 /// no clock a time daemon slews); v8 (0.20)
@@ -6916,12 +6918,14 @@ fn calibrate_batch(algorithm: Algorithm, input: &[u8], point: Point) -> (usize, 
 /// contenders' alone, placed under one cache or two (bench-hashes #108,
 /// #116); v7 marked samples that 0.17's summary reads with the declared
 /// trim (Zooko, October 23).
-const SAMPLES_VERSION: &str = "# bench-hashes samples v10";
+const SAMPLES_VERSION: &str = "# bench-hashes samples v11";
 const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\tcpu";
 
 /// The numbers one core kind contributes to a `core counts` sample:
 /// time, cycles, instructions, cache references, cache misses.
-const LEVEL_FIELDS: usize = 5;
+/// One core kind's fields in a `core counts` record: time, cycles,
+/// instructions, cache references, cache misses, icache misses.
+const LEVEL_FIELDS: usize = 6;
 
 /// A row's `core counts` field: each sample's calling-thread counts per
 /// core kind, `P time ns:P cycles:P instructions:P cache references:P
@@ -6938,17 +6942,19 @@ fn counts_field(counts: &[Option<clocks::Counts>]) -> String {
             .iter()
             .map(|c| {
                 format!(
-                    "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
+                    "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
                     c.p.time_ns,
                     c.p.cycles,
                     c.p.instructions,
                     c.p.cache_references,
                     c.p.cache_misses,
+                    c.p.icache_misses,
                     c.e.time_ns,
                     c.e.cycles,
                     c.e.instructions,
                     c.e.cache_references,
-                    c.e.cache_misses
+                    c.e.cache_misses,
+                    c.e.icache_misses
                 )
             })
             .collect::<Vec<_>>()
@@ -9240,6 +9246,7 @@ mod correctness_tests {
                             instructions: 5 * v,
                             cache_references: 6 * v,
                             cache_misses: 7 * v,
+                            icache_misses: 8 * v,
                             time_ns: v,
                         },
                         e: clocks::Level::default(),
@@ -9708,7 +9715,7 @@ mod correctness_tests {
                     .map(|i| {
                         // P and E both counted: the reader sums the kinds.
                         format!(
-                            "{}:{}:{}:7:1:{}:{}:{}:2:1",
+                            "{}:{}:{}:7:1:0:{}:{}:{}:2:1:0",
                             1000 + i,
                             4000 + 4 * i,
                             instructions + i,
@@ -9752,7 +9759,7 @@ mod correctness_tests {
         // (the Mac's check against 0.8 stopped dividing by them,
         // bench-hashes #173).
         let zeros = format!(
-            "{SAMPLES_VERSION}\n# bench-hashes version: test\n# load: quiet\n# power: mains power\n{SAMPLES_COLUMNS}\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t100/64,100/64,100/64\t1,2,3\t-\t-\t1000:4000:0:7:1:0:0:0:2:1,1000:4000:0:7:1:0:0:0:2:1,1000:4000:0:7:1:0:0:0:2:1\t0,0,0\n"
+            "{SAMPLES_VERSION}\n# bench-hashes version: test\n# load: quiet\n# power: mains power\n{SAMPLES_COLUMNS}\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t100/64,100/64,100/64\t1,2,3\t-\t-\t1000:4000:0:7:1:9:0:0:0:2:1:9,1000:4000:0:7:1:9:0:0:0:2:1:9,1000:4000:0:7:1:9:0:0:0:2:1:9\t0,0,0\n"
         );
         let path = dir.join("zero-counts.tsv");
         std::fs::write(&path, zeros).unwrap();
@@ -9816,7 +9823,7 @@ mod correctness_tests {
             },
         ];
         let tsv = generate_samples_tsv(&roster, &samples, &machine, "test");
-        assert!(tsv.starts_with("# bench-hashes samples v10\n"));
+        assert!(tsv.starts_with("# bench-hashes samples v11\n"));
         // The main run's own file carries the shared provenance first.
         assert_eq!(
             &harness_tests::header_keys(&tsv)[..harness_tests::PROVENANCE.len()],
@@ -9826,7 +9833,7 @@ mod correctness_tests {
         assert!(tsv.contains("\n# load: busy: "), "{tsv}");
         assert!(tsv.contains("\n# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1:1200:0,1-3:100:7\n"), "{tsv}");
         assert!(tsv.contains("\ncontender\tscenario\tuse_case\tpoint\tunit\tns/units\tstart ms\tcpu ns\tenergy nJ\tcore counts\tcpu\n"));
-        assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\t30000,30003,30006\t10000:40000:50000:60000:70000:0:0:0:0:0,10001:40004:50005:60006:70007:0:0:0:0:0,10002:40008:50010:60012:70014:0:0:0:0:0\t3,3,3\n"), "{tsv}");
+        assert!(tsv.contains("\nblake3-servil-st\tsolo\tOneMessage\t64 B\tB\t10000/1,10001/1,10002/1\t0,1,2\t20000,20002,20004\t30000,30003,30006\t10000:40000:50000:60000:70000:80000:0:0:0:0:0:0,10001:40004:50005:60006:70007:80008:0:0:0:0:0:0,10002:40008:50010:60012:70014:80016:0:0:0:0:0:0\t3,3,3\n"), "{tsv}");
         // The multithreaded contender's shared rows, the two copies in turn,
         // each sample's CPU with it; a single-threaded contender has none.
         assert!(tsv.contains("\nblake3-servil-mt\tshared-one-cache\tLentMessages\t64 B\tB\t10000/1,10000/1,10001/1,10001/1,10002/1,10002/1\t10,11,11,12,12,13\t-\t-\t-\t2,5,2,5,2,5\n"), "{tsv}");
@@ -10670,11 +10677,13 @@ mod correctness_tests {
                                     c.p.instructions,
                                     c.p.cache_references,
                                     c.p.cache_misses,
+                                    c.p.icache_misses,
                                     c.e.time_ns,
                                     c.e.cycles,
                                     c.e.instructions,
                                     c.e.cache_references,
                                     c.e.cache_misses,
+                                    c.e.icache_misses,
                                 ]
                             })
                             .collect::<Vec<[u64; LEVEL_FIELDS * 2]>>()

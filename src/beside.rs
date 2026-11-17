@@ -247,11 +247,11 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let st = |ns: &str| {
-            format!("blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t{ns}/64,{ns}/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0")
+            format!("blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t{ns}/64,{ns}/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0:0:0\t0,0")
         };
-        let mt = "blake3-servil-mt\tsolo\tOneMessage\t64 B\tB\t9/64,9/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0";
-        let piped = "blake3-servil-st\tsolo\tContinuousMessages\t64 B\tB\t7/64,7/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0";
-        let sha = "sha256\tsolo\tOneMessage\t64 B\tB\t500/64,500/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0";
+        let mt = "blake3-servil-mt\tsolo\tOneMessage\t64 B\tB\t9/64,9/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0:0:0\t0,0";
+        let piped = "blake3-servil-st\tsolo\tContinuousMessages\t64 B\tB\t7/64,7/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0:0:0\t0,0";
+        let sha = "sha256\tsolo\tOneMessage\t64 B\tB\t500/64,500/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0:0:0\t0,0";
         let old = [
             run(&dir, "run-001-old.tsv", &[&st("100"), mt, piped]),
             run(&dir, "run-004-old.tsv", &[&st("110"), mt, piped]),
@@ -275,7 +275,7 @@ mod tests {
         };
         assert_eq!(
             rows(&before),
-            ["blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t100/64,100/64,110/64,110/64\t1,2,1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0,0,0"],
+            ["blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t100/64,100/64,110/64,110/64\t1,2,1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0:0:0\t0,0,0,0"],
             "the old side: one thread's one cell, two runs end to end"
         );
         let now = rows(&now);
@@ -299,7 +299,7 @@ mod tests {
     #[test]
     fn one_sample_runs_join_their_times_and_keep_a_single_mark_once() {
         let row = |ns: u32| {
-            format!("blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t{ns}/64\t1\t-\t-\t1:2:3:0:0:0:0:0:0:0\t0")
+            format!("blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t{ns}/64\t1\t-\t-\t1:2:3:0:0:0:0:0:0:0:0:0\t0")
                 .split('\t')
                 .map(str::to_owned)
                 .collect::<Vec<_>>()
@@ -312,7 +312,7 @@ mod tests {
         assert_eq!(cells.len(), 1);
         assert_eq!(cells[0][5], "100/64,110/64");
         assert_eq!(cells[0][6], "1,1");
-        assert_eq!(cells[0][9], "1:2:3:0:0:0:0:0:0:0");
+        assert_eq!(cells[0][9], "1:2:3:0:0:0:0:0:0:0:0:0");
     }
 
     /// The release before is named by its version: a bench from before the
@@ -323,7 +323,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("bench-beside-version-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        let st = "blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t100/64,100/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0";
+        let st = "blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t100/64,100/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0:0:0\t0,0";
         let with = |name: &str, header: &str| {
             let path = dir.join(name);
             std::fs::write(
@@ -380,9 +380,9 @@ mod tests {
         std::fs::create_dir_all(&kept).unwrap();
         std::fs::create_dir_all(&full).unwrap();
         let st = |ns: &str| {
-            format!("blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t{ns}/64,{ns}/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0")
+            format!("blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t{ns}/64,{ns}/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0:0:0\t0,0")
         };
-        let mt = "blake3-servil-mt\tsolo\tOneMessage\t64 B\tB\t9/64,9/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0";
+        let mt = "blake3-servil-mt\tsolo\tOneMessage\t64 B\tB\t9/64,9/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0:0:0\t0,0";
         run(&kept, "run-001-old.tsv", &[&st("100"), mt]);
         run(&kept, "run-002-new.tsv", &[&st("80"), mt]);
         // Neither is a run of the check's: one only ends as the old side's do, one only starts as a run does.
@@ -426,7 +426,7 @@ mod tests {
         let (kept, full) = (dir.join("kept"), dir.join("full"));
         std::fs::create_dir_all(&kept).unwrap();
         std::fs::create_dir_all(&full).unwrap();
-        let st = "blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t100/64,100/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0";
+        let st = "blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t100/64,100/64\t1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0:0:0\t0,0";
         run(&kept, "run-001-old.tsv", &[st]);
         run(&kept, "run-002-new.tsv", &[st]);
         run(&full, "bench-hashes.samples.tsv", &[st]);

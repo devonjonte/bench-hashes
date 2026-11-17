@@ -554,8 +554,13 @@ verdict.
 **Where each sample ran, and what it cost the core.** Every sample
 records the calling thread's counts per core kind across it
 (`clocks::Counts`) in the `core counts` column as `P time:P cycles:P
-instructions:P cache references:P cache misses`, then the same five for
-E cores, or `-` where the platform counts none. Cycles and instructions
+instructions:P cache references:P cache misses:P icache misses`, then
+the same six for E cores, or `-` where the platform counts none. The
+icache count is perf's L1I demand read misses: the instruction cache's
+bill, beside the last-level cache's, for a call whose cycles move while
+its instructions and last-level misses do not (bench-hashes #3: a
+few-nanosecond call after other work reads where the executable's
+functions landed). Cycles and instructions
 are user space's; the cache counts are perf's generic `cache-references`
 and `cache-misses`, requests that reached the last-level cache and
 those it missed (on Intel `LONGEST_LAT_CACHE.REFERENCE` and `.MISS`,

@@ -175,16 +175,35 @@ fn open(pmu: u32, event: u64, group: c_int) -> Option<OwnedFd> {
     (fd >= 0).then(|| unsafe { OwnedFd::from_raw_fd(c_int::try_from(fd).unwrap()) })
 }
 
+/// A counter of an explicit perf type (the instruction cache's, whose
+/// type is PERF_TYPE_HW_CACHE) in `group`, on `pmu` where the machine is
+/// a hybrid (the PMU's number in the config's upper word, as `attr`).
+fn open_as(kind_config: (u32, u64), pmu: u32, group: c_int) -> Option<OwnedFd> {
+    let (kind, config) = kind_config;
+    let mut a = attr(pmu, config, false);
+    a.kind = kind;
+    // Sound: as `open`.
+    let fd = unsafe { syscall(SYS_PERF_EVENT_OPEN, &a as *const Attr, 0 as c_long, -1 as c_long, c_long::from(group), PERF_FLAG_FD_CLOEXEC) };
+    (fd >= 0).then(|| unsafe { OwnedFd::from_raw_fd(c_int::try_from(fd).unwrap()) })
+}
+
 /// The group's events, PERF_TYPE_HARDWARE's numbers: cycles leading, then
 /// instructions, cache references and cache misses (the last two one
 /// programmable counter each; the first two the fixed ones).
 const EVENTS: [u64; 4] = [0, 1, 2, 3];
 
+/// The instruction cache's demand read misses (PERF_TYPE_HW_CACHE,
+/// L1I | OP_READ | RESULT_MISS), the group's fifth counter: cycles that
+/// move without instructions or last-level misses may be code delivery
+/// (bench-hashes #3: a few-nanosecond call after other work reads where
+/// the executable's functions landed).
+const ICACHE_MISS: (u32, u64) = (3, 0x10000);
+
 /// One core kind's group, and each counter's page where user space may
 /// read them.
 struct Group {
-    fds: [OwnedFd; 4],
-    pages: Option<[Mapped; 4]>,
+    fds: [OwnedFd; 5],
+    pages: Option<[Mapped; 5]>,
 }
 
 impl Group {
@@ -192,7 +211,8 @@ impl Group {
         let leader = open(pmu, EVENTS[0], -1)?;
         let rest: Vec<OwnedFd> = EVENTS[1..].iter().map(|&event| open(pmu, event, leader.as_raw_fd())).collect::<Option<_>>()?;
         let [instructions, references, misses] = rest.try_into().ok()?;
-        let fds = [leader, instructions, references, misses];
+        let icache = open_as(ICACHE_MISS, pmu, leader.as_raw_fd())?;
+        let fds = [leader, instructions, references, misses, icache];
         let pages: Option<Vec<Mapped>> = fds.iter().map(Mapped::new).collect();
         let pages = pages.and_then(|pages| pages.try_into().ok());
         let group = Group { fds, pages };
@@ -204,9 +224,16 @@ impl Group {
     /// else by the system call.
     fn read(&self) -> Option<Level> {
         match &self.pages {
-            Some([cycles, instructions, references, misses]) => {
+            Some([cycles, instructions, references, misses, icache]) => {
                 let (cycles, time_ns) = cycles.read();
-                Some(Level { cycles, instructions: instructions.read().0, cache_references: references.read().0, cache_misses: misses.read().0, time_ns })
+                Some(Level {
+                    cycles,
+                    instructions: instructions.read().0,
+                    cache_references: references.read().0,
+                    cache_misses: misses.read().0,
+                    icache_misses: icache.read().0,
+                    time_ns,
+                })
             }
             None => self.read_syscall(),
         }
@@ -216,15 +243,15 @@ impl Group {
     /// could not be scheduled (its reads then return nothing).
     fn read_syscall(&self) -> Option<Level> {
         // nr, time enabled, time running, then each event's count.
-        let mut words = [0u64; 3 + EVENTS.len()];
+        let mut words = [0u64; 3 + EVENTS.len() + 1];
         // Sound: `words` is writable for the size passed.
         let n = unsafe { read_fd(self.fds[0].as_raw_fd(), words.as_mut_ptr().cast(), std::mem::size_of_val(&words)) };
         if n == 0 {
             return None;
         }
         assert_eq!(n, std::mem::size_of_val(&words) as isize, "a perf group read gives its whole record");
-        assert_eq!(words[0], EVENTS.len() as u64, "the group holds its four events");
-        Some(Level { cycles: words[3], instructions: words[4], cache_references: words[5], cache_misses: words[6], time_ns: words[2] })
+        assert_eq!(words[0], (EVENTS.len() + 1) as u64, "the group holds its five events");
+        Some(Level { cycles: words[3], instructions: words[4], cache_references: words[5], cache_misses: words[6], icache_misses: words[7], time_ns: words[2] })
     }
 }
 
