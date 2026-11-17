@@ -15,6 +15,22 @@ HOST = "x86_64-unknown-linux-gnu"
 
 
 class RelinkTests(unittest.TestCase):
+    def test_outboard_forms_keep_hash_only_baselines_and_thread_budgets(self):
+        self.assertEqual(module.servil_forms(["b3sum=/srv/b3sum"], True, True), [
+            "b3sum=/srv/b3sum",
+            "b3sum-1-thread=/srv/b3sum --num-threads 1",
+            "b3sum-outboard=/srv/b3sum --outboard {OUT}",
+            "b3sum-outboard-1-thread=/srv/b3sum --num-threads 1 --outboard {OUT}",
+        ])
+        self.assertEqual(module.servil_forms(["b3sum-abcdef0=/srv/b3sum"], False, True), [
+            "b3sum-abcdef0=/srv/b3sum",
+            "b3sum-abcdef0-outboard=/srv/b3sum --outboard {OUT}",
+        ])
+        self.assertEqual(module.servil_forms(["b3sum=/srv/b3sum"], True, False), [
+            "b3sum=/srv/b3sum",
+            "b3sum-1-thread=/srv/b3sum --num-threads 1",
+        ])
+
     def test_default_and_other_binary_keep_the_same_layout_protocol(self):
         for binary in ["b3sum", "bao-reference"]:
             with self.subTest(binary=binary), tempfile.TemporaryDirectory() as directory:

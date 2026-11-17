@@ -24,6 +24,7 @@ const MARGIN_PERMILLE: u64 = 30;
 // ---------- Inputs ----------
 
 /// One input: the files one b3sum run hashes, all its arguments.
+#[derive(Clone)]
 struct Input {
     label: String,
     files: Vec<PathBuf>,
@@ -597,9 +598,57 @@ fn counts_line(
     )
 }
 
+/// The inputs `labels` selects, in its order, each exactly as `inputs`
+/// names it. An empty selection means the whole suite. Each `--input`
+/// takes one whole label, including any commas it contains.
+fn select_inputs(inputs: Vec<Input>, labels: &[String]) -> Vec<Input> {
+    if labels.is_empty() {
+        return inputs;
+    }
+    let available = inputs
+        .iter()
+        .map(|input| input.label.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let mut selected: Vec<Input> = Vec::new();
+    for label in labels {
+        assert!(!label.is_empty(), "--input takes a nonempty label");
+        assert!(
+            !selected.iter().any(|input| input.label == *label),
+            "--input names {label:?} twice"
+        );
+        selected.push(
+            inputs
+                .iter()
+                .find(|input| input.label == *label)
+                .unwrap_or_else(|| {
+                    panic!("unknown input label {label:?}; available inputs: {available}")
+                })
+                .clone(),
+        );
+    }
+    selected
+}
+
+/// The cache states to measure. A cold-only request on a filesystem that
+/// cannot provide cold reads fails instead of silently measuring warm ones.
+fn select_caches(requested: Option<&str>, cold_possible: bool) -> Vec<Cache> {
+    match requested {
+        None if cold_possible => vec![Cache::Warm, Cache::Cold],
+        None | Some("warm") => vec![Cache::Warm],
+        Some("cold") if cold_possible => vec![Cache::Cold],
+        Some("cold") => {
+            panic!("--cache cold requested on a filesystem that cannot provide cold reads")
+        }
+        Some(other) => panic!("unknown cache {other:?}; --cache takes warm or cold"),
+    }
+}
+
 pub fn command(args: &[String]) {
     let mut quick = false;
     let mut rounds = None;
+    let mut input_labels = Vec::new();
+    let mut requested_cache = None;
     let mut files_dir = PathBuf::from("b3sum-files");
     let mut specs = Vec::new();
     let mut it = args.iter();
@@ -615,6 +664,8 @@ pub fn command(args: &[String]) {
                 )
             }
             "--files" => files_dir = PathBuf::from(it.next().expect("--files DIR")),
+            "--input" => input_labels.push(it.next().expect("--input LABEL").clone()),
+            "--cache" => requested_cache = Some(it.next().expect("--cache warm|cold")),
             flag if flag.starts_with("--") => {
                 panic!("unknown option {flag}; see README, \"b3sum\"")
             }
@@ -630,14 +681,13 @@ pub fn command(args: &[String]) {
         "bench-hashes b3sum: making the input files in {} (kept for later runs)",
         files_dir.display()
     );
-    let inputs = inputs(&files_dir, quick);
+    let inputs = select_inputs(inputs(&files_dir, quick), &input_labels);
     let files_dir = fs::canonicalize(&files_dir).unwrap();
     let filesystem = imp::filesystem(&files_dir);
-    let caches: Vec<Cache> = if cold_possible(&filesystem) {
-        vec![Cache::Warm, Cache::Cold]
-    } else {
-        vec![Cache::Warm]
-    };
+    let caches = select_caches(
+        requested_cache.map(String::as_str),
+        cold_possible(&filesystem),
+    );
     let mut machine = machine_metadata();
 
     let mut buffer = vec![0u8; MIB as usize];
@@ -1137,6 +1187,69 @@ mod tests {
             blake3_servil::Hash::from(first).to_hex().as_str(),
             "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"
         );
+    }
+
+    fn named_input(label: &str) -> Input {
+        Input {
+            label: label.to_owned(),
+            files: Vec::new(),
+            bytes: 0,
+            each: false,
+        }
+    }
+
+    #[test]
+    fn inputs_are_selected_by_their_exact_labels_in_the_requested_order() {
+        let all = vec![
+            named_input("1 MiB"),
+            named_input("mixed tree, 1000 files, 74 MiB"),
+            named_input("1 GiB"),
+        ];
+        let selected = select_inputs(
+            all.clone(),
+            &[
+                "mixed tree, 1000 files, 74 MiB".to_owned(),
+                "1 GiB".to_owned(),
+                "1 MiB".to_owned(),
+            ],
+        );
+        assert_eq!(
+            selected
+                .iter()
+                .map(|input| input.label.as_str())
+                .collect::<Vec<_>>(),
+            ["mixed tree, 1000 files, 74 MiB", "1 GiB", "1 MiB"]
+        );
+        assert_eq!(select_inputs(all, &[]).len(), 3);
+    }
+
+    #[test]
+    #[should_panic(expected = "unknown input label")]
+    fn an_unknown_input_label_fails_with_the_choices() {
+        let _ = select_inputs(vec![named_input("1 MiB")], &["16 KiB".to_owned()]);
+    }
+
+    #[test]
+    #[should_panic(expected = "twice")]
+    fn an_input_label_is_not_selected_twice() {
+        let _ = select_inputs(
+            vec![named_input("1 MiB")],
+            &["1 MiB".to_owned(), "1 MiB".to_owned()],
+        );
+    }
+
+    #[test]
+    fn cache_selection_keeps_warm_and_cold_runs_explicit() {
+        assert_eq!(select_caches(None, true), [Cache::Warm, Cache::Cold]);
+        assert_eq!(select_caches(None, false), [Cache::Warm]);
+        assert_eq!(select_caches(Some("warm"), true), [Cache::Warm]);
+        assert_eq!(select_caches(Some("cold"), true), [Cache::Cold]);
+    }
+
+    #[test]
+    #[should_panic(expected = "cannot provide cold reads")]
+    fn a_cold_request_never_silently_measures_a_warm_run() {
+        let _ = select_caches(Some("cold"), false);
     }
 
     /// `{OUT}` names the contender's own directory, prepared empty outside

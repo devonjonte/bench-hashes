@@ -773,6 +773,14 @@ lines beside each run's time.
 - A mixed tree of 1000 files (74 MiB in all, from 1 KiB to 16 MiB with sizes interleaved like a source checkout) passed in one command.
 - 16 files of 64 MiB (1 GiB in all; 4 of 16 MiB under `--quick`) passed in one command.
 
+Repeat `--input LABEL` to select any of these inputs by its exact report
+label, in the order named. One option takes the whole label, commas included.
+`--cache warm` measures only cached reads and `--cache cold`
+only evicted reads; with neither, the run measures every available state. A
+cold-only request on a filesystem that cannot evict files fails rather than
+reporting warm reads as cold. These selectors do not change an input's bytes,
+arguments, or timing.
+
 Each file contains BLAKE3's extended output of its relative path: the
 same bytes on every machine, and incompressible so a compressing
 filesystem or drive still reads them in full.
