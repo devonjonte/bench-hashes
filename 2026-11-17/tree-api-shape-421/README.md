@@ -67,13 +67,15 @@ tree.root_hash(&cvs[0], &last, msg.len() as u64)
 
 ## What the tests show
 
-`cargo test` runs 7 tests and 5 doctests. `run-tests.stdout.txt` is the run recorded here.
+`cargo test` runs 9 tests and 5 doctests. `run-tests.stdout.txt` is the run recorded here.
 
 | Test | What it shows |
 |---|---|
 | `every_allowed_build_gives_blake3s_hash` | 4,032 trees equal official BLAKE3 1.8.7: 130 lengths, plain and keyed, each built from pieces of seven sizes, by a recursive walk, and from eight random cuts into subtrees of mixed sizes |
 | `the_outboard_is_bao_trees_byte_for_byte` (`tests/outboard.rs`) | `b3sum --outboard` (`b3sum/src/outboard.rs`) ported call for call, its groups hashed on 1, 3 and 16 threads: the hash and the outboard equal bao-tree 0.17.0's, at 19 lengths, plain and keyed |
 | `a_slot_missed_or_misplaced_stops_the_build` | In that port, a slot never filled and two slots swapped: today's calls return a hash that is not the message's; the sketch stops and names the slot |
+| `the_pools_cut_and_merge_give_blake3s_hash` (`tests/pool.rs`) | The pool's cut into pieces of several sizes (`cut_with_prefix`, as it is) and its merge (`merge_to_children`, ported call for call): 448 cuts of 14 lengths, plain and keyed, equal official BLAKE3, with pieces from 8 KiB to 1 MiB |
+| `a_bent_cut_stops_the_merge` | In that port, two pieces' values in each other's slots: today's calls return a hash that is not the message's; the sketch stops |
 | `parts_of_five_mebibytes` | #421's report: today's calls take parts of 5 MiB and return another hash; the sketch takes no part of 5 MiB at any level |
 | `every_wrong_shape_is_refused` | 54 wrong calls, each refused with the message of the check meant to refuse it; the same calls with right values are taken |
 | `stored_values_verify_from_the_root_down` | A verifier's walk over stored pairs (verified streaming); every stored child changed alone, and a changed message byte, are found |
@@ -94,13 +96,15 @@ tree.root_hash(&cvs[0], &last, msg.len() as u64)
 
 Before the run I declared what I expected (in `probe/job.sh`): the parents alone 10% to 40% longer, the whole tree under 3% longer from chunk leaves, and under 0.3% from 16 KiB leaves. The parents cost more than I expected. The whole tree from chunk leaves cost less: chunk leaves hashed one at a time take 1.1 ns a byte, and the parents are 0.5% of that tree. From 16 KiB leaves the three runs disagree in sign, so the probe resolves no difference there.
 
+One reading beside the question. With today's calls a tree from chunk leaves took 1,164 µs for the MiB, and a tree from 16 KiB leaves 105 µs, a tenth of it. A leaf of one chunk is hashed alone, with no neighbour beside it in the CPU's lanes. [BLAKE3 #378 (a tree API)](https://github.com/servil-software-factory/BLAKE3/issues/378)'s design draft leaves a call over many subtrees at once "until a measurement asks for it", and this is one. In this design it would be `subtree_cvs(level, first_index, input, out)`: a run of whole subtrees from one stretch of bytes, each value with its place.
+
 The same job is queued on an EPYC 7443 (Zen 3, AVX2). Its rows go here when it reports.
 
 ## What each caller would change
 
 - **`b3sum/src/direct.rs`** (pieces of 2 MiB): the loop above. The thread that reads the last piece calls `last_cv`.
 - **`b3sum/src/outboard.rs`** (groups of 16 KiB): the same loop, keeping each layer's last value for the pre-order walk. `tests/outboard.rs` is that port.
-- **`threads/src/lanes.rs`** (the pool: pieces of several sizes, shrinking): a whole piece is `subtree_cv(level_of(len), offset / len, bytes)` and the last is `last_cv(offset / 1024, bytes)`. `merge_to_children` pairs the whole values of each size and joins an odd one to the last value. Its `debug_assert`s on the cut become the calls' own checks. `subtree_cv_on`, the hidden call that names the kernels, needs a counterpart for each of the two. I have not ported it: `by_cut` in `tests/shape.rs` joins cuts of mixed sizes.
+- **`threads/src/lanes.rs`** (the pool: pieces of several sizes, shrinking): a whole piece is `subtree_cv(level_of(len), offset / len, bytes)` and the last is `last_cv(offset / 1024, bytes)`. `merge_to_children` pairs the whole values of each size and joins an odd one to the last value. Its `debug_assert`s on the cut become the calls' own checks. `tests/pool.rs` is that port of the cut and the merge. `subtree_cv_on`, the hidden call that names the kernels, needs a counterpart for each of the two.
 - **bao-tree's two calls** (`hash_subtree(start_chunk, data, is_root)`, `parent_cv(left, right, is_root)`, [BLAKE3 #378 (a tree API)](https://github.com/servil-software-factory/BLAKE3/issues/378)): its walker knows each node's level and index, and labels a stored value with `Cv::at` or `LastCv::at`. `stored_values_verify_from_the_root_down` does so.
 
 ## Choices I would leave to John
@@ -121,14 +125,14 @@ On November 16 I told Zooko that two types would make `parent_cv` safe by types 
 - The sketch wraps `d1b4596a`'s `TreeHasher`: its checks run, then today's unchecked calls. The library's own version would be one layer.
 - The calls check the tree's shape. Bytes handed over for another place than the one named give a wrong hash, as with any hash call. `Cv::at` takes the caller's word for a stored value's place.
 - The cost is measured on x86 servers alone, at one message size, on one core. Nothing here ran on Apple silicon.
-- The pool is not ported.
+- Of the pool, the cut and the merge are ported as a test. Its threads, and its hidden call that names the kernels, are not.
 
 ## Files
 
 | File | What it is |
 |---|---|
 | `src/lib.rs` | the sketch |
-| `tests/shape.rs`, `tests/outboard.rs` | the tests |
+| `tests/shape.rs`, `tests/outboard.rs`, `tests/pool.rs` | the tests |
 | `run-tests.stdout.txt` | `cargo test`, as run for this page |
 | `static-refusals.txt` | the three compile-time refusals, with the compiler's reasons |
 | `mutants.py`, `mutants.tsv` | the changes tried against the tests, and each one's verdict |

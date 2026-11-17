@@ -71,7 +71,7 @@ def run(name, what, old, new, which):
         at = PRISTINE.index(old, at + 1)
     LIB.write_text(PRISTINE[:at] + new + PRISTINE[at + len(old):])
     try:
-        done = subprocess.run(['cargo', 'test', '--quiet'], capture_output=True, text=True, timeout=240)
+        done = subprocess.run(['cargo', 'test', '--quiet', '--no-fail-fast'], capture_output=True, text=True, timeout=240)
     finally:
         LIB.write_text(PRISTINE)
     out = done.stdout + done.stderr
@@ -83,7 +83,7 @@ def run(name, what, old, new, which):
         verdict = 'caught'
         failed = sorted({line.split()[1] if line.startswith('test ') else line.strip() for line in out.splitlines()
                          if (line.startswith('test ') and line.rstrip().endswith('FAILED')) or line.startswith('---- ') and 'stdout' in line})
-        by = '; '.join(f.replace('---- ', '').replace(' stdout ----', '') for f in failed)[:300] or 'a test that did not build or a doctest'
+        by = '; '.join(f.replace('---- ', '').replace(' stdout ----', '') for f in failed) or 'a test that did not build or a doctest'
     return verdict, by
 
 
