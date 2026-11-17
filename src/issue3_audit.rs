@@ -30,6 +30,12 @@ fn paths(arguments: &[String]) -> Vec<PathBuf> {
 }
 
 pub fn command(arguments: &[String]) {
+    if arguments.first().is_some_and(|a| a == "--design") {
+        return design(&arguments[1..]);
+    }
+    if arguments.first().is_some_and(|a| a == "--judge") {
+        return judge(&arguments[1..]);
+    }
     let samples = arguments.first().is_some_and(|a| a == "--samples");
     let files = paths(if samples { &arguments[1..] } else { arguments });
     assert!(
@@ -125,5 +131,361 @@ pub fn command(arguments: &[String]) {
                 );
             }
         }
+    }
+}
+
+/// The 97.5% point of Student's t for the few degrees of freedom this
+/// study meets (standard tables).
+fn t975(df: usize) -> f64 {
+    match df {
+        3 => 3.182_446_3,
+        4 => 2.776_445_1,
+        7 => 2.364_624_3,
+        15 => 2.131_449_5,
+        31 => 2.039_513_4,
+        63 => 1.998_340_5,
+        _ => panic!("no table entry for {df} degrees of freedom"),
+    }
+}
+
+/// The ratio of two paired samples' arithmetic means, new over old, and
+/// its interval by Fieller's theorem: the ratios q for which a t-test at
+/// `t` cannot tell the mean of (new - q old) from zero. No interval where
+/// the old mean is within its own noise of zero.
+fn ratio_interval(pairs: &[(f64, f64)], t: f64) -> (f64, Option<(f64, f64)>) {
+    let n = pairs.len() as f64;
+    let mo = pairs.iter().map(|p| p.0).sum::<f64>() / n;
+    let mn = pairs.iter().map(|p| p.1).sum::<f64>() / n;
+    let (mut soo, mut snn, mut son) = (0.0, 0.0, 0.0);
+    for &(o, w) in pairs {
+        soo += (o - mo) * (o - mo);
+        snn += (w - mn) * (w - mn);
+        son += (o - mo) * (w - mn);
+    }
+    let d = n * (n - 1.0);
+    let (vo, vn, von) = (soo / d, snn / d, son / d);
+    let a = mo * mo - t * t * vo;
+    let b = mo * mn - t * t * von;
+    let c = mn * mn - t * t * vn;
+    let disc = b * b - a * c;
+    (
+        mn / mo,
+        (a > 0.0 && disc >= 0.0).then(|| ((b - disc.sqrt()) / a, (b + disc.sqrt()) / a)),
+    )
+}
+
+/// One-way variance components of `groups` x `repeats` values, the k-th
+/// repeat of group g at `x[g + k * groups]`: (between groups, within).
+fn components(x: &[f64], groups: usize, repeats: usize) -> (f64, f64) {
+    assert_eq!(x.len(), groups * repeats);
+    let all = x.iter().sum::<f64>() / x.len() as f64;
+    let means: Vec<f64> = (0..groups)
+        .map(|g| (0..repeats).map(|k| x[g + k * groups]).sum::<f64>() / repeats as f64)
+        .collect();
+    let msb = repeats as f64 * means.iter().map(|m| (m - all) * (m - all)).sum::<f64>()
+        / (groups - 1) as f64;
+    let msw = (0..groups)
+        .map(|g| {
+            (0..repeats)
+                .map(|k| (x[g + k * groups] - means[g]).powi(2))
+                .sum::<f64>()
+        })
+        .sum::<f64>()
+        / (groups * (repeats - 1)) as f64;
+    (((msb - msw) / repeats as f64).max(0.0), msw)
+}
+
+/// Study only: a kept 64-pair second stage (16 layout pairs, each run four
+/// times in turn) judged three ways: as the production rule judged it (64
+/// pairs, geometric); with its 16 layout pairs as the count (geometric);
+/// and by the ratio of arithmetic means over the 16 layout pairs with a
+/// 95% interval against a 3% margin. Beside them, the spread between
+/// layout pairs and between repeats (of log pair ratios), and the 95%
+/// half-width three designs give: 16 x 4 counted honestly, 64 x 1, and
+/// what the production rule assumes of its 64.
+fn design(arguments: &[String]) {
+    const G: usize = 16;
+    const R: usize = 4;
+    // The quantity judged: wall time (the production rule's), or one of
+    // the thread's counts over the same samples (both core kinds summed).
+    let (field, dirs) = match arguments.first().map(String::as_str) {
+        Some("--metric") => (
+            match arguments[1].as_str() {
+                "wall" => None,
+                "counted-time" => Some(0),
+                "cycles" => Some(1),
+                "instructions" => Some(2),
+                other => panic!("--metric wall|counted-time|cycles|instructions, not {other}"),
+            },
+            &arguments[2..],
+        ),
+        _ => (None, arguments),
+    };
+    println!("# Study: per-cell 95% intervals, no correction over cells. Permille throughout; sd and half-widths are of log ratios.");
+    println!("dir\tcell\traw64_ratio\traw64_verdict\tgrouped16_ratio\tgrouped16_verdict\tarith_ratio\tci_low\tci_high\tvs_3pct\tsd_layout\tsd_repeat\thalf_16x4\thalf_64x1\thalf_assumed");
+    for dir in dirs {
+        let files = paths(std::slice::from_ref(dir));
+        let side = |ending: &str| -> Vec<Vec<(String, u128, u128)>> {
+            files
+                .iter()
+                .filter(|p| p.to_string_lossy().ends_with(ending))
+                .map(|p| {
+                    let file = crate::read_samples(p.to_str().unwrap());
+                    assert!(
+                        file.load.starts_with("quiet"),
+                        "{}: {}",
+                        p.display(),
+                        file.load
+                    );
+                    let cores: BTreeMap<&str, &Vec<[u64; crate::LEVEL_FIELDS * 2]>> =
+                        file.cores.iter().map(|(k, v)| (k.as_str(), v)).collect();
+                    file.cells
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            let units: u128 = v.iter().map(|s| u128::from(s.units)).sum();
+                            let total: u128 = match field {
+                                None => v.iter().map(|s| u128::from(s.ns)).sum(),
+                                Some(f) => cores
+                                    .get(k.as_str())?
+                                    .iter()
+                                    .map(|c| u128::from(c[f] + c[crate::LEVEL_FIELDS + f]))
+                                    .sum(),
+                            };
+                            (total > 0).then(|| (k.clone(), total, units))
+                        })
+                        .collect()
+                })
+                .collect()
+        };
+        let (old, new) = (side("-old.tsv"), side("-new.tsv"));
+        assert!(
+            old.len() == G * R && new.len() == G * R,
+            "{dir}: {} old and {} new runs",
+            old.len(),
+            new.len()
+        );
+        let keys: Vec<String> = old[0].iter().map(|c| c.0.clone()).collect();
+        if keys.is_empty() {
+            println!("# {dir}: its samples carry no such counts");
+            continue;
+        }
+        let fixed = |ns: u128, units: u128| ((ns << 64) + units / 2) / units;
+        let get = |runs: &Vec<Vec<(String, u128, u128)>>, i: usize, key: &str| {
+            let c = runs[i]
+                .iter()
+                .find(|c| c.0 == key)
+                .unwrap_or_else(|| panic!("{dir}: run {i} lacks {key}"));
+            (c.1, c.2)
+        };
+        let mut raw = Vec::new();
+        let mut grouped = Vec::new();
+        for key in &keys {
+            raw.push(
+                (0..G * R)
+                    .map(|i| {
+                        let (o, n) = (get(&old, i, key), get(&new, i, key));
+                        (fixed(o.0, o.1), fixed(n.0, n.1))
+                    })
+                    .collect::<Vec<_>>(),
+            );
+            grouped.push(
+                (0..G)
+                    .map(|g| {
+                        let sum = |runs| {
+                            (0..R)
+                                .map(|k| get(runs, g + k * G, key))
+                                .fold((0, 0), |a, b| (a.0 + b.0, a.1 + b.1))
+                        };
+                        let (o, n) = (sum(&old), sum(&new));
+                        (fixed(o.0, o.1), fixed(n.0, n.1))
+                    })
+                    .collect::<Vec<_>>(),
+            );
+        }
+        let (rj, _) = crate::judge_once(&raw);
+        let (gj, _) = crate::judge_once(&grouped);
+        let real = |v: u128| v as f64 / 18_446_744_073_709_551_616.0;
+        for (c, key) in keys.iter().enumerate() {
+            let pairs: Vec<(f64, f64)> = grouped[c]
+                .iter()
+                .map(|&(o, n)| (real(o), real(n)))
+                .collect();
+            let (ratio, interval) = ratio_interval(&pairs, t975(G - 1));
+            let (low, high) = interval.expect("a timing's mean stands clear of zero");
+            let verdict = if low > 1.03 {
+                "slower"
+            } else if high < 1.03 {
+                "within"
+            } else {
+                "cannot_tell"
+            };
+            let logs: Vec<f64> = raw[c]
+                .iter()
+                .map(|&(o, n)| real(n).ln() - real(o).ln())
+                .collect();
+            let (between, within) = components(&logs, G, R);
+            let mean = logs.iter().sum::<f64>() / logs.len() as f64;
+            let total =
+                logs.iter().map(|x| (x - mean) * (x - mean)).sum::<f64>() / (logs.len() - 1) as f64;
+            let m = |x: f64| (x * 1000.0).round() as i64;
+            println!(
+                "{dir}\t{key}\t{}\t{:?}\t{}\t{:?}\t{}\t{}\t{}\t{verdict}\t{}\t{}\t{}\t{}\t{}",
+                rj[c].ratio_permille,
+                rj[c].verdict,
+                gj[c].ratio_permille,
+                gj[c].verdict,
+                m(ratio),
+                m(low),
+                m(high),
+                m(between.sqrt()),
+                m(within.sqrt()),
+                m(t975(G - 1) * (between / G as f64 + within / (G * R) as f64).sqrt()),
+                m(t975(G * R - 1) * ((between + within) / (G * R) as f64).sqrt()),
+                m(t975(G * R - 1) * (total / (G * R) as f64).sqrt()),
+            );
+        }
+    }
+}
+
+/// Study only: each kept comparison (its run-*-old.tsv with its
+/// run-*-new.tsv, in their accepted order) judged by the production rule
+/// three times over: on wall time, on the thread's user-mode cycles, and
+/// on its instructions, each over the cells that carry it.
+fn judge(dirs: &[String]) {
+    println!("dir\tpairs\tquiet\tcell\twall_ratio\twall_verdict\tcycles_ratio\tcycles_verdict\tinstructions_ratio\tinstructions_verdict");
+    for dir in dirs {
+        let files = paths(std::slice::from_ref(dir));
+        let mut quiet = true;
+        let mut side = |ending: &str| -> Vec<BTreeMap<String, [u128; 4]>> {
+            files
+                .iter()
+                .filter(|p| p.to_string_lossy().ends_with(ending))
+                .map(|p| {
+                    let file = crate::read_samples(p.to_str().unwrap());
+                    quiet &= file.load.starts_with("quiet");
+                    let cores: BTreeMap<&str, &Vec<[u64; crate::LEVEL_FIELDS * 2]>> =
+                        file.cores.iter().map(|(k, v)| (k.as_str(), v)).collect();
+                    file.cells
+                        .iter()
+                        .map(|(k, v)| {
+                            let count = |f: usize| {
+                                cores.get(k.as_str()).map_or(0, |c| {
+                                    c.iter()
+                                        .map(|c| u128::from(c[f] + c[crate::LEVEL_FIELDS + f]))
+                                        .sum()
+                                })
+                            };
+                            (
+                                k.clone(),
+                                [
+                                    v.iter().map(|s| u128::from(s.ns)).sum(),
+                                    v.iter().map(|s| u128::from(s.units)).sum(),
+                                    count(1),
+                                    count(2),
+                                ],
+                            )
+                        })
+                        .collect()
+                })
+                .collect()
+        };
+        let (old, new) = (side("-old.tsv"), side("-new.tsv"));
+        assert!(
+            old.len() >= 3 && old.len() == new.len(),
+            "{dir}: {} old and {} new runs",
+            old.len(),
+            new.len()
+        );
+        let keys: Vec<&String> = old[0]
+            .keys()
+            .filter(|k| old.iter().chain(&new).all(|run| run.contains_key(*k)))
+            .collect();
+        let fixed = |n: u128, units: u128| ((n << 64) + units / 2) / units;
+        // Each metric's cells and their judgments, by cell.
+        let judged: Vec<BTreeMap<&String, clocks::summary::Judgment>> = [0usize, 2, 3]
+            .iter()
+            .map(|&m| {
+                let cells: Vec<&String> = keys
+                    .iter()
+                    .copied()
+                    .filter(|k| old.iter().chain(&new).all(|run| run[*k][m] > 0))
+                    .collect();
+                let tested: Vec<Vec<(u128, u128)>> = cells
+                    .iter()
+                    .map(|k| {
+                        old.iter()
+                            .zip(&new)
+                            .map(|(o, n)| (fixed(o[*k][m], o[*k][1]), fixed(n[*k][m], n[*k][1])))
+                            .collect()
+                    })
+                    .collect();
+                if tested.is_empty() {
+                    return BTreeMap::new();
+                }
+                cells
+                    .into_iter()
+                    .zip(crate::judge_once(&tested).0)
+                    .collect()
+            })
+            .collect();
+        for key in keys {
+            let show = |m: usize| {
+                judged[m].get(key).map_or("-\t-".to_owned(), |j| {
+                    format!("{}\t{:?}", j.ratio_permille, j.verdict)
+                })
+            };
+            println!(
+                "{dir}\t{}\t{quiet}\t{key}\t{}\t{}\t{}",
+                old.len(),
+                show(0),
+                show(1),
+                show(2)
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A new side exactly twice the old: the ratio is 2 and so is its
+    /// whole interval.
+    #[test]
+    fn a_proportional_pair_has_its_ratio_as_its_interval() {
+        let pairs: Vec<(f64, f64)> = [1.0, 2.0, 5.0, 3.0].iter().map(|&o| (o, 2.0 * o)).collect();
+        let (ratio, interval) = ratio_interval(&pairs, t975(3));
+        let (low, high) = interval.unwrap();
+        assert!(
+            (ratio - 2.0).abs() < 1e-12 && (low - 2.0).abs() < 1e-9 && (high - 2.0).abs() < 1e-9
+        );
+    }
+
+    /// At each end of the interval, the t statistic of (new - q old) is the
+    /// table's value: the definition, computed apart from the formula.
+    #[test]
+    fn the_interval_ends_where_the_t_test_turns() {
+        let pairs = [(1.0, 1.2), (2.0, 1.9), (3.0, 3.6), (4.0, 4.1), (5.0, 5.9)];
+        let (ratio, interval) = ratio_interval(&pairs, t975(4));
+        assert!((ratio - 16.7 / 15.0).abs() < 1e-12);
+        let (low, high) = interval.unwrap();
+        assert!(low < ratio && ratio < high);
+        for q in [low, high] {
+            let d: Vec<f64> = pairs.iter().map(|&(o, w)| w - q * o).collect();
+            let mean = d.iter().sum::<f64>() / 5.0;
+            let sd = (d.iter().map(|x| (x - mean) * (x - mean)).sum::<f64>() / 4.0).sqrt();
+            assert!(((mean / (sd / 5f64.sqrt())).abs() - t975(4)).abs() < 1e-6);
+        }
+    }
+
+    /// Groups that differ with repeats alike are all between; repeats that
+    /// differ in groups alike are all within.
+    #[test]
+    fn components_part_the_variance_between_groups_and_repeats() {
+        let between: Vec<f64> = (0..8).map(|i| [1.0, 3.0][i % 2]).collect();
+        assert_eq!(components(&between, 2, 4), (2.0, 0.0));
+        let within: Vec<f64> = (0..8).map(|i| [1.0, 3.0][(i / 2) % 2]).collect();
+        let (b, w) = components(&within, 2, 4);
+        assert!(b == 0.0 && (w - 4.0 / 3.0).abs() < 1e-12);
     }
 }
