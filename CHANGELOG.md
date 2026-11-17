@@ -6,8 +6,9 @@ misses, a fifth counter in the routine group beside cycles,
 instructions and the last-level pair. Cycles that move without
 instructions or last-level misses may be code delivery; this names it
 per sample, in the bracket, as the other counts are (bench-hashes #3).
-Files from earlier versions are read with those versions' tools. The
-overview's staleness test waits on the release's fresh runs, as at v10.
+The reader takes v10 files too, their icache counts absent, so a check
+against an older bench reads both sides with one reader. The overview's
+staleness test waits on the release's fresh runs, as at v10.
 
 
 **Bao outboard generation has end-to-end regression cells.** `bench-hashes

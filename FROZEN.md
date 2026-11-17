@@ -39,8 +39,9 @@ the notes) may still change, to say it better.
   other work, cycles per byte take two values across link layouts at
   constant instructions and last-level misses; the icache count, read in
   the sample's bracket as the other counts are, names code delivery
-  where that is the carrier. A v10 file is read with 0.23's tools, as
-  every version's files are with their own.
+  where that is the carrier. The reader takes a v10 file too, its
+  icache count absent: a check against an older bench reads both
+  sides' runs with one reader, as it always has.
 
 - **Provenance where its readers look**
   ([reader contract](https://github.com/servil-software-factory/bench-hashes/issues/226)).

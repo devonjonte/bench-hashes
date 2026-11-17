@@ -7009,11 +7009,16 @@ fn read_samples(path: &str) -> SamplesFile {
     let text =
         fs::read_to_string(path).unwrap_or_else(|error| panic!("failed to read {path}: {error}"));
     let mut lines = text.lines();
-    assert_eq!(
-        lines.next(),
-        Some(SAMPLES_VERSION),
-        "{path}: a samples file of this version begins with {SAMPLES_VERSION:?}"
-    );
+    // v11, or v10 (a bench from before the icache count, whose runs a
+    // check against an older bench must still read: its counts carry
+    // five numbers a core kind, the icache count absent).
+    let level_fields = match lines.next() {
+        Some(SAMPLES_VERSION) => LEVEL_FIELDS,
+        Some("# bench-hashes samples v10") => 5,
+        other => panic!(
+            "{path}: a samples file begins with {SAMPLES_VERSION:?} (or v10), found {other:?}"
+        ),
+    };
     let mut load = None;
     let mut power = None;
     let mut headers = Vec::new();
@@ -7085,8 +7090,16 @@ fn read_samples(path: &str) -> SamplesFile {
                             .split(':')
                             .map(|x| x.parse().expect("a count"))
                             .collect();
+                        // A v10 sample's five a kind, the icache count
+                        // absent (zero), in v11's six.
+                        let v: Vec<u64> = if v.len() == LEVEL_FIELDS * 2 {
+                            v
+                        } else {
+                            let (p, e) = v.split_at(level_fields);
+                            [p, &[0], e, &[0]].concat()
+                        };
                         v.try_into().expect(
-                            "P time, cycles, instructions, cache references, cache misses; then E's",
+                            "P time, cycles, instructions, cache references, cache misses, icache misses; then E's",
                         )
                     })
                     .collect();
