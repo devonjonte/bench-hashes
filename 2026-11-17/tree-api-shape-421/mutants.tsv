@@ -1,0 +1,41 @@
+mutant	the change	verdict	failing tests
+subtree-length	subtree_cv takes input of any length	caught	every_wrong_shape_is_refused; parts_of_five_mebibytes
+halves-length	subtree_halves takes input of any length	caught	every_wrong_shape_is_refused
+halves-places	subtree_halves gives its right half the left half's place	caught	every_wrong_shape_is_refused
+subtree-chunk	subtree_cv hashes at chunk `index`, whatever the level	caught	a_slot_missed_or_misplaced_stops_the_build; the_outboard_is_bao_trees_byte_for_byte
+parent-even	parent_cv takes a left child at an odd index	caught	every_wrong_shape_is_refused
+parent-next	parent_cv takes any right child	caught	every_wrong_shape_is_refused
+last-parent-even	last_parent_cv takes a left child at an odd index	caught	every_wrong_shape_is_refused
+last-parent-next	last_parent_cv takes a last subtree that begins anywhere	caught	every_wrong_shape_is_refused
+last-parent-len	last_parent_cv gives its right child's length as its own	caught	a_slot_missed_or_misplaced_stops_the_build; the_outboard_is_bao_trees_byte_for_byte
+last-parent-chunk	last_parent_cv gives its right child's first chunk as its own	caught	a_slot_missed_or_misplaced_stops_the_build; the_outboard_is_bao_trees_byte_for_byte
+layer-even	parent_cvs takes a layer from an odd index	caught	every_wrong_shape_is_refused
+layer-next	parent_cvs takes children in any order	caught	a_slot_missed_or_misplaced_stops_the_build
+layer-next-first-call	parent_cvs checks only the children of its first call to the kernels	caught	every_wrong_shape_is_refused
+layer-pairs	parent_cvs takes an odd number of children	caught	every_wrong_shape_is_refused
+layer-outputs	parent_cvs takes any number of outputs	caught	every_wrong_shape_is_refused
+layer-parent-place	parent_cvs gives a parent its left child's place	caught	a_slot_missed_or_misplaced_stops_the_build; the_outboard_is_bao_trees_byte_for_byte
+root-start	root_hash takes a left child from anywhere	caught	every_wrong_shape_is_refused
+root-next	root_hash takes a right child that begins anywhere	caught	every_wrong_shape_is_refused
+root-length	root_hash takes any length	caught	every_wrong_shape_is_refused
+place-level	a place takes any level	caught	every_wrong_shape_is_refused
+place-end	a place takes any index	caught	every_wrong_shape_is_refused
+max-level	the highest level is 54	caught	every_wrong_shape_is_refused
+parent-place-level	a parent's place keeps its children's level	caught	a_slot_missed_or_misplaced_stops_the_build; the_outboard_is_bao_trees_byte_for_byte
+parent-place-index	a parent's place keeps its left child's index	caught	a_slot_missed_or_misplaced_stops_the_build; the_outboard_is_bao_trees_byte_for_byte
+last-start	a last subtree starts at any chunk	caught	every_wrong_shape_is_refused
+last-zero	a last subtree at chunk 0 is sized as at any other chunk	caught	every_wrong_shape_is_refused
+last-room	a last subtree may end beyond the longest message	caught	every_wrong_shape_is_refused
+last-twice	a last subtree may be twice the whole subtree at its place	caught	every_wrong_shape_is_refused
+last-empty	last_cv takes no bytes	caught	every_wrong_shape_is_refused
+last-long	last_cv takes any length	caught	every_wrong_shape_is_refused
+last-at	LastCv::at takes any place and length	caught	every_wrong_shape_is_refused
+whole-as-last-len	a whole subtree made the last one is a chunk long	caught	equality_is_of_place_and_bytes_and_debug_shows_the_place; every_wrong_shape_is_refused
+whole-as-last-chunk	a whole subtree made the last one begins at chunk `index`	caught	equality_is_of_place_and_bytes_and_debug_shows_the_place; every_wrong_shape_is_refused
+unset	a value never set has a place	caught	every_wrong_shape_is_refused
+level-of	level_of takes any whole number of chunks	caught	parts_of_five_mebibytes
+equal-place	two values are equal whatever their places	caught	equality_is_of_place_and_bytes_and_debug_shows_the_place
+equal-value	two values at one place are equal	caught	equality_is_of_place_and_bytes_and_debug_shows_the_place; stored_values_verify_from_the_root_down
+equal-last-place	two last values are equal whatever their places	caught	equality_is_of_place_and_bytes_and_debug_shows_the_place
+equal-last-value	two last values at one place are equal	caught	equality_is_of_place_and_bytes_and_debug_shows_the_place; stored_values_verify_from_the_root_down
+root-output-unchecked	root_output checks nothing	caught	every_wrong_shape_is_refused

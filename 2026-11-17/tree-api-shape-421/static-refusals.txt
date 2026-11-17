@@ -1,0 +1,92 @@
+Three programs the sketch refuses when they compile, each with the compiler's reason.
+(The doctests marked compile_fail in src/lib.rs hold the same lines; a compile_fail doctest
+passes for any error, so the reasons are kept here. Made by: cargo build --example NAME.)
+
+=== refuse_part_size.rs ===
+    use tree_shape_sketch::level_of;
+    const PART: usize = 5 * 4096;
+    const LEVEL: u32 = level_of(PART as u64);
+    fn main() {
+        let _ = LEVEL;
+    }
+--- cargo build --example refuse_part_size ---
+error[E0080]: evaluation panicked: a whole subtree holds a power of two of chunks
+   --> examples/refuse_part_size.rs:3:20
+    |
+  3 | const LEVEL: u32 = level_of(PART as u64);
+    |                    ^^^^^^^^^^^^^^^^^^^^^ evaluation of `LEVEL` failed inside this call
+    |
+note: inside `level_of`
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/panic.rs:62:8
+    |
+    = note: the failure occurred here
+    |
+   ::: src/lib.rs:102:5
+    |
+102 |     assert!(len >= CHUNK && len % CHUNK == 0 && (len / CHUNK).is_power_of_two(), "a whole subtree holds a power of two of chunks");
+    |     ------------------------------------------------------------------------------------------------------------------------------ in this macro invocation
+note: erroneous constant encountered
+ --> examples/refuse_part_size.rs:5:13
+  |
+5 |     let _ = LEVEL;
+  |             ^^^^^
+For more information about this error, try `rustc --explain E0080`.
+error: could not compile `tree-shape-sketch` (example "refuse_part_size") due to 1 previous error
+exit 101
+
+=== refuse_short_left.rs ===
+    use tree_shape_sketch::Tree;
+    fn main() {
+        blake3_servil_core::initialize();
+        let tree = Tree::new(blake3_servil_core::Mode::Plain);
+        let end = tree.last_cv(1, &[7u8; 100]);
+        let next = tree.subtree_cv(0, 2, &[7u8; 1024]);
+        let _ = tree.parent_cv(&end, &next);
+    }
+--- cargo build --example refuse_short_left ---
+error[E0308]: mismatched types
+   --> examples/refuse_short_left.rs:7:28
+    |
+  7 |     let _ = tree.parent_cv(&end, &next);
+    |                  --------- ^^^^ expected `&Cv`, found `&LastCv`
+    |                  |
+    |                  arguments to this method are incorrect
+    |
+    = note: expected reference `&tree_shape_sketch::Cv`
+               found reference `&LastCv`
+note: method defined here
+   --> src/lib.rs:313:12
+    |
+313 |     pub fn parent_cv(&self, left: &Cv, right: &Cv) -> Cv {
+    |            ^^^^^^^^^
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `tree-shape-sketch` (example "refuse_short_left") due to 1 previous error
+exit 101
+
+=== refuse_root_right.rs ===
+    use tree_shape_sketch::Tree;
+    fn main() {
+        blake3_servil_core::initialize();
+        let tree = Tree::new(blake3_servil_core::Mode::Plain);
+        let (left, right) = (tree.subtree_cv(0, 0, &[7u8; 1024]), tree.subtree_cv(0, 1, &[7u8; 1024]));
+        let _ = tree.root_hash(&left, &right, 2048);
+    }
+--- cargo build --example refuse_root_right ---
+error[E0308]: mismatched types
+   --> examples/refuse_root_right.rs:6:35
+    |
+  6 |     let _ = tree.root_hash(&left, &right, 2048);
+    |                  ---------        ^^^^^^ expected `&LastCv`, found `&Cv`
+    |                  |
+    |                  arguments to this method are incorrect
+    |
+    = note: expected reference `&LastCv`
+               found reference `&tree_shape_sketch::Cv`
+note: method defined here
+   --> src/lib.rs:377:12
+    |
+377 |     pub fn root_hash(&self, left: &Cv, right: &LastCv, len: u64) -> Hash {
+    |            ^^^^^^^^^
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `tree-shape-sketch` (example "refuse_root_right") due to 1 previous error
+exit 101

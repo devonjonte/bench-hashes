@@ -1,0 +1,22 @@
+[package]
+name = "tree-shape-sketch"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "A compiled sketch for BLAKE3 #421: a tree API whose calls cannot build a tree that is not BLAKE3's"
+
+[dependencies]
+# BLAKE3-Servil's core at `next` of November 16, 2026: today's TreeHasher, which the sketch wraps.
+blake3-servil-core = { git = "https://github.com/servil-software-factory/BLAKE3", rev = "d1b4596aaefaf5e6baf7c24fc9983333ae059e7b" }
+
+[dev-dependencies]
+# Official BLAKE3: the tests' independent hash of each message.
+blake3 = { version = "=1.8.7", default-features = false, features = ["std"] }
+# bao-tree: the independent implementation of the outboard that tests/outboard.rs builds
+# (as b3sum's own tests compare with it).
+bao-tree = { version = "=0.17.0", default-features = false }
+
+[profile.dev]
+opt-level = 1
+overflow-checks = true
+debug-assertions = true

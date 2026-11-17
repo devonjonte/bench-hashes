@@ -1,0 +1,22 @@
+# PROBE for BLAKE3 #421 (never merged): what a chaining value that carries
+# its place costs where it costs most, a layer of parents. Built and run on
+# a measurement host; the i7 only checks that it runs.
+[package]
+name = "tree-shape-probe"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+tree-shape-sketch = { path = ".." }
+blake3-servil-core = { git = "https://github.com/servil-software-factory/BLAKE3", rev = "d1b4596aaefaf5e6baf7c24fc9983333ae059e7b" }
+# The servil projects' one way to time (bench-hashes 0.23.0).
+clocks = { git = "https://github.com/servil-software-factory/bench-hashes", rev = "cade30fdb71682719f5fa3e586ff96146ae9fc25" }
+
+# As bench-hashes builds.
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+incremental = false
