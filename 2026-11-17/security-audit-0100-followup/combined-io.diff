@@ -1,0 +1,152 @@
+diff --git a/b3sum/README.md b/b3sum/README.md
+index efd08ad2..b8f24018 100644
+--- a/b3sum/README.md
++++ b/b3sum/README.md
+@@ -114,35 +114,34 @@ See [What `--check` does](what_does_check_do.md) for checkfile rules.
+ 
+ ## What b3sum reads
+ 
+-`b3sum` reads each file from byte 0 until the operating system reports
+-end-of-file (`0` bytes). Initial file metadata helps choose the read path, but
+-never decides where the file ends—so `/proc` files that report 0 bytes are still
+-hashed completely.
+-
+-Once `b3sum` opens a file, it keeps using that open file handle. Moving or
+-replacing the file at that path does not switch which file is hashed.
+-
+-**Files modified while `b3sum` is reading them:** `b3sum` does not lock files or
+-take a filesystem snapshot. If another program modifies a file while `b3sum`
+-reads it, the output is **not** guaranteed to be the hash of any single version
+-of the file that existed (for example, `b3sum` can read old bytes from the first
+-part and new bytes from the rest). Only hash files that are not changing, or hash
+-a snapshot.
+-
+-Specifically, if a file grows or shrinks mid-read:
+-
+-- **If the file grows:** Paths that read sequentially (small files, cold files,
+-  standard input, or `--no-mmap`) read until end-of-file, so they include bytes
+-  appended before `b3sum` reaches the end. Paths that memory-map the file
+-  (by default, cached files of 512 KiB or more) only map its size at open, so
+-  bytes appended afterward are not hashed. Direct I/O reads on cold files
+-  detect trailing bytes and fall back to reading or mapping.
+-- **If the file shrinks (is truncated):** When `b3sum` memory-maps the file,
+-  reading past the new end causes a `SIGBUS` error and `b3sum` aborts without
+-  printing a hash. When `b3sum` reads sequentially (small files, cold files, or
+-  `--no-mmap`), hitting the shorter end reports end-of-file early, and `b3sum`
+-  currently prints the hash of the prefix it had read so far rather than
+-  detecting that the file shrank.
++`b3sum` hashes the file it opened. If the name is moved or given to another
++file during the run, the file hashed is still the one that was opened.
++
++**Hash files that are not changing.** `b3sum` takes no lock and no snapshot.
++If another program writes to a file while `b3sum` hashes it, the hash printed
++may be of bytes that the file never held all at once.
++
++How much of the file is hashed depends on how `b3sum` takes it in:
++
++- **Read** (files under 512 KiB, standard input, every file with `--no-mmap`,
++  and on Linux most files the page cache does not hold): `b3sum` reads until
++  the system says
++  the file has ended. The size the file reported at the start is not used.
++  So a file that reports 0 bytes and has some (as under `/proc`) is hashed
++  whole.
++- **Mapped** (other files of 512 KiB or more): `b3sum` hashes the bytes up to
++  the size the file had when it was opened.
++
++What happens when a file changes during the run:
++
++| The file... | Read | Mapped |
++|---|---|---|
++| grows at its end | the added bytes are hashed if they arrive before `b3sum` reaches the end | the added bytes are not hashed |
++| is cut short | if `b3sum` had already read past the new end, it prints the hash of what it read: a file that never existed | `b3sum` stops with an error and prints no hash, unless the cut falls inside the file's last page of memory (4 KiB on most machines): then the missing bytes read as zeros, and it prints the hash of a file that never existed |
++| is overwritten in place | old bytes and new bytes may be mixed | the same |
++
++`b3sum` does not yet detect these cases
++([#443](https://github.com/servil-software-factory/BLAKE3/issues/443)).
+ 
+ ## Direct I/O for large cold files
+ 
+diff --git a/b3sum/src/linux_pipe.rs b/b3sum/src/linux_pipe.rs
+index dafd5295..37c267de 100644
+--- a/b3sum/src/linux_pipe.rs
++++ b/b3sum/src/linux_pipe.rs
+@@ -471,6 +471,11 @@ pub(crate) fn force_miss() -> bool {
+     FORCE_MISS.load(Ordering::Relaxed)
+ }
+ 
++/// The tests' seam: called with each file's path just after the file is
++/// opened, where a test replaces what the path names.
++#[cfg(test)]
++pub(crate) static AFTER_OPEN: std::sync::Mutex<Option<Box<dyn Fn(&Path) + Send>>> = std::sync::Mutex::new(None);
++
+ /// The tests' seam: with it set, every file is taken for one the page
+ /// cache does not hold.
+ #[cfg(test)]
+@@ -967,8 +972,15 @@ fn run_hybrid_worker(
+             }
+         };
+ 
++        #[cfg(test)]
++        if let Some(hook) = AFTER_OPEN.lock().unwrap().as_ref() {
++            hook(&paths[i]);
++        }
++
++        // From here on the file is the one opened above, on every path:
++        // nothing opens its name again, which may name another file by now.
+         if !meta.is_file() {
+-            sink.put(i, crate::hash_path_hash(args, &paths[i]));
++            sink.put(i, crate::hash_open_file(args, file));
+             continue;
+         }
+ 
+@@ -1141,10 +1153,8 @@ fn run_hybrid_worker(
+                     sink.put(i, Err(e.into()));
+                 }
+             }
+-        } else if let Err(e) = crate::hash_path_hash(args, &paths[i]).map(|h| {
+-            sink.put(i, Ok(h));
+-        }) {
+-            sink.put(i, Err(e));
++        } else {
++            sink.put(i, crate::hash_open_file(args, file));
+         }
+     }
+ 
+@@ -1493,4 +1503,37 @@ mod test {
+         assert_eq!(super::buffer_with_start(&mut none, 10_000, None), 0);
+         assert!(none.capacity() > 10_000 && none.is_empty());
+     }
++
++    /// The file opened is the file hashed, where there is no io_uring too:
++    /// each path is replaced by another file just after it is opened, and
++    /// the hashes are the first files'. (That fallback opened the name a
++    /// second time, and hashed whatever it named by then.)
++    #[test]
++    fn without_a_ring_the_file_opened_is_the_file_hashed() {
++        blake3::initialize();
++        let dir = tempfile::tempdir().unwrap();
++        // A regular file past the small files' reads, and a pipe-like
++        // input that is no regular file: the two places that opened again.
++        let first: Vec<u8> = (0..crate::MAP_LEN + 4096).map(|i| (i * 13) as u8).collect();
++        let paths: Vec<PathBuf> = (0..2).map(|i| dir.path().join(format!("f{i}"))).collect();
++        for path in &paths {
++            std::fs::write(path, &first).unwrap();
++        }
++        *super::AFTER_OPEN.lock().unwrap() = Some(Box::new(|path| {
++            std::fs::rename(path, path.with_extension("moved")).unwrap();
++            std::fs::write(path, b"another file").unwrap();
++        }));
++        super::set_force_miss(true);
++        let args = crate::Args::for_test_plain(paths.clone());
++        let mut got = Vec::new();
++        super::hash_paths_inner(&args, &paths, true, &mut |i, hash| {
++            got.push((i, hash.unwrap()));
++            true
++        });
++        super::set_force_miss(false);
++        *super::AFTER_OPEN.lock().unwrap() = None;
++        got.sort_by_key(|(i, _)| *i);
++        let want = blake3::convenience::hash(&first);
++        assert_eq!(got, vec![(0, want), (1, want)]);
++    }
+ }

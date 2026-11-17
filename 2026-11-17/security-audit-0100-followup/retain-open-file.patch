@@ -1,0 +1,22 @@
+diff --git a/b3sum/src/linux_pipe.rs b/b3sum/src/linux_pipe.rs
+index dafd5295..7c7efe40 100644
+--- a/b3sum/src/linux_pipe.rs
++++ b/b3sum/src/linux_pipe.rs
+@@ -968,7 +968,7 @@ fn run_hybrid_worker(
+         };
+ 
+         if !meta.is_file() {
+-            sink.put(i, crate::hash_path_hash(args, &paths[i]));
++            sink.put(i, crate::hash_open_file(args, file));
+             continue;
+         }
+ 
+@@ -1141,7 +1141,7 @@ fn run_hybrid_worker(
+                     sink.put(i, Err(e.into()));
+                 }
+             }
+-        } else if let Err(e) = crate::hash_path_hash(args, &paths[i]).map(|h| {
++        } else if let Err(e) = crate::hash_open_file(args, file).map(|h| {
+             sink.put(i, Ok(h));
+         }) {
+             sink.put(i, Err(e));

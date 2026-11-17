@@ -1,0 +1,154 @@
+diff --git a/threads/tests/shuttle_pipeline.rs b/threads/tests/shuttle_pipeline.rs
+index d983c6bc..b3a7139e 100644
+--- a/threads/tests/shuttle_pipeline.rs
++++ b/threads/tests/shuttle_pipeline.rs
+@@ -51,13 +51,13 @@ mod pipeline_sync {
+     pub use shuttle::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+     pub use shuttle::thread_local;
+     /// Shuttle's threads. A caller about to sleep lets the held-back
+-    /// workers go first (lanes::sources::hold_back): they are who would
+-    /// wake it.
++    /// workers go (lanes::sources::hold_back): they are who would wake it.
+     pub mod thread {
+         pub use shuttle::thread::{Thread, current};
+         pub fn park() {
+-            crate::lanes::sources::let_go();
++            crate::lanes::sources::caller_sleeps(true);
+             shuttle::thread::park();
++            crate::lanes::sources::caller_sleeps(false);
+         }
+     }
+ 
+@@ -290,31 +290,47 @@ mod lanes {
+         }
+ 
+         shuttle::lazy_static! {
+-            /// How many times the held-back workers have been let go.
+-            static ref LET_GO: Mutex<u64> = Mutex::new(0);
+-            static ref LET_GO_CAME: shuttle::sync::Condvar = shuttle::sync::Condvar::new();
++            /// The callers asleep now, and whether the model has ended.
++            static ref ASLEEP: Mutex<(usize, bool)> = Mutex::new((0, false));
++            static ref ASLEEP_CHANGED: shuttle::sync::Condvar = shuttle::sync::Condvar::new();
+         }
+ 
+         /// A worker with an action in hand is, one time in four, held back
+-        /// until a caller is about to sleep (or the model ends): a slow
+-        /// worker, as slow as can be without hanging the caller. Everything
+-        /// else that can happen first then does, with this action taken and
+-        /// not yet run. Without it a schedule must starve the worker by
+-        /// chance for hundreds of steps, which the schedulers seldom do,
+-        /// and the planted faults that need it went unseen.
++        /// for as long as no caller is asleep (and the model has not
++        /// ended): a slow worker, as slow as can be without hanging the
++        /// caller. Everything else that can happen first then does, with
++        /// this action taken and not yet run. Without it a schedule must
++        /// starve the worker by chance for hundreds of steps, which the
++        /// schedulers seldom do, and planted faults that need it went
++        /// unseen. It waits on what is so (a caller is asleep), not on a
++        /// signal: the first form waited for the next caller to fall
++        /// asleep, and a worker that began to hold just after the last one
++        /// had was never let go, which this model then reported as the
++        /// Pipeline's deadlock (once in some two hundred runs).
+         fn hold_back() {
+             use shuttle::rand::Rng;
+             if shuttle::rand::thread_rng().gen_ratio(1, 4) {
+-                let mut let_go = LET_GO.lock().unwrap();
+-                let seen = *let_go;
+-                while *let_go == seen {
+-                    let_go = LET_GO_CAME.wait(let_go).unwrap();
++                let mut asleep = ASLEEP.lock().unwrap();
++                while asleep.0 == 0 && !asleep.1 {
++                    asleep = ASLEEP_CHANGED.wait(asleep).unwrap();
+                 }
+             }
+         }
+-        pub(crate) fn let_go() {
+-            *LET_GO.lock().unwrap() += 1;
+-            LET_GO_CAME.notify_all();
++        /// A caller is about to sleep (`true`), or has woken.
++        pub(crate) fn caller_sleeps(now: bool) {
++            let mut asleep = ASLEEP.lock().unwrap();
++            if now {
++                asleep.0 += 1;
++            } else {
++                asleep.0 -= 1;
++            }
++            drop(asleep);
++            ASLEEP_CHANGED.notify_all();
++        }
++        /// The model's end: no worker is held back any more.
++        pub(crate) fn ended() {
++            ASLEEP.lock().unwrap().1 = true;
++            ASLEEP_CHANGED.notify_all();
+         }
+         /// Actions the workers ran, over every schedule: a model whose
+         /// caller ran them all would check nothing.
+@@ -329,12 +345,16 @@ use shuttle::thread;
+ 
+ /// `model` under two of Shuttle's schedulers: PCT, which finds the faults
+ /// that need a few switches at the right places, and the random one,
+-/// which switches often.
++/// which switches often. The seeds are fixed, so every run tries the same
++/// schedules and a failure here can be had again. To try others, set
++/// SHUTTLE_RANDOM_SEED to a number: Shuttle then seeds both with it, and
++/// a failure prints its schedule.
+ fn check(model: impl Fn() + Send + Sync + 'static) {
++    use shuttle::scheduler::{PctScheduler, RandomScheduler};
+     let model = std::sync::Arc::new(model);
+     let again = std::sync::Arc::clone(&model);
+-    shuttle::check_pct(move || again(), 2000, 3);
+-    shuttle::check_random(move || model(), 5000);
++    shuttle::Runner::new(PctScheduler::new_from_seed(0xb1a4_e300, 3, 2000), Default::default()).run(move || again());
++    shuttle::Runner::new(RandomScheduler::new_from_seed(0xb1a4_e301, 5000), Default::default()).run(move || model());
+ }
+ 
+ /// Runs `caller` with `workers` threads serving the Sources until it
+@@ -359,14 +379,14 @@ fn with_workers(workers: usize, caller: impl FnOnce()) {
+         .collect();
+     caller();
+     stop.store(true, Ordering::SeqCst);
+-    lanes::sources::let_go();
++    lanes::sources::ended();
+     lanes::sources::news();
+     for t in threads {
+         t.join().unwrap();
+     }
+     // Every storage made in this run is free again: none is lost, and
+     // none is held by a Pipeline or a Room that is gone.
+-    let (made, back) = pipeline::free_storages_for_model();
++    let (made, back) = pipeline::model_storages::free_storages_for_model();
+     assert_eq!(made, back, "storages made in this run, and those free at its end");
+ }
+ 
+diff --git a/tools/pipeline_model_controls.py b/tools/pipeline_model_controls.py
+index 15f28289..1595f88c 100644
+--- a/tools/pipeline_model_controls.py
++++ b/tools/pipeline_model_controls.py
+@@ -79,14 +79,15 @@ def model_passes():
+     began = "running 1 test" in run.stdout
+     if run.returncode != 0 and not began:
+         sys.exit(f"pipeline_model_controls: the model did not build or run:\n{run.stdout[-2000:]}\n{run.stderr[-2000:]}")
+-    return run.returncode == 0
++    return run.returncode == 0, run.stdout[-3000:] + run.stderr[-3000:]
+ 
+ 
+ def main():
+     with open(SOURCE) as f:
+         original = f.read()
+-    if not model_passes():
+-        sys.exit("pipeline_model_controls: the model fails on the Pipeline as it is")
++    passes, said = model_passes()
++    if not passes:
++        sys.exit(f"pipeline_model_controls: the model fails on the Pipeline as it is:\n{said}")
+     missed = []
+     try:
+         for name, find, replace in FAULTS:
+@@ -94,7 +95,7 @@ def main():
+                 sys.exit(f"pipeline_model_controls: the place of the fault '{name}' is not there once: update this script")
+             with open(SOURCE, "w") as f:
+                 f.write(original.replace(find, replace))
+-            caught = not model_passes()
++            caught = not model_passes()[0]
+             print(f"{'caught' if caught else 'MISSED'}  {name}", flush=True)
+             if not caught:
+                 missed.append(name)
