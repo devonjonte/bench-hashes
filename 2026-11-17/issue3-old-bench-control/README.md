@@ -1,34 +1,53 @@
-# Two benches read the same library apart on small one-message cells (bench-hashes #3)
+# Small-call controls across two benchmark versions
 
 November 17, 2026. Devon Jonte. For [bench-hashes #3](https://github.com/devonjonte/bench-hashes/issues/3).
 
-**Question.** The 0.10.0 release check compares the candidate with 0.9.0 through two bench versions (`--old-bench d7723f11`). How much of its small-cell marks is the bench difference alone?
+## Corrected interpretation
 
-**Control.** The candidate library `27eacce3` on both sides; bench 0.22 (`d7723f11`) against bench 0.23 (`cade30fd`); points `idle 64 B, idle 128 B, idle 256 B, 64 B, 128 B`. Any slower or faster mark is the instruments', because the library code is identical.
+The controls establish sensitivity to the benchmark's build and run context. The mechanism remains open. The earlier claim that these controls isolate code placement, or clear the release regressions, exceeded the evidence. Corrections: [investigation](https://github.com/devonjonte/bench-hashes/issues/3#issuecomment-6960418528), [release decision](https://github.com/servil-software-factory/BLAKE3/issues/402#issuecomment-6960429511).
 
-| machine | check verdict | second stage (64 pairs) |
-|---|---|---|
-| EPYC 7443 pair (x86-avx2) | REGRESSION: 1 slower | st OneMessage 128 B +29.2% slower; four other suspects faster |
-| Ryzen 9700X | REGRESSION: 2 slower | mt OneMessage 64 B +7.5%, 128 B +8.0% |
-| EPYC 9255 | REGRESSION: 2 slower | mt OneMessage 64 B +5.9%, 128 B +4.1%; st level |
-| Xeon Gold 6330 (x86-icelake-2) | no cell slower | — |
+The original measurements remain below and in their files. Earlier interpretations remain in git history, including `caf7efa26dc50a14dfc35faa74139d51d1dcabc4`.
 
-First stage on the EPYC 9255 read st OneMessage 64 B ×1.239 and mt ×1.130 over four pairs. On every machine the check reported **no level cell's instructions moved beyond +0.5%**: the same work retires, and the wall time moves.
+## Question and command
 
-**Tailored controls** (the same control at the other machines' reported marks): Ryzen 9700X `ManyMessages 1` and `Collection git objects`, and Xeon `MerkleTree 1048576 x 16 B` and `ManyMessages 8192`, all read level or faster over four pairs, with no cell slower. Those release marks do not survive this control.
+The 0.10.0 release check compares candidate `27eacce3a5c2e03043f4fcd347c178a80f9d911c` with 0.9.0 using an older benchmark. How much can the benchmark change move the same library?
 
-**Cause.** Between the two benches, the OneMessage call, its sample preparation, and the after-other-work gap are unchanged. What changed is the bench binary around them (the Pipeline and short-incremental cells, bench-hashes #213/#214; the perf-group narrowing, #229). The marks sit in cells whose call takes a few nanoseconds after other work, where the instrument's own code and buffer placement and the cache state it leaves are a large share of the reading. Both directions occur (+29% slower on one machine, faster marks beside it), as placement effects do.
+The controls hold that candidate library on both sides and compare benchmark `d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41` with `cade30fdb71682719f5fa3e586ff96146ae9fc25`:
 
-**Recommendation.** Judge the cells both releases share with one bench on both sides: the old bench builds both libraries (the candidate side of these controls is that proof). Leave the new-API cells to the current bench, with no 0.9.0 comparison. Keep a same-library two-bench control as a diagnostic of the instrument, not as a per-cell divisor: its pairs are fresh layouts and processes, so dividing a release mark by it would add the control's variance to the mark.
+```sh
+bench-hashes check --fork LIBRARY --new 27eacce3a5c2e03043f4fcd347c178a80f9d911c \
+  --against 27eacce3a5c2e03043f4fcd347c178a80f9d911c \
+  --old-bench d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41 \
+  --points 'idle 64 B,idle 128 B,idle 256 B,64 B,128 B' --when-quiet --keep KEPT
+```
 
-Each machine folder holds the job, stdout/stderr, versions, and kept samples (first stage and `second/`). Paths are redacted. No binaries.
+Each folder's `run.sh` and logs give its exact command. The second stage uses 16 layouts per side, repeated four times: 64 process pairs.
 
-## Addendum: which placement carries it, and the one-bench check
+| machine | judged slower cells in the second stage |
+|---|---|
+| EPYC 7443 pair (`x86-avx2`) | st OneMessage 128 B +29.2% |
+| Ryzen 9700X | mt OneMessage 64 B +7.5%, 128 B +8.0% |
+| EPYC 9255 | mt OneMessage 64 B +5.9%, 128 B +4.1% |
+| Xeon Gold 6330 (`x86-icelake-2`) | none |
 
-**Allocator experiment** (EPYC 9255, st OneMessage 64 B, 12 processes each pinned to CPU 0; `diag-pinned/`): with every allocation of 64 bytes or more on a 64-byte boundary, the benches read 3.59 (old) and 3.82 (new) ns/B; at a 48-byte line offset, 3.45 and 3.75; default, 3.67 and 3.98. Buffer placement moves both benches by a few percent and does not close the gap. (`diag-unpinned/` is the same exes unpinned: placement noise swamps it, kept as the control that shows why the pin matters.)
+These are same-library comparisons between instruments. Library-release comparisons require their own evidence. Every control reported no instruction-count increase above 0.5% in its **level cells**; that diagnostic alone does not isolate a timing mechanism.
 
-**Per-layout cycles** (kept second stages): at constant instructions (14.5/B) and constant LLC misses, layouts fall in two cycle states, about 24 and about 35 cycles/B. Only the bench executable's link layout differs between those runs.
+## Supplementary results and their scope
 
-**One bench on both sides** (EPYC 7443 pair, bench 0.22 for candidate against 0.9.0, `x86-avx2/onebench/`): no cell slower at the first stage; the second stage convicted one, mt OneMessage 64 B +13.6%, while mt OneMessage 128 B read faster (×0.882) and mt IdleOneMessage 128 B faster (×0.880). A fixed per-call cost cannot change sign between 64 B and 128 B; this last mark is a layout draw between two different library builds, of the same kind the controls measure.
+**Tailored controls.** Ryzen 9700X `ManyMessages 1` and `Collection git objects`, and Xeon `MerkleTree 1048576 x 16 B` and `ManyMessages 8192`, read level or faster over four pairs. These selected-cell controls leave the original release findings unresolved. A level verdict means insufficient evidence in that run's workload context.
 
-**Conclusion.** The carrier is the bench executable's code placement (function order and alignment, which the relink layouts randomize), acting on a call that takes a few nanoseconds after other work with its code cold. Buffer placement is a smaller, independent sensitivity. Neither is the library's code, which the controls hold identical.
+**One benchmark, two library releases.** `x86-avx2/onebench/` compares candidate with 0.9.0 under benchmark `97c0fbcbedb8fe8f8395115647684dfde75d67a3` (the 0.22 version commit). The second stage measured mt OneMessage 64 B **+13.6% slower**. That cost remains open. Faster 128 B results provide adjacent-cell context; they do not identify the 64 B cost's cause.
+
+**Allocator experiment has different libraries.** The logs in `x86-epyc-9255/diag-pinned/` identify old-side library `bf2da8b957f5e0c80babb57952de3e53f95c921a` and new-side library `7048303103c69b8609ffe9ca0361197ba318107c`. The job's claim to hold candidate `27eacce3` on both sides was wrong. Its medians cannot isolate buffer placement from the library and benchmark differences. The unpinned attempt is retained too. Six executables accidentally entered the earlier archive; their recorded hashes are now in `REMOVED-BINARIES.tsv`, and the archive keeps the text evidence alone.
+
+## Withdrawn mechanism claims
+
+- The alleged layout states also differed in CPU/socket placement. They do not establish a code-address effect.
+- `check::each_run` cycles through all 16 layouts four times. Grouping four consecutive accepted runs as one layout was wrong. Layout index `i` takes runs `i`, `i+16`, `i+32`, and `i+48` in each side's accepted-run list.
+- Later checks replaced executables in `target/check/`. Their addresses cannot be joined to earlier timings without a matching executable identity. The attempted address correlations are invalid.
+- The later experimental v11 counter used `(PERF_TYPE_HW_CACHE, 0x10000)`. Linux defines that as **L1D read misses**; L1I read misses use `0x10001`. Its readings provide no instruction-cache attribution.
+- Even a valid unchanged miss count would leave miss latency open. A counter needs a reproduced timing state and controls that establish what it counts.
+
+Using one benchmark for shared API cells removes one known source difference. The one-benchmark result above shows why it remains a diagnostic step rather than a demonstrated cure. The next experiment crosses snapshotted executables with fixed CPUs, holding calibration and workload constant. Devon owns the investigation; John owns the release decision.
+
+Folders hold samples and logs with home paths redacted. Both manifests cover every current file except the manifests themselves. No binaries remain.
