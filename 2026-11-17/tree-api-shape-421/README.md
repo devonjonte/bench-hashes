@@ -98,7 +98,11 @@ Before the run I declared what I expected (in `probe/job.sh`): the parents alone
 
 One reading beside the question. With today's calls a tree from chunk leaves took 1,164 µs for the MiB, and a tree from 16 KiB leaves 105 µs, a tenth of it. A leaf of one chunk is hashed alone, with no neighbour beside it in the CPU's lanes. [BLAKE3 #378 (a tree API)](https://github.com/servil-software-factory/BLAKE3/issues/378)'s design draft leaves a call over many subtrees at once "until a measurement asks for it", and this is one. In this design it would be `subtree_cvs(level, first_index, input, out)`: a run of whole subtrees from one stretch of bytes, each value with its place.
 
-The same job is queued on an EPYC 7443 (Zen 3, AVX2). Its rows go here when it reports.
+| EPYC 7443 (Zen 3, AVX2), three runs | today | sketch | difference |
+|---|---:|---:|---|
+| the parents alone: 1024 chunk values to the root | 13.12 to 13.17 µs | 17.84 to 17.90 µs | +36%, 4.6 ns a parent |
+| the whole tree from chunk leaves | 996.8 to 997.4 µs | 1001.1 to 1002.0 µs | +0.40%, +0.47%, +0.46% |
+| the whole tree from 16 KiB leaves (`b3sum --outboard`) | 220.6 to 222.6 µs | 221.2 to 222.6 µs | +0.01%, +0.30%, +0.11% |
 
 ## What each caller would change
 
