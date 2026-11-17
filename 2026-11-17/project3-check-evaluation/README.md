@@ -4,6 +4,15 @@ For [bench-hashes #210 (measurement audit)](https://github.com/servil-software-f
 
 Offline evaluation of all **129** kept `check` runs across six Linux hosts (`x86-9700x`, `x86-avx2`, `x86-epyc-9255`, `x86-epyc-9275f`, `x86-icelake`, `x86-icelake-2`) retained in the local `inbox/` archive (`eval.py` + `all-kept.tsv`), scored with `bench-hashes 0.23.0` (`cade30fdb7`) `compare`.
 
+## Corrections (November 17, 2026)
+
+The summary below stands as first published; its counts were read by eye and three are wrong. Counted from `all-kept.tsv`:
+
+- **37** runs entered the second stage (the text says 36); **10** confirmed a suspect (the text says 11).
+- Non-suspect cells read slower on **3 of 4** full-bench second stages whose suspects are known (the text says 3 of 8).
+- 6 second-stage rows have verdict `?`: `eval.py` found no stdout for them, so their suspects are unknown and their "other" columns mean nothing.
+- **`release-022/kept-same` is one library under two bench versions** (`--old-bench 9434d50e`), and so is no unchanged-code control. The `x86-avx2` cell that stayed slower over 64 pairs may be the bench's own change. This record gives no false-positive rate.
+
 ## Summary
 
 - **Stage 2 confirmations:** 36 of the 129 runs entered Stage 2 (`64` pairs across 16 fresh layouts a side). `11` of those `36` confirmed `>= 1` Stage 1 suspect (`1`–`5` slower suspects in `evolution-010`, `release-022`, `release-023`, `numa-ab`, `own-code-2`) after Stage 1 read `0` slower.

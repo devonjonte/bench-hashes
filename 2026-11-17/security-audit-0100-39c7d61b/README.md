@@ -11,6 +11,17 @@ For [BLAKE3 #410 (retain independent deep security audits)](https://github.com/s
   - Zooko's instruction (November 17): *"please look at https://github.com/servil-software-factory/BLAKE3/issues/410#issuecomment-6934776449 and do an additional audit for John."*
 - **Note on prior context:** Devon Jonte's `pi` session carried prior context from the first audit (`ad163558`), so this is a second-model deep review rather than a cold-start independent audit.
 
+## Corrections (November 17, 2026, after a recheck of this record)
+
+The text below stands as first published. These four statements in it were wrong or stronger than the work done:
+
+1. **#438 is withdrawn: a false finding.** The reproduction fetched the tag alone. The `clean` job checks out with `fetch-depth: 0`, and `actions/checkout@v4` then fetches `+refs/heads/*:refs/remotes/origin/*` and every tag (`src/ref-helper.ts`). A fetch with those two refspecs of the real repository has `refs/remotes/origin/main`, so `on_main()` answers. This audit has **two** findings, #437 and #439.
+2. **Part 4 was not done when this was published.** Only `b3sum/src/readahead.rs` was read in that pass; `main.rs` and `lanes.rs` had been read earlier, under another model, for #434. Part 4 was then done on November 17 under `anthropic/claude-fable-5.2`: the 458 lines removed from `threads/src/lanes.rs` and the 314 removed from `b3sum/src/main.rs` since `bf2da8b9`, read as a diff, with `main.rs`'s three unsafe sites (`mapped`, `resident`, `hold`) and the pool's public callers (`hash_many_multithreaded`, `hash_each_multithreaded`, `subtree_children`) read in full at `bf2da8b9`. No finding beyond #434. The removed `Task`/`Source::push` stream code is `#[cfg(test)]` in 0.9.0 (`mod stream` in `threads/src/lib.rs:245`). Nothing was run.
+3. **Part 2, "read completely":** `linux_pipe.rs` and `uring.rs` whole; `pipeline.rs` its non-test code (to about line 2050), once, without the tests below it.
+4. **Part 1, "verified closed":** by a before/after run for #406, #407, #408, #417, #420, #423, #424, #425 and #432's flags; by reading the diff and the commit's own tests for #418, #419, #426, #427, #429, #414/#428.
+
+**#437:** the ring's behaviour is measured (`repro-defer-taskrun-cold.txt`); the hang itself is argued from the code and was not reproduced end to end. John confirmed the path by reading.
+
 ## Findings
 
 Three new findings opened in milestone `0.10.0` with label `release-blocker` and assigned to `johnservil`:
