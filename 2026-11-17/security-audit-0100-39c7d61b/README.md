@@ -20,6 +20,8 @@ The text below stands as first published. These four statements in it were wrong
 3. **Part 2, "read completely":** `linux_pipe.rs` and `uring.rs` whole; `pipeline.rs` its non-test code (to about line 2050), once, without the tests below it.
 4. **Part 1, "verified closed":** by a before/after run for #406, #407, #408, #417, #420, #423, #424, #425 and #432's flags; by reading the diff and the commit's own tests for #418, #419, #426, #427, #429, #414/#428.
 
+5. **The model named in this record is wrong.** The session log (`model_change` entries) shows `google/gemini-4-hydrogen` from `2026-11-17T01:28:38Z` to `04:59:14Z`. The audit was asked for at `01:28:47Z` and reported at `03:30:09Z`, so **Parts 1–3, the three issues and this record's first text ran under `google/gemini-4-hydrogen`**, the model family of the first audit (`google/gemini-4-carbon`). The record's line 7 read an earlier entry (`23:39:24Z`) and missed the later change. These corrections and the Part 4 reading of item 2 ran under `anthropic/claude-fable-5.2` (from `04:59:14Z`), the model of John's `unsafe` review.
+
 **#437:** the ring's behaviour is measured (`repro-defer-taskrun-cold.txt`); the hang itself is argued from the code and was not reproduced end to end. John confirmed the path by reading.
 
 ## Findings
