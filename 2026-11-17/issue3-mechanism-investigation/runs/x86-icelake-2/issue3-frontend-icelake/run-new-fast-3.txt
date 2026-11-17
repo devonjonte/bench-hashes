@@ -1,0 +1,30 @@
+Hash speed on Intel(R) Xeon(R) Gold 6330 CPU @ 2.00GHz (linux7.0.0-43-generic, 112 CPUs), 2026-11-17 19:17:33 UTC
+Quick run: 24 rounds; a full run confirms and adds the largest inputs and batches. Each cell is the mean time per unit (total time over total work), lower is better.
+
+In “A message in one buffer, after idling 5 ms”, the program hashes, sleeps 5 ms, and hashes again, as a server handles a request, waits, and handles the next; the second call, with the write of its input, is timed.
+
+SOLO: one copy of each contender, on one thread.
+
+  A message in one buffer, after idling 5 ms (ns/B)
+  size        B3 servil st
+  256 B             3.110 
+
+SHARED, ONE CACHE: the multithreaded contenders, two copies at once on two cores under one last-level cache, each hashing its own input on its own thread, inputs one after another; the time of each copy.
+
+SHARED, TWO CACHES: the multithreaded contenders, two copies at once on two cores under two last-level caches, each hashing its own input on its own thread, inputs one after another; the time of each copy.
+
+SHARED, PLACED BY THE OS: the multithreaded contenders, two copies at once wherever the operating system runs them (it lets no program choose its CPUs here), each hashing its own input on its own thread, inputs one after another; the time of each copy.
+
+PROVENANCE
+  bench-hashes 0.23.0+ba147639c35454e648847adbb08e2435e450493e, https://github.com/servil-software-factory/bench-hashes, commit cade30fdb71682719f5fa3e586ff96146ae9fc25 (clean)
+  contenders: --contenders blake3-servil-st
+  BLAKE3-Servil st: blake3-servil (local checkout); source https://github.com/servil-software-factory/BLAKE3; branch HEAD; commit 27eacce3a5c2e03043f4fcd347c178a80f9d911c; clean; single-threaded; convenience::hash for one message after a gap and throughput::hash for one after another, throughput::hash_many for a batch, convenience::Hasher::update per piece for many messages at once
+  CPU: model name: Intel(R) Xeon(R) Gold 6330 CPU @ 2.00GHz · microcode: 0xd000421 · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l3 ssbd mba ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb intel_pt avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local split_lock_detect wbnoinvd dtherm arat pln pts vnmi avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid fsrm md_clear pconfig flush_l1d arch_capabilities · machine: SYS-220BT-HNTR
+  rustc 1.99.1 (58cf8f9c3 2026-10-13); target x86_64-unknown-linux-gnu; features fxsr,sse,sse2
+  clock: CLOCK_MONOTONIC_RAW (stops during suspend; the raw counter, no NTP slew)
+  clocks: clocks 0.1.0; this repository's clocks/, at its commit
+  load during the run: not measured: the run lasted under a second
+  power: mains power, no battery, CPU frequency governor performance
+# Data results (text) are in "benchmark-results/IntelRXeonRGold6330CPU200GHz.linux70043generic/bench-hashes.result.txt" .
+# Samples (TSV) are in "benchmark-results/IntelRXeonRGold6330CPU200GHz.linux70043generic/bench-hashes.samples.tsv" .
+# Map (HTML) is in "benchmark-results/IntelRXeonRGold6330CPU200GHz.linux70043generic/bench-hashes.map.html" .

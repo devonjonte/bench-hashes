@@ -1,0 +1,30 @@
+Hash speed on AMD EPYC 7443 24-Core Processor (linux7.0.0-42-generic, 96 CPUs), 2026-11-17 19:17:22 UTC
+Quick run: 24 rounds; a full run confirms and adds the largest inputs and batches. Each cell is the mean time per unit (total time over total work), lower is better.
+
+In “A message in one buffer, after other work”, the program hashes, runs other code and reads 128 MiB of memory (at least 1 ms), and hashes again, as a program hashes between its other tasks; the second call, with the write of its input, is timed.
+
+SOLO: one copy of each contender, on one thread.
+
+  A message in one buffer, after other work (ns/B)
+  size        B3 servil st
+  128 B             3.630 
+
+SHARED, ONE CACHE: the multithreaded contenders, two copies at once on two cores under one last-level cache, each hashing its own input on its own thread, inputs one after another; the time of each copy.
+
+SHARED, TWO CACHES: the multithreaded contenders, two copies at once on two cores under two last-level caches, each hashing its own input on its own thread, inputs one after another; the time of each copy.
+
+SHARED, PLACED BY THE OS: the multithreaded contenders, two copies at once wherever the operating system runs them (it lets no program choose its CPUs here), each hashing its own input on its own thread, inputs one after another; the time of each copy.
+
+PROVENANCE
+  bench-hashes 0.22.0+d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41, https://github.com/servil-software-factory/bench-hashes, commit 97c0fbcbedb8fe8f8395115647684dfde75d67a3 (clean)
+  contenders: --contenders blake3-servil-st
+  BLAKE3-Servil st: blake3-servil (local checkout); source https://github.com/servil-software-factory/BLAKE3; branch HEAD; commit bf2da8b957f5e0c80babb57952de3e53f95c921a; clean; single-threaded; convenience::hash for one message after a gap and throughput::hash for one after another, throughput::hash_many for a batch, convenience::Hasher::update per piece for many messages at once
+  CPU: model name: AMD EPYC 7443 24-Core Processor · microcode: 0xa0011df · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology nonstop_tsc cpuid extd_apicid aperfmperf rapl pni pclmulqdq monitor ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt tce topoext perfctr_core perfctr_nb bpext perfctr_llc mwaitx cpb cat_l3 cdp_l3 hw_pstate ssbd mba ibrs ibpb stibp vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local user_shstk clzero irperf xsaveerptr rdpru wbnoinvd amd_ppin brs arat npt lbrv svm_lock nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload vgif v_spec_ctrl umip pku ospke vaes vpclmulqdq rdpid overflow_recov succor smca fsrm sev sev_es sev_snp debug_swap · machine: AS -2124BT-HTR
+  rustc 1.99.1 (58cf8f9c3 2026-10-13); target x86_64-unknown-linux-gnu; features fxsr,sse,sse2
+  clock: CLOCK_MONOTONIC_RAW (stops during suspend; the raw counter, no NTP slew)
+  clocks: clocks 0.1.0; this repository's clocks/, at its commit
+  load during the run: not measured: the run lasted under a second
+  power: mains power, no battery, CPU frequency governor performance
+# Data results (text) are in "benchmark-results/AMDEPYC744324CoreProcessor.linux70042generic/bench-hashes.result.txt" .
+# Samples (TSV) are in "benchmark-results/AMDEPYC744324CoreProcessor.linux70042generic/bench-hashes.samples.tsv" .
+# Map (HTML) is in "benchmark-results/AMDEPYC744324CoreProcessor.linux70042generic/bench-hashes.map.html" .

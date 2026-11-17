@@ -1,0 +1,180 @@
+diff --git a/clocks/src/lib.rs b/clocks/src/lib.rs
+index 36ea67ce6..ed3ce3d36 100644
+--- a/clocks/src/lib.rs
++++ b/clocks/src/lib.rs
+@@ -201,6 +201,9 @@ pub struct Level {
+     /// Demand misses of the instruction cache (perf's L1I read misses):
+     /// the front-end's bill, beside the last-level cache's (bench-hashes #3).
+     pub icache_misses: u64,
++    /// Branch mispredictions (perf's generic `branch-misses`): the
++    /// predictor's bill, beside the instruction cache's.
++    pub branch_misses: u64,
+     pub time_ns: u64,
+ }
+ 
+@@ -307,6 +310,7 @@ impl Counts {
+             cache_references: now.cache_references - then.cache_references,
+             cache_misses: now.cache_misses - then.cache_misses,
+             icache_misses: now.icache_misses - then.icache_misses,
++            branch_misses: now.branch_misses - then.branch_misses,
+             time_ns: now.time_ns - then.time_ns,
+         };
+         Counts { p: level(self.p, earlier.p), e: level(self.e, earlier.e) }
+@@ -320,6 +324,7 @@ impl Counts {
+             cache_references: a.cache_references + b.cache_references,
+             cache_misses: a.cache_misses + b.cache_misses,
+             icache_misses: a.icache_misses + b.icache_misses,
++            branch_misses: a.branch_misses + b.branch_misses,
+             time_ns: a.time_ns + b.time_ns,
+         };
+         Counts { p: level(self.p, other.p), e: level(self.e, other.e) }
+@@ -772,8 +777,15 @@ mod tests {
+     /// stay apart.
+     #[test]
+     fn counts_since_and_plus_act_on_every_field_of_each_kind() {
+-        let level =
+-            |k: u64| Level { cycles: 10 * k, instructions: 20 * k, cache_references: 30 * k, cache_misses: 40 * k, icache_misses: 45 * k, time_ns: 50 * k };
++        let level = |k: u64| Level {
++            cycles: 10 * k,
++            instructions: 20 * k,
++            cache_references: 30 * k,
++            cache_misses: 40 * k,
++            icache_misses: 45 * k,
++            branch_misses: 48 * k,
++            time_ns: 50 * k,
++        };
+         let earlier = Counts { p: level(1), e: level(2) };
+         let later = Counts { p: level(4), e: level(9) };
+         assert_eq!(later.since(earlier), Counts { p: level(3), e: level(7) });
+diff --git a/clocks/src/linux_counts.rs b/clocks/src/linux_counts.rs
+index 26785fa3e..816142ace 100644
+--- a/clocks/src/linux_counts.rs
++++ b/clocks/src/linux_counts.rs
+@@ -190,7 +190,8 @@ fn open_as(kind_config: (u32, u64), pmu: u32, group: c_int) -> Option<OwnedFd> {
+ /// The group's events, PERF_TYPE_HARDWARE's numbers: cycles leading, then
+ /// instructions, cache references and cache misses (the last two one
+ /// programmable counter each; the first two the fixed ones).
+-const EVENTS: [u64; 4] = [0, 1, 2, 3];
++/// cycles, instructions, cache references, cache misses, branch misses.
++const EVENTS: [u64; 5] = [0, 1, 2, 3, 5];
+ 
+ /// The instruction cache's demand read misses (PERF_TYPE_HW_CACHE,
+ /// L1I | OP_READ | RESULT_MISS), the group's fifth counter: cycles that
+@@ -202,17 +203,17 @@ const ICACHE_MISS: (u32, u64) = (3, 0x10000);
+ /// One core kind's group, and each counter's page where user space may
+ /// read them.
+ struct Group {
+-    fds: [OwnedFd; 5],
+-    pages: Option<[Mapped; 5]>,
++    fds: [OwnedFd; 6],
++    pages: Option<[Mapped; 6]>,
+ }
+ 
+ impl Group {
+     fn new(pmu: u32) -> Option<Group> {
+         let leader = open(pmu, EVENTS[0], -1)?;
+         let rest: Vec<OwnedFd> = EVENTS[1..].iter().map(|&event| open(pmu, event, leader.as_raw_fd())).collect::<Option<_>>()?;
+-        let [instructions, references, misses] = rest.try_into().ok()?;
++        let [instructions, references, misses, branches] = rest.try_into().ok()?;
+         let icache = open_as(ICACHE_MISS, pmu, leader.as_raw_fd())?;
+-        let fds = [leader, instructions, references, misses, icache];
++        let fds = [leader, instructions, references, misses, branches, icache];
+         let pages: Option<Vec<Mapped>> = fds.iter().map(Mapped::new).collect();
+         let pages = pages.and_then(|pages| pages.try_into().ok());
+         let group = Group { fds, pages };
+@@ -250,8 +251,16 @@ impl Group {
+             return None;
+         }
+         assert_eq!(n, std::mem::size_of_val(&words) as isize, "a perf group read gives its whole record");
+-        assert_eq!(words[0], (EVENTS.len() + 1) as u64, "the group holds its five events");
+-        Some(Level { cycles: words[3], instructions: words[4], cache_references: words[5], cache_misses: words[6], icache_misses: words[7], time_ns: words[2] })
++        assert_eq!(words[0], (EVENTS.len() + 1) as u64, "the group holds its six events");
++        Some(Level {
++            cycles: words[3],
++            instructions: words[4],
++            cache_references: words[5],
++            cache_misses: words[6],
++            branch_misses: words[7],
++            icache_misses: words[8],
++            time_ns: words[2],
++        })
+     }
+ }
+ 
+diff --git a/src/main.rs b/src/main.rs
+index ad0d4fef4..ca89f860f 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -6924,8 +6924,9 @@ const SAMPLES_COLUMNS: &str = "contender\tscenario\tuse_case\tpoint\tunit\tns/un
+ /// The numbers one core kind contributes to a `core counts` sample:
+ /// time, cycles, instructions, cache references, cache misses.
+ /// One core kind's fields in a `core counts` record: time, cycles,
+-/// instructions, cache references, cache misses, icache misses.
+-const LEVEL_FIELDS: usize = 6;
++/// instructions, cache references, cache misses, icache misses,
++/// branch misses.
++const LEVEL_FIELDS: usize = 7;
+ 
+ /// A row's `core counts` field: each sample's calling-thread counts per
+ /// core kind, `P time ns:P cycles:P instructions:P cache references:P
+@@ -6942,19 +6943,21 @@ fn counts_field(counts: &[Option<clocks::Counts>]) -> String {
+             .iter()
+             .map(|c| {
+                 format!(
+-                    "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
++                    "{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}:{}",
+                     c.p.time_ns,
+                     c.p.cycles,
+                     c.p.instructions,
+                     c.p.cache_references,
+                     c.p.cache_misses,
+                     c.p.icache_misses,
++                    c.p.branch_misses,
+                     c.e.time_ns,
+                     c.e.cycles,
+                     c.e.instructions,
+                     c.e.cache_references,
+                     c.e.cache_misses,
+-                    c.e.icache_misses
++                    c.e.icache_misses,
++                    c.e.branch_misses
+                 )
+             })
+             .collect::<Vec<_>>()
+@@ -7090,16 +7093,16 @@ fn read_samples(path: &str) -> SamplesFile {
+                             .split(':')
+                             .map(|x| x.parse().expect("a count"))
+                             .collect();
+-                        // A v10 sample's five a kind, the icache count
+-                        // absent (zero), in v11's six.
++                        // A v10 sample's five a kind, the icache and
++                        // branch counts absent (zero), in v11's seven.
+                         let v: Vec<u64> = if v.len() == LEVEL_FIELDS * 2 {
+                             v
+                         } else {
+                             let (p, e) = v.split_at(level_fields);
+-                            [p, &[0], e, &[0]].concat()
++                            [p, &[0, 0], e, &[0, 0]].concat()
+                         };
+                         v.try_into().expect(
+-                            "P time, cycles, instructions, cache references, cache misses, icache misses; then E's",
++                            "P time, cycles, instructions, cache references, cache misses, icache misses, branch misses; then E's",
+                         )
+                     })
+                     .collect();
+@@ -9260,6 +9263,7 @@ mod correctness_tests {
+                             cache_references: 6 * v,
+                             cache_misses: 7 * v,
+                             icache_misses: 8 * v,
++                            branch_misses: 9 * v,
+                             time_ns: v,
+                         },
+                         e: clocks::Level::default(),
+@@ -10691,6 +10695,7 @@ mod correctness_tests {
+                                     c.p.cache_references,
+                                     c.p.cache_misses,
+                                     c.p.icache_misses,
++                                    c.p.branch_misses,
+                                     c.e.time_ns,
+                                     c.e.cycles,
+                                     c.e.instructions,
