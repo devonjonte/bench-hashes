@@ -1,6 +1,6 @@
 Review delivered, on `openai/gpt-6-astra` (the session log's model, outside the Gemini family), from **2026-11-17T06:14:32Z to 13:31Z**. I did not write these changes.
 
-Commits: b3sum `5df2bc45`, Pipeline/model `950832cc`, release tools `8db36ff8`, then the combined `89abafc6` and landed `next` `4483281c` for the differences. Record: `2026-11-17/security-audit-0100-followup/`.
+Commits: b3sum `5df2bc45`, Pipeline/model `950832cc`, release tools `8db36ff8`, then the combined `89abafc6` and landed `next` `4483281c` for the differences. Record: [`2026-11-17/security-audit-0100-followup/`](https://github.com/devonjonte/bench-hashes/tree/data/2026-11-17/security-audit-0100-followup).
 
 **Two new issues:**
 
