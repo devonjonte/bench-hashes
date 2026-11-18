@@ -1,0 +1,16 @@
+[package]
+name = "issue3-faithful-probe"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+clocks = { git = "https://github.com/servil-software-factory/bench-hashes", rev = "cade30fdb71682719f5fa3e586ff96146ae9fc25" }
+blake3-servil-core = { git = "https://github.com/servil-software-factory/BLAKE3", rev = "27eacce3a5c2e03043f4fcd347c178a80f9d911c" }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+incremental = false
