@@ -218,3 +218,15 @@ how bench-hashes measures, and what each contender runs, and
 [CHANGELOG.md](CHANGELOG.md) what changed from one version to the next. To race your own
 hash against these, [CONTRIBUTING.md](CONTRIBUTING.md) says how to add
 it.
+
+## Licence
+
+Copyright (c) the bench-hashes contributors. You may use bench-hashes under the terms of any of these four Free and Open
+Source Software licences, at your choice:
+
+* MIT license ([LICENSE-MIT](LICENSE-MIT))
+* Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+* Transitive Grace Period Public Licence 1.0 ([LICENSE-TGPPL](LICENSE-TGPPL)):
+  *Licensed under the Transitive Grace Period Public Licence version 1.0*
+* Bootstrap Open Source Licence v1.0 ([LICENSE-BOSL.txt](LICENSE-BOSL.txt)):
+  *Licensed under the Bootstrap Open Source Licence version 1.0*
