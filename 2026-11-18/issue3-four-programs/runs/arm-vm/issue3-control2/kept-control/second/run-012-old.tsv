@@ -1,0 +1,48 @@
+# bench-hashes samples v10
+# timestamp: 2026-11-17 17:36:33 UTC
+# bench-hashes version: 0.21.0+84236bf0f0c832f6619b8f99ce7bc878c7800ef0
+# bench-hashes source: https://github.com/servil-software-factory/bench-hashes
+# git commit: d7723f110a6f519cccb2e4ab8f2a18be7a4f4d41
+# git clean status: clean
+# blake3-servil version: 0.10.0+4483281c45eab341ca6f829de508e91d6c381e85
+# dependency lock: blake3 da6de58d72e2b8de74101d1a7cb785f75a100709e2057766ebf9d86f4c37304d of Cargo.lock
+# rust compiler: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+# c compiler: cc: cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+# rustflags: none
+# build target: aarch64-unknown-linux-gnu
+# target features: neon
+# sample clock: CLOCK_MONOTONIC_RAW (stops during suspend; the raw counter, no NTP slew)
+# clocks source: clocks 0.1.0; this repository's clocks/, at its commit
+# cpu type: aarch64
+# cpu count: 4
+# os type: linux7.0.0-43-generic
+# cpu identity: CPU implementer: 0xc0 · CPU variant: 0x0 · CPU part: 0xac4 · CPU revision: 0 · Features: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm ssbs sb dcpodp flagm2 frint i8mm bf16 rng bti ecv · machine: KVM Virtual Machine
+# idle states: none listed (no cpuidle driver; the kernel's default idle)
+# effective idle states: not measured (no cstate_core counters readable here)
+# idle control: none (no cpuidle states the bench can switch off: run as root for the controlled cells)
+# shared placements: one cache: CPUs 0 and 1; two caches: none
+# counts read overhead: not measured
+# source blake3-servil-mt: blake3-servil (local checkout); source https://github.com/servil-software-factory/BLAKE3; branch HEAD; commit 27eacce3a5c2e03043f4fcd347c178a80f9d911c; clean
+# source blake3-servil-st: blake3-servil (local checkout); source https://github.com/servil-software-factory/BLAKE3; branch HEAD; commit 27eacce3a5c2e03043f4fcd347c178a80f9d911c; clean
+# contenders: --contenders blake3-servil-mt,blake3-servil-st
+# rounds: 24
+# measuring thread: pinned to CPU 1 around each sample after a gap (bench-hashes regress)
+# sample sizes: from /tmp/bench-hashes-regress-sizes-3331186-old-side.tsv (--sizes)
+# buffers owned: where a contender makes the same calls as with buffers lent, one measurement, shown in both rows
+# nonstop train: 100 ms warm-up, 6 samples a visit
+# points: 64 B,128 B,64 B,128 B,256 B
+# power: not reported by this OS
+# load: quiet: other programs kept 0.03 CPUs busy on average, 0.04 in the busiest window; the hypervisor withheld 0.00 CPUs on average, 0.01 at most
+# load measured by: bench-hashes regress, around the run (the windows below are the run's own)
+# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1009:9:0,1009-2009:29:0,2009-3010:49:9,3010-4840:27:0
+contender	scenario	use_case	point	unit	ns/units	start ms	cpu ns	energy nJ	core counts	cpu
+blake3-servil-mt	solo	OneMessage	64 B	B	4180/64,5000/64,4540/64,4780/64,4760/64,4060/64,5220/64,4020/64,4500/64,4280/64,4200/64,4540/64,4200/64,4500/64,4620/64,5320/64,5040/64,4400/64,4120/64,4460/64,4320/64,4120/64,4040/64,4100/64	110,273,296,412,482,600,715,786,858,973,1045,1208,1231,1349,1417,1535,1656,1730,1801,1917,1986,2151,2175,2291	-	-	-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+blake3-servil-mt	solo	OneMessage	128 B	B	4340/128,5900/128,4580/128,4920/128,4400/128,4220/128,3880/128,4860/128,4860/128,4960/128,5060/128,4460/128,4500/128,4680/128,4720/128,5060/128,5080/128,4840/128,4840/128,4380/128,5020/128,4240/128,4420/128,4860/128	156,226,343,459,529,646,670,834,904,1021,1092,1162,1278,1394,1464,1584,1608,1777,1847,1963,2034,2105,2222,2337	-	-	-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+blake3-servil-mt	solo	IdleOneMessage	64 B	B	2320/128,2060/128,2200/128,1960/128,2000/128,1940/128,1960/128,2020/128,2340/128,2140/128,2520/128,2260/128,2180/128,2220/128,1940/128,2420/128,2080/128,1980/128,2140/128,1940/128,2060/128,2240/128,2420/128,2320/128	2421,2542,2622,2809,2854,2944,3026,3147,3293,3378,3429,3549,3630,3816,3861,3952,4033,4154,4300,4386,4436,4557,4637,4823	-	-	-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+blake3-servil-mt	solo	IdleOneMessage	128 B	B	2620/256,2660/256,2640/256,2320/256,2140/256,2180/256,2280/256,2560/256,2860/256,2980/256,2160/256,2140/256,2280/256,2060/256,2200/256,2180/256,2060/256,2540/256,2120/256,2340/256,2400/256,2320/256,2740/256,2360/256	2456,2577,2658,2743,2889,2980,3061,3182,3227,3413,3464,3585,3665,3751,3897,3987,4069,4189,4235,4421,4471,4592,4672,4758	-	-	-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+blake3-servil-mt	solo	IdleOneMessage	256 B	B	2480/512,2580/512,2720/512,2700/512,2540/512,2780/512,2640/512,2960/512,2800/512,3140/512,2860/512,2580/512,2660/512,2540/512,2740/512,3440/512,2540/512,2980/512,2760/512,2880/512,2780/512,2460/512,2440/512,2520/512	2491,2607,2693,2773,2824,3011,3096,3212,3262,3343,3499,3615,3700,3781,3831,4018,4104,4220,4270,4350,4506,4622,4708,4788	-	-	-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+blake3-servil-st	solo	OneMessage	64 B	B	4180/64,4420/64,4020/64,3980/64,5420/64,3440/64,3740/64,3520/64,3640/64,3940/64,3980/64,3680/64,4020/64,4900/64,3980/64,3840/64,4280/64,4000/64,4000/64,3840/64,3560/64,3460/64,3700/64,3700/64	133,249,320,389,506,576,739,762,881,950,1069,1185,1255,1325,1441,1512,1681,1705,1825,1894,2010,2128,2199,2268	-	-	-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+blake3-servil-st	solo	OneMessage	128 B	B	4200/128,4400/128,4420/128,4540/128,4120/128,3720/128,3200/128,3900/128,4200/128,3540/128,3720/128,3760/128,3940/128,3960/128,4320/128,4660/128,4660/128,5600/128,5260/128,4060/128,4300/128,3520/128,4200/128,4140/128	179,202,367,436,553,623,692,810,927,997,1116,1139,1301,1372,1488,1559,1632,1754,1870,1940,2058,2082,2245,2314	-	-	-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+blake3-servil-st	solo	IdleOneMessage	64 B	B	2800/192,2500/192,2700/192,3160/192,2600/192,2600/192,2740/192,2640/192,2480/192,2680/192,2480/192,2580/192,2640/192,2420/192,2740/192,2460/192,2660/192,2760/192,2780/192,2740/192,2560/192,3040/192,2580/192,2620/192	2436,2522,2637,2788,2869,2924,3041,3127,3308,3358,3444,3529,3645,3796,3876,3932,4048,4134,4315,4365,4451,4537,4652,4803	-	-	-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+blake3-servil-st	solo	IdleOneMessage	128 B	B	2740/384,3040/384,2780/384,2840/384,2800/384,3100/384,2800/384,2860/384,3000/384,2840/384,2660/384,3060/384,3180/384,2900/384,2960/384,2880/384,3020/384,2720/384,2820/384,3060/384,3080/384,3100/384,2740/384,2720/384	2471,2557,2673,2723,2904,2959,3076,3162,3242,3393,3479,3564,3680,3730,3912,3967,4084,4169,4250,4401,4486,4572,4688,4738	-	-	-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+blake3-servil-st	solo	IdleOneMessage	256 B	B	2140/512,2800/512,2400/512,2300/512,2460/512,2500/512,2600/512,2240/512,2240/512,2300/512,2460/512,2420/512,2260/512,2200/512,2280/512,2780/512,2540/512,2380/512,2240/512,2360/512,2680/512,2440/512,2280/512,2200/512	2507,2592,2708,2758,2839,2995,3112,3197,3278,3328,3514,3600,3715,3766,3846,4002,4119,4204,4285,4335,4521,4607,4723,4773	-	-	-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
