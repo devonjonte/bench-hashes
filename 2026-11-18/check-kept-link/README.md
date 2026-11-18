@@ -19,6 +19,7 @@ against `27eacce3`. Earlier revisions `61ad1c8a` and `e04c950e` appear in the Ma
 | Apple M6 (`runs/mac-m6-timing/3378-*`) | `check --probe '64 B' --layouts 4`, `bfa51544` | status ok, 2.5 minutes with its builds |
 | Apple M6 (`3379-*`, a diagnostic build) | a layout compiled the old way beside its unstripped twin | all 19 code and data sections the same contents on both libraries; the symbol table's segment 393,216 bytes against 589,824 |
 | local (`local-smoke/exit.txt`, an i7; its timings are no evidence) | the probe twice in a row, then today's compile of one later seed a side | both checks exit 0; each relinked executable equals the compile's, byte for byte |
+| Ryzen 9700X (`runs/x86-9700x/check-next-plant8/`) | a whole `check` on next's bench (`428e82a96`): library `27eacce3` against itself with a small planted slowdown, five small points | first stage 4 pairs, then a second stage for 7 suspects: 64 pairs, 64 layouts a side, linked in 55 s; 3 planted cells marked slower beyond 5%; 20 minutes in all, 16.4 of them measuring (`plant.stderr.stamped.txt`) |
 | workhorse (`runs/x86-workhorse/`) | `cargo nextest run`, debug and release | 198 tests pass at `8e11ced7` (199 at `bfa51544`, which still had a test since removed) |
 
 **What failed on the way, kept.** Mac job 3376: sourcing a kept `export -p` environment was a syntax
@@ -27,7 +28,7 @@ the relink ran and gave other bytes, and the byte check stopped it: a Mach-O sig
 file, and rustc strips debug symbols in a step after the link. The relink now writes where the first
 link wrote, and macOS layouts are built with `-C strip=none`.
 
-**Commands.** `scripts/host-probe.sh` (the measurement hosts), `scripts/smoke.sh` (local),
+**Commands.** `scripts/host-probe.sh` and `scripts/full-check-plant.sh` (the measurement hosts), `scripts/smoke.sh` (local),
 `scripts/workhorse-tests.sh`; the Mac jobs are `runs/mac-m6-timing/jobs/`.
 
 **Posted.** The pull request on servil-software-factory/bench-hashes for `candidate/devon-relink-kept-link`;

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 export PATH="$HOME/.cargo/bin:$PATH"
-O="$HOME/runs/relink-tests-8e11ced7"
+O="$HOME/runs/relink-tests-2b0c5ce9"
 export O
 if [ "${BOUNDED_PIPELINE_TEST:-}" != yes ]; then
     export BOUNDED_PIPELINE_TEST=yes
@@ -10,7 +10,7 @@ if [ "${BOUNDED_PIPELINE_TEST:-}" != yes ]; then
     printf 'TEST_EXIT=%s UTC=%s\n' "$status" "$(date -u +%FT%TZ)"
     exit "$status"
 fi
-C=8e11ced706851e65463cc112b3f065eb3de1632d
+C=2b0c5ce925aeb65b1d7061f380f1474b03598abb
 B="$HOME/work/bench-relink-tests"
 git -C "$HOME/work/bench-hashes" fetch --all --tags
 if [ ! -d "$B" ]; then git -C "$HOME/work/bench-hashes" worktree add --detach "$B" "$C"; fi

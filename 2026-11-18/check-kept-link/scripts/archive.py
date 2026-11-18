@@ -26,7 +26,7 @@ def copy_tree(source, target):
 
 
 inbox = validation / "inbox"
-for host, run in [("x86-9700x", "relink-probe-bfa51544"), ("arm-vm", "relink-probe-bfa51544"),
+for host, run in [("x86-9700x", "relink-probe-bfa51544"), ("arm-vm", "relink-probe-bfa51544"), ("x86-9700x", "check-next-plant8"),
                   ("x86-workhorse", "relink-tests-61ad1c8a"), ("x86-workhorse", "relink-tests-e04c950e"),
                   ("x86-workhorse", "relink-tests-bfa51544"), ("x86-workhorse", "relink-tests-41e00496"),
                   ("x86-workhorse", "relink-tests-8e11ced7")]:
@@ -42,7 +42,7 @@ for number in ("3376", "3377", "3378", "3379"):
         out.write_text(job.read_text())
         copied.append(out)
 copy_tree(validation / "relink-in-check/out", archive / "local-smoke")
-for name in ("smoke.sh", "host-probe.sh", "workhorse-tests.sh", "archive.py"):
+for name in ("smoke.sh", "host-probe.sh", "workhorse-tests.sh", "full-check-plant.sh", "archive.py"):
     out = archive / "scripts" / name
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(re.sub(r"$HOME/\s\"'<>:;]+", "$HOME", (validation / "relink-in-check" / name).read_text()))
