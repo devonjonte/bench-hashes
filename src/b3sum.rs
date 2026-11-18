@@ -16,10 +16,6 @@ const KIB: u64 = 1024;
 const MIB: u64 = 1024 * KIB;
 const GIB: u64 = 1024 * MIB;
 
-/// The margin a cell's verdict uses against the first contender, as the
-/// regression check's solo cells.
-const MARGIN_PERMILLE: u64 = 30;
-
 // ---------- Inputs ----------
 
 /// One input: the files one b3sum run hashes, all its arguments.
@@ -915,7 +911,7 @@ fn report(
             .zip(clocks::summary::discoveries(
                 &pairs,
                 super::COMPARE_Q_PERMILLE,
-                MARGIN_PERMILLE,
+                crate::REGRESS_MARGIN_PERMILLE,
             ))
             .collect()
     } else {
@@ -937,7 +933,7 @@ fn report(
             .collect()
     };
     for (ci, &cache) in caches.iter().enumerate() {
-        out += &format!("\n{}\nmean time per run, lower is better; xN: against {base}, the ratio judged (the geometric mean of the rounds' ratios), marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 3%)\n", cache.heading());
+        out += &format!("\n{}\nmean time per run, lower is better; xN: against {base}, the ratio judged (the geometric mean of the rounds' ratios), marked slower or faster where the rounds' pairs say so (every cell judged at once, beyond 5%)\n", cache.heading());
         let mut rows: Vec<Vec<String>> = vec![std::iter::once("input".to_owned())
             .chain(specs.iter().map(|c| c.name.clone()))
             .collect()];

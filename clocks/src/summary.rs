@@ -393,7 +393,7 @@ mod tests {
 
     /// Three cells of five pairs: one 10% slower in every pair, one whose
     /// pairs scatter 3% each way, one 1% faster in every pair (its
-    /// p-value passes, but it lies within a 3% margin). The slower cell is
+    /// p-value passes, but it lies within the 3% margin given). The slower cell is
     /// still found among 1000 unchanged ones; at q = 0 nothing is.
     #[test]
     fn discoveries_judge_every_cell_at_once() {

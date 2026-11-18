@@ -17,7 +17,7 @@ rounds, the sample lengths, the gaps, the contender orders), the
 contenders and their versions, the summary rule (each run's mean, pairs
 of runs: `clocks::summary`), the load rule (`clocks::load`), the
 regression check (`bench-hashes regress`: its points, its pairs, its
-margin of 3%), and the
+margin of 5%), and the
 presentation (the map and the report, their layout and
 their words). A change to any of these, a bug fix included, is Devon's
 decision (Zooko, November 9, 2026, replacing John's of November 2: the
@@ -29,6 +29,35 @@ and it starts a new release, so results of different benchmarks are never
 read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
+
+**Changes for the next release** (each dated, with who decided):
+- **The margin is 5%** (Zooko, November 18, 2026; 3% since October 2).
+  A cell is marked slower or faster when the rule's test passes and its
+  ratio lies beyond 5%, in the regression check and in the b3sum suite's
+  report, which names the margin in its words. Reason: marks between 3% and
+  5% were too often false or too costly to chase; the 0.10.0 release waited
+  days on such marks. Cost: a steady change under 5% passes unmarked. A
+  comparison against the last stable release sees the sum of a cycle's small
+  changes.
+- **The benchmark measures one memory node** (Zooko, November 18, 2026).
+  Timing on a machine with several memory nodes (two sockets, for one) is
+  outside what these results describe: BLAKE3-Servil's speed is measured
+  and tuned on one node, and across nodes it is neither tracked nor
+  optimized. On such a machine an unbound run reads the same code up to 30%
+  apart (the kernel's automatic memory balancing; the data branch,
+  `2026-11-13/methodology-audit` and `2026-11-18/issue3-four-programs`),
+  and bound to one node's CPUs and memory it reads level.
+- **A new link layout for every pair of the regression check's second stage**
+  (Devon Jonte; Zooko, November 18, 2026). Its 64 pairs were 16 layouts a
+  side, each run four times, while a layout cost a compile; the rule counts
+  64 independent pairs. `check` now links its layouts from one kept link a
+  side a stage, so each of the 64 pairs gets its own layout on each side.
+  With a layout a pair, identical code drew no mark in 20 cells on two
+  machines, and a planted slowdown was marked in every cell after other work
+  (the data branch, `2026-11-18/issue3-four-programs`). On macOS the
+  layouts keep the debug entries of their symbol tables, which rustc strips
+  in a step after the link; code and data are the same. The margin, the
+  first stage's four pairs and the rule stay unchanged.
 
 **Changes for 0.23, November 14-16, 2026** (Devon Jonte's decisions, each dated):
 - **The pin is BLAKE3-Servil at 70483031** (Devon Jonte, November 16, 2026):
@@ -49,17 +78,6 @@ the notes) may still change, to say it better.
   readable contrast and phone wrapping. Historical maps receive a source-compatible
   style patch, with their measured payloads unchanged. This serves both readers:
   provenance seekers have a named home, and results readers have less clutter.
-- **A new link layout for every pair of the regression check's second stage**
-  (Devon Jonte; Zooko, November 18, 2026). Its 64 pairs were 16 layouts a
-  side, each run four times, while a layout cost a compile; the rule counts
-  64 independent pairs. `check` now links its layouts from one kept link a
-  side a stage, so each of the 64 pairs gets its own layout on each side.
-  With a layout a pair, identical code drew no mark in 20 cells on two
-  machines, and a planted slowdown was marked in every cell after other work
-  (the data branch, `2026-11-18/issue3-four-programs`). On macOS the
-  layouts keep the debug entries of their symbol tables, which rustc strips
-  in a step after the link; code and data are the same. The margin, the
-  first stage's four pairs and the rule stay unchanged.
 - **Comparison records and early decisions**
   ([reporting](https://github.com/servil-software-factory/bench-hashes/pull/216),
   [saved runs](https://github.com/servil-software-factory/bench-hashes/pull/218),

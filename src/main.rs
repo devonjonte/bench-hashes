@@ -129,7 +129,8 @@ const TO_MEASURE_SPEED: Visits = Visits {
 };
 
 /// To check for performance regressions: `regress`'s runs, for a reader
-/// who must see a 3% change between two builds and be spared false alarms.
+/// who must see a change of a few percent between two builds (tuned for
+/// 3%, the margin until November 18, 2026) and be spared false alarms.
 /// The cells after a gap, where the noise is, take every sample that still
 /// narrows them. On the planted slowdowns kept beside the A/A runs, 24 gap
 /// visits caught the rare slow mode 88 times of 138 against 52 at 12,
@@ -7354,7 +7355,7 @@ fn geometric_mean(values: impl Iterator<Item = u128>) -> u128 {
  * or with --contenders (and --points) what a run with them measures, every
  * cell judged. Each pair gives each cell one ratio, new mean over old; the
  * cells are judged all at once by clocks::summary::discoveries (a false
- * discovery rate of 5% over them, a 3% margin). Calibrated on the Mac (fork
+ * discovery rate of 5% over them, a 5% margin). Calibrated on the Mac (fork
  * NOTES, "The regression check, calibrated"). Exit 0: no cell slower; 1: a
  * cell slower; 2: no verdict, when a run's load was busy or unobserved
  * (clocks::load).
@@ -7399,8 +7400,10 @@ fn executable_paths_used(exes: &[String], runs: usize) -> usize {
         .len()
 }
 
-/// The margin a solo cell's verdict uses.
-const REGRESS_MARGIN_PERMILLE: u64 = 30;
+/// The margin a cell's verdict uses, in the regression check and in the
+/// b3sum suite: 5% since November 18, 2026 (Zooko: marks between 3% and
+/// 5% were too often false or too costly to chase), 3% before.
+pub(crate) const REGRESS_MARGIN_PERMILLE: u64 = 50;
 /// The most level cells a regression run names as suspects for a second
 /// stage, and so the largest family that stage judges (bench-hashes #66).
 const REGRESS_SUSPECTS: usize = 8;

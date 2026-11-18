@@ -10,6 +10,15 @@ layout cost a compile of about 18 s; the warning about `--layouts` beyond 8
 goes with that cost. On macOS the layouts keep the debug entries of their
 symbol tables.
 
+**The margin is 5%.** A cell is marked slower or faster beyond 5%, where it
+was 3%, in `regress`, `check`, `compare` and the b3sum suite's report.
+
+**The benchmark measures one memory node.** On a machine with several (two
+sockets, for one), bind a run to one node's CPUs and memory, as
+`numactl --cpunodebind=0 --membind=0` does; unbound, identical code there
+read up to 30% apart. BLAKE3-Servil's speed across memory nodes is neither
+tracked nor optimized.
+
 **The second stage gives every pair its own link layout.** Its 64 pairs were
 16 layouts a side run four times each; they are now 64 layouts a side, run
 once. The margin and the rule stay unchanged.
