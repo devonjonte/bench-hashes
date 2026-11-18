@@ -133,8 +133,8 @@ fn sample_schedule_handles_short_explicit_round_counts() {
 }
 
 #[test]
-fn regress_judges_at_three_percent() {
-    assert_eq!(REGRESS_MARGIN_PERMILLE, 30);
+fn regress_judges_at_five_percent() {
+    assert_eq!(REGRESS_MARGIN_PERMILLE, 50);
 }
 
 /// Each digest in its slot, in turn (FROZEN.md's use of each hash): one at a

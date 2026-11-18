@@ -520,7 +520,7 @@ at least three pairs) and judges all their cells at once. Each cell uses
 a paired t-test on the logarithm of each pair's ratio (new mean over
 old), with the Benjamini-Hochberg procedure controlling the false
 discovery rate at 5% across all cells; a cell that passes is marked
-slower or faster beyond a 3% margin, and the rest are level. **Level means
+slower or faster beyond a 5% margin, and the rest are level. **Level means
 insufficient evidence under this rule**, rather than established equal
 speed. Beside each cell it prints each side's geometric mean of run means, the ratio of the
 two, and how many pairs ran faster. Any run whose load was busy or
@@ -690,7 +690,7 @@ records both effects and the remaining questions.
 | **4 pairs** by default (4 links a side, each run once; November 1, after 8 for a day bought nothing), each run with **the regression check's visits** (24 after a gap, 6 nonstop; October 20; nonstop 2 trains of 6 samples from 0.19, October 31, the safety checks below) | Calibrated on the i7-12700K (`data` branch `2026-10-20/check-validation`) and the M4 Max: on both, an A/A over every cell found no cell slower (the Mac at 8 pairs, 16 min; the i7 over 146 cells), and the two planted 6% slowdowns were caught at 4 pairs: `hash()`'s in servil st's cells (the Mac: +5% to +28% in the continuous cells, 11 min; the i7: 48 cells), the pool split's in servil mt's cells from 512 KiB, the cells after a gap among them (the Mac: +7% to +25%, 7 min; the i7: 22 of 28), in half the time of 8 pairs. At 12 visits after a gap instead of 24, the cells after a gap caught a plant 3 times in 10. Of the budget, pairs buy more than samples: 18 pairs of 4 samples judged 40% more narrowly than 8 of 12 in the same minutes. The first stage also chooses the second's suspects: among the 8 cells #119 slowed (+3% to +11% of 420), 4 pairs put one among the suspects in 6 checks of 11, 8 pairs in 52 of 55 resamplings of those checks. | A check takes 10 to 25 minutes, about 6 more than at 4 pairs. |
 | **All cells judged at once**: a paired t-test per cell on the log ratios, Benjamini-Hochberg at a 5% false discovery rate (Zooko, October 16) | A per-cell test over 700 cells flags 15-27 cells of unchanged code; a sign test cannot go stricter with few pairs. With the rule: 0 of 700 in three unchanged-code controls, and the code's real changes found. | Floating point inside the t-test. |
 | **A second stage** for the suspects, the strongest evidence first, 64 process pairs (a new link a side for each since November 18; before, 16 links a side, each run 4 times), judged among themselves (Zooko, October 24; bench #66; October 31) | One input length planted slower in `hash()` (`data` branch, `2026-10-24/check-one-point` and `check-second-stage`): judged among 75 cells, +20% of calls (the cell +23% to +77% in every pair) was level. With the stage, +20% and +10% were caught, +6% not (cells after a gap swing 10-25% a pair); three A/A checks found no cell slower. A real slowdown, #119's +3% to +11% in 8 cold one-message cells (`2026-10-31/check-errors-i7`), passed 4 of 5 checks at 4 and 16 pairs, by ratio; with 8 pairs, suspects by evidence and 64 pairs, it was caught 3 of 3, and 3 A/A checks found no cell slower. | About eight minutes a check; one cell beside the planted ones judged slower at +10%. |
-| **A 3% margin** (October 2) | +3% planted was caught about half the time, +6% nearly always; one layout-only change in eight sat near 3% at lent 64 B. | Changes under 3% pass one commit at a time; the release check (`--against` the last release) sees their sum. |
+| **A 5% margin** (Zooko, November 18; 3% from October 2) | At 3%: +3% planted was caught about half the time, +6% nearly always; one layout-only change in eight sat near 3% at lent 64 B. The marks between 3% and 5% that held up the 0.10.0 release were false or cost more to chase than they were worth (`data` branch, `2026-11-18/issue3-four-programs`). | Changes under 5% pass one commit at a time; a comparison against the last stable release sees their sum, and a steady cost just under 5% a release passes that too. |
 | **One calibration a side a check** (October 17) | Each run calibrating its own sizes cost 18 s of a 41-s run; shared sizes judged every group of cells more narrowly in less time (about 2.2 times the information per minute), and both sides do the same work a sample. | Sizes chosen on the old side's build. |
 | **Cells named by the change's author** (November 6) | The earlier rule chose cells from coverage: the lines each cell executes, from an instrumented build of each side. It read a change's unattributable line as able to act anywhere and measured every cell: three checks of November 5-6 spent 18 minutes on 426 cells for one declaration each, where the changes' own cells numbered about a dozen. The rule now prints the diff (files, lines, the items its hunks sit in) and its author names the cells, as `--probe` already did when it retired three library ideas in four minutes each that week; `--cells all` stays for releases and changes judged able to act anywhere. | A named scope can miss a cell the change moves; the check prints the count it left unmeasured, its author names the scope in the change's record, and a release measures every cell. |
 | **No intervals as verdicts** (October 1) | 95% median bands held for a quarter of the cells across runs of identical code. | A printed range is a reading aid only. |
@@ -804,7 +804,7 @@ Each cell's
 figure is its mean time per run; a contender's `xN` against the first
 contender is the ratio `compare` judges, each round a pair: the geometric
 mean of the rounds' ratios, marked slower or faster where every cell
-judged at once says so, beyond 3%. (A median of the rounds' ratios flips
+judged at once says so, beyond 5%. (A median of the rounds' ratios flips
 with the share of rounds in each mode where a cell runs at two speeds: a
 1 GiB file read ×0.62 or ×0.98 by that alone.)
 
@@ -877,6 +877,22 @@ windows, not by the run's own, so a run needs no least length.
 Hypervisors that report no steal time (Apple's Virtualization framework,
 for one) keep a VM's guest from seeing load on the host, so a VM can
 read quiet while the host is busy.
+
+## One memory node
+
+The benchmark measures a machine with one memory node: one socket's CPUs
+and the memory beside them. On a machine with several (two sockets, for
+one), run it bound to one node's CPUs and memory:
+`numactl --cpunodebind=0 --membind=0 bench-hashes ...`. Unbound there, the
+kernel's automatic balancing moves a run's memory between nodes while it is
+timed: a check took 7 to 10 million of its sampling faults on two such
+machines against fewer than ten bound (`data` branch,
+`2026-11-13/methodology-audit`), and identical code read up to 30% apart
+where bound it read level (`2026-11-18/issue3-four-programs`).
+
+BLAKE3-Servil's speed across memory nodes is neither measured nor tuned
+here. A program on such a machine gets the speeds these results show by
+keeping its hashing on one node.
 
 ## Power
 
