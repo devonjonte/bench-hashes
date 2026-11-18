@@ -1,5 +1,14 @@
 # Unreleased
 
+**`check` links its layouts without compiling each one.** A side's first
+layout of a stage is compiled as before, through a `cc` that keeps the link's
+arguments, with the link's inputs left in place; the stage's other layouts run
+that link again with their own function order. Every executable measured has
+the bytes its compile would have given: the kept link run again with the first
+order must reproduce Cargo's executable, and `check` stops if it differs. A
+layout cost a compile of about 18 s; the warning about `--layouts` beyond 8
+goes with that cost. Measurements and statistical rules stay unchanged.
+
 **Versions and sources live in “About the hashes compared”.** The existing
 collapsed overview section groups the exact recorded identities and settings
 by machine and run, including file tools and earlier-library comparisons. The

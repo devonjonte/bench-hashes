@@ -616,8 +616,8 @@ placement, which alone can move calls after a gap by several percent.
 **`check --probe POINTS`** is the measurement before a change is built:
 the same two builds, three fresh pairs over the points named (as
 `--points` names them), and each cell's ratio printed (`compare`), no
-verdict and no second stage. About three minutes with the builds cached,
-most of it the relinks. An idea gets its number from the same tool that
+verdict and no second stage. About three minutes with the builds cached
+(measured when each layout cost a compile; a layout now costs a link). An idea gets its number from the same tool that
 later gates it, so the probe cannot drift from the gate; a change's pull
 request carries its probe's line. A failed comparison returns a failing exit
 status, so an unreadable record cannot look like a completed probe.
@@ -656,8 +656,9 @@ Mac), the suspects are wall's alone and the run says so. Wall still
 decides, on the second stage's process pairs. Judged among every cell a
 change reaches, a slowdown at one point passes unseen unless it is many
 times its pairs' spread; among 8 cells on 64 pairs it shows once it
-reaches about a third of one pair's spread. The stage adds about eight
-minutes, most of it the relinks.
+reaches about a third of one pair's spread. The stage added about eight
+minutes while each of its layouts cost a compile; a layout now costs a
+link.
 
 **Run count and layout count are distinct.** The default second stage uses
 16 linked programs per side in 64 pairs of processes. Repeated executions

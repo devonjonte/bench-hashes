@@ -16,8 +16,8 @@
 //! 1. Builds bench-hashes twice, against BLAKE3-Servil at each side (a commit
 //!    of the working tree as `git add -A` would stage it, and the commit
 //!    checked against), in worktrees of its own under `target/check/`, and
-//!    relinks each side once per pair with its functions in a fresh random
-//!    order: a binary's layout alone moves cells several percent (x86: 8-10%),
+//!    links each side once per pair with its functions in a fresh random
+//!    order (one compile a side a stage, then its link run again: layouts): a binary's layout alone moves cells several percent (x86: 8-10%),
 //!    the same for every run of that binary, so no sampling of one binary
 //!    sees it; two sides with different layouts each pair do, and their
 //!    seeds stay apart so identical code still meets a new layout in every run.
@@ -80,7 +80,8 @@ const LAYOUTS: usize = 4;
 /// 2026-10-24/check-one-point).
 const SECOND_LAYOUTS: usize = 16;
 /// Runs of each second-stage layout: its pairs are SECOND_LAYOUTS times
-/// this. A relink costs about 18 s, a run of the suspects 1 to 3 s,
+/// this. A layout cost a compile of about 18 s when this was chosen (now
+/// a link: layouts), a run of the suspects 1 to 3 s,
 /// and a layout's own bias is a small part of a cold cell's spread (seven
 /// A/A checks of the same layouts: their cells' ratios correlated 0.03).
 /// At 16 pairs, #119's +3% to +11% on cold one-message calls passed 3
@@ -108,20 +109,6 @@ const FIRST_RUNS: usize = 1;
 /// of a check after (Zooko, November 5, 2026: measure first, and make the
 /// measurement cheap).
 const PROBE_LAYOUTS: usize = 3;
-
-/// What `--layouts n` costs where it is more than a check needs, said
-/// before the builds start: every layout is a relink on each side, and
-/// the second stage gives its suspects SECOND_PAIRS pairs whatever the
-/// first stage's count. (November 12, 2026: about ten checks at `--layouts 64`
-/// each spent about 45 minutes linking for four minutes of measuring.)
-fn layouts_cost(n: usize) -> Option<String> {
-    (n > 2 * LAYOUTS).then(|| {
-        format!(
-            "check: --layouts {n}: {} links before the first pair, about 18 s each; the default {LAYOUTS} choose the suspects, and the second stage gives them {SECOND_PAIRS} pairs",
-            2 * n
-        )
-    })
-}
 
 /// `exes`, each `times` times, in turn: the same layouts run again cost a
 /// run each, where a new layout costs a relink.
@@ -234,9 +221,6 @@ pub fn command(arguments: &[String]) -> i32 {
                     .and_then(|v| v.parse().ok())
                     .filter(|&n| n >= 3)
                     .unwrap_or_else(|| panic!("--layouts takes a count of 3 or more (regress's rule needs three pairs)\n{usage}"));
-                if let Some(cost) = layouts_cost(layouts_a_side) {
-                    eprintln!("{cost}");
-                }
             }
             "--keep" => {
                 keep =
@@ -1156,9 +1140,20 @@ fn functions_named(nm: &str) -> Vec<&str> {
         .collect()
 }
 
-/// `exe` relinked once per seed, its functions in a fresh random order
+/// `exe` linked once per seed, its functions in a fresh random order
 /// each (a linker order file: lld on Linux, ld's -order_file on macOS).
-/// The bench crate alone relinks; its dependencies stay built.
+/// Cargo compiles and links the first seed's executable, through a `cc`
+/// that keeps the link's arguments (keeping_cc) and with the link's
+/// inputs left in place (rustc's -C save-temps); the other seeds run
+/// that link again with their own order file (relink), which costs a
+/// link where a compile cost about 18 s. The kept link run again with
+/// the first seed's order must give Cargo's executable byte for byte,
+/// and the call stops if it differs: every executable measured is the
+/// one a compile with its order file would have made. On macOS rustc
+/// strips debug symbols in a step after the link, outside the kept
+/// link, so the layouts there are built unstripped (-C strip=none):
+/// the same code and data, with the symbol table's debug entries left
+/// in.
 fn layouts(
     bench: &Path,
     cache: &Path,
@@ -1173,13 +1168,24 @@ fn layouts(
     let copy = bench_copy(&side_dir.join("target"));
     let checkout = side_dir.join("src");
     let patch_fork = fork_patch(&copy, &checkout);
+    let link = side_dir.join("link");
+    let mut first_order: Option<PathBuf> = None;
     let mut exes = Vec::new();
     for seed in seeds {
         shuffle(&mut symbols, seed as u64);
         let order = side_dir.join(format!("order-{seed}.txt"));
         std::fs::write(&order, symbols.join("\n") + "\n").unwrap();
-        let flags: Vec<String> = if cfg!(target_os = "macos") {
-            vec![format!("-Clink-arg=-Wl,-order_file,{}", order.display())]
+        let kept = side_dir.join(format!("bench-hashes-{seed}"));
+        if let Some(first_order) = &first_order {
+            relink(&link, &copy, first_order, &order, &kept);
+            exes.push(kept.display().to_string());
+            continue;
+        }
+        let mut flags: Vec<String> = if cfg!(target_os = "macos") {
+            vec![
+                format!("-Clink-arg=-Wl,-order_file,{}", order.display()),
+                "-Cstrip=none".into(),
+            ]
         } else {
             let lld = lld_dir(cache);
             vec![
@@ -1189,6 +1195,10 @@ fn layouts(
                 "-Clink-arg=-Wl,--no-warn-symbol-ordering".into(),
             ]
         };
+        flags.push(format!("-Clinker={}", keeping_cc(&link).display()));
+        flags.push("-Csave-temps".into());
+        let deps = side_dir.join("target").join("release").join("deps");
+        forget_last_link(&deps);
         let out = Command::new("cargo")
             .args([
                 "--config",
@@ -1209,18 +1219,136 @@ fn layouts(
             .expect("cargo runs");
         assert!(
             out.status.success(),
-            "check: relinking {name} with seed {seed}:\n{}",
+            "check: linking {name} with seed {seed}:\n{}",
             String::from_utf8_lossy(&out.stderr)
         );
-        let kept = side_dir.join(format!("bench-hashes-{seed}"));
         std::fs::copy(
             side_dir.join("target").join("release").join("bench-hashes"),
             &kept,
         )
         .unwrap();
+        let again = side_dir.join("bench-hashes-again");
+        relink(&link, &copy, &order, &order, &again);
+        let (cargos, ours) = (
+            std::fs::read(&kept).unwrap(),
+            std::fs::read(&again).unwrap(),
+        );
+        assert!(
+            cargos == ours,
+            "check: the kept link of {name} run again gave other bytes than Cargo's executable: {} bytes against {}, {} of them different, the first at {:?}; both are kept ({} and {}), the link's arguments in {}",
+            ours.len(),
+            cargos.len(),
+            cargos.iter().zip(&ours).filter(|(a, b)| a != b).count(),
+            cargos.iter().zip(&ours).position(|(a, b)| a != b),
+            again.display(),
+            kept.display(),
+            link.display()
+        );
+        std::fs::remove_file(&again).unwrap();
+        first_order = Some(order);
         exes.push(kept.display().to_string());
     }
     exes
+}
+
+/// A `cc` in `dir` for rustc to link through: it writes the link's
+/// arguments (one a line, `args.txt`) and its environment (`env`'s
+/// lines, `env.txt`) beside itself, then links with the C compiler on
+/// PATH as rustc would have.
+fn keeping_cc(dir: &Path) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::create_dir_all(dir).unwrap();
+    let cc = dir.join("cc");
+    std::fs::write(
+        &cc,
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"${0%/*}/args.txt\"\nenv > \"${0%/*}/env.txt\"\nexec cc \"$@\"\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&cc, std::fs::Permissions::from_mode(0o755)).unwrap();
+    cc
+}
+
+/// What the last kept link left in `deps`, removed: the directories of
+/// rustc's -C save-temps (each named `rustc` and six characters), whose
+/// inputs served that link alone, and the bench's linked executables
+/// (`bench_hashes-` and a hash), so that Cargo links again whatever it
+/// holds fresh.
+fn forget_last_link(deps: &Path) {
+    for entry in std::fs::read_dir(deps).into_iter().flatten().flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name.len() == 11 && name.starts_with("rustc") && entry.path().is_dir() {
+            std::fs::remove_dir_all(entry.path()).unwrap();
+        } else if name.starts_with("bench_hashes-") && !name.contains('.') {
+            std::fs::remove_file(entry.path()).unwrap();
+        }
+    }
+}
+
+/// The arguments of a kept link (`args`, one a line) with `order` in the
+/// place of `first_order`.
+fn relink_args(args: &str, first_order: &str, order: &str) -> Vec<String> {
+    args.lines()
+        .map(|arg| arg.replace(first_order, order))
+        .collect()
+}
+
+/// The variables of `env`'s output: a line `NAME=value` starts one, and
+/// a line without a name before its `=` continues the value above (a
+/// value holding a line break).
+fn kept_environment(env: &str) -> Vec<(String, String)> {
+    let mut variables: Vec<(String, String)> = Vec::new();
+    for line in env.lines() {
+        match line.split_once('=') {
+            Some((name, value))
+                if !name.is_empty() && !name.contains(|c: char| c.is_whitespace()) =>
+            {
+                variables.push((name.into(), value.into()))
+            }
+            _ => {
+                let (_, value) = variables
+                    .last_mut()
+                    .expect("env's first line names a variable");
+                value.push('\n');
+                value.push_str(line);
+            }
+        }
+    }
+    variables
+}
+
+/// The link kept in `dir` (keeping_cc) run again, from the directory
+/// `from` in the environment rustc gave it, with `order` in the place of
+/// `first_order`. It writes where the kept link wrote (a Mach-O
+/// executable's signature names its file), and `out` gets a copy.
+fn relink(dir: &Path, from: &Path, first_order: &Path, order: &Path, out: &Path) {
+    let args = std::fs::read_to_string(dir.join("args.txt")).expect("the kept link's arguments");
+    let args = relink_args(
+        &args,
+        &first_order.display().to_string(),
+        &order.display().to_string(),
+    );
+    let written = args
+        .iter()
+        .position(|arg| arg == "-o")
+        .map(|o| &args[o + 1])
+        .expect("the kept link names its executable after -o");
+    let env = std::fs::read_to_string(dir.join("env.txt")).expect("the kept link's environment");
+    let done = Command::new("cc")
+        .args(&args)
+        .env_clear()
+        .envs(kept_environment(&env))
+        .current_dir(from)
+        .output()
+        .expect("cc runs");
+    assert!(
+        done.status.success(),
+        "check: linking {} again with {}:\n{}",
+        out.display(),
+        order.display(),
+        String::from_utf8_lossy(&done.stderr)
+    );
+    std::fs::copy(written, out).unwrap();
 }
 
 /// A directory holding `ld.lld`, for the C compiler's -B (Linux): the one
@@ -1328,15 +1456,52 @@ fn servil_crate(checkout: &Path) -> std::path::PathBuf {
 
 #[cfg(test)]
 mod tests {
-    /// `--layouts` beyond twice the default says what it costs; up to
-    /// there (the default, a probe's three, `--layouts 8`) it says nothing.
+    /// A kept link run again takes its own order file and keeps every
+    /// other argument, the executable it writes among them.
     #[test]
-    fn many_layouts_say_their_cost() {
-        assert_eq!(super::layouts_cost(3), None);
-        assert_eq!(super::layouts_cost(8), None);
+    fn a_relink_changes_the_order_file_alone() {
+        let kept = "-m64\n/t/deps/bench.o\n-Wl,--symbol-ordering-file=/t/old/order-0.txt\n-o\n/t/deps/bench_hashes-1f\n-nodefaultlibs\n";
         assert_eq!(
-            super::layouts_cost(64).as_deref(),
-            Some("check: --layouts 64: 128 links before the first pair, about 18 s each; the default 4 choose the suspects, and the second stage gives them 64 pairs")
+            super::relink_args(kept, "/t/old/order-0.txt", "/t/old/order-7.txt"),
+            [
+                "-m64",
+                "/t/deps/bench.o",
+                "-Wl,--symbol-ordering-file=/t/old/order-7.txt",
+                "-o",
+                "/t/deps/bench_hashes-1f",
+                "-nodefaultlibs"
+            ]
+        );
+        let mac = "-Wl,-order_file,/t/new/order-4.txt\n-o\n/t/deps/bench_hashes-2a\n";
+        assert_eq!(
+            super::relink_args(mac, "/t/new/order-4.txt", "/t/new/order-5.txt"),
+            [
+                "-Wl,-order_file,/t/new/order-5.txt",
+                "-o",
+                "/t/deps/bench_hashes-2a"
+            ]
+        );
+    }
+
+    /// A kept environment gives each variable its whole value: one
+    /// holding `=`, an empty one, and one holding a line break.
+    #[test]
+    fn a_kept_environment_keeps_each_value_whole() {
+        let env = "LC_ALL=C\nFLAGS=-a=b -c\nEMPTY=\nNOTE=first line\nsecond line\nPATH=/x:/y\n";
+        let pairs = |v: &[(&str, &str)]| -> Vec<(String, String)> {
+            v.iter()
+                .map(|(n, x)| (n.to_string(), x.to_string()))
+                .collect()
+        };
+        assert_eq!(
+            super::kept_environment(env),
+            pairs(&[
+                ("LC_ALL", "C"),
+                ("FLAGS", "-a=b -c"),
+                ("EMPTY", ""),
+                ("NOTE", "first line\nsecond line"),
+                ("PATH", "/x:/y")
+            ])
         );
     }
 
