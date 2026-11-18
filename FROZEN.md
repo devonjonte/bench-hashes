@@ -47,6 +47,17 @@ the notes) may still change, to say it better.
   apart (the kernel's automatic memory balancing; the data branch,
   `2026-11-13/methodology-audit` and `2026-11-18/issue3-four-programs`),
   and bound to one node's CPUs and memory it reads level.
+  So every `bench-hashes` process on such a machine keeps itself to one
+  node from its first instruction: the node of the lowest CPU it may run
+  on, that node's CPUs, its memory bound there, the pages it already holds
+  moved there. Its children inherit both, so a check's builds and runs stay
+  there. The shared scenario's pairs come from that node's CPUs: a
+  two-socket machine with one cache a socket measures one-cache alone, as
+  a one-socket machine of its kind does, and the move of each copy's input
+  to its own socket's memory (0.20) goes. The header's `shared placements`
+  line names the node. These machines' multithreaded cells now use one
+  socket's threads, so their records from this release on stand apart from
+  their earlier ones.
 - **A new link layout for every pair of the regression check's second stage**
   (Devon Jonte; Zooko, November 18, 2026). Its 64 pairs were 16 layouts a
   side, each run four times, while a layout cost a compile; the rule counts
