@@ -1,0 +1,597 @@
+$ (cd <home>/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd <home>/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd <home>/checkouts/fork && git checkout --quiet --force --detach c8e8864b5f4d164fb18db74b134b884b52d4266a)
+$ (cd <home>/checkouts/fork && git rev-parse HEAD)
+$ (cd <home>/checkouts/fork && git clean -ffd --quiet)
+$ (cd <home>/checkouts/fork && cargo nextest run --release --lib)
+warning: Cargo.toml: version requirement `=0.9.0+dev` for dependency `blake3-servil-version` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil-core` (manifest) generated 1 warning
+   Compiling blake3-servil-version v0.9.0+dev (<home>/checkouts/fork/version)
+   Compiling blake3-servil-core v0.9.0+dev (<home>/checkouts/fork)
+    Finished `release` profile [optimized] target(s) in 1.82s
+────────────
+ Nextest run ID 8f089250-b2ef-4155-8e46-c9498b67310e with nextest profile: default
+    Starting 143 tests across 1 binary
+        PASS [   0.013s] (  1/143) blake3-servil-core block::test::test_a_merkle_layer_lands_in_the_next_layers_blocks
+        PASS [   0.013s] (  2/143) blake3-servil-core block::test::test_from_blocks_borrows_messages_that_fill_their_blocks
+        PASS [   0.013s] (  3/143) blake3-servil-core block::packed_test::packed_storage_is_aligned_and_chains_into_a_tree
+        PASS [   0.013s] (  4/143) blake3-servil-core block::test::test_blocks_mut_writes_the_messages
+        PASS [   0.013s] (  5/143) blake3-servil-core block::test::test_a_batch_keeps_the_bytes_past_its_messages_zero
+        PASS [   0.016s] (  6/143) blake3-servil-core block::test::test_from_bytes_takes_aligned_whole_blocks_only
+        PASS [   0.017s] (  7/143) blake3-servil-core block::test::test_a_batch_describes_itself
+        PASS [   0.017s] (  8/143) blake3-servil-core block::packed_test::packed_capacity_rejects_wrapping_message_counts
+        PASS [   0.018s] (  9/143) blake3-servil-core block::test::test_blocks_mut_refuses_messages_with_padding
+        PASS [   0.018s] ( 10/143) blake3-servil-core block::test::test_digests_mut_takes_64_byte_messages
+        PASS [   0.019s] ( 11/143) blake3-servil-core block::test::batch_capacity_rejects_wrapping_block_counts
+        PASS [   0.010s] ( 12/143) blake3-servil-core each::test::a_turn_stages_a_first_chunk_on_aarch64_and_an_update_everywhere
+        PASS [   0.011s] ( 13/143) blake3-servil-core each::test::a_turn_uses_the_callback_in_each_hashers_mode_and_order
+        PASS [   0.012s] ( 14/143) blake3-servil-core each::test::a_shared_cohort_refuses_a_keyed_stage
+        PASS [   0.013s] ( 15/143) blake3-servil-core each::test::a_finish_takes_the_staged_first_chunks_from_among_the_others
+        PASS [   0.009s] ( 16/143) blake3-servil-core each::test::finalize_each_rejects_repeated_indices
+        PASS [   0.009s] ( 17/143) blake3-servil-core each::test::finalize_each_rejects_repeats_across_groups
+        PASS [   0.015s] ( 18/143) blake3-servil-core each::test::finalize_each_leaves_no_hasher_marked
+        PASS [   0.007s] ( 19/143) blake3-servil-core each::test::prepare_thread_reserves_collection_storage
+        PASS [   0.008s] ( 20/143) blake3-servil-core each::test::test_hash_each_on_counts_its_alone_messages_and_rounds
+        PASS [   0.010s] ( 21/143) blake3-servil-core each::test::test_hash_each_matches_hash_with
+        PASS [   0.013s] ( 22/143) blake3-servil-core each::test::outlasting_pieces_wait_for_a_full_table
+        PASS [   0.012s] ( 23/143) blake3-servil-core each::test::test_hash_each_on_takes_a_round_of_many_lanes_in_several_calls
+        PASS [   0.010s] ( 24/143) blake3-servil-core each::test::test_hash_each_small_items_by_blocks
+        PASS [   0.009s] ( 25/143) blake3-servil-core each::test::test_update_each
+        PASS [   0.010s] ( 26/143) blake3-servil-core each::test::test_update_each_at_offsets
+        PASS [   0.008s] ( 27/143) blake3-servil-core each::test::test_update_each_holds_groups_together
+        PASS [   0.031s] ( 28/143) blake3-servil-core each::test::held_groups_pass_by_mode_not_key
+        PASS [   0.037s] ( 29/143) blake3-servil-core each::test::a_sized_table_of_whole_block_messages_takes_the_sme2_message_kernel
+        PASS [   0.051s] ( 30/143) blake3-servil-core block::packed_test::packed_messages_hash_as_each_message_alone
+        PASS [   0.009s] ( 31/143) blake3-servil-core hasher::test::a_rows_place_is_zeroed_once
+        PASS [   0.011s] ( 32/143) blake3-servil-core hasher::test::a_row_gives_up_its_place_to_the_row_rows_above
+        PASS [   0.011s] ( 33/143) blake3-servil-core hasher::test::a_stack_cloned_in_place_holds_the_sources_entries
+        PASS [   0.011s] ( 34/143) blake3-servil-core hasher::test::a_stream_of_groups_merges_rows_a_full_layer_at_a_time
+        PASS [   0.007s] ( 35/143) blake3-servil-core hasher::test::test_absorb_takes_whole_blocks_straight_from_the_input
+        PASS [   0.006s] ( 36/143) blake3-servil-core hasher::test::test_feed_asks_for_a_flat_subtree_after_the_first
+        PASS [   0.007s] ( 37/143) blake3-servil-core hasher::test::unequal_rows_stop_before_copying
+        PASS [   0.005s] ( 38/143) blake3-servil-core incremental::test::a_message_whole_in_the_stage_runs_the_one_shot_calls_kernels
+        PASS [   0.009s] ( 39/143) blake3-servil-core incremental::test::a_block_or_less_is_padded_whatever_the_hasher_held_before
+        PASS [   0.008s] ( 40/143) blake3-servil-core incremental::test::finalize_after_a_turn_that_left_a_chunk_in_the_core
+        PASS [   0.010s] ( 41/143) blake3-servil-core incremental::test::clone_from_copies_only_the_live_stage_prefix
+        PASS [   0.011s] ( 42/143) blake3-servil-core incremental::test::later_groups_are_rows_and_finalize_hashes_the_tail_apart
+        PASS [   0.010s] ( 43/143) blake3-servil-core incremental::test::test_an_updates_whole_groups_skip_the_stage_and_its_end_is_staged
+        PASS [   0.008s] ( 44/143) blake3-servil-core incremental::test::test_gather_part_holds_a_whole_group
+        PASS [   0.015s] ( 45/143) blake3-servil-core incremental::test::pool_halves_are_checked_before_the_hasher_takes_their_bytes
+        PASS [   0.012s] ( 46/143) blake3-servil-core incremental::test::pool_halves_use_the_subtrees_nonzero_place
+        PASS [   0.007s] ( 47/143) blake3-servil-core incremental::test::test_the_length_hint_never_changes_the_digest
+        PASS [   0.034s] ( 48/143) blake3-servil-core hasher::test::a_stack_keeps_rows_rows_and_condenses_the_one_below
+        PASS [   0.022s] ( 49/143) blake3-servil-core incremental::test::finalize_leaves_the_hasher_as_it_was_and_later_updates_extend_the_message
+        PASS [   0.006s] ( 50/143) blake3-servil-core incremental::test::test_update_stages_exactly_what_it_must
+        PASS [   0.008s] ( 51/143) blake3-servil-core incremental::test::test_update_stages_to_the_message_boundary_from_an_offset
+        PASS [   0.008s] ( 52/143) blake3-servil-core many::test::test_a_short_input_is_refused_before_the_kernels
+        PASS [   0.009s] ( 53/143) blake3-servil-core many::test::separately_borrowed_whole_blocks_take_the_batch_lanes
+        PASS [   0.007s] ( 54/143) blake3-servil-core many::test::test_a_slot_of_another_size_is_refused_before_the_kernels
+        PASS [   0.008s] ( 55/143) blake3-servil-core many::test::test_hash_blocks_without_plans
+        PASS [   0.006s] ( 56/143) blake3-servil-core many::test::test_sme2_sized_exactly
+        PASS [   0.010s] ( 57/143) blake3-servil-core many::test::test_hash_many_needs_the_input_it_names
+        PASS [   0.005s] ( 58/143) blake3-servil-core neon_hybrid::test::test_a_mac_runs_apples_plans
+        PASS [   0.072s] ( 59/143) blake3-servil-core each::test::held_passes_do_not_depend_on_keys
+        PASS [   0.006s] ( 60/143) blake3-servil-core neon_hybrid::test::test_every_family_against_the_scalar_kernel
+        PASS [   0.006s] ( 61/143) blake3-servil-core neon_hybrid::test::test_kernel_code_ranges
+        PASS [   0.007s] ( 62/143) blake3-servil-core neon_hybrid::test::test_xof_many_groups
+        PASS [   0.006s] ( 63/143) blake3-servil-core platform::detected_test::test_a_recorded_platform_keeps_the_words_other_bits
+        PASS [   0.007s] ( 64/143) blake3-servil-core self_test::stops::test_a_failing_self_test_stops_the_process
+        PASS [   0.012s] ( 65/143) blake3-servil-core neon_hybrid::test::test_hash_last_lanes_against_hash
+        PASS [   0.006s] ( 66/143) blake3-servil-core self_test::test::test_a_waiting_thread_takes_the_verdict
+        PASS [   0.007s] ( 67/143) blake3-servil-core self_test::test::self_test_matches_official_blake3
+        PASS [   0.026s] ( 68/143) blake3-servil-core many::test::test_hash_many_whole_blocks
+        PASS [   0.009s] ( 69/143) blake3-servil-core sme2::scratch_layout_tests::an_oversize_layout_stops_before_a_kernel_can_use_it
+        PASS [   0.011s] ( 70/143) blake3-servil-core self_test::test::test_self_test_runs_every_kernel
+        PASS [   0.012s] ( 71/143) blake3-servil-core self_test::test::test_self_test_run_checks_every_case
+        PASS [   0.096s] ( 72/143) blake3-servil-core each::test::held_dispatch_ignores_key_equality_and_prefixes
+        PASS [   0.010s] ( 73/143) blake3-servil-core sme2::scratch_layout_tests::test_scratch_layout_keeps_the_buffers_apart_and_inside
+        PASS [   0.034s] ( 74/143) blake3-servil-core many::test::test_hash_many_modes_every_platform
+        PASS [   0.008s] ( 75/143) blake3-servil-core test::aaa_require_nextest
+        PASS [   0.010s] ( 76/143) blake3-servil-core test::dispatch::test_neon_runs_no_sme2
+        PASS [   0.010s] ( 77/143) blake3-servil-core test::dispatch::test_batch_dispatch
+        PASS [   0.098s] ( 78/143) blake3-servil-core each::test::messages_fed_by_turns_finish_together_and_reset
+        PASS [   0.016s] ( 79/143) blake3-servil-core test::dispatch::test_one_message_dispatch
+        PASS [   0.018s] ( 80/143) blake3-servil-core test::dispatch::test_xof_dispatch
+        PASS [   0.013s] ( 81/143) blake3-servil-core test::guard_pages::test_xof_inside_guard_pages
+        PASS [   0.014s] ( 82/143) blake3-servil-core test::prefetch_counts::test_a_cold_one_shot_hash_prefetches_what_it_runs_and_a_warm_one_nothing
+        PASS [   0.120s] ( 83/143) blake3-servil-core each::test::held_workspace_preserves_distinct_message_rows
+        PASS [   0.023s] ( 84/143) blake3-servil-core test::guard_pages::test_hash_many_each_input_against_a_guard_page
+        PASS [   0.041s] ( 85/143) blake3-servil-core test::guard_pages::test_every_call_inside_guard_pages
+        PASS [   0.013s] ( 86/143) blake3-servil-core test::test_block_buffer_alignment
+        PASS [   0.022s] ( 87/143) blake3-servil-core test::prefetch_counts::test_convenience_prefetches_and_performance_does_not
+        PASS [   0.029s] ( 88/143) blake3-servil-core test::prefetch_counts::test_a_fresh_hashers_first_update_prefetches_what_it_runs
+        PASS [   0.067s] ( 89/143) blake3-servil-core self_test::stops::test_a_wrong_digest_in_any_case_stops_the_process
+        PASS [   0.021s] ( 90/143) blake3-servil-core test::test_cold_prefetches_every_length
+        PASS [   0.010s] ( 91/143) blake3-servil-core test::test_debug_leaves_out_the_bytes
+        PASS [   0.012s] ( 92/143) blake3-servil-core test::test_empty_subtree_should_panic
+        PASS [   0.009s] ( 93/143) blake3-servil-core test::test_fill_computes_each_block_once
+        PASS [   0.010s] ( 94/143) blake3-servil-core test::test_grouped_hash
+        PASS [   0.015s] ( 95/143) blake3-servil-core test::test_every_assembly_symbol_carries_the_crate_prefix
+        PASS [   0.010s] ( 96/143) blake3-servil-core test::test_hash_comparisons_and_formats
+        PASS [   0.011s] ( 97/143) blake3-servil-core test::test_hash_const_conversions
+        PASS [   0.007s] ( 98/143) blake3-servil-core test::test_hasher_already_accepted_input_should_panic
+        PASS [   0.009s] ( 99/143) blake3-servil-core test::test_hash_conversions
+        PASS [   0.060s] (100/143) blake3-servil-core test::guard_pages::test_hash_inside_guard_pages
+        PASS [   0.010s] (101/143) blake3-servil-core test::test_hex_encoding_decoding
+        PASS [   0.012s] (102/143) blake3-servil-core test::test_hasher_io_write
+        PASS [   0.008s] (103/143) blake3-servil-core test::test_hex_matches_the_table_for_every_byte
+        PASS [   0.013s] (104/143) blake3-servil-core test::test_hasher_gathers
+        PASS [   0.009s] (105/143) blake3-servil-core test::test_reset
+        PASS [   0.011s] (106/143) blake3-servil-core test::test_pair_hash_many_blocks_every_platform
+        PASS [   0.011s] (107/143) blake3-servil-core test::test_set_input_offset_cant_finalize
+        PASS [   0.008s] (108/143) blake3-servil-core test::test_set_input_offset_cant_finalize_xof
+        PASS [   0.009s] (109/143) blake3-servil-core test::test_too_much_input_should_panic
+        PASS [   0.012s] (110/143) blake3-servil-core test::test_unaligned_offset_should_panic
+        PASS [   0.012s] (111/143) blake3-servil-core test::test_xof_ends_at_its_last_byte
+        PASS [   0.015s] (112/143) blake3-servil-core test::test_update_reader_interrupted
+        PASS [   0.008s] (113/143) blake3-servil-core test::test_xof_fill_past_its_end_panics
+        PASS [   0.008s] (114/143) blake3-servil-core test::test_xof_many_every_cpu_platform
+        PASS [   0.018s] (115/143) blake3-servil-core test::test_xof_clone_and_empty_fill
+        PASS [   0.011s] (116/143) blake3-servil-core test::test_xof_partial_block_cache_seeks_and_clones
+        PASS [   0.023s] (117/143) blake3-servil-core test::test_update_reader_keeps_every_byte_across_errors
+        PASS [   0.010s] (118/143) blake3-servil-core test::test_xof_seek
+        PASS [   0.010s] (119/143) blake3-servil-core throughput::tree_test::a_batchs_parts_hash_as_the_batch_does
+        PASS [   0.011s] (120/143) blake3-servil-core throughput::tree_test::a_collection_takes_one_output_an_item
+        PASS [   0.014s] (121/143) blake3-servil-core test::unsafe_paths::test_batches_small
+        PASS [   0.010s] (122/143) blake3-servil-core throughput::tree_test::a_part_lies_within_its_batch
+        PASS [   0.011s] (123/143) blake3-servil-core throughput::tree_test::a_layer_of_parents_takes_pairs
+        PASS [   0.014s] (124/143) blake3-servil-core throughput::tree_test::a_layer_of_parents_takes_one_output_a_pair
+        PASS [   0.013s] (125/143) blake3-servil-core throughput::tree_test::a_part_runs_forward
+        PASS [   0.014s] (126/143) blake3-servil-core throughput::tree_test::a_subtree_is_no_longer_than_its_place_allows
+        PASS [   0.013s] (127/143) blake3-servil-core throughput::tree_test::a_subtree_is_not_empty
+        PASS [   0.009s] (128/143) blake3-servil-core throughput::tree_test::chaining_values_compare_and_a_tree_zeroizes
+        PASS [   0.007s] (129/143) blake3-servil-core throughput::tree_test::halves_need_the_whole_subtree
+        PASS [   0.008s] (130/143) blake3-servil-core throughput::tree_test::left_len_is_official_blake3s
+        PASS [   0.009s] (131/143) blake3-servil-core throughput::tree_test::left_len_requires_more_than_a_chunk
+        PASS [   0.008s] (132/143) blake3-servil-core throughput::tree_test::parents_and_the_root_match_official_blake3
+        PASS [   0.017s] (133/143) blake3-servil-core throughput::tree_test::a_whole_message_a_batch_and_a_collection_match_official_blake3
+        PASS [   0.008s] (134/143) blake3-servil-core throughput::tree_test::the_halves_of_a_chunk_do_not_exist
+        PASS [   0.093s] (135/143) blake3-servil-core test::test_compress_chunks_parallel_every_cpu_platform
+        PASS [   0.025s] (136/143) blake3-servil-core throughput::tree_test::a_subtrees_chaining_value_matches_official_blake3_at_every_place
+        PASS [   0.022s] (137/143) blake3-servil-core throughput::tree_test::a_tree_built_from_its_pieces_gives_the_messages_hash
+        PASS [   0.007s] (138/143) blake3-servil-core tree::test::test_root_children_arrays_are_the_smallest_that_hold_the_walk
+        PASS [   0.119s] (139/143) blake3-servil-core test::guard_pages::test_hash_many_inside_guard_pages
+        PASS [   0.010s] (140/143) blake3-servil-core throughput::tree_test::whole_subtree_halves_keep_their_places_and_values
+        PASS [   0.190s] (141/143) blake3-servil-core many::test::test_small_batches_after_a_pause
+        PASS [   0.193s] (142/143) blake3-servil-core test::guard_pages::test_each_item_against_a_guard_page
+        PASS [   0.560s] (143/143) blake3-servil-core hasher::test::rows_of_any_width_and_single_values_give_the_message_its_hash
+────────────
+     Summary [   0.610s] 143 tests run: 143 passed, 0 skipped
+$ (cd <home>/checkouts/fork && cargo test --release --doc)
+warning: Cargo.toml: version requirement `=0.9.0+dev` for dependency `blake3-servil-version` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil-core` (manifest) generated 1 warning
+   Compiling blake3-servil-core v0.9.0+dev (<home>/checkouts/fork)
+    Finished `release` profile [optimized] target(s) in 0.54s
+   Doc-tests blake3_servil_core
+
+running 19 tests
+test src/incremental.rs - incremental::Hasher::update_reader (line 572) - compile ... ok
+test src/lib.rs - initialize (line 1073) ... ok
+test src/throughput.rs - throughput::TreeHasher (line 451) ... ok
+test src/convenience.rs - convenience::hash_with (line 53) ... ok
+test src/block.rs - block::Batch (line 65) ... ok
+test src/convenience.rs - convenience::hash_xof (line 73) ... ok
+test src/platform.rs - platform::Platform (line 33) ... ok
+test src/convenience.rs - convenience::hash (line 14) ... ok
+test src/each.rs - each::update_each (line 37) ... ok
+test src/incremental.rs - incremental::Hasher (line 23) ... ok
+test src/each.rs - each::hash_each (line 444) ... ok
+test src/block.rs - block::Prepared::part (line 264) ... ok
+test src/lib.rs - (line 10) ... ok
+test src/throughput.rs - throughput::hash (line 39) ... ok
+test src/throughput.rs - throughput::hash_many (line 98) ... ok
+test src/throughput.rs - throughput::TreeHasher (line 478) ... ok
+test src/throughput.rs - throughput::TreeHasher::hash (line 581) ... ok
+test src/throughput.rs - throughput::context_key (line 130) ... ok
+test src/throughput.rs - throughput::hash_many (line 74) ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 4 tests
+test src/throughput.rs - throughput::level_of (line 192) - compile fail ... ok
+test src/throughput.rs - throughput::TreeHasher (line 470) - compile fail ... ok
+test src/throughput.rs - throughput::LastCv (line 340) - compile fail ... ok
+test src/platform.rs - platform::Platform (line 46) - compile fail ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+all doctests ran in 0.29s; merged doctests compilation took 0.14s
+$ (cd <home>/checkouts/fork && cargo nextest run --release --tests)
+warning: Cargo.toml: version requirement `=0.9.0+dev` for dependency `blake3-servil-version` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil-core` (manifest) generated 1 warning
+   Compiling blake3-servil-core v0.9.0+dev (<home>/checkouts/fork)
+    Finished `release` profile [optimized] target(s) in 0.63s
+────────────
+ Nextest run ID 3df71dd0-76a8-4226-bbff-b0eee6c6a818 with nextest profile: default
+    Starting 158 tests across 5 binaries
+        PASS [   0.007s] (  1/158) blake3-servil-core block::test::test_from_bytes_takes_aligned_whole_blocks_only
+        PASS [   0.007s] (  2/158) blake3-servil-core block::test::batch_capacity_rejects_wrapping_block_counts
+        PASS [   0.008s] (  3/158) blake3-servil-core block::test::test_blocks_mut_writes_the_messages
+        PASS [   0.009s] (  4/158) blake3-servil-core block::packed_test::packed_storage_is_aligned_and_chains_into_a_tree
+        PASS [   0.009s] (  5/158) blake3-servil-core block::test::test_digests_mut_takes_64_byte_messages
+        PASS [   0.009s] (  6/158) blake3-servil-core block::test::test_from_blocks_borrows_messages_that_fill_their_blocks
+        PASS [   0.009s] (  7/158) blake3-servil-core block::test::test_blocks_mut_refuses_messages_with_padding
+        PASS [   0.009s] (  8/158) blake3-servil-core block::test::test_a_batch_keeps_the_bytes_past_its_messages_zero
+        PASS [   0.009s] (  9/158) blake3-servil-core block::test::test_a_merkle_layer_lands_in_the_next_layers_blocks
+        PASS [   0.010s] ( 10/158) blake3-servil-core block::packed_test::packed_capacity_rejects_wrapping_message_counts
+        PASS [   0.011s] ( 11/158) blake3-servil-core block::test::test_a_batch_describes_itself
+        PASS [   0.008s] ( 12/158) blake3-servil-core each::test::a_shared_cohort_refuses_a_keyed_stage
+        PASS [   0.007s] ( 13/158) blake3-servil-core each::test::a_turn_stages_a_first_chunk_on_aarch64_and_an_update_everywhere
+        PASS [   0.008s] ( 14/158) blake3-servil-core each::test::finalize_each_rejects_repeated_indices
+        PASS [   0.008s] ( 15/158) blake3-servil-core each::test::finalize_each_rejects_repeats_across_groups
+        PASS [   0.010s] ( 16/158) blake3-servil-core each::test::a_finish_takes_the_staged_first_chunks_from_among_the_others
+        PASS [   0.009s] ( 17/158) blake3-servil-core each::test::a_turn_uses_the_callback_in_each_hashers_mode_and_order
+        PASS [   0.013s] ( 18/158) blake3-servil-core each::test::finalize_each_leaves_no_hasher_marked
+        PASS [   0.006s] ( 19/158) blake3-servil-core each::test::test_hash_each_on_counts_its_alone_messages_and_rounds
+        PASS [   0.007s] ( 20/158) blake3-servil-core each::test::prepare_thread_reserves_collection_storage
+        PASS [   0.009s] ( 21/158) blake3-servil-core each::test::test_hash_each_matches_hash_with
+        PASS [   0.011s] ( 22/158) blake3-servil-core each::test::outlasting_pieces_wait_for_a_full_table
+        PASS [   0.008s] ( 23/158) blake3-servil-core each::test::test_update_each
+        PASS [   0.011s] ( 24/158) blake3-servil-core each::test::test_hash_each_on_takes_a_round_of_many_lanes_in_several_calls
+        PASS [   0.010s] ( 25/158) blake3-servil-core each::test::test_hash_each_small_items_by_blocks
+        PASS [   0.008s] ( 26/158) blake3-servil-core each::test::test_update_each_at_offsets
+        PASS [   0.037s] ( 27/158) blake3-servil-core block::packed_test::packed_messages_hash_as_each_message_alone
+        PASS [   0.009s] ( 28/158) blake3-servil-core each::test::test_update_each_holds_groups_together
+        PASS [   0.007s] ( 29/158) blake3-servil-core hasher::test::a_row_gives_up_its_place_to_the_row_rows_above
+        PASS [   0.030s] ( 30/158) blake3-servil-core each::test::held_groups_pass_by_mode_not_key
+        PASS [   0.033s] ( 31/158) blake3-servil-core each::test::a_sized_table_of_whole_block_messages_takes_the_sme2_message_kernel
+        PASS [   0.009s] ( 32/158) blake3-servil-core hasher::test::a_rows_place_is_zeroed_once
+        PASS [   0.009s] ( 33/158) blake3-servil-core hasher::test::a_stack_cloned_in_place_holds_the_sources_entries
+        PASS [   0.009s] ( 34/158) blake3-servil-core hasher::test::a_stream_of_groups_merges_rows_a_full_layer_at_a_time
+        PASS [   0.007s] ( 35/158) blake3-servil-core hasher::test::test_absorb_takes_whole_blocks_straight_from_the_input
+        PASS [   0.007s] ( 36/158) blake3-servil-core hasher::test::test_feed_asks_for_a_flat_subtree_after_the_first
+        PASS [   0.006s] ( 37/158) blake3-servil-core hasher::test::unequal_rows_stop_before_copying
+        PASS [   0.007s] ( 38/158) blake3-servil-core incremental::test::a_block_or_less_is_padded_whatever_the_hasher_held_before
+        PASS [   0.006s] ( 39/158) blake3-servil-core incremental::test::clone_from_copies_only_the_live_stage_prefix
+        PASS [   0.009s] ( 40/158) blake3-servil-core incremental::test::a_message_whole_in_the_stage_runs_the_one_shot_calls_kernels
+        PASS [   0.009s] ( 41/158) blake3-servil-core incremental::test::finalize_after_a_turn_that_left_a_chunk_in_the_core
+        PASS [   0.008s] ( 42/158) blake3-servil-core incremental::test::later_groups_are_rows_and_finalize_hashes_the_tail_apart
+        PASS [   0.005s] ( 43/158) blake3-servil-core incremental::test::pool_halves_use_the_subtrees_nonzero_place
+        PASS [   0.009s] ( 44/158) blake3-servil-core incremental::test::pool_halves_are_checked_before_the_hasher_takes_their_bytes
+        PASS [   0.006s] ( 45/158) blake3-servil-core incremental::test::test_an_updates_whole_groups_skip_the_stage_and_its_end_is_staged
+        PASS [   0.008s] ( 46/158) blake3-servil-core incremental::test::test_gather_part_holds_a_whole_group
+        PASS [   0.008s] ( 47/158) blake3-servil-core incremental::test::test_the_length_hint_never_changes_the_digest
+        PASS [   0.010s] ( 48/158) blake3-servil-core incremental::test::test_update_stages_exactly_what_it_must
+        PASS [   0.008s] ( 49/158) blake3-servil-core incremental::test::test_update_stages_to_the_message_boundary_from_an_offset
+        PASS [   0.008s] ( 50/158) blake3-servil-core many::test::separately_borrowed_whole_blocks_take_the_batch_lanes
+        PASS [   0.034s] ( 51/158) blake3-servil-core hasher::test::a_stack_keeps_rows_rows_and_condenses_the_one_below
+        PASS [   0.023s] ( 52/158) blake3-servil-core incremental::test::finalize_leaves_the_hasher_as_it_was_and_later_updates_extend_the_message
+        PASS [   0.008s] ( 53/158) blake3-servil-core many::test::test_a_short_input_is_refused_before_the_kernels
+        PASS [   0.007s] ( 54/158) blake3-servil-core many::test::test_a_slot_of_another_size_is_refused_before_the_kernels
+        PASS [   0.008s] ( 55/158) blake3-servil-core many::test::test_hash_blocks_without_plans
+        PASS [   0.063s] ( 56/158) blake3-servil-core each::test::held_passes_do_not_depend_on_keys
+        PASS [   0.010s] ( 57/158) blake3-servil-core many::test::test_hash_many_needs_the_input_it_names
+        PASS [   0.006s] ( 58/158) blake3-servil-core neon_hybrid::test::test_a_mac_runs_apples_plans
+        PASS [   0.009s] ( 59/158) blake3-servil-core many::test::test_sme2_sized_exactly
+        PASS [   0.006s] ( 60/158) blake3-servil-core neon_hybrid::test::test_every_family_against_the_scalar_kernel
+        PASS [   0.007s] ( 61/158) blake3-servil-core neon_hybrid::test::test_kernel_code_ranges
+        PASS [   0.008s] ( 62/158) blake3-servil-core neon_hybrid::test::test_xof_many_groups
+        PASS [   0.007s] ( 63/158) blake3-servil-core platform::detected_test::test_a_recorded_platform_keeps_the_words_other_bits
+        PASS [   0.006s] ( 64/158) blake3-servil-core self_test::stops::test_a_failing_self_test_stops_the_process
+        PASS [   0.013s] ( 65/158) blake3-servil-core neon_hybrid::test::test_hash_last_lanes_against_hash
+        PASS [   0.022s] ( 66/158) blake3-servil-core many::test::test_hash_many_whole_blocks
+        PASS [   0.082s] ( 67/158) blake3-servil-core each::test::held_dispatch_ignores_key_equality_and_prefixes
+        PASS [   0.008s] ( 68/158) blake3-servil-core self_test::test::self_test_matches_official_blake3
+        PASS [   0.010s] ( 69/158) blake3-servil-core self_test::test::test_self_test_run_checks_every_case
+        PASS [   0.008s] ( 70/158) blake3-servil-core sme2::scratch_layout_tests::an_oversize_layout_stops_before_a_kernel_can_use_it
+        PASS [   0.010s] ( 71/158) blake3-servil-core self_test::test::test_self_test_runs_every_kernel
+        PASS [   0.007s] ( 72/158) blake3-servil-core sme2::scratch_layout_tests::test_scratch_layout_keeps_the_buffers_apart_and_inside
+        PASS [   0.013s] ( 73/158) blake3-servil-core self_test::test::test_a_waiting_thread_takes_the_verdict
+        PASS [   0.035s] ( 74/158) blake3-servil-core many::test::test_hash_many_modes_every_platform
+        PASS [   0.009s] ( 75/158) blake3-servil-core test::aaa_require_nextest
+        PASS [   0.011s] ( 76/158) blake3-servil-core test::dispatch::test_one_message_dispatch
+        PASS [   0.012s] ( 77/158) blake3-servil-core test::dispatch::test_batch_dispatch
+        PASS [   0.094s] ( 78/158) blake3-servil-core each::test::messages_fed_by_turns_finish_together_and_reset
+        PASS [   0.011s] ( 79/158) blake3-servil-core test::dispatch::test_xof_dispatch
+        PASS [   0.013s] ( 80/158) blake3-servil-core test::dispatch::test_neon_runs_no_sme2
+        PASS [   0.109s] ( 81/158) blake3-servil-core each::test::held_workspace_preserves_distinct_message_rows
+        PASS [   0.020s] ( 82/158) blake3-servil-core test::guard_pages::test_hash_many_each_input_against_a_guard_page
+        PASS [   0.019s] ( 83/158) blake3-servil-core test::guard_pages::test_xof_inside_guard_pages
+        PASS [   0.035s] ( 84/158) blake3-servil-core test::guard_pages::test_every_call_inside_guard_pages
+        PASS [   0.013s] ( 85/158) blake3-servil-core test::prefetch_counts::test_convenience_prefetches_and_performance_does_not
+        PASS [   0.030s] ( 86/158) blake3-servil-core test::prefetch_counts::test_a_cold_one_shot_hash_prefetches_what_it_runs_and_a_warm_one_nothing
+        PASS [   0.010s] ( 87/158) blake3-servil-core test::test_block_buffer_alignment
+        PASS [   0.033s] ( 88/158) blake3-servil-core test::prefetch_counts::test_a_fresh_hashers_first_update_prefetches_what_it_runs
+        PASS [   0.008s] ( 89/158) blake3-servil-core test::test_debug_leaves_out_the_bytes
+        PASS [   0.062s] ( 90/158) blake3-servil-core self_test::stops::test_a_wrong_digest_in_any_case_stops_the_process
+        PASS [   0.009s] ( 91/158) blake3-servil-core test::test_every_assembly_symbol_carries_the_crate_prefix
+        PASS [   0.010s] ( 92/158) blake3-servil-core test::test_empty_subtree_should_panic
+        PASS [   0.020s] ( 93/158) blake3-servil-core test::test_cold_prefetches_every_length
+        PASS [   0.008s] ( 94/158) blake3-servil-core test::test_grouped_hash
+        PASS [   0.008s] ( 95/158) blake3-servil-core test::test_hash_comparisons_and_formats
+        PASS [   0.012s] ( 96/158) blake3-servil-core test::test_fill_computes_each_block_once
+        PASS [   0.009s] ( 97/158) blake3-servil-core test::test_hash_conversions
+        PASS [   0.011s] ( 98/158) blake3-servil-core test::test_hash_const_conversions
+        PASS [   0.011s] ( 99/158) blake3-servil-core test::test_hasher_already_accepted_input_should_panic
+        PASS [   0.008s] (100/158) blake3-servil-core test::test_hasher_io_write
+        PASS [   0.065s] (101/158) blake3-servil-core test::guard_pages::test_hash_inside_guard_pages
+        PASS [   0.012s] (102/158) blake3-servil-core test::test_hex_encoding_decoding
+        PASS [   0.016s] (103/158) blake3-servil-core test::test_hasher_gathers
+        PASS [   0.011s] (104/158) blake3-servil-core test::test_hex_matches_the_table_for_every_byte
+        PASS [   0.010s] (105/158) blake3-servil-core test::test_reset
+        PASS [   0.011s] (106/158) blake3-servil-core test::test_pair_hash_many_blocks_every_platform
+        PASS [   0.008s] (107/158) blake3-servil-core test::test_set_input_offset_cant_finalize_xof
+        PASS [   0.015s] (108/158) blake3-servil-core test::test_set_input_offset_cant_finalize
+        PASS [   0.012s] (109/158) blake3-servil-core test::test_too_much_input_should_panic
+        PASS [   0.010s] (110/158) blake3-servil-core test::test_update_reader_interrupted
+        PASS [   0.011s] (111/158) blake3-servil-core test::test_unaligned_offset_should_panic
+        PASS [   0.008s] (112/158) blake3-servil-core test::test_xof_fill_past_its_end_panics
+        PASS [   0.010s] (113/158) blake3-servil-core test::test_xof_ends_at_its_last_byte
+        PASS [   0.014s] (114/158) blake3-servil-core test::test_xof_clone_and_empty_fill
+        PASS [   0.008s] (115/158) blake3-servil-core test::test_xof_many_every_cpu_platform
+        PASS [   0.008s] (116/158) blake3-servil-core test::test_xof_partial_block_cache_seeks_and_clones
+        PASS [   0.018s] (117/158) blake3-servil-core test::test_update_reader_keeps_every_byte_across_errors
+        PASS [   0.012s] (118/158) blake3-servil-core test::test_xof_seek
+        PASS [   0.006s] (119/158) blake3-servil-core throughput::tree_test::a_layer_of_parents_takes_one_output_a_pair
+        PASS [   0.009s] (120/158) blake3-servil-core throughput::tree_test::a_batchs_parts_hash_as_the_batch_does
+        PASS [   0.011s] (121/158) blake3-servil-core test::unsafe_paths::test_batches_small
+        PASS [   0.009s] (122/158) blake3-servil-core throughput::tree_test::a_part_lies_within_its_batch
+        PASS [   0.014s] (123/158) blake3-servil-core throughput::tree_test::a_collection_takes_one_output_an_item
+        PASS [   0.017s] (124/158) blake3-servil-core throughput::tree_test::a_layer_of_parents_takes_pairs
+        PASS [   0.011s] (125/158) blake3-servil-core throughput::tree_test::a_subtree_is_no_longer_than_its_place_allows
+        PASS [   0.012s] (126/158) blake3-servil-core throughput::tree_test::a_subtree_is_not_empty
+        PASS [   0.020s] (127/158) blake3-servil-core throughput::tree_test::a_part_runs_forward
+        PASS [   0.081s] (128/158) blake3-servil-core test::test_compress_chunks_parallel_every_cpu_platform
+        PASS [   0.018s] (129/158) blake3-servil-core throughput::tree_test::a_whole_message_a_batch_and_a_collection_match_official_blake3
+        PASS [   0.014s] (130/158) blake3-servil-core throughput::tree_test::halves_need_the_whole_subtree
+        PASS [   0.014s] (131/158) blake3-servil-core throughput::tree_test::left_len_is_official_blake3s
+        PASS [   0.012s] (132/158) blake3-servil-core throughput::tree_test::left_len_requires_more_than_a_chunk
+        PASS [   0.019s] (133/158) blake3-servil-core throughput::tree_test::chaining_values_compare_and_a_tree_zeroizes
+        PASS [   0.027s] (134/158) blake3-servil-core throughput::tree_test::a_tree_built_from_its_pieces_gives_the_messages_hash
+        PASS [   0.031s] (135/158) blake3-servil-core throughput::tree_test::a_subtrees_chaining_value_matches_official_blake3_at_every_place
+        PASS [   0.008s] (136/158) blake3-servil-core tree::test::test_root_children_arrays_are_the_smallest_that_hold_the_walk
+        PASS [   0.119s] (137/158) blake3-servil-core test::guard_pages::test_hash_many_inside_guard_pages
+        PASS [   0.012s] (138/158) blake3-servil-core throughput::tree_test::parents_and_the_root_match_official_blake3
+        PASS [   0.010s] (139/158) blake3-servil-core throughput::tree_test::whole_subtree_halves_keep_their_places_and_values
+        PASS [   0.015s] (140/158) blake3-servil-core throughput::tree_test::the_halves_of_a_chunk_do_not_exist
+        PASS [   0.010s] (141/158) blake3-servil-core::after_initialize after_initialize_each_kind_of_call_hashes
+        PASS [   0.008s] (142/158) blake3-servil-core::build_version this_build_starts_with_the_crates_version
+        PASS [   0.010s] (143/158) blake3-servil-core::initialize_contract a_call_before_initialize_panics
+        PASS [   0.008s] (144/158) blake3-servil-core::tree_shape equality_is_of_place_and_bytes_and_debug_shows_the_place
+        PASS [   0.017s] (145/158) blake3-servil-core::tree_shape a_value_is_its_bytes_and_its_place
+        PASS [   0.011s] (146/158) blake3-servil-core::tree_shape every_wrong_shape_is_refused
+        PASS [   0.018s] (147/158) blake3-servil-core::tree_shape parts_of_five_mebibytes
+        PASS [   0.011s] (148/158) blake3-servil-core::tree_shape stored_values_verify_from_the_root_down
+        PASS [   0.051s] (149/158) blake3-servil-core::build_version a_package_is_named_from_its_vcs_info
+        PASS [   0.214s] (150/158) blake3-servil-core many::test::test_small_batches_after_a_pause
+        PASS [   0.066s] (151/158) blake3-servil-core::tree_shape every_allowed_build_gives_blake3s_hash
+        PASS [   0.213s] (152/158) blake3-servil-core test::guard_pages::test_each_item_against_a_guard_page
+        PASS [   0.104s] (153/158) blake3-servil-core::build_version a_later_commit_is_named_by_its_commit
+        PASS [   0.155s] (154/158) blake3-servil-core::build_version a_dirty_tree_is_named_by_its_tree_id_and_cargos_marker_is_no_change
+        PASS [   0.159s] (155/158) blake3-servil-core::build_version a_release_commit_is_named_by_its_version_alone
+        PASS [   0.165s] (156/158) blake3-servil-core::build_version an_edit_in_the_second_its_index_was_written_is_in_the_name
+        PASS [   0.586s] (157/158) blake3-servil-core hasher::test::rows_of_any_width_and_single_values_give_the_message_its_hash
+        PASS [   0.473s] (158/158) blake3-servil-core::tree_shape the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+────────────
+     Summary [   0.725s] 158 tests run: 158 passed, 0 skipped
+$ (cd <home>/checkouts/fork && cargo nextest run --release --manifest-path test_vectors/Cargo.toml)
+warning: <home>/checkouts/fork/Cargo.toml: version requirement `=0.9.0+dev` for dependency `blake3-servil-version` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil-core` (manifest) generated 1 warning
+   Compiling blake3-servil-version v0.9.0+dev (<home>/checkouts/fork/version)
+   Compiling blake3-servil-core v0.9.0+dev (<home>/checkouts/fork)
+   Compiling test_vectors v0.0.0 (<home>/checkouts/fork/test_vectors)
+    Finished `release` profile [optimized] target(s) in 0.85s
+────────────
+ Nextest run ID 7575eff9-2114-4fed-a0ec-a890b4545109 with nextest profile: default
+    Starting 3 tests across 2 binaries
+        PASS [   0.014s] (1/3) test_vectors tests::aaa_require_nextest
+        PASS [   0.016s] (2/3) test_vectors tests::test_checked_in_vectors_up_to_date
+        PASS [   0.023s] (3/3) test_vectors tests::run_test_vectors
+────────────
+     Summary [   0.024s] 3 tests run: 3 passed, 0 skipped
+$ (cd <home>/checkouts/fork/threads && cargo nextest run --release)
+warning: <home>/checkouts/fork/Cargo.toml: version requirement `=0.9.0+dev` for dependency `blake3-servil-version` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil-core` (manifest) generated 1 warning
+warning: Cargo.toml: version requirement `=0.9.0+dev` for dependency `blake3-servil-core` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil` (manifest) generated 1 warning
+   Compiling blake3-servil-version v0.9.0+dev (<home>/checkouts/fork/version)
+   Compiling blake3-servil-core v0.9.0+dev (<home>/checkouts/fork)
+   Compiling blake3-servil v0.9.0+dev (<home>/checkouts/fork/threads)
+warning: static `PRETENDED` is never used
+    --> src/lanes.rs:1359:27
+     |
+1359 |         pub(crate) static PRETENDED: OnceLock<Vec<Cpu>> = OnceLock::new();
+     |                           ^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `blake3-servil` (lib test) generated 1 warning
+warning: unused dependency `cc`
+  --> Cargo.toml:29:1
+   |
+29 | cc = "1.1.12"
+   | ^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `cc`
+warning: `blake3-servil` (manifest) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 2.91s
+────────────
+ Nextest run ID 6fea6a01-e5ef-4f01-a1bf-f0c728537af9 with nextest profile: default
+    Starting 138 tests across 11 binaries (1 binary skipped via profile.default.default-filter)
+        PASS [   0.008s] (  1/138) blake3-servil forms_test::test_hash_each_multithreaded_splits_at_min_split_len_exactly
+        PASS [   0.008s] (  2/138) blake3-servil finish::tests::finished_unparks_only_a_sleeper_on_the_last_piece
+        PASS [   0.009s] (  3/138) blake3-servil finish::tests::every_atomic_in_the_handshake_files_is_seqcst
+        PASS [   0.014s] (  4/138) blake3-servil forms_test::test_hash_each_multithreaded_past_the_split
+        PASS [   0.014s] (  5/138) blake3-servil forms_test::test_hash_many_multithreaded_whole_blocks
+        PASS [   0.011s] (  6/138) blake3-servil forms_test::test_update_each_multithreaded
+        PASS [   0.008s] (  7/138) blake3-servil lanes::places::test::a_jobs_cost_is_its_cycle_where_jobs_follow_closely
+        PASS [   0.014s] (  8/138) blake3-servil forms_test::test_hasher_gathers_with_multithreaded_updates
+        PASS [   0.023s] (  9/138) blake3-servil forms_test::test_hash_multithreaded_inside_guard_pages
+        PASS [   0.009s] ( 10/138) blake3-servil lanes::places::test::a_thread_keeps_the_faster_reach_and_tries_the_other_each_round
+        PASS [   0.015s] ( 11/138) blake3-servil forms_test::test_pool_from_two_callers
+        PASS [   0.008s] ( 12/138) blake3-servil lanes::places::test::few_workers_many_workers_and_a_confined_process
+        PASS [   0.007s] ( 13/138) blake3-servil lanes::places::test::once_settled_a_placed_worker_parks_and_an_unplaced_one_stays_up
+        PASS [   0.007s] ( 14/138) blake3-servil lanes::places::test::one_cache_has_no_places
+        PASS [   0.008s] ( 15/138) blake3-servil lanes::places::test::the_places_of_two_sockets_of_four_caches
+        PASS [   0.010s] ( 16/138) blake3-servil lanes::places::test::the_measured_jobs_exactly
+        PASS [   0.033s] ( 17/138) blake3-servil forms_test::packed_messages_hash_multithreaded_as_each_message_alone
+        PASS [   0.013s] ( 18/138) blake3-servil lanes::places::test::the_size_classes
+        PASS [   0.009s] ( 19/138) blake3-servil lanes::places::test::without_places_a_plan_is_every_threads
+        PASS [   0.009s] ( 20/138) blake3-servil lanes::sources::test::a_publication_past_actions_capacity_is_stopped
+        PASS [   0.008s] ( 21/138) blake3-servil lanes::sources::test::actions_len_and_run_waiting_action_execute_queued_action
+        PASS [   0.009s] ( 22/138) blake3-servil lanes::sources::test::test_a_worker_serves_the_lowest_source_until_it_is_empty
+        PASS [   0.009s] ( 23/138) blake3-servil lanes::sources::test::test_find_reaches_every_registered_source
+        PASS [   0.011s] ( 24/138) blake3-servil lanes::sources::test::test_a_finished_threads_source_is_the_next_threads
+        PASS [   0.044s] ( 25/138) blake3-servil finish::tests::a_spurious_wake_is_slept_through
+        PASS [   0.010s] ( 26/138) blake3-servil lanes::sources::test::test_take_stream_item_claims_from_registered_action_source
+        PASS [   0.009s] ( 27/138) blake3-servil lanes::sources::test::test_unregister_gives_the_slot_back
+        PASS [   0.010s] ( 28/138) blake3-servil lanes::sources::test::test_unregister_leaves_the_other_sources_registered
+        PASS [   0.011s] ( 29/138) blake3-servil lanes::sources::test::test_visible_sees_a_waiting_item_and_its_kind
+        PASS [   0.009s] ( 30/138) blake3-servil lanes::test::a_merge_of_values_in_each_others_slots_stops
+        PASS [   0.012s] ( 31/138) blake3-servil lanes::test::sme2_prefix_hashes_through_the_public_call
+        PASS [   0.012s] ( 32/138) blake3-servil lanes::test::test_a_caller_gives_its_place_back
+        PASS [   0.007s] ( 33/138) blake3-servil lanes::test::test_a_poller_yields_every_yield_every
+        PASS [   0.012s] ( 34/138) blake3-servil lanes::test::test_a_claim_takes_a_share_of_what_waits
+        PASS [   0.012s] ( 35/138) blake3-servil lanes::test::test_a_parked_caller_is_woken_by_the_last_piece
+        PASS [   0.016s] ( 36/138) blake3-servil lanes::test::test_a_caller_polls_for_spin_before_sleep_then_sleeps
+        PASS [   0.009s] ( 37/138) blake3-servil lanes::test::test_a_source_unregistered_leaves_its_slot
+        PASS [   0.007s] ( 38/138) blake3-servil lanes::test::test_a_stream_is_what_opens_the_sources
+        PASS [   0.007s] ( 39/138) blake3-servil lanes::test::test_a_wake_is_tried_for_the_second_task_waiting
+        PASS [   0.018s] ( 40/138) blake3-servil lanes::test::test_a_job_wakes_one_worker_a_piece_past_its_own
+        PASS [   0.068s] ( 41/138) blake3-servil forms_test::test_every_multithreaded_call_inside_guard_pages
+        PASS [   0.009s] ( 42/138) blake3-servil lanes::test::test_a_worker_spins_for_spin_while_a_stream_is_open
+        PASS [   0.006s] ( 43/138) blake3-servil lanes::test::test_cut_items_exactly
+        PASS [   0.005s] ( 44/138) blake3-servil lanes::test::test_cut_messages_shapes
+        PASS [   0.009s] ( 45/138) blake3-servil lanes::test::test_cut_messages_exactly
+        PASS [   0.049s] ( 46/138) blake3-servil lanes::test::equal_members_match_the_reference
+        PASS [   0.049s] ( 47/138) blake3-servil lanes::test::test_cut_with_prefix_exactly
+        PASS [   0.074s] ( 48/138) blake3-servil lanes::test::test_idle_workers_park_while_a_stream_is_open
+        PASS [   0.088s] ( 49/138) blake3-servil lanes::test::test_hash_many_pool_agrees
+        PASS [   0.090s] ( 50/138) blake3-servil lanes::test::test_cut_with_prefix_shapes_and_hashes
+        PASS [   0.088s] ( 51/138) blake3-servil lanes::test::test_next_piece_len
+        PASS [   0.069s] ( 52/138) blake3-servil lanes::test::test_one_member_runs_alone
+        PASS [   0.048s] ( 53/138) blake3-servil lanes::test::test_simd_merge_matches_recursive
+        PASS [   0.032s] ( 54/138) blake3-servil lanes::test::test_sme2_prefix_exactly
+        PASS [   0.031s] ( 55/138) blake3-servil lanes::test::test_the_pool_begins_at_min_split_len
+        PASS [   0.123s] ( 56/138) blake3-servil lanes::test::test_hash_matches_serial
+        PASS [   0.035s] ( 57/138) blake3-servil lanes::test::test_the_workers_are_every_thread_but_the_caller
+        PASS [   0.035s] ( 58/138) blake3-servil lanes::test::test_the_pool_reads_time_through_now
+        PASS [   0.039s] ( 59/138) blake3-servil lanes::test::test_spin_ends_after_spin_or_with_no_stream_open
+        PASS [   0.033s] ( 60/138) blake3-servil lanes::test::test_tree_thread_budget
+        PASS [   0.146s] ( 61/138) blake3-servil lanes::test::test_concurrent_batch_callers_agree
+        PASS [   0.013s] ( 62/138) blake3-servil lanes::test::the_prefix_cut_keeps_the_aligned_prefix_after_rounding_again
+        PASS [   0.017s] ( 63/138) blake3-servil lanes::test::the_prefix_cut_keeps_a_prefix_that_already_fits
+        PASS [   0.020s] ( 64/138) blake3-servil lanes::test::the_pool_at_rest_counts_its_sme2_thread
+        PASS [   0.018s] ( 65/138) blake3-servil park::test::a_waker_wakes_at_most_its_fanout_and_owes_the_rest
+        PASS [   0.213s] ( 66/138) blake3-servil forms_test::test_hash_many_multithreaded_inside_guard_pages
+        PASS [   0.020s] ( 67/138) blake3-servil park::test::a_waker_wakes_its_place_then_its_socket_then_any
+        PASS [   0.010s] ( 68/138) blake3-servil park::test::wakes_made_and_owed_exactly
+        PASS [   0.026s] ( 69/138) blake3-servil pipeline::test::a_pipelines_shared_state_outlives_it_and_serves_the_next
+        PASS [   0.018s] ( 70/138) blake3-servil pipeline::test::contract_bytes_given_two_ways_panics
+        PASS [   0.022s] ( 71/138) blake3-servil pipeline::test::batches_empty_small_and_large_match_hash_many
+        PASS [   0.027s] ( 72/138) blake3-servil pipeline::test::a_room_held_through_its_last_credits_is_not_handed_out_again
+        PASS [   0.017s] ( 73/138) blake3-servil pipeline::test::contract_commit_after_partial_room_panics
+        PASS [   0.031s] ( 74/138) blake3-servil pipeline::test::aaa_unit_single_step_every_stage
+        PASS [   0.246s] ( 75/138) blake3-servil forms_test::test_hash_each_multithreaded
+        PASS [   0.012s] ( 76/138) blake3-servil pipeline::test::contract_dropped_unfinished_message_panics
+        PASS [   0.012s] ( 77/138) blake3-servil pipeline::test::contract_commit_past_room_len_panics
+        PASS [   0.011s] ( 78/138) blake3-servil pipeline::test::contract_message_deadlock_all_open_panics
+        PASS [   0.034s] ( 79/138) blake3-servil pipeline::test::active_loan_drop_and_active_pipeline_drop_abort_the_process
+        PASS [   0.013s] ( 80/138) blake3-servil pipeline::test::contract_foreign_message_panics
+        PASS [   0.012s] ( 81/138) blake3-servil pipeline::test::contract_foreign_room_panics
+        PASS [   0.008s] ( 82/138) blake3-servil pipeline::test::contract_message_deadlock_events_full_panics
+        PASS [   0.190s] ( 83/138) blake3-servil lanes::test::test_concurrent_callers_agree
+        PASS [   0.007s] ( 84/138) blake3-servil pipeline::test::contract_zero_messages_panics
+        PASS [   0.008s] ( 85/138) blake3-servil pipeline::test::contract_room_with_zero_rooms_panics
+        PASS [   0.008s] ( 86/138) blake3-servil pipeline::test::contract_room_deadlock_all_held_panics
+        PASS [   0.008s] ( 87/138) blake3-servil pipeline::test::contract_ready_with_nothing_ended_panics
+        PASS [   0.007s] ( 88/138) blake3-servil pipeline::test::interleaved_messages_deliver_in_end_order_and_handle_aborts
+        PASS [   0.010s] ( 89/138) blake3-servil pipeline::test::guard_pages_catch_any_underread_or_overread_on_owned_and_lent
+        PASS [   0.011s] ( 90/138) blake3-servil pipeline::test::event_backpressure_holds_excess_completions_in_slots_without_loss
+        PASS [   0.012s] ( 91/138) blake3-servil pipeline::test::inline_array_owner_never_aliases_or_corrupts
+        PASS [   0.009s] ( 92/138) blake3-servil pipeline::test::shared_room_many_short_messages_and_fifo_room_cycling
+        PASS [   0.009s] ( 93/138) blake3-servil pipeline::test::the_piece_fold_checks_the_submitted_length
+        PASS [   0.264s] ( 94/138) blake3-servil forms_test::test_hash_each_multithreaded_each_item_against_a_guard_page
+        PASS [   0.006s] ( 95/138) blake3-servil pipeline::test::unit_ring_pack_rooms_and_thread_park_primitives
+        PASS [   0.006s] ( 96/138) blake3-servil::allocations allocation_counter_sees_a_callers_allocation
+        PASS [   0.009s] ( 97/138) blake3-servil pipeline::test::unit_internal_capacities_group_thresholds_aborts_and_drop_cleanup
+        PASS [   0.012s] ( 98/138) blake3-servil pipeline::test::storage_is_reused_past_sixteen_pipelines_and_after_a_late_room
+        PASS [   0.014s] ( 99/138) blake3-servil pipeline::test::the_piece_fold_refuses_swapped_values
+        PASS [   0.009s] (100/138) blake3-servil::allocations require_nextest::aaa_require_nextest
+        PASS [   0.009s] (101/138) blake3-servil::allocations single_threaded_calls_allocate_as_the_memory_section_says
+        PASS [   0.015s] (102/138) blake3-servil::allocations pipeline_allocates_nothing_after_creation
+        PASS [   0.013s] (103/138) blake3-servil::initialize_multithreaded_contract a_multithreaded_call_before_initialize_multithreaded_panics
+        PASS [   0.016s] (104/138) blake3-servil::forked_child a_forked_childs_multithreaded_calls_panic_and_its_single_threaded_ones_work
+        PASS [   0.022s] (105/138) blake3-servil::allocations worker_counter_sees_an_owned_background_allocation
+        PASS [   0.027s] (106/138) blake3-servil::allocations prepared_pool_calls_allocate_nothing
+        PASS [   0.028s] (107/138) blake3-servil::allocations short_messages_fed_by_turns_and_finished_together_allocate_nothing
+        PASS [   0.056s] (108/138) blake3-servil pipeline::test::rooms_owned_lent_and_modes_match_reference_across_boundaries
+        PASS [   0.075s] (109/138) blake3-servil::allocations prepared_multithreaded_cycles_include_the_workers
+        PASS [   0.100s] (110/138) blake3-servil::allocations grouped_fragmentation_reuses_storage_at_table_boundaries
+        PASS [   0.113s] (111/138) blake3-servil::allocations grouped_cycles_reuse_storage_for_every_key_prefix
+        PASS [   0.253s] (112/138) blake3-servil lanes::test::test_update_multithreaded_matches_hash
+        PASS [   0.264s] (113/138) blake3-servil lanes::test::the_prefix_cut_keeps_subtrees_aligned
+        PASS [   6.423s] (114/138) blake3-servil::length_sweep every_batch_against_official_blake3
+        PASS [  52.670s] (115/138) blake3-servil::length_sweep every_length_against_official_blake3
+        PASS [   8.384s] (116/138) blake3-servil::length_sweep every_length_through_a_pipeline
+        PASS [  32.599s] (117/138) blake3-servil::length_sweep pool_of_10_against_official_blake3
+        PASS [  32.999s] (118/138) blake3-servil::length_sweep pool_of_11_against_official_blake3
+        PASS [  38.881s] (119/138) blake3-servil::length_sweep pool_of_12_against_official_blake3
+        PASS [  40.194s] (120/138) blake3-servil::length_sweep pool_of_14_against_official_blake3
+        PASS [  40.353s] (121/138) blake3-servil::length_sweep pool_of_16_against_official_blake3
+        PASS [  79.130s] (122/138) blake3-servil::length_sweep pool_of_2_against_official_blake3
+        PASS [  64.129s] (123/138) blake3-servil::length_sweep pool_of_3_against_official_blake3
+        PASS [  64.788s] (124/138) blake3-servil::length_sweep pool_of_4_against_official_blake3
+        PASS [  52.860s] (125/138) blake3-servil::length_sweep pool_of_5_against_official_blake3
+        PASS [  49.107s] (126/138) blake3-servil::length_sweep pool_of_6_against_official_blake3
+        PASS [  44.494s] (127/138) blake3-servil::length_sweep pool_of_7_against_official_blake3
+        PASS [  42.715s] (128/138) blake3-servil::length_sweep pool_of_8_against_official_blake3
+        PASS [  37.288s] (129/138) blake3-servil::length_sweep pool_of_9_against_official_blake3
+        PASS [   4.398s] (130/138) blake3-servil::length_sweep streams_and_extended_output_against_official_blake3
+        PASS [   0.008s] (131/138) blake3-servil::pipeline_pool official_test_vectors_match_across_rooms_owned_and_lent
+        PASS [   0.008s] (132/138) blake3-servil::pipeline_pool require_nextest::aaa_require_nextest
+        PASS [   0.008s] (133/138) blake3-servil::pipeline_pool two_thread_pool_makes_progress_with_one_worker
+        PASS [   0.009s] (134/138) blake3-servil::pipeline_pool one_thread_pool_makes_progress_without_workers
+        PASS [   0.009s] (135/138) blake3-servil::pipeline_pool block_on_finishes_lone_tasks_and_large_batches_after_pauses
+        PASS [   0.009s] (136/138) blake3-servil::pipeline_pool pipelines_on_several_threads_keep_their_own_order
+        PASS [   0.016s] (137/138) blake3-servil::pool_threads one_thread_starts_no_workers
+        PASS [   0.033s] (138/138) blake3-servil::pipeline_pool external_async_waiter_wakes_a_parked_worker_for_a_lone_task
+────────────
+     Summary [ 691.907s] 138 tests run: 138 passed, 0 skipped
+$ (cd <home>/checkouts/fork/threads && cargo test --release --doc)
+warning: <home>/checkouts/fork/Cargo.toml: version requirement `=0.9.0+dev` for dependency `blake3-servil-version` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil-core` (manifest) generated 1 warning
+warning: Cargo.toml: version requirement `=0.9.0+dev` for dependency `blake3-servil-core` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil` (manifest) generated 1 warning
+warning: unused dependency `cc`
+  --> Cargo.toml:29:1
+   |
+29 | cc = "1.1.12"
+   | ^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `cc`
+warning: `blake3-servil` (manifest) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.02s
+   Doc-tests blake3_servil
+
+running 11 tests
+test src/lib.rs - (line 14) ... ok
+test src/pipeline.rs - pipeline::block_on (line 2123) ... ok
+test src/lib.rs - throughput::update_multithreaded (line 420) ... ok
+test src/pipeline.rs - pipeline::block_on (line 2023) ... ok
+test src/pipeline.rs - pipeline::Pipeline<T,B>::with_owners (line 906) ... ok
+test src/pipeline.rs - pipeline::Pipeline (line 806) ... ok
+test src/lib.rs - initialize_multithreaded (line 373) ... ok
+test src/lib.rs - throughput::hash_multithreaded (line 475) ... ok
+test src/pipeline.rs - pipeline::block_on (line 2062) ... ok
+test src/lib.rs - throughput::hash_many_multithreaded (line 438) ... ok
+test src/lib.rs - throughput::hash_each_multithreaded (line 525) ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 7 tests
+test src/pipeline.rs - pipeline::block_on (line 2159) - compile fail ... ok
+test src/pipeline.rs - pipeline::Pipeline<T,B>::with_owners (line 918) - compile fail ... ok
+test src/pipeline.rs - pipeline::block_on (line 2110) - compile fail ... ok
+test src/pipeline.rs - pipeline::block_on (line 2149) - compile fail ... ok
+test src/pipeline.rs - pipeline::block_on (line 2097) - compile fail ... ok
+test src/pipeline.rs - pipeline::block_on (line 2140) - compile fail ... ok
+test src/pipeline.rs - pipeline::block_on (line 2087) - compile fail ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+all doctests ran in 0.47s; merged doctests compilation took 0.27s

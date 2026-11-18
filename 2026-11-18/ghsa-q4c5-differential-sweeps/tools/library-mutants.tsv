@@ -1,0 +1,39 @@
+mutant	the change	verdict	failing tests
+subtree-length	subtree_cv takes input of any length	caught	nextest run --test: every_wrong_shape_is_refused; parts_of_five_mebibytes
+subtree-chunk	subtree_cv hashes at chunk `index`, whatever the level	caught	nextest run --test: every_allowed_build_gives_blake3s_hash; parts_of_five_mebibytes
+parent-even	parent_cv takes a left child at an odd index	caught	nextest run --test: every_wrong_shape_is_refused; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+parent-next	parent_cv takes any right child	caught	nextest run --test: every_wrong_shape_is_refused; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+last-parent-even	last_parent_cv takes a left child at an odd index	caught	nextest run --test: every_wrong_shape_is_refused; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+last-parent-next	last_parent_cv takes a last subtree that begins anywhere	caught	nextest run --test: every_wrong_shape_is_refused; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+last-parent-len	last_parent_cv gives its right child's length as its own	caught	nextest run --test: every_allowed_build_gives_blake3s_hash; parts_of_five_mebibytes; stored_values_verify_from_the_root_down; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+last-parent-chunk	last_parent_cv gives its right child's first chunk as its own	caught	nextest run --test: every_allowed_build_gives_blake3s_hash; parts_of_five_mebibytes; stored_values_verify_from_the_root_down; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+layer-even	parent_cvs takes a layer from an odd index	caught	nextest run --test: every_wrong_shape_is_refused; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+layer-next	parent_cvs takes children in any order	caught	nextest run --test: every_wrong_shape_is_refused; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+layer-next-first-call	parent_cvs checks only the children of its first call to the kernels	caught	nextest run --test: every_wrong_shape_is_refused
+layer-pairs	parent_cvs takes an odd number of children	caught	nextest run --lib: throughput::tree_test::a_layer_of_parents_takes_pairs
+layer-outputs	parent_cvs takes any number of outputs	caught	nextest run --lib: throughput::tree_test::a_layer_of_parents_takes_one_output_a_pair
+layer-parent-place	parent_cvs gives a parent its left child's place	caught	nextest run --test: every_allowed_build_gives_blake3s_hash; every_wrong_shape_is_refused; parts_of_five_mebibytes
+root-start	root_hash takes a left child from anywhere	caught	nextest run --test: every_wrong_shape_is_refused; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+root-next	root_hash takes a right child that begins anywhere	caught	nextest run --test: every_wrong_shape_is_refused
+root-length	root_hash takes any length	caught	nextest run --test: every_wrong_shape_is_refused; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+place-level	a place takes any level	caught	nextest run --test: every_wrong_shape_is_refused
+place-end	a place takes any index	caught	nextest run --test: every_wrong_shape_is_refused
+max-level	the highest level is 54	caught	nextest run --test: every_wrong_shape_is_refused
+parent-place-level	a parent's place keeps its children's level	caught	nextest run --test: every_allowed_build_gives_blake3s_hash; every_wrong_shape_is_refused; parts_of_five_mebibytes; stored_values_verify_from_the_root_down; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+parent-place-index	a parent's place keeps its left child's index	caught	nextest run --test: every_allowed_build_gives_blake3s_hash; every_wrong_shape_is_refused; parts_of_five_mebibytes; stored_values_verify_from_the_root_down; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+last-start	a last subtree starts at any chunk	caught	nextest run --test: every_wrong_shape_is_refused
+last-zero	a last subtree at chunk 0 is sized as at any other chunk	caught	nextest run --test: every_wrong_shape_is_refused; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+last-room	a last subtree may end beyond the longest message	caught	nextest run --test: every_wrong_shape_is_refused
+last-twice	a last subtree may be twice the whole subtree at its place	caught	nextest run --test: every_wrong_shape_is_refused; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+last-empty	last_cv takes no bytes	caught	nextest run --test: every_wrong_shape_is_refused
+last-long	last_cv takes any length	caught	nextest run --test: every_wrong_shape_is_refused
+last-at	LastCv::at takes any place and length	caught	nextest run --test: every_wrong_shape_is_refused; the_calls_take_exactly_blake3s_trees_up_to_sixteen_chunks
+whole-as-last-len	a whole subtree made the last one is a chunk long	caught	nextest run --test: equality_is_of_place_and_bytes_and_debug_shows_the_place; every_wrong_shape_is_refused
+whole-as-last-chunk	a whole subtree made the last one begins at chunk `index`	caught	nextest run --test: equality_is_of_place_and_bytes_and_debug_shows_the_place; every_wrong_shape_is_refused
+unset	a value never set has a place	caught	nextest run --test: every_wrong_shape_is_refused
+level-of	level_of takes any whole number of chunks	caught	nextest run --test: parts_of_five_mebibytes
+equal-place	two values are equal whatever their places	caught	nextest run --test: equality_is_of_place_and_bytes_and_debug_shows_the_place
+equal-value	two values at one place are equal	caught	nextest run --test: equality_is_of_place_and_bytes_and_debug_shows_the_place; stored_values_verify_from_the_root_down
+equal-last-place	two last values are equal whatever their places	caught	nextest run --test: equality_is_of_place_and_bytes_and_debug_shows_the_place
+equal-last-value	two last values at one place are equal	caught	nextest run --test: equality_is_of_place_and_bytes_and_debug_shows_the_place; stored_values_verify_from_the_root_down
+root-output-unchecked	root_output checks nothing	caught	nextest run --test: every_wrong_shape_is_refused
