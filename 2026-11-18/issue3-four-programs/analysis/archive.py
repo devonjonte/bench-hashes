@@ -32,7 +32,7 @@ def copy_text(source, target, immutable=False):
 
 
 runs = []
-wanted = ("issue3-arms-", "issue3-plant25", "issue3-control2", "issue3-tailored2", "release-0100-onebench")
+wanted = ("issue3-arms-", "issue3-plant25", "issue3-control2", "issue3-tailored2", "release-0100-onebench", "release-0100-turn-")
 for host in ["x86-9700x", "x86-epyc-9255", "x86-avx2", "arm-vm"]:
     for run in sorted(p.name for p in (inbox / host).iterdir() if p.is_dir() and p.name.startswith(wanted)):
         source = inbox / host / run
@@ -52,7 +52,7 @@ for result in sorted((mac / "results").glob("3370-release-0.10.0-onebench.*")):
 (archive / "runs.tsv").write_text("host\trun\n" + "".join(f"{h}\t{r}\n" for h, r in runs))
 for name in ["issue3-arms-job.sh", "issue3-arms/judge.sh", "issue3-arms/show.py", "issue3-arms/archive.py",
              "issue3-arms/looks.tsv", "issue3-arms/judged.tsv", "issue3-arms/kept64-looks.tsv", "issue3-arms/submitted.txt",
-             "issue3-arms/shown.txt", "issue3-arms/shown-cells.txt", "issue447-onebench-arm.sh", "issue3-plant-job.sh", "issue3-relink-proof/linkwrap.py", "issue3-relink-proof/relink.py",
+             "issue3-arms/shown.txt", "issue3-arms/shown-cells.txt", "issue447-onebench-arm.sh", "issue447-turn-repeat-arm.sh", "issue447-turn-commit-arm.sh", "issue447/arm-turn-release.looks.tsv", "issue447/arm-turn-release.judged.tsv", "issue447/arm-turn-1364e4b3.looks.tsv", "issue447/arm-turn-1364e4b3.judged.tsv", "issue3-plant-job.sh", "issue3-relink-proof/linkwrap.py", "issue3-relink-proof/relink.py",
              "issue3-relink-proof/proof.sh", "issue3-relink-proof.stdout.txt"]:
     path = validation / name
     if path.is_file():

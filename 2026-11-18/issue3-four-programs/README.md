@@ -78,6 +78,7 @@ on the 9700X: the count wanders a few percent between pairs in the cells after o
 | machine | today's rule | stopping rule at 5% |
 |---|---|---|
 | Apple M6 (`runs/mac-m6-timing/`, `check` itself, every cell of bench 0.22, version commit `477d479e`) | no cell slower at 4 pairs, nor among 8 suspects at 64 pairs: no regression | not applied |
+| Arm VM (`runs/arm-vm/release-0100-onebench/`, `check` itself, every cell, `477d479e`) | five cells slower at 4 pairs, all a turn of 1024 × 1 KiB messages (+3.7% to +5.8%): regression | see the next section |
 | Ryzen 9700X | no cell slower | 9 within, 1 undecided (1.007, interval 0.937 to 1.082) |
 | EPYC 9255 | no cell slower | 6 within; the four cells after other work read 1.015 to 1.024 and stay undecided at 64 pairs (about 87 to 226 pairs) |
 | EPYC 7443 pair, bound policy (`policy-release`) | no cell slower; the four cells after other work "faster" | 12 of 14 readings within; those four cells 0.935 to 0.954 |
@@ -86,6 +87,26 @@ on the 9700X: the count wanders a few percent between pairs in the cells after o
 Instructions a call are unchanged between the two libraries in every one of these cells (0.994 to
 1.005). The version commit differs from `27eacce3` in version strings, lock files and tests, with no
 library source change.
+
+### The Arm VM's turn of 1024 × 1 KiB messages
+
+The three turn points repeated by name with this study's method (fresh layout a pair, 16 then 48
+pairs, six cells), time ratio with its 99% interval at 64 pairs (`analysis/arm-turn-*.looks.tsv`):
+
+| comparison | one thread: turn / after a pause / after a brief pause | every core: the same three |
+|---|---|---|
+| `477d479e` against 0.9.0 (`release-0100-turn-repeat`) | 1.039 [1.027, 1.052] / 1.047 [1.040, 1.055] / 1.047 [1.040, 1.055] | 1.039 [1.027, 1.050] / 1.050 [1.042, 1.058] / 1.050 [1.043, 1.058] |
+| `1364e4b3` against its parent `47995e88` (`release-0100-turn-1364e4b3`) | 1.018 [1.005, 1.032] / 1.030 [1.019, 1.041] / 1.031 [1.022, 1.041] | 1.018 [1.005, 1.030] / 1.033 [1.023, 1.043] / 1.030 [1.021, 1.038] |
+
+The cost from 0.9.0 to the candidate is steady at 4% to 5%, with one pair's spread of 2% to 4%. The
+stopping rule calls every one of those six cells undecided at a 5% margin. It estimates about 66 and
+84 pairs for the two turns without a pause, about 520 for two cells, and gives no count for two: the
+change is real and about the margin's size, an outcome the three-way rule lacks. The commit
+that carries [BLAKE3 #404](https://github.com/servil-software-factory/BLAKE3/issues/404)'s accepted
+cost on Ice Lake, `1364e4b3`, costs 2% to 3% here; about 2% more comes from other commits in the range.
+The Mac's check judged the single-threaded turn among its 64-pair suspects and found it level.
+The kept link reproduced `check`'s executables byte for byte on this aarch64 machine too
+(`verify-release.txt`).
 
 ### Far memory (EPYC 7443 pair, default policy, 16 pairs)
 
@@ -102,12 +123,12 @@ gives the same bytes).
 
 ## Limits
 
-- One run per machine; three x86 machines and one Mac. The Arm VM's release check had yet to deliver
-  when this was written.
+- One run per machine; three x86 machines, one Mac and one Arm VM. The Mac and the VM ran no
+  identical-code comparison and no planted slowdown.
 - The second 48 pairs measure four cells alone, a lighter run than the first 16 pairs' ten cells.
 - The stopping rule looks four times at a 99% interval with no correction across cells; the looks'
   boundaries are the study's, with their tuning still to do.
-- `arm-vm/issue3-control2` and `issue3-tailored2` are the earlier two-bench controls on the Arm VM,
+- `runs/arm-vm/issue3-control2` and `issue3-tailored2` are the earlier two-bench controls on the Arm VM,
   kept here so they have a permanent home.
 
 Devon owns the check's design and this evidence; John owns the release

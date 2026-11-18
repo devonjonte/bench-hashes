@@ -1,0 +1,19 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index 6fc86026..020f2e67 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1249,6 +1249,14 @@ fn hash_serial_cold(input: &[u8], key: &CVWords, flags: u8) -> Hash {
+ #[inline(always)]
+ fn hash_serial_from(platform: Platform, input: &[u8], key: &CVWords, flags: u8, cold: bool) -> Hash {
+     let turn = platform::Sme2Turn::take(platform, input.len() >= SME2_SIZED_LEN);
++    if input.len() <= 256 {
++        let m = core::hint::black_box(0x9E37_79B9_7F4A_7C15u64);
++        let mut x = input.len() as u64 | 1;
++        for _ in 0..25 {
++            x = x.wrapping_mul(m).wrapping_add(x >> 7);
++        }
++        core::hint::black_box(x);
++    }
+     // One comparison on the path of a chunk or less: everything else is
+     // out of line, so that path's code stays as small as it was (a call
+     // after other work fetches every line of it from DRAM).
