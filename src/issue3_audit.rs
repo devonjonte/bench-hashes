@@ -36,6 +36,9 @@ pub fn command(arguments: &[String]) {
     if arguments.first().is_some_and(|a| a == "--judge") {
         return judge(&arguments[1..]);
     }
+    if arguments.first().is_some_and(|a| a == "--looks") {
+        return looks(&arguments[1..]);
+    }
     let samples = arguments.first().is_some_and(|a| a == "--samples");
     let files = paths(if samples { &arguments[1..] } else { arguments });
     assert!(
@@ -445,6 +448,195 @@ fn judge(dirs: &[String]) {
     }
 }
 
+/// The 99.5% point of Student's t at the looks' degrees of freedom
+/// (standard tables).
+fn t995(df: usize) -> f64 {
+    match df {
+        7 => 3.499_483_3,
+        15 => 2.946_712_9,
+        31 => 2.744_041_9,
+        63 => 2.656_145_3,
+        _ => panic!("no table entry for {df} degrees of freedom"),
+    }
+}
+
+/// The pairs counted at each look of the study's stopping rule.
+const LOOKS: [usize; 4] = [8, 16, 32, 64];
+
+/// The study's stopping rule for one cell: at each look that the pairs
+/// reach, the ratio of arithmetic means over the pairs so far and its 99%
+/// interval; the cell is decided at the first look whose interval lies
+/// wholly beyond `margin` ("slower") or wholly inside it ("within"), and
+/// "cannot_tell" where no look decides. Each look's (pairs, ratio,
+/// interval), and the decision with the pairs it took.
+#[allow(clippy::type_complexity)]
+fn decide(
+    pairs: &[(f64, f64)],
+    margin: f64,
+) -> (Vec<(usize, f64, Option<(f64, f64)>)>, (&'static str, usize)) {
+    let mut seen = Vec::new();
+    let mut decision = None;
+    for look in LOOKS.into_iter().filter(|&l| l <= pairs.len()) {
+        let (ratio, interval) = ratio_interval(&pairs[..look], t995(look - 1));
+        seen.push((look, ratio, interval));
+        if decision.is_none() {
+            decision = match interval {
+                Some((low, _)) if low > margin => Some(("slower", look)),
+                Some((_, high)) if high < margin => Some(("within", look)),
+                _ => None,
+            };
+        }
+    }
+    let last = seen.last().map_or(0, |l| l.0);
+    (seen, decision.unwrap_or(("cannot_tell", last)))
+}
+
+/// Study only: each kept comparison whose pairs each ran a layout of their
+/// own, judged by the stopping rule on wall time against `--margin`
+/// (permille, 50 unless given), beside the production rule's verdict on
+/// all its pairs and the instructions each cell's call retires: their
+/// ratio over all pairs, and over the first four whether every pair moved
+/// them the same way beyond 0.5% (the check's own rule for a suspect).
+fn looks(arguments: &[String]) {
+    let (margin, dirs) = match arguments {
+        [flag, value, rest @ ..] if flag == "--margin" => {
+            (value.parse::<u64>().expect("--margin takes permille"), rest)
+        }
+        rest => (50, rest),
+    };
+    println!("# The stopping rule: looks at 8, 16, 32 and 64 pairs, the ratio of arithmetic means with a 99% interval, against a margin of {margin} permille. Permille throughout.");
+    println!("dir\tpairs\tcell\trule_ratio\trule_verdict\tdecision\tdecided_at\tpairs_to_decide\tlooks(pairs:ratio[low,high])\tinstructions_ratio\tinstructions_first4");
+    for dir in dirs {
+        let files = paths(std::slice::from_ref(dir));
+        let side = |ending: &str| -> Vec<BTreeMap<String, [u128; 3]>> {
+            files
+                .iter()
+                .filter(|p| p.to_string_lossy().ends_with(ending))
+                .map(|p| {
+                    let file = crate::read_samples(p.to_str().unwrap());
+                    assert!(
+                        file.load.starts_with("quiet"),
+                        "{}: {}",
+                        p.display(),
+                        file.load
+                    );
+                    let cores: BTreeMap<&str, &Vec<[u64; crate::LEVEL_FIELDS * 2]>> =
+                        file.cores.iter().map(|(k, v)| (k.as_str(), v)).collect();
+                    file.cells
+                        .iter()
+                        .map(|(k, v)| {
+                            let instructions = cores.get(k.as_str()).map_or(0, |c| {
+                                c.iter()
+                                    .map(|c| u128::from(c[2] + c[crate::LEVEL_FIELDS + 2]))
+                                    .sum()
+                            });
+                            (
+                                k.clone(),
+                                [
+                                    v.iter().map(|s| u128::from(s.ns)).sum(),
+                                    v.iter().map(|s| u128::from(s.units)).sum(),
+                                    instructions,
+                                ],
+                            )
+                        })
+                        .collect()
+                })
+                .collect()
+        };
+        let (old, new) = (side("-old.tsv"), side("-new.tsv"));
+        assert!(
+            old.len() >= 3 && old.len() == new.len(),
+            "{dir}: {} old and {} new runs",
+            old.len(),
+            new.len()
+        );
+        let keys: Vec<&String> = old[0]
+            .keys()
+            .filter(|k| old.iter().chain(&new).all(|run| run.contains_key(*k)))
+            .collect();
+        let fixed = |n: u128, units: u128| ((n << 64) + units / 2) / units;
+        let tested: Vec<Vec<(u128, u128)>> = keys
+            .iter()
+            .map(|k| {
+                old.iter()
+                    .zip(&new)
+                    .map(|(o, n)| (fixed(o[*k][0], o[*k][1]), fixed(n[*k][0], n[*k][1])))
+                    .collect()
+            })
+            .collect();
+        let ruled = crate::judge_once(&tested).0;
+        let permille = |x: f64| (x * 1000.0).round() as i64;
+        for (key, rule) in keys.iter().zip(&ruled) {
+            let per = |run: &BTreeMap<String, [u128; 3]>, field: usize| {
+                run[*key][field] as f64 / run[*key][1] as f64
+            };
+            let wall: Vec<(f64, f64)> = old
+                .iter()
+                .zip(&new)
+                .map(|(o, n)| (per(o, 0), per(n, 0)))
+                .collect();
+            let (seen, (decision, at)) = decide(&wall, 1.0 + margin as f64 / 1000.0);
+            let shown: Vec<String> = seen
+                .iter()
+                .map(|(look, ratio, interval)| match interval {
+                    Some((low, high)) => format!(
+                        "{look}:{}[{},{}]",
+                        permille(*ratio),
+                        permille(*low),
+                        permille(*high)
+                    ),
+                    None => format!("{look}:{}[-,-]", permille(*ratio)),
+                })
+                .collect();
+            // Where no look decided: the pairs at which the last look's interval,
+            // narrowing as the root of the pairs, would clear the margin from the
+            // ratio it found ("-" where decided, or where the ratio sits on the margin).
+            let to_decide = match (decision, seen.last()) {
+                ("cannot_tell", Some(&(look, ratio, Some((low, high))))) => {
+                    let gap = (1.0 + margin as f64 / 1000.0 - ratio).abs();
+                    let need = look as f64 * ((high - low) / 2.0 / gap).powi(2);
+                    if need.is_finite() && need < 100_000.0 {
+                        (need.ceil() as u64).max(look as u64 + 1).to_string()
+                    } else {
+                        "-".to_owned()
+                    }
+                }
+                _ => "-".to_owned(),
+            };
+            let counted = old.iter().chain(&new).all(|run| run[*key][2] > 0);
+            let (all, first) = if counted {
+                let total = |runs: &[BTreeMap<String, [u128; 3]>]| {
+                    runs.iter().map(|r| r[*key][2]).sum::<u128>() as f64
+                        / runs.iter().map(|r| r[*key][1]).sum::<u128>() as f64
+                };
+                let moves: Vec<f64> = old
+                    .iter()
+                    .zip(&new)
+                    .take(4)
+                    .map(|(o, n)| per(n, 2) / per(o, 2))
+                    .collect();
+                let first = if moves.iter().all(|&m| m > 1.005) {
+                    "up"
+                } else if moves.iter().all(|&m| m < 0.995) {
+                    "down"
+                } else {
+                    "same"
+                };
+                (permille(total(&new) / total(&old)).to_string(), first)
+            } else {
+                ("-".to_owned(), "-")
+            };
+            println!(
+                "{dir}\t{}\t{key}\t{}\t{:?}\t{decision}\t{at}\t{to_decide}\t{}\t{all}\t{first}",
+                old.len(),
+                rule.ratio_permille,
+                rule.verdict,
+                shown.join(" ")
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -487,5 +679,35 @@ mod tests {
         let within: Vec<f64> = (0..8).map(|i| [1.0, 3.0][(i / 2) % 2]).collect();
         let (b, w) = components(&within, 2, 4);
         assert!(b == 0.0 && (w - 4.0 / 3.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn the_stopping_rule_decides_at_the_first_look_that_can() {
+        // A cell 10% slower in every pair, with a little spread: slower at 8 pairs.
+        let slower: Vec<(f64, f64)> = (0..32)
+            .map(|i| (100.0 + (i % 4) as f64, 110.0 + (i % 3) as f64))
+            .collect();
+        assert_eq!(super::decide(&slower, 1.05).1, ("slower", 8));
+        // The same code: within the margin at 8 pairs.
+        let same: Vec<(f64, f64)> = (0..32)
+            .map(|i| (100.0 + (i % 4) as f64, 100.0 + ((i + 1) % 4) as f64))
+            .collect();
+        assert_eq!(super::decide(&same, 1.05).1, ("within", 8));
+        // Pairs that swing between half and double: no look can tell.
+        let wild: Vec<(f64, f64)> = (0..32)
+            .map(|i| {
+                if i % 2 == 0 {
+                    (100.0, 200.0)
+                } else {
+                    (200.0, 100.0)
+                }
+            })
+            .collect();
+        assert_eq!(super::decide(&wild, 1.05).1, ("cannot_tell", 32));
+        // Fewer pairs than the first look: nothing looked at.
+        assert_eq!(
+            super::decide(&same[..5], 1.05),
+            (vec![], ("cannot_tell", 0))
+        );
     }
 }
