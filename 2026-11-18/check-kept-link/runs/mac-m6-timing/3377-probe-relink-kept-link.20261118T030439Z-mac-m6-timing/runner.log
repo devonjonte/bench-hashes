@@ -1,0 +1,67 @@
+$ (cd $HOME/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd $HOME/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd $HOME/checkouts/fork && git checkout --quiet --force --detach 27eacce3a5c2e03043f4fcd347c178a80f9d911c)
+$ (cd $HOME/checkouts/fork && git rev-parse HEAD)
+$ (cd $HOME/checkouts/fork && git clean -ffd --quiet)
+$ (cd $HOME/checkouts/bench && git fetch --quiet --prune origin)
+$ (cd $HOME/checkouts/bench && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd $HOME/checkouts/bench && git checkout --quiet --force --detach e04c950eea1a2e40a7119cf89a14520cf569531d)
+$ (cd $HOME/checkouts/bench && git rev-parse HEAD)
+$ (cd $HOME/checkouts/bench && git clean -ffd --quiet)
+$ (cd $HOME/checkouts/bench && cargo run --release --quiet -- check --fork $HOME/checkouts/fork --against 4483281c45eab341ca6f829de508e91d6c381e85 --when-quiet --keep $HOME/tmp/3377-probe-relink-kept-link.20261118T030450Z-mac-m6-timing/samples --probe 64 B --layouts 4)
+warning: unused imports: `c_int`, `c_long`, and `c_void`
+  --> clocks/src/events.rs:27:16
+   |
+27 | use std::ffi::{c_int, c_long, c_void};
+   |                ^^^^^  ^^^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `OwnedFd`
+  --> clocks/src/events.rs:28:39
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                                       ^^^^^^^
+
+warning: unused import: `AsRawFd`
+  --> clocks/src/events.rs:28:19
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                   ^^^^^^^
+
+warning: unused import: `FromRawFd`
+  --> clocks/src/events.rs:28:28
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                            ^^^^^^^^^
+
+warning: function `describe_pause` is never used
+    --> src/main.rs:8595:4
+     |
+8595 | fn describe_pause(ns: u64) -> String {
+     |    ^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `EFFECTIVE_IDLE_PAUSES` is never used
+    --> src/main.rs:8604:7
+     |
+8604 | const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
+     |       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `describe_effective_idle_states` is never used
+    --> src/main.rs:8755:4
+     |
+8755 | fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+check: BLAKE3-Servil's working tree (27eacce3a5c2) against 4483281c45eab341ca6f829de508e91d6c381e85 (4483281c45ea)
+check: the change touches 18 added and 18 deleted lines in 9 files: CHANGELOG.md (+1/-1), Cargo.toml (+2/-2), b3sum/Cargo.lock (+4/-4), b3sum/Cargo.toml (+2/-2), capi/Cargo.toml (+1/-1), capi/b3.h (+1/-1), threads/Cargo.toml (+2/-2), tools/release/Cargo.lock (+4/-4), version/Cargo.toml (+1/-1)
+check: its hunks sit in: name = "blake3-servil-core", features = ["serde", "zeroize"], name = "b3sums", name = "blake3-servil", name = "blake3-servil-version", anyhow = "1.0.25", name = "blake3-servil-c", zeroize = ["blake3-servil-core/zeroize"]
+check: measuring the 1 named points (1 of 282 points; the rest unmeasured in this check): 64 B
+check: no same-code comparison on this machine's executable format (ELF only); measuring
+
+thread 'main' (5516599) panicked at src/check.rs:1225:9:
+check: the kept link of old run again gave other bytes than Cargo's executable ($HOME/checkouts/fork/target/check/old/bench-hashes-again against $HOME/checkouts/fork/target/check/old/bench-hashes-0); its arguments are in $HOME/checkouts/fork/target/check/old/link
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+runner: CalledProcessError: Command '['cargo', 'run', '--release', '--quiet', '--', 'check', '--fork', '$HOME/checkouts/fork', '--against', '4483281c45eab341ca6f829de508e91d6c381e85', '--when-quiet', '--keep', '$HOME/tmp/3377-probe-relink-kept-link.20261118T030450Z-mac-m6-timing/samples', '--probe', '64 B', '--layouts', '4']' died with <Signals.SIGABRT: 6>.

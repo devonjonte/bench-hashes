@@ -1,0 +1,24 @@
+check: --layouts 16: 32 links before the first pair, about 18 s each; the default 4 choose the suspects, and the second stage gives them 64 pairs
+check: BLAKE3-Servil's 27eacce3a5c2e03043f4fcd347c178a80f9d911c (27eacce3a5c2) against 4483281c45eab341ca6f829de508e91d6c381e85 (4483281c45ea)
+check: the change touches 18 added and 18 deleted lines in 9 files: CHANGELOG.md (+1/-1), Cargo.toml (+2/-2), b3sum/Cargo.lock (+4/-4), b3sum/Cargo.toml (+2/-2), capi/Cargo.toml (+1/-1), capi/b3.h (+1/-1), threads/Cargo.toml (+2/-2), tools/release/Cargo.lock (+4/-4), version/Cargo.toml (+1/-1)
+check: its hunks sit in: name = "blake3-servil-core", features = ["serde", "zeroize"], name = "b3sums", name = "blake3-servil", name = "blake3-servil-version", anyhow = "1.0.25", name = "blake3-servil-c", zeroize = ["blake3-servil-core/zeroize"]
+check: measuring the 1 named points (1 of 282 points; the rest unmeasured in this check): 64 B
+check: the builds differ here: .data.rel.ro, .dynstr, .dynsym, .eh_frame, .eh_frame_hdr, .rela.dyn, .rodata, .text; 0 functions of another size or on one side alone (); 1442 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::ffi::c_str::CString as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; <&alloc::vec::Vec<u8> as core::fmt::Debug>::fmt; and 1430 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,1,2,3,4,5,6,7
+regress: 16 run pairs using 16 distinct new executable paths and 16 old, over --contenders blake3-servil-st,blake3-servil-mt --points "64 B"
+regress: pair 1 of 16 in 2.1 s
+regress: pair 2 of 16 in 2.0 s
+regress: pair 3 of 16 in 2.0 s
+regress: pair 4 of 16 in 2.1 s
+regress: pair 5 of 16 in 2.1 s
+regress: pair 6 of 16 in 2.0 s
+regress: pair 7 of 16 in 2.0 s
+regress: pair 8 of 16 in 2.0 s
+regress: pair 9 of 16 in 2.1 s
+regress: pair 10 of 16 in 2.0 s
+regress: pair 11 of 16 in 2.0 s
+regress: pair 12 of 16 in 2.0 s
+regress: pair 13 of 16 in 2.0 s
+regress: pair 14 of 16 in 2.0 s
+regress: pair 15 of 16 in 2.1 s
+regress: pair 16 of 16 in 2.0 s
