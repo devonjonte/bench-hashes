@@ -640,6 +640,20 @@ fn select_caches(requested: Option<&str>, cold_possible: bool) -> Vec<Cache> {
     }
 }
 
+/// The report's line for the cache state a run leaves out, with the
+/// reason: the caller asked for one state alone (`--cache`), or cold runs
+/// cannot be measured on this filesystem. None when both run.
+fn left_out(requested: Option<&str>, caches: &[Cache]) -> Option<&'static str> {
+    match requested {
+        Some("warm") => Some("cold:      not measured: this run asked for warm files alone (--cache warm)\n"),
+        Some("cold") => Some("warm:      not measured: this run asked for cold files alone (--cache cold)\n"),
+        _ if !caches.contains(&Cache::Cold) => Some(
+            "cold:      not measured: this platform or filesystem cannot evict one file from the page cache\n",
+        ),
+        _ => None,
+    }
+}
+
 pub fn command(args: &[String]) {
     let mut quick = false;
     let mut rounds = None;
@@ -860,6 +874,7 @@ pub fn command(args: &[String]) {
         &specs,
         &inputs,
         &caches,
+        left_out(requested_cache.map(String::as_str), &caches),
         &cells,
         &machine,
         &filesystem,
@@ -924,6 +939,7 @@ fn report(
     specs: &[Contender],
     inputs: &[Input],
     caches: &[Cache],
+    left_out: Option<&str>,
     cells: &[Vec<Vec<Vec<clocks::child::Run>>>],
     machine: &super::MachineMetadata,
     filesystem: &str,
@@ -945,9 +961,7 @@ fn report(
             ""
         }
     );
-    if !caches.contains(&Cache::Cold) {
-        out += "cold:      not measured: this platform or filesystem cannot evict one file from the page cache\n";
-    }
+    out += left_out.unwrap_or("");
     out += "\ncontenders:\n";
     for c in specs {
         for b in &c.builds {
@@ -1240,6 +1254,22 @@ mod tests {
         assert_eq!(select_caches(None, false), [Cache::Warm]);
         assert_eq!(select_caches(Some("warm"), true), [Cache::Warm]);
         assert_eq!(select_caches(Some("cold"), true), [Cache::Cold]);
+    }
+
+    /// The report says why a cache state is missing: the request, or the
+    /// filesystem; nothing when both ran.
+    #[test]
+    fn a_left_out_cache_state_names_its_reason() {
+        assert_eq!(left_out(None, &[Cache::Warm, Cache::Cold]), None);
+        assert!(left_out(None, &[Cache::Warm])
+            .unwrap()
+            .contains("cannot evict"));
+        assert!(left_out(Some("warm"), &[Cache::Warm])
+            .unwrap()
+            .starts_with("cold:      not measured: this run asked for warm"));
+        assert!(left_out(Some("cold"), &[Cache::Cold])
+            .unwrap()
+            .starts_with("warm:      not measured: this run asked for cold"));
     }
 
     #[test]
