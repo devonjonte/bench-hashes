@@ -257,8 +257,8 @@ interval takes two samples of the same batch:
   has two, also under **two**, a layer each (FROZEN.md, "Changes for
   0.20"). Where the machine offers no pair (macOS, whose threads take no
   affinity), the operating system places the two copies, a layer of its
-  own; on a two-socket machine each copy's input is in its own
-  socket's memory, as a program's own would be. The header's `shared placements` line names the CPUs, and each
+  own. On a two-socket machine both copies run in the one socket the run
+  keeps to ("One memory node"). The header's `shared placements` line names the CPUs, and each
   sample records the CPU its thread ended on (the `cpu` column). They
   compete for the cache, memory bandwidth, and any shared execution unit
   (such as Apple M4's SME unit). The calls after a gap run solo, since a
@@ -882,13 +882,24 @@ read quiet while the host is busy.
 
 The benchmark measures a machine with one memory node: one socket's CPUs
 and the memory beside them. On a machine with several (two sockets, for
-one), run it bound to one node's CPUs and memory:
-`numactl --cpunodebind=0 --membind=0 bench-hashes ...`. Unbound there, the
-kernel's automatic balancing moves a run's memory between nodes while it is
-timed: a check took 7 to 10 million of its sampling faults on two such
-machines against fewer than ten bound (`data` branch,
-`2026-11-13/methodology-audit`), and identical code read up to 30% apart
-where bound it read level (`2026-11-18/issue3-four-programs`).
+one), every `bench-hashes` process keeps itself to one node before it
+does anything else: the node of the lowest CPU it may run on. Its threads
+get that node's CPUs, its memory is bound there, and the pages it already
+holds elsewhere (its own program's, where the file cache put them) move
+there. Child processes inherit the CPUs and the binding, so `check`'s
+builds and runs stay on the node. To choose the node, start it on one of
+that node's CPUs (`taskset -c 24 bench-hashes ...`). The header's
+`shared placements` line names the node, and the program stops where the
+kernel refuses the binding (a container that forbids `set_mempolicy`).
+
+The reason: unbound on such a machine, the kernel's automatic balancing
+moves a run's memory between nodes while it is timed. A check took 7 to
+10 million of its sampling faults on two such machines against fewer than
+ten bound (`data` branch, `2026-11-13/methodology-audit`); identical code
+read up to 30% apart where bound it read level
+(`2026-11-18/issue3-four-programs`); and the same program read from the
+far node's file cache ran small calls 1.3 to 1.6 times slower
+(`2026-11-17/issue3-mechanism-investigation`).
 
 BLAKE3-Servil's speed across memory nodes is neither measured nor tuned
 here. A program on such a machine gets the speeds these results show by

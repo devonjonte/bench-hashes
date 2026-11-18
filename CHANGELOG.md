@@ -14,10 +14,13 @@ symbol tables.
 was 3%, in `regress`, `check`, `compare` and the b3sum suite's report.
 
 **The benchmark measures one memory node.** On a machine with several (two
-sockets, for one), bind a run to one node's CPUs and memory, as
-`numactl --cpunodebind=0 --membind=0` does; unbound, identical code there
-read up to 30% apart. BLAKE3-Servil's speed across memory nodes is neither
-tracked nor optimized.
+sockets, for one), every `bench-hashes` process keeps itself to the node of
+the lowest CPU it may run on: that node's CPUs, its memory bound there, its
+pages moved there, and its children with it. Unbound, identical code there
+read up to 30% apart. The shared scenario's pairs come from that node, and
+a multithreaded contender gets one socket's threads, so these machines'
+records stand apart from their earlier ones. BLAKE3-Servil's speed across
+memory nodes is neither tracked nor optimized.
 
 **The second stage gives every pair its own link layout.** Its 64 pairs were
 16 layouts a side run four times each; they are now 64 layouts a side, run

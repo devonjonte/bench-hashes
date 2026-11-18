@@ -1946,14 +1946,41 @@ struct Topology {
     core: Vec<usize>,
     cache: Vec<usize>,
     node: Vec<usize>,
-    /// Performance CPUs, where the machine has two kinds (Linux: the
-    /// CPUs whose cpu_capacity is the largest); else every CPU.
+    /// The memory node this run keeps to (keep_to_one_memory_node): the
+    /// node of the lowest CPU this process may run on.
+    home: usize,
+    /// Performance CPUs of the home node, where the machine has two kinds
+    /// (Linux: the CPUs whose cpu_capacity is the largest); else every
+    /// CPU of the home node.
     fast: Vec<usize>,
 }
 
 impl Topology {
-    /// From the machine's tables: each CPU's core and cache, and the fast
-    /// CPUs (tests).
+    /// From the machine's tables: each CPU's core, cache and node, and
+    /// the fast CPUs, for a process whose lowest allowed CPU is
+    /// `lowest_allowed`. The fast CPUs kept are the home node's.
+    fn from_tables_allowing(
+        core: Vec<usize>,
+        cache: Vec<usize>,
+        node: Vec<usize>,
+        fast: Vec<usize>,
+        lowest_allowed: usize,
+    ) -> Topology {
+        let home = node.get(lowest_allowed).copied().unwrap_or(0);
+        let fast = fast
+            .into_iter()
+            .filter(|&cpu| node.get(cpu).copied().unwrap_or(0) == home)
+            .collect();
+        Topology {
+            core,
+            cache,
+            node,
+            home,
+            fast,
+        }
+    }
+
+    /// The same for a process that may run on CPU 0 (tests).
     #[cfg(test)]
     fn from_tables(
         core: Vec<usize>,
@@ -1961,12 +1988,7 @@ impl Topology {
         node: Vec<usize>,
         fast: Vec<usize>,
     ) -> Topology {
-        Topology {
-            core,
-            cache,
-            node,
-            fast,
-        }
+        Topology::from_tables_allowing(core, cache, node, fast, 0)
     }
 
     fn read() -> Topology {
@@ -2011,18 +2033,18 @@ impl Topology {
         }
         let top = capacity.iter().copied().max().unwrap_or(1024);
         let fast = (0..core.len()).filter(|&i| capacity[i] == top).collect();
-        Topology {
-            core,
-            cache,
-            node,
-            fast,
-        }
+        let allowed = allowed_cpu();
+        let lowest_allowed = (0..core.len()).find(|&cpu| allowed(cpu)).unwrap_or(0);
+        Topology::from_tables_allowing(core, cache, node, fast, lowest_allowed)
     }
 
-    /// Whether the machine has memory on several nodes (two sockets), so
-    /// a copy's input belongs on its CPU's node.
-    fn several_nodes(&self) -> bool {
-        self.node.iter().any(|&n| n != self.node[0])
+    /// How many memory nodes hold the machine's CPUs (two sockets: two).
+    fn nodes(&self) -> usize {
+        self.node
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            .max(1)
     }
 
     /// The two CPUs for `placement`, or None where the machine has no such
@@ -2114,10 +2136,14 @@ impl Topology {
             self.pair(p)
                 .map_or("none".to_owned(), |[a, b]| format!("CPUs {a} and {b}"))
         };
-        let nodes = if self.several_nodes() {
-            "; each copy's input on its CPU's memory node"
+        let nodes = if self.nodes() > 1 {
+            format!(
+                "; the run keeps to memory node {} of {}",
+                self.home,
+                self.nodes()
+            )
         } else {
-            ""
+            String::new()
         };
         let os = if self.cpus(Placement::Os).is_some() {
             "; the OS places the copies"
@@ -3069,6 +3095,9 @@ impl std::hash::BuildHasher for Seeded {
 }
 
 fn main() {
+    // Before any thread exists: threads and child processes keep the CPUs
+    // and the memory policy they were made with.
+    keep_to_one_memory_node();
     // Once per process, before any other call: blake3-servil's contract.
     blake3_servil::initialize();
     // The pauses before calls land when asked (clocks::tight_timers; the
@@ -3988,17 +4017,22 @@ fn pin_to_cpu(cpu: usize) {
     let _ = cpu;
 }
 
-/// Move the pages of `bytes` to memory node `node` (Linux mbind with
-/// MPOL_BIND and MPOL_MF_MOVE over the whole pages inside `bytes`; the
-/// partial pages at the ends stay). Called on machines with several
-/// nodes, which have Linux and thread affinity, so a copy's pinned CPU
-/// names its node.
-fn bind_to_node(bytes: &[u8], node: usize) {
-    const PAGE: usize = 4096;
-    let start = bytes.as_ptr() as usize;
-    let first = start.next_multiple_of(PAGE);
-    let end = (start + bytes.len()) / PAGE * PAGE;
-    if end <= first {
+/// The benchmark measures one memory node (FROZEN.md, "The benchmark
+/// measures one memory node"). On a machine whose CPUs sit on several
+/// (two sockets, on Linux), this process keeps to the node of the lowest
+/// CPU it may run on: its threads to that node's CPUs among those it may
+/// use, its memory bound there, and the pages it already holds elsewhere
+/// moved there, its program's own file among them (read from the far
+/// node's file cache, small calls after other work ran 1.3 to 1.6 times
+/// slower). Pages other programs map too (the C library's) stay where
+/// they are. Called first in `main`, before any thread: a thread and a
+/// child process keep the CPUs and the memory policy they were made
+/// with, so a check's builds and runs stay on the node too. It stops
+/// where the kernel refuses: spread over two nodes, identical code read
+/// up to 30% apart.
+fn keep_to_one_memory_node() {
+    let machine = topology();
+    if machine.nodes() < 2 {
         return;
     }
     #[cfg(all(
@@ -4008,35 +4042,122 @@ fn bind_to_node(bytes: &[u8], node: usize) {
     {
         unsafe extern "C" {
             fn syscall(number: i64, ...) -> i64;
+            fn sched_setaffinity(pid: i32, size: usize, set: *const u64) -> i32;
+            fn madvise(addr: *mut core::ffi::c_void, len: usize, advice: i32) -> i32;
         }
+        const MADV_POPULATE_READ: i32 = 22;
         #[cfg(target_arch = "x86_64")]
-        const SYS_MBIND: i64 = 237;
+        const SYS_SET_MEMPOLICY: i64 = 238;
+        #[cfg(target_arch = "x86_64")]
+        const SYS_MIGRATE_PAGES: i64 = 256;
         #[cfg(target_arch = "aarch64")]
-        const SYS_MBIND: i64 = 235;
+        const SYS_SET_MEMPOLICY: i64 = 237;
+        #[cfg(target_arch = "aarch64")]
+        const SYS_MIGRATE_PAGES: i64 = 238;
         const MPOL_BIND: i64 = 2;
-        const MPOL_MF_MOVE: i64 = 2;
-        let mut mask = [0u64; 16];
-        mask[node / 64] |= 1 << (node % 64);
-        // Sound: the range is whole pages of the caller's live slice, and
-        // `mask` holds 1024 node bits.
-        let r = unsafe {
+        let home = machine.home;
+        let why = "the benchmark measures one memory node (METHODOLOGY.md, \"One memory node\")";
+        // The CPUs: those of the home node this process may use already.
+        let allowed = allowed_cpu();
+        let mut cpus = [0u64; 16];
+        let mut before = 0;
+        let mut kept = 0;
+        for cpu in (0..machine.node.len().min(1024)).filter(|&cpu| allowed(cpu)) {
+            before += 1;
+            if machine.node[cpu] == home {
+                cpus[cpu / 64] |= 1 << (cpu % 64);
+                kept += 1;
+            }
+        }
+        // Sound: `cpus` is a cpu_set_t of 1024 bits, the calling thread (0).
+        let r = unsafe { sched_setaffinity(0, core::mem::size_of_val(&cpus), cpus.as_ptr()) };
+        assert_eq!(
+            r,
+            0,
+            "keeping this run to memory node {home}'s CPUs: {}; {why}",
+            std::io::Error::last_os_error()
+        );
+        // The memory: new pages from the home node alone.
+        let mut here = [0u64; 16];
+        here[home / 64] |= 1 << (home % 64);
+        // Sound: `here` holds 1024 node bits.
+        let r = unsafe { syscall(SYS_SET_MEMPOLICY, MPOL_BIND, here.as_ptr(), here.len() * 64) };
+        assert_eq!(
+            r,
+            0,
+            "binding this run's memory to node {home}: {}; {why}",
+            std::io::Error::last_os_error()
+        );
+        // This program's own file, mapped and mostly untouched so far: a
+        // page touched later would be read from wherever the file cache
+        // holds it. Touch every page now, so the move below takes them.
+        let program = fs::read_link("/proc/self/exe").expect("this program's path");
+        let maps = fs::read_to_string("/proc/self/maps").expect("this process's mappings");
+        for line in maps.lines() {
+            let mut fields = line.split_whitespace();
+            let (Some(range), Some(path)) = (fields.next(), fields.nth(4)) else {
+                continue;
+            };
+            if std::path::Path::new(path) != program {
+                continue;
+            }
+            let (start, end) = range.split_once('-').expect("a mapping's range");
+            let start = usize::from_str_radix(start, 16).expect("a mapping's start");
+            let end = usize::from_str_radix(end, 16).expect("a mapping's end");
+            // Sound: the range is a live mapping of this process, and
+            // populating it reads its pages without changing them.
+            let r = unsafe { madvise(start as *mut _, end - start, MADV_POPULATE_READ) };
+            assert_eq!(
+                r,
+                0,
+                "touching this program's pages at {range}: {}; {why}",
+                std::io::Error::last_os_error()
+            );
+        }
+        // The pages already held on the machine's other nodes move here.
+        let mut elsewhere = [0u64; 16];
+        for node in fs::read_dir("/sys/devices/system/node")
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter_map(|e| {
+                e.file_name()
+                    .to_str()?
+                    .strip_prefix("node")?
+                    .parse::<usize>()
+                    .ok()
+            })
+            .filter(|&node| node != home && node < 1024)
+        {
+            elsewhere[node / 64] |= 1 << (node % 64);
+        }
+        // Sound: both masks hold 1024 node bits; 0 is this process.
+        let moved = unsafe {
             syscall(
-                SYS_MBIND,
-                first,
-                end - first,
-                MPOL_BIND,
-                mask.as_ptr(),
-                mask.len() * 64,
-                MPOL_MF_MOVE,
+                SYS_MIGRATE_PAGES,
+                0,
+                here.len() * 64,
+                elsewhere.as_ptr(),
+                here.as_ptr(),
             )
         };
-        assert_eq!(r, 0, "move the shared copy's input to memory node {node}");
+        assert!(
+            moved >= 0,
+            "moving this run's pages to memory node {home}: {}; {why}",
+            std::io::Error::last_os_error()
+        );
+        if kept < before {
+            eprintln!(
+                "bench-hashes: this machine's CPUs sit on {} memory nodes; this run keeps to node {home} ({kept} of the {before} CPUs it could use, its memory there): {why}",
+                machine.nodes()
+            );
+        }
     }
     #[cfg(not(all(
         target_os = "linux",
         any(target_arch = "x86_64", target_arch = "aarch64")
     )))]
-    panic!("binding a copy's input to node {node} is written for Linux on x86-64 and aarch64");
+    panic!("keeping a run to one memory node is written for Linux on x86-64 and aarch64");
 }
 
 /// The CPU the calling thread runs on now (Linux: sched_getcpu; elsewhere
@@ -6366,13 +6487,6 @@ impl Duo {
             }
             // Sound: run() holds the borrows until both finishes are read.
             let input = unsafe { &*job.inputs[copy] };
-            // A program's input is in its own node's memory: the pages of
-            // this copy's input move to its CPU's node (the main thread
-            // first wrote them, where it happened to run; two-caches on a
-            // two-socket machine puts copy 1 on the other socket).
-            if let Some(cpus) = job.cpus.filter(|_| topology().several_nodes()) {
-                bind_to_node(input, topology().node[cpus[copy]]);
-            }
             self.ready.fetch_add(1, Ordering::AcqRel);
             while self.generation.load(Ordering::Acquire) == seen {
                 std::thread::yield_now();
@@ -9923,7 +10037,7 @@ mod correctness_tests {
             vec![0; 20],
             (0..16).collect(),
         );
-        assert!(!i7.several_nodes());
+        assert_eq!(i7.nodes(), 1);
         assert_eq!(i7.pair(Placement::OneCache), Some([0, 2]));
         assert_eq!(i7.pair(Placement::TwoCaches), None);
         assert_eq!(i7.describe(), "one cache: CPUs 0 and 2; two caches: none");
@@ -9955,19 +10069,34 @@ mod correctness_tests {
             assert_eq!(pairs.cpus(Placement::Os), None);
         }
         assert_eq!(i7.cpus(Placement::OneCache), Some(Some([0, 2])));
-        // Two sockets of two cores, a memory node each: the two-caches pair
-        // crosses nodes, and the line says the inputs follow.
-        let xeon = Topology::from_tables(
-            vec![0, 1, 2, 3],
-            vec![0, 0, 2, 2],
-            vec![0, 0, 1, 1],
-            vec![0, 1, 2, 3],
-        );
-        assert_eq!(xeon.pair(Placement::TwoCaches), Some([0, 2]));
-        assert!(xeon.several_nodes());
+        // Two sockets of two cores, a memory node and a cache each: the run
+        // keeps to the node of its lowest allowed CPU, which has one cache,
+        // and the line names the node.
+        let tables = || {
+            (
+                vec![0, 1, 2, 3],
+                vec![0, 0, 2, 2],
+                vec![0, 0, 1, 1],
+                vec![0, 1, 2, 3],
+            )
+        };
+        let (core, cache, node, fast) = tables();
+        let xeon = Topology::from_tables(core, cache, node, fast);
+        assert_eq!(xeon.nodes(), 2);
+        assert_eq!(xeon.pair(Placement::OneCache), Some([0, 1]));
+        assert_eq!(xeon.pair(Placement::TwoCaches), None);
         assert_eq!(
             xeon.describe(),
-            "one cache: CPUs 0 and 1; two caches: CPUs 0 and 2; each copy's input on its CPU's memory node"
+            "one cache: CPUs 0 and 1; two caches: none; the run keeps to memory node 0 of 2"
+        );
+        assert_eq!(xeon.measuring_cpu(1, |_| true), Some(1));
+        // Started on the other socket's CPUs, it keeps to that node.
+        let (core, cache, node, fast) = tables();
+        let other = Topology::from_tables_allowing(core, cache, node, fast, 2);
+        assert_eq!(other.pair(Placement::OneCache), Some([2, 3]));
+        assert_eq!(
+            other.describe(),
+            "one cache: CPUs 2 and 3; two caches: none; the run keeps to memory node 1 of 2"
         );
     }
 
