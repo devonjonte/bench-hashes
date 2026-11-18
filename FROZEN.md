@@ -49,6 +49,17 @@ the notes) may still change, to say it better.
   readable contrast and phone wrapping. Historical maps receive a source-compatible
   style patch, with their measured payloads unchanged. This serves both readers:
   provenance seekers have a named home, and results readers have less clutter.
+- **A new link layout for every pair of the regression check's second stage**
+  (Devon Jonte; Zooko, November 18, 2026). Its 64 pairs were 16 layouts a
+  side, each run four times, while a layout cost a compile; the rule counts
+  64 independent pairs. `check` now links its layouts from one kept link a
+  side a stage, so each of the 64 pairs gets its own layout on each side.
+  With a layout a pair, identical code drew no mark in 20 cells on two
+  machines, and a planted slowdown was marked in every cell after other work
+  (the data branch, `2026-11-18/issue3-four-programs`). On macOS the
+  layouts keep the debug entries of their symbol tables, which rustc strips
+  in a step after the link; code and data are the same. The margin, the
+  first stage's four pairs and the rule stay unchanged.
 - **Comparison records and early decisions**
   ([reporting](https://github.com/servil-software-factory/bench-hashes/pull/216),
   [saved runs](https://github.com/servil-software-factory/bench-hashes/pull/218),

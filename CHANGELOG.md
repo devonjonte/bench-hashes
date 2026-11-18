@@ -7,7 +7,12 @@ that link again with their own function order. Every executable measured has
 the bytes its compile would have given: the kept link run again with the first
 order must reproduce Cargo's executable, and `check` stops if it differs. A
 layout cost a compile of about 18 s; the warning about `--layouts` beyond 8
-goes with that cost. Measurements and statistical rules stay unchanged.
+goes with that cost. On macOS the layouts keep the debug entries of their
+symbol tables.
+
+**The second stage gives every pair its own link layout.** Its 64 pairs were
+16 layouts a side run four times each; they are now 64 layouts a side, run
+once. The margin and the rule stay unchanged.
 
 **Versions and sources live in “About the hashes compared”.** The existing
 collapsed overview section groups the exact recorded identities and settings

@@ -34,14 +34,13 @@
 //!    the check carries no second guess at it. It prints how many points
 //!    it measured and how many it left unmeasured, so the choice stays in
 //!    the record.
-//! 3. Runs `bench-hashes regress` over the pairs (LAYOUTS new links a side,
-//!    each run FIRST_RUNS times): servil st and servil mt
+//! 3. Runs `bench-hashes regress` over the pairs (LAYOUTS of them, a new
+//!    link a side for each): servil st and servil mt
 //!    (the code that changes) at the regression check's visits
 //!    (TO_CHECK_FOR_REGRESSIONS), judged all at once (clocks::summary).
 //! 4. When no cell is slower, runs the cells `regress` names as suspects
 //!    (level, the pairs' mean beyond the margin; at most 8) again on
-//!    SECOND_PAIRS process pairs (SECOND_LAYOUTS new links a side, each run
-//!    SECOND_RUNS times), judged among
+//!    SECOND_PAIRS process pairs (a new link a side for each), judged among
 //!    themselves: judged among every cell, a slowdown at one point is
 //!    level unless it is many times its pairs' spread (bench-hashes #66).
 //!
@@ -62,7 +61,9 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Links a side a check takes (each run FIRST_RUNS times). Measured October 20,
+/// Links a side a check's first stage takes, each run once: its pairs.
+/// They choose the second stage's suspects, ranked by evidence
+/// (clocks::summary::Judgment::rank). Measured October 20,
 /// 2026 (i7-12700K; the data branch, 2026-10-20/check-validation), 4 pairs
 /// against 8: a hash() plant 6% a call caught in 48 cells against 60; a
 /// plant in the pool's split path in 22 of its 28 cells against 28; the
@@ -70,39 +71,23 @@ use std::process::Command;
 /// chooses 73 points 6 minutes against 14. Every plant is still found;
 /// `--layouts 8` sees more of its cells.
 const LAYOUTS: usize = 4;
-/// Pairs of the second stage: when the first finds no cell slower, the
-/// cells it names as suspects (level, beyond the margin) run again on
-/// fresh layouts and are judged among themselves. Judged among the 75
-/// cells a hash() change reaches, a lone cell's paired t on 4 pairs must
-/// pass about 15, and a slowdown planted at one point (+20% of calls,
-/// its cell +23% to +77% in every pair) was judged level; among 8 cells
-/// on 16 pairs the bar is about 3 (bench-hashes #66; the data branch,
-/// 2026-10-24/check-one-point).
-const SECOND_LAYOUTS: usize = 16;
-/// Runs of each second-stage layout: its pairs are SECOND_LAYOUTS times
-/// this. A layout cost a compile of about 18 s when this was chosen (now
-/// a link: layouts), a run of the suspects 1 to 3 s,
-/// and a layout's own bias is a small part of a cold cell's spread (seven
-/// A/A checks of the same layouts: their cells' ratios correlated 0.03).
-/// At 16 pairs, #119's +3% to +11% on cold one-message calls passed 3
-/// checks of 3 whose suspects held them; on 64 pairs from the same 16
-/// layouts, about 2.5 minutes more, its cells were caught 3 of 3, and 3
-/// A/A runs found no cell slower (the data branch,
-/// 2026-10-31/check-errors-i7).
-const SECOND_RUNS: usize = 4;
-const SECOND_PAIRS: usize = SECOND_LAYOUTS * SECOND_RUNS;
-/// Runs of each first-stage layout: once, so the first stage is LAYOUTS
-/// pairs. Its pairs choose the second stage's suspects, ranked by evidence
-/// (clocks::summary::Judgment::rank). Each run twice (8 pairs) cost about
-/// 12 minutes more a check and bought nothing: read from each check's
-/// first 4 pairs alone, its suspects held as many of #119's slowed cells
-/// (by evidence 5 against 5), and every check's suspects held at least
-/// one; the misses fell in the second stage. At 4 pairs, ranked, with 64
-/// second-stage pairs, plant/spin0 was caught 2 of 2 and #119 2 of 2 (the
-/// i7; Devon Jonte, bench-hashes #98, the data branch
-/// 2026-11-01/links-019-i7; Zooko, November 1: "I love saving 12 minutes
-/// without losing sensitivity").
-const FIRST_RUNS: usize = 1;
+/// Pairs of the second stage, a new link layout a side for each: when
+/// the first stage finds no cell slower, the cells it names as suspects
+/// (level, beyond the margin) run again and are judged among themselves.
+/// Judged among the 75 cells a hash() change reaches, a lone cell's
+/// paired t on 4 pairs must pass about 15, and a slowdown planted at one
+/// point (+20% of calls, its cell +23% to +77% in every pair) was judged
+/// level; among 8 cells on 16 pairs the bar is about 3 (bench-hashes #66;
+/// the data branch, 2026-10-24/check-one-point). At 16 pairs, #119's +3%
+/// to +11% on cold one-message calls passed 3 checks of 3 whose suspects
+/// held them; on 64 pairs its cells were caught 3 of 3 (the data branch,
+/// 2026-10-31/check-errors-i7). Those 64 were 16 layouts run four times
+/// while a layout cost a compile; the rule counts its pairs as
+/// independent, and a layout run again is the same layout. With a layout
+/// a pair, identical code drew no mark in 20 cells on two machines and a
+/// planted slowdown was marked in every cell after other work (the data
+/// branch, 2026-11-18/issue3-four-programs; Zooko, November 18, 2026).
+const SECOND_PAIRS: usize = 64;
 /// A probe's layouts a side: three pairs, the least the rule reads, with
 /// the points named rather than found. About five minutes with the builds
 /// cached: the measurement before a change is built, in place of the hour
@@ -110,15 +95,6 @@ const FIRST_RUNS: usize = 1;
 /// measurement cheap).
 const PROBE_LAYOUTS: usize = 3;
 
-/// `exes`, each `times` times, in turn: the same layouts run again cost a
-/// run each, where a new layout costs a relink.
-fn each_run(exes: Vec<String>, times: usize) -> Vec<String> {
-    exes.iter()
-        .cycle()
-        .take(exes.len() * times)
-        .cloned()
-        .collect()
-}
 /// The two sides' contenders: the code a change to BLAKE3-Servil changes.
 const SUBJECTS: [&str; 2] = ["blake3-servil-st", "blake3-servil-mt"];
 
@@ -461,19 +437,13 @@ pub fn command(arguments: &[String]) -> i32 {
     };
     let contenders: Vec<String> = subjects.iter().map(|s| s.to_string()).collect();
     let points: Option<Vec<String>> = if all { None } else { named_points };
-    let olds = each_run(
-        layouts(&old_bench, &cache, "old", &old_exe, 0..layouts_a_side),
-        FIRST_RUNS,
-    );
-    let news = each_run(
-        layouts(
-            &bench,
-            &cache,
-            "new",
-            &new_exe,
-            layouts_a_side..2 * layouts_a_side,
-        ),
-        FIRST_RUNS,
+    let olds = layouts(&old_bench, &cache, "old", &old_exe, 0..layouts_a_side);
+    let news = layouts(
+        &bench,
+        &cache,
+        "new",
+        &new_exe,
+        layouts_a_side..2 * layouts_a_side,
     );
     // Each pair's runs on one CPU (regress's default, bench-hashes #69),
     // across two benches as within one: unpinned, the core a run happened
@@ -488,7 +458,7 @@ pub fn command(arguments: &[String]) -> i32 {
     let mut regress: Vec<String> = vec![
         "regress".into(),
         "--pairs".into(),
-        (layouts_a_side * FIRST_RUNS).to_string(),
+        layouts_a_side.to_string(),
         "--contenders".into(),
         contenders.join(","),
     ];
@@ -538,7 +508,7 @@ pub fn command(arguments: &[String]) -> i32 {
     // The second stage: the suspects on fresh layouts (seeds past both
     // sides' first ones), judged among themselves.
     eprintln!(
-        "check: a second stage for {} suspects: {SECOND_LAYOUTS} new link layouts per side, {SECOND_RUNS} runs each ({SECOND_PAIRS} run pairs): {}",
+        "check: a second stage for {} suspects: {SECOND_PAIRS} run pairs, a new link layout a side for each: {}",
         suspects.len(),
         suspects.join(", ")
     );
@@ -556,16 +526,15 @@ pub fn command(arguments: &[String]) -> i32 {
         &cache,
         "old",
         &old_exe,
-        first..first + SECOND_LAYOUTS,
+        first..first + SECOND_PAIRS,
     );
     let news = layouts(
         &bench,
         &cache,
         "new",
         &new_exe,
-        first + SECOND_LAYOUTS..first + 2 * SECOND_LAYOUTS,
+        first + SECOND_PAIRS..first + 2 * SECOND_PAIRS,
     );
-    let (olds, news) = (each_run(olds, SECOND_RUNS), each_run(news, SECOND_RUNS));
     let mut second: Vec<String> = vec![
         "regress".into(),
         "--pairs".into(),
@@ -1668,14 +1637,6 @@ mod tests {
             .unwrap_err()
             .contains("is not a bench-hashes checkout"));
         std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    /// Each link runs again in turn, so neighbouring pairs keep different
-    /// links (a link run twice in a row would pair its runs' drift).
-    #[test]
-    fn each_run_takes_the_links_in_turn() {
-        let links = vec!["a".to_string(), "b".to_string(), "c".to_string()];
-        assert_eq!(super::each_run(links, 2), ["a", "b", "c", "a", "b", "c"]);
     }
 
     /// A clean checkout's working tree is its HEAD (so an A/A's sides name
