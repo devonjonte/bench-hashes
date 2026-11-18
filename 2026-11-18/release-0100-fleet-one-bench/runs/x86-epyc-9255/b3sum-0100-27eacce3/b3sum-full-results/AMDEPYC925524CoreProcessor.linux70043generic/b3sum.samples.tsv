@@ -1,0 +1,1327 @@
+# bench-hashes samples v10
+# timestamp: 2026-11-17 13:31:23 UTC
+# bench-hashes version: 0.23.0+ba147639c35454e648847adbb08e2435e450493e
+# bench-hashes source: https://github.com/servil-software-factory/bench-hashes
+# git commit: cade30fdb71682719f5fa3e586ff96146ae9fc25
+# git clean status: clean
+# blake3-servil version: 0.9.0+dev.7048303103c69b8609ffe9ca0361197ba318107c
+# dependency lock: blake3 f8493edc6ecbee855eeab82b9cc40c0495dd270bd468b1fbdb56a9efe3f708f7 of Cargo.lock
+# rust compiler: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+# c compiler: cc: cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+# rustflags: none
+# build target: x86_64-unknown-linux-gnu
+# target features: fxsr,sse,sse2
+# sample clock: CLOCK_MONOTONIC_RAW (stops during suspend; the raw counter, no NTP slew)
+# clocks source: clocks 0.1.0; this repository's clocks/, at its commit
+# cpu type: AMD EPYC 9255 24-Core Processor
+# cpu count: 48
+# os type: linux7.0.0-43-generic
+# cpu identity: model name: AMD EPYC 9255 24-Core Processor · microcode: 0xb00215a · flags: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good amd_lbr_v2 nopl xtopology nonstop_tsc cpuid extd_apicid aperfmperf rapl pni pclmulqdq monitor ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt tce topoext perfctr_core perfctr_nb bpext perfctr_llc mwaitx cpuid_fault cpb cat_l3 cdp_l3 hw_pstate ssbd mba perfmon_v2 ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local user_shstk avx_vnni avx512_bf16 clzero irperf xsaveerptr rdpru wbnoinvd amd_ppin cppc arat npt lbrv svm_lock nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold avic v_vmsave_vmload vgif x2avic v_spec_ctrl vnmi avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid bus_lock_detect movdiri movdir64b overflow_recov succor smca fsrm avx512_vp2intersect flush_l1d debug_swap amd_lbr_pmc_freeze · machine: PIO-2115GT-HNTR-NODE
+# idle states: none listed (no cpuidle driver; the kernel's default idle)
+# effective idle states: not measured (no cstate_core counters readable here)
+# idle control: not used by this command
+# shared placements: one cache: CPUs 0 and 1; two caches: CPUs 0 and 6
+# counts read overhead: P 228 cycles, 231 instructions (the median of 1,001 brackets around no work, two counts reads each)
+# files: $HOME/b3sum-bench-files on ext4 (/dev/md0 on /)
+# rounds: 15
+# contender: b3sum-0.9.0: $HOME/b3sum-contenders-evolution/b3sum-bf2da8b-L0  (blake3 6666982bdd3129ec0df6558509db409ef672029615366052231c056c2fa06e78; b3sums 0.9.0+73ee859efce085d28f1c2b22c35a5703403476f7)
+# contender: b3sum-0.9.0: $HOME/b3sum-contenders-evolution/b3sum-bf2da8b-L1  (blake3 b701337b5c6bb25715a7da7a05e2b1da680d6c4d61d47e4c3d4d592015162822; b3sums 0.9.0+73ee859efce085d28f1c2b22c35a5703403476f7)
+# contender: b3sum-0.9.0: $HOME/b3sum-contenders-evolution/b3sum-bf2da8b-L2  (blake3 919c4d14815ddc29f25f8c74825f70b5b917b2111121387ccf2ed810cb1c68fe; b3sums 0.9.0+73ee859efce085d28f1c2b22c35a5703403476f7)
+# contender: b3sum-0.9.0: $HOME/b3sum-contenders-evolution/b3sum-bf2da8b-L3  (blake3 a56e3ef8baf613a8ba53f8509c3a5197fae00f071bfcea5ab829ed3f8566a442; b3sums 0.9.0+73ee859efce085d28f1c2b22c35a5703403476f7)
+# contender: b3sum-0.8.0: $HOME/b3sum-contenders-evolution/b3sum-b5b988d-L0  (blake3 f3f9457d12cf2d59cec761257156e449440d6183a6297ed3582ecf2ebcb9024a; b3sums 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861)
+# contender: b3sum-0.8.0: $HOME/b3sum-contenders-evolution/b3sum-b5b988d-L1  (blake3 0f0284d839c152a91e4ec6f8527610ab94212fb5317b0b0ca1b4b488c3024afa; b3sums 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861)
+# contender: b3sum-0.8.0: $HOME/b3sum-contenders-evolution/b3sum-b5b988d-L2  (blake3 af0f582da417b2f55e94d81d32890963ad70208e207d01eb42e58d4d6ec32b91; b3sums 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861)
+# contender: b3sum-0.8.0: $HOME/b3sum-contenders-evolution/b3sum-b5b988d-L3  (blake3 b036e3ffdcb236019d4f6a6987ba744fe050f9f90ff6d85884bc284886efbc59; b3sums 0.8.0+b3c5efc7c975d903762dea809066f7c0a0603861)
+# contender: b3sum-0.10.0: $HOME/b3sum-contenders-evolution/b3sum-27eacce-L0  (blake3 c2299f26437b3ae9afeac54b7060ceda8d9d9ca9f95b789d7cd9799b1228d035; b3sums 0.10.0+4483281c45eab341ca6f829de508e91d6c381e85)
+# contender: b3sum-0.10.0: $HOME/b3sum-contenders-evolution/b3sum-27eacce-L1  (blake3 827777b19b8d2da383b7a2c96e367a27e6656abdb8c67fa9477a7b10b8095f87; b3sums 0.10.0+4483281c45eab341ca6f829de508e91d6c381e85)
+# contender: b3sum-0.10.0: $HOME/b3sum-contenders-evolution/b3sum-27eacce-L2  (blake3 1e9131b29baabb013375038318ae336d6b2201b2c374853866c3e432586e6d3e; b3sums 0.10.0+4483281c45eab341ca6f829de508e91d6c381e85)
+# contender: b3sum-0.10.0: $HOME/b3sum-contenders-evolution/b3sum-27eacce-L3  (blake3 a2a5ba8dc5d011fffedd0d3ab82512578a7d6a5792635e76277941731434655a; b3sums 0.10.0+4483281c45eab341ca6f829de508e91d6c381e85)
+# contender: official: $HOME/b3sum-contenders-evolution/b3sum-official-1.8.7-L0  (blake3 a919385914a76acc16c7de1f182a53e756f964f838cb09ec54f61367b78b712e; b3sum 1.8.7)
+# contender: official: $HOME/b3sum-contenders-evolution/b3sum-official-1.8.7-L1  (blake3 16bfcf5f48b388417d13169781c9b60b1aee566b66186d21a03804b05f186991; b3sum 1.8.7)
+# contender: official: $HOME/b3sum-contenders-evolution/b3sum-official-1.8.7-L2  (blake3 fbcebebc362b1844e06e8f73fdfed2653da08bd732dd98da3884a38281bbca18; b3sum 1.8.7)
+# contender: official: $HOME/b3sum-contenders-evolution/b3sum-official-1.8.7-L3  (blake3 2b5ef3a1410ee131017694dc669b17ed0a062f42ea1bf3d12e99cfbf90ea06de; b3sum 1.8.7)
+# power: mains power, no battery, CPU frequency governor performance, energy-performance preference performance
+# load: quiet: other programs kept 0.00 CPUs busy on average, 0.01 in the busiest window
+# load windows (start ms-end ms:other milli-CPUs:steal milli-CPUs): 0-1000:0:0,1000-2000:0:0,2000-3000:0:0,3000-4000:0:0,4000-5001:0:0,5001-6001:0:0,6001-7002:0:0,7002-8002:0:0,8002-9002:0:0,9002-10003:0:0,10003-11004:0:0,11004-12004:0:0,12004-13004:0:0,13004-14007:0:0,14007-15007:0:0,15007-16008:0:0,16008-17008:0:0,17008-18008:0:0,18008-19008:0:0,19008-20008:0:0,20008-21008:0:0,21008-22008:0:0,22008-23009:0:0,23009-24009:0:0,24009-25010:0:0,25010-26011:0:0,26011-27011:0:0,27011-28011:0:0,28011-29011:0:0,29011-30011:0:0,30011-31011:0:0,31011-32011:9:0,32011-33011:0:0,33011-34011:0:0,34011-35011:0:0,35011-36011:0:0,36011-37011:0:0,37011-38011:0:0,38011-39011:0:0,39011-40011:0:0,40011-41011:0:0,41011-42036:0:0,42036-43036:0:0,43036-44037:0:0,44037-45037:0:0,45037-46037:0:0,46037-47038:0:0,47038-48038:0:0,48038-49038:0:0,49038-50038:0:0,50038-51038:0:0,51038-52038:0:0,52038-53038:0:0,53038-54038:0:0,54038-55038:0:0,55038-56039:0:0,56039-57039:0:0,57039-58039:0:0,58039-59039:0:0,59039-60040:0:0,60040-61040:0:0,61040-62040:0:0,62040-63040:0:0,63040-64040:0:0,64040-65041:0:0,65041-66042:0:0,66042-67042:0:0,67042-68042:0:0,68042-69042:0:0,69042-70042:0:0,70042-71048:0:0,71048-72048:0:0,72048-73048:0:0,73048-74048:0:0,74048-75048:0:0,75048-76049:0:0,76049-77049:0:0,77049-78074:0:0,78074-79074:9:0,79074-80075:0:0,80075-81075:0:0,81075-82075:0:0,82075-83076:0:0,83076-84076:0:0,84076-85085:0:0,85085-86086:0:0,86086-87086:0:0,87086-88086:0:0,88086-89086:0:0,89086-90087:0:0,90087-91088:0:0,91088-92088:0:0,92088-93088:0:0,93088-94089:0:0,94089-95089:0:0,95089-96115:9:0,96115-97116:0:0,97116-98116:0:0,98116-99116:0:0,99116-100116:0:0,100116-101116:0:0,101116-102116:0:0,102116-103116:0:0,103116-104121:0:0,104121-105121:0:0,105121-106122:0:0,106122-107122:0:0,107122-108122:0:0,108122-109122:0:0,109122-110122:0:0,110122-111122:0:0,111122-112122:0:0,112122-113122:0:0,113122-114122:0:0,114122-115122:0:0,115122-116122:0:0,116122-117122:0:0,117122-118326:0:0
+# counts	contender	cache	input	round	wall_ns	cpu_ns	max_rss_bytes	storage_read_bytes	major_faults	p_cycles	e_cycles	p_time_ns	e_time_ns
+# counts	b3sum-0.9.0	warm	4 KiB	0	616171	575000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	1	506831	488000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	2	413811	395000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	3	484121	463000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	4	573641	533000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	5	514841	497000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	6	373021	354000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	7	555141	535000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	8	535181	490000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	9	547351	529000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	10	406020	385000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	11	557361	522000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	12	563281	524000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	13	412431	390000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	4 KiB	14	402910	384000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	0	558821	537000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	1	570230	526000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	2	517440	497000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	3	362490	343000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	4	357730	337000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	5	542870	499000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	6	406420	383000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	7	431480	412000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	8	513381	495000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	9	586551	540000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	10	517831	500000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	11	404420	386000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	12	476951	456000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	13	574951	526000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	4 KiB	14	520941	502000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	0	446420	421000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	1	547541	525000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	2	569511	526000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	3	380391	362000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	4	486661	468000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	5	557181	537000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	6	551661	503000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	7	461531	435000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	8	365700	347000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	9	544650	524000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	10	555791	510000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	11	499391	476000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	12	374471	355000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	13	507850	487000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	4 KiB	14	552530	508000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	0	2061833	9882000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	1	1878912	11557000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	2	2136563	9964000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	3	2160152	9756000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	4	1923602	7758000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	5	1914553	10284000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	6	2073223	11571000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	7	2138713	9612000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	8	2085833	9899000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	9	1934973	9992000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	10	2065303	9086000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	11	2087982	11862000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	12	1923232	10046000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	13	1992343	9392000	10620928	0	0	-	-	-	-
+# counts	official	warm	4 KiB	14	1964113	12684000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	0	384881	367000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	1	429161	409000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	2	502081	483000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	3	349681	332000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	4	370380	352000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	5	417591	392000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	6	535901	513000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	7	372151	355000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	8	279671	262000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	9	465860	443000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	10	520511	499000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	11	497931	479000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	12	390991	372000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	13	422531	403000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	64 KiB	14	555821	537000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	0	375961	358000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	1	459000	438000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	2	384900	366000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	3	317810	299000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	4	378190	359000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	5	477080	456000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	6	486080	467000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	7	318320	300000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	8	371911	353000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	9	444531	424000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	10	397881	380000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	11	339541	319000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	12	506051	489000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	13	537050	516000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	64 KiB	14	361781	344000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	0	340980	321000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	1	424851	400000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	2	383701	365000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	3	519580	487000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	4	289081	269000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	5	464480	443000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	6	430050	410000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	7	540610	518000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	8	285280	248000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	9	431930	409000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	10	415320	396000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	11	492531	472000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	12	398080	379000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	13	387900	366000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	64 KiB	14	443620	425000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	0	1830132	11833000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	1	1922643	11521000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	2	1810032	12111000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	3	1939353	12269000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	4	1953903	12471000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	5	1889933	11378000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	6	1745682	11475000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	7	1789613	10642000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	8	1864992	10218000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	9	1918133	11952000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	10	1836283	10099000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	11	1817202	11900000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	12	1920842	10484000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	13	1869293	12499000	10620928	0	0	-	-	-	-
+# counts	official	warm	64 KiB	14	1954353	10641000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	0	719431	1516000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	1	722241	1540000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	2	704131	1656000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	3	728591	1618000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	4	602820	1397000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	5	664291	1521000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	6	757841	1564000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	7	734191	1626000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	8	604671	1386000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	9	807981	1810000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	10	715151	1728000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	11	725401	1528000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	12	580151	1052000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	13	771951	1832000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 MiB	14	658671	1614000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	0	884811	1835000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	1	685481	1423000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	2	651791	1452000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	3	701701	1656000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	4	703231	1794000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	5	848572	1538000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	6	634511	1287000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	7	795361	1829000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	8	740951	1832000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	9	671421	1500000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	10	719681	1667000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	11	777531	1590000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	12	679951	1666000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	13	690531	1507000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 MiB	14	779811	1673000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	0	720101	695000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	1	615151	596000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	2	588201	568000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	3	534730	515000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	4	599731	581000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	5	543490	525000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	6	561051	542000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	7	550430	519000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	8	638281	618000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	9	513721	485000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	10	582370	558000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	11	541911	523000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	12	592540	571000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	13	605961	576000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 MiB	14	630051	608000	10620928	0	0	-	-	-	-
+# counts	official	warm	1 MiB	0	2076653	22395000	10620928	0	0	-	-	-	-
+# counts	official	warm	1 MiB	1	2055413	18547000	10620928	0	2	-	-	-	-
+# counts	official	warm	1 MiB	2	1980233	16550000	10620928	0	0	-	-	-	-
+# counts	official	warm	1 MiB	3	1981853	17065000	10620928	0	0	-	-	-	-
+# counts	official	warm	1 MiB	4	1986213	19014000	10620928	0	0	-	-	-	-
+# counts	official	warm	1 MiB	5	1971663	17566000	10620928	0	3	-	-	-	-
+# counts	official	warm	1 MiB	6	1911203	16905000	10620928	0	0	-	-	-	-
+# counts	official	warm	1 MiB	7	1940143	18860000	10620928	0	0	-	-	-	-
+# counts	official	warm	1 MiB	8	2059773	20543000	10620928	0	0	-	-	-	-
+# counts	official	warm	1 MiB	9	2038293	18249000	10620928	0	0	-	-	-	-
+# counts	official	warm	1 MiB	10	2059053	19817000	10620928	0	2	-	-	-	-
+# counts	official	warm	1 MiB	11	1999912	18610000	10620928	0	2	-	-	-	-
+# counts	official	warm	1 MiB	12	1906133	17688000	10620928	0	0	-	-	-	-
+# counts	official	warm	1 MiB	13	2043423	19214000	10620928	0	0	-	-	-	-
+# counts	official	warm	1 MiB	14	1959873	18195000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	0	1489972	16130000	14729216	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	1	1527762	18232000	15077376	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	2	1038142	7081000	17489920	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	3	1226852	10310000	15597568	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	4	1457972	17491000	14708736	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	5	1628433	19335000	13930496	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	6	1018052	6421000	17620992	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	7	1289602	11571000	14737408	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	8	1191891	10682000	15519744	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	9	1509343	16578000	14675968	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	10	1100681	6745000	16502784	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	11	1242112	11815000	15638528	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	12	1513362	18227000	14331904	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	13	1514673	19198000	14323712	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 MiB	14	1019811	6063000	16965632	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	0	1493532	14266000	15872000	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	1	1342742	14034000	16187392	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	2	1082622	6172000	17063936	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	3	1223021	9793000	14843904	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	4	1491922	14599000	14802944	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	5	1464982	15176000	14831616	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	6	1005312	5831000	17063936	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	7	1215482	11406000	15654912	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	8	1126282	8269000	15470592	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	9	1335111	13399000	15646720	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	10	1043371	5765000	17588224	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	11	1258761	12621000	15654912	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	12	1379422	14163000	15147008	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	13	1411651	15091000	15609856	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 MiB	14	1012822	6362000	17063936	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	0	1482362	15568000	15552512	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	1	1388252	14460000	15659008	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	2	1074231	6306000	17731584	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	3	1455661	8370000	17567744	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	4	1223142	6352000	18038784	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	5	1761873	16624000	17235968	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	6	1199161	6390000	16683008	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	7	1449002	15896000	15970304	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	8	1135182	9054000	15761408	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	9	1482592	13897000	15671296	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	10	1024192	6174000	17207296	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	11	1411942	15785000	15507456	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	12	1278212	12778000	15929344	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	13	1412022	15200000	15626240	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 MiB	14	1059051	6577000	18124800	0	0	-	-	-	-
+# counts	official	warm	16 MiB	0	2854784	29135000	12709888	0	0	-	-	-	-
+# counts	official	warm	16 MiB	1	2682514	32507000	11481088	0	0	-	-	-	-
+# counts	official	warm	16 MiB	2	2356853	22800000	13656064	0	0	-	-	-	-
+# counts	official	warm	16 MiB	3	2399044	26114000	13950976	0	0	-	-	-	-
+# counts	official	warm	16 MiB	4	2882174	37714000	12570624	0	0	-	-	-	-
+# counts	official	warm	16 MiB	5	2726143	27182000	13213696	0	0	-	-	-	-
+# counts	official	warm	16 MiB	6	2264023	21852000	14704640	0	0	-	-	-	-
+# counts	official	warm	16 MiB	7	2671953	29866000	12005376	0	0	-	-	-	-
+# counts	official	warm	16 MiB	8	2711174	30176000	13012992	0	0	-	-	-	-
+# counts	official	warm	16 MiB	9	2723724	27445000	12001280	0	0	-	-	-	-
+# counts	official	warm	16 MiB	10	2143663	22957000	12214272	0	0	-	-	-	-
+# counts	official	warm	16 MiB	11	2721544	33403000	10620928	0	0	-	-	-	-
+# counts	official	warm	16 MiB	12	2848084	30019000	12091392	0	0	-	-	-	-
+# counts	official	warm	16 MiB	13	2598634	28470000	14209024	0	0	-	-	-	-
+# counts	official	warm	16 MiB	14	2070133	21357000	15421440	0	3	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	0	3184254	73858000	263643136	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	1	2753314	67607000	263512064	0	1	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	2	3045074	79321000	262537216	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	3	3731095	63197000	265256960	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	4	2952614	90951000	261435392	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	5	2664124	66833000	264560640	0	7	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	6	3272794	68924000	264798208	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	7	3746275	85675000	261808128	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	8	3030014	86765000	261283840	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	9	2770683	66566000	263380992	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	10	3557035	53145000	266776576	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	11	3346815	76153000	262905856	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	12	3133464	68405000	264097792	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	13	3855385	36500000	269279232	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	256 MiB	14	2951154	80002000	261545984	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	0	3438165	66802000	264495104	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	1	2745234	65452000	263741440	0	1	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	2	3074504	78074000	262778880	0	3	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	3	3099615	87979000	262344704	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	4	3122334	87512000	260857856	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	5	2843724	61293000	264658944	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	6	2994774	83892000	262266880	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	7	3075694	88117000	262348800	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	8	3878065	77262000	262938624	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	9	2552043	64343000	264265728	0	2	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	10	2987864	76054000	262778880	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	11	3298034	76796000	262381568	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	12	3098164	87140000	262037504	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	13	2651213	58969000	264790016	0	1	-	-	-	-
+# counts	b3sum-0.8.0	warm	256 MiB	14	2836564	77573000	261324800	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	0	3077394	88405000	261570560	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	1	2813514	64745000	264540160	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	2	3041484	79616000	263532544	0	4	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	3	3068784	84729000	261525504	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	4	3702165	84582000	262049792	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	5	2636393	67628000	265588736	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	6	2955044	81611000	263360512	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	7	3515845	56825000	267513856	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	8	3429395	84978000	262049792	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	9	3293415	42098000	269258752	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	10	2849684	77335000	263241728	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	11	3180914	87927000	262684672	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	12	3104525	85332000	261701632	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	13	2649994	48185000	266637312	0	6	-	-	-	-
+# counts	b3sum-0.10.0	warm	256 MiB	14	3046925	56055000	266383360	0	0	-	-	-	-
+# counts	official	warm	256 MiB	0	8053111	89697000	266043392	0	0	-	-	-	-
+# counts	official	warm	256 MiB	1	4681686	74770000	267997184	0	0	-	-	-	-
+# counts	official	warm	256 MiB	2	7204100	84869000	264736768	0	0	-	-	-	-
+# counts	official	warm	256 MiB	3	8895482	94493000	264433664	0	0	-	-	-	-
+# counts	official	warm	256 MiB	4	8243931	96827000	266113024	0	0	-	-	-	-
+# counts	official	warm	256 MiB	5	4578296	80599000	266100736	0	0	-	-	-	-
+# counts	official	warm	256 MiB	6	7263820	91308000	265355264	0	0	-	-	-	-
+# counts	official	warm	256 MiB	7	9092032	94587000	265560064	0	0	-	-	-	-
+# counts	official	warm	256 MiB	8	7590340	93971000	263684096	0	0	-	-	-	-
+# counts	official	warm	256 MiB	9	4591087	83516000	267206656	0	0	-	-	-	-
+# counts	official	warm	256 MiB	10	7251440	92758000	263667712	0	0	-	-	-	-
+# counts	official	warm	256 MiB	11	9426702	98908000	263983104	0	0	-	-	-	-
+# counts	official	warm	256 MiB	12	7493650	91311000	264945664	0	0	-	-	-	-
+# counts	official	warm	256 MiB	13	4381686	71844000	268525568	0	0	-	-	-	-
+# counts	official	warm	256 MiB	14	7378939	92538000	263880704	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	0	7237639	262669000	1069080576	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	1	8256531	303519000	1069096960	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	2	7669631	287252000	1068167168	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	3	7407880	288665000	1068208128	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	4	7114130	261174000	1070653440	0	5	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	5	8198811	304881000	1069957120	0	6	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	6	7882381	289547000	1068355584	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	7	7454950	290785000	1068163072	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	8	7132039	251652000	1068556288	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	9	8217821	296012000	1068720128	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	10	7886670	285674000	1068052480	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	11	7725020	277212000	1068011520	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	12	7391080	227496000	1072226304	0	3	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	13	7981930	308745000	1069146112	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1 GiB	14	8037341	275916000	1068355584	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	0	6772369	198692000	1069178880	0	1	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	1	7400790	272732000	1068752896	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	2	8295621	296600000	1067474944	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	3	8225641	311489000	1068322816	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	4	6542479	231622000	1069178880	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	5	7321710	270306000	1069142016	0	1	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	6	7978800	304407000	1067892736	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	7	9082232	225513000	1070178304	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	8	6945519	248860000	1069703168	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	9	7812100	270533000	1068408832	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	10	8324191	302197000	1067220992	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	11	8089051	310460000	1068523520	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	12	6674499	241206000	1070227456	0	6	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	13	7302400	279726000	1069666304	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1 GiB	14	8092600	297694000	1067376640	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	0	7197230	255526000	1070764032	0	8	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	1	7480990	266200000	1068941312	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	2	8155211	313134000	1069060096	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	3	9396472	246588000	1068453888	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	4	7636830	185352000	1071419392	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	5	7206510	277654000	1067372544	0	1	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	6	8112470	310402000	1067356160	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	7	8122821	231753000	1067798528	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	8	7209390	261894000	1069322240	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	9	7957571	256818000	1068818432	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	10	8208851	306590000	1068539904	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	11	9403843	268591000	1067794432	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	12	7302240	269111000	1069977600	0	5	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	13	7261570	279988000	1068994560	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1 GiB	14	8449131	306901000	1067061248	0	0	-	-	-	-
+# counts	official	warm	1 GiB	0	13376028	231433000	1073045504	0	0	-	-	-	-
+# counts	official	warm	1 GiB	1	22396430	266426000	1071665152	0	0	-	-	-	-
+# counts	official	warm	1 GiB	2	23724181	268404000	1072058368	0	0	-	-	-	-
+# counts	official	warm	1 GiB	3	19625896	273369000	1071210496	0	0	-	-	-	-
+# counts	official	warm	1 GiB	4	12195796	229293000	1070817280	0	0	-	-	-	-
+# counts	official	warm	1 GiB	5	19679266	283257000	1068179456	0	0	-	-	-	-
+# counts	official	warm	1 GiB	6	23829282	265376000	1069535232	0	0	-	-	-	-
+# counts	official	warm	1 GiB	7	19683766	270565000	1070034944	0	0	-	-	-	-
+# counts	official	warm	1 GiB	8	12017936	234416000	1071718400	0	0	-	-	-	-
+# counts	official	warm	1 GiB	9	20158407	264190000	1071079424	0	0	-	-	-	-
+# counts	official	warm	1 GiB	10	23198451	272169000	1069965312	0	0	-	-	-	-
+# counts	official	warm	1 GiB	11	19563876	269395000	1070161920	0	0	-	-	-	-
+# counts	official	warm	1 GiB	12	11796246	227834000	1072521216	0	0	-	-	-	-
+# counts	official	warm	1 GiB	13	19880527	289052000	1069703168	0	0	-	-	-	-
+# counts	official	warm	1 GiB	14	23329901	266680000	1069572096	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	0	2899834	20713000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	1	3157654	34825000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	2	3278204	32200000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	3	2834394	35322000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	4	2863654	36013000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	5	2945184	31545000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	6	3162514	39667000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	7	2758554	28631000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	8	2655064	37185000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	9	2868494	38075000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	10	3237775	32175000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	11	2736024	32197000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	12	2782964	36034000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	13	2946854	32541000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB	14	3195354	35042000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	0	2995514	30911000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	1	2675373	36270000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	2	2821643	35490000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	3	2976484	19690000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	4	2722293	35167000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	5	2707374	34888000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	6	2748964	39438000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	7	3246194	24053000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	8	2736274	34666000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	9	2746313	39694000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	10	2895644	39799000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	11	3085734	36646000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	12	2789254	27541000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	13	2676673	39604000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB	14	2811733	25500000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	0	2711393	14714000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	1	4365505	12434000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	2	2566093	14567000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	3	2552414	14059000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	4	2631183	14671000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	5	2460883	14641000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	6	2487934	15182000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	7	2558163	14622000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	8	2583593	13591000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	9	2498423	15199000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	10	2402643	13721000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	11	2583053	15204000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	12	2735233	15096000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	13	2576283	15341000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB	14	2545193	15080000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	0	9923333	18471000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	1	10619834	19822000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	2	9951773	16993000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	3	9203952	16827000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	4	9239843	16478000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	5	10646184	18182000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	6	9105282	17662000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	7	9114822	16861000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	8	10169353	17007000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	9	10499244	20113000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	10	9928993	17184000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	11	9693643	17454000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	12	9442303	18848000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	13	10921875	19348000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB	14	9356083	16986000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	0	244257057	225534000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	1	241616563	223480000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	2	241156863	222746000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	3	243087629	224889000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	4	243573931	224791000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	5	239781204	221368000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	6	242094684	223966000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	7	243468798	224969000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	8	242961959	223970000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	9	245160770	226839000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	10	241053938	223096000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	11	243802374	224604000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	12	243803580	224995000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	13	241540636	223448000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	1000 x 16 KiB, a process each	14	244021051	225768000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	0	233993317	215523000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	1	231679459	213396000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	2	233366462	214636000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	3	237077927	218948000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	4	231296045	213242000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	5	229735529	211935000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	6	233452938	213847000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	7	235207283	216453000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	8	230177618	212217000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	9	227990129	210358000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	10	233017115	213960000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	11	236359367	217619000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	12	231787028	213563000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	13	229009887	211511000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	1000 x 16 KiB, a process each	14	232817555	214457000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	0	235094146	216980000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	1	240880634	222348000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	2	238123633	219883000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	3	238422179	220006000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	4	235517519	217358000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	5	238177469	219910000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	6	232736928	214682000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	7	236048572	217758000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	8	233767580	215433000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	9	238436579	220170000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	10	235488728	217390000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	11	236008204	217625000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	12	235133264	217257000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	13	238312738	219597000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	1000 x 16 KiB, a process each	14	236620734	218328000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	0	1586368383	9130124000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	1	1578260982	8935434000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	2	1579419377	9021617000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	3	1580621448	9185029000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	4	1588361330	9140493000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	5	1584873442	9074831000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	6	1576561700	9033230000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	7	1580021219	9004586000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	8	1584501617	9119408000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	9	1573824380	8963842000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	10	1583142579	9089046000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	11	1576302129	8982225000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	12	1587107229	9116732000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	13	1577979835	9026360000	10620928	0	0	-	-	-	-
+# counts	official	warm	1000 x 16 KiB, a process each	14	1578621357	9032786000	10620928	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	0	5298817	46328000	50454528	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	1	3410044	38281000	53776384	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	2	3577775	44132000	53927936	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	3	3996045	46836000	51859456	0	1	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	4	3744985	47990000	54181888	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	5	3765685	38380000	55062528	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	6	3834685	44895000	56512512	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	7	3516554	40244000	55918592	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	8	3795655	41048000	53436416	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	9	3407184	39320000	52117504	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	10	3803436	55230000	53964800	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	11	3640535	46822000	52641792	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	12	5047816	47753000	54394880	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	13	3684585	35232000	54784000	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	mixed tree, 1000 files, 74 MiB	14	3664814	40224000	51736576	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	0	3419724	44750000	48922624	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	1	3782915	40614000	50208768	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	2	3306435	36623000	50794496	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	3	3561674	44237000	49922048	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	4	3732905	45374000	50929664	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	5	4550236	41467000	51458048	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	6	3148574	39256000	51171328	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	7	3516805	41626000	49393664	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	8	3689405	33792000	49942528	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	9	3068274	35572000	51253248	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	10	3715355	47102000	49811456	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	11	3743255	43695000	49905664	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	12	3633235	47755000	50061312	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	13	3591735	40559000	50851840	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	mixed tree, 1000 files, 74 MiB	14	4014655	52168000	50180096	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	0	3250844	31557000	53559296	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	1	3238475	30833000	53837824	0	1	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	2	3474685	39613000	52330496	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	3	3400135	32658000	53522432	0	1	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	4	3244714	31937000	54018048	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	5	3238655	31446000	51253248	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	6	3717185	43846000	49127424	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	7	3473385	32416000	52219904	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	8	4180886	30008000	54566912	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	9	3236614	28866000	52396032	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	10	3454405	40327000	50991104	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	11	3320735	29683000	53350400	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	12	3274465	32512000	51965952	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	13	3373905	26588000	54853632	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	mixed tree, 1000 files, 74 MiB	14	3311085	39238000	50536448	0	0	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	0	24605912	683709000	12337152	0	0	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	1	22966191	643893000	14553088	0	19	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	2	25512394	714969000	11870208	0	0	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	3	22943460	653151000	13791232	0	25	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	4	24534303	653848000	13172736	0	12	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	5	23181601	627095000	13406208	0	17	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	6	24552583	710446000	11243520	0	0	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	7	23342151	641940000	11198464	0	29	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	8	23281391	637010000	12111872	0	20	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	9	23260741	643632000	14807040	0	17	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	10	25038423	715689000	12390400	0	0	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	11	28384518	644107000	11423744	0	11	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	12	23759982	642762000	12570624	0	8	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	13	21604669	633573000	15183872	0	30	-	-	-	-
+# counts	official	warm	mixed tree, 1000 files, 74 MiB	14	23989822	694894000	11726848	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	0	11100935	304310000	1066274816	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	1	11591126	393391000	1069215744	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	2	10284284	333127000	1067134976	0	21	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	3	10760044	321136000	1068396544	0	32	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	4	9149452	230038000	1068691456	0	8	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	5	12035096	347842000	1069264896	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	6	11170025	342790000	1069633536	0	10	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	7	10574584	343717000	1069928448	0	3	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	8	8490241	244401000	1071181824	0	9	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	9	11082965	379250000	1067524096	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	10	10785384	315751000	1068322816	0	8	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	11	9477682	335489000	1067171840	0	8	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	12	8431162	256261000	1070526464	0	19	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	13	13831399	328479000	1067917312	0	0	-	-	-	-
+# counts	b3sum-0.9.0	warm	16 x 64 MiB	14	10958254	308231000	1065287680	0	9	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	0	10473774	335746000	1067741184	0	1	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	1	12416436	397559000	1066303488	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	2	10480714	321473000	1067925504	0	14	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	3	10858995	326478000	1068883968	0	9	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	4	9559432	223678000	1069314048	0	32	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	5	12318137	307480000	1066250240	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	6	10364314	336197000	1067503616	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	7	11129705	321527000	1068941312	0	26	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	8	7507190	245518000	1070886912	0	18	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	9	11170005	384720000	1067810816	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	10	10229584	354595000	1068838912	0	11	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	11	10022894	315067000	1069477888	0	17	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	12	8027161	237118000	1069314048	0	15	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	13	12330116	310880000	1066303488	0	0	-	-	-	-
+# counts	b3sum-0.8.0	warm	16 x 64 MiB	14	10378574	310478000	1069068288	0	12	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	0	7199230	244206000	1067163648	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	1	7796560	297992000	1069850624	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	2	7301500	260751000	1066962944	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	3	7126559	252821000	1067618304	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	4	8514391	211195000	1069719552	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	5	7598450	285850000	1070243840	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	6	6964059	242454000	1068802048	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	7	8068791	190920000	1068539904	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	8	7019100	219346000	1071550464	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	9	7580310	275983000	1070243840	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	10	7487730	247643000	1065918464	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	11	7223319	223876000	1070768128	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	12	6967839	250965000	1069322240	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	13	8842132	249441000	1069715456	0	0	-	-	-	-
+# counts	b3sum-0.10.0	warm	16 x 64 MiB	14	7074500	253818000	1068666880	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	0	25189893	489930000	65220608	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	1	36744350	559346000	63770624	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	2	32392243	485336000	66035712	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	3	26976636	481911000	64372736	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	4	14724420	389311000	65626112	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	5	33120094	529553000	63807488	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	6	30736491	487605000	65036288	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	7	28474928	482412000	64765952	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	8	15736381	398024000	66740224	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	9	34796657	547348000	64077824	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	10	31593392	465503000	64839680	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	11	26070065	516484000	66408448	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	12	16015751	398231000	66084864	0	1	-	-	-	-
+# counts	official	warm	16 x 64 MiB	13	33431665	531365000	63541248	0	0	-	-	-	-
+# counts	official	warm	16 x 64 MiB	14	31371142	496622000	65101824	0	1	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	0	3622814	610000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	1	514431	425000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	2	490731	403000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	3	703881	599000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	4	722691	613000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	5	632101	536000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	6	498641	409000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	7	672041	575000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	8	738771	627000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	9	629320	535000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	10	513850	424000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	11	711941	597000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	12	687401	579000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	13	622101	528000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	4 KiB	14	487941	401000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	0	646540	552000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	1	674941	560000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	2	580191	461000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	3	514041	420000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	4	654861	568000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	5	667371	553000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	6	619121	519000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	7	498871	410000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	8	634431	547000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	9	690181	567000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	10	630281	529000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	11	593001	498000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	12	647971	564000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	13	659321	543000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	4 KiB	14	568231	470000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	0	507981	432000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	1	669111	570000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	2	681731	568000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	3	633801	540000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	4	603061	517000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	5	680441	578000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	6	685281	571000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	7	610571	514000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	8	511381	426000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	9	577671	478000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	10	701311	583000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	11	680601	561000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	12	558861	477000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	13	654631	554000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	4 KiB	14	708141	591000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	0	2061883	10375000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	1	2069252	11351000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	2	2154903	9907000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	3	2381613	12835000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	4	2087533	9887000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	5	1972113	9038000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	6	2142503	8718000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	7	2254333	10437000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	8	2135803	9874000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	9	2019253	11102000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	10	2242503	10159000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	11	2664733	9402000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	12	2144013	10131000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	13	2084383	9494000	10620928	4096	0	-	-	-	-
+# counts	official	cold	4 KiB	14	2227513	11805000	10620928	4096	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	0	468021	373000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	1	460211	361000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	2	539450	434000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	3	544540	444000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	4	494991	401000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	5	471231	369000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	6	703241	594000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	7	694050	589000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	8	509200	413000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	9	481950	377000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	10	659181	554000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	11	594271	493000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	12	504840	407000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	13	482901	383000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	64 KiB	14	690650	580000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	0	448001	352000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	1	523981	421000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	2	428541	329000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	3	454711	356000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	4	556061	458000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	5	601541	496000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	6	514931	413000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	7	468570	361000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	8	682481	581000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	9	581561	478000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	10	464890	367000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	11	591241	489000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	12	581171	482000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	13	559851	449000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	64 KiB	14	497261	396000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	0	422500	327000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	1	604490	491000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	2	470231	371000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	3	669611	559000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	4	452790	356000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	5	605360	489000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	6	554831	449000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	7	577931	474000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	8	554641	458000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	9	523851	410000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	10	472201	374000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	11	520060	420000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	12	548771	453000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	13	568670	453000	10620928	65536	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	64 KiB	14	530910	431000	10620928	65536	0	-	-	-	-
+# counts	official	cold	64 KiB	0	1926002	9636000	10620928	65536	4	-	-	-	-
+# counts	official	cold	64 KiB	1	2033953	10654000	10620928	65536	3	-	-	-	-
+# counts	official	cold	64 KiB	2	2229123	11064000	10620928	65536	2	-	-	-	-
+# counts	official	cold	64 KiB	3	1911733	10608000	10620928	65536	2	-	-	-	-
+# counts	official	cold	64 KiB	4	2012393	10031000	10620928	65536	2	-	-	-	-
+# counts	official	cold	64 KiB	5	1997023	9348000	10620928	65536	2	-	-	-	-
+# counts	official	cold	64 KiB	6	1866002	9438000	10620928	65536	2	-	-	-	-
+# counts	official	cold	64 KiB	7	1979213	9145000	10620928	65536	2	-	-	-	-
+# counts	official	cold	64 KiB	8	1957773	11766000	10620928	65536	3	-	-	-	-
+# counts	official	cold	64 KiB	9	1956993	11071000	10620928	65536	2	-	-	-	-
+# counts	official	cold	64 KiB	10	1963943	8985000	10620928	65536	2	-	-	-	-
+# counts	official	cold	64 KiB	11	1964163	10785000	10620928	65536	2	-	-	-	-
+# counts	official	cold	64 KiB	12	2020423	10515000	10620928	65536	3	-	-	-	-
+# counts	official	cold	64 KiB	13	1903323	9796000	10620928	65536	2	-	-	-	-
+# counts	official	cold	64 KiB	14	2031072	12090000	10620928	65536	1	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	0	990062	3669000	10620928	1048576	2	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	1	1098782	3817000	10620928	1048576	1	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	2	1090401	5045000	10620928	1048576	3	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	3	984381	4092000	10620928	1048576	2	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	4	1130872	3485000	10620928	1048576	2	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	5	1256832	4678000	10620928	1048576	3	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	6	1518742	12257000	10620928	1048576	28	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	7	942421	2728000	10620928	1048576	4	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	8	1080102	3638000	10620928	1048576	3	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	9	1122961	4031000	10620928	1048576	5	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	10	871622	3286000	10620928	1048576	5	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	11	1034311	3874000	10620928	1048576	4	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	12	1057921	3887000	10620928	1048576	3	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	13	1004671	3479000	10620928	1048576	2	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 MiB	14	927091	3822000	10620928	1048576	4	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	0	1078722	3863000	10620928	1048576	1	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	1	1138882	5190000	10620928	1048576	6	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	2	930011	3446000	10620928	1048576	1	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	3	956311	3422000	10620928	1048576	2	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	4	954101	3726000	10620928	1048576	4	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	5	986311	3428000	10620928	1048576	3	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	6	1004792	3448000	10620928	1048576	3	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	7	1065181	3593000	10620928	1048576	2	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	8	1008802	3755000	10620928	1048576	4	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	9	957561	3501000	10620928	1048576	4	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	10	977882	3800000	10620928	1048576	6	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	11	1324222	7195000	10620928	1048576	11	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	12	960152	3794000	10620928	1048576	5	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	13	1015161	3733000	10620928	1048576	2	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 MiB	14	1038921	4298000	10620928	1048576	4	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	0	997661	4231000	10620928	1048576	4	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	1	1071621	4414000	10620928	1048576	4	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	2	1075011	4263000	10620928	1048576	1	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	3	1036351	3571000	10620928	1048576	3	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	4	1018941	3600000	10620928	1048576	1	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	5	1040961	3194000	10620928	1048576	1	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	6	1145822	4865000	10620928	1048576	4	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	7	1248622	6436000	10620928	1048576	8	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	8	1149352	4056000	10620928	1048576	3	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	9	992851	3588000	10620928	1048576	1	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	10	1110891	4021000	10620928	1048576	2	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	11	923081	3591000	10620928	1048576	4	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	12	1163352	4912000	10620928	1048576	2	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	13	925892	3421000	10620928	1048576	4	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 MiB	14	984992	3354000	10620928	1048576	5	-	-	-	-
+# counts	official	cold	1 MiB	0	2408353	24565000	10620928	1048576	24	-	-	-	-
+# counts	official	cold	1 MiB	1	2596503	37308000	10620928	1048576	36	-	-	-	-
+# counts	official	cold	1 MiB	2	2718144	41206000	10620928	1048576	38	-	-	-	-
+# counts	official	cold	1 MiB	3	2623353	31119000	10620928	1048576	41	-	-	-	-
+# counts	official	cold	1 MiB	4	2089662	19950000	10620928	1048576	15	-	-	-	-
+# counts	official	cold	1 MiB	5	2295863	26195000	10620928	1048576	23	-	-	-	-
+# counts	official	cold	1 MiB	6	2457483	25498000	10620928	1048576	26	-	-	-	-
+# counts	official	cold	1 MiB	7	2307533	26257000	10620928	1048576	30	-	-	-	-
+# counts	official	cold	1 MiB	8	2327843	24611000	10620928	1048576	20	-	-	-	-
+# counts	official	cold	1 MiB	9	2482794	26708000	10620928	1048576	24	-	-	-	-
+# counts	official	cold	1 MiB	10	2419563	25110000	10620928	1048576	27	-	-	-	-
+# counts	official	cold	1 MiB	11	2343844	24647000	10620928	1048576	23	-	-	-	-
+# counts	official	cold	1 MiB	12	2590303	28726000	10620928	1048576	32	-	-	-	-
+# counts	official	cold	1 MiB	13	2201163	20928000	10620928	1048576	16	-	-	-	-
+# counts	official	cold	1 MiB	14	3699915	26276000	10620928	1048576	18	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	0	4556646	120983000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	1	4599966	120393000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	2	4381616	118640000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	3	4419176	113567000	10620928	16777216	247	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	4	4425746	92537000	10895360	16777216	248	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	5	4320075	113173000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	6	4577626	98097000	11378688	16777216	247	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	7	3840685	64361000	10620928	16777216	84	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	8	4537446	123216000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	9	4477776	115869000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	10	4287216	105510000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	11	4634406	121305000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	12	4282805	109090000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	13	4389586	115570000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 MiB	14	4593766	121428000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	0	4408766	118377000	10620928	16777216	249	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	1	4547356	116347000	10620928	16777216	247	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	2	4807036	117271000	11661312	16777216	248	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	3	4314446	113689000	10620928	16777216	247	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	4	4387066	88518000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	5	4489986	100022000	12431360	16777216	248	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	6	4558026	113401000	10620928	16777216	246	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	7	4345365	118146000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	8	4606026	123116000	10620928	16777216	249	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	9	4479366	113804000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	10	4532626	110633000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	11	4483266	119313000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	12	4252986	95267000	10620928	16777216	247	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	13	4451665	120572000	10620928	16777216	248	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 MiB	14	4325495	88650000	11227136	16777216	229	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	0	3039704	6228000	16289792	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	1	3208804	6068000	16351232	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	2	2779514	5672000	14258176	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	3	2932454	5888000	16244736	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	4	2727664	6394000	18255872	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	5	3259804	6497000	17137664	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	6	3032594	6320000	15437824	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	7	3032504	6220000	18210816	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	8	3021924	5822000	14323712	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	9	3032084	6262000	16351232	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	10	3254084	5817000	14258176	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	11	2897924	6283000	16244736	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	12	3426184	5460000	14323712	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	13	3026534	6522000	15323136	16793600	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 MiB	14	3021535	5985000	16224256	16793600	0	-	-	-	-
+# counts	official	cold	16 MiB	0	6879590	156775000	11333632	16777216	129	-	-	-	-
+# counts	official	cold	16 MiB	1	7374280	180325000	11157504	16777216	167	-	-	-	-
+# counts	official	cold	16 MiB	2	5734597	112468000	12595200	16777216	110	-	-	-	-
+# counts	official	cold	16 MiB	3	6304649	126676000	10641408	16777216	120	-	-	-	-
+# counts	official	cold	16 MiB	4	6737629	140832000	11800576	16777216	127	-	-	-	-
+# counts	official	cold	16 MiB	5	6112918	121301000	12767232	16777216	126	-	-	-	-
+# counts	official	cold	16 MiB	6	6060548	122561000	12677120	16777216	108	-	-	-	-
+# counts	official	cold	16 MiB	7	6408678	144607000	12214272	16777216	123	-	-	-	-
+# counts	official	cold	16 MiB	8	6576689	146981000	10985472	16777216	126	-	-	-	-
+# counts	official	cold	16 MiB	9	6140808	115757000	12255232	16777216	121	-	-	-	-
+# counts	official	cold	16 MiB	10	5617317	105832000	13262848	16777216	89	-	-	-	-
+# counts	official	cold	16 MiB	11	5920988	122770000	12800000	16777216	106	-	-	-	-
+# counts	official	cold	16 MiB	12	6663769	140584000	13500416	16777216	135	-	-	-	-
+# counts	official	cold	16 MiB	13	6916669	143282000	11788288	16777216	173	-	-	-	-
+# counts	official	cold	16 MiB	14	6868340	169255000	11255808	16777216	163	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	0	26003305	271296000	262725632	268435456	690	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	1	30903301	353218000	261152768	268435456	680	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	2	26397985	253701000	262131712	268435456	695	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	3	33444764	288912000	261152768	268435456	701	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	4	26662626	315058000	262922240	268435456	726	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	5	33377395	279805000	264040448	268435456	686	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	6	31299602	254727000	261808128	268435456	693	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	7	31048541	267529000	261111808	268435456	685	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	8	31536852	322564000	262594560	268435456	696	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	9	31412541	328265000	262504448	268435456	684	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	10	31418612	263676000	262463488	268435456	714	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	11	31522872	265861000	261808128	268435456	673	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	12	31613823	312361000	261677056	268435456	681	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	13	30365871	276878000	262209536	268435456	691	-	-	-	-
+# counts	b3sum-0.9.0	cold	256 MiB	14	31251352	301688000	261545984	268435456	703	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	0	31054812	301658000	260595712	268435456	688	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	1	31163871	339173000	260796416	268435456	696	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	2	31285971	300231000	262692864	268435456	682	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	3	31241162	331866000	261906432	268435456	693	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	4	25992855	275314000	261664768	268435456	681	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	5	25885935	285971000	261591040	268435456	703	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	6	31443662	282448000	260857856	268435456	696	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	7	26141225	246606000	262414336	268435456	672	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	8	31578772	298609000	261513216	268435456	695	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	9	31112381	266571000	262168576	268435456	679	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	10	31341262	271414000	261251072	268435456	662	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	11	26191515	291051000	261644288	268435456	700	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	12	31161512	305695000	262565888	268435456	699	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	13	26152165	268821000	260792320	268435456	691	-	-	-	-
+# counts	b3sum-0.8.0	cold	256 MiB	14	31624162	346340000	261644288	268435456	689	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	0	24132052	41340000	33984512	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	1	22342039	41461000	33652736	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	2	21954530	40951000	34705408	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	3	22257989	41396000	34332672	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	4	22108890	42105000	33591296	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	5	22421640	42216000	34439168	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	6	22438000	41437000	34312192	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	7	22647841	42408000	33939456	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	8	22912641	42253000	33591296	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	9	22213590	41572000	34439168	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	10	22338970	41376000	33918976	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	11	22527540	42210000	33939456	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	12	22779531	41674000	33984512	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	13	22111260	41912000	34439168	268451840	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	256 MiB	14	22444650	41577000	34312192	268451840	0	-	-	-	-
+# counts	official	cold	256 MiB	0	32099473	241923000	264822784	268435456	581	-	-	-	-
+# counts	official	cold	256 MiB	1	32117002	258771000	263303168	268435456	588	-	-	-	-
+# counts	official	cold	256 MiB	2	33125835	265565000	264437760	268435456	582	-	-	-	-
+# counts	official	cold	256 MiB	3	32207103	258482000	263966720	268435456	596	-	-	-	-
+# counts	official	cold	256 MiB	4	32065773	253495000	263290880	268435456	591	-	-	-	-
+# counts	official	cold	256 MiB	5	31464352	215046000	263008256	268435456	548	-	-	-	-
+# counts	official	cold	256 MiB	6	34039255	378016000	264617984	268435456	638	-	-	-	-
+# counts	official	cold	256 MiB	7	31884282	223746000	262766592	268435456	555	-	-	-	-
+# counts	official	cold	256 MiB	8	32208433	299395000	264343552	268435456	570	-	-	-	-
+# counts	official	cold	256 MiB	9	32203713	255413000	263352320	268435456	595	-	-	-	-
+# counts	official	cold	256 MiB	10	32320984	239141000	265379840	268435456	559	-	-	-	-
+# counts	official	cold	256 MiB	11	33036574	244279000	263364608	268435456	590	-	-	-	-
+# counts	official	cold	256 MiB	12	32393343	333303000	262995968	268435456	589	-	-	-	-
+# counts	official	cold	256 MiB	13	33425865	214841000	263725056	268435456	537	-	-	-	-
+# counts	official	cold	256 MiB	14	33231795	319376000	264364032	268435456	664	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	0	108384145	439111000	1067982848	1073741824	1912	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	1	109240486	460795000	1067311104	1073741824	1882	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	2	112028149	442154000	1068294144	1073741824	1869	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	3	109108206	456423000	1066393600	1073741824	1921	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	4	109286186	427557000	1069096960	1073741824	1923	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	5	108539415	423401000	1068240896	1073741824	1884	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	6	111186429	426705000	1069146112	1073741824	1886	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	7	108615235	424394000	1069264896	1073741824	1918	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	8	110210357	438699000	1068032000	1073741824	1923	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	9	109201685	457412000	1068769280	1073741824	1939	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	10	110570237	468503000	1068326912	1073741824	1906	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	11	109378926	414386000	1067929600	1073741824	1935	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	12	109538786	425781000	1068879872	1073741824	1887	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	13	109162426	424297000	1067966464	1073741824	1942	-	-	-	-
+# counts	b3sum-0.9.0	cold	1 GiB	14	112023679	451393000	1067057152	1073741824	1865	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	0	107882634	423284000	1068417024	1073741824	1880	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	1	111681169	476260000	1068195840	1073741824	1892	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	2	109001896	436882000	1069318144	1073741824	1882	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	3	109478077	456315000	1067298816	1073741824	1915	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	4	110813427	427837000	1066819584	1073741824	1924	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	5	110675007	472464000	1066754048	1073741824	1952	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	6	108849805	410221000	1067503616	1073741824	1882	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	7	109529466	461824000	1067081728	1073741824	1930	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	8	109652286	426697000	1068720128	1073741824	1915	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	9	112022669	436639000	1067147264	1073741824	1963	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	10	108992255	453465000	1068826624	1073741824	1910	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	11	108881915	466836000	1066950656	1073741824	1860	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	12	111062558	378478000	1068851200	1073741824	1729	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	13	110504497	435781000	1067081728	1073741824	1890	-	-	-	-
+# counts	b3sum-0.8.0	cold	1 GiB	14	109458396	459890000	1065508864	1073741824	1916	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	0	83851082	139298000	33984512	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	1	83825362	138513000	33652736	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	2	84672793	139456000	34312192	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	3	83961143	139675000	33939456	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	4	83680141	140745000	34770944	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	5	83490352	138577000	34045952	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	6	84029912	140373000	34312192	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	7	84730263	139939000	33546240	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	8	84059812	139149000	34377728	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	9	83651592	138636000	34045952	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	10	84966123	140043000	34312192	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	11	85092274	140778000	34332672	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	12	83450691	139826000	33591296	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	13	84201593	138775000	34439168	1073758208	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1 GiB	14	84832913	139442000	34312192	1073758208	0	-	-	-	-
+# counts	official	cold	1 GiB	0	110639588	510735000	1068224512	1073741824	1887	-	-	-	-
+# counts	official	cold	1 GiB	1	109914526	459827000	1069428736	1073741824	1770	-	-	-	-
+# counts	official	cold	1 GiB	2	112747570	447781000	1069252608	1073741824	1750	-	-	-	-
+# counts	official	cold	1 GiB	3	111410339	482919000	1069293568	1073741824	1873	-	-	-	-
+# counts	official	cold	1 GiB	4	109186146	429870000	1071312896	1073741824	1781	-	-	-	-
+# counts	official	cold	1 GiB	5	110918748	439539000	1069776896	1073741824	1880	-	-	-	-
+# counts	official	cold	1 GiB	6	110335837	457935000	1068146688	1073741824	1860	-	-	-	-
+# counts	official	cold	1 GiB	7	110849808	481927000	1069002752	1073741824	1816	-	-	-	-
+# counts	official	cold	1 GiB	8	109958557	469435000	1070145536	1073741824	1888	-	-	-	-
+# counts	official	cold	1 GiB	9	111117678	450562000	1069899776	1073741824	1807	-	-	-	-
+# counts	official	cold	1 GiB	10	113603622	463033000	1069461504	1073741824	1831	-	-	-	-
+# counts	official	cold	1 GiB	11	110817668	482322000	1070100480	1073741824	1876	-	-	-	-
+# counts	official	cold	1 GiB	12	110304458	443146000	1068621824	1073741824	1819	-	-	-	-
+# counts	official	cold	1 GiB	13	109717527	486845000	1068797952	1073741824	1862	-	-	-	-
+# counts	official	cold	1 GiB	14	109449606	434829000	1071218688	1073741824	1786	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	0	5709207	22086000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	1	4590516	24552000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	2	4146335	26339000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	3	4853677	22532000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	4	5423177	22417000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	5	4838657	23430000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	6	4320166	27393000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	7	4754326	24278000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	8	5100136	23248000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	9	5664647	22933000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	10	4241936	25740000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	11	4485606	22982000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	12	4144956	23521000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	13	4040396	27731000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB	14	4746986	25963000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	0	6206638	22766000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	1	5525167	21180000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	2	4008635	22425000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	3	3918325	24497000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	4	5127557	22538000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	5	5181717	21596000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	6	3976835	22862000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	7	4128046	24507000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	8	4225876	22204000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	9	5399517	20519000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	10	4065215	23008000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	11	3904236	24580000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	12	4220986	22520000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	13	3955226	22373000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB	14	5480247	21399000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	0	4547696	29984000	11964416	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	1	4276666	27575000	12025856	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	2	4559656	30155000	11898880	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	3	3954916	27086000	12312576	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	4	4463606	30022000	12357632	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	5	4205275	27918000	12025856	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	6	4341036	29789000	12292096	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	7	4136426	26478000	11919360	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	8	4501526	28931000	11964416	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	9	4339036	29255000	12025856	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	10	4177986	27951000	11898880	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	11	4117626	26740000	11919360	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	12	4595136	27730000	11964416	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	13	4158576	26644000	12025856	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB	14	3982925	28261000	11898880	16384000	0	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	0	89065389	22311000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	1	89211809	23574000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	2	89803810	22588000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	3	81912720	23666000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	4	80291747	23404000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	5	90209901	24800000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	6	84443093	22740000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	7	81822919	22639000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	8	83414621	24087000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	9	90325621	23823000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	10	90432931	23576000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	11	82521341	23435000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	12	86679746	23132000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	13	90160021	24110000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB	14	81679069	22469000	10620928	16384000	1000	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	0	336477985	240301000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	1	328849864	240859000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	2	333510111	239372000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	3	334063856	239002000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	4	335988857	241078000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	5	317131544	237202000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	6	332729809	238111000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	7	334447622	239027000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	8	335818754	241174000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	9	326537495	239303000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	10	332590353	237787000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	11	332541892	237857000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	12	334704735	239646000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	13	334594253	240243000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.9.0	cold	1000 x 16 KiB, a process each	14	332378122	237641000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	0	322976315	228561000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	1	321391362	227039000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	2	314788561	228301000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	3	325457547	230393000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	4	322871602	227820000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	5	320906513	225887000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	6	324955511	230334000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	7	326647536	231157000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	8	323034341	228150000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	9	322232092	227612000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	10	316764310	229891000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	11	325755039	230332000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	12	320950656	226472000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	13	322196994	227696000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.8.0	cold	1000 x 16 KiB, a process each	14	308536390	228975000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	0	323183996	227996000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	1	330201441	235506000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	2	326033118	231619000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	3	329526462	234777000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	4	324555656	229842000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	5	326857496	232054000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	6	324744734	230206000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	7	328477328	233485000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	8	326518087	231878000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	9	328111667	233314000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	10	324782141	230310000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	11	329107689	234263000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	12	324687623	230339000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	13	327306295	232247000	10620928	16384000	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	1000 x 16 KiB, a process each	14	324960404	230724000	10620928	16384000	0	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	0	1662577092	9078902000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	1	1657774829	8914758000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	2	1659724143	8957276000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	3	1665926864	9019117000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	4	1660404393	9158919000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	5	1659948193	8938742000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	6	1659170912	9001382000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	7	1659440174	9011142000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	8	1663264990	9118795000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	9	1661938870	8974027000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	10	1652899540	8897420000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	11	1667112899	9045003000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	12	1658207184	9121004000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	13	1662173410	8873057000	10620928	16384000	1000	-	-	-	-
+# counts	official	cold	1000 x 16 KiB, a process each	14	1663118379	9039497000	10620928	16384000	1000	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	0	11589505	202072000	56258560	78610432	353	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	1	12000106	244269000	54755328	78610432	614	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	2	11856326	221634000	54104064	78610432	506	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	3	12112957	216928000	57503744	78610432	443	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	4	11203215	184435000	57352192	78610432	367	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	5	11809406	215960000	56856576	78610432	451	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	6	13259678	237729000	56827904	78610432	473	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	7	12108256	230613000	57765888	78610432	573	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	8	12231917	236271000	56807424	78610432	472	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	9	11890416	181938000	56967168	78610432	349	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	10	12553687	262589000	55848960	78610432	500	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	11	12166676	237624000	58126336	78610432	489	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	12	13127668	283785000	55283712	78610432	609	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	13	12017596	216324000	57356288	78610432	468	-	-	-	-
+# counts	b3sum-0.9.0	cold	mixed tree, 1000 files, 74 MiB	14	12372917	223528000	57659392	78610432	441	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	0	12084937	209576000	54218752	78610432	453	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	1	11897836	200128000	56619008	78610432	474	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	2	11030915	160616000	56066048	78610432	261	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	3	11472906	223669000	55349248	78610432	495	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	4	12042796	240999000	55754752	78610432	534	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	5	12160566	198136000	53862400	78610432	436	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	6	11766315	203538000	59211776	78610432	463	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	7	11407835	178168000	56614912	78610432	296	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	8	11889506	233127000	53489664	78610432	455	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	9	11909636	224647000	54624256	78610432	475	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	10	12058756	216690000	52658176	78610432	443	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	11	12184396	223280000	57049088	78610432	495	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	12	11811456	214837000	55836672	78610432	464	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	13	12153136	225248000	55148544	78610432	487	-	-	-	-
+# counts	b3sum-0.8.0	cold	mixed tree, 1000 files, 74 MiB	14	12536797	218248000	53592064	78610432	454	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	0	9747203	71240000	54345728	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	1	9962024	74008000	39632896	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	2	10233714	73953000	46231552	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	3	10162534	77042000	42991616	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	4	10605604	77712000	44892160	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	5	9915613	77607000	44052480	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	6	9780633	75433000	44322816	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	7	10507354	74851000	42704896	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	8	11212625	75104000	44449792	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	9	9076612	71603000	46182400	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	10	9743493	74595000	45862912	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	11	10802924	73732000	44425216	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	12	10056863	73850000	42627072	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	13	9537793	75129000	43192320	78610432	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	mixed tree, 1000 files, 74 MiB	14	9575403	73511000	40472576	78610432	0	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	0	98666872	1193818000	12529664	78610432	1743	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	1	95122277	1201583000	11403264	78610432	1766	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	2	92025652	1221210000	11980800	78610432	1693	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	3	90163831	1167603000	12206080	78610432	1496	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	4	97119340	1172968000	13574144	78610432	1739	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	5	122533754	1277568000	11493376	78610432	1818	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	6	93362404	1226861000	13987840	78610432	1854	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	7	91406842	1130962000	12570624	78610432	1686	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	8	100039244	1193577000	11505664	78610432	1749	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	9	108915335	1227884000	11558912	78610432	1712	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	10	95609618	1269092000	14192640	78610432	1795	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	11	94311846	1225006000	12574720	78610432	1761	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	12	87708028	1250453000	12759040	78610432	1781	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	13	111082259	1212080000	11796480	78610432	1763	-	-	-	-
+# counts	official	cold	mixed tree, 1000 files, 74 MiB	14	90641561	1200024000	12103680	78610432	1810	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	0	114966954	1428758000	1068736512	1073741824	2424	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	1	113753542	1402755000	1067040768	1073741824	2269	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	2	118054448	1465455000	1066917888	1073741824	2305	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	3	115478394	1331104000	1068085248	1073741824	2260	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	4	113773972	1519192000	1067372544	1073741824	2828	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	5	113669622	1523652000	1066704896	1073741824	2673	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	6	113678212	1464579000	1067417600	1073741824	2575	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	7	115934415	1381928000	1068236800	1073741824	2165	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	8	114375022	1449167000	1068978176	1073741824	2427	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	9	111995409	1498192000	1067950080	1073741824	2770	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	10	116520306	1508848000	1067139072	1073741824	2650	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	11	115534164	1466870000	1066909696	1073741824	2627	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	12	113646402	1535093000	1066942464	1073741824	2794	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	13	119174430	1599348000	1067786240	1073741824	2335	-	-	-	-
+# counts	b3sum-0.9.0	cold	16 x 64 MiB	14	115111064	1532979000	1067896832	1073741824	2826	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	0	114940324	1496453000	1066426368	1073741824	2529	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	1	116689906	1617064000	1068744704	1073741824	2869	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	2	118363228	1530197000	1067159552	1073741824	2624	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	3	115397774	1636921000	1069281280	1073741824	3069	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	4	115918475	1550073000	1066647552	1073741824	3136	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	5	115939694	1468678000	1067425792	1073741824	2275	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	6	114248892	1477737000	1066827776	1073741824	2566	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	7	115656304	1455109000	1066725376	1073741824	2679	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	8	114242853	1477868000	1066344448	1073741824	2433	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	9	116100755	1583815000	1067851776	1073741824	2787	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	10	113194931	1373956000	1067237376	1073741824	2371	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	11	116340515	1486590000	1068429312	1073741824	2429	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	12	113089841	1416005000	1065963520	1073741824	2541	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	13	114077942	1491275000	1066885120	1073741824	2367	-	-	-	-
+# counts	b3sum-0.8.0	cold	16 x 64 MiB	14	116256655	1468327000	1067184128	1073741824	2416	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	0	86665126	460088000	19435520	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	1	87043657	452472000	18710528	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	2	87460876	452649000	19369984	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	3	87133336	456054000	19390464	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	4	87520457	440411000	19435520	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	5	87447866	444827000	19496960	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	6	87047027	425604000	19369984	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	7	87509027	439591000	19390464	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	8	87015317	433639000	19435520	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	9	86568855	435228000	19496960	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	10	86194825	446064000	19369984	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	11	87016356	450227000	19390464	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	12	87887937	444536000	18649088	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	13	85981155	457751000	19496960	1073741824	0	-	-	-	-
+# counts	b3sum-0.10.0	cold	16 x 64 MiB	14	87522427	440137000	19369984	1073741824	0	-	-	-	-
+# counts	official	cold	16 x 64 MiB	0	174528123	3421863000	63217664	1073741824	3714	-	-	-	-
+# counts	official	cold	16 x 64 MiB	1	167499374	3197165000	63135744	1073741824	3560	-	-	-	-
+# counts	official	cold	16 x 64 MiB	2	172648150	3449683000	63168512	1073741824	3803	-	-	-	-
+# counts	official	cold	16 x 64 MiB	3	175118603	3595041000	63545344	1073741824	3876	-	-	-	-
+# counts	official	cold	16 x 64 MiB	4	166044232	3366095000	64008192	1073741824	3668	-	-	-	-
+# counts	official	cold	16 x 64 MiB	5	169359407	3226450000	63012864	1073741824	3746	-	-	-	-
+# counts	official	cold	16 x 64 MiB	6	170024557	3167848000	63651840	1073741824	3730	-	-	-	-
+# counts	official	cold	16 x 64 MiB	7	171994660	3400791000	63647744	1073741824	3663	-	-	-	-
+# counts	official	cold	16 x 64 MiB	8	164246130	3119186000	63012864	1073741824	3623	-	-	-	-
+# counts	official	cold	16 x 64 MiB	9	166052912	2953160000	63905792	1073741824	3620	-	-	-	-
+# counts	official	cold	16 x 64 MiB	10	172868741	3405029000	63356928	1073741824	3852	-	-	-	-
+# counts	official	cold	16 x 64 MiB	11	174596283	3741174000	62545920	1073741824	3913	-	-	-	-
+# counts	official	cold	16 x 64 MiB	12	167292634	3383493000	63238144	1073741824	3747	-	-	-	-
+# counts	official	cold	16 x 64 MiB	13	174927484	3311099000	62980096	1073741824	3929	-	-	-	-
+# counts	official	cold	16 x 64 MiB	14	169655456	3421643000	63336448	1073741824	3634	-	-	-	-
+contender	scenario	use_case	point	unit	ns/units	start ms	cpu ns	energy nJ	core counts	cpu
+b3sum-0.9.0	warm	b3sum	4 KiB	B	616171/4096,506831/4096,413811/4096,484121/4096,573641/4096,514841/4096,373021/4096,555141/4096,535181/4096,547351/4096,406020/4096,557361/4096,563281/4096,412431/4096,402910/4096	10554,17637,24895,32017,39212,46471,53716,60836,68005,75263,82457,89576,96764,103978,111220	575000,488000,395000,463000,533000,497000,354000,535000,490000,529000,385000,522000,524000,390000,384000	-	-	-
+b3sum-0.8.0	warm	b3sum	4 KiB	B	558821/4096,570230/4096,517440/4096,362490/4096,357730/4096,542870/4096,406420/4096,431480/4096,513381/4096,586551/4096,517831/4096,404420/4096,476951/4096,574951/4096,520941/4096	10554,17636,24894,32018,39213,46470,53715,60837,68005,75262,82456,89577,96764,103977,111219	537000,526000,497000,343000,337000,499000,383000,412000,495000,540000,500000,386000,456000,526000,502000	-	-	-
+b3sum-0.10.0	warm	b3sum	4 KiB	B	446420/4096,547541/4096,569511/4096,380391/4096,486661/4096,557181/4096,551661/4096,461531/4096,365700/4096,544650/4096,555791/4096,499391/4096,374471/4096,507850/4096,552530/4096	10557,17636,24891,32017,39215,46470,53712,60837,68008,75263,82454,89576,96767,103977,111217	421000,525000,526000,362000,468000,537000,503000,435000,347000,524000,510000,476000,355000,487000,508000	-	-	-
+official	warm	b3sum	4 KiB	B	2061833/4096,1878912/4096,2136563/4096,2160152/4096,1923602/4096,1914553/4096,2073223/4096,2138713/4096,2085833/4096,1934973/4096,2065303/4096,2087982/4096,1923232/4096,1992343/4096,1964113/4096	10555,17638,24892,32015,39213,46471,53713,60834,68006,75264,82454,89573,96765,103978,111218	9882000,11557000,9964000,9756000,7758000,10284000,11571000,9612000,9899000,9992000,9086000,11862000,10046000,9392000,12684000	-	-	-
+b3sum-0.9.0	warm	b3sum	64 KiB	B	384881/65536,429161/65536,502081/65536,349681/65536,370380/65536,417591/65536,535901/65536,372151/65536,279671/65536,465860/65536,520511/65536,497931/65536,390991/65536,422531/65536,555821/65536	10558,17642,24897,32018,39216,46476,53718,60838,68009,75269,82459,89577,96768,103983,111222	367000,409000,483000,332000,352000,392000,513000,355000,262000,443000,499000,479000,372000,403000,537000	-	-	-
+b3sum-0.8.0	warm	b3sum	64 KiB	B	375961/65536,459000/65536,384900/65536,317810/65536,378190/65536,477080/65536,486080/65536,318320/65536,371911/65536,444531/65536,397881/65536,339541/65536,506051/65536,537050/65536,361781/65536	10558,17642,24898,32019,39216,46476,53719,60838,68008,75268,82460,89578,96767,103982,111223	358000,438000,366000,299000,359000,456000,467000,300000,353000,424000,380000,319000,489000,516000,344000	-	-	-
+b3sum-0.10.0	warm	b3sum	64 KiB	B	340980/65536,424851/65536,383701/65536,519580/65536,289081/65536,464480/65536,430050/65536,540610/65536,285280/65536,431930/65536,415320/65536,492531/65536,398080/65536,387900/65536,443620/65536	10558,17639,24898,32021,39216,46473,53718,60840,68009,75266,82460,89580,96768,103980,111223	321000,400000,365000,487000,269000,443000,410000,518000,248000,409000,396000,472000,379000,366000,425000	-	-	-
+official	warm	b3sum	64 KiB	B	1830132/65536,1922643/65536,1810032/65536,1939353/65536,1953903/65536,1889933/65536,1745682/65536,1789613/65536,1864992/65536,1918133/65536,1836283/65536,1817202/65536,1920842/65536,1869293/65536,1954353/65536	10559,17640,24895,32019,39217,46474,53716,60839,68009,75266,82457,89578,96768,103981,111220	11833000,11521000,12111000,12269000,12471000,11378000,11475000,10642000,10218000,11952000,10099000,11900000,10484000,12499000,10641000	-	-	-
+b3sum-0.9.0	warm	b3sum	1 MiB	B	719431/1048576,722241/1048576,704131/1048576,728591/1048576,602820/1048576,664291/1048576,757841/1048576,734191/1048576,604671/1048576,807981/1048576,715151/1048576,725401/1048576,580151/1048576,771951/1048576,658671/1048576	10564,17645,24898,32023,39222,46479,53719,60842,68015,75271,82461,89582,96774,103986,111224	1516000,1540000,1656000,1618000,1397000,1521000,1564000,1626000,1386000,1810000,1728000,1528000,1052000,1832000,1614000	-	-	-
+b3sum-0.8.0	warm	b3sum	1 MiB	B	884811/1048576,685481/1048576,651791/1048576,701701/1048576,703231/1048576,848572/1048576,634511/1048576,795361/1048576,740951/1048576,671421/1048576,719681/1048576,777531/1048576,679951/1048576,690531/1048576,779811/1048576	10564,17646,24899,32022,39221,46480,53720,60841,68014,75273,82461,89580,96773,103987,111225	1835000,1423000,1452000,1656000,1794000,1538000,1287000,1829000,1832000,1500000,1667000,1590000,1666000,1507000,1673000	-	-	-
+b3sum-0.10.0	warm	b3sum	1 MiB	B	720101/1048576,615151/1048576,588201/1048576,534730/1048576,599731/1048576,543490/1048576,561051/1048576,550430/1048576,638281/1048576,513721/1048576,582370/1048576,541911/1048576,592540/1048576,605961/1048576,630051/1048576	10561,17646,24902,32022,39219,46479,53723,60842,68011,75272,82464,89581,96770,103986,111227	695000,596000,568000,515000,581000,525000,542000,519000,618000,485000,558000,523000,571000,576000,608000	-	-	-
+official	warm	b3sum	1 MiB	B	2076653/1048576,2055413/1048576,1980233/1048576,1981853/1048576,1986213/1048576,1971663/1048576,1911203/1048576,1940143/1048576,2059773/1048576,2038293/1048576,2059053/1048576,1999912/1048576,1906133/1048576,2043423/1048576,1959873/1048576	10561,17643,24900,32024,39219,46477,53721,60843,68012,75269,82462,89583,96771,103984,111225	22395000,18547000,16550000,17065000,19014000,17566000,16905000,18860000,20543000,18249000,19817000,18610000,17688000,19214000,18195000	-	-	-
+b3sum-0.9.0	warm	b3sum	16 MiB	B	1489972/16777216,1527762/16777216,1038142/16777216,1226852/16777216,1457972/16777216,1628433/16777216,1018052/16777216,1289602/16777216,1191891/16777216,1509343/16777216,1100681/16777216,1242112/16777216,1513362/16777216,1514673/16777216,1019811/16777216	10569,17648,24909,32032,39227,46482,53730,60852,68019,75275,82471,89591,96778,103989,111234	16130000,18232000,7081000,10310000,17491000,19335000,6421000,11571000,10682000,16578000,6745000,11815000,18227000,19198000,6063000	-	-	-
+b3sum-0.8.0	warm	b3sum	16 MiB	B	1493532/16777216,1342742/16777216,1082622/16777216,1223021/16777216,1491922/16777216,1464982/16777216,1005312/16777216,1215482/16777216,1126282/16777216,1335111/16777216,1043371/16777216,1258761/16777216,1379422/16777216,1411651/16777216,1012822/16777216	10572,17650,24907,32031,39230,46484,53728,60850,68022,75276,82469,89590,96781,103991,111232	14266000,14034000,6172000,9793000,14599000,15176000,5831000,11406000,8269000,13399000,5765000,12621000,14163000,15091000,6362000	-	-	-
+b3sum-0.10.0	warm	b3sum	16 MiB	B	1482362/16777216,1388252/16777216,1074231/16777216,1455661/16777216,1223142/16777216,1761873/16777216,1199161/16777216,1449002/16777216,1135182/16777216,1482592/16777216,1024192/16777216,1411942/16777216,1278212/16777216,1412022/16777216,1059051/16777216	10571,17654,24908,32027,39228,46488,53729,60846,68021,75280,82470,89586,96780,103995,111233	15568000,14460000,6306000,8370000,6352000,16624000,6390000,15896000,9054000,13897000,6174000,15785000,12778000,15200000,6577000	-	-	-
+official	warm	b3sum	16 MiB	B	2854784/16777216,2682514/16777216,2356853/16777216,2399044/16777216,2882174/16777216,2726143/16777216,2264023/16777216,2671953/16777216,2711174/16777216,2723724/16777216,2143663/16777216,2721544/16777216,2848084/16777216,2598634/16777216,2070133/16777216	10566,17651,24910,32028,39224,46485,53731,60848,68017,75277,82472,89587,96775,103992,111235	29135000,32507000,22800000,26114000,37714000,27182000,21852000,29866000,30176000,27445000,22957000,33403000,30019000,28470000,21357000	-	-	-
+b3sum-0.9.0	warm	b3sum	256 MiB	B	3184254/268435456,2753314/268435456,3045074/268435456,3731095/268435456,2952614/268435456,2664124/268435456,3272794/268435456,3746275/268435456,3030014/268435456,2770683/268435456,3557035/268435456,3346815/268435456,3133464/268435456,3855385/268435456,2951154/268435456	10587,17730,24938,32055,39244,46563,53759,60875,68036,75355,82500,89615,96795,104069,111263	73858000,67607000,79321000,63197000,90951000,66833000,68924000,85675000,86765000,66566000,53145000,76153000,68405000,36500000,80002000	-	-	-
+b3sum-0.8.0	warm	b3sum	256 MiB	B	3438165/268435456,2745234/268435456,3074504/268435456,3099615/268435456,3122334/268435456,2843724/268435456,2994774/268435456,3075694/268435456,3878065/268435456,2552043/268435456,2987864/268435456,3298034/268435456,3098164/268435456,2651213/268435456,2836564/268435456	10590,17725,24935,32062,39247,46557,53756,60883,68039,75349,82497,89622,96799,104063,111260	66802000,65452000,78074000,87979000,87512000,61293000,83892000,88117000,77262000,64343000,76054000,76796000,87140000,58969000,77573000	-	-	-
+b3sum-0.10.0	warm	b3sum	256 MiB	B	3077394/268435456,2813514/268435456,3041484/268435456,3068784/268435456,3702165/268435456,2636393/268435456,2955044/268435456,3515845/268435456,3429395/268435456,3293415/268435456,2849684/268435456,3180914/268435456,3104525/268435456,2649994/268435456,3046925/268435456	10601,17728,24925,32059,39258,46560,53745,60879,68050,75352,82487,89619,96809,104066,111250	88405000,64745000,79616000,84729000,84582000,67628000,81611000,56825000,84978000,42098000,77335000,87927000,85332000,48185000,56055000	-	-	-
+official	warm	b3sum	256 MiB	B	8053111/268435456,4681686/268435456,7204100/268435456,8895482/268435456,8243931/268435456,4578296/268435456,7263820/268435456,9092032/268435456,7590340/268435456,4591087/268435456,7251440/268435456,9426702/268435456,7493650/268435456,4381686/268435456,7378939/268435456	10593,17733,24928,32046,39250,46566,53748,60866,68043,75358,82490,89606,96802,104073,111253	89697000,74770000,84869000,94493000,96827000,80599000,91308000,94587000,93971000,83516000,92758000,98908000,91311000,71844000,92538000	-	-	-
+b3sum-0.9.0	warm	b3sum	1 GiB	B	7237639/1073741824,8256531/1073741824,7669631/1073741824,7407880/1073741824,7114130/1073741824,8198811/1073741824,7882381/1073741824,7454950/1073741824,7132039/1073741824,8217821/1073741824,7886670/1073741824,7725020/1073741824,7391080/1073741824,7981930/1073741824,8037341/1073741824	10644,17820,25009,32109,39543,46649,53830,60932,68335,75442,82572,89672,97094,104157,111336	262669000,303519000,287252000,288665000,261174000,304881000,289547000,290785000,251652000,296012000,285674000,277212000,227496000,308745000,275916000	-	-	-
+b3sum-0.8.0	warm	b3sum	1 GiB	B	6772369/1073741824,7400790/1073741824,8295621/1073741824,8225641/1073741824,6542479/1073741824,7321710/1073741824,7978800/1073741824,9082232/1073741824,6945519/1073741824,7812100/1073741824,8324191/1073741824,8089051/1073741824,6674499/1073741824,7302400/1073741824,8092600/1073741824	10630,17813,25025,32117,39529,46641,53846,60939,68321,75434,82588,89679,97080,104150,111352	198692000,272732000,296600000,311489000,231622000,270306000,304407000,225513000,248860000,270533000,302197000,310460000,241206000,279726000,297694000	-	-	-
+b3sum-0.10.0	warm	b3sum	1 GiB	B	7197230/1073741824,7480990/1073741824,8155211/1073741824,9396472/1073741824,7636830/1073741824,7206510/1073741824,8112470/1073741824,8122821/1073741824,7209390/1073741824,7957571/1073741824,8208851/1073741824,9403843/1073741824,7302240/1073741824,7261570/1073741824,8449131/1073741824	10637,17783,25016,32145,39536,46614,53838,60968,68328,75406,82580,89707,97086,104122,111344	255526000,266200000,313134000,246588000,185352000,277654000,310402000,231753000,261894000,256818000,306590000,268591000,269111000,279988000,306901000	-	-	-
+official	warm	b3sum	1 GiB	B	13376028/1073741824,22396430/1073741824,23724181/1073741824,19625896/1073741824,12195796/1073741824,19679266/1073741824,23829282/1073741824,19683766/1073741824,12017936/1073741824,20158407/1073741824,23198451/1073741824,19563876/1073741824,11796246/1073741824,19880527/1073741824,23329901/1073741824	10651,17790,24985,32125,39550,46622,53806,60948,68343,75414,82549,89688,97101,104130,111312	231433000,266426000,268404000,273369000,229293000,283257000,265376000,270565000,234416000,264190000,272169000,269395000,227834000,289052000,266680000	-	-	-
+b3sum-0.9.0	warm	b3sum	1000 x 16 KiB	B	2899834/16384000,3157654/16384000,3278204/16384000,2834394/16384000,2863654/16384000,2945184/16384000,3162514/16384000,2758554/16384000,2655064/16384000,2868494/16384000,3237775/16384000,2736024/16384000,2782964/16384000,2946854/16384000,3195354/16384000	10683,17842,25036,32163,39580,46671,53857,60985,68373,75464,82599,89725,97132,104179,111363	20713000,34825000,32200000,35322000,36013000,31545000,39667000,28631000,37185000,38075000,32175000,32197000,36034000,32541000,35042000	-	-	-
+b3sum-0.8.0	warm	b3sum	1000 x 16 KiB	B	2995514/16384000,2675373/16384000,2821643/16384000,2976484/16384000,2722293/16384000,2707374/16384000,2748964/16384000,3246194/16384000,2736274/16384000,2746313/16384000,2895644/16384000,3085734/16384000,2789254/16384000,2676673/16384000,2811733/16384000	10680,17850,25040,32157,39577,46676,53860,60979,68370,75469,82603,89719,97129,104185,111367	30911000,36270000,35490000,19690000,35167000,34888000,39438000,24053000,34666000,39694000,39799000,36646000,27541000,39604000,25500000	-	-	-
+b3sum-0.10.0	warm	b3sum	1000 x 16 KiB	B	2711393/16384000,4365505/16384000,2566093/16384000,2552414/16384000,2631183/16384000,2460883/16384000,2487934/16384000,2558163/16384000,2583593/16384000,2498423/16384000,2402643/16384000,2583053/16384000,2735233/16384000,2576283/16384000,2545193/16384000	10667,17846,25053,32160,39565,46674,53872,60982,68357,75467,82616,89723,97116,104182,111379	14714000,12434000,14567000,14059000,14671000,14641000,15182000,14622000,13591000,15199000,13721000,15204000,15096000,15341000,15080000	-	-	-
+official	warm	b3sum	1000 x 16 KiB	B	9923333/16384000,10619834/16384000,9951773/16384000,9203952/16384000,9239843/16384000,10646184/16384000,9105282/16384000,9114822/16384000,10169353/16384000,10499244/16384000,9928993/16384000,9693643/16384000,9442303/16384000,10921875/16384000,9356083/16384000	10670,17832,25042,32166,39568,46660,53863,60988,68360,75453,82606,89728,97119,104168,111369	18471000,19822000,16993000,16827000,16478000,18182000,17662000,16861000,17007000,20113000,17184000,17454000,18848000,19348000,16986000	-	-	-
+b3sum-0.9.0	warm	b3sum	1000 x 16 KiB, a process each	B	244257057/16384000,241616563/16384000,241156863/16384000,243087629/16384000,243573931/16384000,239781204/16384000,242094684/16384000,243468798/16384000,242961959/16384000,245160770/16384000,241053938/16384000,243802374/16384000,243803580/16384000,241540636/16384000,244021051/16384000	12300,17860,25569,34298,41198,46682,54383,63116,69987,75475,83130,91854,98747,104190,111893	225534000,223480000,222746000,224889000,224791000,221368000,223966000,224969000,223970000,226839000,223096000,224604000,224995000,223448000,225768000	-	-	-
+b3sum-0.8.0	warm	b3sum	1000 x 16 KiB, a process each	B	233993317/16384000,231679459/16384000,233366462/16384000,237077927/16384000,231296045/16384000,229735529/16384000,233452938/16384000,235207283/16384000,230177618/16384000,227990129/16384000,233017115/16384000,236359367/16384000,231787028/16384000,229009887/16384000,232817555/16384000	12820,18122,25058,34041,41717,46941,53877,62860,70505,75740,82621,91597,99267,104451,111384	215523000,213396000,214636000,218948000,213242000,211935000,213847000,216453000,212217000,210358000,213960000,217619000,213563000,211511000,214457000	-	-	-
+b3sum-0.10.0	warm	b3sum	1000 x 16 KiB, a process each	B	235094146/16384000,240880634/16384000,238123633/16384000,238422179/16384000,235517519/16384000,238177469/16384000,232736928/16384000,236048572/16384000,233767580/16384000,238436579/16384000,235488728/16384000,236008204/16384000,235133264/16384000,238312738/16384000,236620734/16384000	12564,19976,25311,32177,41462,48800,54131,61000,70251,77585,82873,89740,99011,106302,111636	216980000,222348000,219883000,220006000,217358000,219910000,214682000,217758000,215433000,220170000,217390000,217625000,217257000,219597000,218328000	-	-	-
+official	warm	b3sum	1000 x 16 KiB, a process each	B	1586368383/16384000,1578260982/16384000,1579419377/16384000,1580621448/16384000,1588361330/16384000,1584873442/16384000,1576561700/16384000,1580021219/16384000,1584501617/16384000,1573824380/16384000,1583142579/16384000,1576302129/16384000,1587107229/16384000,1577979835/16384000,1578621357/16384000	10689,18374,25830,32435,39585,47191,54645,61256,68378,75987,83390,89996,97137,104700,112157	9130124000,8935434000,9021617000,9185029000,9140493000,9074831000,9033230000,9004586000,9119408000,8963842000,9089046000,8982225000,9116732000,9026360000,9032786000	-	-	-
+b3sum-0.9.0	warm	b3sum	mixed tree, 1000 files, 74 MiB	B	5298817/77688832,3410044/77688832,3577775/77688832,3996045/77688832,3744985/77688832,3765685/77688832,3834685/77688832,3516554/77688832,3795655/77688832,3407184/77688832,3803436/77688832,3640535/77688832,5047816/77688832,3684585/77688832,3664814/77688832	13081,20251,27474,34590,41974,49072,56285,63408,70761,77856,85038,92153,99525,106573,113799	46328000,38281000,44132000,46836000,47990000,38380000,44895000,40244000,41048000,39320000,55230000,46822000,47753000,35232000,40224000	-	-	-
+b3sum-0.8.0	warm	b3sum	mixed tree, 1000 files, 74 MiB	B	3419724/77688832,3782915/77688832,3306435/77688832,3561674/77688832,3732905/77688832,4550236/77688832,3148574/77688832,3516805/77688832,3689405/77688832,3068274/77688832,3715355/77688832,3743255/77688832,3633235/77688832,3591735/77688832,4014655/77688832	13087,20243,27471,34597,41978,49064,56282,63416,70764,77849,85034,92161,99530,106566,113794	44750000,40614000,36623000,44237000,45374000,41467000,39256000,41626000,33792000,35572000,47102000,43695000,47755000,40559000,52168000	-	-	-
+b3sum-0.10.0	warm	b3sum	mixed tree, 1000 files, 74 MiB	B	3250844/77688832,3238475/77688832,3474685/77688832,3400135/77688832,3244714/77688832,3238655/77688832,3717185/77688832,3473385/77688832,4180886/77688832,3236614/77688832,3454405/77688832,3320735/77688832,3274465/77688832,3373905/77688832,3311085/77688832	13115,20247,27441,34594,42007,49068,56253,63412,70792,77852,85005,92157,99558,106570,113767	31557000,30833000,39613000,32658000,31937000,31446000,43846000,32416000,30008000,28866000,40327000,29683000,32512000,26588000,39238000	-	-	-
+official	warm	b3sum	mixed tree, 1000 files, 74 MiB	B	24605912/77688832,22966191/77688832,25512394/77688832,22943460/77688832,24534303/77688832,23181601/77688832,24552583/77688832,23342151/77688832,23281391/77688832,23260741/77688832,25038423/77688832,28384518/77688832,23759982/77688832,21604669/77688832,23989822/77688832	13090,20254,27445,34567,41982,49076,56257,63385,70768,77859,85009,92125,99534,106577,113770	683709000,643893000,714969000,653151000,653848000,627095000,710446000,641940000,637010000,643632000,715689000,644107000,642762000,633573000,694894000	-	-	-
+b3sum-0.9.0	warm	b3sum	16 x 64 MiB	B	11100935/1073741824,11591126/1073741824,10284284/1073741824,10760044/1073741824,9149452/1073741824,12035096/1073741824,11170025/1073741824,10574584/1073741824,8490241/1073741824,11082965/1073741824,10785384/1073741824,9477682/1073741824,8431162/1073741824,13831399/1073741824,10958254/1073741824	13180,20394,27555,34647,42055,49206,56364,63463,70836,77990,85118,92208,99603,106708,113879	304310000,393391000,333127000,321136000,230038000,347842000,342790000,343717000,244401000,379250000,315751000,335489000,256261000,328479000,308231000	-	-	-
+b3sum-0.8.0	warm	b3sum	16 x 64 MiB	B	10473774/1073741824,12416436/1073741824,10480714/1073741824,10858995/1073741824,9559432/1073741824,12318137/1073741824,10364314/1073741824,11129705/1073741824,7507190/1073741824,11170005/1073741824,10229584/1073741824,10022894/1073741824,8027161/1073741824,12330116/1073741824,10378574/1073741824	13163,20382,27573,34658,42037,49193,56382,63474,70821,77979,85136,92218,99588,106695,113897	335746000,397559000,321473000,326478000,223678000,307480000,336197000,321527000,245518000,384720000,354595000,315067000,237118000,310880000,310478000	-	-	-
+b3sum-0.10.0	warm	b3sum	16 x 64 MiB	B	7199230/1073741824,7796560/1073741824,7301500/1073741824,7126559/1073741824,8514391/1073741824,7598450/1073741824,6964059/1073741824,8068791/1073741824,7019100/1073741824,7580310/1073741824,7487730/1073741824,7223319/1073741824,6967839/1073741824,8842132/1073741824,7074500/1073741824	13173,20337,27566,34696,42047,49152,56375,63514,70829,77936,85129,92254,99596,106653,113890	244206000,297992000,260751000,252821000,211195000,285850000,242454000,190920000,219346000,275983000,247643000,223876000,250965000,249441000,253818000	-	-	-
+official	warm	b3sum	16 x 64 MiB	B	25189893/1073741824,36744350/1073741824,32392243/1073741824,26976636/1073741824,14724420/1073741824,33120094/1073741824,30736491/1073741824,28474928/1073741824,15736381/1073741824,34796657/1073741824,31593392/1073741824,26070065/1073741824,16015751/1073741824,33431665/1073741824,31371142/1073741824	13192,20345,27523,34669,42064,49160,56333,63485,70845,77944,85086,92228,99611,106662,113847	489930000,559346000,485336000,481911000,389311000,529553000,487605000,482412000,398024000,547348000,465503000,516484000,398231000,531365000,496622000	-	-	-
+b3sum-0.9.0	cold	b3sum	4 KiB	B	3622814/4096,514431/4096,490731/4096,703881/4096,722691/4096,632101/4096,498641/4096,672041/4096,738771/4096,629320/4096,513850/4096,711941/4096,687401/4096,622101/4096,487941/4096	13217,20407,27596,34705,42079,49219,56402,63524,70860,78002,85160,92264,99627,106723,113916	610000,425000,403000,599000,613000,536000,409000,575000,627000,535000,424000,597000,579000,528000,401000	-	-	-
+b3sum-0.8.0	cold	b3sum	4 KiB	B	646540/4096,674941/4096,580191/4096,514041/4096,654861/4096,667371/4096,619121/4096,498871/4096,634431/4096,690181/4096,630281/4096,593001/4096,647971/4096,659321/4096,568231/4096	13231,20406,27595,34707,42080,49218,56401,63525,70861,78001,85159,92266,99628,106722,113915	552000,560000,461000,420000,568000,553000,519000,410000,547000,567000,529000,498000,564000,543000,470000	-	-	-
+b3sum-0.10.0	cold	b3sum	4 KiB	B	507981/4096,669111/4096,681731/4096,633801/4096,603061/4096,680441/4096,685281/4096,610571/4096,511381/4096,577671/4096,701311/4096,680601/4096,558861/4096,654631/4096,708141/4096	13234,20407,27583,34706,42083,49219,56392,63525,70864,78002,85147,92265,99631,106722,113907	432000,570000,568000,540000,517000,578000,571000,514000,426000,478000,583000,561000,477000,554000,591000	-	-	-
+official	cold	b3sum	4 KiB	B	2061883/4096,2069252/4096,2154903/4096,2381613/4096,2087533/4096,1972113/4096,2142503/4096,2254333/4096,2135803/4096,2019253/4096,2242503/4096,2664733/4096,2144013/4096,2084383/4096,2227513/4096	13232,20408,27584,34703,42081,49220,56393,63522,70862,78003,85147,92261,99629,106724,113908	10375000,11351000,9907000,12835000,9887000,9038000,8718000,10437000,9874000,11102000,10159000,9402000,10131000,9494000,11805000	-	-	-
+b3sum-0.9.0	cold	b3sum	64 KiB	B	468021/65536,460211/65536,539450/65536,544540/65536,494991/65536,471231/65536,703241/65536,694050/65536,509200/65536,481950/65536,659181/65536,594271/65536,504840/65536,482901/65536,690650/65536	13235,20413,27599,34707,42085,49225,56405,63526,70866,78008,85162,92267,99633,106741,113918	373000,361000,434000,444000,401000,369000,594000,589000,413000,377000,554000,493000,407000,383000,580000	-	-	-
+b3sum-0.8.0	cold	b3sum	64 KiB	B	448001/65536,523981/65536,428541/65536,454711/65536,556061/65536,601541/65536,514931/65536,468570/65536,682481/65536,581561/65536,464890/65536,591241/65536,581171/65536,559851/65536,497261/65536	13234,20413,27600,34708,42084,49225,56406,63527,70865,78008,85164,92267,99632,106741,113920	352000,421000,329000,356000,458000,496000,413000,361000,581000,478000,367000,489000,482000,449000,396000	-	-	-
+b3sum-0.10.0	cold	b3sum	64 KiB	B	422500/65536,604490/65536,470231/65536,669611/65536,452790/65536,605360/65536,554831/65536,577931/65536,554641/65536,523851/65536,472201/65536,520060/65536,548771/65536,568670/65536,530910/65536	13235,20410,27599,34710,42084,49222,56405,63529,70866,78005,85163,92270,99632,106726,113919	327000,491000,371000,559000,356000,489000,449000,474000,458000,410000,374000,420000,453000,453000,431000	-	-	-
+official	cold	b3sum	64 KiB	B	1926002/65536,2033953/65536,2229123/65536,1911733/65536,2012393/65536,1997023/65536,1866002/65536,1979213/65536,1957773/65536,1956993/65536,1963943/65536,1964163/65536,2020423/65536,1903323/65536,2031072/65536	13236,20411,27597,34709,42085,49223,56403,63527,70867,78006,85160,92268,99634,106727,113916	9636000,10654000,11064000,10608000,10031000,9348000,9438000,9145000,11766000,11071000,8985000,10785000,10515000,9796000,12090000	-	-	-
+b3sum-0.9.0	cold	b3sum	1 MiB	B	990062/1048576,1098782/1048576,1090401/1048576,984381/1048576,1130872/1048576,1256832/1048576,1518742/1048576,942421/1048576,1080102/1048576,1122961/1048576,871622/1048576,1034311/1048576,1057921/1048576,1004671/1048576,927091/1048576	13308,20417,27600,34794,42152,49228,56406,63593,70949,78012,85164,92328,99711,106744,113920	3669000,3817000,5045000,4092000,3485000,4678000,12257000,2728000,3638000,4031000,3286000,3874000,3887000,3479000,3822000	-	-	-
+b3sum-0.8.0	cold	b3sum	1 MiB	B	1078722/1048576,1138882/1048576,930011/1048576,956311/1048576,954101/1048576,986311/1048576,1004792/1048576,1065181/1048576,1008802/1048576,957561/1048576,977882/1048576,1324222/1048576,960152/1048576,1015161/1048576,1038921/1048576	13277,20489,27627,34711,42121,49291,56443,63530,70908,78075,85205,92270,99675,106802,113961	3863000,5190000,3446000,3422000,3726000,3428000,3448000,3593000,3755000,3501000,3800000,7195000,3794000,3733000,4298000	-	-	-
+b3sum-0.10.0	cold	b3sum	1 MiB	B	997661/1048576,1071621/1048576,1075011/1048576,1036351/1048576,1018941/1048576,1040961/1048576,1145822/1048576,1248622/1048576,1149352/1048576,992851/1048576,1110891/1048576,923081/1048576,1163352/1048576,925892/1048576,984992/1048576	13238,20458,27666,34752,42087,49270,56482,63566,70869,78043,85229,92302,99636,106781,113992	4231000,4414000,4263000,3571000,3600000,3194000,4865000,6436000,4056000,3588000,4021000,3591000,4912000,3421000,3354000	-	-	-
+official	cold	b3sum	1 MiB	B	2408353/1048576,2596503/1048576,2718144/1048576,2623353/1048576,2089662/1048576,2295863/1048576,2457483/1048576,2307533/1048576,2327843/1048576,2482794/1048576,2419563/1048576,2343844/1048576,2590303/1048576,2201163/1048576,3699915/1048576	13274,20414,27663,34820,42119,49226,56480,63619,70905,78009,85226,92360,99672,106742,113988	24565000,37308000,41206000,31119000,19950000,26195000,25498000,26257000,24611000,26708000,25110000,24647000,28726000,20928000,26276000	-	-	-
+b3sum-0.9.0	cold	b3sum	16 MiB	B	4556646/16777216,4599966/16777216,4381616/16777216,4419176/16777216,4425746/16777216,4320075/16777216,4577626/16777216,3840685/16777216,4537446/16777216,4477776/16777216,4287216/16777216,4634406/16777216,4282805/16777216,4389586/16777216,4593766/16777216	13319,20492,27699,34875,42164,49293,56520,63673,70962,78077,85256,92415,99722,106803,114025	120983000,120393000,118640000,113567000,92537000,113173000,98097000,64361000,123216000,115869000,105510000,121305000,109090000,115570000,121428000	-	-	-
+b3sum-0.8.0	cold	b3sum	16 MiB	B	4408766/16777216,4547356/16777216,4807036/16777216,4314446/16777216,4387066/16777216,4489986/16777216,4558026/16777216,4345365/16777216,4606026/16777216,4479366/16777216,4532626/16777216,4483266/16777216,4252986/16777216,4451665/16777216,4325495/16777216	13356,20526,27667,34836,42200,49326,56484,63634,70993,78100,85230,92376,99748,106831,113993	118377000,116347000,117271000,113689000,88518000,100022000,113401000,118146000,123116000,113804000,110633000,119313000,95267000,120572000,88650000	-	-	-
+b3sum-0.10.0	cold	b3sum	16 MiB	B	3039704/16777216,3208804/16777216,2779514/16777216,2932454/16777216,2727664/16777216,3259804/16777216,3032594/16777216,3032504/16777216,3021924/16777216,3032084/16777216,3254084/16777216,2897924/16777216,3426184/16777216,3026534/16777216,3021535/16777216	13353,20574,27697,34825,42197,49373,56517,63623,70990,78143,85253,92366,99745,106881,114022	6228000,6068000,5672000,5888000,6394000,6497000,6320000,6220000,5822000,6262000,5817000,6283000,5460000,6522000,5985000	-	-	-
+official	cold	b3sum	16 MiB	B	6879590/16777216,7374280/16777216,5734597/16777216,6304649/16777216,6737629/16777216,6112918/16777216,6060548/16777216,6408678/16777216,6576689/16777216,6140808/16777216,5617317/16777216,5920988/16777216,6663769/16777216,6916669/16777216,6868340/16777216	13310,20565,27733,34828,42154,49365,56554,63626,70953,78134,85284,92369,99713,106871,114058	156775000,180325000,112468000,126676000,140832000,121301000,122561000,144607000,146981000,115757000,105832000,122770000,140584000,143282000,169255000	-	-	-
+b3sum-0.9.0	cold	b3sum	256 MiB	B	26003305/268435456,30903301/268435456,26397985/268435456,33444764/268435456,26662626/268435456,33377395/268435456,31299602/268435456,31048541/268435456,31536852/268435456,31412541/268435456,31418612/268435456,31522872/268435456,31613823/268435456,30365871/268435456,31251352/268435456	13369,20641,27852,34927,42213,49449,56677,63726,71007,78210,85406,92469,99762,106955,114180	271296000,353218000,253701000,288912000,315058000,279805000,254727000,267529000,322564000,328265000,263676000,265861000,312361000,276878000,301688000	-	-	-
+b3sum-0.8.0	cold	b3sum	256 MiB	B	31054812/268435456,31163871/268435456,31285971/268435456,31241162/268435456,25992855/268435456,25885935/268435456,31443662/268435456,26141225/268435456,31578772/268435456,31112381/268435456,31341262/268435456,26191515/268435456,31161512/268435456,26152165/268435456,31624162/268435456	13413,20579,27812,34992,42255,49378,56636,63789,71049,78148,85365,92532,99803,106885,114139	301658000,339173000,300231000,331866000,275314000,285971000,282448000,246606000,298609000,266571000,271414000,291051000,305695000,268821000,346340000	-	-	-
+b3sum-0.10.0	cold	b3sum	256 MiB	B	24132052/268435456,22342039/268435456,21954530/268435456,22257989/268435456,22108890/268435456,22421640/268435456,22438000/268435456,22647841/268435456,22912641/268435456,22213590/268435456,22338970/268435456,22527540/268435456,22779531/268435456,22111260/268435456,22444650/268435456	13494,20618,27748,34969,42342,49426,56570,63766,71129,78187,85301,92509,99886,106932,114074	41340000,41461000,40951000,41396000,42105000,42216000,41437000,42408000,42253000,41572000,41376000,42210000,41674000,41912000,41577000	-	-	-
+official	cold	b3sum	256 MiB	B	32099473/268435456,32117002/268435456,33125835/268435456,32207103/268435456,32065773/268435456,31464352/268435456,34039255/268435456,31884282/268435456,32208433/268435456,32203713/268435456,32320984/268435456,33036574/268435456,32393343/268435456,33425865/268435456,33231795/268435456	13453,20679,27770,34888,42301,49491,56593,63686,71088,78250,85324,92429,99844,106994,114096	241923000,258771000,265565000,258482000,253495000,215046000,378016000,223746000,299395000,255413000,239141000,244279000,333303000,214841000,319376000	-	-	-
+b3sum-0.9.0	cold	b3sum	1 GiB	B	108384145/1073741824,109240486/1073741824,112028149/1073741824,109108206/1073741824,109286186/1073741824,108539415/1073741824,111186429/1073741824,108615235/1073741824,110210357/1073741824,109201685/1073741824,110570237/1073741824,109378926/1073741824,109538786/1073741824,109162426/1073741824,112023679/1073741824	13745,21091,28048,35050,42594,49915,56868,63842,71384,78678,85609,92590,100141,107419,114378	439111000,460795000,442154000,456423000,427557000,423401000,426705000,424394000,438699000,457412000,468503000,414386000,425781000,424297000,451393000	-	-	-
+b3sum-0.8.0	cold	b3sum	1 GiB	B	107882634/1073741824,111681169/1073741824,109001896/1073741824,109478077/1073741824,110813427/1073741824,110675007/1073741824,108849805/1073741824,109529466/1073741824,109652286/1073741824,112022669/1073741824,108992255/1073741824,108881915/1073741824,111062558/1073741824,110504497/1073741824,109458396/1073741824	13523,20955,28276,35188,42369,49777,57093,63979,71157,78534,85838,92728,99913,107280,114606	423284000,476260000,436882000,456315000,427837000,472464000,410221000,461824000,426697000,436639000,453465000,466836000,378478000,435781000,459890000	-	-	-
+b3sum-0.10.0	cold	b3sum	1 GiB	B	83851082/1073741824,83825362/1073741824,84672793/1073741824,83961143/1073741824,83680141/1073741824,83490352/1073741824,84029912/1073741824,84730263/1073741824,84059812/1073741824,83651592/1073741824,84966123/1073741824,85092274/1073741824,83450691/1073741824,84201593/1073741824,84832913/1073741824	13659,20738,28190,35461,42508,49549,57007,64252,71298,78309,85751,93004,100056,107056,114519	139298000,138513000,139456000,139675000,140745000,138577000,140373000,139939000,139149000,138636000,140043000,140778000,139826000,138775000,139442000	-	-	-
+official	cold	b3sum	1 GiB	B	110639588/1073741824,109914526/1073741824,112747570/1073741824,111410339/1073741824,109186146/1073741824,110918748/1073741824,110335837/1073741824,110849808/1073741824,109958557/1073741824,111117678/1073741824,113603622/1073741824,110817668/1073741824,110304458/1073741824,109717527/1073741824,109449606/1073741824	13882,20823,27907,35326,42731,49634,56734,64119,71523,78394,85465,92865,100278,107142,114238	510735000,459827000,447781000,482919000,429870000,439539000,457935000,481927000,469435000,450562000,463033000,482322000,443146000,486845000,434829000	-	-	-
+b3sum-0.9.0	cold	b3sum	1000 x 16 KiB	B	5709207/16384000,4590516/16384000,4146335/16384000,4853677/16384000,5423177/16384000,4838657/16384000,4320166/16384000,4754326/16384000,5100136/16384000,5664647/16384000,4241936/16384000,4485606/16384000,4144956/16384000,4040396/16384000,4746986/16384000	14114,21298,28390,35567,42948,50124,57207,64359,71745,78887,85951,93112,100504,107627,114720	22086000,24552000,26339000,22532000,22417000,23430000,27393000,24278000,23248000,22933000,25740000,22982000,23521000,27731000,25963000	-	-	-
+b3sum-0.8.0	cold	b3sum	1000 x 16 KiB	B	6206638/16384000,5525167/16384000,4008635/16384000,3918325/16384000,5127557/16384000,5181717/16384000,3976835/16384000,4128046/16384000,4225876/16384000,5399517/16384000,4065215/16384000,3904236/16384000,4220986/16384000,3955226/16384000,5480247/16384000	14103,21316,28399,35549,42938,50142,57216,64341,71736,78907,85960,93094,100495,107645,114730	22766000,21180000,22425000,24497000,22538000,21596000,22862000,24507000,22204000,20519000,23008000,24580000,22520000,22373000,21399000	-	-	-
+b3sum-0.10.0	cold	b3sum	1000 x 16 KiB	B	4547696/16384000,4276666/16384000,4559656/16384000,3954916/16384000,4463606/16384000,4205275/16384000,4341036/16384000,4136426/16384000,4501526/16384000,4339036/16384000,4177986/16384000,4117626/16384000,4595136/16384000,4158576/16384000,3982925/16384000	13998,21307,28502,35558,42845,50133,57314,64350,71638,78898,86065,93103,100394,107636,114826	29984000,27575000,30155000,27086000,30022000,27918000,29789000,26478000,28931000,29255000,27951000,26740000,27730000,26644000,28261000	-	-	-
+official	cold	b3sum	1000 x 16 KiB	B	89065389/16384000,89211809/16384000,89803810/16384000,81912720/16384000,80291747/16384000,90209901/16384000,84443093/16384000,81822919/16384000,83414621/16384000,90325621/16384000,90432931/16384000,82521341/16384000,86679746/16384000,90160021/16384000,81679069/16384000	14008,21204,28407,35577,42854,50028,57225,64368,71647,78792,85970,93121,100403,107532,114740	22311000,23574000,22588000,23666000,23404000,24800000,22740000,22639000,24087000,23823000,23576000,23435000,23132000,24110000,22469000	-	-	-
+b3sum-0.9.0	cold	b3sum	1000 x 16 KiB, a process each	B	336477985/16384000,328849864/16384000,333510111/16384000,334063856/16384000,335988857/16384000,317131544/16384000,332729809/16384000,334447622/16384000,335818754/16384000,326537495/16384000,332590353/16384000,332541892/16384000,334704735/16384000,334594253/16384000,332378122/16384000	15816,21326,29201,38063,44647,50152,58022,66848,73447,78917,86765,95609,102201,107654,115518	240301000,240859000,239372000,239002000,241078000,237202000,238111000,239027000,241174000,239303000,237787000,237857000,239646000,240243000,237641000	-	-	-
+b3sum-0.8.0	cold	b3sum	1000 x 16 KiB, a process each	B	322976315/16384000,321391362/16384000,314788561/16384000,325457547/16384000,322871602/16384000,320906513/16384000,324955511/16384000,326647536/16384000,323034341/16384000,322232092/16384000,316764310/16384000,325755039/16384000,320950656/16384000,322196994/16384000,308536390/16384000	16526,21679,28511,37712,45359,50494,57323,66496,74160,79269,86074,95258,102910,108013,114834	228561000,227039000,228301000,230393000,227820000,225887000,230334000,231157000,228150000,227612000,229891000,230332000,226472000,227696000,228975000	-	-	-
+b3sum-0.10.0	cold	b3sum	1000 x 16 KiB, a process each	B	323183996/16384000,330201441/16384000,326033118/16384000,329526462/16384000,324555656/16384000,326857496/16384000,324744734/16384000,328477328/16384000,326518087/16384000,328111667/16384000,324782141/16384000,329107689/16384000,324687623/16384000,327306295/16384000,324960404/16384000	16178,23712,28851,35663,45009,52529,57673,64455,73808,81306,86416,93208,102560,110052,115168	227996000,235506000,231619000,234777000,229842000,232054000,230206000,233485000,231878000,233314000,230310000,234263000,230339000,232247000,230724000	-	-	-
+official	cold	b3sum	1000 x 16 KiB, a process each	B	1662577092/16384000,1657774829/16384000,1659724143/16384000,1665926864/16384000,1660404393/16384000,1659948193/16384000,1659170912/16384000,1659440174/16384000,1663264990/16384000,1661938870/16384000,1652899540/16384000,1667112899/16384000,1658207184/16384000,1662173410/16384000,1663118379/16384000	14125,22025,29560,36017,42958,50839,58380,64808,71754,79615,87122,93562,100513,108361,115875	9078902000,8914758000,8957276000,9019117000,9158919000,8938742000,9001382000,9011142000,9118795000,8974027000,8897420000,9045003000,9121004000,8873057000,9039497000	-	-	-
+b3sum-0.9.0	cold	b3sum	mixed tree, 1000 files, 74 MiB	B	11589505/77688832,12000106/77688832,11856326/77688832,12112957/77688832,11203215/77688832,11809406/77688832,13259678/77688832,12108256/77688832,12231917/77688832,11890416/77688832,12553687/77688832,12166676/77688832,13127668/77688832,12017596/77688832,12372917/77688832	16878,24139,31402,38524,45708,52931,60224,67312,74510,81713,88964,96075,103257,110454,117717	202072000,244269000,221634000,216928000,184435000,215960000,237729000,230613000,236271000,181938000,262589000,237624000,283785000,216324000,223528000	-	-	-
+b3sum-0.8.0	cold	b3sum	mixed tree, 1000 files, 74 MiB	B	12084937/77688832,11897836/77688832,11030915/77688832,11472906/77688832,12042796/77688832,12160566/77688832,11766315/77688832,11407835/77688832,11889506/77688832,11909636/77688832,12058756/77688832,12184396/77688832,11811456/77688832,12153136/77688832,12536797/77688832	16907,24068,31370,38574,45757,52881,60190,67373,74560,81660,88930,96133,103288,110405,117687	209576000,200128000,160616000,223669000,240999000,198136000,203538000,178168000,233127000,224647000,216690000,223280000,214837000,225248000,218248000	-	-	-
+b3sum-0.10.0	cold	b3sum	mixed tree, 1000 files, 74 MiB	B	9747203/77688832,9962024/77688832,10233714/77688832,10162534/77688832,10605604/77688832,9915613/77688832,9780633/77688832,10507354/77688832,11212625/77688832,9076612/77688832,9743493/77688832,10802924/77688832,10056863/77688832,9537793/77688832,9575403/77688832	17044,24123,31254,38558,45911,52915,60073,67356,74704,81698,88810,96115,103415,110439,117573	71240000,74008000,73953000,77042000,77712000,77607000,75433000,74851000,75104000,71603000,74595000,73732000,73850000,75129000,73511000	-	-	-
+official	cold	b3sum	mixed tree, 1000 files, 74 MiB	B	98666872/77688832,95122277/77688832,92025652/77688832,90163831/77688832,97119340/77688832,122533754/77688832,93362404/77688832,91406842/77688832,100039244/77688832,108915335/77688832,95609618/77688832,94311846/77688832,87708028/77688832,111082259/77688832,90641561/77688832	16936,24178,31270,38424,45802,52975,60088,67209,74594,81748,88826,95967,103317,110486,117588	1193818000,1201583000,1221210000,1167603000,1172968000,1277568000,1226861000,1130962000,1193577000,1227884000,1269092000,1225006000,1250453000,1212080000,1200024000	-	-	-
+b3sum-0.9.0	cold	b3sum	16 x 64 MiB	B	114966954/1073741824,113753542/1073741824,118054448/1073741824,115478394/1073741824,113773972/1073741824,113669622/1073741824,113678212/1073741824,115934415/1073741824,114375022/1073741824,111995409/1073741824,116520306/1073741824,115534164/1073741824,113646402/1073741824,119174430/1073741824,115111064/1073741824	17317,24778,31657,38615,46159,53599,60486,67412,74956,82341,89228,96174,103667,111098,117972	1428758000,1402755000,1465455000,1331104000,1519192000,1523652000,1464579000,1381928000,1449167000,1498192000,1508848000,1466870000,1535093000,1599348000,1532979000	-	-	-
+b3sum-0.8.0	cold	b3sum	16 x 64 MiB	B	114940324/1073741824,116689906/1073741824,118363228/1073741824,115397774/1073741824,115918475/1073741824,115939694/1073741824,114248892/1073741824,115656304/1073741824,114242853/1073741824,116100755/1073741824,113194931/1073741824,116340515/1073741824,113089841/1073741824,114077942/1073741824,116256655/1073741824	17081,24631,31896,38759,45927,53454,60720,67557,74721,82202,89460,96314,103430,110956,118209	1496453000,1617064000,1530197000,1636921000,1550073000,1468678000,1477737000,1455109000,1477868000,1583815000,1373956000,1486590000,1416005000,1491275000,1468327000	-	-	-
+b3sum-0.10.0	cold	b3sum	16 x 64 MiB	B	86665126/1073741824,87043657/1073741824,87460876/1073741824,87133336/1073741824,87520457/1073741824,87447866/1073741824,87047027/1073741824,87509027/1073741824,87015317/1073741824,86568855/1073741824,86194825/1073741824,87016356/1073741824,87887937/1073741824,85981155/1073741824,87522427/1073741824	17225,24320,31804,39125,46066,53144,60627,67917,74863,81900,89369,96676,103574,110640,118116	460088000,452472000,452649000,456054000,440411000,444827000,425604000,439591000,433639000,435228000,446064000,450227000,444536000,457751000,440137000	-	-	-
+official	cold	b3sum	16 x 64 MiB	B	174528123/1073741824,167499374/1073741824,172648150/1073741824,175118603/1073741824,166044232/1073741824,169359407/1073741824,170024557/1073741824,171994660/1073741824,164246130/1073741824,166052912/1073741824,172868741/1073741824,174596283/1073741824,167292634/1073741824,174927484/1073741824,169655456/1073741824	17461,24413,31440,38903,46303,53237,60263,67697,75098,81992,89004,96459,103809,110731,117756	3421863000,3197165000,3449683000,3595041000,3366095000,3226450000,3167848000,3400791000,3119186000,2953160000,3405029000,3741174000,3383493000,3311099000,3421643000	-	-	-
