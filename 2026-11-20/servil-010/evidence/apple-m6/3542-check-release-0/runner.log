@@ -1,0 +1,78 @@
+$ (cd <runner-home>/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd <runner-home>/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd <runner-home>/checkouts/fork && git checkout --quiet --force --detach 2fd4ff6f643ef04f98f7a2e5f8ca0f096298827a)
+$ (cd <runner-home>/checkouts/fork && git rev-parse HEAD)
+$ (cd <runner-home>/checkouts/fork && git clean -ffd --quiet)
+$ (cd <runner-home>/checkouts/bench && git fetch --quiet --prune origin)
+$ (cd <runner-home>/checkouts/bench && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd <runner-home>/checkouts/bench && git checkout --quiet --force --detach 97c0fbcbedb8fe8f8395115647684dfde75d67a3)
+$ (cd <runner-home>/checkouts/bench && git rev-parse HEAD)
+$ (cd <runner-home>/checkouts/bench && git clean -ffd --quiet)
+$ (cd <runner-home>/checkouts/bench && cargo run --release --quiet -- check --fork <runner-home>/checkouts/fork --against 2c60420c2bccbf6073e35e668691d98520f9b096 --when-quiet --keep <runner-home>/tmp/3542-check-release-0.10.0-2fd4ff6.20261120T081600Z-mac-m6-timing/samples --cells all)
+warning: unused imports: `c_int`, `c_long`, and `c_void`
+  --> clocks/src/events.rs:27:16
+   |
+27 | use std::ffi::{c_int, c_long, c_void};
+   |                ^^^^^  ^^^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `OwnedFd`
+  --> clocks/src/events.rs:28:39
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                                       ^^^^^^^
+
+warning: unused import: `AsRawFd`
+  --> clocks/src/events.rs:28:19
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                   ^^^^^^^
+
+warning: unused import: `FromRawFd`
+  --> clocks/src/events.rs:28:28
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                            ^^^^^^^^^
+
+warning: function `describe_pause` is never used
+    --> src/main.rs:8591:4
+     |
+8591 | fn describe_pause(ns: u64) -> String {
+     |    ^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `EFFECTIVE_IDLE_PAUSES` is never used
+    --> src/main.rs:8600:7
+     |
+8600 | const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
+     |       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `describe_effective_idle_states` is never used
+    --> src/main.rs:8751:4
+     |
+8751 | fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+check: BLAKE3-Servil's working tree (2fd4ff6f643e) against 2c60420c2bccbf6073e35e668691d98520f9b096 (2c60420c2bcc)
+check: the change touches 35851 added and 6150 deleted lines in 162 files: .github/workflows/ci.yml (+28/-5), .github/workflows/docs.yml (+2/-2), .github/workflows/one-assignee.yml (+6/-3), .github/workflows/release-artifacts.yml (+85/-0), AGENTS.md (+31/-4), CHANGELOG.md (+269/-0), CONTRIBUTING.md (+153/-59), Cargo.toml (+7/-11), LICENSE-APACHE (+176/-0), LICENSE-BOSL.txt (+175/-0), LICENSE-MIT (+25/-0), LICENSE-TGPPL (+183/-0), and 150 more
+check: its hunks sit in: jobs:, on:, Let things persist until the process ends: the typical pattern is also the simpl, A computation is correct when it delivers the right result, at the costs (includ, Compute in integers; use floating point where the domain is continuous by nature, The part above (Philosophy, Strategy, Style) reads the same in the `AGENTS.md` o, Misuse and misfortune (several of a program's threads calling at once, other loa, A fact that concerns several audiences goes in each audience's document, phrased, The open work is in the issues of both repositories (servil-software-factory/BLA, test on, then the kernels and the gates). The Mac runner, slower in 14 pool cells (BLAKE3 #119), and the i7 then found its fix, on `candidate/<topic>` branches; a candidate joins `next` as a, and 493 more
+check: no same-code comparison on this machine's executable format (ELF only); measuring
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 4 new builds against 4 old, 4 pairs over --contenders blake3-servil-st,blake3-servil-mt
+regress: pair 1 of 4 in 203.9 s
+regress: pair 2 of 4 in 203.9 s
+regress: pair 3 of 4 in 203.7 s
+regress: pair 4 of 4 in 203.9 s
+regress: old side: bench 97c0fbcbedb8 clean; servil 2c60420c2bcc clean
+regress: new side: bench 97c0fbcbedb8 clean; servil 2fd4ff6f643e clean
+  faster blake3-servil-mt|shared-os|ReceivingMessage|2 μs: -5.9% (the pairs' geometric mean; 4 pairs, from -6.7% to -5.3%: -5.3% -6.3% -5.3% -6.7%)
+  faster blake3-servil-mt|shared-os|ReceivingMessage|saturated: -6.3% (the pairs' geometric mean; 4 pairs, from -6.9% to -5.4%: -5.4% -6.3% -6.4% -6.9%)
+  SLOWER blake3-servil-mt|solo|ManyMessages|1: +6.6% (the pairs' geometric mean; 4 pairs, from +5.4% to +7.6%: +7.6% +6.2% +5.4% +7.3%)
+  faster blake3-servil-mt|solo|ReceivingMessage|2 μs: -9.1% (the pairs' geometric mean; 4 pairs, from -10.3% to -8.3%: -8.4% -8.3% -9.4% -10.3%)
+  faster blake3-servil-mt|solo|ReceivingMessage|saturated: -8.9% (the pairs' geometric mean; 4 pairs, from -10.2% to -7.7%: -7.7% -8.7% -9.2% -10.2%)
+  faster blake3-servil-st|solo|ReceivingMessage|2 μs: -9.3% (the pairs' geometric mean; 4 pairs, from -10.2% to -8.1%: -8.1% -9.5% -9.4% -10.2%)
+  faster blake3-servil-st|solo|ReceivingMessage|saturated: -8.8% (the pairs' geometric mean; 4 pairs, from -10.3% to -6.9%: -6.9% -8.8% -9.2% -10.3%)
+regress: REGRESSION: 1 cells slower
+regress: power during the check: mains power
