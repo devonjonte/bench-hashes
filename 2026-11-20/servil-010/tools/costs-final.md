@@ -9,6 +9,10 @@
   5% slower on both Xeon pairs. An AmpereOne virtual machine reads the same workload
   4% to 5% slower (the release's check there,
   [BLAKE3 #447](https://github.com/servil-software-factory/BLAKE3/issues/447)).
+  An Intel Core i7-12700K desktop, measured after the release fleet, reads it 6.1%
+  to 6.8% slower than 0.9.1 over 16 layouts a side
+  ([evidence](https://github.com/devonjonte/bench-hashes/tree/data/2026-11-20/release-024-i7));
+  its other cells are level or faster.
 - **b3sum on the three two-socket machines** (the EPYC 7443 pair and both Xeon
   pairs), each run bound to one memory node, against 0.9.1 bound the same way:
   one cold 16 MiB file is 16% to 28% slower (it is 17% to 31% faster on the
