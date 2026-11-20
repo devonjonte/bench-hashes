@@ -35,6 +35,8 @@ Whole-process wall time from start to exit across six x86-64 Linux machines and 
 | Mixed directory (1,000 files, 74 MiB) | 8%–18% faster (4 of 6) | up to 31% faster (4 of 6); 15% slower on 2 |
 | 16 large files (64 MiB each) | 12%–34% faster (5 of 6) | **13%–31% faster** (all 6) |
 
+Outside these six rows: on the three two-socket machines, one cold 16 MiB file is 16%–28% slower than with 0.9.1, and it is 17%–31% faster on the three one-socket machines ([known costs](known-costs.md)).
+
 *[All 10 workloads, quick suite, and 0.8.0 comparison (`b3sum/`)](b3sum/)*
 
 ---

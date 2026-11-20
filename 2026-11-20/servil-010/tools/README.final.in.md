@@ -19,6 +19,8 @@ Whole-process wall time from start to exit across six x86-64 Linux machines and 
 
 @@TABLE-PREV@@
 
+Outside these six rows: on the three two-socket machines, one cold 16 MiB file is 16%–28% slower than with 0.9.1, and it is 17%–31% faster on the three one-socket machines ([known costs](known-costs.md)).
+
 *[All 10 workloads, quick suite, and 0.8.0 comparison (`b3sum/`)](b3sum/)*
 
 ---
