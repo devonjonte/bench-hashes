@@ -1,0 +1,146 @@
+$ (cd <runner-home>/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd <runner-home>/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd <runner-home>/checkouts/fork && git checkout --quiet --force --detach 2fd4ff6f643ef04f98f7a2e5f8ca0f096298827a)
+$ (cd <runner-home>/checkouts/fork && git rev-parse HEAD)
+$ (cd <runner-home>/checkouts/fork && git clean -ffd --quiet)
+$ (cd <runner-home>/checkouts/bench && git fetch --quiet --prune origin)
+$ (cd <runner-home>/checkouts/bench && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd <runner-home>/checkouts/bench && git checkout --quiet --force --detach 3f3ef25130feadb67da742924dd6cfdc4c7886fb)
+$ (cd <runner-home>/checkouts/bench && git rev-parse HEAD)
+$ (cd <runner-home>/checkouts/bench && git clean -ffd --quiet)
+$ (cd <runner-home>/checkouts/bench && cargo run --release --quiet -- check --fork <runner-home>/checkouts/fork --against 2fd4ff6f643ef04f98f7a2e5f8ca0f096298827a --when-quiet --keep <runner-home>/tmp/3563-release-024-m4-control.20261121T035054Z-mac-m4-timing/samples --cells all --old-bench cade30fdb71682719f5fa3e586ff96146ae9fc25)
+warning: unused imports: `c_int`, `c_long`, and `c_void`
+  --> clocks/src/events.rs:27:16
+   |
+27 | use std::ffi::{c_int, c_long, c_void};
+   |                ^^^^^  ^^^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `OwnedFd`
+  --> clocks/src/events.rs:28:39
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                                       ^^^^^^^
+
+warning: unused import: `AsRawFd`
+  --> clocks/src/events.rs:28:19
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                   ^^^^^^^
+
+warning: unused import: `FromRawFd`
+  --> clocks/src/events.rs:28:28
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                            ^^^^^^^^^
+
+warning: function `describe_pause` is never used
+    --> src/main.rs:8712:4
+     |
+8712 | fn describe_pause(ns: u64) -> String {
+     |    ^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `EFFECTIVE_IDLE_PAUSES` is never used
+    --> src/main.rs:8721:7
+     |
+8721 | const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
+     |       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `describe_effective_idle_states` is never used
+    --> src/main.rs:8872:4
+     |
+8872 | fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+check: BLAKE3-Servil's working tree (2fd4ff6f643e) against 2fd4ff6f643ef04f98f7a2e5f8ca0f096298827a (2fd4ff6f643e)
+check: the library is unchanged; comparing benchmark versions (--old-bench)
+check: the old side with the bench at cade30fdb71682719f5fa3e586ff96146ae9fc25 (cade30fdb716)
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 4 run pairs using 4 distinct new executable paths and 4 old, over --contenders blake3-servil-st,blake3-servil-mt
+regress: pair 1 of 4 in 219.9 s
+clocks: other programs kept 1.21 CPUs busy from 341.7 s to 342.7 s; measurements in that time may read slower than this machine runs
+regress: pair 2 again: busy: other programs kept 0.09 CPUs busy on average, 1.21 in the busiest window; busy in 1 of 110 windows (341.7-342.7 s)
+regress: pair 2 of 4 in 441.9 s
+regress: pair 3 of 4 in 221.4 s
+regress: pair 4 of 4 in 221.7 s
+regress: old side: bench cade30fdb716 clean; servil 2fd4ff6f643e clean
+regress: new side: bench 3f3ef25130fe clean; servil 2fd4ff6f643e clean
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: suspects: blake3-servil-st|solo|MerkleTree|1048576 x 16 B;blake3-servil-mt|shared-os|LentMessages|64 MiB;blake3-servil-mt|shared-os|ContinuousMessages|256 B;blake3-servil-mt|shared-os|ContinuousBatches|16;blake3-servil-mt|solo|IdleManyMessages|8;blake3-servil-st|solo|OneMessage|64 B;blake3-servil-mt|shared-os|LentBatches|256;blake3-servil-mt|shared-os|ContinuousMessages|512 B
+regress: power during the check: mains power
+check: a second stage for 8 suspects: 64 run pairs, a new link layout a side for each: blake3-servil-st|solo|MerkleTree|1048576 x 16 B, blake3-servil-mt|shared-os|LentMessages|64 MiB, blake3-servil-mt|shared-os|ContinuousMessages|256 B, blake3-servil-mt|shared-os|ContinuousBatches|16, blake3-servil-mt|solo|IdleManyMessages|8, blake3-servil-st|solo|OneMessage|64 B, blake3-servil-mt|shared-os|LentBatches|256, blake3-servil-mt|shared-os|ContinuousMessages|512 B
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 64 run pairs using 64 distinct new executable paths and 64 old, over --contenders blake3-servil-mt,blake3-servil-st --points "64 B,continuous 256 B,continuous 512 B,continuous batch 16,idle 8,lent 64 MiB,lent batch 256,merkle 1048576 x 16 B"
+regress: pair 1 of 64 in 12.8 s
+regress: pair 2 of 64 in 13.1 s
+regress: pair 3 of 64 in 13.0 s
+regress: pair 4 of 64 in 13.1 s
+regress: pair 5 of 64 in 13.0 s
+regress: pair 6 of 64 in 13.0 s
+regress: pair 7 of 64 in 13.1 s
+regress: pair 8 of 64 in 13.1 s
+regress: pair 9 of 64 in 13.0 s
+regress: pair 10 of 64 in 13.1 s
+regress: pair 11 of 64 in 13.1 s
+regress: pair 12 of 64 in 13.1 s
+regress: pair 13 of 64 in 13.1 s
+regress: pair 14 of 64 in 13.1 s
+regress: pair 15 of 64 in 13.1 s
+regress: pair 16 of 64 in 13.1 s
+regress: pair 17 of 64 in 13.1 s
+regress: pair 18 of 64 in 13.1 s
+regress: pair 19 of 64 in 13.1 s
+regress: pair 20 of 64 in 13.1 s
+regress: pair 21 of 64 in 13.1 s
+regress: pair 22 of 64 in 13.1 s
+regress: pair 23 of 64 in 13.1 s
+regress: pair 24 of 64 in 13.1 s
+regress: pair 25 of 64 in 13.1 s
+regress: pair 26 of 64 in 13.2 s
+regress: pair 27 of 64 in 13.0 s
+regress: pair 28 of 64 in 13.1 s
+regress: pair 29 of 64 in 13.1 s
+regress: pair 30 of 64 in 13.1 s
+regress: pair 31 of 64 in 13.2 s
+regress: pair 32 of 64 in 13.2 s
+regress: pair 33 of 64 in 13.0 s
+regress: pair 34 of 64 in 13.2 s
+regress: pair 35 of 64 in 13.1 s
+regress: pair 36 of 64 in 13.1 s
+regress: pair 37 of 64 in 13.1 s
+regress: pair 38 of 64 in 13.1 s
+regress: pair 39 of 64 in 13.1 s
+regress: pair 40 of 64 in 13.1 s
+regress: pair 41 of 64 in 13.2 s
+regress: pair 42 of 64 in 13.1 s
+regress: pair 43 of 64 in 13.1 s
+regress: pair 44 of 64 in 13.1 s
+regress: pair 45 of 64 in 13.1 s
+regress: pair 46 of 64 in 13.1 s
+regress: pair 47 of 64 in 13.0 s
+regress: pair 48 of 64 in 13.1 s
+regress: pair 49 of 64 in 13.1 s
+regress: pair 50 of 64 in 13.1 s
+regress: pair 51 of 64 in 13.1 s
+regress: pair 52 of 64 in 13.1 s
+regress: pair 53 of 64 in 13.1 s
+regress: pair 54 of 64 in 13.1 s
+regress: pair 55 of 64 in 13.1 s
+regress: pair 56 of 64 in 13.1 s
+regress: pair 57 of 64 in 13.1 s
+regress: pair 58 of 64 in 13.2 s
+regress: pair 59 of 64 in 13.1 s
+regress: pair 60 of 64 in 13.0 s
+regress: pair 61 of 64 in 13.1 s
+regress: pair 62 of 64 in 13.0 s
+regress: pair 63 of 64 in 13.9 s
+regress: pair 64 of 64 in 13.7 s
+regress: old side: bench cade30fdb716 clean; servil 2fd4ff6f643e clean
+regress: new side: bench 3f3ef25130fe clean; servil 2fd4ff6f643e clean
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: power during the check: mains power
