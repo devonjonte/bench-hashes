@@ -1,0 +1,162 @@
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/fork && git checkout --quiet --force --detach 6fe6b68f9e5b053f2ac2f4a025410ba5925a10eb)
+$ (cd /Users/benchrunner/checkouts/fork && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/fork && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/fork && cargo build --release --example host_lab)
+warning: Cargo.toml: version requirement `=0.10.0+dev` for dependency `blake3-servil-version` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil-core` (manifest) generated 1 warning
+   Compiling blake3-servil-version v0.10.0+dev (/Users/benchrunner/checkouts/fork/version)
+warning: unused imports: `c_int`, `c_long`, and `c_void`
+  --> clocks/src/events.rs:27:16
+   |
+27 | use std::ffi::{c_int, c_long, c_void};
+   |                ^^^^^  ^^^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `OwnedFd`
+  --> clocks/src/events.rs:28:39
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                                       ^^^^^^^
+
+warning: unused import: `AsRawFd`
+  --> clocks/src/events.rs:28:19
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                   ^^^^^^^
+
+warning: unused import: `FromRawFd`
+  --> clocks/src/events.rs:28:28
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                            ^^^^^^^^^
+
+warning: `clocks` (lib) generated 4 warnings (run `cargo fix --lib -p clocks` to apply 2 suggestions)
+   Compiling blake3-servil-core v0.10.0+dev (/Users/benchrunner/checkouts/fork)
+   Compiling blake3-servil v0.10.0+dev (/Users/benchrunner/checkouts/fork/threads)
+    Finished `release` profile [optimized] target(s) in 1.08s
+$ (cd /Users/benchrunner/tmp/20261122T2237Z-devon-latency-3-rest-realtime-m6.20261122T223730Z-mac-m6-timing && /Users/benchrunner/checkouts/fork/target/release/examples/host_lab rest 300)
+# host_lab rest: 300 visits a cell, 306.2 s
+# blake3-servil 0.10.0+dev.6fe6b68f9e5b053f2ac2f4a025410ba5925a10eb
+# target: aarch64 macos
+# cpus: 12; pool workers: 11
+# wall clock: CLOCK_UPTIME_RAW (mach_absolute_time; stops during sleep; the raw counter, no NTP)
+# other programs' load: 302 windows, 0 busy; quiet: other programs kept 0.06 CPUs busy on average, 0.84 in the busiest window
+# the main thread's QoS class as launched: 0x15
+# blocks whose thread the system refused the real-time policy: 0 of 300
+# settles that did not complete in 200 ms: 0
+gap         call     size  setting                           mean       p50       p90       p99        max write p50    MHz   E%
+idle 200 us st      1 KiB  as launched                       3.78      4.42      4.50      4.58       7.50      0.25   3271    0
+idle 200 us st      1 KiB  QoS default                       3.82      4.42      4.50      4.58       4.58      0.25   2958    0
+idle 200 us st      1 KiB  QoS user-initiated                3.71      4.42      4.50      4.58       4.67      0.25   3194    0
+idle 200 us st      1 KiB  QoS user-interactive              3.78      4.42      4.50      4.67      10.62      0.25   3462    0
+idle 200 us st      1 KiB  real-time policy                  3.68      4.42      4.50      4.58       4.58      0.25   3513    0
+idle 200 us st      1 KiB  one worker awake                  1.42      0.88      2.83      4.54      22.58      0.08   3493    0
+idle 200 us st      1 KiB  a background spinner              3.65      4.38      4.46      4.58       7.08      0.17   3275    0
+idle 200 us st     16 KiB  as launched                      12.28     14.04     14.21     15.04      15.21      1.33   2981    0
+idle 200 us st     16 KiB  QoS default                      12.35     14.00     14.17     15.12      17.00      1.38   2806    0
+idle 200 us st     16 KiB  QoS user-initiated               12.00     14.00     14.21     15.21      19.33      1.38   2671    0
+idle 200 us st     16 KiB  QoS user-interactive             12.03     14.00     14.17     15.29      15.58      1.38   2965    0
+idle 200 us st     16 KiB  real-time policy                 11.80     14.04     14.21     14.75      15.58      1.33   3283    0
+idle 200 us st     16 KiB  one worker awake                  5.87      4.21     13.96     14.29      15.08      0.25   3251    0
+idle 200 us st     16 KiB  a background spinner             11.75     13.96     14.17     15.25      15.38      1.29   2889    0
+idle 200 us st     64 KiB  as launched                      38.58     44.71     44.83     47.50      59.38      4.96   3042    0
+idle 200 us st     64 KiB  QoS default                      39.24     44.71     44.83     47.12      62.17      4.96   2893    0
+idle 200 us st     64 KiB  QoS user-initiated               38.37     44.71     44.83     47.04      47.08      4.96   2955    0
+idle 200 us st     64 KiB  QoS user-interactive             38.24     44.71     44.83     47.50      48.17      4.96   3006    0
+idle 200 us st     64 KiB  real-time policy                 38.09     44.71     44.83     47.58      49.21      4.96   3184    0
+idle 200 us st     64 KiB  one worker awake                 18.61     13.46     44.58     44.75      49.62      0.83   3284    0
+idle 200 us st     64 KiB  a background spinner             37.33     44.62     44.75     44.88      50.50      4.88   3051    0
+idle 200 us st    256 KiB  as launched                     140.62    162.42    162.67    167.88     170.12     19.46   3308    0
+idle 200 us st    256 KiB  QoS default                     140.02    162.42    162.67    165.42     170.58     19.46   3282    0
+idle 200 us st    256 KiB  QoS user-initiated              137.04    162.42    162.67    163.42     164.00     19.46   3056    0
+idle 200 us st    256 KiB  QoS user-interactive            139.20    162.42    162.67    172.00     181.00     19.46   3103    0
+idle 200 us st    256 KiB  real-time policy                136.65    162.38    162.62    165.67     167.58     19.46   3345    0
+idle 200 us st    256 KiB  one worker awake                 62.72     46.54    137.08    162.58     162.67      3.25   3355    0
+idle 200 us st    256 KiB  a background spinner            136.04    162.38    162.62    167.62     168.54     19.38   3198    0
+idle 1 ms   st      1 KiB  as launched                       4.07      4.42      4.50      4.62       4.75      0.25   1542    0
+idle 1 ms   st      1 KiB  QoS default                       4.14      4.42      4.50      4.62       4.75      0.25   1462    0
+idle 1 ms   st      1 KiB  QoS user-initiated                4.12      4.42      4.50      4.67       5.08      0.25   1465    0
+idle 1 ms   st      1 KiB  QoS user-interactive              4.12      4.42      4.50      4.58       4.67      0.25   1469    0
+idle 1 ms   st      1 KiB  real-time policy                  4.03      4.42      4.50      4.58       4.62      0.25   1480    0
+idle 1 ms   st      1 KiB  one worker awake                  1.51      0.83      3.71      4.46      21.12      0.04   3581    0
+idle 1 ms   st      1 KiB  a background spinner              4.02      4.38      4.50      4.58       4.92      0.21   1499    0
+idle 1 ms   st     16 KiB  as launched                      13.51     14.04     14.29     15.50      16.42      1.38   1294    0
+idle 1 ms   st     16 KiB  QoS default                      13.52     14.04     14.33     16.08      16.67      1.38   1326    0
+idle 1 ms   st     16 KiB  QoS user-initiated               13.57     14.04     14.33     15.71      20.29      1.38   1280    0
+idle 1 ms   st     16 KiB  QoS user-interactive             13.61     14.04     14.33     15.79      16.25      1.38   1234    0
+idle 1 ms   st     16 KiB  real-time policy                 13.55     14.08     14.29     15.96      17.04      1.38   1307    0
+idle 1 ms   st     16 KiB  one worker awake                  5.74      4.25     13.83     14.29      14.79      0.25   3143    0
+idle 1 ms   st     16 KiB  a background spinner             13.50     14.00     14.33     15.62      20.29      1.29   1285    0
+idle 1 ms   st     64 KiB  as launched                      42.53     44.75     44.83     47.12      47.58      4.96   1407    0
+idle 1 ms   st     64 KiB  QoS default                      42.78     44.71     44.83     47.08      51.71      5.00   1367    0
+idle 1 ms   st     64 KiB  QoS user-initiated               42.14     44.71     44.83     47.04      47.46      5.00   1407    0
+idle 1 ms   st     64 KiB  QoS user-interactive             42.50     44.71     44.83     47.08      48.08      5.00   1413    0
+idle 1 ms   st     64 KiB  real-time policy                 42.03     44.71     44.83     48.29      48.50      4.96   1447    0
+idle 1 ms   st     64 KiB  one worker awake                 17.40     12.29     37.67     44.75      44.79      0.75   3360    0
+idle 1 ms   st     64 KiB  a background spinner             41.30     44.62     44.71     44.92      45.29      4.88   1424    0
+idle 1 ms   st    256 KiB  as launched                     143.60    162.42    162.67    166.50     177.96     19.50   2219    0
+idle 1 ms   st    256 KiB  QoS default                     145.04    162.42    162.71    165.04     167.08     19.50   2138    0
+idle 1 ms   st    256 KiB  QoS user-initiated              142.32    162.42    162.71    171.50     178.29     19.50   2099    0
+idle 1 ms   st    256 KiB  QoS user-interactive            143.49    162.42    162.67    169.25     175.38     19.50   2166    0
+idle 1 ms   st    256 KiB  real-time policy                142.88    162.38    162.67    166.71     169.83     19.46   2235    0
+idle 1 ms   st    256 KiB  one worker awake                 65.16     46.62    162.21    162.71     163.42      3.33   3337    0
+idle 1 ms   st    256 KiB  a background spinner            141.56    162.38    162.67    163.58     173.33     19.42   2029    0
+idle 5 ms   st      1 KiB  as launched                       4.16      4.42      4.54      5.54      11.46      0.25   1464    0
+idle 5 ms   st      1 KiB  QoS default                       4.11      4.42      4.50      4.88       5.29      0.25   1441    0
+idle 5 ms   st      1 KiB  QoS user-initiated                4.15      4.42      4.50      4.92       5.00      0.25   1453    0
+idle 5 ms   st      1 KiB  QoS user-interactive              4.16      4.42      4.50      4.88       5.21      0.25   1440    0
+idle 5 ms   st      1 KiB  real-time policy                  4.05      4.42      4.50      4.75       7.33      0.25   1478    0
+idle 5 ms   st      1 KiB  one worker awake                  1.39      0.83      3.71      4.46       4.67      0.04   3713    0
+idle 5 ms   st      1 KiB  a background spinner              4.05      4.42      4.50      4.75       4.79      0.21   1440    0
+idle 5 ms   st     16 KiB  as launched                      13.74     14.04     14.46     16.21      18.88      1.38   1234    0
+idle 5 ms   st     16 KiB  QoS default                      13.77     14.04     14.54     16.38      19.33      1.38   1234    0
+idle 5 ms   st     16 KiB  QoS user-initiated               13.61     14.04     14.58     16.29      17.54      1.38   1278    0
+idle 5 ms   st     16 KiB  QoS user-interactive             13.71     14.04     14.54     15.58      19.88      1.38   1235    0
+idle 5 ms   st     16 KiB  real-time policy                 13.69     14.12     14.88     16.21      16.58      1.38   1243    0
+idle 5 ms   st     16 KiB  one worker awake                  5.47      4.04      9.25     14.12      31.58      0.25   3077    0
+idle 5 ms   st     16 KiB  a background spinner             13.66     14.04     14.54     16.17      19.21      1.29   1234    0
+idle 5 ms   st     64 KiB  as launched                      43.01     44.75     44.83     45.67      57.12      5.00   1383    0
+idle 5 ms   st     64 KiB  QoS default                      43.06     44.75     44.88     50.67      60.25      5.00   1378    0
+idle 5 ms   st     64 KiB  QoS user-initiated               42.79     44.75     44.88     45.29      45.67      5.00   1340    0
+idle 5 ms   st     64 KiB  QoS user-interactive             42.83     44.71     44.88     45.33      61.79      5.00   1399    0
+idle 5 ms   st     64 KiB  real-time policy                 42.68     44.71     44.83     45.25      47.75      5.00   1358    0
+idle 5 ms   st     64 KiB  one worker awake                 17.13     12.25     28.38     44.71      44.75      0.75   3254    0
+idle 5 ms   st     64 KiB  a background spinner             41.91     44.67     44.83     45.08      45.75      4.92   1343    0
+idle 5 ms   st    256 KiB  as launched                     146.06    162.46    162.83    175.42     179.67     19.67   2084    0
+idle 5 ms   st    256 KiB  QoS default                     146.29    162.46    162.88    171.75     179.71     19.67   2118    0
+idle 5 ms   st    256 KiB  QoS user-initiated              144.54    162.46    162.83    166.46     171.04     19.71   2033    0
+idle 5 ms   st    256 KiB  QoS user-interactive            144.08    162.42    162.79    168.67     192.46     19.62   2104    0
+idle 5 ms   st    256 KiB  real-time policy                142.18    162.38    162.75    166.25     170.42     19.50   2119    0
+idle 5 ms   st    256 KiB  one worker awake                 58.48     41.42     99.88    162.58     163.00      3.12   3468    0
+idle 5 ms   st    256 KiB  a background spinner            140.46    162.46    162.79    165.88     167.54     19.54   2083    0
+idle 20 ms  st      1 KiB  as launched                       4.17      4.42      4.58      5.50       6.12      0.25   1481    0
+idle 20 ms  st      1 KiB  QoS default                       4.17      4.46      4.58      5.08       7.88      0.25   1441    0
+idle 20 ms  st      1 KiB  QoS user-initiated                4.14      4.42      4.54      4.75       5.12      0.25   1458    0
+idle 20 ms  st      1 KiB  QoS user-interactive              4.18      4.46      4.58      5.25       7.42      0.25   1440    0
+idle 20 ms  st      1 KiB  real-time policy                  4.06      4.42      4.50      4.71       5.25      0.25   1456    0
+idle 20 ms  st      1 KiB  one worker awake                  1.07      0.79      1.67      2.29      19.54      0.04   3577    1
+idle 20 ms  st      1 KiB  a background spinner              4.10      4.42      4.58      5.08       5.58      0.25   1447    0
+idle 20 ms  st     16 KiB  as launched                      14.02     14.17     15.33     18.04      21.38      1.42   1240    0
+idle 20 ms  st     16 KiB  QoS default                      13.95     14.12     15.25     18.50      18.71      1.42   1274    0
+idle 20 ms  st     16 KiB  QoS user-initiated               13.96     14.12     15.08     19.38      21.88      1.42   1235    0
+idle 20 ms  st     16 KiB  QoS user-interactive             14.11     14.21     15.38     18.42      18.92      1.42   1234    0
+idle 20 ms  st     16 KiB  real-time policy                 13.82     14.12     14.92     18.04      18.29      1.38   1248    0
+idle 20 ms  st     16 KiB  one worker awake                  4.65      3.50      7.29      9.54      34.79      0.25   3150    0
+idle 20 ms  st     16 KiB  a background spinner             13.83     14.12     14.96     17.58      25.88      1.38   1249    0
+idle 20 ms  st     64 KiB  as launched                      43.07     44.79     45.00     49.25      58.25      5.12   1395    0
+idle 20 ms  st     64 KiB  QoS default                      42.99     44.79     45.00     48.46      52.67      5.12   1400    0
+idle 20 ms  st     64 KiB  QoS user-initiated               42.83     44.79     45.08     46.00      49.67      5.17   1399    0
+idle 20 ms  st     64 KiB  QoS user-interactive             42.98     44.79     45.04     46.08      51.04      5.12   1388    0
+idle 20 ms  st     64 KiB  real-time policy                 42.76     44.75     45.04     46.62      47.96      5.04   1370    0
+idle 20 ms  st     64 KiB  one worker awake                 14.09     11.29     22.17     29.08      32.96      0.75   3266    0
+idle 20 ms  st     64 KiB  a background spinner             42.20     44.75     45.00     47.96      54.33      5.12   1344    0
+idle 20 ms  st    256 KiB  as launched                     145.60    162.58    163.58    179.58     203.50     20.88   2032    0
+idle 20 ms  st    256 KiB  QoS default                     147.19    162.62    163.17    173.71     177.33     20.67   2044    0
+idle 20 ms  st    256 KiB  QoS user-initiated              144.91    162.54    163.25    175.17     216.46     20.88   2110    0
+idle 20 ms  st    256 KiB  QoS user-interactive            146.01    162.62    163.29    173.46     179.46     20.96   2072    0
+idle 20 ms  st    256 KiB  real-time policy                143.88    162.50    162.96    171.00     177.54     20.04   2193    0
+idle 20 ms  st    256 KiB  one worker awake                 47.72     38.12     71.08     86.92      97.08      3.04   3474    0
+idle 20 ms  st    256 KiB  a background spinner            142.78    162.62    163.21    168.50     177.12     20.83   2100    0

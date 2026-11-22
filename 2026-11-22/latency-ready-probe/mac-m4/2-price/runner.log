@@ -1,0 +1,57 @@
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/fork && git checkout --quiet --force --detach 40dc766de9519641ecbb114275f3437d660fbab7)
+$ (cd /Users/benchrunner/checkouts/fork && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/fork && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/fork && cargo build --release --example host_lab)
+warning: Cargo.toml: version requirement `=0.10.0+dev` for dependency `blake3-servil-version` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil-core` (manifest) generated 1 warning
+   Compiling blake3-servil-version v0.10.0+dev (/Users/benchrunner/checkouts/fork/version)
+warning: unused imports: `c_int`, `c_long`, and `c_void`
+  --> clocks/src/events.rs:27:16
+   |
+27 | use std::ffi::{c_int, c_long, c_void};
+   |                ^^^^^  ^^^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `OwnedFd`
+  --> clocks/src/events.rs:28:39
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                                       ^^^^^^^
+
+warning: unused import: `AsRawFd`
+  --> clocks/src/events.rs:28:19
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                   ^^^^^^^
+
+warning: unused import: `FromRawFd`
+  --> clocks/src/events.rs:28:28
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                            ^^^^^^^^^
+
+warning: `clocks` (lib) generated 4 warnings (run `cargo fix --lib -p clocks` to apply 2 suggestions)
+   Compiling blake3-servil-core v0.10.0+dev (/Users/benchrunner/checkouts/fork)
+   Compiling blake3-servil v0.10.0+dev (/Users/benchrunner/checkouts/fork/threads)
+    Finished `release` profile [optimized] target(s) in 1.35s
+$ (cd /Users/benchrunner/tmp/20261122T2226Z-devon-latency-2-price-m4.20261122T223218Z-mac-m4-timing && /Users/benchrunner/checkouts/fork/target/release/examples/host_lab price 10)
+# host_lab price: 10 s a hold, 5 s of rest before each, the calling thread asleep throughout
+# blake3-servil 0.10.0+dev.40dc766de9519641ecbb114275f3437d660fbab7
+# target: aarch64 macos; cpus: 10; pool workers: 9
+# energy: the system's estimate for this process (ri_energy_nj), a model
+start         awake   wall s  CPUs busy    watts  P share %
+1795386746        0    10.01       0.00     0.00          0
+1795386761        1    10.01       1.00     2.84        100
+1795386776        3    10.00       3.00     5.41        100
+1795386791        7    10.01       6.99     8.20         90
+1795386806        9    10.01       8.97     8.78         84
+1795386821        9    10.00       8.97     8.81         84
+1795386836        7    10.01       6.99     8.28         90
+1795386851        3    10.01       3.00     5.48        100
+1795386866        1    10.01       1.00     2.87        100
+1795386881        0    10.00       0.00     0.00          0
+# settles that did not complete in 200 ms: 0
+# other programs' load: 10 windows, 0 busy; quiet: other programs kept 0.07 CPUs busy on average, 0.13 in the busiest window

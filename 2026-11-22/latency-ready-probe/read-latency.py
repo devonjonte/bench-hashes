@@ -46,7 +46,7 @@ def main():
     print('\n'.join(head))
     middle = 'mean' if '--mean' in flags else 'p50'
     short = {s: ('all up' if s.startswith('all ') else s.replace(', split 32 KiB', '').replace(' awake', ' up')) for s in settings}
-    width = 18 if '--p99' in flags else 10
+    width = max(18 if '--p99' in flags else 10, max(len(v) for v in short.values()) + 2)
     for gap in gaps:
         print(f"\n== {gap}: {'mean' if middle == 'mean' else 'median'} us" + (' [p99]' if '--p99' in flags else '') + (', write and call' if '--write' in flags else ', the call alone'))
         print(f"{'call':<4} {'size':>8} " + ''.join(f"{short[s]:>{width}}" for s in settings) + '   | best today -> best kept awake (setting): share')
@@ -74,6 +74,8 @@ def main():
         for gap in gaps:
             print(f"-- {gap}")
             for call, size in (('st', 1024), ('st', 65536), ('st', 1 << 20), ('mt', 1 << 20)):
+                if (settings[0], gap, call, size) not in cells:
+                    continue
                 row = f"{call:<4} {size_name(size):>8} "
                 for s in settings:
                     c = cells[(s, gap, call, size)]

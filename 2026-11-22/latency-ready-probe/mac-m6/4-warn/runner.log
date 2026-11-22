@@ -1,0 +1,76 @@
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/fork && git checkout --quiet --force --detach b18c10fff439b826b68345a0cad1a5097b1c7345)
+$ (cd /Users/benchrunner/checkouts/fork && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/fork && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/fork && cargo build --release --example host_lab)
+warning: Cargo.toml: version requirement `=0.10.0+dev` for dependency `blake3-servil-version` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil-core` (manifest) generated 1 warning
+   Compiling blake3-servil-version v0.10.0+dev (/Users/benchrunner/checkouts/fork/version)
+   Compiling blake3-servil v0.10.0+dev (/Users/benchrunner/checkouts/fork/threads)
+warning: unused imports: `c_int`, `c_long`, and `c_void`
+  --> clocks/src/events.rs:27:16
+   |
+27 | use std::ffi::{c_int, c_long, c_void};
+   |                ^^^^^  ^^^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `OwnedFd`
+  --> clocks/src/events.rs:28:39
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                                       ^^^^^^^
+
+warning: unused import: `AsRawFd`
+  --> clocks/src/events.rs:28:19
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                   ^^^^^^^
+
+warning: unused import: `FromRawFd`
+  --> clocks/src/events.rs:28:28
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                            ^^^^^^^^^
+
+warning: `clocks` (lib) generated 4 warnings (run `cargo fix --lib -p clocks` to apply 2 suggestions)
+   Compiling blake3-servil-core v0.10.0+dev (/Users/benchrunner/checkouts/fork)
+    Finished `release` profile [optimized] target(s) in 1.14s
+$ (cd /Users/benchrunner/tmp/20261122T2244Z-devon-latency-4-warn-m6.20261122T224521Z-mac-m6-timing && /Users/benchrunner/checkouts/fork/target/release/examples/host_lab warn 400)
+# host_lab warn: 400 visits a cell, 3 workers woken or kept, after 5 ms of rest, 102.1 s
+# blake3-servil 0.10.0+dev.b18c10fff439b826b68345a0cad1a5097b1c7345
+# target: aarch64 macos
+# cpus: 12; pool workers: 11
+# wall clock: CLOCK_UPTIME_RAW (mach_absolute_time; stops during sleep; the raw counter, no NTP)
+# other programs' load: 101 windows, 0 busy; quiet: other programs kept 0.07 CPUs busy on average, 0.39 in the busiest window
+# settles that did not complete in 200 ms: 0
+gap         call     size  setting                           mean       p50       p90       p99        max write p50    MHz   E%
+idle 5 ms   st      1 KiB  no warning                        4.46      4.50      4.54      4.67       7.42      0.29      -    -
+idle 5 ms   st      1 KiB  warned 0 us                       4.51      4.50      4.67      5.12       5.21      0.29      -    -
+idle 5 ms   st      1 KiB  warned 50 us                      4.05      4.42      4.50      4.62       5.33      0.25   2015    0
+idle 5 ms   st      1 KiB  warned 200 us                     4.14      4.42      4.50      4.62       4.71      0.25      -    -
+idle 5 ms   st      1 KiB  warned 1 ms                       4.14      4.46      4.54      4.67       7.50      0.25      -    -
+idle 5 ms   st      1 KiB  warned 5 ms                       3.78      3.79      4.50      4.62       4.92      0.25   1731    0
+idle 5 ms   st      1 KiB  kept awake                        3.32      3.71      4.42      4.54       4.58      0.17   2055    0
+idle 5 ms   st     64 KiB  no warning                       42.78     44.83     44.96     47.67      48.29      5.04      -    -
+idle 5 ms   st     64 KiB  warned 0 us                      41.64     44.79     44.92     45.25      47.58      5.46   1366    0
+idle 5 ms   st     64 KiB  warned 50 us                     41.51     44.83     44.92     45.46      53.88      4.96      -    -
+idle 5 ms   st     64 KiB  warned 200 us                    41.39     44.83     44.92     45.21      49.67      4.96      -    -
+idle 5 ms   st     64 KiB  warned 1 ms                      41.85     44.75     44.92     46.46      81.71      5.04      -    -
+idle 5 ms   st     64 KiB  warned 5 ms                      37.52     37.83     44.83     45.12      47.67      4.38   1598    0
+idle 5 ms   st     64 KiB  kept awake                       32.68     35.08     42.71     44.88      44.96      4.12   1936    0
+idle 5 ms   mt    256 KiB  no warning                      150.80    162.62    163.42    166.96     171.62     19.54      -    -
+idle 5 ms   mt    256 KiB  warned 0 us                     117.41    126.04    127.00    172.50     204.21     19.96   1653    0
+idle 5 ms   mt    256 KiB  warned 50 us                    117.33    126.04    127.12    143.62     186.92     19.50      -    -
+idle 5 ms   mt    256 KiB  warned 200 us                   119.12    126.08    127.54    171.04     216.92     19.50      -    -
+idle 5 ms   mt    256 KiB  warned 1 ms                     120.12    126.12    138.38    161.54     274.04     19.62      -    -
+idle 5 ms   mt    256 KiB  warned 5 ms                     106.22    109.21    127.75    145.54     154.79     16.79      -    -
+idle 5 ms   mt    256 KiB  kept awake                       95.75     90.92    122.92    157.58     181.21     16.46   1934   12
+idle 5 ms   mt      1 MiB  no warning                      316.71    337.08    342.54    414.29     436.38     78.21      -    -
+idle 5 ms   mt      1 MiB  warned 0 us                     276.92    292.88    296.21    482.71     580.50     78.62   1927    0
+idle 5 ms   mt      1 MiB  warned 50 us                    291.11    293.00    357.04    488.88     495.42     78.12   1708    0
+idle 5 ms   mt      1 MiB  warned 200 us                   286.15    292.92    351.33    537.33     644.00     78.17      -    -
+idle 5 ms   mt      1 MiB  warned 1 ms                     335.81    293.79    485.92    552.42     724.46     78.42      -    -
+idle 5 ms   mt      1 MiB  warned 5 ms                     338.85    364.12    416.00    488.67     528.75     67.46      -    -
+idle 5 ms   mt      1 MiB  kept awake                      303.70    290.88    400.88    497.17     562.38     63.42   2024    0

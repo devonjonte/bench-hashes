@@ -1,0 +1,143 @@
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/fork && git checkout --quiet --force --detach b4b9a4318597f422804e73997bd90f04ce4d5a7c)
+$ (cd /Users/benchrunner/checkouts/fork && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/fork && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/fork && cargo build --release --example host_lab)
+warning: Cargo.toml: version requirement `=0.10.0+dev` for dependency `blake3-servil-version` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil-core` (manifest) generated 1 warning
+   Compiling blake3-servil-version v0.10.0+dev (/Users/benchrunner/checkouts/fork/version)
+warning: unused imports: `c_int`, `c_long`, and `c_void`
+  --> clocks/src/events.rs:27:16
+   |
+27 | use std::ffi::{c_int, c_long, c_void};
+   |                ^^^^^  ^^^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `OwnedFd`
+  --> clocks/src/events.rs:28:39
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                                       ^^^^^^^
+
+warning: unused import: `AsRawFd`
+  --> clocks/src/events.rs:28:19
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                   ^^^^^^^
+
+warning: unused import: `FromRawFd`
+  --> clocks/src/events.rs:28:28
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                            ^^^^^^^^^
+
+warning: `clocks` (lib) generated 4 warnings (run `cargo fix --lib -p clocks` to apply 2 suggestions)
+   Compiling blake3-servil-core v0.10.0+dev (/Users/benchrunner/checkouts/fork)
+   Compiling blake3-servil v0.10.0+dev (/Users/benchrunner/checkouts/fork/threads)
+    Finished `release` profile [optimized] target(s) in 1.51s
+$ (cd /Users/benchrunner/tmp/20261122T2323Z-devon-latency-7-early-m4.20261122T232419Z-mac-m4-timing && /Users/benchrunner/checkouts/fork/target/release/examples/host_lab early 300)
+# host_lab early: 300 visits a cell; the hello's run hashes other bytes, as many as the call's up to 64 KiB; a wake wakes 3 workers, 260.4 s
+# blake3-servil 0.10.0+dev.b4b9a4318597f422804e73997bd90f04ce4d5a7c
+# target: aarch64 macos
+# cpus: 10; pool workers: 9
+# wall clock: CLOCK_UPTIME_RAW (mach_absolute_time; stops during sleep; the raw counter, no NTP)
+# other programs' load: 259 windows, 0 busy; quiet: other programs kept 0.11 CPUs busy on average, 0.59 in the busiest window
+gap         call     size  setting                           mean       p50       p90       p99        max write p50    MHz   E%
+idle 5 ms   st      1 KiB  nothing early, 50 us              2.79      2.42      4.17      4.75       5.00      0.42   1712   96
+idle 5 ms   st      1 KiB  kernels run, 50 us                2.77      2.38      4.17      5.50       7.17      0.42   1665   95
+idle 5 ms   st      1 KiB  run and wake, 50 us               2.67      2.38      4.17      4.21       4.54      0.42   1672   95
+idle 5 ms   st      1 KiB  nothing early, 200 us             2.87      2.42      4.17      5.08      19.46      0.42   1721   95
+idle 5 ms   st      1 KiB  kernels run, 200 us               2.73      2.42      4.17      4.25       4.29      0.42   1677   95
+idle 5 ms   st      1 KiB  run and wake, 200 us              2.69      2.38      4.17      4.29       8.58      0.42   1666   92
+idle 5 ms   st      1 KiB  nothing early, 1 ms               4.86      5.08      5.67      7.08       7.71      0.54    937   94
+idle 5 ms   st      1 KiB  kernels run, 1 ms                 4.74      5.04      5.54      6.42       6.46      0.54    939   94
+idle 5 ms   st      1 KiB  run and wake, 1 ms                4.88      5.08      5.58      6.46       6.50      0.54    911   94
+idle 5 ms   st      1 KiB  nothing early, 5 ms               4.88      5.04      5.67      7.29       7.42      0.54    968   98
+idle 5 ms   st      1 KiB  kernels run, 5 ms                 4.74      5.00      5.29      6.42       6.46      0.58    956   97
+idle 5 ms   st      1 KiB  run and wake, 5 ms                4.68      5.00      5.25      6.42       6.54      0.54    965   97
+idle 5 ms   st     16 KiB  nothing early, 50 us              9.97      9.67     13.25     15.33      16.96      1.88   1532   93
+idle 5 ms   st     16 KiB  kernels run, 50 us                9.79      9.92     13.04     13.46      20.29      1.79   1469   91
+idle 5 ms   st     16 KiB  run and wake, 50 us               9.77      8.83     13.08     13.50      23.29      1.83   1476   90
+idle 5 ms   st     16 KiB  nothing early, 200 us            10.09     10.75     13.12     14.88      15.71      1.83   1523   90
+idle 5 ms   st     16 KiB  kernels run, 200 us               9.67      9.12     13.04     13.58      14.00      1.96   1518   92
+idle 5 ms   st     16 KiB  run and wake, 200 us              9.74      9.12     13.08     13.42      14.33      1.88   1487   92
+idle 5 ms   st     16 KiB  nothing early, 1 ms              17.06     17.08     19.50     25.42      43.71      2.42    864   92
+idle 5 ms   st     16 KiB  kernels run, 1 ms                16.54     16.38     18.96     23.12      24.75      2.38    860   90
+idle 5 ms   st     16 KiB  run and wake, 1 ms               16.52     16.38     18.92     19.42      19.92      2.42    855   91
+idle 5 ms   st     16 KiB  nothing early, 5 ms              16.85     16.54     20.62     25.71      28.08      2.21    904   96
+idle 5 ms   st     16 KiB  kernels run, 5 ms                16.37     16.17     18.92     23.33      25.38      2.21    888   96
+idle 5 ms   st     16 KiB  run and wake, 5 ms               16.60     16.54     19.25     27.96      33.17      2.21    889   92
+idle 5 ms   st     64 KiB  nothing early, 50 us             30.02     31.25     40.46     45.29      52.79      5.46   1546   89
+idle 5 ms   st     64 KiB  kernels run, 50 us               28.31     25.38     40.46     40.88      45.92      5.42   1582   91
+idle 5 ms   st     64 KiB  run and wake, 50 us              28.16     25.38     40.46     40.54      45.21      5.42   1586   91
+idle 5 ms   st     64 KiB  nothing early, 200 us            28.83     27.00     40.46     42.08      66.71      5.29   1631   89
+idle 5 ms   st     64 KiB  kernels run, 200 us              29.28     31.25     40.46     40.83      61.25      5.71   1526   88
+idle 5 ms   st     64 KiB  run and wake, 200 us             28.93     25.67     40.46     40.54      45.50      5.62   1544   93
+idle 5 ms   st     64 KiB  nothing early, 1 ms              43.28     43.00     49.38     60.25      62.42      7.33   1028   92
+idle 5 ms   st     64 KiB  kernels run, 1 ms                43.22     43.12     49.50     53.50      58.29      6.92   1004   92
+idle 5 ms   st     64 KiB  run and wake, 1 ms               42.94     43.08     48.62     52.29      52.75      7.00   1011   90
+idle 5 ms   st     64 KiB  nothing early, 5 ms              43.30     42.75     49.67     54.83      59.62      6.71   1034   92
+idle 5 ms   st     64 KiB  kernels run, 5 ms                42.16     42.54     48.17     53.00      55.92      6.71   1037   96
+idle 5 ms   st     64 KiB  run and wake, 5 ms               42.82     42.75     49.04     55.00      64.33      6.71   1027   96
+idle 5 ms   mt      1 MiB  nothing early, 50 us            220.36    198.67    339.17    368.25     428.46     70.88   1673   93
+idle 5 ms   mt      1 MiB  kernels run, 50 us              228.52    199.88    342.08    415.12     433.00     72.12   1614   94
+idle 5 ms   mt      1 MiB  run and wake, 50 us             230.39    201.46    339.25    424.50     528.79     72.46   1624   95
+idle 5 ms   mt      1 MiB  nothing early, 200 us           225.89    199.46    339.79    387.17     413.46     72.12   1629   94
+idle 5 ms   mt      1 MiB  kernels run, 200 us             222.57    199.96    338.83    367.25     527.67     71.42   1684   93
+idle 5 ms   mt      1 MiB  run and wake, 200 us            234.14    202.00    339.79    470.96     600.83     72.88   1607   96
+idle 5 ms   mt      1 MiB  nothing early, 1 ms             230.72    200.58    340.17    369.50     395.79     79.75   1494   93
+idle 5 ms   mt      1 MiB  kernels run, 1 ms               223.32    198.83    339.42    399.83     437.62     78.96   1573   95
+idle 5 ms   mt      1 MiB  run and wake, 1 ms              227.92    198.75    340.12    401.25     470.21     80.54   1529   94
+idle 5 ms   mt      1 MiB  nothing early, 5 ms             243.32    230.71    342.62    397.83     539.58     80.79   1503   98
+idle 5 ms   mt      1 MiB  kernels run, 5 ms               233.01    199.50    342.00    446.83     535.04     78.88   1544   96
+idle 5 ms   mt      1 MiB  run and wake, 5 ms              240.79    207.96    342.08    397.46     406.25     80.29   1509   97
+other work  st      1 KiB  nothing early, 50 us              3.18      3.00      5.00      5.54       5.75      1.12   1769   81
+other work  st      1 KiB  kernels run, 50 us                2.36      2.04      4.04      4.25      14.50      1.12   1792   77
+other work  st      1 KiB  run and wake, 50 us               2.41      2.04      4.04      4.25       4.29      0.96   1696   73
+other work  st      1 KiB  nothing early, 200 us             3.12      2.83      5.00      5.42       5.75      1.17   1743   76
+other work  st      1 KiB  kernels run, 200 us               2.41      2.08      4.08      4.25       4.29      1.08   1730   78
+other work  st      1 KiB  run and wake, 200 us              2.50      2.04      4.12      4.29       4.50      1.04   1647   74
+other work  st      1 KiB  nothing early, 1 ms               5.04      5.33      6.42      7.54       7.79      1.21    984   79
+other work  st      1 KiB  kernels run, 1 ms                 4.28      4.21      5.62      6.38      13.08      1.21    978   78
+other work  st      1 KiB  run and wake, 1 ms                4.36      4.83      5.62      6.42       6.62      1.17    954   77
+other work  st      1 KiB  nothing early, 5 ms               5.29      5.62      6.29      6.46       6.50      1.21    962   85
+other work  st      1 KiB  kernels run, 5 ms                 4.67      4.96      5.62      6.33       6.54      1.21    954   86
+other work  st      1 KiB  run and wake, 5 ms                4.61      4.92      5.42      6.25       6.46      1.21    947   84
+other work  st     16 KiB  nothing early, 50 us             14.06     12.92     18.12     26.17      47.21      2.38   1564   77
+other work  st     16 KiB  kernels run, 50 us                9.40      8.71     13.00     17.83      30.71      2.00   1514   70
+other work  st     16 KiB  run and wake, 50 us               9.70      9.46     12.96     16.08      17.79      1.92   1505   65
+other work  st     16 KiB  nothing early, 200 us            13.91     13.17     17.96     20.04      20.58      2.38   1597   73
+other work  st     16 KiB  kernels run, 200 us               9.76      9.33     13.29     18.00      23.67      2.04   1516   69
+other work  st     16 KiB  run and wake, 200 us             10.24      9.67     14.04     18.46      18.71      2.04   1456   71
+other work  st     16 KiB  nothing early, 1 ms              20.51     20.42     25.08     26.75      28.08      2.71    908   70
+other work  st     16 KiB  kernels run, 1 ms                16.11     17.42     19.17     20.33      25.58      2.46    897   69
+other work  st     16 KiB  run and wake, 1 ms               16.87     17.54     19.25     20.46      20.92      2.42    857   67
+other work  st     16 KiB  nothing early, 5 ms              22.14     22.29     25.46     27.54      27.67      2.75    854   86
+other work  st     16 KiB  kernels run, 5 ms                18.07     17.67     21.08     26.08      27.04      2.46    842   80
+other work  st     16 KiB  run and wake, 5 ms               17.76     17.58     21.29     25.71      25.92      2.50    854   84
+other work  st     64 KiB  nothing early, 50 us             36.97     34.92     48.62     57.58      69.54      5.62   1630   77
+other work  st     64 KiB  kernels run, 50 us               29.04     26.92     40.79     46.71      74.92      5.58   1566   69
+other work  st     64 KiB  run and wake, 50 us              28.51     31.17     40.46     41.38      48.79      5.42   1585   71
+other work  st     64 KiB  nothing early, 200 us            36.73     34.88     49.54     53.42      54.38      5.62   1639   73
+other work  st     64 KiB  kernels run, 200 us              28.47     27.21     41.00     41.96      44.25      5.54   1604   69
+other work  st     64 KiB  run and wake, 200 us             28.38     27.42     39.71     42.71      43.50      5.42   1601   64
+other work  st     64 KiB  nothing early, 1 ms              48.83     49.79     55.58     61.75      63.25      6.88   1138   72
+other work  st     64 KiB  kernels run, 1 ms                42.89     44.29     50.04     58.08      58.54      6.79   1053   65
+other work  st     64 KiB  run and wake, 1 ms               42.77     44.38     49.46     58.79      59.00      6.71   1053   61
+other work  st     64 KiB  nothing early, 5 ms              50.82     50.33     56.92     61.29      89.25      7.08   1122   81
+other work  st     64 KiB  kernels run, 5 ms                43.99     44.04     50.04     54.12      59.54      7.00   1033   76
+other work  st     64 KiB  run and wake, 5 ms               43.81     43.83     49.67     56.12      61.25      7.04   1044   81
+other work  mt      1 MiB  nothing early, 50 us            226.56    211.46    315.21    412.42     480.67     73.79   1783   79
+other work  mt      1 MiB  kernels run, 50 us              224.70    208.08    357.29    400.92     448.00     74.12   1756   77
+other work  mt      1 MiB  run and wake, 50 us             209.24    193.50    305.92    436.50     572.33     73.00   1769   74
+other work  mt      1 MiB  nothing early, 200 us           231.56    208.08    396.83    420.88     448.46     72.96   1788   79
+other work  mt      1 MiB  kernels run, 200 us             228.78    204.50    389.88    449.29     529.38     72.88   1783   78
+other work  mt      1 MiB  run and wake, 200 us            218.06    200.54    300.54    393.58     450.00     74.12   1819   78
+other work  mt      1 MiB  nothing early, 1 ms             228.76    205.88    394.71    412.25     486.50     81.79   1705   79
+other work  mt      1 MiB  kernels run, 1 ms               229.20    204.17    391.17    398.12     428.79     80.79   1635   75
+other work  mt      1 MiB  run and wake, 1 ms              208.37    191.79    296.96    447.50     518.17     80.83   1707   72
+other work  mt      1 MiB  nothing early, 5 ms             243.48    223.00    395.62    411.29     526.42     83.46   1684   88
+other work  mt      1 MiB  kernels run, 5 ms               243.95    222.50    393.38    402.08     410.92     82.75   1657   87
+other work  mt      1 MiB  run and wake, 5 ms              224.95    205.12    356.54    394.29     468.62     82.25   1726   85
