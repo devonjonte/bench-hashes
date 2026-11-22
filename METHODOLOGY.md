@@ -974,6 +974,23 @@ work, so every block differs. Files on storage (`bench-hashes b3sum`)
 hold BLAKE3's extended output of their names: a filesystem or a drive
 that compresses would read zeros or counters from storage almost for free.
 
+**Where the bytes lie.** In every batch, and in every cell where
+BLAKE3-Servil's call is one that takes blocks, each contender's input
+starts at a 64-byte boundary with whole blocks behind it
+(`UseCase::in_blocks`; `assert_blocks_aligned` checks every sample). The
+cells fed in pieces and the interleaved ones hand over whatever slices
+arrive. So the one-message and batch cells are the case of a message on
+a boundary, and a message off it can cost more. BLAKE3-Servil 0.10.0 at
+64 KiB took 1.6% to 2.7% longer on two Zen 5 machines with the message
+1, 16 or 32 bytes past a boundary; on an Ice Lake Xeon it took 1.3% to
+1.4% longer at 1 and 16 bytes past and 0.3% to 0.4% at 32. That is a
+probe of November 22, 2026, with two runs a machine, `Instant` timing
+and no load windows
+([its table, program and logs](https://github.com/devonjonte/bench-hashes/tree/data/2026-11-22/align-261-probe),
+bench-hashes #261). At 1 MiB and 16 MiB on Zen 5 it does not separate
+the cost from its own movement from run to run (one thread reads between
+2.7% faster and 4.9% slower).
+
 **No contender's correctness is checked here.** That is each contender's
 own tests' business (BLAKE3-Servil's `QUALITY.md`). The timed loop hands every
 digest to `black_box`, and the harness's tests check its own work: that
