@@ -1,0 +1,293 @@
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/fork && git checkout --quiet --force --detach de1a3f00ce2b899a784a7260aff1879143f37d45)
+$ (cd /Users/benchrunner/checkouts/fork && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/fork && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/fork && cargo build --release --example host_lab)
+warning: Cargo.toml: version requirement `=0.10.0+dev` for dependency `blake3-servil-version` includes semver metadata which will be ignored, removing the metadata is recommended to avoid confusion
+warning: `blake3-servil-core` (manifest) generated 1 warning
+     Locking 3 packages to highest Rust 1.100.0-nightly compatible versions
+      Adding blake3-servil v0.10.0+dev (/Users/benchrunner/checkouts/fork/threads)
+    Updating blake3-servil-version v0.10.0+b0b4c80c39ff28c2dbcc2234a6dc17b40911830d (/Users/benchrunner/checkouts/fork/version) -> v0.10.0+dev
+      Adding clocks v0.1.0 (/Users/benchrunner/checkouts/fork/clocks)
+   Compiling blake3-servil-version v0.10.0+dev (/Users/benchrunner/checkouts/fork/version)
+   Compiling blake3-servil-core v0.10.0+dev (/Users/benchrunner/checkouts/fork)
+   Compiling blake3-servil v0.10.0+dev (/Users/benchrunner/checkouts/fork/threads)
+   Compiling clocks v0.1.0 (/Users/benchrunner/checkouts/fork/clocks)
+warning: unused imports: `c_int`, `c_long`, and `c_void`
+  --> clocks/src/events.rs:27:16
+   |
+27 | use std::ffi::{c_int, c_long, c_void};
+   |                ^^^^^  ^^^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `OwnedFd`
+  --> clocks/src/events.rs:28:39
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                                       ^^^^^^^
+
+warning: unused import: `AsRawFd`
+  --> clocks/src/events.rs:28:19
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                   ^^^^^^^
+
+warning: unused import: `FromRawFd`
+  --> clocks/src/events.rs:28:28
+   |
+28 | use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+   |                            ^^^^^^^^^
+
+warning: `clocks` (lib) generated 4 warnings (run `cargo fix --lib -p clocks` to apply 2 suggestions)
+    Finished `release` profile [optimized] target(s) in 4.30s
+$ (cd /Users/benchrunner/tmp/20261122T2205Z-devon-latency-ready-m4.20261122T220654Z-mac-m4-timing && /Users/benchrunner/checkouts/fork/target/release/examples/host_lab latency 500)
+# host_lab latency: 500 visits a cell, 291.6 s
+# blake3-servil 0.10.0+dev.de1a3f00ce2b899a784a7260aff1879143f37d45
+# target: aarch64 macos
+# cpus: 10; pool workers: 9
+# wall clock: CLOCK_UPTIME_RAW (mach_absolute_time; stops during sleep; the raw counter, no NTP)
+# settles that did not complete in 200 ms: 1
+# other programs' load: 290 windows, 0 busy; quiet: other programs kept 0.07 CPUs busy on average, 0.48 in the busiest window
+gap         call     size  setting                           mean       p50       p90       p99        max write p50    MHz   E%
+nonstop     st      1 KiB  ships                             1.06      0.88      1.12      4.29       4.33      0.00   2979    0
+nonstop     st      1 KiB  asleep, split 32 KiB              1.01      0.88      1.08      4.29       4.33      0.00   3122    0
+nonstop     st      1 KiB  1 awake, split 32 KiB             0.86      0.83      1.00      1.08       1.21      0.00   3687    0
+nonstop     st      1 KiB  3 awake, split 32 KiB             0.87      0.83      1.00      1.08       1.17      0.00   3651    0
+nonstop     st      1 KiB  7 awake, split 32 KiB             0.87      0.83      1.00      1.21       1.62      0.00   3647    1
+nonstop     st      1 KiB  all 9 awake, split 32 KiB         0.88      0.83      1.04      1.62       1.75      0.00   3624    3
+nonstop     st     16 KiB  ships                             4.56      4.17      4.58     17.17      18.12      0.21   2722    0
+nonstop     st     16 KiB  asleep, split 32 KiB              4.59      4.17      4.75     17.17      17.62      0.21   2706    0
+nonstop     st     16 KiB  1 awake, split 32 KiB             3.90      3.88      4.12      4.46       4.67      0.21   3161    0
+nonstop     st     16 KiB  3 awake, split 32 KiB             3.92      3.92      4.17      4.38       4.62      0.21   3138    0
+nonstop     st     16 KiB  7 awake, split 32 KiB             3.91      3.88      4.12      4.46       4.88      0.21   3140    0
+nonstop     st     16 KiB  all 9 awake, split 32 KiB         3.92      3.88      4.12      4.62       5.04      0.21   3138    1
+nonstop     st     64 KiB  ships                            14.03     13.83     15.67     19.21      25.04      1.58   3156    0
+nonstop     st     64 KiB  asleep, split 32 KiB             13.85     13.58     15.71     19.00      20.92      1.67   3186    0
+nonstop     st     64 KiB  1 awake, split 32 KiB            13.31     13.54     14.46     15.12      16.54      1.46   3317    0
+nonstop     st     64 KiB  3 awake, split 32 KiB            13.36     13.50     14.50     15.75      23.17      1.54   3301    0
+nonstop     st     64 KiB  7 awake, split 32 KiB            13.26     13.12     14.50     15.79      20.83      1.58   3314    1
+nonstop     st     64 KiB  all 9 awake, split 32 KiB        13.29     13.17     14.54     15.71      21.75      1.54   3310    1
+nonstop     st    256 KiB  ships                            46.11     46.04     50.71     62.92      69.71      3.42   3372    0
+nonstop     st    256 KiB  asleep, split 32 KiB             46.20     46.04     50.71     57.88      60.38      3.46   3367    0
+nonstop     st    256 KiB  1 awake, split 32 KiB            44.08     43.96     46.04     50.58      57.75      3.29   3521    0
+nonstop     st    256 KiB  3 awake, split 32 KiB            44.16     43.96     46.04     48.33      55.04      3.33   3516    0
+nonstop     st    256 KiB  7 awake, split 32 KiB            44.27     43.96     46.08     53.79      57.38      3.33   3506    1
+nonstop     st    256 KiB  all 9 awake, split 32 KiB        44.27     43.96     46.08     56.75      57.83      3.33   3508    1
+nonstop     st      1 MiB  ships                           162.18    162.12    178.12    224.21     249.25     14.17   3590    0
+nonstop     st      1 MiB  asleep, split 32 KiB            162.94    162.21    178.58    205.79     224.75     14.17   3573    0
+nonstop     st      1 MiB  1 awake, split 32 KiB           154.76    152.42    162.12    175.71     205.54     13.04   3759    0
+nonstop     st      1 MiB  3 awake, split 32 KiB           154.72    152.42    162.21    170.00     204.92     13.12   3758    0
+nonstop     st      1 MiB  7 awake, split 32 KiB           155.31    152.42    162.29    205.33     222.88     13.12   3746    1
+nonstop     st      1 MiB  all 9 awake, split 32 KiB       156.08    152.46    162.71    221.33     222.54     13.17   3731    2
+nonstop     st      4 MiB  ships                           661.77    661.54    702.46    913.42    1017.17     62.92   3555    0
+nonstop     st      4 MiB  asleep, split 32 KiB            665.21    661.75    729.08    913.50     916.79     63.50   3534    0
+nonstop     st      4 MiB  1 awake, split 32 KiB           630.89    622.75    661.58    694.08     776.08     59.83   3721    0
+nonstop     st      4 MiB  3 awake, split 32 KiB           632.44    622.92    662.33    693.62     810.71     60.25   3710    0
+nonstop     st      4 MiB  7 awake, split 32 KiB           634.68    622.92    661.79    930.50     967.54     60.38   3702    2
+nonstop     st      4 MiB  all 9 awake, split 32 KiB       635.61    623.04    663.46    926.04     989.92     60.33   3697    2
+nonstop     mt     64 KiB  ships                            13.91     13.79     15.62     19.08      23.29      1.58   3179    0
+nonstop     mt     64 KiB  asleep, split 32 KiB             16.25     14.12     26.62     34.21      47.75      1.75   3531    1
+nonstop     mt     64 KiB  1 awake, split 32 KiB            10.48     10.33     11.25     11.62      15.04      0.96   3492    0
+nonstop     mt     64 KiB  3 awake, split 32 KiB            14.50     10.92     26.54     39.96      45.42      1.42   3833    0
+nonstop     mt     64 KiB  7 awake, split 32 KiB             9.16      8.83      9.88     14.46      22.42      1.71   3835    0
+nonstop     mt     64 KiB  all 9 awake, split 32 KiB         8.93      8.62      9.17     23.50      29.92      1.38   3831    1
+nonstop     mt    256 KiB  ships                            46.09     46.04     50.71     58.25      82.46      3.42   3377    0
+nonstop     mt    256 KiB  asleep, split 32 KiB             35.17     35.21     36.88     39.71      40.58      4.62   3569    0
+nonstop     mt    256 KiB  1 awake, split 32 KiB            30.27     29.71     35.21     45.12      46.71      4.50   3493    0
+nonstop     mt    256 KiB  3 awake, split 32 KiB            28.17     27.21     28.92     45.92      51.08      4.17   3841    0
+nonstop     mt    256 KiB  7 awake, split 32 KiB            21.94     21.25     25.21     30.79      49.29      4.58   3823    2
+nonstop     mt    256 KiB  all 9 awake, split 32 KiB        18.99     19.71     20.96     30.58      43.33      4.75   3825    1
+nonstop     mt      1 MiB  ships                            73.30     73.42     76.54     85.71      97.33     14.88   3499    0
+nonstop     mt      1 MiB  asleep, split 32 KiB             74.00     73.58     77.83     92.71      99.29     14.88   3480    0
+nonstop     mt      1 MiB  1 awake, split 32 KiB            83.01     80.83     88.62     92.58     107.62     20.71   3729    0
+nonstop     mt      1 MiB  3 awake, split 32 KiB            66.35     63.88     69.21    101.42     111.83     14.25   3696    0
+nonstop     mt      1 MiB  7 awake, split 32 KiB            64.17     64.00     67.79     78.92     101.75     14.92   3405    0
+nonstop     mt      1 MiB  all 9 awake, split 32 KiB        64.80     57.04     95.75     97.25     122.58     15.21   3688    3
+nonstop     mt      4 MiB  ships                           221.27    218.50    232.04    262.67     281.46     68.00   3605    0
+nonstop     mt      4 MiB  asleep, split 32 KiB            220.82    216.29    231.75    268.46     270.17     68.17   3589    0
+nonstop     mt      4 MiB  1 awake, split 32 KiB           386.34    382.33    405.12    423.33     446.67     66.38   3692    0
+nonstop     mt      4 MiB  3 awake, split 32 KiB           234.90    226.58    244.38    393.50     398.54     66.96   3641    1
+nonstop     mt      4 MiB  7 awake, split 32 KiB           213.51    214.04    217.04    314.92     430.17     61.75   3725    1
+nonstop     mt      4 MiB  all 9 awake, split 32 KiB       223.26    213.83    281.96    312.75     396.17     61.75   3767    3
+other work  st      1 KiB  ships                             1.07      1.04      1.21      1.46       1.67      0.29   3652    0
+other work  st      1 KiB  asleep, split 32 KiB              1.08      1.08      1.25      1.58       1.92      0.29   3644    0
+other work  st      1 KiB  1 awake, split 32 KiB             1.02      1.00      1.17      1.58       3.21      0.29   3864    0
+other work  st      1 KiB  3 awake, split 32 KiB             1.01      1.00      1.12      1.38       1.88      0.29   3838    0
+other work  st      1 KiB  7 awake, split 32 KiB             1.00      1.00      1.12      1.42       2.04      0.29   3835    1
+other work  st      1 KiB  all 9 awake, split 32 KiB         1.01      1.00      1.12      1.88       2.00      0.29   3817    3
+other work  st     16 KiB  ships                             5.59      5.50      6.25      6.92      10.62      0.71   3156    0
+other work  st     16 KiB  asleep, split 32 KiB              5.61      5.54      6.29      7.21       8.21      0.71   3153    0
+other work  st     16 KiB  1 awake, split 32 KiB             5.25      5.21      5.62      6.00       7.62      0.71   3380    0
+other work  st     16 KiB  3 awake, split 32 KiB             5.28      5.25      5.62      6.04       6.50      0.71   3345    0
+other work  st     16 KiB  7 awake, split 32 KiB             5.27      5.21      5.62      6.67       7.62      0.67   3335    1
+other work  st     16 KiB  all 9 awake, split 32 KiB         5.27      5.21      5.58      6.75       8.42      0.71   3329    2
+other work  st     64 KiB  ships                            15.40     15.21     17.12     20.29      27.54      1.75   3144    0
+other work  st     64 KiB  asleep, split 32 KiB             15.61     15.33     17.67     21.96      23.00      1.79   3126    0
+other work  st     64 KiB  1 awake, split 32 KiB            14.71     14.58     15.79     17.54      18.71      1.75   3299    0
+other work  st     64 KiB  3 awake, split 32 KiB            14.77     14.67     15.58     17.88      20.21      1.71   3264    0
+other work  st     64 KiB  7 awake, split 32 KiB            14.63     14.62     15.33     17.54      19.75      1.75   3265    1
+other work  st     64 KiB  all 9 awake, split 32 KiB        14.67     14.67     15.33     17.88      21.08      1.71   3253    2
+other work  st    256 KiB  ships                            48.36     47.88     52.75     64.62      80.75      4.79   3479    0
+other work  st    256 KiB  asleep, split 32 KiB             48.51     48.04     52.75     63.88      72.00      4.79   3463    0
+other work  st    256 KiB  1 awake, split 32 KiB            46.28     45.83     48.46     50.96      57.25      4.71   3641    0
+other work  st    256 KiB  3 awake, split 32 KiB            46.34     45.88     48.21     55.04      62.58      4.71   3628    0
+other work  st    256 KiB  7 awake, split 32 KiB            46.18     45.75     48.08     52.67      64.33      4.67   3627    0
+other work  st    256 KiB  all 9 awake, split 32 KiB        46.40     45.75     48.12     64.54      73.42      4.67   3611    2
+other work  st      1 MiB  ships                           174.32    172.17    189.42    225.29     299.04     17.04   3596    0
+other work  st      1 MiB  asleep, split 32 KiB            176.07    173.17    190.88    242.08     259.67     17.17   3563    0
+other work  st      1 MiB  1 awake, split 32 KiB           167.20    165.04    175.04    186.75     212.92     17.00   3770    0
+other work  st      1 MiB  3 awake, split 32 KiB           167.32    165.04    175.17    194.00     238.96     16.83   3755    0
+other work  st      1 MiB  7 awake, split 32 KiB           168.18    164.42    175.58    243.38     277.83     16.79   3740    2
+other work  st      1 MiB  all 9 awake, split 32 KiB       167.97    164.88    174.92    241.46     264.04     16.75   3743    2
+other work  st      4 MiB  ships                           740.44    731.75    802.58    943.46    1119.62     80.83   3557    0
+other work  st      4 MiB  asleep, split 32 KiB            741.32    732.54    800.71    967.83     995.17     81.38   3550    0
+other work  st      4 MiB  1 awake, split 32 KiB           709.33    696.46    745.38    770.88     841.25     80.25   3746    0
+other work  st      4 MiB  3 awake, split 32 KiB           707.11    696.17    736.00    771.04     793.54     79.08   3745    0
+other work  st      4 MiB  7 awake, split 32 KiB           711.05    697.33    740.88    834.50    1325.46     78.17   3731    1
+other work  st      4 MiB  all 9 awake, split 32 KiB       712.24    697.46    740.88   1121.21    1140.92     78.08   3725    2
+other work  mt     64 KiB  ships                            15.62     15.38     17.46     20.83      23.75      1.75   3145    0
+other work  mt     64 KiB  asleep, split 32 KiB             30.83     28.33     37.46     59.92      67.17      1.83   3501    0
+other work  mt     64 KiB  1 awake, split 32 KiB            19.90     19.96     21.08     22.17      22.88      1.71   3611    0
+other work  mt     64 KiB  3 awake, split 32 KiB            17.44     15.25     20.96     56.08      66.04      1.75   3837    0
+other work  mt     64 KiB  7 awake, split 32 KiB            14.48     13.17     18.71     20.58      32.46      1.79   3829    1
+other work  mt     64 KiB  all 9 awake, split 32 KiB        11.30     10.88     12.21     18.75      36.04      1.75   3805    3
+other work  mt    256 KiB  ships                            48.36     47.92     52.54     65.58      72.46      4.75   3478    0
+other work  mt    256 KiB  asleep, split 32 KiB             64.87     69.21     73.88     84.33      86.12      5.46   3593    0
+other work  mt    256 KiB  1 awake, split 32 KiB            34.06     33.50     37.38     39.83      41.67      4.75   3590    0
+other work  mt    256 KiB  3 awake, split 32 KiB            54.49     52.21     75.25     90.00     113.75      5.17   3826    1
+other work  mt    256 KiB  7 awake, split 32 KiB            29.96     28.79     37.92     41.67      43.42      5.29   3834    1
+other work  mt    256 KiB  all 9 awake, split 32 KiB        25.57     24.96     26.21     47.25      56.04      5.33   3828    1
+other work  mt      1 MiB  ships                           104.35    109.42    114.08    126.71     136.83     18.21   3540    0
+other work  mt      1 MiB  asleep, split 32 KiB            105.10    109.46    115.25    130.29     143.58     18.58   3524    0
+other work  mt      1 MiB  1 awake, split 32 KiB           108.00    109.00    112.50    115.00     122.79     20.17   3754    0
+other work  mt      1 MiB  3 awake, split 32 KiB           108.66    107.46    131.29    151.96     158.46     18.54   3710    2
+other work  mt      1 MiB  7 awake, split 32 KiB            68.11     66.71     72.00     99.71     113.54     17.67   3435    1
+other work  mt      1 MiB  all 9 awake, split 32 KiB        74.08     60.42     99.29    113.83     127.92     17.62   3707    2
+other work  mt      4 MiB  ships                           265.92    266.67    274.71    327.00     350.46     86.12   3607    0
+other work  mt      4 MiB  asleep, split 32 KiB            266.91    267.04    278.75    309.75     330.46     86.12   3587    0
+other work  mt      4 MiB  1 awake, split 32 KiB           452.22    440.92    483.33    504.33     558.50     81.75   3714    0
+other work  mt      4 MiB  3 awake, split 32 KiB           274.86    268.50    289.50    393.75     446.67     82.75   3681    0
+other work  mt      4 MiB  7 awake, split 32 KiB           221.62    220.00    230.33    313.33     444.46     77.62   3736    1
+other work  mt      4 MiB  all 9 awake, split 32 KiB       251.75    244.71    294.50    324.88     385.00     77.50   3785    2
+idle 20 us  st      1 KiB  ships                             0.97      0.88      1.04      3.50       4.58      0.04   3256    0
+idle 20 us  st      1 KiB  asleep, split 32 KiB              0.97      0.88      1.00      3.62       4.50      0.04   3267    0
+idle 20 us  st      1 KiB  1 awake, split 32 KiB             0.82      0.79      0.88      1.00       1.08      0.04   3851    0
+idle 20 us  st      1 KiB  3 awake, split 32 KiB             0.83      0.83      0.88      1.00       1.21      0.04   3832    0
+idle 20 us  st      1 KiB  7 awake, split 32 KiB             0.83      0.83      0.88      1.00       2.12      0.04   3824    1
+idle 20 us  st      1 KiB  all 9 awake, split 32 KiB         0.84      0.83      0.88      1.08       1.79      0.04   3812    2
+idle 20 us  st     16 KiB  ships                             4.27      4.17      4.67      8.62      14.75      0.17   2953    0
+idle 20 us  st     16 KiB  asleep, split 32 KiB              4.31      4.17      4.75      7.12      17.62      0.21   2933    0
+idle 20 us  st     16 KiB  1 awake, split 32 KiB             3.95      3.88      4.21      4.46       5.25      0.17   3214    0
+idle 20 us  st     16 KiB  3 awake, split 32 KiB             3.97      3.96      4.21      4.46       5.46      0.17   3191    0
+idle 20 us  st     16 KiB  7 awake, split 32 KiB             4.03      3.96      4.25      6.04       6.46      0.21   3192    3
+idle 20 us  st     16 KiB  all 9 awake, split 32 KiB         4.08      3.96      4.29      5.58      16.54      0.21   3142    4
+idle 20 us  st     64 KiB  ships                            14.32     14.33     15.92     18.17      23.33      1.79   3112    0
+idle 20 us  st     64 KiB  asleep, split 32 KiB             14.48     14.38     15.88     19.46      35.62      1.83   3078    0
+idle 20 us  st     64 KiB  1 awake, split 32 KiB            13.68     13.67     14.38     16.04      17.96      1.71   3256    0
+idle 20 us  st     64 KiB  3 awake, split 32 KiB            13.80     13.79     14.42     16.58      18.08      1.75   3234    0
+idle 20 us  st     64 KiB  7 awake, split 32 KiB            13.83     13.75     14.83     16.25      17.54      1.79   3228    0
+idle 20 us  st     64 KiB  all 9 awake, split 32 KiB        13.84     13.83     14.42     16.08      19.54      1.79   3226    1
+idle 20 us  st    256 KiB  ships                            45.22     44.88     49.50     58.75      68.92      3.46   3456    0
+idle 20 us  st    256 KiB  asleep, split 32 KiB             45.19     44.92     49.42     59.04      62.00      3.50   3450    0
+idle 20 us  st    256 KiB  1 awake, split 32 KiB            42.95     42.54     44.92     47.29      56.42      3.33   3615    0
+idle 20 us  st    256 KiB  3 awake, split 32 KiB            42.94     42.54     44.96     49.38      56.46      3.38   3615    0
+idle 20 us  st    256 KiB  7 awake, split 32 KiB            43.59     43.12     45.50     60.38      62.25      3.42   3567    2
+idle 20 us  st    256 KiB  all 9 awake, split 32 KiB        43.37     42.58     45.04     60.58      71.04      3.42   3584    2
+idle 20 us  st      1 MiB  ships                           162.39    162.29    178.25    205.50     248.92     14.17   3593    0
+idle 20 us  st      1 MiB  asleep, split 32 KiB            163.68    162.33    178.88    208.25     224.83     14.17   3564    0
+idle 20 us  st      1 MiB  1 awake, split 32 KiB           154.86    152.62    162.33    170.38     190.54     13.17   3761    0
+idle 20 us  st      1 MiB  3 awake, split 32 KiB           155.31    152.67    162.62    177.67     205.71     13.29   3746    0
+idle 20 us  st      1 MiB  7 awake, split 32 KiB           155.15    152.54    162.33    193.83     234.79     13.29   3755    1
+idle 20 us  st      1 MiB  all 9 awake, split 32 KiB       156.07    152.67    162.62    232.62     254.83     13.29   3733    2
+idle 20 us  st      4 MiB  ships                           661.79    662.12    728.71    840.62    1015.21     61.00   3562    0
+idle 20 us  st      4 MiB  asleep, split 32 KiB            666.93    662.75    728.96    887.29     925.17     61.21   3533    0
+idle 20 us  st      4 MiB  1 awake, split 32 KiB           632.26    623.67    663.21    694.04     775.79     59.33   3724    0
+idle 20 us  st      4 MiB  3 awake, split 32 KiB           633.87    624.00    663.46    729.33     779.92     58.92   3712    0
+idle 20 us  st      4 MiB  7 awake, split 32 KiB           637.51    624.12    663.92    835.79    1311.88     58.50   3707    1
+idle 20 us  st      4 MiB  all 9 awake, split 32 KiB       638.83    624.17    663.92    848.08    1321.50     58.42   3700    2
+idle 20 us  mt     64 KiB  ships                            14.40     14.33     15.83     19.42      21.75      1.79   3097    0
+idle 20 us  mt     64 KiB  asleep, split 32 KiB             14.14     12.75     15.62     29.88      31.33      1.58   3569    0
+idle 20 us  mt     64 KiB  1 awake, split 32 KiB            11.24     11.38     12.00     12.58      13.67      1.25   3481    0
+idle 20 us  mt     64 KiB  3 awake, split 32 KiB            10.08      9.50     11.75     22.71      35.33      1.25   3837    0
+idle 20 us  mt     64 KiB  7 awake, split 32 KiB            11.96      9.83     17.54     29.83      30.54      1.33   3835    0
+idle 20 us  mt     64 KiB  all 9 awake, split 32 KiB         8.91      8.75      9.38     16.75      23.08      1.25   3828    1
+idle 20 us  mt    256 KiB  ships                            45.36     44.96     49.38     61.67      91.08      3.46   3443    0
+idle 20 us  mt    256 KiB  asleep, split 32 KiB             36.16     36.12     37.54     42.08      49.67      4.33   3578    0
+idle 20 us  mt    256 KiB  1 awake, split 32 KiB            26.75     25.46     30.42     34.54      35.67      3.96   3488    0
+idle 20 us  mt    256 KiB  3 awake, split 32 KiB            28.13     27.67     28.12     50.25      52.21      4.12   3843    0
+idle 20 us  mt    256 KiB  7 awake, split 32 KiB            25.02     23.58     31.25     36.54      37.71      4.08   3834    1
+idle 20 us  mt    256 KiB  all 9 awake, split 32 KiB        20.07     20.88     21.46     24.17      36.88      4.17   3825    2
+idle 20 us  mt      1 MiB  ships                            73.99     73.71     78.58     83.88      96.50     14.67   3478    0
+idle 20 us  mt      1 MiB  asleep, split 32 KiB             74.41     73.75     78.54     92.08     103.83     14.67   3477    0
+idle 20 us  mt      1 MiB  1 awake, split 32 KiB            83.08     81.38     88.83     92.79     110.88     18.00   3729    0
+idle 20 us  mt      1 MiB  3 awake, split 32 KiB            65.83     63.58     68.62    108.79     110.21     14.38   3703    0
+idle 20 us  mt      1 MiB  7 awake, split 32 KiB            64.54     63.08     68.12    101.21     127.12     14.67   3391    1
+idle 20 us  mt      1 MiB  all 9 awake, split 32 KiB        63.47     57.46     95.83    102.38     117.38     14.96   3698    1
+idle 20 us  mt      4 MiB  ships                           222.87    220.92    233.29    266.08     293.96     70.83   3616    0
+idle 20 us  mt      4 MiB  asleep, split 32 KiB            223.22    220.38    233.38    267.75     282.50     70.04   3610    0
+idle 20 us  mt      4 MiB  1 awake, split 32 KiB           387.44    383.12    406.12    423.67     447.75     66.29   3690    0
+idle 20 us  mt      4 MiB  3 awake, split 32 KiB           232.27    228.50    244.83    273.58     369.58     68.75   3660    0
+idle 20 us  mt      4 MiB  7 awake, split 32 KiB           215.07    213.79    220.58    292.75     394.08     64.00   3709    3
+idle 20 us  mt      4 MiB  all 9 awake, split 32 KiB       225.63    214.79    283.38    304.42     339.08     63.83   3782    2
+idle 5 ms   st      1 KiB  ships                             3.46      3.50      3.62      3.83       4.79      0.33    933    0
+idle 5 ms   st      1 KiB  asleep, split 32 KiB              3.48      3.50      3.62      3.92      21.00      0.29    938    0
+idle 5 ms   st      1 KiB  1 awake, split 32 KiB             0.84      0.83      0.92      1.00       1.08      0.08   3845    0
+idle 5 ms   st      1 KiB  3 awake, split 32 KiB             0.84      0.83      0.88      1.00       1.12      0.08   3843    0
+idle 5 ms   st      1 KiB  7 awake, split 32 KiB             0.85      0.83      0.88      1.79       8.25      0.04   3802    3
+idle 5 ms   st      1 KiB  all 9 awake, split 32 KiB         0.84      0.83      0.88      1.04       1.88      0.04   3832    1
+idle 5 ms   st     16 KiB  ships                            17.81     18.33     18.71     19.25      34.62      1.12    788    0
+idle 5 ms   st     16 KiB  asleep, split 32 KiB             17.73     18.33     18.67     19.08      19.17      1.12    788    0
+idle 5 ms   st     16 KiB  1 awake, split 32 KiB             4.28      4.21      4.58      4.83       5.83      0.29   3241    0
+idle 5 ms   st     16 KiB  3 awake, split 32 KiB             4.29      4.25      4.58      4.83       5.79      0.29   3224    0
+idle 5 ms   st     16 KiB  7 awake, split 32 KiB             4.01      4.00      4.21      4.75       6.46      0.21   3203    1
+idle 5 ms   st     16 KiB  all 9 awake, split 32 KiB         4.03      3.96      4.25      4.67       5.79      0.21   3190    1
+idle 5 ms   st     64 KiB  ships                            51.80     53.29     54.46     59.88      66.38      3.75    888    0
+idle 5 ms   st     64 KiB  asleep, split 32 KiB             52.06     53.29     55.50     61.00      66.83      3.75    880    0
+idle 5 ms   st     64 KiB  1 awake, split 32 KiB            13.63     13.62     14.38     15.38      17.83      0.88   3238    0
+idle 5 ms   st     64 KiB  3 awake, split 32 KiB            13.73     13.75     14.38     15.79      16.92      0.88   3222    0
+idle 5 ms   st     64 KiB  7 awake, split 32 KiB            13.82     13.75     14.75     15.67      16.42      1.79   3229    0
+idle 5 ms   st     64 KiB  all 9 awake, split 32 KiB        13.72     13.79     14.38     15.17      17.83      1.79   3248    0
+idle 5 ms   st    256 KiB  ships                            85.21     84.58     94.67    130.42     157.08     14.17   1784    0
+idle 5 ms   st    256 KiB  asleep, split 32 KiB             84.65     84.67     92.21    114.54     155.25     14.12   1789    0
+idle 5 ms   st    256 KiB  1 awake, split 32 KiB            43.09     42.62     45.04     47.50      49.58      3.33   3625    0
+idle 5 ms   st    256 KiB  3 awake, split 32 KiB            43.23     42.71     45.04     49.38      55.29      3.38   3614    0
+idle 5 ms   st    256 KiB  7 awake, split 32 KiB            43.38     43.08     45.42     47.54      61.04      3.46   3584    0
+idle 5 ms   st    256 KiB  all 9 awake, split 32 KiB        43.04     42.58     44.92     46.92      60.25      3.42   3608    1
+idle 5 ms   st      1 MiB  ships                           167.95    164.50    181.75    238.04     289.67     57.67   2859    0
+idle 5 ms   st      1 MiB  asleep, split 32 KiB            168.32    164.67    184.46    229.75     249.25     57.62   2839    0
+idle 5 ms   st      1 MiB  1 awake, split 32 KiB           155.26    152.92    162.88    170.12     180.62     12.92   3761    0
+idle 5 ms   st      1 MiB  3 awake, split 32 KiB           155.18    153.04    162.46    169.04     176.38     13.04   3762    0
+idle 5 ms   st      1 MiB  7 awake, split 32 KiB           155.40    152.58    162.17    232.79     235.33     13.29   3751    2
+idle 5 ms   st      1 MiB  all 9 awake, split 32 KiB       155.37    152.71    162.67    190.50     242.08     13.33   3750    0
+idle 5 ms   st      4 MiB  ships                           663.70    663.83    707.21    841.00    1141.83    145.33   3363    0
+idle 5 ms   st      4 MiB  asleep, split 32 KiB            668.77    664.00    731.00    841.00     918.83    143.12   3338    0
+idle 5 ms   st      4 MiB  1 awake, split 32 KiB           632.97    624.75    663.92    695.46     839.08     58.88   3726    0
+idle 5 ms   st      4 MiB  3 awake, split 32 KiB           634.35    625.42    663.92    695.42    1020.04     58.75   3715    0
+idle 5 ms   st      4 MiB  7 awake, split 32 KiB           633.70    624.21    662.92    714.29    1209.67     58.50   3722    1
+idle 5 ms   st      4 MiB  all 9 awake, split 32 KiB       634.92    624.42    663.67    721.88    1093.62     58.38   3720    1
+idle 5 ms   mt     64 KiB  ships                            51.42     53.38     54.29     60.04      63.79      3.75    894    0
+idle 5 ms   mt     64 KiB  asleep, split 32 KiB             72.33     74.96     79.38     93.29      94.38      3.71   1382    0
+idle 5 ms   mt     64 KiB  1 awake, split 32 KiB            11.65     11.83     12.42     13.62      18.58      0.88   3477    0
+idle 5 ms   mt     64 KiB  3 awake, split 32 KiB            10.15      9.29     10.88     40.92      53.04      0.92   3834    0
+idle 5 ms   mt     64 KiB  7 awake, split 32 KiB            11.83     11.17     16.33     23.04      29.46      1.25   3842    1
+idle 5 ms   mt     64 KiB  all 9 awake, split 32 KiB         9.62      9.25     10.75     15.42      44.21      1.21   3839    1
+idle 5 ms   mt    256 KiB  ships                            84.54     84.58     94.29    125.04     137.96     14.17   1801    0
+idle 5 ms   mt    256 KiB  asleep, split 32 KiB             89.24     88.12     97.79    125.58     143.04     14.12   1901    0
+idle 5 ms   mt    256 KiB  1 awake, split 32 KiB            25.06     25.04     26.17     28.04      49.83      3.25   3502    0
+idle 5 ms   mt    256 KiB  3 awake, split 32 KiB            47.96     48.00     53.96    107.79     111.42      3.50   3849    0
+idle 5 ms   mt    256 KiB  7 awake, split 32 KiB            24.50     22.79     28.83     36.54      59.08      3.96   3848    0
+idle 5 ms   mt    256 KiB  all 9 awake, split 32 KiB        20.21     20.92     21.96     37.62      60.92      4.00   3849    0
+idle 5 ms   mt      1 MiB  ships                           111.05    110.00    118.71    156.21     183.17     57.12   2550    0
+idle 5 ms   mt      1 MiB  asleep, split 32 KiB            111.39    110.42    118.58    155.71     171.71     55.42   2523    0
+idle 5 ms   mt      1 MiB  1 awake, split 32 KiB            99.74     99.00    107.38    109.38     112.71     16.79   3749    0
+idle 5 ms   mt      1 MiB  3 awake, split 32 KiB           106.13    106.46    109.75    131.00     134.38     15.29   3762    0
+idle 5 ms   mt      1 MiB  7 awake, split 32 KiB            64.97     63.54     68.71     95.42     112.62     14.46   3410    0
+idle 5 ms   mt      1 MiB  all 9 awake, split 32 KiB        61.96     58.38     69.21    105.38     125.04     14.62   3705    1
+idle 5 ms   mt      4 MiB  ships                           257.32    256.38    264.58    280.88     318.96    154.58   3176    0
+idle 5 ms   mt      4 MiB  asleep, split 32 KiB            257.78    256.62    265.88    284.75     344.67    154.83   3170    0
+idle 5 ms   mt      4 MiB  1 awake, split 32 KiB           387.63    385.04    406.17    425.33     441.58     65.79   3693    0
+idle 5 ms   mt      4 MiB  3 awake, split 32 KiB           246.64    246.71    251.67    285.21     293.25     69.00   3666    0
+idle 5 ms   mt      4 MiB  7 awake, split 32 KiB           215.47    213.79    219.79    317.04     405.54     63.50   3737    0
+idle 5 ms   mt      4 MiB  all 9 awake, split 32 KiB       223.54    215.50    283.62    318.58     421.50     63.46   3801    0
