@@ -107,7 +107,7 @@ Every time is a median over the cell's 500 visits, in microseconds, of the messa
 - **The kernels' code is worth fetching on x86 too.** In a program whose other cores never run the hash, a 16 KiB call after other work takes 4.6 μs against 1.5 back to back on the Ryzen 9700X (4.0 against 1.8 on the EPYC 9255). x86's now-and-then path fetches no code ahead today, where NEON's does. On the Ryzen, `early` puts what running the kernels ahead recovers at 0.4 to 0.6 μs of a 16 KiB call in a program whose pool hashes too; how much a fetch at the call recovers is unmeasured.
 - **The price of keeping awake**, by macOS's own estimate for the process: about 2.5 W for one helper on the M6 and 2.9 W on the M4, 5.5 W for three. The x86 measurement hosts do not let a process read the package's energy.
 
-**What this leaves for the library** (its design is John's): a split from 256 KiB on x86; a fetch of the kernels' code on x86's now-and-then path; SSE4.1 for a cold call of about 4 KiB on the Xeon; and whether a `Hasher` should fetch its kernels when it is made.
+**What this leaves for the library** (its design is John's; [BLAKE3 #490](https://github.com/servil-software-factory/BLAKE3/issues/490) hands it to him): a split from 256 KiB on x86; a fetch of the kernels' code on x86's now-and-then path; SSE4.1 for a cold call of about 4 KiB on the Xeon; and whether a `Hasher` should fetch its kernels when it is made.
 
 **The probes.** Five more modes of `examples/host_lab.rs`, at later commits of `probe/latency-ready` (`40dc766d`, `6fe6b68f`, `b18c10ff`, `83806270`, `b4b9a431`):
 
@@ -230,4 +230,4 @@ EPYC 7443P:
 
 `job-x86.sh` (the first probe's x86 job as submitted; `job-x86-rest.sh`, `job-x86-cold.sh`, `job-x86-warn.sh` and `job-x86-early.sh` the follow-ups'), `read-latency.py FILE [--p99] [--mean] [--write]` (one machine's cells), `table.py NAME=FILE ...` (the first probe's tables), `followups.py` (the follow-ups' tables; run it in this folder). Each follow-up has its own folder under its machine (`rest`, `cold`, `warn`, `early` on x86; `1-rest` to `7-early` on the Macs) with the same files as the first probe's. For each x86 machine: `report.txt` (the program's own table), `host_lab.latency.tsv` (every sample: the call's and the write's nanoseconds, and the thread's counts), `provenance.txt`. For each Mac: `job.json`, `verdict.json`, `runner.log` (with the program's table), `host_lab.latency.tsv`.
 
-**Posted:** reported to Zooko directly on November 22, 2026, in five messages as the probes came in.
+**Posted:** reported to Zooko directly on November 22, 2026, as the probes came in; the leads for the library are in [BLAKE3 #490](https://github.com/servil-software-factory/BLAKE3/issues/490).
