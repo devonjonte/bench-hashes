@@ -26,14 +26,16 @@ Whole-process wall time from start to exit across six x86-64 Linux machines and 
 
 ## `b3sum`: what changed from 0.9.1 to 0.10.0
 
-| Workload | Linux in memory (6 hosts) | Linux from disk (6 hosts) |
-|---|---|---|
-| 1 small file (4 KiB) | same | same |
-| 1 medium file (1 MiB) | 7%–18% faster (4 of 6) | 6% slower (2 of 6) |
-| 1 large file (1 GiB) | same | **16%–46% faster** (all 6) |
-| 1,000 small files (16 KiB each) | **7%–23% faster** (all 6) | up to 45% faster (2 of 6) |
-| Mixed directory (1,000 files, 74 MiB) | 8%–18% faster (4 of 6) | up to 31% faster (4 of 6); 15% slower on 2 |
-| 16 large files (64 MiB each) | 12%–34% faster (5 of 6) | **13%–31% faster** (all 6) |
+| Workload | Linux in memory (6 hosts) | Linux from disk (6 hosts) | Apple M6 in memory | Apple M6 from disk |
+|---|---|---|---:|---:|
+| 1 small file (4 KiB) | same | same | same | same |
+| 1 medium file (1 MiB) | 7%–18% faster (4 of 6) | 6% slower (2 of 6) | same | same |
+| 1 large file (1 GiB) | same | **16%–46% faster** (all 6) | same | same |
+| 1,000 small files (16 KiB each) | **7%–23% faster** (all 6) | up to 45% faster (2 of 6) | **17% faster** | **9% faster** |
+| Mixed directory (1,000 files, 74 MiB) | 8%–18% faster (4 of 6) | up to 31% faster (4 of 6); 15% slower on 2 | **10% faster** | same |
+| 16 large files (64 MiB each) | 12%–34% faster (5 of 6) | **13%–31% faster** (all 6) | same | same |
+
+On Apple M4 (`mac-m4-timing`), the same head-to-head comparison measures 1,000 small files **18% faster** and the mixed directory **11% faster** in memory, and `same` on the remaining workloads ([Apple M6](b3sum/apple-m6-vs-0.9.1.md), [Apple M4](b3sum/apple-m4-vs-0.9.1.md)).
 
 Outside these six rows: on the three two-socket machines, one cold 16 MiB file is 16%–28% slower than with 0.9.1, and it is 17%–31% faster on the three one-socket machines ([known costs](known-costs.md)).
 
@@ -74,7 +76,7 @@ hyperfine -N --warmup 3 'official/bin/b3sum FILE' 'servil-0.10/bin/b3sum FILE'
 
 ## Details, methodology & raw evidence
 
-- **Per-machine `b3sum` tables (all 10 workloads + exact ms times):** [Apple M6](b3sum/apple-m6.md), [Ryzen 9700X](b3sum/x86-9700x.md), [2× EPYC 7443](b3sum/x86-avx2.md), [EPYC 9255](b3sum/x86-epyc-9255.md), [EPYC 9275F](b3sum/x86-epyc-9275f.md), [2× Xeon Gold 6330 (b)](b3sum/x86-icelake-2.md), [2× Xeon Gold 6330 (a)](b3sum/x86-icelake.md)
+- **Per-machine `b3sum` tables (all 10 workloads + exact ms times):** [Apple M6](b3sum/apple-m6.md) ([0.9.1 → 0.10.0](b3sum/apple-m6-vs-0.9.1.md)), [Apple M4 0.9.1 → 0.10.0](b3sum/apple-m4-vs-0.9.1.md), [Ryzen 9700X](b3sum/x86-9700x.md), [2× EPYC 7443](b3sum/x86-avx2.md), [EPYC 9255](b3sum/x86-epyc-9255.md), [EPYC 9275F](b3sum/x86-epyc-9275f.md), [2× Xeon Gold 6330 (b)](b3sum/x86-icelake-2.md), [2× Xeon Gold 6330 (a)](b3sum/x86-icelake.md)
 - **Per-machine library tables (all cells + 3%–5% band):** [Apple M6](library/apple-m6.md), [Ryzen 9700X](library/x86-9700x.md), [2× EPYC 7443](library/x86-avx2.md), [EPYC 9255](library/x86-epyc-9255.md), [EPYC 9275F](library/x86-epyc-9275f.md), [2× Xeon Gold 6330 (b)](library/x86-icelake-2.md), [2× Xeon Gold 6330 (a)](library/x86-icelake.md)
 - **Known costs and owners:** [known-costs.md](known-costs.md)
 - **Machines, loads & exact commits:** [machines.md](machines.md)
