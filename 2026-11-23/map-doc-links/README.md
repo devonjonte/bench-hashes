@@ -13,7 +13,7 @@ On bench-hashes `next` at `2a223359a711585ec6705c2279acc1f860f99851`:
 - `36fdfb82b`: `src/map.rs` gains `doc_page()`, which gives a call's page from its name (`MODULE::function`, `MODULE::Type`, `MODULE::Type::method`); `place()` and `one_thread_call()` carry names alone.
 - `d1ea0d438`: the thirteen stored maps, patched, with each folder's `SHA256SUMS` and `BLAKE3SUMS` bound to the new file.
 
-(The pull request lands by rebase, so `next` holds the same two changes under other hashes.)
+The pull request landed by rebase: `next` holds the same two changes as `15e4307ff` and `9ae9e8962c180316374f49d9bb0e094a6f24cd6f`.
 
 ## What is here, and the commands
 
