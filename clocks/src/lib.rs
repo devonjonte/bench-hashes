@@ -78,9 +78,15 @@
 //! ([`measure_after_gaps_prepared`]): the sum's rounding averages out. A median or
 //! a minimum of single short readings keeps the rounding; take neither.
 
-// Unix's clocks (Linux and macOS); Windows is not supported (BLAKE3 #160).
-#[cfg(not(unix))]
-compile_error!("clocks reads Unix's clocks (Linux and macOS); Windows is not supported (https://github.com/servil-software-factory/BLAKE3/issues/160)");
+// Supported native targets: Linux (x86_64, aarch64) and Apple macOS (aarch64,
+// x86_64). Hand-written libc ABI constants (`CLOCK_MONOTONIC_RAW`, 64-bit
+// `Timespec`) are only verified on these targets; refuse untested OS/arch
+// combinations at build time (Chapter 1 trigger 6; BLAKE3 #160).
+#[cfg(not(any(
+    all(target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")),
+    all(target_vendor = "apple", any(target_arch = "aarch64", target_arch = "x86_64")),
+)))]
+compile_error!("clocks supports only Linux (x86_64, aarch64) and Apple macOS (aarch64, x86_64); refusing untested OS/architecture at the FFI boundary (https://github.com/servil-software-factory/BLAKE3/issues/160)");
 
 pub mod child;
 pub mod energy;
@@ -93,7 +99,7 @@ pub mod threads;
 /// The wall clock, as reports name it.
 #[cfg(target_vendor = "apple")]
 pub const WALL_CLOCK: &str = "CLOCK_UPTIME_RAW (mach_absolute_time; stops during sleep; the raw counter, no NTP)";
-#[cfg(all(unix, not(target_vendor = "apple")))]
+#[cfg(target_os = "linux")]
 pub const WALL_CLOCK: &str = "CLOCK_MONOTONIC_RAW (stops during suspend; the raw counter, no NTP slew)";
 
 /// A point on the wall clock: the raw counter's nanoseconds. Only
@@ -155,7 +161,7 @@ pub(crate) mod test_clock {
 /// on Linux (the vDSO's, 11 ns a read on an i7-12700K, 1 ns steps),
 /// `clock_gettime_nsec_np(CLOCK_UPTIME_RAW)` on Darwin (41.67 ns steps on
 /// an M4 Max). Neither is adjusted by a time daemon.
-#[cfg(all(unix, not(target_vendor = "apple")))]
+#[cfg(target_os = "linux")]
 #[inline(always)]
 fn raw_ns() -> u64 {
     #[repr(C)]
@@ -170,7 +176,7 @@ fn raw_ns() -> u64 {
     let mut ts = Timespec { sec: 0, nsec: 0 };
     // Sound: clock_gettime writes the timespec it is given.
     let r = unsafe { clock_gettime(CLOCK_MONOTONIC_RAW, &mut ts) };
-    debug_assert_eq!(r, 0, "clock_gettime(CLOCK_MONOTONIC_RAW)");
+    assert_eq!(r, 0, "clock_gettime(CLOCK_MONOTONIC_RAW)");
     ts.sec as u64 * 1_000_000_000 + ts.nsec as u64
 }
 

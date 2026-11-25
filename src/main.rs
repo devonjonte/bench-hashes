@@ -2573,16 +2573,16 @@ cell sampled in a share of them.
                                    side's builds (as provenance prints them)
   bench-hashes provenance          this build's bench-hashes and BLAKE3-Servil
                                    commits, each with its tree's state
-  bench-hashes regress [--full | --contenders A,B [--points P,Q]] OLD_EXE... -- NEW_EXE...
+  bench-hashes regress [--contenders A,B] [--points P,Q | --cells SPEC] OLD_EXE... -- NEW_EXE...
                                    whether the new build is slower: pair i
                                    runs the i-th of each side (fresh
-                                   layouts: BLAKE3-Servil's tools/perf_regress.py),
+                                   layouts built by `bench-hashes check`),
                                    in alternating order; all cells judged at
                                    once; exit 0, 1 (slower), 2 (no verdict),
                                    or 3 (a side's run stopped: a crash);
-                                   --full: every default cell;
-                                   --contenders (and --points): the cells
-                                   a run with them measures, every one judged
+                                   default scope measures every default cell;
+                                   --contenders, --points, or --cells narrow
+                                   the cells measured, every one judged
 
   bench-hashes check --fork DIR    whether a change to BLAKE3-Servil's checkout
                                    is slower than its base (CONTRIBUTING.md)
