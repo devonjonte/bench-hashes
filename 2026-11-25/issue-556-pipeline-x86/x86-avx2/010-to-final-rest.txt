@@ -1,0 +1,37 @@
+bench-hashes: this machine's CPUs sit on 2 memory nodes; this run keeps to node 0 (48 of the 96 CPUs it could use, its memory there): the benchmark measures one memory node (METHODOLOGY.md, "One memory node")
+check: BLAKE3-Servil's e8c17c7558ef9250e2afcb8eeb8511b603c85303 (e8c17c7558ef) against 2fd4ff6f (2fd4ff6f643e)
+check: the change touches 71507 added and 7596 deleted lines in 214 files: .config/nextest.toml (+17/-1), .github/workflows/ci.yml (+271/-96), .github/workflows/docs.yml (+6/-6), .github/workflows/one-assignee.yml (+1/-1), .github/workflows/release-artifacts.yml (+35/-7), AGENTS.md (+58/-213), CHANGELOG.md (+162/-0), CONTRIBUTING.md (+157/-35), Cargo.toml (+18/-27), QUALITY.md (+18/-13), README.md (+18/-8), b3sum/.config/nextest.toml (+6/-0), and 202 more
+check: its hunks sit in: slow-timeout = { period = "60s", terminate-after = 1 }, slow-timeout = { period = "300s", terminate-after = 1 }, jobs:, Have fun! Optimism and positivity make you, and the people you work with, more e, The README lists what BLAKE3-Servil adds for callers; the code is laid out so:, header, the tool's README., margin., found complete. A candidate lands once:, it takes and ticks each step:, never permission to upload. The final publication runs from the directory, where the two differ. To change a dependency: change it in `b3sum/`, git checkout TAG, and 906 more
+check: measuring the 4 named points (4 of 282 points; the rest unmeasured in this check): continuous 4 KiB, continuous batch 1024, continuous batch 16384, continuous batch 65536
+check: the builds differ here: .data, .data.rel.ro, .dynamic, .dynstr, .dynsym, .eh_frame, .eh_frame_hdr, .gcc_except_table, .gnu.hash, .gnu.version, .gnu.version_r, .got, .got.plt, .init, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .tdata, .text; 237 functions of another size or on one side alone (<&(usize, usize) as core::fmt::Debug>::fmt; <&u64 as core::fmt::Debug>::fmt; <&u8 as core::fmt::Debug>::fmt; <<std::sync::once::Once>::call_once<blake3_servil_core::self_test::ensure_slow::{closure#0}>::{closure#0} as core::ops::function::FnOnce<(&std::sync::once::OnceState,)>>::call_once::{shim:vtable#0}; <alloc::vec::Vec<_, _>>::swap_remove::assert_failed; <arrayvec::errors::CapacityError<&[u8; 1024]> as core::fmt::Debug>::fmt; <arrayvec::errors::CapacityError<[&[u8; 64]; 8]> as core::fmt::Debug>::fmt; <bench_hashes::one_message_call::{closure#1} as core::ops::function::FnOnce<(&[u8], usize)>>::call_once; <bench_hashes::pipeline::Messages>::receive::<bench_hashes::hash_batch_of<bench_hashes::use_digest>::{closure#1}, bench_hashes::use_digest>::{closure#0}; <bench_hashes::take_sample::{closure#2} as core::ops::function::FnOnce<(&[u8], usize, &mut [[u8; 32]])>>::call_once; <bench_hashes::take_sample::{closure#3} as core::ops::function::FnOnce<(&[u8], usize, &mut [[u8; 32]])>>::call_once; <blake3_servil::lanes::Pool>::plan; and 225 more); 1516 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::ffi::c_str::CString as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; <&alloc::vec::Vec<u8> as core::fmt::Debug>::fmt; and 1504 more)
+check: --contenders: blake3-servil-st's cells are left out
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,1,6
+regress: 3 run pairs using 3 distinct new executable paths and 3 old, over --contenders blake3-servil-mt --points "continuous 4 KiB,continuous batch 1024,continuous batch 16384,continuous batch 65536"
+regress: pair 1 of 3 in 5.5 s
+regress: pair 2 of 3 in 5.5 s
+regress: pair 3 of 3 in 5.5 s
+regress: old side: bench 303fff16dfcd clean; servil 2fd4ff6f643e clean
+regress: new side: bench 303fff16dfcd clean; servil e8c17c7558ef clean
+  faster blake3-servil-mt|shared-one-cache|ContinuousBatches|16384: -38.9% (the pairs' geometric mean; 3 pairs, from -40.4% to -37.4%: -38.9% -37.4% -40.4%)
+  faster blake3-servil-mt|shared-one-cache|ContinuousBatches|65536: -39.3% (the pairs' geometric mean; 3 pairs, from -46.5% to -34.8%: -46.5% -34.8% -35.8%)
+  faster blake3-servil-mt|shared-two-caches|ContinuousBatches|65536: -39.7% (the pairs' geometric mean; 3 pairs, from -40.7% to -38.7%: -40.7% -38.7% -39.7%)
+  faster blake3-servil-mt|solo|ContinuousBatches|65536: -57.1% (the pairs' geometric mean; 3 pairs, from -58.6% to -55.7%: -58.6% -55.7% -57.0%)
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: suspects: blake3-servil-mt|shared-two-caches|ContinuousBatches|16384
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+check: the probe's cells over 3 pairs (compare; no verdict: the full check's is the gate)
+compare: old side: bench 303fff16dfcd clean; servil 2fd4ff6f643e clean
+compare: new side: bench 303fff16dfcd clean; servil e8c17c7558ef clean
+blake3-servil-mt|solo|ContinuousMessages|4 KiB: 0.0740 -> 0.0711 ns/unit  x0.961 level, 3 of 3 pairs faster; CPU time x1.001
+blake3-servil-mt|solo|ContinuousBatches|1024: 3.333 -> 3.276 ns/unit  x0.983 level, 2 of 3 pairs faster; CPU time x1.109
+blake3-servil-mt|solo|ContinuousBatches|16384: 4.670 -> 4.454 ns/unit  x0.954 level, 2 of 3 pairs faster; CPU time x0.968
+blake3-servil-mt|solo|ContinuousBatches|65536: 7.695 -> 3.301 ns/unit  x0.429 faster, 3 of 3 pairs faster; CPU time x0.306
+blake3-servil-mt|shared-one-cache|ContinuousMessages|4 KiB: 0.118 -> 0.112 ns/unit  x0.954 level, 3 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|1024: 5.176 -> 5.005 ns/unit  x0.967 level, 2 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|16384: 7.720 -> 4.715 ns/unit  x0.611 faster, 3 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|65536: 10.832 -> 6.579 ns/unit  x0.607 faster, 3 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousMessages|4 KiB: 0.106 -> 0.112 ns/unit  x1.048 level, 1 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousBatches|1024: 7.209 -> 7.382 ns/unit  x1.024 level, 1 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousBatches|16384: 7.812 -> 8.290 ns/unit  x1.061 level, 0 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousBatches|65536: 9.664 -> 5.825 ns/unit  x0.603 faster, 3 of 3 pairs faster

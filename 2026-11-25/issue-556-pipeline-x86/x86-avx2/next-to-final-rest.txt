@@ -1,0 +1,33 @@
+bench-hashes: this machine's CPUs sit on 2 memory nodes; this run keeps to node 0 (48 of the 96 CPUs it could use, its memory there): the benchmark measures one memory node (METHODOLOGY.md, "One memory node")
+check: BLAKE3-Servil's e8c17c7558ef9250e2afcb8eeb8511b603c85303 (e8c17c7558ef) against b1f4ce0d8b30349883bab44449c3b445fd404d80 (b1f4ce0d8b30)
+check: the change touches 389 added and 100 deleted lines in 3 files: threads/src/lanes.rs (+85/-21), threads/src/pipeline.rs (+301/-79), threads/tests/shuttle_pipeline.rs (+3/-0)
+check: its hunks sit in: pub(crate) mod places {, struct MemberGroup {, struct PipeStorage {, impl PipeStorage {, fn finished(storage: &'static PipeStorage, publish: impl FnOnce()) {, struct Shared {, impl Shared {, struct SlotMeta<T> {, pub struct Pipeline<T, B = (), P = Batch<'static>> {, unsafe impl<T: Send, B: Send, P: Send> Send for Pipeline<T, B, P> {}, impl<T, B, P: Prepared + 'static> Pipeline<T, B, P> {, impl<T, B, P> Pipeline<T, B, P> {, and 5 more
+check: measuring the 4 named points (4 of 282 points; the rest unmeasured in this check): continuous 4 KiB, continuous batch 1024, continuous batch 16384, continuous batch 65536
+check: the builds differ here: .data.rel.ro, .dynamic, .eh_frame, .eh_frame_hdr, .got.plt, .init, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .tdata, .text; 38 functions of another size or on one side alone (<alloc::raw_vec::RawVec<((&str, &str), core::mem::manually_drop::ManuallyDrop<bench_hashes::pipeline::Turns>)>>::grow_one; <bench_hashes::pipeline::Messages>::receive::<bench_hashes::hash_batch_of<bench_hashes::use_digest>::{closure#1}, bench_hashes::use_digest>::{closure#0}; <blake3_servil::lanes::places::Plan>::done; <blake3_servil::lanes::places::Plan>::new; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::abort_slot; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::clear_custom_slot; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::commit_multi; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::create; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::drain_pieces; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::end_slow; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::finish_batch_plan; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::open_new_group; and 26 more); 1636 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&(usize, usize) as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; <&alloc::vec::Vec<u8> as core::fmt::Debug>::fmt; and 1624 more)
+check: --contenders: blake3-servil-st's cells are left out
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,1,6
+regress: 3 run pairs using 3 distinct new executable paths and 3 old, over --contenders blake3-servil-mt --points "continuous 4 KiB,continuous batch 1024,continuous batch 16384,continuous batch 65536"
+regress: pair 1 of 3 in 5.5 s
+regress: pair 2 of 3 in 5.5 s
+regress: pair 3 of 3 in 5.5 s
+regress: old side: bench 303fff16dfcd clean; servil b1f4ce0d8b30 clean
+regress: new side: bench 303fff16dfcd clean; servil e8c17c7558ef clean
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: suspects: blake3-servil-mt|solo|ContinuousBatches|65536
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+check: the probe's cells over 3 pairs (compare; no verdict: the full check's is the gate)
+compare: old side: bench 303fff16dfcd clean; servil b1f4ce0d8b30 clean
+compare: new side: bench 303fff16dfcd clean; servil e8c17c7558ef clean
+blake3-servil-mt|solo|ContinuousMessages|4 KiB: 0.0721 -> 0.0729 ns/unit  x1.010 level, 2 of 3 pairs faster; CPU time x1.016
+blake3-servil-mt|solo|ContinuousBatches|1024: 3.169 -> 3.177 ns/unit  x1.003 level, 1 of 3 pairs faster; CPU time x0.979
+blake3-servil-mt|solo|ContinuousBatches|16384: 4.273 -> 4.298 ns/unit  x1.006 level, 1 of 3 pairs faster; CPU time x1.044
+blake3-servil-mt|solo|ContinuousBatches|65536: 3.154 -> 3.470 ns/unit  x1.100 level, 1 of 3 pairs faster; CPU time x1.120
+blake3-servil-mt|shared-one-cache|ContinuousMessages|4 KiB: 0.114 -> 0.119 ns/unit  x1.041 level, 1 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|1024: 4.821 -> 5.004 ns/unit  x1.038 level, 0 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|16384: 4.698 -> 4.646 ns/unit  x0.989 level, 1 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|65536: 7.110 -> 6.458 ns/unit  x0.908 level, 2 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousMessages|4 KiB: 0.122 -> 0.105 ns/unit  x0.867 level, 3 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousBatches|1024: 7.673 -> 7.355 ns/unit  x0.959 level, 3 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousBatches|16384: 7.763 -> 8.002 ns/unit  x1.031 level, 0 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousBatches|65536: 6.126 -> 5.947 ns/unit  x0.971 level, 2 of 3 pairs faster

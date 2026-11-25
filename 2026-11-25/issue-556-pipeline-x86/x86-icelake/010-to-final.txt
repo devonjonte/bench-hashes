@@ -1,0 +1,24 @@
+bench-hashes: this machine's CPUs sit on 2 memory nodes; this run keeps to node 0 (56 of the 112 CPUs it could use, its memory there): the benchmark measures one memory node (METHODOLOGY.md, "One memory node")
+check: BLAKE3-Servil's e8c17c7558ef9250e2afcb8eeb8511b603c85303 (e8c17c7558ef) against 2fd4ff6f (2fd4ff6f643e)
+check: the change touches 71507 added and 7596 deleted lines in 214 files: .config/nextest.toml (+17/-1), .github/workflows/ci.yml (+271/-96), .github/workflows/docs.yml (+6/-6), .github/workflows/one-assignee.yml (+1/-1), .github/workflows/release-artifacts.yml (+35/-7), AGENTS.md (+58/-213), CHANGELOG.md (+162/-0), CONTRIBUTING.md (+157/-35), Cargo.toml (+18/-27), QUALITY.md (+18/-13), README.md (+18/-8), b3sum/.config/nextest.toml (+6/-0), and 202 more
+check: its hunks sit in: slow-timeout = { period = "60s", terminate-after = 1 }, slow-timeout = { period = "300s", terminate-after = 1 }, jobs:, Have fun! Optimism and positivity make you, and the people you work with, more e, The README lists what BLAKE3-Servil adds for callers; the code is laid out so:, header, the tool's README., margin., found complete. A candidate lands once:, it takes and ticks each step:, never permission to upload. The final publication runs from the directory, where the two differ. To change a dependency: change it in `b3sum/`, git checkout TAG, and 906 more
+check: measuring the 4 named points (4 of 282 points; the rest unmeasured in this check): continuous 4 KiB, continuous 64 B, continuous batch 1024, continuous batch 65536
+check: the builds differ here: .data, .data.rel.ro, .dynamic, .dynstr, .dynsym, .eh_frame, .eh_frame_hdr, .gcc_except_table, .gnu.hash, .gnu.version, .gnu.version_r, .got, .got.plt, .init, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .tdata, .text; 237 functions of another size or on one side alone (<&(usize, usize) as core::fmt::Debug>::fmt; <&u64 as core::fmt::Debug>::fmt; <&u8 as core::fmt::Debug>::fmt; <<std::sync::once::Once>::call_once<blake3_servil_core::self_test::ensure_slow::{closure#0}>::{closure#0} as core::ops::function::FnOnce<(&std::sync::once::OnceState,)>>::call_once::{shim:vtable#0}; <alloc::vec::Vec<_, _>>::swap_remove::assert_failed; <arrayvec::errors::CapacityError<&[u8; 1024]> as core::fmt::Debug>::fmt; <arrayvec::errors::CapacityError<[&[u8; 64]; 8]> as core::fmt::Debug>::fmt; <bench_hashes::one_message_call::{closure#1} as core::ops::function::FnOnce<(&[u8], usize)>>::call_once; <bench_hashes::pipeline::Messages>::receive::<bench_hashes::hash_batch_of<bench_hashes::use_digest>::{closure#1}, bench_hashes::use_digest>::{closure#0}; <bench_hashes::take_sample::{closure#2} as core::ops::function::FnOnce<(&[u8], usize, &mut [[u8; 32]])>>::call_once; <bench_hashes::take_sample::{closure#3} as core::ops::function::FnOnce<(&[u8], usize, &mut [[u8; 32]])>>::call_once; <blake3_servil::lanes::Pool>::plan; and 225 more); 1516 of other bytes (<&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::ffi::c_str::CString as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; <&alloc::vec::Vec<u8> as core::fmt::Debug>::fmt; and 1504 more)
+check: --contenders: blake3-servil-st's cells are left out
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,1,2,3,4,5,6,7
+regress: 8 run pairs using 8 distinct new executable paths and 8 old, over --contenders blake3-servil-mt --points "continuous 4 KiB,continuous 64 B,continuous batch 1024,continuous batch 65536"
+regress: pair 1 of 8 in 3.6 s
+regress: pair 2 of 8 in 3.6 s
+regress: pair 3 of 8 in 3.6 s
+regress: pair 4 of 8 in 3.6 s
+regress: pair 5 of 8 in 3.6 s
+regress: pair 6 of 8 in 3.6 s
+regress: pair 7 of 8 in 3.6 s
+regress: pair 8 of 8 in 3.6 s
+regress: old side: bench 303fff16dfcd clean; servil 2fd4ff6f643e clean
+regress: new side: bench 303fff16dfcd clean; servil e8c17c7558ef clean
+  faster blake3-servil-mt|solo|ContinuousMessages|4 KiB: -12.8% (the pairs' geometric mean; 8 pairs, from -15.2% to -11.4%: -15.2% -13.2% -13.4% -12.8% -11.6% -11.4% -13.1% -11.4%)
+  faster blake3-servil-mt|solo|ContinuousMessages|64 B: -5.7% (the pairs' geometric mean; 8 pairs, from -9.6% to -1.8%: -3.9% -7.6% -5.1% -1.8% -2.6% -8.6% -6.2% -9.6%)
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: power during the check: mains power, no battery, CPU frequency governor performance

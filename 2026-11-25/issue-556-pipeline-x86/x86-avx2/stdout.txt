@@ -1,0 +1,48 @@
+CAND=e8c17c7558ef9250e2afcb8eeb8511b603c85303 NEXT=b1f4ce0d8b30349883bab44449c3b445fd404d80
+=== next-to-final (b1f4ce0d8b30349883bab44449c3b445fd404d80 -> e8c17c7558ef9250e2afcb8eeb8511b603c85303, 16 pairs continuous 64 B) ===
+compare: old side: bench 303fff16dfcd clean; servil b1f4ce0d8b30 clean
+compare: new side: bench 303fff16dfcd clean; servil e8c17c7558ef clean
+blake3-servil-mt|solo|ContinuousMessages|64 B: 0.701 -> 0.684 ns/unit  x0.977 level, 11 of 16 pairs faster; CPU time x1.013
+blake3-servil-mt|shared-one-cache|ContinuousMessages|64 B: 0.727 -> 0.698 ns/unit  x0.960 level, 13 of 16 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousMessages|64 B: 1.473 -> 1.184 ns/unit  x0.804 faster, 16 of 16 pairs faster
+=== next-to-final (b1f4ce0d8b30349883bab44449c3b445fd404d80 -> e8c17c7558ef9250e2afcb8eeb8511b603c85303, probe 4 KiB + batches) ===
+regress: no level cell's instructions moved beyond +0.5%
+regress: suspects: blake3-servil-mt|solo|ContinuousBatches|65536
+blake3-servil-mt|solo|ContinuousMessages|4 KiB: 0.0721 -> 0.0729 ns/unit  x1.010 level, 2 of 3 pairs faster; CPU time x1.016
+blake3-servil-mt|solo|ContinuousBatches|1024: 3.169 -> 3.177 ns/unit  x1.003 level, 1 of 3 pairs faster; CPU time x0.979
+blake3-servil-mt|solo|ContinuousBatches|16384: 4.273 -> 4.298 ns/unit  x1.006 level, 1 of 3 pairs faster; CPU time x1.044
+blake3-servil-mt|solo|ContinuousBatches|65536: 3.154 -> 3.470 ns/unit  x1.100 level, 1 of 3 pairs faster; CPU time x1.120
+blake3-servil-mt|shared-one-cache|ContinuousMessages|4 KiB: 0.114 -> 0.119 ns/unit  x1.041 level, 1 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|1024: 4.821 -> 5.004 ns/unit  x1.038 level, 0 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|16384: 4.698 -> 4.646 ns/unit  x0.989 level, 1 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|65536: 7.110 -> 6.458 ns/unit  x0.908 level, 2 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousMessages|4 KiB: 0.122 -> 0.105 ns/unit  x0.867 level, 3 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousBatches|1024: 7.673 -> 7.355 ns/unit  x0.959 level, 3 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousBatches|16384: 7.763 -> 8.002 ns/unit  x1.031 level, 0 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousBatches|65536: 6.126 -> 5.947 ns/unit  x0.971 level, 2 of 3 pairs faster
+=== 010-to-final (2fd4ff6f -> e8c17c7558ef9250e2afcb8eeb8511b603c85303, 16 pairs continuous 64 B) ===
+compare: old side: bench 303fff16dfcd clean; servil 2fd4ff6f643e clean
+compare: new side: bench 303fff16dfcd clean; servil e8c17c7558ef clean
+blake3-servil-mt|solo|ContinuousMessages|64 B: 0.692 -> 0.680 ns/unit  x0.983 level, 9 of 16 pairs faster; CPU time x0.994
+blake3-servil-mt|shared-one-cache|ContinuousMessages|64 B: 0.657 -> 0.700 ns/unit  x1.066 slower, 0 of 16 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousMessages|64 B: 1.155 -> 1.184 ns/unit  x1.025 level, 5 of 16 pairs faster
+=== 010-to-final (2fd4ff6f -> e8c17c7558ef9250e2afcb8eeb8511b603c85303, probe 4 KiB + batches) ===
+  faster blake3-servil-mt|shared-one-cache|ContinuousBatches|16384: -38.9% (the pairs' geometric mean; 3 pairs, from -40.4% to -37.4%: -38.9% -37.4% -40.4%)
+  faster blake3-servil-mt|shared-one-cache|ContinuousBatches|65536: -39.3% (the pairs' geometric mean; 3 pairs, from -46.5% to -34.8%: -46.5% -34.8% -35.8%)
+  faster blake3-servil-mt|shared-two-caches|ContinuousBatches|65536: -39.7% (the pairs' geometric mean; 3 pairs, from -40.7% to -38.7%: -40.7% -38.7% -39.7%)
+  faster blake3-servil-mt|solo|ContinuousBatches|65536: -57.1% (the pairs' geometric mean; 3 pairs, from -58.6% to -55.7%: -58.6% -55.7% -57.0%)
+regress: no level cell's instructions moved beyond +0.5%
+regress: suspects: blake3-servil-mt|shared-two-caches|ContinuousBatches|16384
+blake3-servil-mt|solo|ContinuousMessages|4 KiB: 0.0740 -> 0.0711 ns/unit  x0.961 level, 3 of 3 pairs faster; CPU time x1.001
+blake3-servil-mt|solo|ContinuousBatches|1024: 3.333 -> 3.276 ns/unit  x0.983 level, 2 of 3 pairs faster; CPU time x1.109
+blake3-servil-mt|solo|ContinuousBatches|16384: 4.670 -> 4.454 ns/unit  x0.954 level, 2 of 3 pairs faster; CPU time x0.968
+blake3-servil-mt|solo|ContinuousBatches|65536: 7.695 -> 3.301 ns/unit  x0.429 faster, 3 of 3 pairs faster; CPU time x0.306
+blake3-servil-mt|shared-one-cache|ContinuousMessages|4 KiB: 0.118 -> 0.112 ns/unit  x0.954 level, 3 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|1024: 5.176 -> 5.005 ns/unit  x0.967 level, 2 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|16384: 7.720 -> 4.715 ns/unit  x0.611 faster, 3 of 3 pairs faster
+blake3-servil-mt|shared-one-cache|ContinuousBatches|65536: 10.832 -> 6.579 ns/unit  x0.607 faster, 3 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousMessages|4 KiB: 0.106 -> 0.112 ns/unit  x1.048 level, 1 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousBatches|1024: 7.209 -> 7.382 ns/unit  x1.024 level, 1 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousBatches|16384: 7.812 -> 8.290 ns/unit  x1.061 level, 0 of 3 pairs faster
+blake3-servil-mt|shared-two-caches|ContinuousBatches|65536: 9.664 -> 5.825 ns/unit  x0.603 faster, 3 of 3 pairs faster
+DONE 2026-11-25T12:12:41Z
