@@ -1,4 +1,4 @@
-//! `bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS | --cells all] [--contenders KEYS] [--layouts N] [--keep DIR] [--when-quiet] [--unpinned]`:
+//! `bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS_OR_CELLS | --cells all|CELLS] [--contenders KEYS] [--layouts N] [--keep DIR] [--when-quiet] [--unpinned]`:
 //! did a change to BLAKE3-Servil hurt its speed in the cells its author names?
 //! Run from a checkout of bench-hashes, it compares BLAKE3-Servil's working
 //! tree (or `--new REV`) with a commit (`--against`, HEAD by default) and
@@ -140,15 +140,43 @@ fn unchanged_inputs(library_changed: bool, old_bench: Option<&str>) -> bool {
     !library_changed && old_bench.is_none()
 }
 
-pub fn command(arguments: &[String]) -> i32 {
-    let usage = "usage: bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS | --cells all] [--contenders KEYS] [--layouts N] [--keep DIR] [--when-quiet] [--unpinned]";
-    let (mut against, mut all, mut layouts_a_side, mut keep) =
-        ("HEAD".to_string(), false, LAYOUTS, None::<PathBuf>);
+const CHECK_USAGE: &str = "usage: bench-hashes check --fork DIR [--against REV] [--new REV] [--old-bench REV] [--points POINTS | --probe POINTS_OR_CELLS | --cells all|CELLS] [--contenders KEYS] [--layouts N] [--keep DIR] [--when-quiet] [--unpinned]";
+
+#[derive(Debug, PartialEq, Eq)]
+enum CheckScope {
+    None,
+    All,
+    Points(String),
+    Cells(String),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct CheckOptions {
+    fork: Option<PathBuf>,
+    against: String,
+    new_rev: Option<String>,
+    old_bench_rev: Option<String>,
+    scope: CheckScope,
+    is_probe: bool,
+    only: Option<Vec<&'static str>>,
+    layouts_a_side: usize,
+    keep: Option<PathBuf>,
+    when_quiet: bool,
+    unpinned: bool,
+}
+
+fn parse_check_args(arguments: &[String]) -> CheckOptions {
+    let usage = CHECK_USAGE;
+    let mut against = "HEAD".to_string();
+    let mut scope = CheckScope::None;
+    let mut scope_count = 0usize;
+    let mut is_probe = false;
+    let mut layouts_a_side = LAYOUTS;
+    let mut layouts_explicit = false;
+    let mut keep = None::<PathBuf>;
     let mut when_quiet = false;
     let mut unpinned = false;
     let mut only = None::<Vec<&'static str>>;
-    let mut probe = None::<String>;
-    let mut named = None::<String>;
     let mut new_rev = None::<String>;
     let mut old_bench_rev = None::<String>;
     let mut fork = None::<PathBuf>;
@@ -176,9 +204,13 @@ pub fn command(arguments: &[String]) -> i32 {
             "--cells" => {
                 let value = it
                     .next()
-                    .unwrap_or_else(|| panic!("--cells takes `all`\n{usage}"));
-                assert_eq!(value, "all", "--cells takes `all`\n{usage}");
-                all = true;
+                    .unwrap_or_else(|| panic!("--cells takes `all` or KEY|POINT;...\n{usage}"));
+                scope = if value == "all" {
+                    CheckScope::All
+                } else {
+                    CheckScope::Cells(value.clone())
+                };
+                scope_count += 1;
             }
             "--contenders" => {
                 let keys = it.next().unwrap_or_else(|| {
@@ -197,6 +229,7 @@ pub fn command(arguments: &[String]) -> i32 {
                     .and_then(|v| v.parse().ok())
                     .filter(|&n| n >= 3)
                     .unwrap_or_else(|| panic!("--layouts takes a count of 3 or more (regress's rule needs three pairs)\n{usage}"));
+                layouts_explicit = true;
             }
             "--keep" => {
                 keep =
@@ -214,29 +247,71 @@ pub fn command(arguments: &[String]) -> i32 {
                 )
             }
             "--points" => {
-                named = Some(it.next().unwrap_or_else(|| {
+                let value = it.next().unwrap_or_else(|| {
                     panic!("--points takes the points to measure, as --points names them (\"3 KiB,brief idle 3 KiB\")\n{usage}")
-                }).clone());
+                });
+                scope = CheckScope::Points(value.clone());
+                scope_count += 1;
             }
             "--probe" => {
-                probe = Some(it.next().unwrap_or_else(|| {
-                    panic!("--probe takes the points to measure, as --points names them (\"3 KiB,brief idle 3 KiB\")\n{usage}")
-                }).clone());
-                // Three fresh pairs: the least the rule reads, the most a
-                // probe needs to say whether an idea is worth building.
-                layouts_a_side = PROBE_LAYOUTS;
+                let value = it.next().unwrap_or_else(|| {
+                    panic!("--probe takes points (\"3 KiB,brief idle 3 KiB\") or cells (\"blake3-servil-mt|continuous 64 B\")\n{usage}")
+                });
+                is_probe = true;
+                scope = if value.contains('|') {
+                    CheckScope::Cells(value.clone())
+                } else {
+                    CheckScope::Points(value.clone())
+                };
+                scope_count += 1;
+                // Three fresh pairs by default: the least the rule reads, the
+                // most a quick probe needs, while still honouring an explicit
+                // `--layouts N` passed before or after `--probe`.
+                if !layouts_explicit {
+                    layouts_a_side = PROBE_LAYOUTS;
+                }
             }
             other => panic!("unknown option {other}\n{usage}"),
         }
     }
     assert!(
-        [all, named.is_some(), probe.is_some()]
-            .into_iter()
-            .filter(|&set| set)
-            .count()
-            <= 1,
-        "--points, --probe or --cells all: one scope\n{usage}"
+        scope_count <= 1,
+        "--points, --probe or --cells: one scope\n{usage}"
     );
+    assert!(
+        !(matches!(scope, CheckScope::Cells(_)) && only.is_some()),
+        "--contenders cannot be combined with cell-scoped --cells or --probe (cells already name their contenders)\n{usage}"
+    );
+    CheckOptions {
+        fork,
+        against,
+        new_rev,
+        old_bench_rev,
+        scope,
+        is_probe,
+        only,
+        layouts_a_side,
+        keep,
+        when_quiet,
+        unpinned,
+    }
+}
+
+pub fn command(arguments: &[String]) -> i32 {
+    let usage = CHECK_USAGE;
+    let CheckOptions {
+        fork,
+        against,
+        new_rev,
+        old_bench_rev,
+        scope,
+        is_probe,
+        only,
+        layouts_a_side,
+        keep,
+        when_quiet,
+        unpinned,
+    } = parse_check_args(arguments);
     if let Some(keep) = &keep {
         crate::prepare_keep_dir(keep);
     }
@@ -279,41 +354,53 @@ pub fn command(arguments: &[String]) -> i32 {
     if !library_changed {
         eprintln!("check: the library is unchanged; comparing benchmark versions (--old-bench)");
     }
-    if !all && named.is_none() && probe.is_none() {
+    if scope == CheckScope::None {
         println!(
-            "check: name the cells this change can move, from the summary above: --points POINTS for the gate, --probe POINTS for three pairs and no verdict, or --cells all for every point. No build or measurement ran."
+            "check: name the cells this change can move, from the summary above: --points POINTS for the gate, --probe POINTS_OR_CELLS for three pairs and no verdict, or --cells all|CELLS. No build or measurement ran."
         );
         return 2;
     }
     // The named scope, read and checked before a build: a name this
-    // bench has no point for stops here, in seconds.
-    let named_points: Option<Vec<String>> = if all {
-        None
-    } else {
-        let points: Vec<String> = scope_points(
-            probe
-                .as_ref()
-                .or(named.as_ref())
-                .expect("a scope, checked above"),
-        );
-        assert!(
-            !points.is_empty(),
-            "a scope names a point at least\n{usage}"
-        );
-        for point in &points {
+    // bench has no point or cell for stops here, in seconds.
+    let named_points: Option<Vec<String>> = match &scope {
+        CheckScope::All | CheckScope::None => None,
+        CheckScope::Points(raw) => {
+            let points: Vec<String> = scope_points(raw);
             assert!(
-                super::point_if_named(point).is_some(),
-                "--points: no point {point:?}; as --points names them, \"idle 2 KiB\" is the 2 KiB call after a pause\n{usage}"
+                !points.is_empty(),
+                "a scope names a point at least\n{usage}"
             );
+            for point in &points {
+                assert!(
+                    super::point_if_named(point).is_some(),
+                    "--points: no point {point:?}; as --points names them, \"idle 2 KiB\" is the 2 KiB call after a pause\n{usage}"
+                );
+            }
+            eprintln!(
+                "check: measuring the {} named points ({} of {} points; the rest unmeasured in this check): {}",
+                points.len(),
+                points.len(),
+                super::POINTS.len(),
+                points.join(", ")
+            );
+            Some(points)
         }
-        eprintln!(
-            "check: measuring the {} named points ({} of {} points; the rest unmeasured in this check): {}",
-            points.len(),
-            points.len(),
-            super::POINTS.len(),
-            points.join(", ")
-        );
-        Some(points)
+        CheckScope::Cells(spec) => {
+            let (algorithms, _, cell_set) = super::parse_cells(spec);
+            for a in &algorithms {
+                assert!(
+                    SUBJECTS.contains(&a.key()),
+                    "--cells: {} is none of {}\n{usage}",
+                    a.key(),
+                    SUBJECTS.join(", ")
+                );
+            }
+            eprintln!(
+                "check: measuring the {} named cells: {spec}",
+                cell_set.len()
+            );
+            None
+        }
     };
     let cache = fork.join("target").join("check");
     std::fs::create_dir_all(&cache).expect("the check's cache directory");
@@ -436,7 +523,6 @@ pub fn command(arguments: &[String]) -> i32 {
         None => subjects,
     };
     let contenders: Vec<String> = subjects.iter().map(|s| s.to_string()).collect();
-    let points: Option<Vec<String>> = if all { None } else { named_points };
     let olds = layouts(&old_bench, &cache, "old", &old_exe, 0..layouts_a_side);
     let news = layouts(
         &bench,
@@ -459,16 +545,22 @@ pub fn command(arguments: &[String]) -> i32 {
         "regress".into(),
         "--pairs".into(),
         layouts_a_side.to_string(),
-        "--contenders".into(),
-        contenders.join(","),
     ];
-    if let Some(points) = &points {
-        regress.extend(["--points".to_string(), points.join(",")]);
+    match &scope {
+        CheckScope::Cells(spec) => {
+            regress.extend(["--cells".to_string(), spec.clone()]);
+        }
+        CheckScope::All | CheckScope::Points(_) | CheckScope::None => {
+            regress.extend(["--contenders".to_string(), contenders.join(",")]);
+            if let Some(points) = &named_points {
+                regress.extend(["--points".to_string(), points.join(",")]);
+            }
+        }
     }
     // A probe keeps its runs (in the cache unless --keep says where), to
     // read each cell's ratio from them afterwards.
     let keep = keep.or_else(|| {
-        probe.as_ref().map(|_| {
+        is_probe.then(|| {
             // Fresh each probe: a run kept from the last probe, of other
             // commits, would be read as one of this one's pairs.
             let dir = cache.join("probe");
@@ -487,10 +579,10 @@ pub fn command(arguments: &[String]) -> i32 {
     regress.push("--".into());
     regress.extend(news);
     let (code, out) = run_regress(&new_exe, &bench, &regress);
-    if probe.is_some() && code >= 2 {
+    if is_probe && code >= 2 {
         return code;
     }
-    if probe.is_some() {
+    if is_probe {
         // The numbers, no verdict: each cell's old and new means over the
         // pairs and their ratio (compare), for the question "is this idea
         // worth building"; the verdict is the full check's, on the change
@@ -2097,5 +2189,80 @@ mod tests {
                 .expect("sh runs");
             assert_eq!(super::child_exit_code(exe, status), (expected, None));
         }
+    }
+
+    #[test]
+    fn parse_check_args_preserves_explicit_layouts_and_supports_cell_scopes() {
+        let args = |xs: &[&str]| xs.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+
+        // `--layouts` before OR after `--probe` keeps the requested count.
+        let before = super::parse_check_args(&args(&[
+            "--fork",
+            "../BLAKE3",
+            "--layouts",
+            "16",
+            "--probe",
+            "continuous 64 B",
+        ]));
+        let after = super::parse_check_args(&args(&[
+            "--fork",
+            "../BLAKE3",
+            "--probe",
+            "continuous 64 B",
+            "--layouts",
+            "16",
+        ]));
+        assert_eq!(before.layouts_a_side, 16);
+        assert_eq!(after.layouts_a_side, 16);
+        assert!(before.is_probe && after.is_probe);
+        assert_eq!(
+            before.scope,
+            super::CheckScope::Points("continuous 64 B".into())
+        );
+
+        // Default probe without `--layouts` uses PROBE_LAYOUTS (3).
+        let default_probe = super::parse_check_args(&args(&["--probe", "continuous 64 B"]));
+        assert_eq!(default_probe.layouts_a_side, super::PROBE_LAYOUTS);
+        assert!(default_probe.is_probe);
+
+        // Cell-scoped `--probe` and `--cells` both select CheckScope::Cells.
+        let cell_probe = super::parse_check_args(&args(&[
+            "--layouts",
+            "8",
+            "--probe",
+            "blake3-servil-mt|continuous 64 B;blake3-servil-st|4 KiB",
+        ]));
+        assert_eq!(cell_probe.layouts_a_side, 8);
+        assert!(cell_probe.is_probe);
+        assert_eq!(
+            cell_probe.scope,
+            super::CheckScope::Cells(
+                "blake3-servil-mt|continuous 64 B;blake3-servil-st|4 KiB".into()
+            )
+        );
+
+        let cell_gate =
+            super::parse_check_args(&args(&["--cells", "blake3-servil-mt|continuous 64 B"]));
+        assert_eq!(cell_gate.layouts_a_side, super::LAYOUTS);
+        assert!(!cell_gate.is_probe);
+        assert_eq!(
+            cell_gate.scope,
+            super::CheckScope::Cells("blake3-servil-mt|continuous 64 B".into())
+        );
+
+        let all_gate = super::parse_check_args(&args(&["--cells", "all"]));
+        assert_eq!(all_gate.scope, super::CheckScope::All);
+        assert_eq!(all_gate.layouts_a_side, super::LAYOUTS);
+
+        // Combining `--contenders` with cell-scoped `--cells` or `--probe` fails stop.
+        assert!(std::panic::catch_unwind(|| {
+            super::parse_check_args(&args(&[
+                "--contenders",
+                "blake3-servil-mt",
+                "--cells",
+                "blake3-servil-mt|continuous 64 B",
+            ]))
+        })
+        .is_err());
     }
 }
