@@ -6,8 +6,10 @@ and keep your results comparable with ours.
 
 ## Layout
 
-- `src/main.rs`: the benchmark (contenders, timing, statistics, the text
-  report, `compare` and `regress`); `src/check.rs`, `bench-hashes check`;
+- `src/main.rs`: the benchmark (contenders, timing, text report);
+  `src/samples.rs`, samples TSV format (`v10`), provenance helpers, readers,
+  writers, and per-cell summaries; `src/regress.rs`, `compare` and `regress`
+  paired statistics and judging; `src/check.rs`, `bench-hashes check`;
   `src/map.rs` and `src/map.html`, the map; `src/overview.rs` and
   `src/overview.html`, the overview page; `src/chart.rs`, the charts;
   `src/b3sum.rs`, `bench-hashes b3sum`; `src/incremental.rs`, the shared
