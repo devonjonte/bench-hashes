@@ -758,12 +758,30 @@ fn family(row: &Row) -> &'static str {
     }
 }
 
+/// Parse a `BLAKE3-Servil` release number (`major.minor.patch` before any `+`
+/// build metadata), returning `None` for commit-only or malformed strings.
+fn fork_release(fork: &str) -> Option<(u32, u32, u32)> {
+    let base = fork.split('+').next()?.split('-').next()?;
+    let mut parts = base.split('.');
+    let major = parts.next()?.parse().ok()?;
+    let minor = parts.next()?.parse().ok()?;
+    let patch = parts.next()?.parse().ok()?;
+    parts.next().is_none().then_some((major, minor, patch))
+}
+
 /// The machine in each family's column, by index into `rows`, in the
-/// families' order: the chosen machine where measured under this release,
-/// else the family's first real machine with cells, else its first (a
-/// chosen machine whose run is another release's left its column empty:
-/// the 9700X at 0.20).
+/// families' order: among non-stale, non-VM runs at the newest measured
+/// `BLAKE3-Servil` release, prefer the chosen machine, else the family's
+/// newest such machine (so a family with a fresh release record never shows
+/// an older library release beside newer families); fall back to the chosen
+/// machine or first real machine across older releases when no machine in
+/// the family has the newest release yet.
 pub fn shown(rows: &[Row]) -> Vec<usize> {
+    let newest = rows
+        .iter()
+        .filter(|r| !r.virtual_machine && !r.stale)
+        .filter_map(|r| fork_release(&r.fork))
+        .max();
     FAMILIES
         .iter()
         .filter_map(|f| {
@@ -771,18 +789,38 @@ pub fn shown(rows: &[Row]) -> Vec<usize> {
                 .filter(|&i| family(&rows[i]) == *f)
                 .collect();
             let chosen = CHOSEN.iter().find(|(c, _)| c == f).map(|(_, m)| *m);
-            // The chosen machine's newest record: a machine keeps a folder
-            // a kernel, so it can hold several (the day is ISO, so its text
-            // orders it; of one day's, the later folder).
+            let at_newest = |i: usize| newest.is_some() && fork_release(&rows[i].fork) == newest;
+            // The chosen machine's newest record at the newest library release,
+            // else any real machine in the family at that release, else the
+            // prior chosen/first fallback.
             members
                 .iter()
                 .copied()
                 .filter(|&i| {
-                    Some(rows[i].machine.as_str()) == chosen
+                    at_newest(i)
+                        && Some(rows[i].machine.as_str()) == chosen
                         && !rows[i].virtual_machine
                         && !rows[i].stale
                 })
                 .max_by_key(|&i| (rows[i].day.clone(), i))
+                .or_else(|| {
+                    members
+                        .iter()
+                        .copied()
+                        .filter(|&i| at_newest(i) && !rows[i].virtual_machine && !rows[i].stale)
+                        .max_by_key(|&i| (rows[i].day.clone(), i))
+                })
+                .or_else(|| {
+                    members
+                        .iter()
+                        .copied()
+                        .filter(|&i| {
+                            Some(rows[i].machine.as_str()) == chosen
+                                && !rows[i].virtual_machine
+                                && !rows[i].stale
+                        })
+                        .max_by_key(|&i| (rows[i].day.clone(), i))
+                })
                 .or_else(|| {
                     members
                         .iter()
@@ -2222,6 +2260,41 @@ mod tests {
         assert!(about.contains("flags &lt;fast&gt; &amp; &quot;exact&quot;"));
         assert!(!about.contains("flags <fast>"));
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// When a family has a record at the newest BLAKE3-Servil release, `shown`
+    /// picks that release over a chosen machine stuck on an older library release.
+    #[test]
+    fn shown_prefers_newest_library_release_within_each_family() {
+        let mk = |machine: &str, fork: &str, day: &str| Row {
+            machine: machine.to_owned(),
+            cpus: "16".to_owned(),
+            os: "Linux".to_owned(),
+            day: day.to_owned(),
+            fork: fork.to_owned(),
+            version: "0.24.0".to_owned(),
+            virtual_machine: false,
+            link: "benchmark-results/x".to_owned(),
+            cells: Vec::new(),
+            load_notes: Vec::new(),
+            records: Vec::new(),
+            stale: false,
+        };
+        let rows = vec![
+            mk("Apple M6", "0.11.0+aaaa", "2026-11-25"),
+            mk("AMD Ryzen 7 9700X", "0.11.0+aaaa", "2026-11-25"),
+            mk("Intel Core i7-12700K", "0.10.0+bbbb", "2026-11-20"),
+            mk("Intel Xeon Gold 6330", "0.11.0+aaaa", "2026-11-25"),
+        ];
+        assert_eq!(shown(&rows), vec![0, 1, 3]);
+        // When both Intel machines share the newest release, CHOSEN wins.
+        let same_release = vec![
+            mk("Apple M6", "0.11.0+aaaa", "2026-11-25"),
+            mk("AMD Ryzen 7 9700X", "0.11.0+aaaa", "2026-11-25"),
+            mk("Intel Core i7-12700K", "0.11.0+aaaa", "2026-11-25"),
+            mk("Intel Xeon Gold 6330", "0.11.0+aaaa", "2026-11-25"),
+        ];
+        assert_eq!(shown(&same_release), vec![0, 1, 2]);
     }
 
     /// The command writes the page it names from the results it is given.

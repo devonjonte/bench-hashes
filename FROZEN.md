@@ -30,7 +30,10 @@ read as alike. The
 documents that explain the benchmark (README, METHODOLOGY, CONTRIBUTING,
 the notes) may still change, to say it better.
 
-**Changes for the next release, November 20–24, 2026** (Devon Jonte's decisions, each dated):
+**Changes for the next release, November 20–25, 2026** (Devon Jonte's decisions, each dated):
+- **The pin is BLAKE3-Servil 0.11.0** (Devon Jonte, November 25, 2026; bench-hashes #281):
+  commit `15ad383b5c9f849c548940b2181df66212a295cf` (`v0.11.0+2c43b150bd18c89b6c08a133446c51a3fe6981bc`), the stable 0.11.0 release (zero third-party build/runtime dependencies via `global_asm!`, BLINCS direct-load SIMD & counter-range kernels, x86-64/AArch64 SIMD tail & batch finalization improvements, adaptive `Pipeline::batch` locality, and `b3sum` cold multi-file `O_DIRECT`).
+- **The overview prefers records at the newest measured `BLAKE3-Servil` release within each family** (Devon Jonte, November 25, 2026; bench-hashes #281): when a CPU family has a non-VM, non-stale record at the newest measured `BLAKE3-Servil` release (e.g. `Intel Xeon Gold 6330` at `0.11.0`) while `CHOSEN` remains on an earlier library release (`Intel Core i7-12700K` at `0.10.0`), the overview column opens on the newest-release machine so all default columns reflect the current library release; older records stay under the family's selector.
 - **The second stage of `bench-hashes check` measures exact suspect cells** (Devon Jonte, November 24, 2026; bench-hashes #210). Previously, Stage 2 passed the Cartesian product of all suspect contenders and all suspect points (`--contenders ... --points ...`), expanding `8` suspects across `st` and `mt` to `17–28` cells (doubling Stage 2 runtime and recording unjudged non-suspect cells alongside the suspects). `bench-hashes` and `regress` now accept `--cells KEY|POINT;...` to measure only the exact suspect `(contender, point)` cells; `check` uses `--cells` whenever both sides run this bench (falling back to `--contenders`/`--points` under `--old-bench`), and `regress --judge` restricts reported instruction moves to the judged cells. Stage 1, published benchmarks, and the statistical judgment rules are unchanged.
 - **The overview shows a machine's newest record** (Devon Jonte, November
   20, 2026; Zooko approved it). A machine keeps a folder a kernel, so it
