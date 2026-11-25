@@ -384,22 +384,34 @@ fn functions_macho(
     found
 }
 
-/// Whether `a` and `b` hold the same allocated code/data, with `masks` (the
-/// declared provenance strings) zeroed in both. On ELF, `.note.gnu.build-id` is
-/// excluded; on Mach-O, `LC_UUID` and `__LINKEDIT` are excluded. None where
-/// either file has another format.
+/// Read-only sections that hold compiled-in provenance strings (git commits,
+/// bench versions). Executable code and mutable data sections are never masked.
+fn is_provenance_section(name: &str) -> bool {
+    name == ".rodata"
+        || name.starts_with(".rodata.")
+        || matches!(name, "__TEXT,__const" | "__TEXT,__cstring")
+}
+
+/// Whether `a` and `b` hold the same allocated code and data at the same
+/// addresses, with `masks` (the declared provenance strings) zeroed only in
+/// read-only provenance sections (`.rodata*`, `__TEXT,__const`,
+/// `__TEXT,__cstring`). On ELF, `.note.gnu.build-id` is excluded; on Mach-O,
+/// `LC_UUID` and `__LINKEDIT` are excluded. None where either file has another
+/// format.
 pub fn compare(a: &Path, b: &Path, masks: &[&str]) -> Option<Verdict> {
     let (mut ia, mut ib) = (read(a)?, read(b)?);
     for image in [&mut ia, &mut ib] {
-        for (_, _, body) in image.sections.values_mut() {
-            mask_strings(body, masks);
+        for (name, (_, _, body)) in &mut image.sections {
+            if is_provenance_section(name) {
+                mask_strings(body, masks);
+            }
         }
     }
     let names: BTreeSet<&String> = ia.sections.keys().chain(ib.sections.keys()).collect();
     let sections: Vec<String> = names
         .into_iter()
         .filter(|n| match (ia.sections.get(*n), ib.sections.get(*n)) {
-            (Some((_, sa, ba)), Some((_, sb, bb))) => sa != sb || ba != bb,
+            (Some((aa, sa, ba)), Some((ab, sb, bb))) => aa != ab || sa != sb || ba != bb,
             _ => true,
         })
         .cloned()
@@ -683,6 +695,29 @@ mod macho_tests {
         data_word: u32,
         bss_size: u64,
     ) -> Vec<u8> {
+        synthetic_macho_at(
+            uuid_byte,
+            linkedit_byte,
+            0x1_0000_4000,
+            text,
+            other_offset,
+            cstring,
+            &data_word.to_le_bytes(),
+            bss_size,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn synthetic_macho_at(
+        uuid_byte: u8,
+        linkedit_byte: u8,
+        text_addr: u64,
+        text: &[u8],
+        other_offset: u64,
+        cstring: &[u8],
+        data: &[u8],
+        bss_size: u64,
+    ) -> Vec<u8> {
         let mut cmds = Vec::new();
         // We compute payload offsets after sizing the load commands.
         // Command sizes:
@@ -696,7 +731,7 @@ mod macho_tests {
         let text_off = payload_start;
         let cstr_off = text_off + text.len();
         let data_off = cstr_off + cstring.len();
-        let sym_off = data_off + 4;
+        let sym_off = data_off + data.len();
         let nsyms = 2usize;
         let str_off = sym_off + nsyms * 16;
         let strtab = b"\0_marker_function\0_other_function\0";
@@ -723,7 +758,6 @@ mod macho_tests {
                 }
             };
 
-        let text_addr = 0x1_0000_4000u64;
         push_seg(
             &mut cmds,
             "__TEXT",
@@ -754,14 +788,14 @@ mod macho_tests {
                     "__data",
                     "__DATA",
                     text_addr + 0x2000,
-                    4,
+                    data.len() as u64,
                     data_off as u32,
                     0,
                 ),
                 (
                     "__bss",
                     "__DATA",
-                    text_addr + 0x2004,
+                    text_addr + 0x2000 + data.len() as u64,
                     bss_size,
                     0,
                     S_ZEROFILL,
@@ -795,7 +829,7 @@ mod macho_tests {
         out.extend_from_slice(&cmds);
         out.extend_from_slice(text);
         out.extend_from_slice(cstring);
-        out.extend_from_slice(&data_word.to_le_bytes());
+        out.extend_from_slice(data);
         // nlist_64 entries (16 bytes each)
         for (strx, addr) in [(1u32, text_addr), (18u32, text_addr + other_offset)] {
             out.extend_from_slice(&strx.to_le_bytes());
@@ -902,6 +936,96 @@ mod macho_tests {
                 resized: Vec::new(),
                 changed: Vec::new(),
             })
+        );
+
+        // An address-only placement shift (identical bytes and sizes) must never
+        // be called Same: code placement affects timing.
+        let shifted = write(
+            "shifted",
+            synthetic_macho_at(
+                1,
+                0xaa,
+                0x1_0000_5000,
+                &base_text,
+                4,
+                old_sha.as_bytes(),
+                &111u32.to_le_bytes(),
+                64,
+            ),
+        );
+        assert!(
+            matches!(compare(&base, &shifted, &[]), Some(Verdict::Differs { sections, .. }) if sections.contains(&"__TEXT,__text".to_owned())),
+            "address-only shift must report Differs"
+        );
+
+        // Provenance-like text inside mutable __DATA,__data or executable __TEXT,__text
+        // must never be masked away.
+        let data_old = write(
+            "data-old",
+            synthetic_macho_at(
+                1,
+                0xaa,
+                0x1_0000_4000,
+                &base_text,
+                4,
+                old_sha.as_bytes(),
+                old_sha.as_bytes(),
+                64,
+            ),
+        );
+        let data_new = write(
+            "data-new",
+            synthetic_macho_at(
+                1,
+                0xaa,
+                0x1_0000_4000,
+                &base_text,
+                4,
+                old_sha.as_bytes(),
+                new_sha.as_bytes(),
+                64,
+            ),
+        );
+        assert!(
+            matches!(
+                compare(&data_old, &data_new, &[old_sha, new_sha]),
+                Some(Verdict::Differs { sections, .. }) if sections == ["__DATA,__data"]
+            ),
+            "mutable __DATA,__data must not be masked by provenance strings"
+        );
+
+        let text_old = write(
+            "text-old",
+            synthetic_macho_at(
+                1,
+                0xaa,
+                0x1_0000_4000,
+                old_sha.as_bytes(),
+                20,
+                old_sha.as_bytes(),
+                &111u32.to_le_bytes(),
+                64,
+            ),
+        );
+        let text_new = write(
+            "text-new",
+            synthetic_macho_at(
+                1,
+                0xaa,
+                0x1_0000_4000,
+                new_sha.as_bytes(),
+                20,
+                old_sha.as_bytes(),
+                &111u32.to_le_bytes(),
+                64,
+            ),
+        );
+        assert!(
+            matches!(
+                compare(&text_old, &text_new, &[old_sha, new_sha]),
+                Some(Verdict::Differs { sections, .. }) if sections == ["__TEXT,__text"]
+            ),
+            "executable __TEXT,__text must not be masked by provenance strings"
         );
 
         std::fs::remove_dir_all(&dir).unwrap();
