@@ -388,7 +388,7 @@ pub fn command(arguments: &[String]) -> i32 {
                     list(&changed)
                 )
             }
-            None => eprintln!("check: no same-code comparison on this machine's executable format (ELF only); measuring"),
+            None => eprintln!("check: no same-code comparison on this machine's executable format (ELF64 or Mach-O 64-bit only); measuring"),
         }
     }
     let old_exe = side(&fork, &old_bench, &cache, "old", &old);
@@ -872,7 +872,7 @@ fn side(fork: &Path, bench: &Path, cache: &Path, name: &str, commit: &str) -> Pa
 /// provenance masked). Source locations remain data: recognizing their shape
 /// can also hide ordinary limits (bench-hashes #219). One path keeps build-path
 /// differences out of the comparison (bench-hashes #125). None
-/// where the executable is not ELF.
+/// where the executable is neither ELF64 nor Mach-O 64-bit.
 fn same_path_verdict(
     fork: &Path,
     bench: &Path,
