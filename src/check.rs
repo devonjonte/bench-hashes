@@ -1127,7 +1127,14 @@ pub fn build_against(checkout: &Path, bench: &Path, target: &Path, name: &str) -
         String::from_utf8_lossy(&out.stderr)
     );
     let out = Command::new("cargo")
-        .args(["--config", &patch_fork, "build", "--release", "--quiet"])
+        .args([
+            "--config",
+            &patch_fork,
+            "build",
+            "--release",
+            "--locked",
+            "--quiet",
+        ])
         .current_dir(&copy)
         .env("CARGO_TARGET_DIR", &target)
         .env("BENCH_HASHES_CHECKOUT", bench)
@@ -1206,8 +1213,10 @@ fn require_sme2_kernel(exe: &Path) {
     );
 }
 
-/// This bench's sources, copied file by file where they differ (so Cargo
-/// sees only real changes); `target`, results and the lock stay the copy's.
+/// This bench's sources (including its `Cargo.lock`), copied file by file
+/// where they differ (so Cargo sees only real changes while every build
+/// starts from that bench revision's locked dependency graph); `target`,
+/// results, and `tmp` stay the copy's.
 fn copy_bench(from: &Path, to: &Path) {
     let skip = |p: &Path| {
         p.components().any(|c| {
@@ -1220,7 +1229,7 @@ fn copy_bench(from: &Path, to: &Path) {
     let mut wanted = BTreeSet::new();
     for entry in walk(from) {
         let relative = entry.strip_prefix(from).unwrap().to_path_buf();
-        if skip(&relative) || relative == Path::new("Cargo.lock") {
+        if skip(&relative) {
             continue;
         }
         wanted.insert(relative.clone());
@@ -1231,12 +1240,9 @@ fn copy_bench(from: &Path, to: &Path) {
             std::fs::write(&dest, bytes).unwrap();
         }
     }
-    if !to.join("Cargo.lock").exists() {
-        std::fs::copy(from.join("Cargo.lock"), to.join("Cargo.lock")).unwrap();
-    }
     for entry in walk(to) {
         let relative = entry.strip_prefix(to).unwrap().to_path_buf();
-        if !skip(&relative) && relative != Path::new("Cargo.lock") && !wanted.contains(&relative) {
+        if !skip(&relative) && !wanted.contains(&relative) {
             std::fs::remove_file(&entry).unwrap();
         }
     }
@@ -1394,6 +1400,7 @@ fn layouts(
                 &patch_fork,
                 "rustc",
                 "--release",
+                "--locked",
                 "--quiet",
                 "--bin",
                 "bench-hashes",
@@ -2064,63 +2071,72 @@ mod tests {
         assert_eq!(super::first_of(&items, 5), "a, b, c");
     }
 
-    /// The bench's copy for a side: every source file, written where it
-    /// differs and left alone where it is the same (so Cargo rebuilds real
-    /// changes only); a file the source no longer has is removed; the
-    /// copy's own lock, target and results stay; a first copy takes the
-    /// source's lock.
+    /// The bench's copy for a side: every source file and `Cargo.lock` follow
+    /// the source revision (so warm caches and fresh preparations start from
+    /// the same locked non-Servil dependency graph even when the manifest stays
+    /// unchanged); unchanged files keep their timestamps, dropped files are
+    /// removed, and `target` / `benchmark-results` stay the copy's.
     #[test]
-    fn the_benchs_copy_follows_its_sources_and_keeps_its_own_lock() {
+    fn the_benchs_copy_follows_its_sources_and_source_lock() {
         let dir = std::env::temp_dir().join(format!("bench-check-copy-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
-        let (from, to) = (dir.join("from"), dir.join("to"));
+        let (from, to, fresh) = (dir.join("from"), dir.join("to"), dir.join("fresh"));
         let write = |p: std::path::PathBuf, text: &str| {
             std::fs::create_dir_all(p.parent().unwrap()).unwrap();
             std::fs::write(p, text).unwrap();
         };
         write(from.join("src/main.rs"), "one");
         write(from.join("Cargo.toml"), "manifest");
-        write(from.join("Cargo.lock"), "the source's lock");
+        write(
+            from.join("Cargo.lock"),
+            "[[package]]\nname = \"dep\"\nversion = \"1.0.0\"\n",
+        );
         write(from.join("target/built"), "never copied");
         write(from.join("benchmark-results/m/x.tsv"), "never copied");
         write(from.join("tmp/scratch"), "never copied");
         super::copy_bench(&from, &to);
-        let read = |p: &str| std::fs::read_to_string(to.join(p)).ok();
-        assert_eq!(read("src/main.rs").as_deref(), Some("one"));
-        assert_eq!(read("Cargo.toml").as_deref(), Some("manifest"));
-        assert_eq!(
-            read("Cargo.lock").as_deref(),
-            Some("the source's lock"),
-            "a first copy takes the lock"
-        );
-        assert_eq!(read("target/built"), None);
-        assert_eq!(read("benchmark-results/m/x.tsv"), None);
-        assert_eq!(read("tmp/scratch"), None);
-        // The copy's own things, and a file the source drops.
-        write(to.join("Cargo.lock"), "the copy's lock");
+        let read = |base: &std::path::Path, p: &str| std::fs::read_to_string(base.join(p)).ok();
+        assert_eq!(read(&to, "src/main.rs").as_deref(), Some("one"));
+        assert_eq!(read(&to, "Cargo.toml").as_deref(), Some("manifest"));
+        assert!(read(&to, "Cargo.lock").unwrap().contains("1.0.0"));
+        assert_eq!(read(&to, "target/built"), None);
+        assert_eq!(read(&to, "benchmark-results/m/x.tsv"), None);
+        assert_eq!(read(&to, "tmp/scratch"), None);
+
+        // Revision 2 changes only a non-Servil lock entry while Cargo.toml stays
+        // identical; warm `to` also holds cached target artifacts and a dropped file.
         write(to.join("target/its-build"), "kept");
         write(to.join("benchmark-results/its-run"), "kept");
         write(to.join("src/gone.rs"), "the source no longer has this");
         write(from.join("src/main.rs"), "two");
+        write(
+            from.join("Cargo.lock"),
+            "[[package]]\nname = \"dep\"\nversion = \"1.0.1\"\n",
+        );
         let untouched = std::fs::metadata(to.join("Cargo.toml"))
             .unwrap()
             .modified()
             .unwrap();
         std::thread::sleep(std::time::Duration::from_millis(20));
         super::copy_bench(&from, &to);
+        super::copy_bench(&from, &fresh);
         assert_eq!(
-            read("src/main.rs").as_deref(),
+            read(&to, "src/main.rs").as_deref(),
             Some("two"),
             "a changed file is written"
         );
-        assert_eq!(read("src/gone.rs"), None, "a dropped file is removed");
+        assert_eq!(read(&to, "src/gone.rs"), None, "a dropped file is removed");
         assert_eq!(
-            read("Cargo.lock").as_deref(),
-            Some("the copy's lock"),
-            "the copy keeps its lock"
+            read(&to, "Cargo.lock"),
+            read(&fresh, "Cargo.lock"),
+            "warm and fresh preparations start from the same source lock"
         );
-        assert_eq!(read("target/its-build").as_deref(), Some("kept"));
-        assert_eq!(read("benchmark-results/its-run").as_deref(), Some("kept"));
+        assert!(read(&to, "Cargo.lock").unwrap().contains("1.0.1"));
+        assert_eq!(read(&to, "target/its-build").as_deref(), Some("kept"));
+        assert_eq!(
+            read(&to, "benchmark-results/its-run").as_deref(),
+            Some("kept")
+        );
         assert_eq!(
             std::fs::metadata(to.join("Cargo.toml"))
                 .unwrap()
