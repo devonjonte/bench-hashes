@@ -18,59 +18,22 @@
 //! lent, piped, receiving), and `one-thread` or `every-core` the
 //! contenders of that kind: a page for the calls one crate offers.
 
+use crate::samples::{read_sample_rows, ParsedSamples, SampleRow};
 use std::path::{Path, PathBuf};
 
-/// The columns that may hold a value a sample.
-const LISTS: std::ops::Range<usize> = 5..11;
-
-struct Run {
-    headers: Vec<String>,
-    rows: Vec<Vec<String>>,
-}
-
-fn read(path: &Path) -> Run {
-    let text = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-    let mut lines = text.lines();
-    assert_eq!(
-        lines.next(),
-        Some(crate::SAMPLES_VERSION),
-        "{}: this release's samples format",
-        path.display()
-    );
-    let (mut headers, mut rows) = (Vec::new(), Vec::new());
-    for line in lines {
-        if line.starts_with('#') {
-            headers.push(line.to_owned());
-        } else if line != crate::SAMPLES_COLUMNS {
-            rows.push(line.split('\t').map(str::to_owned).collect());
-        }
-    }
-    Run { headers, rows }
-}
-
 /// A side's runs joined: each cell once, in the first run's order, its
-/// per-sample columns end to end. A column that holds one mark for the
-/// whole cell (no CPU time, no energy) keeps the first run's.
-fn joined(runs: &[Run]) -> Vec<Vec<String>> {
-    let mut cells: Vec<Vec<String>> = Vec::new();
-    let mut at: crate::Map<Vec<String>, usize> = crate::Map::default();
+/// checked per-sample columns end to end (`SampleRow::extend_from`).
+fn joined(runs: &[ParsedSamples]) -> Vec<SampleRow> {
+    let mut cells: Vec<SampleRow> = Vec::new();
+    let mut at: crate::Map<String, usize> = crate::Map::default();
     for run in runs {
         for row in &run.rows {
-            let Some(&i) = at.get(&row[..4]) else {
-                at.insert(row[..4].to_vec(), cells.len());
+            let key = row.key();
+            if let Some(&i) = at.get(&key) {
+                cells[i].extend_from(row);
+            } else {
+                at.insert(key, cells.len());
                 cells.push(row.clone());
-                continue;
-            };
-            let samples = row[5].split(',').count();
-            for column in LISTS {
-                let (Some(more), Some(have)) = (row.get(column), cells[i].get_mut(column)) else {
-                    continue;
-                };
-                let per_sample = more.split(',').count() == samples && (samples > 1 || column <= 6);
-                if per_sample && !more.is_empty() {
-                    have.push(',');
-                    have.push_str(more);
-                }
             }
         }
     }
@@ -78,14 +41,14 @@ fn joined(runs: &[Run]) -> Vec<Vec<String>> {
 }
 
 /// Whether a row stays, given what the page leaves out.
-fn kept(row: &[String], without: &[String]) -> bool {
+fn kept(row: &SampleRow, without: &[String]) -> bool {
     let (Some(algorithm), Some(use_case)) = (
         crate::Algorithm::ALL
             .into_iter()
-            .find(|a| a.key() == row[0]),
+            .find(|a| a.key() == row.contender),
         crate::UseCase::ALL
             .into_iter()
-            .find(|u| format!("{u:?}") == row[2]),
+            .find(|u| format!("{u:?}") == row.use_case),
     ) else {
         return false;
     };
@@ -100,11 +63,11 @@ fn kept(row: &[String], without: &[String]) -> bool {
         .any(|w| w == map_row || w == map_column || w == kind)
 }
 
-fn file(headers: &[String], rows: &[Vec<String>]) -> String {
+fn file(headers: &[String], rows: &[SampleRow]) -> String {
     let mut out = vec![crate::SAMPLES_VERSION.to_owned()];
     out.extend(headers.iter().cloned());
     out.push(crate::SAMPLES_COLUMNS.to_owned());
-    out.extend(rows.iter().map(|r| r.join("\t")));
+    out.extend(rows.iter().map(SampleRow::format_tsv));
     out.join("\n") + "\n"
 }
 
@@ -119,33 +82,33 @@ pub fn merge(
         !old.is_empty() && old.len() == new.len(),
         "a check's paired runs: as many old as new, one at least"
     );
-    let full = read(full);
-    let (old, new): (Vec<Run>, Vec<Run>) = (
-        old.iter().map(|p| read(p)).collect(),
-        new.iter().map(|p| read(p)).collect(),
+    let full = read_sample_rows(full);
+    let (old, new): (Vec<ParsedSamples>, Vec<ParsedSamples>) = (
+        old.iter().map(|p| read_sample_rows(p)).collect(),
+        new.iter().map(|p| read_sample_rows(p)).collect(),
     );
     let ours = |key: &str| key.starts_with("blake3-servil");
-    let before: Vec<Vec<String>> = joined(&old)
+    let before: Vec<SampleRow> = joined(&old)
         .into_iter()
-        .filter(|r| ours(&r[0]) && kept(r, without))
+        .filter(|r| ours(&r.contender) && kept(r, without))
         .collect();
-    let mut now: Vec<Vec<String>> = joined(&new)
+    let mut now: Vec<SampleRow> = joined(&new)
         .into_iter()
-        .filter(|r| ours(&r[0]) && kept(r, without))
+        .filter(|r| ours(&r.contender) && kept(r, without))
         .collect();
     now.extend(
         full.rows
             .iter()
-            .filter(|r| !ours(&r[0]) && kept(r, without))
+            .filter(|r| !ours(&r.contender) && kept(r, without))
             .cloned(),
     );
     let note = format!(
         "# beside: BLAKE3-Servil's rows are a check's {} paired runs joined; the other contenders' are a full run's",
         old.len()
     );
-    let mut headers = full.headers.clone();
+    let mut headers = full.raw_headers.clone();
     headers.push(note.clone());
-    let mut old_headers = old[0].headers.clone();
+    let mut old_headers = old[0].raw_headers.clone();
     // A bench from before the `blake3-servil version` line names the
     // library on its source line alone ("blake3-servil VERSION ..."): the
     // release before is named by that version.
@@ -261,7 +224,7 @@ mod tests {
             run(&dir, "run-003-new.tsv", &[&st("90"), mt, piped]),
         ];
         let full = run(&dir, "full.tsv", &[&st("999"), sha]);
-        let (before, now) = merge(
+        let (before, now_text) = merge(
             &full,
             &old,
             &new,
@@ -278,7 +241,7 @@ mod tests {
             ["blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t100/64,100/64,110/64,110/64\t1,2,1,2\t-\t-\t1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0,1:2:3:0:0:0:0:0:0:0\t0,0,0,0"],
             "the old side: one thread's one cell, two runs end to end"
         );
-        let now = rows(&now);
+        let now = rows(&now_text);
         assert_eq!(
             now.len(),
             2,
@@ -290,29 +253,47 @@ mod tests {
             now[0]
         );
         assert!(now[1].starts_with("sha256\t"));
+        // Both merged files must satisfy the main samples reader.
+        let parsed_before = crate::samples::parse_samples(&before, "before");
+        let parsed_now = crate::samples::parse_samples(&now_text, "now");
+        assert_eq!(parsed_before.cells[0].1.len(), 4);
+        assert_eq!(parsed_now.cells.len(), 2);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
-    /// Runs of one sample each: the time and work columns still join end
-    /// to end, and a later column's one entry, which nothing tells apart
-    /// from a mark for the whole run, is kept once.
+    /// Runs of one sample each join every present per-sample column (including
+    /// core counts and CPU numbers) so the merged file satisfies `parse_samples`,
+    /// keep `-` as `-`, and drop an optional column to `-` when one run lacks it.
     #[test]
-    fn one_sample_runs_join_their_times_and_keep_a_single_mark_once() {
-        let row = |ns: u32| {
-            format!("blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t{ns}/64\t1\t-\t-\t1:2:3:0:0:0:0:0:0:0\t0")
-                .split('\t')
-                .map(str::to_owned)
-                .collect::<Vec<_>>()
+    fn one_sample_runs_join_all_per_sample_columns_and_round_trip() {
+        let headers = vec![
+            "# bench-hashes version: test".to_owned(),
+            "# load: quiet".to_owned(),
+            "# power: mains power".to_owned(),
+        ];
+        let run = |ns: u32, energy: &str, cpu: u32| {
+            ParsedSamples {
+            raw_headers: headers.clone(),
+            rows: vec![SampleRow::parse(
+                &format!(
+                    "blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t{ns}/64\t1\t-\t{energy}\t1:2:3:0:0:0:0:0:0:0\t{cpu}"
+                ),
+                "test",
+            )],
+        }
         };
-        let run = |ns: u32| Run {
-            headers: Vec::new(),
-            rows: vec![row(ns)],
-        };
-        let cells = joined(&[run(100), run(110)]);
+        let cells = joined(&[run(100, "500", 0), run(110, "-", 2)]);
         assert_eq!(cells.len(), 1);
-        assert_eq!(cells[0][5], "100/64,110/64");
-        assert_eq!(cells[0][6], "1,1");
-        assert_eq!(cells[0][9], "1:2:3:0:0:0:0:0:0:0");
+        let merged = file(&headers, &cells);
+        let parsed = crate::samples::parse_samples(&merged, "merged-one-sample");
+        assert_eq!(parsed.cells.len(), 1);
+        assert_eq!(parsed.cells[0].1.len(), 2);
+        assert!(
+            parsed.energy.is_empty(),
+            "partial optional series drops to -"
+        );
+        assert_eq!(parsed.cores[0].1.len(), 2);
+        assert_eq!(parsed.cpus[0].1, [0, 2]);
     }
 
     /// The release before is named by its version: a bench from before the
