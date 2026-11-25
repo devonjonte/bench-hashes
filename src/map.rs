@@ -77,6 +77,9 @@ fn place(use_case: UseCase) -> (&'static str, &'static str, &'static str) {
         UseCase::ReceivingMessage => ("one", "receiving", "throughput::Pipeline::commit"),
         UseCase::LentMessages => ("one", "lent", "throughput::hash_multithreaded"),
         UseCase::ContinuousMessages => ("one", "piped", "throughput::Pipeline::commit"),
+        UseCase::ContinuousKeyedMessages => {
+            ("keyed", "piped", "throughput::Pipeline::message_with")
+        }
         UseCase::ManyMessages => ("batch", "busy", "throughput::hash_many_multithreaded"),
         UseCase::ManyLongMessages => ("long", "busy", "throughput::hash_many_multithreaded"),
         UseCase::IdleManyMessages => ("batch", "idle", "throughput::hash_many_multithreaded"),
@@ -709,6 +712,7 @@ fn hashing(path: &Path) -> Section {
         title: "How fast each hash runs, by what a program hashes and how it calls",
         rows: vec![
             ("one", "one message", "One logical message."),
+            ("keyed", "one keyed message", "One message authenticated with its own per-message key (BLAKE3 keyed mode), alternating keys so consecutive messages never share a key."),
             ("incremental", "one short message, fresh hasher", "Create an incremental hasher, update once with the complete message, finalize and consume its digest. A fresh hasher for every message."),
             ("batch", "a batch of short messages", "Many 64-byte messages hashed together, such as a Merkle tree's nodes; the axis counts the messages."),
             ("long", "a batch of longer messages", "Many 4 KiB messages hashed together, such as a store's blocks or a backup's chunks; the axis counts the messages."),
