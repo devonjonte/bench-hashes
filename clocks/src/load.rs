@@ -246,6 +246,12 @@ pub fn tick() {
     }
 }
 
+/// Whether the load instrument is currently available in this process:
+/// true on platforms that measure CPU times until a reading fails.
+pub fn available() -> bool {
+    MEASURED && DUE_NS.load(Ordering::Relaxed) != u64::MAX
+}
+
 /// Every window so far, in order, the running one closed first when it
 /// has lasted a window or more; a shorter one joins the last closed
 /// quiet window, read again from that window's start (the module's doc,
@@ -260,78 +266,127 @@ pub fn windows() -> Vec<Window> {
         let closed = state.windows.len();
         close(&mut state, WINDOW_NS);
         if state.windows.len() == closed {
-            if let (Some(start), Some(reading)) = (state.last_start.take(), Reading::take()) {
-                join_tail(&mut state, start, reading);
+            if let Some(start) = state.last_start.take() {
+                match Reading::take() {
+                    Some(reading) => join_tail(&mut state, start, reading),
+                    None => DUE_NS.store(u64::MAX, Ordering::Relaxed),
+                }
             }
         }
     }
     state.windows.clone()
 }
 
-/// Other programs' load over the next `ns` of wall time, in milli-CPUs,
-/// from two readings of its own (the windows' rule, apart from their
-/// state): the tests' measure of the load beside them. 0 where the
-/// platform gives no CPU times.
+/// Observe one load window of length `ns` directly (using the same rule
+/// as the background windows), or `None` when the OS cannot supply readings.
 #[cfg(unix)]
-pub fn other_milli_cpus_over(ns: u64) -> u64 {
-    let Some(before) = Reading::take() else { return 0 };
+pub fn observe_over(ns: u64) -> Option<Window> {
+    let before = Reading::take()?;
     std::thread::sleep(std::time::Duration::from_nanos(ns));
-    let after = Reading::take().expect("CPU times read a moment ago");
-    between(before, after).other_milli_cpus
+    let after = Reading::take()?;
+    Some(between(before, after))
 }
 
 #[cfg(not(unix))]
-pub fn other_milli_cpus_over(_ns: u64) -> u64 {
-    0
+pub fn observe_over(_ns: u64) -> Option<Window> {
+    None
+}
+
+/// Result of a quiet-machine preflight: explicitly separates a quiet host,
+/// a busy host (other programs or hypervisor steal via [`Window::busy`]),
+/// and an unavailable load instrument.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum QuietCheck {
+    Quiet,
+    Busy(String),
+    Unavailable(String),
+}
+
+fn check_quiet_with(seconds: u64, mut observe: impl FnMut() -> Option<Window>) -> QuietCheck {
+    let mut worst_other = 0u64;
+    let mut worst_steal = 0u64;
+    let mut saw_busy = false;
+    for _ in 0..seconds {
+        let Some(window) = observe() else {
+            return QuietCheck::Unavailable("background load could not be read from this OS".to_owned());
+        };
+        if window.busy() {
+            saw_busy = true;
+            worst_other = worst_other.max(window.other_milli_cpus);
+            worst_steal = worst_steal.max(window.steal_milli_cpus);
+        }
+    }
+    if saw_busy {
+        let mut parts = Vec::new();
+        if worst_other >= BUSY_MILLI_CPUS {
+            parts.push(format!("other programs kept {} CPUs busy", cpus(worst_other)));
+        }
+        if worst_steal >= BUSY_MILLI_CPUS {
+            parts.push(format!("the hypervisor withheld {} CPUs", cpus(worst_steal)));
+        }
+        QuietCheck::Busy(format!("{} in one of the last {seconds} seconds", parts.join("; ")))
+    } else {
+        QuietCheck::Quiet
+    }
 }
 
 /// Whether the machine is quiet enough to measure on, read over `seconds`
-/// one-second windows before a measurement begins: Ok where no window
-/// was busy (the windows' own rule, BUSY_MILLI_CPUS), else the busiest
-/// window's load as the reason. A check that measured for an hour and
-/// then abstained because other programs were busy cost the hour (eight
-/// such runs on an i7-12700K, November 4-5, 2026, while its user worked
-/// at it); asking first costs the seconds.
+/// one-second windows using [`Window::busy`] (other programs and hypervisor
+/// steal). Missing observations return [`QuietCheck::Unavailable`] rather
+/// than reading as quiet.
+pub fn check_quiet(seconds: u64) -> QuietCheck {
+    check_quiet_with(seconds, || observe_over(1_000_000_000))
+}
+
+/// Whether the machine is quiet enough to measure on, read over `seconds`
+/// one-second windows before a measurement begins: Ok where every window
+/// was observed and quiet (`Window::busy()` false), else the busy or
+/// unavailable reason. A check that measured for an hour and then
+/// abstained because other programs were busy cost the hour (eight such
+/// runs on an i7-12700K, November 4-5, 2026, while its user worked at it);
+/// asking first costs the seconds.
 pub fn quiet_for(seconds: u64) -> Result<(), String> {
-    let mut busiest = 0;
-    for _ in 0..seconds {
-        busiest = busiest.max(other_milli_cpus_over(1_000_000_000));
-    }
-    if busiest >= BUSY_MILLI_CPUS {
-        Err(format!("other programs kept {} CPUs busy in one of the last {seconds} seconds", cpus(busiest)))
-    } else {
-        Ok(())
+    match check_quiet(seconds) {
+        QuietCheck::Quiet => Ok(()),
+        QuietCheck::Busy(reason) | QuietCheck::Unavailable(reason) => Err(reason),
     }
 }
 
-/// [`quiet_for`] 10 seconds, tried again until it passes or `limit`
-/// seconds have gone: the reason of the last try when none passed. For the
-/// seconds right after a program's own builds, which leave load behind
-/// them (on macOS a scan of each new executable; the build's tail): a
-/// check whose regress looked once refused there (runner job 1946,
-/// November 6, 2026: 3.38 CPUs, rustc and XprotectService).
+/// [`check_quiet`] over 10 seconds, tried again while busy up to `limit`
+/// seconds; stops immediately if load is unavailable. For the seconds
+/// right after a program's own builds, which leave load behind them (on
+/// macOS a scan of each new executable; the build's tail): a check whose
+/// regress looked once refused there (runner job 1946, November 6, 2026:
+/// 3.38 CPUs, rustc and XprotectService).
 pub fn quiet_within(limit: u64) -> Result<(), String> {
     let started = crate::now();
     loop {
-        match quiet_for(10) {
-            Ok(()) => return Ok(()),
-            Err(reason) if crate::since_ns(started) >= limit * 1_000_000_000 => return Err(reason),
-            Err(_) => {}
+        match check_quiet(10) {
+            QuietCheck::Quiet => return Ok(()),
+            QuietCheck::Unavailable(reason) => return Err(reason),
+            QuietCheck::Busy(reason) if crate::since_ns(started) >= limit * 1_000_000_000 => return Err(reason),
+            QuietCheck::Busy(_) => {}
         }
     }
 }
 
-/// Wait until [`quiet_for`] 10 seconds passes, reading again every 30 s
-/// and saying so once a minute on stderr: for a run queued for a time
-/// when nobody is at the machine.
-pub fn wait_until_quiet() {
+/// Wait until [`check_quiet`] over 10 seconds passes, reading again every
+/// 30 s and saying so once a minute on stderr; returns `Err` immediately
+/// when background load is unavailable rather than waiting forever.
+pub fn wait_until_quiet() -> Result<(), String> {
     let mut waited = 0u64;
-    while let Err(reason) = quiet_for(10) {
-        if waited % 60 == 0 {
-            eprintln!("waiting for a quiet machine ({reason}); reading again in 30 s");
+    loop {
+        match check_quiet(10) {
+            QuietCheck::Quiet => return Ok(()),
+            QuietCheck::Unavailable(reason) => return Err(reason),
+            QuietCheck::Busy(reason) => {
+                if waited % 60 == 0 {
+                    eprintln!("waiting for a quiet machine ({reason}); reading again in 30 s");
+                }
+                std::thread::sleep(std::time::Duration::from_secs(30));
+                waited += 40;
+            }
         }
-        std::thread::sleep(std::time::Duration::from_secs(30));
-        waited += 40;
     }
 }
 
@@ -964,6 +1019,24 @@ mod tests {
         let third = *super::windows().last().unwrap();
         assert_eq!((third.start_ns, third.end_ns), (read_at, read_at + WINDOW_NS + WINDOW_NS / 4));
         crate::test_clock::thaw();
+    }
+
+    #[test]
+    fn quiet_preflight_reports_unavailable_and_counts_hypervisor_steal() {
+        let w = |other: u64, steal: u64| Window { start_ns: 0, end_ns: WINDOW_NS, other_milli_cpus: other, steal_milli_cpus: steal };
+        // Missing first reading must never pass as quiet.
+        assert!(matches!(check_quiet_with(3, || None), QuietCheck::Unavailable(_)));
+        // Valid first reading followed by a lost reading must also return Unavailable.
+        let mut seq = [Some(w(100, 0)), None].into_iter();
+        assert!(matches!(check_quiet_with(2, || seq.next().flatten()), QuietCheck::Unavailable(_)));
+        // Steal-only busy window (zero other load) uses Window::busy() and fails preflight.
+        let mut steal_only = [Some(w(0, 1250)), Some(w(0, 0))].into_iter();
+        match check_quiet_with(2, || steal_only.next().flatten()) {
+            QuietCheck::Busy(msg) => assert!(msg.contains("hypervisor withheld 1.25 CPUs"), "{msg}"),
+            other => panic!("expected Busy for steal-only window, got {other:?}"),
+        }
+        // Observed quiet windows pass.
+        assert_eq!(check_quiet_with(3, || Some(w(200, 100))), QuietCheck::Quiet);
     }
 
     /// The machine's properties this module relies on, run on purpose

@@ -3058,10 +3058,13 @@ fn quiet(arguments: &[String]) {
                 exit_with(2);
             }
         },
-        [flag] if flag == "--wait" => {
-            clocks::load::wait_until_quiet();
-            println!("quiet");
-        }
+        [flag] if flag == "--wait" => match clocks::load::wait_until_quiet() {
+            Ok(()) => println!("quiet"),
+            Err(reason) => {
+                println!("unavailable: {reason}");
+                exit_with(2);
+            }
+        },
         _ => panic!("usage: bench-hashes quiet [--wait]"),
     }
 }

@@ -315,14 +315,6 @@ pub fn command(arguments: &[String]) -> i32 {
     if let Some(keep) = &keep {
         crate::prepare_keep_dir(keep);
     }
-    // The machine first, before a build: a check on a busy machine measures
-    // for an hour and abstains. --when-quiet waits for one instead.
-    if when_quiet {
-        clocks::load::wait_until_quiet();
-    } else if let Err(reason) = clocks::load::quiet_for(10) {
-        println!("check: {reason}. No verdict (exit 2); run when nothing else runs on the machine, or with --when-quiet to wait for that.");
-        return 2;
-    }
     let bench = bench_checkout("check", usage);
     let fork =
         fork_checkout(&fork.unwrap_or_else(|| {
@@ -402,6 +394,17 @@ pub fn command(arguments: &[String]) -> i32 {
             None
         }
     };
+    // Quiet preflight runs after fast exits (identical trees, missing scope,
+    // invalid names) and before any build or measurement.
+    if when_quiet {
+        if let Err(reason) = clocks::load::wait_until_quiet() {
+            println!("check: {reason}. No verdict (exit 2).");
+            return 2;
+        }
+    } else if let Err(reason) = clocks::load::quiet_for(10) {
+        println!("check: {reason}. No verdict (exit 2); run when nothing else runs on the machine, or with --when-quiet to wait for that.");
+        return 2;
+    }
     let cache = fork.join("target").join("check");
     std::fs::create_dir_all(&cache).expect("the check's cache directory");
     // The old side's bench: this one, or this repository at --old-bench.
