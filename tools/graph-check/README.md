@@ -39,3 +39,15 @@ configured viewport. It checks heading separation, complete SVG labels, panel
 bounds, the documentation link's hit target and the close button after scrolling,
 then returns the panel to its top. The full checker calls it for every expanded
 chart. Historical target checks retain their narrower interaction contract.
+
+## Release announcement PNGs
+
+`announce.js` renders cropped retina PNGs (`<prefix>-hero.png` and
+`<prefix>.png`) from a generated `index.html` using the exact DOM bounds of
+`.families` and `.grid`:
+
+```sh
+node tools/graph-check/announce.js index.html releases/servil-0.11.0 blake3-servil-0.11.0-vs-sha256 /usr/bin/chromium
+```
+
+Pass `--show KEY,KEY` to override the overview's default legend selection.

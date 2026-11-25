@@ -30,15 +30,17 @@ async function main() {
     assert.equal(await page.locator('.zoom').count(), 1, `chart ${i} opens`);
     assert.equal(await page.locator('.h.lit').count(), 2, `chart ${i}: its row and column light`);
     await checkZoomLayout(page);
-    const box = await page.locator('.zoom').boundingBox();
-    // Inside the opened chart and the window both, clear of its title.
-    await page.mouse.move(box.x + box.width / 2, Math.min(box.y + box.height / 2, Math.max(box.y + 60, 850)));
+    const plot = await visiblePlotBox(page);
+    // Inside the opened chart's SVG plot, its frame, and the viewport all at once.
+    const mx = plot.left + (plot.right - plot.left) / 2;
+    const my = plot.top + (plot.bottom - plot.top) / 2;
+    await page.mouse.move(mx, my);
     assert(await page.locator('#tip').isVisible(), `chart ${i}: the values under the pointer`);
     assert(/\d/.test(await page.locator('#tip').textContent()), `chart ${i}: numbers in the tip`);
     const tipBox = await page.locator('#tip').boundingBox(), view = page.viewportSize();
     assert(tipBox.x >= 0 && tipBox.x + tipBox.width <= view.width, `chart ${i}: the values fit inside the window`);
     // A click on the plot (the names above it are toggles) puts it back.
-    await page.locator('.zoom').click({ position: { x: box.width / 2, y: box.height * 0.7 } });
+    await page.mouse.click(mx, my);
     await page.waitForTimeout(300);
     assert.equal(await page.locator('.zoom').count(), 0, `chart ${i} closes`);
     assert.equal(await page.locator('.h.lit').count(), 0, `chart ${i}: headers unlit`);
@@ -135,6 +137,17 @@ async function main() {
   await browser.close();
 }
 
+// Visible intersection of the open chart's SVG plot, its scroll frame, and the viewport.
+async function visiblePlotBox(page) {
+  const plot = page.locator('.zoom > svg');
+  await plot.scrollIntoViewIfNeeded();
+  const p = await plot.boundingBox(), frame = await page.locator('.zoom').boundingBox(), view = page.viewportSize();
+  const left = Math.max(p.x, frame.x), right = Math.min(p.x + p.width, frame.x + frame.width, view.width);
+  const top = Math.max(p.y, frame.y), bottom = Math.min(p.y + p.height, frame.y + frame.height, view.height);
+  assert(right > left && bottom > top, 'the open chart\'s plot has a visible region in the viewport');
+  return { left, right, top, bottom };
+}
+
 // A fresh touch-enabled page from the current renderer. Leaves its first chart open.
 // Historical renderer versions use their matching target checker.
 async function checkPhoneTargets(phone) {
@@ -142,11 +155,7 @@ async function checkPhoneTargets(phone) {
   await phone.waitForTimeout(300);
   assert.equal(await phone.locator('.zoom').count(), 1, 'a phone tap opens its chart');
   assert(await phone.locator('.zoom .title a.doc').evaluate(a => getComputedStyle(a).pointerEvents !== 'none'), 'the open chart keeps its documentation link active');
-  const plot = phone.locator('.zoom > svg');
-  await plot.scrollIntoViewIfNeeded();
-  const p = await plot.boundingBox(), frame = await phone.locator('.zoom').boundingBox(), view = phone.viewportSize();
-  const left = Math.max(p.x, frame.x), right = Math.min(p.x + p.width, frame.x + frame.width, view.width);
-  const top = Math.max(p.y, frame.y), bottom = Math.min(p.y + p.height, frame.y + frame.height, view.height);
+  const { left, right, top, bottom } = await visiblePlotBox(phone);
   await phone.touchscreen.tap(left + (right - left) * 0.6, (top + bottom) / 2);
   await phone.waitForTimeout(150);
   assert.equal(await phone.locator('.zoom').count(), 1, 'a tap on an open chart keeps it open');
