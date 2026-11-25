@@ -86,6 +86,246 @@ pub(crate) fn cpu_field(cpu: &[Option<u64>]) -> String {
     }
 }
 
+/// One checked row of a v10 samples file: shared by `read_samples()` and
+/// `beside`, so every joined or read row upholds the same invariants.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct SampleRow {
+    pub(crate) contender: String,
+    pub(crate) scenario: String,
+    pub(crate) use_case: String,
+    pub(crate) point: String,
+    pub(crate) unit: String,
+    pub(crate) samples: Vec<Measured>,
+    pub(crate) start_ms: Vec<u64>,
+    pub(crate) cpu_ns: Option<Vec<u64>>,
+    pub(crate) energy_nj: Option<Vec<u64>>,
+    pub(crate) cores: Option<Vec<[u64; LEVEL_FIELDS * 2]>>,
+    pub(crate) cpus: Option<Vec<u32>>,
+}
+
+impl SampleRow {
+    pub(crate) fn key(&self) -> String {
+        format!(
+            "{}|{}|{}|{}",
+            self.contender, self.scenario, self.use_case, self.point
+        )
+    }
+
+    pub(crate) fn parse(line: &str, path: &str) -> Self {
+        let fields: Vec<&str> = line.split('\t').collect();
+        assert_eq!(fields.len(), 11, "{path}: a row of eleven fields: {line}");
+        let key = fields[..4].join("|");
+        let unit = fields[4];
+        assert!(
+            matches!(unit, "B" | "msg"),
+            "{path}: unexpected unit {unit:?} for {key}"
+        );
+        let samples: Vec<Measured> = fields[5]
+            .split(',')
+            .map(|sample| {
+                let (ns, units) = sample.split_once('/').expect("ns/units");
+                Measured::new(ns.parse().expect("ns"), units.parse().expect("units"))
+            })
+            .collect();
+        assert!(!samples.is_empty(), "{path}: at least one sample for {key}");
+        let start_ms: Vec<u64> = fields[6]
+            .split(',')
+            .map(|ms| ms.parse().expect("start ms"))
+            .collect();
+        assert_eq!(
+            start_ms.len(),
+            samples.len(),
+            "{path}: a start time for every sample of {key}"
+        );
+        let cpu_ns = if fields[7] != "-" {
+            let ns: Vec<u64> = fields[7]
+                .split(',')
+                .map(|ns| ns.parse().expect("cpu ns"))
+                .collect();
+            assert_eq!(
+                ns.len(),
+                samples.len(),
+                "{path}: a CPU time for every sample of {key}"
+            );
+            Some(ns)
+        } else {
+            None
+        };
+        let energy_nj = if fields[8] != "-" {
+            let nj: Vec<u64> = fields[8]
+                .split(',')
+                .map(|nj| nj.parse().expect("energy nJ"))
+                .collect();
+            assert_eq!(
+                nj.len(),
+                samples.len(),
+                "{path}: an energy for every sample of {key}"
+            );
+            Some(nj)
+        } else {
+            None
+        };
+        let cores = if fields[9] != "-" {
+            let c: Vec<[u64; LEVEL_FIELDS * 2]> = fields[9]
+                .split(',')
+                .map(|sample| {
+                    let v: Vec<u64> = sample
+                        .split(':')
+                        .map(|x| x.parse().expect("a count"))
+                        .collect();
+                    v.try_into().expect(
+                        "P time, cycles, instructions, cache references, cache misses; then E's",
+                    )
+                })
+                .collect();
+            assert_eq!(
+                c.len(),
+                samples.len(),
+                "{path}: counts for every sample of {key}"
+            );
+            Some(c)
+        } else {
+            None
+        };
+        let cpus = if fields[10] != "-" {
+            let c: Vec<u32> = fields[10]
+                .split(',')
+                .map(|x| x.parse().expect("a CPU number"))
+                .collect();
+            assert_eq!(
+                c.len(),
+                samples.len(),
+                "{path}: a CPU for every sample of {key}"
+            );
+            Some(c)
+        } else {
+            None
+        };
+        Self {
+            contender: fields[0].to_owned(),
+            scenario: fields[1].to_owned(),
+            use_case: fields[2].to_owned(),
+            point: fields[3].to_owned(),
+            unit: unit.to_owned(),
+            samples,
+            start_ms,
+            cpu_ns,
+            energy_nj,
+            cores,
+            cpus,
+        }
+    }
+
+    /// Append another run's checked samples for the same cell, keeping every
+    /// present optional series aligned 1:1 with wall samples (dropping an
+    /// optional series to `-` if one run lacked it).
+    pub(crate) fn extend_from(&mut self, other: &SampleRow) {
+        assert_eq!(
+            self.key(),
+            other.key(),
+            "joined rows belong to the same cell"
+        );
+        assert_eq!(self.unit, other.unit, "joined rows share the same unit");
+        self.samples.extend_from_slice(&other.samples);
+        self.start_ms.extend_from_slice(&other.start_ms);
+        fn join_opt<T: Clone>(dst: &mut Option<Vec<T>>, src: &Option<Vec<T>>) {
+            match (dst.as_mut(), src.as_ref()) {
+                (Some(a), Some(b)) => a.extend_from_slice(b),
+                _ => *dst = None,
+            }
+        }
+        join_opt(&mut self.cpu_ns, &other.cpu_ns);
+        join_opt(&mut self.energy_nj, &other.energy_nj);
+        join_opt(&mut self.cores, &other.cores);
+        join_opt(&mut self.cpus, &other.cpus);
+    }
+
+    pub(crate) fn format_tsv(&self) -> String {
+        let values: Vec<String> = self
+            .samples
+            .iter()
+            .map(|m| format!("{}/{}", m.ns, m.units))
+            .collect();
+        let starts: Vec<String> = self.start_ms.iter().map(u64::to_string).collect();
+        let opt_u64 = |v: &Option<Vec<u64>>| match v {
+            Some(s) if !s.is_empty() => s.iter().map(u64::to_string).collect::<Vec<_>>().join(","),
+            _ => "-".to_owned(),
+        };
+        let cores = match &self.cores {
+            Some(s) if !s.is_empty() => s
+                .iter()
+                .map(|c| c.iter().map(u64::to_string).collect::<Vec<_>>().join(":"))
+                .collect::<Vec<_>>()
+                .join(","),
+            _ => "-".to_owned(),
+        };
+        let cpus = match &self.cpus {
+            Some(s) if !s.is_empty() => s.iter().map(u32::to_string).collect::<Vec<_>>().join(","),
+            _ => "-".to_owned(),
+        };
+        format!(
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            self.contender,
+            self.scenario,
+            self.use_case,
+            self.point,
+            self.unit,
+            values.join(","),
+            starts.join(","),
+            opt_u64(&self.cpu_ns),
+            opt_u64(&self.energy_nj),
+            cores,
+            cpus
+        )
+    }
+}
+
+pub(crate) struct ParsedSamples {
+    pub(crate) raw_headers: Vec<String>,
+    pub(crate) rows: Vec<SampleRow>,
+}
+
+pub(crate) fn parse_samples_rows(text: &str, path: &str) -> ParsedSamples {
+    let mut lines = text.lines();
+    assert_eq!(
+        lines.next(),
+        Some(SAMPLES_VERSION),
+        "{path}: a samples file of this version begins with {SAMPLES_VERSION:?}"
+    );
+    let mut raw_headers = Vec::new();
+    let mut columns = false;
+    let mut rows: Vec<SampleRow> = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    for line in lines {
+        if line.starts_with('#') {
+            assert!(!columns, "{path}: header line after the column row: {line}");
+            raw_headers.push(line.to_owned());
+        } else if line.is_empty() {
+            continue;
+        } else if !columns {
+            assert_eq!(line, SAMPLES_COLUMNS, "{path}: the column row");
+            columns = true;
+        } else {
+            let row = SampleRow::parse(line, path);
+            let key = row.key();
+            assert!(
+                seen.insert(key.clone()),
+                "{path}: a samples file holds each cell once: {key} twice"
+            );
+            rows.push(row);
+        }
+    }
+    assert!(columns, "{path}: missing column row {SAMPLES_COLUMNS:?}");
+    ParsedSamples { raw_headers, rows }
+}
+
+pub(crate) fn read_sample_rows(path: &std::path::Path) -> ParsedSamples {
+    let display = path.display().to_string();
+    let text = fs::read_to_string(path)
+        .unwrap_or_else(|error| panic!("failed to read {display}: {error}"));
+    parse_samples_rows(&text, &display)
+}
+
 /// A samples file read back: its `# load:` line (the run's own verdict,
 /// "quiet: ..." or "busy: ..."), and each cell's samples as measured,
 /// keyed "contender|scenario|use_case|point", in the file's order.
@@ -111,112 +351,43 @@ pub(crate) struct SamplesFile {
     pub(crate) cpus: Vec<(String, Vec<u32>)>,
 }
 
-pub(crate) fn read_samples(path: &str) -> SamplesFile {
-    let text =
-        fs::read_to_string(path).unwrap_or_else(|error| panic!("failed to read {path}: {error}"));
-    let mut lines = text.lines();
-    assert_eq!(
-        lines.next(),
-        Some(SAMPLES_VERSION),
-        "{path}: a samples file of this version begins with {SAMPLES_VERSION:?}"
-    );
+pub(crate) fn parse_samples(text: &str, path: &str) -> SamplesFile {
+    let parsed = parse_samples_rows(text, path);
     let mut load = None;
     let mut power = None;
     let mut headers = Vec::new();
-    let mut columns = false;
-    let mut cells = Vec::new();
-    let mut cpu = Vec::new();
-    let mut energy = Vec::new();
-    let mut cores = Vec::new();
-    let mut cpus = Vec::new();
-    for line in lines {
+    for line in &parsed.raw_headers {
         if let Some(rest) = line.strip_prefix("# load: ") {
             load = Some(rest.to_owned());
         } else if let Some(rest) = line.strip_prefix("# power: ") {
             power = Some(rest.to_owned());
-        } else if line.starts_with('#') || line.is_empty() {
-            if let Some((key, value)) = line
-                .strip_prefix("# ")
-                .and_then(|rest| rest.split_once(": "))
-            {
-                headers.push((key.to_owned(), value.to_owned()));
-            }
-        } else if !columns {
-            assert_eq!(line, SAMPLES_COLUMNS, "{path}: the column row");
-            columns = true;
-        } else {
-            let fields: Vec<&str> = line.split('\t').collect();
-            assert_eq!(fields.len(), 11, "{path}: a row of eleven fields: {line}");
-            let samples: Vec<Measured> = fields[5]
-                .split(',')
-                .map(|sample| {
-                    let (ns, units) = sample.split_once('/').expect("ns/units");
-                    Measured::new(ns.parse().expect("ns"), units.parse().expect("units"))
-                })
-                .collect();
-            let key = fields[..4].join("|");
-            assert!(
-                cells.iter().all(|(k, _)| *k != key),
-                "{path}: a samples file holds each cell once: {key} twice"
-            );
-            if fields[7] != "-" {
-                let ns: Vec<u64> = fields[7]
-                    .split(',')
-                    .map(|ns| ns.parse().expect("cpu ns"))
-                    .collect();
-                assert_eq!(
-                    ns.len(),
-                    samples.len(),
-                    "{path}: a CPU time for every sample of {key}"
-                );
-                cpu.push((key.clone(), ns));
-            }
-            if fields[8] != "-" {
-                let nj: Vec<u64> = fields[8]
-                    .split(',')
-                    .map(|nj| nj.parse().expect("energy nJ"))
-                    .collect();
-                assert_eq!(
-                    nj.len(),
-                    samples.len(),
-                    "{path}: an energy for every sample of {key}"
-                );
-                energy.push((key.clone(), nj));
-            }
-            if fields[9] != "-" {
-                let c: Vec<[u64; LEVEL_FIELDS * 2]> = fields[9]
-                    .split(',')
-                    .map(|sample| {
-                        let v: Vec<u64> = sample
-                            .split(':')
-                            .map(|x| x.parse().expect("a count"))
-                            .collect();
-                        v.try_into().expect(
-                            "P time, cycles, instructions, cache references, cache misses; then E's",
-                        )
-                    })
-                    .collect();
-                assert_eq!(
-                    c.len(),
-                    samples.len(),
-                    "{path}: counts for every sample of {key}"
-                );
-                cores.push((key.clone(), c));
-            }
-            if fields[10] != "-" {
-                let c: Vec<u32> = fields[10]
-                    .split(',')
-                    .map(|x| x.parse().expect("a CPU number"))
-                    .collect();
-                assert_eq!(
-                    c.len(),
-                    samples.len(),
-                    "{path}: a CPU for every sample of {key}"
-                );
-                cpus.push((key.clone(), c));
-            }
-            cells.push((key, samples));
+        } else if let Some((key, value)) = line
+            .strip_prefix("# ")
+            .and_then(|rest| rest.split_once(": "))
+        {
+            headers.push((key.to_owned(), value.to_owned()));
         }
+    }
+    let mut cells = Vec::with_capacity(parsed.rows.len());
+    let mut cpu = Vec::new();
+    let mut energy = Vec::new();
+    let mut cores = Vec::new();
+    let mut cpus = Vec::new();
+    for row in parsed.rows {
+        let key = row.key();
+        if let Some(ns) = row.cpu_ns {
+            cpu.push((key.clone(), ns));
+        }
+        if let Some(nj) = row.energy_nj {
+            energy.push((key.clone(), nj));
+        }
+        if let Some(c) = row.cores {
+            cores.push((key.clone(), c));
+        }
+        if let Some(c) = row.cpus {
+            cpus.push((key.clone(), c));
+        }
+        cells.push((key, row.samples));
     }
     SamplesFile {
         headers,
@@ -228,6 +399,12 @@ pub(crate) fn read_samples(path: &str) -> SamplesFile {
         cores,
         cpus,
     }
+}
+
+pub(crate) fn read_samples(path: &str) -> SamplesFile {
+    let text =
+        fs::read_to_string(path).unwrap_or_else(|error| panic!("failed to read {path}: {error}"));
+    parse_samples(&text, path)
 }
 
 /// Each cell's per-unit hardware counts (Q64.64 fixed point), both kinds of
@@ -538,4 +715,36 @@ pub(crate) fn generate_samples_tsv(
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "missing column row")]
+    fn parse_samples_rejects_missing_column_row() {
+        let text = format!("{SAMPLES_VERSION}\n# load: quiet\n# power: mains power\n");
+        let _ = parse_samples(&text, "missing-columns.tsv");
+    }
+
+    #[test]
+    #[should_panic(expected = "a start time for every sample")]
+    fn parse_samples_rejects_mismatched_start_times() {
+        let text = format!(
+            "{SAMPLES_VERSION}\n# load: quiet\n# power: mains power\n{SAMPLES_COLUMNS}\n\
+             blake3-servil-st\tsolo\tOneMessage\t64 B\tB\t100/64,110/64\t1\t-\t-\t-\t-\n"
+        );
+        let _ = parse_samples(&text, "bad-starts.tsv");
+    }
+
+    #[test]
+    #[should_panic(expected = "unexpected unit")]
+    fn parse_samples_rejects_unknown_unit() {
+        let text = format!(
+            "{SAMPLES_VERSION}\n# load: quiet\n# power: mains power\n{SAMPLES_COLUMNS}\n\
+             blake3-servil-st\tsolo\tOneMessage\t64 B\tKiB\t100/64\t1\t-\t-\t-\t-\n"
+        );
+        let _ = parse_samples(&text, "bad-unit.tsv");
+    }
 }
