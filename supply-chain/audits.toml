@@ -22,17 +22,47 @@ criteria = "agent-safe-to-deploy"
 delta = "0.7.6 -> 0.7.8"
 notes = "Fixes ZST double-free in extend via mem::forget, adds safe spare_capacity_mut, 16-bit LenUint, and lifetime annotations."
 
+[[audits.block-buffer]]
+who = "Devon Jonte <devonjonte@users.noreply.github.com>"
+criteria = "agent-safe-to-deploy"
+version = "0.12.1"
+notes = "Full line-by-line review of src/{lib,read,sealed}.rs (756 lines, no_std, no build.rs). Eager/Lazy buffer invariants enforced by sealed::BlockSizes (U1..=U255), ResetGuard restores invariants on compress/closure panic, and Clone::clone ptr::read duplicates only stack MaybeUninit + Copy pos."
+
+[[audits.cpufeatures]]
+who = "Devon Jonte <devonjonte@users.noreply.github.com>"
+criteria = "agent-safe-to-deploy"
+version = "0.2.17"
+notes = "Full line-by-line review of src/{lib,x86,aarch64,loongarch64,miri}.rs (665 lines, no_std, no build.rs). Standard CPUID/xgetbv, getauxval(AT_HWCAP), and NUL-checked sysctlbyname probes cached in AtomicU8, matching Mozilla-audited cpufeatures 0.3.1."
+
+[[audits.crypto-common]]
+who = "Devon Jonte <devonjonte@users.noreply.github.com>"
+criteria = "agent-safe-to-deploy"
+version = "0.2.2"
+notes = "Full line-by-line review of src/{lib,generate,hazmat}.rs (853 lines, no_std, forbid(unsafe_code), no build.rs). Pure trait and array type definitions; noted unused u128 array SerializableState uses U8 instead of U16 (panic-only, no memory/security risk)."
+
 [[audits.crypto-common]]
 who = "Devon Jonte <devonjonte@users.noreply.github.com>"
 criteria = "agent-safe-to-deploy"
 delta = "0.1.6 -> 0.1.7"
 notes = "Manifest-only change pinning generic-array =0.14.7; zero source changes."
 
+[[audits.keccak]]
+who = "Devon Jonte <devonjonte@users.noreply.github.com>"
+criteria = "agent-safe-to-deploy"
+version = "0.2.2"
+notes = "Full line-by-line review of src/{lib,backends,consts,types}.rs and src/backends/{soft,simd,aarch64_sha3}.rs (664 lines, no_std, no build.rs). Safe software/SIMD Keccak-p plus aarch64 FEAT_SHA3 intrinsics gated behind cpufeatures InitToken with round_count <= 24 check."
+
 [[audits.sha1]]
 who = "Devon Jonte <devonjonte@users.noreply.github.com>"
 criteria = "agent-safe-to-deploy"
 delta = "0.10.6 -> 0.10.7"
 notes = "Removes optional sha1-asm dependency and aarch64 asm wrapper, adds doc example."
+
+[[audits.sha3]]
+who = "Devon Jonte <devonjonte@users.noreply.github.com>"
+criteria = "agent-safe-to-deploy"
+version = "0.11.0"
+notes = "Full line-by-line review of src/{lib,block_api}.rs (413 lines, no_std, forbid(unsafe_code), no build.rs). Standard FIPS 202 SHA-3/SHAKE/Keccak sponge wrappers over keccak with bounds-checked xor_block."
 
 [[audits.version_check]]
 who = "Devon Jonte <devonjonte@users.noreply.github.com>"
