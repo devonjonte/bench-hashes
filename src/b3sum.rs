@@ -9,9 +9,10 @@
 
 use super::{machine_metadata, output_directory, Mean, Measured, SAMPLES_COLUMNS};
 use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 const KIB: u64 = 1024;
 const MIB: u64 = 1024 * KIB;
@@ -445,41 +446,75 @@ struct Build {
     digest: String,
 }
 
+/// An invocation-owned scratch root for contenders that use `{OUT}`.
+/// Each contender gets a generated child slot (`slot-<index>`), so a display
+/// label never selects a directory to create or remove.
+struct OutScratch {
+    root: PathBuf,
+}
+
+static OUT_SCRATCH_SEQ: AtomicU64 = AtomicU64::new(0);
+
+impl OutScratch {
+    fn create_in(base: &Path) -> Self {
+        let pid = std::process::id();
+        loop {
+            let seq = OUT_SCRATCH_SEQ.fetch_add(1, Ordering::Relaxed);
+            let root = base.join(format!("b3sum-out-{pid}-{seq}"));
+            match fs::create_dir(&root) {
+                Ok(()) => return Self { root },
+                Err(e) if e.kind() == io::ErrorKind::AlreadyExists => continue,
+                Err(e) => panic!("making b3sum scratch directory {}: {e}", root.display()),
+            }
+        }
+    }
+
+    /// An empty output directory for contender `slot`, made outside the timed
+    /// child process inside this invocation's owned root.
+    fn prepare(&self, slot: usize) -> PathBuf {
+        let dir = self.root.join(format!("slot-{slot}"));
+        match fs::remove_dir_all(&dir) {
+            Ok(()) => {}
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(e) => panic!("emptying {}: {e}", dir.display()),
+        }
+        fs::create_dir(&dir).unwrap_or_else(|e| panic!("making {}: {e}", dir.display()));
+        dir
+    }
+}
+
+impl Drop for OutScratch {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.root);
+    }
+}
+
 impl Contender {
     fn build(&self, round: u64) -> &Build {
         &self.builds[(round % self.builds.len() as u64) as usize]
     }
 
+    fn uses_out(&self) -> bool {
+        self.args.iter().any(|a| a == "{OUT}")
+    }
+
     /// The command's arguments as one run gets them: `{OUT}` names the
-    /// contender's own output directory (a command that writes files, as
+    /// contender's own generated scratch slot (a command that writes files, as
     /// `b3sum --outboard {OUT}` does).
-    fn run_args(&self) -> Vec<String> {
+    fn run_args(&self, out_dir: Option<&Path>) -> Vec<String> {
         self.args
             .iter()
             .map(|a| {
                 if a == "{OUT}" {
-                    self.out_dir().display().to_string()
+                    out_dir
+                        .expect("contender uses {OUT} without an output directory")
+                        .display()
+                        .to_string()
                 } else {
                     a.clone()
                 }
             })
             .collect()
-    }
-
-    fn out_dir(&self) -> PathBuf {
-        PathBuf::from("b3sum-out").join(&self.name)
-    }
-
-    /// An empty output directory for the next run, made outside the timed
-    /// child process. A contender without `{OUT}` has nothing to prepare.
-    fn prepare_out(&self) {
-        if self.args.iter().any(|a| a == "{OUT}") {
-            let dir = self.out_dir();
-            if dir.exists() {
-                fs::remove_dir_all(&dir).expect("emptying the contender's output directory");
-            }
-            fs::create_dir_all(&dir).expect("making the contender's output directory");
-        }
     }
 }
 
@@ -700,39 +735,53 @@ pub fn command(args: &[String]) {
     );
     let mut machine = machine_metadata();
 
+    let out_scratch = specs
+        .iter()
+        .any(Contender::uses_out)
+        .then(|| OutScratch::create_in(Path::new(".")));
     let mut buffer = vec![0u8; MIB as usize];
-    let run_files =
-        |c: &Contender, round: u64, input: &Input, files: &[PathBuf]| -> clocks::child::Run {
-            let mut command = Command::new(&c.build(round).program);
-            command
-                .args(c.run_args())
+    let run_files = |c: &Contender,
+                     round: u64,
+                     input: &Input,
+                     files: &[PathBuf],
+                     out_dir: Option<&Path>|
+     -> clocks::child::Run {
+        let args = c.run_args(out_dir);
+        let mut command = Command::new(&c.build(round).program);
+        command
+            .args(&args)
+            .args(files)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        let run = clocks::child::run(&mut command);
+        if !run.success() {
+            // Show what it said, then stop: a failing contender measures nothing.
+            let _ = Command::new(&c.build(round).program)
+                .args(&args)
                 .args(files)
-                .stdin(Stdio::null())
                 .stdout(Stdio::null())
-                .stderr(Stdio::null());
-            let run = clocks::child::run(&mut command);
-            if !run.success() {
-                // Show what it said, then stop: a failing contender measures nothing.
-                let _ = Command::new(&c.build(round).program)
-                    .args(c.run_args())
-                    .args(files)
-                    .stdout(Stdio::null())
-                    .status();
-                panic!("contender {} failed on {}", c.name, input.label);
-            }
-            run
-        };
-    let run_once = |c: &Contender, round: u64, input: &Input| -> clocks::child::Run {
+                .status();
+            panic!("contender {} failed on {}", c.name, input.label);
+        }
+        run
+    };
+    let run_once = |slot: usize, c: &Contender, round: u64, input: &Input| -> clocks::child::Run {
         // Output storage is emptied here, outside the timed child processes.
-        c.prepare_out();
+        let out_dir = c.uses_out().then(|| {
+            out_scratch
+                .as_ref()
+                .expect("scratch root exists for {OUT} contender")
+                .prepare(slot)
+        });
         if !input.each {
-            return run_files(c, round, input, &input.files);
+            return run_files(c, round, input, &input.files, out_dir.as_deref());
         }
         // A process per file: the runs as one (clocks::child::Run::sum).
         let runs: Vec<_> = input
             .files
             .iter()
-            .map(|f| run_files(c, round, input, std::slice::from_ref(f)))
+            .map(|f| run_files(c, round, input, std::slice::from_ref(f), out_dir.as_deref()))
             .collect();
         clocks::child::Run::sum(&runs)
     };
@@ -740,9 +789,9 @@ pub fn command(args: &[String]) {
     // files start in the page cache.
     for input in &inputs {
         warm(&input.files, &mut buffer);
-        for c in &specs {
+        for (slot, c) in specs.iter().enumerate() {
             for b in 0..c.builds.len() as u64 {
-                run_once(c, b, input);
+                run_once(slot, c, b, input);
             }
         }
     }
@@ -787,7 +836,7 @@ pub fn command(args: &[String]) {
                         evict(&input.files);
                     }
                     let before = clocks::energy::package_nj();
-                    cells[ci][i][c].push(run_once(&specs[c], round, input));
+                    cells[ci][i][c].push(run_once(c, &specs[c], round, input));
                     energy[ci][i][c]
                         .push(before.zip(clocks::energy::package_nj()).map(|(b, a)| a - b));
                 }
@@ -1278,50 +1327,88 @@ mod tests {
         let _ = select_caches(Some("cold"), false);
     }
 
-    /// `{OUT}` names the contender's own directory, prepared empty outside
-    /// the timed run; other arguments and contenders stay as written.
+    /// `{OUT}` uses a generated slot inside an invocation-owned scratch root,
+    /// prepared empty outside the timed run; display labels never select a
+    /// directory to delete, and pre-existing siblings stay untouched.
     #[test]
-    fn out_placeholder_prepares_an_empty_contender_directory() {
-        let scratch = std::env::temp_dir().join(format!("b3sum-out-test-{}", std::process::id()));
-        fs::create_dir_all(&scratch).unwrap();
-        let old = std::env::current_dir().unwrap();
-        std::env::set_current_dir(&scratch).unwrap();
+    fn out_placeholder_uses_owned_scratch_slots_and_preserves_siblings() {
+        let base = std::env::temp_dir().join(format!("b3sum-out-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let sibling_file = base.join("sibling").join("keep.txt");
+        let legacy_file = base.join("b3sum-out").join("sibling").join("keep.txt");
+        fs::create_dir_all(sibling_file.parent().unwrap()).unwrap();
+        fs::create_dir_all(legacy_file.parent().unwrap()).unwrap();
+        fs::write(&sibling_file, b"precious").unwrap();
+        fs::write(&legacy_file, b"precious").unwrap();
+
         let writer = Contender {
-            name: "servil-outboard".to_owned(),
+            name: "../sibling".to_owned(),
             builds: Vec::new(),
             args: vec!["--outboard".to_owned(), "{OUT}".to_owned()],
             version: String::new(),
         };
-        assert_eq!(
-            writer.run_args(),
-            [
-                "--outboard".to_owned(),
-                writer.out_dir().display().to_string()
-            ]
-        );
-        writer.prepare_out();
-        let leftover = writer.out_dir().join("left-over.obao4");
-        fs::write(&leftover, b"stale").unwrap();
-        writer.prepare_out();
-        assert!(writer.out_dir().is_dir());
-        assert!(
-            !leftover.exists(),
-            "each run starts with an empty directory"
-        );
+        let other = Contender {
+            name: "sibling".to_owned(),
+            builds: Vec::new(),
+            args: vec!["--outboard".to_owned(), "{OUT}".to_owned()],
+            version: String::new(),
+        };
         let plain = Contender {
             name: "official".to_owned(),
             builds: Vec::new(),
             args: vec!["--num-threads".to_owned(), "1".to_owned()],
             version: String::new(),
         };
-        assert_eq!(plain.run_args(), plain.args);
-        plain.prepare_out();
-        assert!(
-            !plain.out_dir().exists(),
-            "no directory without the placeholder"
-        );
-        std::env::set_current_dir(old).unwrap();
-        fs::remove_dir_all(scratch).unwrap();
+        assert!(writer.uses_out());
+        assert!(other.uses_out());
+        assert!(!plain.uses_out());
+        assert_eq!(plain.run_args(None), plain.args);
+
+        let root_path;
+        {
+            let scratch = OutScratch::create_in(&base);
+            root_path = scratch.root.clone();
+            assert!(root_path.starts_with(&base));
+
+            let slot0 = scratch.prepare(0);
+            let slot1 = scratch.prepare(1);
+            assert!(slot0.starts_with(&root_path));
+            assert!(slot1.starts_with(&root_path));
+            assert_ne!(slot0, slot1);
+            assert_eq!(
+                writer.run_args(Some(&slot0)),
+                ["--outboard".to_owned(), slot0.display().to_string()]
+            );
+
+            let stale0 = slot0.join("left-over.obao4");
+            let keep1 = slot1.join("other-slot.obao4");
+            fs::write(&stale0, b"stale").unwrap();
+            fs::write(&keep1, b"slot1").unwrap();
+
+            let slot0_again = scratch.prepare(0);
+            assert_eq!(slot0_again, slot0);
+            assert!(slot0.is_dir());
+            assert!(!stale0.exists(), "each run starts with an empty slot");
+            assert!(keep1.exists(), "preparing slot 0 leaves slot 1 intact");
+            assert_eq!(fs::read(&sibling_file).unwrap(), b"precious");
+            assert_eq!(fs::read(&legacy_file).unwrap(), b"precious");
+        }
+        assert!(!root_path.exists(), "drop removes the owned scratch root");
+        assert_eq!(fs::read(&sibling_file).unwrap(), b"precious");
+        assert_eq!(fs::read(&legacy_file).unwrap(), b"precious");
+        fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "without an output directory")]
+    fn out_placeholder_requires_an_output_directory() {
+        let writer = Contender {
+            name: "servil-outboard".to_owned(),
+            builds: Vec::new(),
+            args: vec!["--outboard".to_owned(), "{OUT}".to_owned()],
+            version: String::new(),
+        };
+        let _ = writer.run_args(None);
     }
 
     /// The mixed tree's interleaving takes every file once.
