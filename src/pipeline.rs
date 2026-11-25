@@ -20,6 +20,9 @@ const LIMITS: Limits = Limits {
 thread_local! {
     // Constructed during calibration, kept independently by each producer.
     static MESSAGES: RefCell<Option<Messages>> = const { RefCell::new(None) };
+    // Kept separate from MESSAGES so per-message custom mode never alters
+    // default-mode ContinuousMessages pipelines in the same process.
+    static KEYED_MESSAGES: RefCell<Option<Messages>> = const { RefCell::new(None) };
     static BATCHES: RefCell<crate::Map<usize, Batches>> = RefCell::new(crate::Map::default());
 }
 
@@ -90,6 +93,44 @@ impl Messages {
         }
     }
 
+    /// Whole messages, each authenticated under its own per-message key
+    /// (`Pipeline::message_with(Mode::Keyed(key), ...)`), produced directly
+    /// into rooms with the same room-sharing and drain rules as `run`.
+    fn run_keyed<'a>(
+        &mut self,
+        inputs: impl IntoIterator<Item = (&'a [u8], &'a [u8; 32])>,
+        mut consume: impl FnMut(&[u8]),
+    ) {
+        let mut room: Option<Room> = None;
+        let mut pending = 0;
+        for (input, key) in inputs {
+            if pending == self.capacity {
+                self.consume(&mut consume);
+                pending -= 1;
+            }
+            let mut message = block_on(self.pipe.message_with(
+                Mode::Keyed(black_box(key)),
+                (),
+                Some(input.len() as u64),
+            ));
+            for piece in black_box(input).chunks(ROOM_LEN) {
+                if room.as_ref().is_none_or(|r| r.len() < piece.len()) {
+                    drop(room.take());
+                    room = Some(block_on(self.pipe.room()));
+                }
+                let r = room.as_mut().unwrap();
+                r.bytes_mut()[..piece.len()].copy_from_slice(piece);
+                self.pipe.commit(&mut message, r, piece.len());
+            }
+            self.pipe.end(message);
+            pending += 1;
+        }
+        drop(room);
+        for _ in 0..pending {
+            self.consume(&mut consume);
+        }
+    }
+
     /// The source declares no length. Accumulate arrivals directly in a room
     /// until full, committing a partial room only when the source ends.
     fn receive(
@@ -133,6 +174,20 @@ pub(crate) fn messages<'a>(inputs: impl IntoIterator<Item = &'a [u8]>, consume: 
         kept.borrow_mut()
             .get_or_insert_with(|| Messages::new(LIMITS))
             .run(inputs, consume)
+    });
+}
+
+/// One owned input after another, each authenticated with its own key
+/// (`Pipeline::message_with`), including every final digest in the call.
+#[inline(always)]
+pub(crate) fn keyed_messages<'a>(
+    inputs: impl IntoIterator<Item = (&'a [u8], &'a [u8; 32])>,
+    consume: impl FnMut(&[u8]),
+) {
+    KEYED_MESSAGES.with(|kept| {
+        kept.borrow_mut()
+            .get_or_insert_with(|| Messages::new(LIMITS))
+            .run_keyed(inputs, consume)
     });
 }
 
@@ -610,6 +665,23 @@ mod tests {
                 second.contains(blake3_servil::convenience::hash(&input[..5]).as_bytes()),
                 "message {i}"
             );
+        }
+    }
+
+    #[test]
+    fn keyed_messages_match_blake3_keyed_hash_across_sizes() {
+        start();
+        let keys = [[0x11u8; 32], [0x22u8; 32]];
+        for len in [64, 4 * 1024, ROOM_LEN + 1024] {
+            let input = crate::make_input_seeded(len, 19);
+            let mut got = Vec::new();
+            keyed_messages((0..6).map(|i| (input.as_slice(), &keys[i & 1])), |d| {
+                got.push(<[u8; 32]>::try_from(d).unwrap())
+            });
+            let want: Vec<[u8; 32]> = (0..6)
+                .map(|i| *blake3::keyed_hash(&keys[i & 1], &input).as_bytes())
+                .collect();
+            assert_eq!(got, want, "len {len}");
         }
     }
 

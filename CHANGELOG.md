@@ -1,5 +1,12 @@
 # bench-hashes next
 
+**Per-message keyed `Pipeline` cells (`ContinuousKeyedMessages`).** Three new
+points (`64 B`, `4 KiB`, `1 MiB`) measure the four BLAKE3 contenders hashing
+continuous messages under alternating per-message keys (`Mode::Keyed`), so
+`BLAKE3-Servil` multithreaded exercises `throughput::Pipeline::message_with`
+across short-group and multi-piece paths without sharing state with plain
+`ContinuousMessages`.
+
 **Bao outboard generation has end-to-end regression cells.** `bench-hashes
 b3sum` can now select exact input labels with repeated `--input` and one cache state
 with `--cache`. `tools/b3sum-contenders.py --outboard` adds BLAKE3-Servil's

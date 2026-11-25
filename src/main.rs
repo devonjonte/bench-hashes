@@ -186,8 +186,15 @@ const INTERLEAVED_COUNT: usize = 1;
 const TURN_COUNT: usize = 2;
 /// Collections: git's objects, and the files of Nix store paths (FROZEN.md).
 const COLLECTION_COUNT: usize = 2;
+/// Continuous keyed messages: short (`64 B`), medium (`4 KiB`), and multi-piece
+/// (`1 MiB`) through per-message keyed mode (`Pipeline::message_with`).
+const CONTINUOUS_KEYED_COUNT: usize = 3;
+/// Two fixed 32-byte keys alternated across consecutive messages so adjacent
+/// messages never share a key.
+const PER_MESSAGE_KEYS: [[u8; 32]; 2] = [[0x5au8; 32], [0xa5u8; 32]];
 const POINT_COUNT: usize = 4 * (INPUT_COUNT + BATCH_COUNT)
     + 2 * CONTINUOUS_MESSAGE_COUNT
+    + CONTINUOUS_KEYED_COUNT
     + INTERLEAVED_COUNT
     + 2 * COLLECTION_COUNT
     + 2 * CONTINUOUS_BATCH_COUNT
@@ -803,6 +810,9 @@ const POINTS: [Point; POINT_COUNT] = [
         use_case: UseCase::LentIncrementalMessage,
         ..Point::one("4 KiB", 4096)
     },
+    Point::continuous_keyed("64 B", 64),
+    Point::continuous_keyed("4 KiB", 4 * 1024),
+    Point::continuous_keyed("1 MiB", 1024 * 1024),
 ];
 
 /// results[contender_index][point_index], contenders in the roster's
@@ -874,6 +884,10 @@ enum UseCase {
     /// Messages of the point's length, one after another, each read into
     /// a buffer in pieces of up to PIECE_LEN, then hashed.
     ContinuousMessages,
+    /// Messages of the point's length, one after another, each authenticated
+    /// with its own alternating per-message key (`Mode::Keyed`), exercising
+    /// `Pipeline::message_with` for BLAKE3-Servil mt.
+    ContinuousKeyedMessages,
     /// Batches of the point's count of 64-byte messages, one after
     /// another, each read into a buffer, then hashed.
     ContinuousBatches,
@@ -942,7 +956,7 @@ const PATTERNS: [&str; 6] = [
 ];
 
 impl UseCase {
-    const ALL: [UseCase; 24] = [
+    const ALL: [UseCase; 25] = [
         UseCase::OneMessage,
         UseCase::ManyMessages,
         UseCase::ManyLongMessages,
@@ -967,6 +981,7 @@ impl UseCase {
         UseCase::ReceivingMessage,
         UseCase::IncrementalMessage,
         UseCase::LentIncrementalMessage,
+        UseCase::ContinuousKeyedMessages,
     ];
 
     /// Whether each call comes after a gap (the synchronous use cases:
@@ -1073,6 +1088,7 @@ impl UseCase {
                     | Self::LentIncrementalMessage
                     | Self::LentMessages
                     | Self::ContinuousMessages
+                    | Self::ContinuousKeyedMessages
                     | Self::Collection
                     | Self::ContinuousCollection
             )
@@ -1127,6 +1143,9 @@ impl UseCase {
                 "A batch of 64-byte messages, after idling 5 ms, deep idle states off"
             }
             Self::ContinuousMessages => "Messages one after another, buffers owned",
+            Self::ContinuousKeyedMessages => {
+                "Keyed messages one after another, alternating keys per message"
+            }
             Self::ContinuousBatches => "Batches one after another, buffers owned",
             Self::LentMessages => "Messages one after another, buffers lent",
             Self::ReceivingMessage => "A message received in fragments, timed end to end",
@@ -1162,6 +1181,7 @@ impl UseCase {
             | Self::BriefIdleOneMessage
             | Self::ControlledIdleOneMessage
             | Self::ContinuousMessages
+            | Self::ContinuousKeyedMessages
             | Self::LentMessages
             | Self::IncrementalMessage
             | Self::LentIncrementalMessage => "size",
@@ -1196,6 +1216,7 @@ impl UseCase {
             | Self::BriefIdleOneMessage
             | Self::ControlledIdleOneMessage
             | Self::ContinuousMessages
+            | Self::ContinuousKeyedMessages
             | Self::LentMessages
             | Self::ReceivingMessage
             | Self::IncrementalMessage
@@ -1266,6 +1287,7 @@ impl UseCase {
             Self::BriefIdleOneMessage | Self::BriefIdleManyMessages => "brief idle ",
             Self::ControlledIdleOneMessage | Self::ControlledIdleManyMessages => "controlled idle ",
             Self::ContinuousMessages => "continuous ",
+            Self::ContinuousKeyedMessages => "continuous keyed ",
             Self::ContinuousBatches => "continuous batch ",
             Self::LentMessages => "lent ",
             Self::ReceivingMessage => "receive ",
@@ -1344,6 +1366,15 @@ impl Point {
             bytes,
             messages: 1,
             use_case: UseCase::ContinuousMessages,
+        }
+    }
+
+    const fn continuous_keyed(label: &'static str, bytes: usize) -> Self {
+        Self {
+            label,
+            bytes,
+            messages: 1,
+            use_case: UseCase::ContinuousKeyedMessages,
         }
     }
 
@@ -1562,6 +1593,10 @@ impl Algorithm {
             | UseCase::ReceivingMessage
             | UseCase::IncrementalMessage
             | UseCase::LentIncrementalMessage => true,
+            UseCase::ContinuousKeyedMessages => matches!(
+                self,
+                Self::Blake3 | Self::Blake3ServilSt | Self::Blake3Rayon | Self::Blake3ServilMt
+            ),
             UseCase::OneMessage
             | UseCase::IdleOneMessage
             | UseCase::BriefIdleOneMessage
@@ -4649,7 +4684,7 @@ fn hash_batch(
     macro_rules! each_contender {
         ($($a:literal)*) => {
             match Algorithm::ALL.iter().position(|a| *a == algorithm) {
-                $(Some($a) => each_use_case!($a: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23),)*
+                $(Some($a) => each_use_case!($a: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24),)*
                 _ => unreachable!("every contender is in Algorithm::ALL"),
             }
         };
@@ -4755,6 +4790,15 @@ fn hash_batch_of(
         }
         UseCase::ContinuousMessages => {
             return hash_continuous_messages(algorithm, input, point.bytes, iterations, consume)
+        }
+        UseCase::ContinuousKeyedMessages => {
+            return hash_continuous_keyed_messages(
+                algorithm,
+                input,
+                point.bytes,
+                iterations,
+                consume,
+            )
         }
         UseCase::ContinuousBatches => {
             return hash_continuous_batches(algorithm, input, point, iterations, consume)
@@ -5568,6 +5612,80 @@ fn hash_continuous_messages(
     hash_lent(algorithm, input, one, iterations, consume)
 }
 
+#[inline(always)]
+fn hash_continuous_keyed_messages(
+    algorithm: Algorithm,
+    blocks: &[u8],
+    len: usize,
+    iterations: usize,
+    mut consume: impl FnMut(&[u8]),
+) {
+    let input = &blocks[..len];
+    if algorithm == Algorithm::Blake3ServilMt {
+        return pipeline::keyed_messages(
+            (0..iterations).map(|i| (input, &PER_MESSAGE_KEYS[i & 1])),
+            consume,
+        );
+    }
+    let piece_cap = if algorithm == Algorithm::Blake3Rayon {
+        len
+    } else {
+        len.min(PIECE_LEN)
+    };
+    let buf_len = piece_cap + BLOCK_SPARE;
+    let mut buffers = take_buffers(1, buf_len);
+    for i in 0..iterations {
+        let key = black_box(&PER_MESSAGE_KEYS[i & 1]);
+        let buffer = &mut buffers[0];
+        match algorithm {
+            Algorithm::Blake3ServilSt if len <= PIECE_LEN => {
+                let at = block_message(buffer, black_box(input));
+                let padded = len.next_multiple_of(BLOCK_LEN);
+                let hash = blake3_servil::throughput::hash(
+                    blake3_servil::Mode::Keyed(key),
+                    black_box(servil_blocks(&buffer[at..][..padded])),
+                    len,
+                );
+                consume(hash.as_bytes());
+            }
+            Algorithm::Blake3ServilSt => {
+                let mut hasher =
+                    blake3_servil::convenience::Hasher::new(blake3_servil::Mode::Keyed(key), None);
+                for piece in black_box(input).chunks(PIECE_LEN) {
+                    buffer.clear();
+                    buffer.extend_from_slice(piece);
+                    hasher.update(buffer);
+                }
+                consume(hasher.finalize().as_bytes());
+            }
+            Algorithm::Blake3 if len <= PIECE_LEN => {
+                buffer.clear();
+                buffer.extend_from_slice(black_box(input));
+                let hash = blake3::keyed_hash(key, buffer);
+                consume(hash.as_bytes());
+            }
+            Algorithm::Blake3 => {
+                let mut hasher = blake3::Hasher::new_keyed(key);
+                for piece in black_box(input).chunks(PIECE_LEN) {
+                    buffer.clear();
+                    buffer.extend_from_slice(piece);
+                    hasher.update(buffer);
+                }
+                consume(hasher.finalize().as_bytes());
+            }
+            Algorithm::Blake3Rayon => {
+                buffer.clear();
+                buffer.extend_from_slice(black_box(input));
+                let mut hasher = blake3::Hasher::new_keyed(key);
+                hasher.update_rayon(buffer);
+                consume(hasher.finalize().as_bytes());
+            }
+            _ => unreachable!("ContinuousKeyedMessages measures only BLAKE3 contenders"),
+        }
+    }
+    keep_buffers(1, buf_len, buffers);
+}
+
 /*
  * The continuous batches use case: `iterations` batches, each a copy of
  * `input` read into a buffer of the program's, then hashed, the batch's
@@ -6172,7 +6290,7 @@ thread_local! {
  * and is recorded there. Keep the dispatch (hash_batch) calling exactly these.
  */
 #[cfg(test)]
-const SERVIL_CALLS: [(Algorithm, UseCase, &str); 36] = [
+const SERVIL_CALLS: [(Algorithm, UseCase, &str); 38] = [
     (Algorithm::Blake3ServilSt, UseCase::IncrementalMessage, "convenience::Hasher::new(Mode::Plain, None), one update of the complete message, finalize and consume; fresh hasher per call after other work; same prepared-input copy and alignment as OneMessage"),
     (Algorithm::Blake3ServilMt, UseCase::IncrementalMessage, "convenience::Hasher::new(Mode::Plain, None), one throughput::update_multithreaded of the complete message, finalize and consume; fresh hasher per call after other work; same prepared-input copy and alignment as OneMessage"),
     (Algorithm::Blake3ServilSt, UseCase::LentIncrementalMessage, "convenience::Hasher::new(Mode::Plain, None), one update of the complete message, finalize and consume; fresh hasher per nonstop call; same kept-buffer input copy as LentMessages"),
@@ -6192,8 +6310,10 @@ const SERVIL_CALLS: [(Algorithm, UseCase, &str); 36] = [
     (Algorithm::Blake3ServilSt, UseCase::ManyLongMessages, "throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work"),
     (Algorithm::Blake3ServilMt, UseCase::ManyLongMessages, "throughput::hash_many_multithreaded(Mode::Plain, &Batch::from_blocks(blocks, 4096), out), the batch borrowed in place, each call after other work"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousMessages, "throughput::Pipeline kept per producer (1024 message slots, 16 rooms of 64 KiB); message, copy into rooms, commit, end; short messages share a room, each nonfinal commit of a long message fills a room; consume Hashed events at the message limit and drain every result before the sample ends"),
+    (Algorithm::Blake3ServilMt, UseCase::ContinuousKeyedMessages, "throughput::Pipeline kept per producer (1024 message slots, 16 rooms of 64 KiB, separate from plain ContinuousMessages); message_with(Mode::Keyed(key)) alternating two keys per message, copy into rooms, commit, end; consume Hashed events at the message limit and drain every result before the sample ends"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousBatches, "throughput::Pipeline and owned Batch inputs and digest boxes kept per producer and batch size; about 1 MiB of input buffers, at least 2 and at most 1024; refill by one bulk copy, message, batch; consume each Batch event's digests before reusing its storage, drain every result before the sample ends"),
     (Algorithm::Blake3ServilSt, UseCase::ContinuousMessages, "throughput::hash(Mode::Plain, blocks, len), one message after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread (a Hasher fed 64 KiB pieces above 64 KiB)"),
+    (Algorithm::Blake3ServilSt, UseCase::ContinuousKeyedMessages, "throughput::hash(Mode::Keyed(key), blocks, len), alternating two keys per message, each read into a kept buffer of the program's in whole blocks and hashed on its thread (a keyed Hasher fed 64 KiB pieces above 64 KiB)"),
     (Algorithm::Blake3ServilSt, UseCase::ContinuousBatches, "throughput::hash_many(Mode::Plain, &Batch::from_blocks(blocks, 64), out), the batch borrowed in place, one batch after another, each read into a kept buffer of the program's and hashed on its thread"),
     (Algorithm::Blake3ServilMt, UseCase::ContinuousCollection, "throughput::Pipeline, the same rooms and calls as ContinuousMessages, the collection's items in order, each copied once into rooms; consume every item's Hashed event before the sample ends"),
     (Algorithm::Blake3ServilSt, UseCase::ContinuousCollection, "throughput::hash(Mode::Plain, blocks, len), the collection's messages one after another, each read into a kept buffer of the program's in whole blocks and hashed on its thread"),
@@ -7056,7 +7176,7 @@ fn cell_wants_sample(slot: usize, rounds: usize, visits: usize) -> bool {
  */
 fn continuous_min_inputs(input: &[u8], point: Point) -> usize {
     match point.use_case {
-        UseCase::ContinuousMessages => {
+        UseCase::ContinuousMessages | UseCase::ContinuousKeyedMessages => {
             let pieces = input.len().div_ceil(PIECE_LEN).max(1);
             2 * in_flight(input.len().min(PIECE_LEN)).div_ceil(pieces)
         }
@@ -9712,6 +9832,35 @@ mod correctness_tests {
             }
         }
         assert_eq!(checked, read.cells.len(), "every cell read back, none more");
+    }
+
+    #[test]
+    fn continuous_keyed_messages_match_blake3_keyed_hash() {
+        blake3_servil::initialize_multithreaded(None);
+        for &point in &POINTS[UseCase::ContinuousKeyedMessages.points()] {
+            let input = make_input(point.bytes);
+            let (buf, at) = block_copy(&input);
+            let blocks = &buf[at..][..point.bytes.next_multiple_of(BLOCK_LEN)];
+            let want: Vec<[u8; 32]> = (0..4)
+                .map(|i| *blake3::keyed_hash(&PER_MESSAGE_KEYS[i & 1], &input).as_bytes())
+                .collect();
+            for algorithm in Algorithm::ALL {
+                if !algorithm.takes_part(UseCase::ContinuousKeyedMessages) {
+                    continue;
+                }
+                let mut got = Vec::new();
+                hash_batch(algorithm, blocks, point, 4, |d| {
+                    got.push(<[u8; 32]>::try_from(d).unwrap())
+                });
+                assert_eq!(
+                    got,
+                    want,
+                    "{} ContinuousKeyedMessages {}",
+                    algorithm.key(),
+                    point.label
+                );
+            }
+        }
     }
 
     #[test]
