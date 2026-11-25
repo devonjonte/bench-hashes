@@ -1010,6 +1010,7 @@ fn report(
             ""
         }
     );
+    out += &format!("layouts:   {}\n", layout_summary(specs, rounds));
     out += left_out.unwrap_or("");
     out += "\ncontenders:\n";
     for c in specs {
@@ -1147,39 +1148,97 @@ fn report(
         }
         out += &table(&rows);
         if cache == Cache::Cold {
-            // From the counts: each cold cell's reads from storage.
-            let mut warm_cells = Vec::new();
-            for (i, input) in inputs.iter().enumerate() {
-                for (c, spec) in specs.iter().enumerate() {
-                    if let Some(read) = median_u64(
-                        cells[ci][i][c]
-                            .iter()
-                            .filter_map(|r| r.storage_read_bytes)
-                            .collect(),
-                    ) {
-                        if read * 2 < input.bytes {
-                            warm_cells.push(format!(
-                                "{} on {} read {} of {} from storage",
-                                spec.name,
-                                input.label,
-                                size_label_approx(read),
-                                size_label(input.bytes)
-                            ));
-                        }
-                    }
-                }
-            }
-            out += &if warm_cells.is_empty() {
-                "\nEvery cold run read its files from storage (by the counts).\n".to_owned()
-            } else {
-                format!(
-                    "\nNot cold: the page cache still served these runs (median reads): {}.\n",
-                    warm_cells.join("; ")
-                )
-            };
+            out += &cold_read_summary(specs, inputs, &cells[ci]);
         }
     }
     out
+}
+
+/// Summarize distinct executable digests per contender separately from the
+/// number of rounds, qualifying repeated single-build runs explicitly.
+fn layout_summary(specs: &[Contender], rounds: u64) -> String {
+    let parts: Vec<String> = specs
+        .iter()
+        .map(|c| {
+            let distinct = c
+                .builds
+                .iter()
+                .map(|b| b.digest.as_str())
+                .collect::<std::collections::BTreeSet<_>>()
+                .len();
+            if distinct <= 1 && rounds > 1 {
+                format!(
+                    "{}: {} distinct build digest across {rounds} rounds (repeated runs of one binary, not distinct link layouts)",
+                    c.name, distinct
+                )
+            } else {
+                format!(
+                    "{}: {distinct} distinct build {} across {rounds} rounds",
+                    c.name,
+                    if distinct == 1 { "digest" } else { "digests" }
+                )
+            }
+        })
+        .collect();
+    parts.join("; ")
+}
+
+/// Report per-run cold-storage read counts directly (meeting threshold,
+/// below threshold, or uncounted) rather than inferring all runs were cold
+/// from a per-cell median.
+fn cold_read_summary(
+    specs: &[Contender],
+    inputs: &[Input],
+    cold_cells: &[Vec<Vec<clocks::child::Run>>],
+) -> String {
+    let (mut total, mut met, mut below, mut uncounted) = (0usize, 0usize, 0usize, 0usize);
+    let mut below_details = Vec::new();
+    for (i, input) in inputs.iter().enumerate() {
+        for (c, spec) in specs.iter().enumerate() {
+            let runs = &cold_cells[i][c];
+            let mut cell_below = 0usize;
+            let mut min_read = u64::MAX;
+            for r in runs {
+                total += 1;
+                match r.storage_read_bytes {
+                    Some(read) if read * 2 >= input.bytes => met += 1,
+                    Some(read) => {
+                        below += 1;
+                        cell_below += 1;
+                        min_read = min_read.min(read);
+                    }
+                    None => uncounted += 1,
+                }
+            }
+            if cell_below > 0 {
+                below_details.push(format!(
+                    "{} on {} ({cell_below}/{} runs below half, min {} of {})",
+                    spec.name,
+                    input.label,
+                    runs.len(),
+                    size_label_approx(min_read),
+                    size_label(input.bytes)
+                ));
+            }
+        }
+    }
+    if total == 0 {
+        return "\nCold storage reads: no cold runs recorded.\n".to_owned();
+    }
+    if below == 0 && uncounted == 0 {
+        return format!(
+            "\nCold storage reads: all {met} of {total} cold runs read at least half their input size from storage.\n"
+        );
+    }
+    if below == 0 {
+        return format!(
+            "\nCold storage reads: {met} of {total} cold runs met the storage-read threshold; {uncounted} lacked storage-read counts (cannot confirm every run read from storage).\n"
+        );
+    }
+    format!(
+        "\nCold storage reads: {met} of {total} met the threshold, {below} fell below half their input size, {uncounted} lacked counts ({}).\n",
+        below_details.join("; ")
+    )
 }
 
 fn median_u64(mut v: Vec<u64>) -> Option<u64> {
@@ -1420,5 +1479,110 @@ mod tests {
             seen.sort_unstable();
             assert_eq!(seen, (0..count).collect::<Vec<_>>());
         }
+    }
+
+    #[test]
+    fn cold_read_summary_reports_uncounted_and_warm_outliers_honestly() {
+        let spec = Contender {
+            name: "b3sum".to_owned(),
+            builds: Vec::new(),
+            args: Vec::new(),
+            version: String::new(),
+        };
+        let mut input = named_input("16 MiB");
+        input.bytes = 16 * MIB;
+        let make_run = |storage_read_bytes| clocks::child::Run {
+            started_ns: 0,
+            wall_ns: 1_000,
+            ended: clocks::child::Ended::Exit(0),
+            cpu_ns: None,
+            max_rss_bytes: None,
+            storage_read_bytes,
+            major_faults: None,
+            counts: None,
+        };
+        // All 4 runs meet >= half input size (16 MiB / 2 = 8 MiB).
+        let all_cold = vec![vec![vec![
+            make_run(Some(16 * MIB)),
+            make_run(Some(16 * MIB)),
+            make_run(Some(12 * MIB)),
+            make_run(Some(8 * MIB)),
+        ]]];
+        let text = cold_read_summary(
+            std::slice::from_ref(&spec),
+            std::slice::from_ref(&input),
+            &all_cold,
+        );
+        assert!(text.contains("all 4 of 4 cold runs"), "{text}");
+
+        // 3 cold runs + 1 missing count must not claim every run was cold.
+        let with_missing = vec![vec![vec![
+            make_run(Some(16 * MIB)),
+            make_run(Some(16 * MIB)),
+            make_run(Some(16 * MIB)),
+            make_run(None),
+        ]]];
+        let text = cold_read_summary(
+            std::slice::from_ref(&spec),
+            std::slice::from_ref(&input),
+            &with_missing,
+        );
+        assert!(text.contains("3 of 4"), "{text}");
+        assert!(text.contains("1 lacked storage-read counts"), "{text}");
+        assert!(!text.contains("all 4 of 4"), "{text}");
+
+        // 3 cold runs + 1 warm outlier: median is still 16 MiB, yet per-run check catches it.
+        let with_outlier = vec![vec![vec![
+            make_run(Some(16 * MIB)),
+            make_run(Some(16 * MIB)),
+            make_run(Some(16 * MIB)),
+            make_run(Some(64 * KIB)),
+        ]]];
+        let text = cold_read_summary(
+            std::slice::from_ref(&spec),
+            std::slice::from_ref(&input),
+            &with_outlier,
+        );
+        assert!(text.contains("1 fell below half"), "{text}");
+        assert!(text.contains("1/4 runs below half"), "{text}");
+    }
+
+    #[test]
+    fn layout_summary_distinguishes_distinct_digests_from_repeated_single_build() {
+        let single_repeated = Contender {
+            name: "b3sum-a".to_owned(),
+            builds: vec![
+                Build {
+                    program: PathBuf::from("/tmp/a1"),
+                    digest: "aaaa".repeat(16),
+                },
+                Build {
+                    program: PathBuf::from("/tmp/a2"),
+                    digest: "aaaa".repeat(16),
+                },
+            ],
+            args: Vec::new(),
+            version: String::new(),
+        };
+        let four_layouts = Contender {
+            name: "b3sum-b".to_owned(),
+            builds: (0..4)
+                .map(|i| Build {
+                    program: PathBuf::from(format!("/tmp/b{i}")),
+                    digest: format!("{i:064x}"),
+                })
+                .collect(),
+            args: Vec::new(),
+            version: String::new(),
+        };
+        let line = layout_summary(&[single_repeated, four_layouts], 15);
+        assert!(
+            line.contains("b3sum-a: 1 distinct build digest across 15 rounds (repeated runs of one binary, not distinct link layouts)"),
+            "{line}"
+        );
+        assert!(
+            line.contains("b3sum-b: 4 distinct build digests across 15 rounds"),
+            "{line}"
+        );
     }
 }
