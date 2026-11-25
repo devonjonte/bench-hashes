@@ -24,7 +24,9 @@
 //! the PMU cannot hold reads `None` whole). This implementation is
 //! Linux's; the Mac's (kpc, root only) lives in BLAKE3-Servil's
 //! `tools/studies/events_sampler.rs` and reads the same names.
+#[cfg(target_os = "linux")]
 use std::ffi::{c_int, c_long, c_void};
+#[cfg(target_os = "linux")]
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 
 /// The events, in the order of every record of them.
@@ -218,6 +220,7 @@ mod imp {
             Some(group)
         }
 
+        #[cfg(test)]
         pub(super) fn len(&self) -> usize {
             self.held.len()
         }

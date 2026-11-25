@@ -7297,7 +7297,8 @@ struct SamplesFile {
     /// sample's, in nanojoules, in the same order.
     energy: Vec<(String, Vec<u64>)>,
     /// The cells whose samples carry the calling thread's counts per core
-    /// kind: each sample's [P time ns, P cycles, E time ns, E cycles].
+    /// kind: each sample's P and E [time ns, cycles, instructions, cache
+    /// references, cache misses] (`LEVEL_FIELDS * 2`).
     cores: Vec<(String, Vec<[u64; LEVEL_FIELDS * 2]>)>,
     /// The cells whose samples name the CPU each sample's thread ended on.
     cpus: Vec<(String, Vec<u32>)>,
@@ -7440,10 +7441,62 @@ fn read_samples(path: &str) -> SamplesFile {
 /// cells it judges.
 const COMPARE_Q_PERMILLE: u64 = 50;
 
+/// Each cell's per-unit hardware counts (Q64.64 fixed point), both kinds of
+/// core summed over all its samples, where recorded (non-zero).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct CellCounters {
+    cycles: Option<u128>,
+    instructions: Option<u128>,
+    cache_misses: Option<u128>,
+}
+
+/// Each cell's mean wall time, optional CPU time and energy, and optional
+/// hardware counters per unit (Q64.64 fixed point).
+struct CellSummary {
+    key: String,
+    wall: u128,
+    cpu: Option<u128>,
+    energy: Option<u128>,
+    counters: CellCounters,
+}
+
+/// Each cell's cycles, instructions retired, and cache misses a unit (fixed
+/// point), both kinds of core summed over all its samples, for the cells whose
+/// samples carry counts.
+fn cell_counters(file: &SamplesFile) -> crate::Map<String, CellCounters> {
+    let cores: crate::Map<&String, &Vec<[u64; LEVEL_FIELDS * 2]>> =
+        file.cores.iter().map(|(k, c)| (k, c)).collect();
+    file.cells
+        .iter()
+        .filter_map(|(key, samples)| {
+            let rows = cores.get(key)?;
+            let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
+            let denom = units.max(1);
+            let field = |offset: usize| {
+                let sum: u128 = rows
+                    .iter()
+                    .map(|s| u128::from(s[offset]) + u128::from(s[LEVEL_FIELDS + offset]))
+                    .sum();
+                // Counts all zero are counts not taken (an older bench on a
+                // platform whose counts it could not read writes them so): no
+                // evidence, as a missing column is, and nothing to divide by.
+                (sum > 0).then(|| (sum << 64) / denom)
+            };
+            let counters = CellCounters {
+                cycles: field(1),
+                instructions: field(2),
+                cache_misses: field(4),
+            };
+            (counters != CellCounters::default()).then(|| (key.clone(), counters))
+        })
+        .collect()
+}
+
 /// Each cell's mean wall time per unit (fixed point) and, where its
-/// samples carry them, its CPU time and energy per unit: all the
-/// samples' time over their units.
-fn cell_means(file: SamplesFile) -> Vec<(String, u128, Option<u128>, Option<u128>)> {
+/// samples carry them, its CPU time, energy, and hardware counters per unit:
+/// all the samples' totals over their units.
+fn cell_means(file: SamplesFile) -> Vec<CellSummary> {
+    let counters = cell_counters(&file);
     let cpu: crate::Map<String, Vec<u64>> = file.cpu.into_iter().collect();
     let energy: crate::Map<String, Vec<u64>> = file.energy.into_iter().collect();
     file.cells
@@ -7457,30 +7510,14 @@ fn cell_means(file: SamplesFile) -> Vec<(String, u128, Option<u128>, Option<u128
                     .filter(|&v| v > 0)
             };
             let (c, e) = (per_unit(&cpu), per_unit(&energy));
-            (key, Mean::of(&samples).fixed().0, c, e)
-        })
-        .collect()
-}
-
-/// Each cell's instructions retired a unit (fixed point), both kinds of
-/// core summed over all its samples, for the cells whose samples carry
-/// counts: what names a level cell a suspect (instructions_moved).
-fn cell_instructions(file: &SamplesFile) -> crate::Map<String, u128> {
-    let cores: crate::Map<&String, &Vec<[u64; LEVEL_FIELDS * 2]>> =
-        file.cores.iter().map(|(k, c)| (k, c)).collect();
-    file.cells
-        .iter()
-        .filter_map(|(key, samples)| {
-            let units: u128 = samples.iter().map(|m| u128::from(m.units)).sum();
-            let instructions: u128 = cores
-                .get(key)?
-                .iter()
-                .map(|s| u128::from(s[2] + s[LEVEL_FIELDS + 2]))
-                .sum();
-            // Counts all zero are counts not taken (an older bench on a
-            // platform whose counts it could not read writes them so): no
-            // evidence, as a missing column is, and nothing to divide by.
-            (instructions > 0).then(|| (key.clone(), (instructions << 64) / units.max(1)))
+            let cell_counts = counters.get(&key).copied().unwrap_or_default();
+            CellSummary {
+                key,
+                wall: Mean::of(&samples).fixed().0,
+                cpu: c,
+                energy: e,
+                counters: cell_counts,
+            }
         })
         .collect()
 }
@@ -7501,8 +7538,8 @@ fn compare_command(arguments: &[String]) {
         "{usage}; at least three pairs"
     );
     // Each cell's mean wall time per unit, and (where its samples carry
-    // them) its CPU time and energy per unit: all the samples' CPU time, or
-    // energy, over their units, in the same fixed point.
+    // them) its CPU time, energy, and hardware counts per unit: all the
+    // samples' totals over their units, in the same fixed point.
     let (mut old_builds, mut new_builds) = (Vec::new(), Vec::new());
     let means = |path: &String, builds: &mut Vec<String>| {
         let file = read_samples(path);
@@ -7518,54 +7555,79 @@ fn compare_command(arguments: &[String]) {
         }
         cell_means(file)
     };
-    // Every cell's means a pair, wall time and (where both sides carry it)
-    // CPU time, in the first old run's order.
+    // Every cell's means a pair, wall time and (where both sides carry them)
+    // CPU time, energy, and hardware counts, in the first old run's order.
     type Pairs = Vec<(u128, u128)>;
+    #[derive(Default)]
+    struct CompareCell {
+        wall: Pairs,
+        cpu: Pairs,
+        energy: Pairs,
+        cycles: Pairs,
+        instructions: Pairs,
+        misses: Pairs,
+    }
     let mut order: Vec<String> = Vec::new();
-    let mut cells: crate::Map<String, (Pairs, Pairs, Pairs)> = crate::Map::default();
+    let mut cells: crate::Map<String, CompareCell> = crate::Map::default();
     for (old_path, new_path) in old.iter().zip(new) {
-        let new_means: crate::Map<String, (u128, Option<u128>, Option<u128>)> =
-            means(new_path, &mut new_builds)
-                .into_iter()
-                .map(|(k, m, c, e)| (k, (m, c, e)))
-                .collect();
-        for (key, old_mean, old_cpu, old_energy) in means(old_path, &mut old_builds) {
-            let Some(&(new_mean, new_cpu, new_energy)) = new_means.get(&key) else {
+        let new_means: crate::Map<String, CellSummary> = means(new_path, &mut new_builds)
+            .into_iter()
+            .map(|s| (s.key.clone(), s))
+            .collect();
+        for old_cell in means(old_path, &mut old_builds) {
+            let Some(new_cell) = new_means.get(&old_cell.key) else {
                 continue;
             };
-            if !cells.contains_key(&key) {
-                order.push(key.clone());
+            if !cells.contains_key(&old_cell.key) {
+                order.push(old_cell.key.clone());
             }
-            let (wall, cpu, energy) = cells.entry(key).or_default();
-            wall.push((old_mean, new_mean));
-            if let (Some(o), Some(n)) = (old_cpu, new_cpu) {
-                cpu.push((o, n));
+            let entry = cells.entry(old_cell.key).or_default();
+            entry.wall.push((old_cell.wall, new_cell.wall));
+            if let (Some(o), Some(n)) = (old_cell.cpu, new_cell.cpu) {
+                entry.cpu.push((o, n));
             }
-            if let (Some(o), Some(n)) = (old_energy, new_energy) {
-                energy.push((o, n));
+            if let (Some(o), Some(n)) = (old_cell.energy, new_cell.energy) {
+                entry.energy.push((o, n));
+            }
+            if let (Some(o), Some(n)) = (old_cell.counters.cycles, new_cell.counters.cycles) {
+                entry.cycles.push((o, n));
+            }
+            if let (Some(o), Some(n)) = (
+                old_cell.counters.instructions,
+                new_cell.counters.instructions,
+            ) {
+                entry.instructions.push((o, n));
+            }
+            if let (Some(o), Some(n)) = (
+                old_cell.counters.cache_misses,
+                new_cell.counters.cache_misses,
+            ) {
+                entry.misses.push((o, n));
             }
         }
     }
     print_sides("compare", &old_builds, &new_builds);
     // Only cells every pair measured.
-    order.retain(|key| cells[key].0.len() == old.len());
-    let tested: Vec<Pairs> = order.iter().map(|key| cells[key].0.clone()).collect();
+    order.retain(|key| cells[key].wall.len() == old.len());
+    let tested: Vec<Pairs> = order.iter().map(|key| cells[key].wall.clone()).collect();
     let (judged, _) = judge_once(&tested);
     let times = |permille: u64| format!("x{}.{:03}", permille / 1000, permille % 1000);
     if markdown {
-        println!("| cell | old ns/unit | new ns/unit | new/old | verdict | pairs faster | CPU time | energy |");
-        println!("|---|---:|---:|---:|---|---:|---:|---:|");
+        println!("| cell | old ns/unit | new ns/unit | new/old | verdict | pairs faster | CPU time | energy | cycles | instructions | cache misses |");
+        println!("|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|");
     }
     for (key, judgment) in order.into_iter().zip(judged) {
-        let (wall, cpu, energy) = &cells[&key];
+        let cell = &cells[&key];
+        let wall = &cell.wall;
         let verdict = match judgment.verdict {
             clocks::summary::Verdict::Slower => "slower",
             clocks::summary::Verdict::Faster => "faster",
             clocks::summary::Verdict::Level => "level",
         };
         let faster = wall.iter().filter(|(old, new)| new < old).count();
-        // CPU time beside wall time, by the same ratio, with no verdict (the
-        // rule judges wall time), where every pair has it.
+        // CPU time, energy, and hardware counts beside wall time, by the same
+        // ratio, with no verdict (the rule judges wall time), where every pair
+        // has them.
         let beside = |name: &str, pairs: &Pairs| {
             if pairs.len() == wall.len() {
                 format!(
@@ -7589,20 +7651,27 @@ fn compare_command(arguments: &[String]) {
                 }
             };
             println!(
-                "| {} | {} | {} | {} | {verdict} | {faster} of {} | {} | {} |",
+                "| {} | {} | {} | {} | {verdict} | {faster} of {} | {} | {} | {} | {} | {} |",
                 key.replace('|', " / "),
                 Fixed(a).format_ns(),
                 Fixed(b).format_ns(),
                 times(judgment.ratio_permille),
                 wall.len(),
-                column(cpu),
-                column(energy)
+                column(&cell.cpu),
+                column(&cell.energy),
+                column(&cell.cycles),
+                column(&cell.instructions),
+                column(&cell.misses)
             );
             continue;
         }
-        let cpu = beside("CPU time", cpu) + &beside("energy", energy);
+        let extra = beside("CPU time", &cell.cpu)
+            + &beside("energy", &cell.energy)
+            + &beside("cycles", &cell.cycles)
+            + &beside("instructions", &cell.instructions)
+            + &beside("cache misses", &cell.misses);
         println!(
-            "{key}: {} -> {} ns/unit  {} {verdict}, {faster} of {} pairs faster{cpu}",
+            "{key}: {} -> {} ns/unit  {} {verdict}, {faster} of {} pairs faster{extra}",
             Fixed(a).format_ns(),
             Fixed(b).format_ns(),
             times(judgment.ratio_permille),
@@ -8025,6 +8094,34 @@ fn percent(permille: u64) -> String {
     )
 }
 
+/// Hardware-counter summary appended to a judged `regress` line when every
+/// pair carries non-zero counts on both sides.
+fn counter_note(
+    cycles: &[(u128, u128)],
+    instructions: &[(u128, u128)],
+    misses: &[(u128, u128)],
+    pairs: usize,
+) -> String {
+    let mut parts = Vec::new();
+    for (name, series) in [
+        ("cycles", cycles),
+        ("instructions", instructions),
+        ("cache misses", misses),
+    ] {
+        if series.len() == pairs && pairs > 0 {
+            parts.push(format!(
+                "{name} {}",
+                percent(clocks::summary::geometric_mean_permille(series))
+            ));
+        }
+    }
+    if parts.is_empty() {
+        String::new()
+    } else {
+        format!(" [{}]", parts.join(", "))
+    }
+}
+
 /// A judged cell's line: its verdict and the ratio judged, then how far
 /// the pairs spread (each pair is its own link layout, so the spread is
 /// what a layout and a run can move this cell), then every pair.
@@ -8210,7 +8307,13 @@ fn regress_command(arguments: &[String]) -> i32 {
     // (other programs busy, or no load window).
     let mut instruction_ratios: std::collections::BTreeMap<String, Vec<u64>> =
         std::collections::BTreeMap::new();
-    // A run's means (wall, and instructions a unit where the machine
+    let mut cycle_pairs: std::collections::BTreeMap<String, Vec<(u128, u128)>> =
+        std::collections::BTreeMap::new();
+    let mut instruction_pairs: std::collections::BTreeMap<String, Vec<(u128, u128)>> =
+        std::collections::BTreeMap::new();
+    let mut miss_pairs: std::collections::BTreeMap<String, Vec<(u128, u128)>> =
+        std::collections::BTreeMap::new();
+    // A run's means (wall, and hardware counts a unit where the machine
     // counts them), and its load line when clocks found it no evidence
     // (other programs busy, or no load window).
     let mut means = |exe: &str,
@@ -8218,7 +8321,7 @@ fn regress_command(arguments: &[String]) -> i32 {
                      pin: Option<usize>|
      -> (
         crate::Map<String, u128>,
-        crate::Map<String, u128>,
+        crate::Map<String, CellCounters>,
         Option<String>,
         Option<std::path::PathBuf>,
     ) {
@@ -8244,13 +8347,13 @@ fn regress_command(arguments: &[String]) -> i32 {
         // line says "not measured", and the run is evidence: keep that
         // machine quiet by hand while it measures.
         let busy = (clocks::load::MEASURED && !load.starts_with("quiet")).then_some(load);
-        let instructions = cell_instructions(&file);
+        let counters = cell_counters(&file);
         (
             file.cells
                 .into_iter()
                 .map(|(key, samples)| (key, Mean::of(&samples).fixed().0))
                 .collect(),
-            instructions,
+            counters,
             busy,
             kept,
         )
@@ -8266,9 +8369,9 @@ fn regress_command(arguments: &[String]) -> i32 {
             &old_exes[pair % old_exes.len()],
             &new_exes[pair % new_exes.len()],
         );
-        let (old, old_instructions, new, new_instructions) = loop {
+        let (old, old_counters, new, new_counters) = loop {
             let pin = pins[pair];
-            let ((old, oi, a, old_path), (new, ni, b, new_path)) = if pair % 2 == 0 {
+            let ((old, oc, a, old_path), (new, nc, b, new_path)) = if pair % 2 == 0 {
                 let o = means(old_exe, "old", pin);
                 (o, means(new_exe, "new", pin))
             } else {
@@ -8277,22 +8380,35 @@ fn regress_command(arguments: &[String]) -> i32 {
             };
             let busy: Vec<String> = a.into_iter().chain(b).collect();
             if busy.is_empty() {
-                break (old, oi, new, ni);
+                break (old, oc, new, nc);
             }
             attempt += 1;
             if attempt > REGRESS_REPEATS {
                 unreliable.extend(busy);
-                break (old, oi, new, ni);
+                break (old, oc, new, nc);
             }
             keep_retried_pair(old_path.as_deref(), new_path.as_deref());
             eprintln!("regress: pair {} again: {}", pair + 1, busy.join("; "));
         };
-        for (key, old_count) in &old_instructions {
-            if let Some(new_count) = new_instructions.get(key) {
+        for (key, old_count) in &old_counters {
+            let Some(new_count) = new_counters.get(key) else {
+                continue;
+            };
+            if let (Some(o), Some(n)) = (old_count.cycles, new_count.cycles) {
+                cycle_pairs.entry(key.clone()).or_default().push((o, n));
+            }
+            if let (Some(o), Some(n)) = (old_count.instructions, new_count.instructions) {
                 instruction_ratios
                     .entry(key.clone())
                     .or_default()
-                    .push(clocks::summary::ratio_permille(*new_count, *old_count));
+                    .push(clocks::summary::ratio_permille(n, o));
+                instruction_pairs
+                    .entry(key.clone())
+                    .or_default()
+                    .push((o, n));
+            }
+            if let (Some(o), Some(n)) = (old_count.cache_misses, new_count.cache_misses) {
+                miss_pairs.entry(key.clone()).or_default().push((o, n));
             }
         }
         for (key, old_mean) in &old {
@@ -8375,8 +8491,14 @@ fn regress_command(arguments: &[String]) -> i32 {
         } else {
             "faster"
         };
+        let note = counter_note(
+            cycle_pairs.get(key).map(Vec::as_slice).unwrap_or(&[]),
+            instruction_pairs.get(key).map(Vec::as_slice).unwrap_or(&[]),
+            miss_pairs.get(key).map(Vec::as_slice).unwrap_or(&[]),
+            pairs,
+        );
         println!(
-            "{}",
+            "{}{note}",
             judged_line(word, key, judgment.ratio_permille, &ratios[key])
         );
     }
@@ -8992,6 +9114,7 @@ fn effective_idle_states() -> String {
 }
 
 /// A pause as the headings name it: "20 μs", "5 ms".
+#[cfg(target_os = "linux")]
 fn describe_pause(ns: u64) -> String {
     if ns % 1_000_000 == 0 {
         format!("{} ms", ns / 1_000_000)
@@ -9001,6 +9124,7 @@ fn describe_pause(ns: u64) -> String {
 }
 
 /// The pauses the line measures, each repeated to about 100 ms of sleep.
+#[cfg(target_os = "linux")]
 const EFFECTIVE_IDLE_PAUSES: [(u64, u32); 2] = [(BRIEF_PAUSE_NS, 1000), (LONG_PAUSE_NS, 20)];
 
 #[cfg(target_os = "linux")]
@@ -9152,6 +9276,7 @@ fn effective_idle_states_linux() -> Option<String> {
 /// The line: each state's share of the pause's ticks (the TSC's), and the
 /// rest, which the core spent awake or in a state no counter names:
 /// "C1 5%, C6 95%, C7 0%, awake or unnamed 0%".
+#[cfg(any(target_os = "linux", test))]
 fn describe_effective_idle_states(names: &[&str], ticks: &[u64], pause_ticks: u128) -> String {
     let total: u128 = ticks.iter().map(|&t| u128::from(t)).sum();
     let pause_ticks = pause_ticks.max(total).max(1);
@@ -9794,6 +9919,44 @@ mod correctness_tests {
     }
 
     #[test]
+    fn cell_counters_and_counter_note_summarize_hardware_counts() {
+        let key = "blake3-servil-mt|solo|ContinuousMessages|4 KiB".to_owned();
+        let file = SamplesFile {
+            headers: Vec::new(),
+            load: "quiet".to_owned(),
+            power: "mains".to_owned(),
+            cells: vec![(
+                key.clone(),
+                vec![Measured::new(100, 10), Measured::new(100, 10)],
+            )],
+            cpu: Vec::new(),
+            energy: Vec::new(),
+            cores: vec![(
+                key.clone(),
+                vec![
+                    [100, 400, 800, 50, 10, 50, 200, 400, 25, 10],
+                    [100, 600, 1200, 50, 20, 50, 200, 400, 25, 0],
+                ],
+            )],
+            cpus: Vec::new(),
+        };
+        let counters = super::cell_counters(&file);
+        let c = counters[&key];
+        assert_eq!(c.cycles, Some((1400u128 << 64) / 20));
+        assert_eq!(c.instructions, Some((2800u128 << 64) / 20));
+        assert_eq!(c.cache_misses, Some((40u128 << 64) / 20));
+
+        assert_eq!(super::counter_note(&[], &[], &[], 3), "");
+        let cycles = [(1000u128 << 64, 1050u128 << 64); 3];
+        let ins = [(2000u128 << 64, 2020u128 << 64); 3];
+        let misses = [(100u128 << 64, 90u128 << 64); 2]; // incomplete pair count omitted
+        assert_eq!(
+            super::counter_note(&cycles, &ins, &misses, 3),
+            " [cycles +5.0%, instructions +1.0%]"
+        );
+    }
+
+    #[test]
     fn regress_merges_the_sides_sizes() {
         let old =
             format!("{SIZES_VERSION}\nsha256\t64 B\t40\nblake3-servil-mt\tcontinuous 64 B\t9\n");
@@ -10179,7 +10342,10 @@ mod correctness_tests {
             read_samples(&write("old.tsv", 20_000, true)),
             read_samples(&write("new.tsv", 21_000, true)),
         );
-        let (o, n) = (cell_instructions(&old)[key], cell_instructions(&new)[key]);
+        let (o, n) = (
+            cell_counters(&old)[key].instructions.unwrap(),
+            cell_counters(&new)[key].instructions.unwrap(),
+        );
         assert!(
             n > o && (49..=51).contains(&((n - o) * 1000 / o)),
             "5% more instructions a unit: {o} to {n}"
@@ -10187,12 +10353,12 @@ mod correctness_tests {
         // P (20000 + 20001 + 20002) + E (3 x 2000), over 192 B.
         assert_eq!(o >> 64, (60_003 + 6_000) / 192);
         assert_eq!(
-            cell_means(old)[0].1,
-            cell_means(new)[0].1,
+            cell_means(old)[0].wall,
+            cell_means(new)[0].wall,
             "the same wall time"
         );
         let none = read_samples(&write("none.tsv", 0, false));
-        assert!(cell_instructions(&none).is_empty(), "no counts: none");
+        assert!(cell_counters(&none).is_empty(), "no counts: none");
         // Counts present and all zero: an older bench where it read none
         // (the Mac's check against 0.8 stopped dividing by them,
         // bench-hashes #173).
@@ -10202,8 +10368,10 @@ mod correctness_tests {
         let path = dir.join("zero-counts.tsv");
         std::fs::write(&path, zeros).unwrap();
         assert!(
-            cell_instructions(&read_samples(path.to_str().unwrap())).is_empty(),
-            "counts of zero: none"
+            cell_counters(&read_samples(path.to_str().unwrap()))[key]
+                .instructions
+                .is_none(),
+            "instructions of zero: none"
         );
         assert_eq!(cell_means(none).len(), 1);
         // A CPU-time column of zeros (a platform that counts none writes
@@ -10213,8 +10381,12 @@ mod correctness_tests {
         );
         let path = dir.join("zero-cpu.tsv");
         std::fs::write(&path, zero_cpu).unwrap();
-        let (_, _, cpu, energy) = cell_means(read_samples(path.to_str().unwrap())).remove(0);
-        assert_eq!((cpu, energy), (None, None), "zero CPU time a unit: none");
+        let summary = cell_means(read_samples(path.to_str().unwrap())).remove(0);
+        assert_eq!(
+            (summary.cpu, summary.energy),
+            (None, None),
+            "zero CPU time a unit: none"
+        );
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

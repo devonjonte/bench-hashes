@@ -66,14 +66,17 @@ statistics, the report, and the map.
 
 Measure before building: `bench-hashes check --fork ../BLAKE3 --against
 next --probe "3 KiB,brief idle 3 KiB"` gives each named cell's ratio in
-about three minutes (three fresh pairs, no verdict). Once the change is
-built, the same names with `--points` are its gate (four pairs, then the
-second stage on its suspects). `check` prints the diff's files and the
-items its hunks sit in first; its author reads that summary and names the
-cells the change can move. With no scope named it stops there, before any
-build. `--cells all` measures every point, for a release or a change its
-author judges can act anywhere. A change to the library carries its
-probe's line in its pull request.
+about three minutes (three fresh pairs by default, or pass `--layouts N`
+before or after `--probe`, no verdict). `--probe` and `--cells` also
+accept exact contender|point cells (`"blake3-servil-mt|continuous 64 B;
+blake3-servil-st|4 KiB"`). Once the change is built, the same names with
+`--points` or `--cells` are its gate (four pairs, then the second stage
+on its suspects). `check` prints the diff's files and the items its hunks
+sit in first; its author reads that summary and names the cells the
+change can move. With no scope named it stops there, before any build.
+`--cells all` measures every point, for a release or a change its author
+judges can act anywhere. A change to the library carries its probe's line
+in its pull request.
 
 Keep a check you will cite with `--keep DIR`. The directory must be new or empty
 and used only by that invocation; `check` and `regress` stop before expensive
