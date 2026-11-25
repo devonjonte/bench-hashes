@@ -3732,6 +3732,10 @@ fn measure_all(
          * samples every round. No contender skips a position because its
          * calibrated call is slower.
          */
+        if !pattern_has_selected_work(roster, &point_orders, pattern) {
+            continue;
+        }
+
         progress.phase(match pattern {
             "nonstop" => "measuring one after another",
             "receiving" => "measuring receive and hash",
@@ -3741,8 +3745,9 @@ fn measure_all(
             _ => "measuring after idling",
         });
         // The controlled cells' rounds run with the deep states off; the
-        // guard puts them back when the rounds end (IdleControlGuard).
-        let _deep_states_off = (pattern == "controlled")
+        // guard restores every changed file at the end of the phase (or on
+        // unwind in Drop) and reports any restore failure.
+        let deep_states_off = (pattern == "controlled")
             .then(|| roster.idle_control.as_ref().map(IdleControl::apply))
             .flatten();
 
@@ -3860,6 +3865,11 @@ fn measure_all(
                     }
                 }
             }
+        }
+        if let Some(guard) = deep_states_off {
+            guard
+                .restore()
+                .unwrap_or_else(|e| panic!("restoring cpuidle states: {e}"));
         }
     }
 
@@ -7816,6 +7826,31 @@ struct IdleControl {
     has_c1: bool,
 }
 
+fn pattern_has_selected_work(
+    roster: &Roster,
+    point_orders: &[Vec<Vec<usize>>],
+    pattern: &str,
+) -> bool {
+    roster.points.iter().any(|&point_index| {
+        POINTS[point_index].use_case.pattern_key() == pattern
+            && !point_orders[point_index].is_empty()
+    })
+}
+
+fn restore_idle_entries(entries: &[(&std::path::Path, &str)]) -> Result<(), String> {
+    let mut errors = Vec::new();
+    for (path, held) in entries {
+        if let Err(e) = fs::write(path, format!("{held}\n")) {
+            errors.push(format!("{}: {e}", path.display()));
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
 impl IdleControl {
     /// The control for the cpuidle tree at `root` (`/sys/devices/system/cpu`):
     /// None where there are no states, or any `disable` file is not
@@ -7848,6 +7883,7 @@ impl IdleControl {
                 files.push((disable, held, keep));
             }
         }
+        files.sort_by(|a, b| a.0.cmp(&b.0));
         let has_c1 = names.contains("C1");
         (!files.is_empty() && files.iter().any(|(_, _, keep)| !keep))
             .then_some(IdleControl { files, has_c1 })
@@ -7862,22 +7898,32 @@ impl IdleControl {
         }
     }
 
-    /// Switch every other state off, until the guard drops.
-    fn apply(&self) -> IdleControlGuard<'_> {
-        for (path, _, keep) in &self.files {
-            if !keep {
-                fs::write(path, "1\n")
-                    .unwrap_or_else(|e| panic!("switching off {}: {e}", path.display()));
+    /// Switch every currently-enabled non-kept state off; on any write failure,
+    /// roll back every file already changed before returning the error.
+    fn try_apply(&self) -> Result<IdleControlGuard<'_>, String> {
+        let mut changed: Vec<(&std::path::Path, &str)> = Vec::new();
+        for (path, held, keep) in &self.files {
+            if !keep && held != "1" {
+                if let Err(e) = fs::write(path, "1\n") {
+                    let rollback = restore_idle_entries(&changed);
+                    let mut msg = format!("switching off {}: {e}", path.display());
+                    if let Err(re) = rollback {
+                        msg.push_str(&format!("; rollback also failed: {re}"));
+                    }
+                    return Err(msg);
+                }
+                changed.push((path.as_path(), held.as_str()));
             }
         }
-        IdleControlGuard { control: self }
+        Ok(IdleControlGuard {
+            changed,
+            restored: false,
+        })
     }
 
-    /// Write every file's old value back.
-    fn restore(&self) {
-        for (path, held, _) in &self.files {
-            let _ = fs::write(path, format!("{held}\n"));
-        }
+    /// Switch every other state off, until the guard restores them.
+    fn apply(&self) -> IdleControlGuard<'_> {
+        self.try_apply().unwrap_or_else(|e| panic!("{e}"))
     }
 
     /// The header's line: what the controlled cells keep, or why there
@@ -7894,12 +7940,26 @@ impl IdleControl {
 }
 
 struct IdleControlGuard<'a> {
-    control: &'a IdleControl,
+    changed: Vec<(&'a std::path::Path, &'a str)>,
+    restored: bool,
+}
+
+impl IdleControlGuard<'_> {
+    /// Restore every file `apply()` changed, attempting all of them and
+    /// surfacing any write failure.
+    fn restore(mut self) -> Result<(), String> {
+        self.restored = true;
+        restore_idle_entries(&self.changed)
+    }
 }
 
 impl Drop for IdleControlGuard<'_> {
     fn drop(&mut self) {
-        self.control.restore();
+        if !self.restored {
+            if let Err(e) = restore_idle_entries(&self.changed) {
+                eprintln!("bench-hashes: restoring cpuidle states on drop failed: {e}");
+            }
+        }
     }
 }
 
@@ -9620,8 +9680,108 @@ mod correctness_tests {
         );
         assert_eq!(
             [read(0), read(1), read(2)],
-            ["0\n", "0\n", "0\n"],
-            "the switch was thrown for the controlled rounds and every state put back"
+            ["0", "0\n", "0\n"],
+            "POLL stayed untouched; the deep states were switched off and put back"
+        );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// A failed mid-apply rolls back every file already changed, and a failed
+    /// restore still attempts every other changed file and surfaces the error.
+    #[test]
+    fn idle_control_rolls_back_partial_apply_and_reports_failed_restore() {
+        let root = std::env::temp_dir().join(format!("bench-cpuidle-err-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let make = |states: &[(&str, &str)]| {
+            for (i, (name, disable)) in states.iter().enumerate() {
+                let dir = root.join(format!("cpu0/cpuidle/state{i}"));
+                fs::create_dir_all(&dir).unwrap();
+                fs::write(dir.join("name"), format!("{name}\n")).unwrap();
+                fs::write(dir.join("disable"), format!("{disable}\n")).unwrap();
+            }
+        };
+        make(&[("POLL", "0"), ("C1E", "0"), ("C6", "0"), ("C8", "1")]);
+        let state = |i: usize| root.join(format!("cpu0/cpuidle/state{i}/disable"));
+        let read = |i: usize| fs::read_to_string(state(i)).unwrap().trim().to_owned();
+
+        let control = IdleControl::detect(&root).expect("writable states");
+
+        // Sabotage state2/disable into a directory so write fails even as root:
+        // state1 (changed before state2) must be rolled back to "0".
+        fs::remove_file(state(2)).unwrap();
+        fs::create_dir(state(2)).unwrap();
+        let err = control
+            .try_apply()
+            .err()
+            .expect("partial apply must report failure");
+        assert!(
+            err.contains("state2/disable"),
+            "error names failed file: {err}"
+        );
+        assert_eq!(read(1), "0", "state1 rolled back after state2 failed");
+        assert_eq!(read(3), "1", "already-disabled state3 stayed untouched");
+
+        // Restore state2 as a normal file, apply cleanly, then sabotage state1
+        // before restore(): restore must surface state1's error AND still put
+        // state2 back to "0".
+        fs::remove_dir(state(2)).unwrap();
+        fs::write(state(2), "0\n").unwrap();
+        let guard = control.try_apply().expect("clean apply");
+        assert_eq!([read(0), read(1), read(2), read(3)], ["0", "1", "1", "1"]);
+        fs::remove_file(state(1)).unwrap();
+        fs::create_dir(state(1)).unwrap();
+        let err = guard.restore().expect_err("failed restore must be visible");
+        assert!(
+            err.contains("state1/disable"),
+            "error names failed restore: {err}"
+        );
+        assert_eq!(
+            read(2),
+            "0",
+            "other changed states are still restored after one failure"
+        );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// Running without any selected controlled point never touches cpuidle
+    /// sysfs files even when `IdleControl` is present.
+    #[test]
+    fn unselected_controlled_phase_never_touches_cpuidle_states() {
+        let root = std::env::temp_dir().join(format!("bench-cpuidle-skip-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        for (i, name) in ["POLL", "C1E", "C6"].iter().enumerate() {
+            let dir = root.join(format!("cpu0/cpuidle/state{i}"));
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("name"), format!("{name}\n")).unwrap();
+            fs::write(dir.join("disable"), "0\n").unwrap();
+        }
+        let control = IdleControl::detect(&root).expect("a writable tree");
+        // Sabotage state1/disable after detect: any attempt to write it panics.
+        let s1 = root.join("cpu0/cpuidle/state1/disable");
+        fs::remove_file(&s1).unwrap();
+        fs::create_dir(&s1).unwrap();
+
+        let plain = POINTS
+            .iter()
+            .position(|p| p.use_case == UseCase::OneMessage && p.label == "64 B")
+            .unwrap();
+        let mut roster = Roster::new(
+            vec![Algorithm::Sha256],
+            true,
+            Some(vec![plain]),
+            Some(1),
+            &TO_MEASURE_SPEED,
+            Some(control),
+        );
+        roster.train = Train {
+            warm_ns: 1_000_000,
+            samples: 1,
+        };
+        let (results, _, _, _) = measure_all(&roster, &Sizes::Calibrate);
+        assert!(results[0][plain].is_some());
+        assert_eq!(
+            fs::read_to_string(root.join("cpu0/cpuidle/state2/disable")).unwrap(),
+            "0\n"
         );
         fs::remove_dir_all(&root).unwrap();
     }
