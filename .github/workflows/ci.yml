@@ -117,6 +117,7 @@ jobs:
           ${{ matrix.python }} -m py_compile tools/*.py tools/pinned-run/*.py
           ${{ matrix.python }} -W default tools/test_one_assignee.py
           ${{ matrix.python }} -W default tools/test_dependency_policy.py
+          ${{ matrix.python }} -W default tools/test_nightly_drift.py
       - name: Pinned runner and fault controls
         if: runner.os == 'Linux'
         run: ${{ matrix.python }} -W default tools/pinned-run/check.py --output "${{ runner.temp }}/pinned-run-check"
