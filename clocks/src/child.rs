@@ -394,7 +394,7 @@ mod tests {
     /// busy machine (a gate's proof workers beside the tests) still tests
     /// the attribution, rather than failing or passing for its own load.
     fn background_milli_cpus() -> u64 {
-        crate::load::other_milli_cpus_over(1_000_000_000)
+        crate::load::observe_over(1_000_000_000).map_or(0, |w| w.other_milli_cpus)
     }
 
     /// The helper for the test above: does nothing unless that test set

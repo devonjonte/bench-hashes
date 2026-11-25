@@ -559,28 +559,57 @@ pub(crate) fn regress_run(
     (file, load)
 }
 
-/// The load in the windows of this process overlapping `start_ns` to
-/// `end_ns` (clocks::load's line for them), once a window covers the end:
-/// the running one closes at half a window, so this waits that long at
-/// most.
-pub(crate) fn regress_load(start_ns: u64, end_ns: u64) -> String {
+/// Maximum local wait for load windows to cover a finished child run before
+/// treating background load as unavailable instead of spinning indefinitely.
+const REGRESS_LOAD_DEADLINE_NS: u64 = 2 * clocks::load::WINDOW_NS;
+
+fn regress_load_with(
+    start_ns: u64,
+    end_ns: u64,
+    measured: bool,
+    deadline_ns: u64,
+    mut poll: impl FnMut() -> (Vec<clocks::load::Window>, bool, u64),
+    mut sleep_step: impl FnMut(),
+) -> String {
+    if !measured {
+        return clocks::load::describe(&[]);
+    }
     loop {
-        let windows = clocks::load::windows();
-        // Where the OS counts CPU time, a window covers the end within half
-        // a window; elsewhere none ever closes (describe says so).
-        let counted = clocks::load::MEASURED;
-        if windows
-            .last()
-            .map_or(!counted, |last| last.end_ns >= end_ns)
-        {
+        let (windows, available, elapsed_ns) = poll();
+        if windows.last().is_some_and(|last| last.end_ns >= end_ns) {
             let overlapping: Vec<clocks::load::Window> = windows
                 .into_iter()
                 .filter(|w| w.end_ns > start_ns && w.start_ns < end_ns)
                 .collect();
             return clocks::load::describe(&overlapping);
         }
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        if !available || elapsed_ns >= deadline_ns {
+            return "unavailable: background load windows did not cover the run".to_owned();
+        }
+        sleep_step();
     }
+}
+
+/// The load in the windows of this process overlapping `start_ns` to
+/// `end_ns` (clocks::load's line for them), once a window covers the end:
+/// stops with an unavailable (non-quiet) line if the load instrument stops
+/// responding or fails to cover `end_ns` within `REGRESS_LOAD_DEADLINE_NS`.
+pub(crate) fn regress_load(start_ns: u64, end_ns: u64) -> String {
+    let started = clocks::now();
+    regress_load_with(
+        start_ns,
+        end_ns,
+        clocks::load::MEASURED,
+        REGRESS_LOAD_DEADLINE_NS,
+        || {
+            (
+                clocks::load::windows(),
+                clocks::load::available(),
+                clocks::since_ns(started),
+            )
+        },
+        || std::thread::sleep(std::time::Duration::from_millis(50)),
+    )
 }
 
 /// A ratio in thousandths as the signed change it is: 1,206 is "+20.6%".
@@ -1086,4 +1115,66 @@ pub(crate) fn instructions_tell(key: &str) -> bool {
             .into_iter()
             .find(|a| a.key() == contender)
             .is_some_and(|a| !a.multithreaded())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn regress_load_stops_on_lost_coverage_and_unavailable_instrument() {
+        let w = |start_ns, end_ns, other_milli_cpus| clocks::load::Window {
+            start_ns,
+            end_ns,
+            other_milli_cpus,
+            steal_milli_cpus: 0,
+        };
+
+        // 1. Instrument becomes unavailable after an earlier window ending before end_ns:
+        // must stop immediately with a non-quiet unavailable result instead of spinning.
+        let mut sleeps = 0usize;
+        let out = regress_load_with(
+            1_000,
+            5_000,
+            true,
+            REGRESS_LOAD_DEADLINE_NS,
+            || (vec![w(0, 2_000, 100)], false, 0),
+            || sleeps += 1,
+        );
+        assert_eq!(sleeps, 0);
+        assert!(!out.starts_with("quiet"), "must not read as quiet: {out}");
+        assert!(out.starts_with("unavailable:"), "{out}");
+
+        // 2. Coverage stalls even while available=true: must stop at deadline.
+        let elapsed = std::cell::Cell::new(0u64);
+        let out = regress_load_with(
+            1_000,
+            5_000,
+            true,
+            100,
+            || (vec![w(0, 2_000, 100)], true, elapsed.get()),
+            || elapsed.set(elapsed.get() + 50),
+        );
+        assert_eq!(elapsed.get(), 100);
+        assert!(out.starts_with("unavailable:"), "{out}");
+
+        // 3. Window covers end_ns on the second poll: returns normal quiet line.
+        let mut poll_n = 0usize;
+        let out = regress_load_with(
+            1_000,
+            5_000,
+            true,
+            1_000,
+            || {
+                poll_n += 1;
+                if poll_n == 1 {
+                    (vec![w(0, 2_000, 100)], true, 50)
+                } else {
+                    (vec![w(0, 2_000, 100), w(2_000, 6_000, 50)], true, 100)
+                }
+            },
+            || {},
+        );
+        assert!(out.starts_with("quiet:"), "{out}");
+    }
 }
