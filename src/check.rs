@@ -1154,10 +1154,33 @@ pub fn build_against(checkout: &Path, bench: &Path, target: &Path, name: &str) -
     exe
 }
 
+/// Run `nm` on `exe` and require success, returning its symbol table text.
+fn nm_output(exe: &Path) -> String {
+    let out = Command::new("nm")
+        .arg(exe)
+        .output()
+        .unwrap_or_else(|e| panic!("check: running nm on {}: {e}", exe.display()));
+    assert!(
+        out.status.success(),
+        "check: nm failed on {}: {}",
+        exe.display(),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+/// Whether `nm` output contains a defined text symbol (`t` or `T`) matching `needle`.
+fn has_defined_text_symbol(nm: &str, needle: &str) -> bool {
+    functions_named(nm)
+        .into_iter()
+        .any(|name| name.contains(needle))
+}
+
 /// On a CPU with SME2, the build must carry the SME2 kernel (BLAKE3-Servil
 /// builds without it, with a warning, when the C compiler cannot assemble
 /// SME2): a check would measure NEON alone and miss every SME2 change. The
-/// kernel's own symbol in the executable says whether it is there.
+/// kernel's own defined text symbol in the executable says whether it is there
+/// (scanning raw bytes would match this check's own string literal in rodata).
 fn require_sme2_kernel(exe: &Path) {
     let has_sme2 = if cfg!(target_os = "macos") {
         Command::new("sysctl")
@@ -1170,12 +1193,13 @@ fn require_sme2_kernel(exe: &Path) {
     if !has_sme2 {
         return;
     }
-    let bytes = std::fs::read(exe).expect("the executable reads");
-    // The kernel's name without its crate prefix: `blake3_servil_` since BLAKE3 #164, `blake3_` before.
-    let symbol = b"sme2_hash16_chunks_512";
+    let nm = nm_output(exe);
+    // The kernel's name without its crate or Mach-O prefix:
+    // `blake3_servil_` since BLAKE3 #164, `blake3_` before, leading `_` on macOS.
     assert!(
-        bytes.windows(symbol.len()).any(|w| w == symbol),
-        "check: this CPU has SME2, and BLAKE3-Servil was built without its SME2 kernel: point CC at a compiler that assembles SME2 (CC=clang-19 on Debian 12)"
+        has_defined_text_symbol(&nm, "sme2_hash16_chunks_512"),
+        "check: this CPU has SME2, and BLAKE3-Servil was built without its SME2 kernel (no defined text symbol matching sme2_hash16_chunks_512 in {}): point CC at a compiler that assembles SME2 (CC=clang-19 on Debian 12)",
+        exe.display()
     );
 }
 
@@ -1252,6 +1276,48 @@ fn functions_named(nm: &str) -> Vec<&str> {
         .collect()
 }
 
+/// Defined text symbols (`t` and `T` lines of three fields) in realized
+/// address order: what proves two linker order files actually moved code.
+fn defined_function_order(nm: &str) -> Vec<&str> {
+    let mut entries: Vec<(u64, &str)> = nm
+        .lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split_whitespace().collect();
+            if f.len() == 3 && matches!(f[1], "t" | "T") {
+                let addr = u64::from_str_radix(f[0], 16).ok()?;
+                Some((addr, f[2]))
+            } else {
+                None
+            }
+        })
+        .collect();
+    entries.sort_unstable();
+    entries.into_iter().map(|(_, name)| name).collect()
+}
+
+/// Confirm that two linked layouts realized different relative function orders.
+fn assert_distinct_realized_orders(first_nm: &str, other_nm: &str, first: &Path, other: &Path) {
+    let first_order = defined_function_order(first_nm);
+    let other_order = defined_function_order(other_nm);
+    assert!(
+        !first_order.is_empty(),
+        "check: nm listed no defined functions in {}",
+        first.display()
+    );
+    assert!(
+        !other_order.is_empty(),
+        "check: nm listed no defined functions in {}",
+        other.display()
+    );
+    assert_ne!(
+        first_order,
+        other_order,
+        "check: linker realized identical function order for {} and {}; the order file had no effect",
+        first.display(),
+        other.display()
+    );
+}
+
 /// `exe` linked once per seed, its functions in a fresh random order
 /// each (a linker order file: lld on Linux, ld's -order_file on macOS).
 /// Cargo compiles and links the first seed's executable, through a `cc`
@@ -1261,7 +1327,9 @@ fn functions_named(nm: &str) -> Vec<&str> {
 /// link where a compile cost about 18 s. The kept link run again with
 /// the first seed's order must give Cargo's executable byte for byte,
 /// and the call stops if it differs: every executable measured is the
-/// one a compile with its order file would have made. On macOS rustc
+/// one a compile with its order file would have made. Each relinked
+/// layout's realized function order must also differ from the first
+/// seed's, proving the linker honored the order file. On macOS rustc
 /// strips debug symbols in a step after the link, outside the kept
 /// link, so the layouts there are built unstripped (-C strip=none):
 /// the same code and data, with the symbol table's debug entries left
@@ -1273,23 +1341,29 @@ fn layouts(
     exe: &Path,
     seeds: std::ops::Range<usize>,
 ) -> Vec<String> {
-    let nm = Command::new("nm").arg(exe).output().expect("nm runs");
-    let text = String::from_utf8_lossy(&nm.stdout).into_owned();
+    let text = nm_output(exe);
     let mut symbols = functions_named(&text);
+    assert!(
+        !symbols.is_empty(),
+        "check: nm listed no defined functions in {}",
+        exe.display()
+    );
     let side_dir = cache.join(name);
     let copy = bench_copy(&side_dir.join("target"));
     let checkout = side_dir.join("src");
     let patch_fork = fork_patch(&copy, &checkout);
     let link = side_dir.join("link");
-    let mut first_order: Option<PathBuf> = None;
+    let mut first_layout: Option<(PathBuf, PathBuf, String)> = None;
     let mut exes = Vec::new();
     for seed in seeds {
         shuffle(&mut symbols, seed as u64);
         let order = side_dir.join(format!("order-{seed}.txt"));
         std::fs::write(&order, symbols.join("\n") + "\n").unwrap();
         let kept = side_dir.join(format!("bench-hashes-{seed}"));
-        if let Some(first_order) = &first_order {
+        if let Some((first_order, first_kept, first_nm)) = &first_layout {
             relink(&link, &copy, first_order, &order, &kept);
+            let other_nm = nm_output(&kept);
+            assert_distinct_realized_orders(first_nm, &other_nm, first_kept, &kept);
             exes.push(kept.display().to_string());
             continue;
         }
@@ -1357,7 +1431,13 @@ fn layouts(
             link.display()
         );
         std::fs::remove_file(&again).unwrap();
-        first_order = Some(order);
+        let first_nm = nm_output(&kept);
+        assert!(
+            !defined_function_order(&first_nm).is_empty(),
+            "check: nm listed no defined functions in {}",
+            kept.display()
+        );
+        first_layout = Some((order, kept.clone(), first_nm));
         exes.push(kept.display().to_string());
     }
     exes
@@ -2262,6 +2342,143 @@ mod tests {
                 "--cells",
                 "blake3-servil-mt|continuous 64 B",
             ]))
+        })
+        .is_err());
+    }
+
+    /// `has_defined_text_symbol` accepts Linux and macOS defined text symbols
+    /// and rejects data-only symbols, undefined symbols, and binaries that carry
+    /// the kernel name only as a literal in rodata.
+    #[test]
+    fn sme2_kernel_check_requires_a_defined_text_symbol() {
+        let data_and_undef = "\
+0000000000002000 D sme2_hash16_chunks_512
+0000000000002010 R blake3_servil_sme2_hash16_chunks_512
+                 U blake3_servil_sme2_hash16_chunks_512
+0000000000001000 T main
+";
+        assert!(!super::has_defined_text_symbol(
+            data_and_undef,
+            "sme2_hash16_chunks_512"
+        ));
+        assert!(super::has_defined_text_symbol(
+            "0000000000001040 T blake3_servil_sme2_hash16_chunks_512\n",
+            "sme2_hash16_chunks_512"
+        ));
+        assert!(super::has_defined_text_symbol(
+            "0000000100001040 t _blake3_servil_sme2_hash16_chunks_512\n",
+            "sme2_hash16_chunks_512"
+        ));
+
+        // Real compiled fixtures: rodata literal alone must fail, real function must pass.
+        let dir = std::env::temp_dir().join(format!("bench-check-sme2-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let data_c = dir.join("data_only.c");
+        let data_exe = dir.join("data_only");
+        std::fs::write(
+            &data_c,
+            "const char msg[] = \"blake3_servil_sme2_hash16_chunks_512\";\n\
+             int main(void) { return msg[0] == 0; }\n",
+        )
+        .unwrap();
+        let status = std::process::Command::new("cc")
+            .args(["-O0", "-o"])
+            .arg(&data_exe)
+            .arg(&data_c)
+            .status()
+            .expect("cc runs");
+        assert!(status.success(), "cc failed on data_only.c");
+        let raw = std::fs::read(&data_exe).unwrap();
+        let needle = b"sme2_hash16_chunks_512";
+        assert!(
+            raw.windows(needle.len()).any(|w| w == needle),
+            "fixture must carry the name in raw executable bytes"
+        );
+        let data_nm = super::nm_output(&data_exe);
+        assert!(
+            !super::has_defined_text_symbol(&data_nm, "sme2_hash16_chunks_512"),
+            "data-only literal must not satisfy the defined-text-symbol check"
+        );
+
+        let fn_c = dir.join("real_fn.c");
+        let fn_exe = dir.join("real_fn");
+        std::fs::write(
+            &fn_c,
+            "int blake3_servil_sme2_hash16_chunks_512(void) { return 42; }\n\
+             int main(void) { return blake3_servil_sme2_hash16_chunks_512() == 0; }\n",
+        )
+        .unwrap();
+        let status = std::process::Command::new("cc")
+            .args(["-O0", "-o"])
+            .arg(&fn_exe)
+            .arg(&fn_c)
+            .status()
+            .expect("cc runs");
+        assert!(status.success(), "cc failed on real_fn.c");
+        let fn_nm = super::nm_output(&fn_exe);
+        assert!(
+            super::has_defined_text_symbol(&fn_nm, "sme2_hash16_chunks_512"),
+            "real defined function must satisfy the check"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Realized-layout verification passes when functions moved relative to each
+    /// other and fails when the linker left them in the same relative order (even
+    /// if shifted uniformly) or when `nm` finds no functions.
+    #[test]
+    fn realized_layout_check_detects_identical_order_and_empty_symbols() {
+        let layout_a = "\
+0000000000002000 T beta
+0000000000001000 T alpha
+0000000000003000 t gamma
+";
+        let layout_b = "\
+0000000000001000 T beta
+0000000000002000 T alpha
+0000000000003000 t gamma
+";
+        let same_shifted = "\
+0000000000001040 T alpha
+0000000000002040 T beta
+0000000000003040 t gamma
+";
+        assert_eq!(
+            super::defined_function_order(layout_a),
+            ["alpha", "beta", "gamma"]
+        );
+        assert_eq!(
+            super::defined_function_order(layout_b),
+            ["beta", "alpha", "gamma"]
+        );
+        super::assert_distinct_realized_orders(
+            layout_a,
+            layout_b,
+            std::path::Path::new("seed-0"),
+            std::path::Path::new("seed-1"),
+        );
+
+        // An ignored order file (same relative order, even uniformly shifted) must fail.
+        assert!(std::panic::catch_unwind(|| {
+            super::assert_distinct_realized_orders(
+                layout_a,
+                same_shifted,
+                std::path::Path::new("seed-0"),
+                std::path::Path::new("seed-1"),
+            );
+        })
+        .is_err());
+
+        // Empty symbol output must fail.
+        assert!(std::panic::catch_unwind(|| {
+            super::assert_distinct_realized_orders(
+                "",
+                layout_b,
+                std::path::Path::new("seed-0"),
+                std::path::Path::new("seed-1"),
+            );
         })
         .is_err());
     }
