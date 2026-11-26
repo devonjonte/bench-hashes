@@ -1,0 +1,13 @@
+[probe-fixed 99e12a0] probe: cap across_from at ACROSS_GROUP (16)
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+=== Control: OLD=FIXED(99e12a05a5190ed9558778f1a8d4dbfcc34fdbd6, across_from=16) vs NEW=BROKEN(87a0ab4b9f3cebfa30a791993573bfb4b128ae4e, across_from=32) ===
+regress: old side: bench 3f119a507807 clean; servil 99e12a05a519 clean
+regress: new side: bench 3f119a507807 clean; servil 87a0ab4b9f3c clean
+  SLOWER blake3-servil-mt|solo|ManyLongMessages|16: +155.4% (the pairs' geometric mean; 4 pairs, from +152.2% to +160.6%: +153.3% +155.4% +160.6% +152.2%) [cycles +150.9%, instructions +73.5%, cache misses -30.6%]
+  SLOWER blake3-servil-mt|solo|ManyLongMessages|64: +5.2% (the pairs' geometric mean; 4 pairs, from +3.9% to +6.2%: +3.9% +6.2% +5.6% +5.2%) [cycles +5.5%, instructions +0.0%, cache misses +5.7%]
+  SLOWER blake3-servil-st|solo|ManyLongMessages|16: +154.2% (the pairs' geometric mean; 4 pairs, from +151.3% to +155.9%: +155.7% +151.3% +155.9% +154.0%) [cycles +150.8%, instructions +73.6%, cache misses -30.5%]
+  SLOWER blake3-servil-st|solo|ManyLongMessages|64: +5.6% (the pairs' geometric mean; 4 pairs, from +3.9% to +7.3%: +3.9% +4.7% +6.6% +7.3%) [cycles +5.6%, instructions +0.0%, cache misses +3.3%]
+regress: REGRESSION: 4 cells slower
+regress: pipeline lifecycle (4096 rooms, 4 pairs): wall 2.21 -> 2.26 ms; peak RSS 8.3 -> 8.3 MiB (level)
+regress: power during the check: mains power, no battery, CPU frequency governor performance, energy-performance preference performance
+CHECK_EXIT=1
