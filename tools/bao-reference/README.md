@@ -21,7 +21,8 @@ caller behavior, not a claim to the fastest possible Bao CLI.
 `--version` names the adapter's full source commit and prints its exact pinned
 bao-tree/BLAKE3 dependency declarations. The study also retains the lock, toolchain
 and paired executable digests. The enclosing benchmark's dependencies stay intact:
-this reference is a separate Cargo project.
+this reference is a separate study Cargo workspace outside the root shipping graph
+and outside `tools/dependency_policy.py`.
 
 Correctness validation compares complete process outputs with BLAKE3-Servil's
 pinned outboard candidate before timing. In-memory generation and full commands
