@@ -1,18 +1,19 @@
-//! The energy the CPU package has used: **a lab instrument**, for
-//! experiments and probes, never the benchmark, its reports, or the gate
-//! (Zooko, October 17, 2026: a number in every report becomes a goal, and
-//! the benchmark carries wall time and CPU time alone). It counts what CPU
-//! time cannot: the power a measurement's threads drew, and what they cost
-//! the rest of the package (a clock its cores share).
+//! The energy the CPU package has used: recorded in solo samples alongside
+//! wall time and CPU time (`FROZEN.md`), and available for probes and
+//! experiments. It counts what CPU time cannot: the power a measurement's
+//! threads drew, and what they cost the rest of the package (a clock its cores
+//! share).
 //!
 //! **What it counts.** Linux: the `power` PMU's `energy-pkg` event (Intel
-//! and AMD RAPL), read through `perf_event_open` for the whole package,
-//! which needs `perf_event_paranoid` at 0 or below (or CAP_PERFMON). It is
-//! the package's, every program's: a measurement's share is valid on a
-//! quiet machine, which [`crate::load`] checks. The counter's unit is
-//! the scale sysfs gives (2^-32 J on Intel, 2^-16 J on AMD), read as an
-//! exact decimal, so nanojoules come out exactly (integer arithmetic; the
-//! scale parsing from #48). Elsewhere, or without the permission,
+//! and AMD RAPL), read through `perf_event_open` on the representative CPU
+//! matching the executing thread's physical package (never silently reading
+//! another socket on a multi-package host), which needs `perf_event_paranoid`
+//! at 0 or below (or CAP_PERFMON). It is the package's, every program's: a
+//! measurement's share is valid on a quiet machine, which [`crate::load`]
+//! checks. The counter's unit is the scale sysfs gives (2^-32 J on Intel,
+//! 2^-16 J on AMD), read as an exact decimal, so nanojoules come out exactly
+//! (integer arithmetic; the scale parsing from #48). Elsewhere, when the
+//! physical package cannot be matched, or without the permission,
 //! [`package_nj`] is `None`, and results say so.
 //!
 //! **Resolution.** RAPL updates about once a millisecond, so a sample of a
@@ -59,6 +60,7 @@ mod imp {
 
     unsafe extern "C" {
         fn syscall(number: i64, ...) -> i64;
+        fn sched_getcpu() -> i32;
     }
 
     #[cfg(target_arch = "x86_64")]
@@ -72,6 +74,55 @@ mod imp {
         std::fs::read_to_string(format!("/sys/bus/event_source/devices/power/{name}")).ok().map(|s| s.trim().to_owned())
     }
 
+    fn parse_cpumask(text: &str) -> Option<Vec<u32>> {
+        let mut cpus = Vec::new();
+        for part in text.trim().split(',').filter(|s| !s.is_empty()) {
+            if let Some((a, b)) = part.split_once('-') {
+                let start: u32 = a.trim().parse().ok()?;
+                let end: u32 = b.trim().parse().ok()?;
+                if end < start {
+                    return None;
+                }
+                cpus.extend(start..=end);
+            } else {
+                cpus.push(part.trim().parse().ok()?);
+            }
+        }
+        (!cpus.is_empty()).then_some(cpus)
+    }
+
+    fn physical_package_id(cpu: u32) -> Option<u32> {
+        std::fs::read_to_string(format!("/sys/devices/system/cpu/cpu{cpu}/topology/physical_package_id")).ok()?.trim().parse().ok()
+    }
+
+    /// Select the PMU representative CPU for the physical package running
+    /// `running_cpu`. On a multi-package host (`cpumask` lists more than one
+    /// CPU), requires a unique package match and returns `None` rather than
+    /// silently reading another socket's energy counter.
+    pub fn select_package_cpu(cpumask: &str, running_cpu: Option<u32>, mut package_of: impl FnMut(u32) -> Option<u32>) -> Option<u32> {
+        let reps = parse_cpumask(cpumask)?;
+        let my_cpu = running_cpu?;
+        let my_pkg = package_of(my_cpu);
+        match (reps.as_slice(), my_pkg) {
+            (_, Some(pkg)) => {
+                let mut matched = None;
+                for &rep in &reps {
+                    if package_of(rep) == Some(pkg) {
+                        if matched.is_some() {
+                            return None;
+                        }
+                        matched = Some(rep);
+                    }
+                }
+                matched
+            }
+            // Single-representative PMU where topology files are unavailable:
+            // safe only if there is one package representative in cpumask.
+            ([only], None) => Some(*only),
+            _ => None,
+        }
+    }
+
     impl Counter {
         pub fn open() -> Option<Counter> {
             if SYS_PERF_EVENT_OPEN < 0 {
@@ -80,7 +131,10 @@ mod imp {
             let pmu: u64 = sysfs("type")?.parse().ok()?;
             let config = u64::from_str_radix(sysfs("events/energy-pkg")?.strip_prefix("event=0x")?, 16).ok()?;
             let (mantissa, exponent) = parse_scale(&sysfs("events/energy-pkg.scale")?)?;
-            let cpu: i64 = sysfs("cpumask")?.split([',', '-']).next()?.parse().ok()?;
+            // Sound: plain libc query for the calling thread's current CPU.
+            let cur = unsafe { sched_getcpu() };
+            let running_cpu = u32::try_from(cur).ok();
+            let cpu = i64::from(select_package_cpu(&sysfs("cpumask")?, running_cpu, physical_package_id)?);
             // struct perf_event_attr, as 64-bit words: type and size, then
             // config; everything else zero (counting, enabled at open).
             let mut attr = [0u64; 16];
@@ -139,6 +193,24 @@ mod tests {
         assert_eq!(imp::parse_scale("1.52587890625e-5"), Some((152587890625, -16)));
         assert_eq!(imp::parse_scale("1"), Some((1, 0)));
         assert_eq!(imp::parse_scale("joules"), None);
+    }
+
+    /// On a two-package host, package energy binds to the PMU representative
+    /// of the executing physical package (never socket 0 by default), and
+    /// returns None when multi-package topology cannot be resolved.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn package_cpu_matches_executing_socket_and_fails_closed_when_unmapped() {
+        let two_sockets = |cpu: u32| Some(if cpu < 24 { 0 } else { 1 });
+        assert_eq!(imp::select_package_cpu("0,24\n", Some(30), two_sockets), Some(24));
+        assert_eq!(imp::select_package_cpu("0,24\n", Some(5), two_sockets), Some(0));
+        // Unmapped topology on a multi-socket cpumask refuses rather than guessing socket 0.
+        assert_eq!(imp::select_package_cpu("0,24", Some(30), |_| None), None);
+        // No matching representative for our package returns None.
+        assert_eq!(imp::select_package_cpu("0", Some(30), two_sockets), None);
+        // Single-package cpumask works with matching topology or without topology files.
+        assert_eq!(imp::select_package_cpu("0", Some(7), |_| Some(0)), Some(0));
+        assert_eq!(imp::select_package_cpu("0", Some(7), |_| None), Some(0));
     }
 
     /// A count scaled to nanojoules, exactly: Intel's 2^-32 J a count makes
