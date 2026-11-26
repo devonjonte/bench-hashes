@@ -1,0 +1,37 @@
+=== isolated multi-L3 wake tests on x86-avx2 at cc313b7bf01f4393e7bfd319b58d9eb246e266f5 ===
+
+running 1 test
+test park::test::wake_if_place_asleep_wakes_only_when_own_place_is_all_parked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 155 filtered out; finished in 0.00s
+
+
+running 1 test
+test lanes::sources::test::wake_on_publish_wakes_asleep_place_at_one_waiting_and_never_at_zero ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 155 filtered out; finished in 0.00s
+
+
+running 1 test
+test lanes::test::test_a_wake_is_tried_for_the_second_task_waiting ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 155 filtered out; finished in 0.00s
+
+=== A_010_to_final_64B_16p ===
+EXIT=0
+  faster blake3-servil-mt|shared-two-caches|ContinuousMessages|64 B: -17.6% (the pairs' geometric mean; 16 pairs, from -35.5% to +42.6%: -21.8% -20.5% -27.3% -28.4% -15.5% -13.6% -17.5% -31.7% +9.2% -22.1% -13.0% -35.5% -24.2% +42.6% -26.6% -11.3%) [cycles -18.8%, instructions +1.2%, cache misses +1.3%]
+regress: no cell slower
+blake3-servil-mt|solo|ContinuousMessages|64 B: 0.684 -> 0.664 ns/unit  x0.972 level, 10 of 16 pairs faster; CPU time x0.672; cycles x0.980; instructions x1.012; cache misses x1.055
+blake3-servil-mt|shared-one-cache|ContinuousMessages|64 B: 0.640 -> 0.658 ns/unit  x1.029 level, 3 of 16 pairs faster; cycles x1.033; instructions x1.012; cache misses x1.050
+blake3-servil-mt|shared-two-caches|ContinuousMessages|64 B: 1.216 -> 1.001 ns/unit  x0.824 faster, 14 of 16 pairs faster; cycles x0.812; instructions x1.012; cache misses x1.013
+=== B_next_to_final_64B_4KiB_12p ===
+EXIT=0
+  faster blake3-servil-mt|shared-two-caches|ContinuousMessages|64 B: -23.5% (the pairs' geometric mean; 12 pairs, from -41.0% to +12.8%: -30.2% -27.8% -40.0% -21.9% -22.4% -16.3% -19.2% +12.8% -41.0% -19.4% -33.3% -8.7%) [cycles -24.3%, instructions +0.2%, cache misses +32.4%]
+regress: no cell slower
+blake3-servil-mt|solo|ContinuousMessages|64 B: 0.687 -> 0.686 ns/unit  x0.997 level, 6 of 12 pairs faster; CPU time x0.671; cycles x1.001; instructions x1.002; cache misses x1.275
+blake3-servil-mt|solo|ContinuousMessages|4 KiB: 0.0743 -> 0.0718 ns/unit  x0.967 level, 9 of 12 pairs faster; CPU time x0.990; cycles x0.966; instructions x1.015; cache misses x1.074
+blake3-servil-mt|shared-one-cache|ContinuousMessages|64 B: 0.664 -> 0.685 ns/unit  x1.032 level, 4 of 12 pairs faster; cycles x1.032; instructions x1.002; cache misses x1.358
+blake3-servil-mt|shared-one-cache|ContinuousMessages|4 KiB: 0.115 -> 0.114 ns/unit  x0.990 level, 8 of 12 pairs faster; cycles x0.988; instructions x1.016; cache misses x1.003
+blake3-servil-mt|shared-two-caches|ContinuousMessages|64 B: 1.359 -> 1.041 ns/unit  x0.765 faster, 11 of 12 pairs faster; cycles x0.757; instructions x1.002; cache misses x1.324
+blake3-servil-mt|shared-two-caches|ContinuousMessages|4 KiB: 0.114 -> 0.117 ns/unit  x1.031 level, 5 of 12 pairs faster; cycles x1.030; instructions x1.014; cache misses x1.017
+DONE 2026-11-26T12:23:29Z
