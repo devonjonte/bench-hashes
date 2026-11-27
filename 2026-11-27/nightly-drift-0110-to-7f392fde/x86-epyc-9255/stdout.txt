@@ -1,0 +1,18 @@
+nightly-drift: host=electric-rhino bench=3f119a507807078649d8700112994fce24666868 base=e1966b498bc769db3d51451a4ddc8188a19ed593 target=7f392fdebc90aa362c7115cceb1824df2319102b
+regress: old side: bench 3f119a507807 clean; servil e1966b498bc7 clean
+regress: new side: bench 3f119a507807 clean; servil 7f392fdebc90 clean
+  faster blake3-servil-mt|shared-two-caches|ContinuousKeyedMessages|1 MiB: -27.9% (the pairs' geometric mean; 4 pairs, from -30.5% to -26.1%: -26.1% -26.8% -30.5% -28.1%) [cycles -27.4%, instructions +2.0%, cache misses -0.9%]
+  faster blake3-servil-mt|solo|ManyLongMessages|16: -58.3% (the pairs' geometric mean; 4 pairs, from -60.0% to -57.0%: -60.0% -57.1% -58.8% -57.0%) [cycles -57.5%, instructions -42.3%, cache misses +31.9%]
+  faster blake3-servil-mt|solo|OneMessage|32 KiB: -8.6% (the pairs' geometric mean; 4 pairs, from -9.6% to -7.7%: -8.7% -8.3% -9.6% -7.7%) [cycles -8.0%, instructions +0.0%, cache misses -3.0%]
+  faster blake3-servil-st|solo|ManyLongMessages|16: -58.4% (the pairs' geometric mean; 4 pairs, from -59.9% to -56.9%: -59.9% -57.4% -59.2% -56.9%) [cycles -57.6%, instructions -42.4%, cache misses +30.9%]
+regress: no cell slower
+regress: instructions moved beyond +0.5% in 1 level cells, suspects first: blake3-servil-st|solo|ManyLongMessages|16 -42.4%
+regress: suspects: blake3-servil-st|solo|ManyMessages|3;blake3-servil-mt|shared-one-cache|ContinuousLentMessages|1 MiB;blake3-servil-mt|shared-two-caches|MerkleTree|65536 x 48 B;blake3-servil-mt|solo|OneMessage|4470 B;blake3-servil-st|solo|ManyMessages|24;blake3-servil-mt|shared-two-caches|MerkleTree|16384;blake3-servil-mt|solo|ManyMessages|2;blake3-servil-mt|shared-one-cache|ContinuousMessages|1 KiB
+regress: pipeline lifecycle (4096 rooms, 4 pairs): wall 1.97 -> 2.19 ms; peak RSS 11.4 -> 11.4 MiB (level)
+regress: power during the check: mains power, no battery, CPU frequency governor performance, energy-performance preference performance
+regress: old side: bench 3f119a507807 clean; servil e1966b498bc7 clean
+regress: new side: bench 3f119a507807 clean; servil 7f392fdebc90 clean
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: power during the check: mains power, no battery, CPU frequency governor performance, energy-performance preference performance
+nightly-drift: stage=stage 2 (kept-drift/second) verdict=no regression (exit 0)
