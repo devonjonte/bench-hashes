@@ -1,0 +1,18 @@
+nightly-drift: host=electric-rhino bench=3f119a507807078649d8700112994fce24666868 base=e1966b498bc769db3d51451a4ddc8188a19ed593 target=87a0ab4b9f3cebfa30a791993573bfb4b128ae4e
+regress: old side: bench 3f119a507807 clean; servil e1966b498bc7 clean
+regress: new side: bench 3f119a507807 clean; servil 87a0ab4b9f3c clean
+  faster blake3-servil-mt|shared-two-caches|ContinuousBatches|1024: -21.2% (the pairs' geometric mean; 4 pairs, from -23.2% to -18.7%: -23.2% -18.7% -20.4% -22.7%) [cycles -20.9%, instructions -1.5%, cache misses -1.4%]
+  faster blake3-servil-mt|shared-two-caches|ContinuousKeyedMessages|1 MiB: -24.2% (the pairs' geometric mean; 4 pairs, from -26.6% to -22.4%: -26.6% -22.9% -24.9% -22.4%) [cycles -23.4%, instructions +1.8%, cache misses -1.1%]
+  faster blake3-servil-mt|shared-two-caches|ContinuousMessages|64 B: -23.6% (the pairs' geometric mean; 4 pairs, from -26.5% to -21.9%: -24.1% -21.9% -21.9% -26.5%) [cycles -23.6%, instructions -2.1%, cache misses -5.9%]
+  faster blake3-servil-mt|shared-two-caches|ReceivingMessage|2 μs: -9.7% (the pairs' geometric mean; 4 pairs, from -10.4% to -8.6%: -9.3% -8.6% -10.4% -10.3%) [cycles -10.1%, instructions +0.6%, cache misses +4.3%]
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: suspects: blake3-servil-mt|solo|ContinuousMessages|64 MiB;blake3-servil-st|solo|ManyMessages|8;blake3-servil-mt|shared-one-cache|ContinuousMessages|512 B;blake3-servil-mt|solo|ManyMessages|2;blake3-servil-mt|shared-one-cache|MerkleTree|65536 x 32 B;blake3-servil-st|solo|ManyMessages|6;blake3-servil-st|solo|ManyMessages|3;blake3-servil-mt|solo|ManyMessages|6
+regress: pipeline lifecycle (4096 rooms, 4 pairs): wall 1.92 -> 2.21 ms; peak RSS 10.7 -> 10.7 MiB (level)
+regress: power during the check: mains power, no battery, CPU frequency governor performance, energy-performance preference performance
+regress: old side: bench 3f119a507807 clean; servil e1966b498bc7 clean
+regress: new side: bench 3f119a507807 clean; servil 87a0ab4b9f3c clean
+  SLOWER blake3-servil-st|solo|ManyMessages|8: +11.0% (the pairs' geometric mean; 64 pairs, from -27.3% to +163.5%: -8.1% +43.4% -4.6% -6.9% -10.7% +5.0% +6.4% +13.0% +39.3% +32.4% +23.9% -5.9% +2.2% -10.9% -1.8% +3.1% +95.4% -0.4% +3.0% +19.0% +2.9% -3.3% -13.9% +1.9% -6.4% +98.5% +4.3% -1.1% -4.6% +9.8% +13.6% +7.8% +163.5% -7.3% +3.0% -27.3% +2.4% +1.7% -4.3% +1.0% +16.5% +99.2% -8.5% +14.1% +1.5% +4.0% +1.8% -12.4% +117.7% +20.9% +12.9% +4.9% -4.6% +15.7% +6.0% +7.1% +63.6% +122.8% -3.7% +0.0% -2.7% -1.5% +9.9% -3.2%) [cycles +8.8%, instructions -0.3%, cache misses -0.2%]
+regress: REGRESSION: 1 cells slower
+regress: power during the check: mains power, no battery, CPU frequency governor performance, energy-performance preference performance
+nightly-drift: stage=stage 2 (kept-drift/second) verdict=REGRESSION (exit 1)

@@ -1,0 +1,14 @@
+nightly-drift: host=bench-zen3 bench=3f119a507807078649d8700112994fce24666868 base=e1966b498bc769db3d51451a4ddc8188a19ed593 target=87a0ab4b9f3cebfa30a791993573bfb4b128ae4e
+regress: old side: bench 3f119a507807 clean; servil e1966b498bc7 clean
+regress: new side: bench 3f119a507807 clean; servil 87a0ab4b9f3c clean
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: suspects: blake3-servil-mt|shared-one-cache|ContinuousMessages|128 B;blake3-servil-mt|shared-two-caches|ContinuousMessages|256 B;blake3-servil-mt|solo|OneMessage|512 B;blake3-servil-mt|shared-two-caches|ReceivingMessage|saturated;blake3-servil-mt|shared-two-caches|ContinuousMessages|64 MiB;blake3-servil-mt|solo|ManyMessages|4;blake3-servil-mt|shared-one-cache|ContinuousMessages|64 B;blake3-servil-st|solo|IdleOneMessage|4 KiB
+regress: pipeline lifecycle (4096 rooms, 4 pairs): wall 6.97 -> 7.19 ms; peak RSS 11.3 -> 11.3 MiB (level)
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+regress: old side: bench 3f119a507807 clean; servil e1966b498bc7 clean
+regress: new side: bench 3f119a507807 clean; servil 87a0ab4b9f3c clean
+  SLOWER blake3-servil-mt|shared-one-cache|ContinuousMessages|64 B: +5.5% (the pairs' geometric mean; 64 pairs, from -8.1% to +24.6%: +19.0% +3.2% +0.1% +4.8% +3.2% +2.2% +3.1% +1.7% +2.0% +6.8% +5.4% -6.3% -8.1% +9.9% +10.6% +2.9% -0.6% +4.0% +11.6% +6.1% +10.0% +17.0% -0.6% +0.5% +8.6% +4.8% +5.3% +17.1% +10.2% +3.7% -1.1% +9.5% +2.1% +15.9% +6.0% +2.3% +24.6% +4.7% +7.5% +4.4% +2.6% +17.3% +9.1% +3.6% +4.1% -2.8% +3.8% +7.0% +5.8% +14.8% +5.8% +6.6% +0.7% -6.8% +8.7% +6.6% +15.0% -1.8% +5.1% -0.6% +7.6% +5.3% +6.4% +4.1%) [cycles +5.5%, instructions -2.1%, cache misses +6.7%]
+regress: REGRESSION: 1 cells slower
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+nightly-drift: stage=stage 2 (kept-drift/second) verdict=REGRESSION (exit 1)

@@ -1,0 +1,50 @@
+bench-hashes: this machine's CPUs sit on 2 memory nodes; this run keeps to node 0 (48 of the 96 CPUs it could use, its memory there): the benchmark measures one memory node (METHODOLOGY.md, "One memory node")
+check: BLAKE3-Servil's def5e11eff984a4be4249fbdd10ff3901c5df648 (def5e11eff98) against 6618a609b1fc018302b0115f269c1e7d7fc68669 (6618a609b1fc)
+check: the change touches 426 added and 295 deleted lines in 14 files: CHANGELOG.md (+4/-3), build.rs (+3/-2), capi/src/lib.rs (+14/-6), src/block.rs (+7/-10), src/each.rs (+62/-18), src/ffi_output.rs (+14/-13), src/ffi_sse41.rs (+152/-0), src/many.rs (+97/-153), src/pair.rs (+46/-30), src/test.rs (+4/-6), tools/check-builds.sh (+5/-3), tools/mutants/known-aarch64.txt (+1/-25), and 2 more
+check: its hunks sit in: figure names its machine., fn main() -> Result<(), Box<dyn std::error::Error>> {, unsafe fn hasher_mut<'a>(hasher: *mut B3Hasher) -> &'a mut Hasher {, pub extern "C" fn b3_version() -> *const c_char {, mod test {, impl<const N: usize> Packed<N> {, impl<const N: usize> core::ops::Deref for Packed<N> {, impl<const N: usize> core::ops::DerefMut for Packed<N> {, fn by_blocks_at_once(items: &[&[u8]], key: &CVWords, counter: u64, flags: u8, fl, pub(crate) fn finish_last_blocks_order(, pub(crate) fn finish_last_blocks_simd<const W: usize>(, pub(crate) unsafe fn hash_group<const W: usize>(inputs: &[Input<'_>; W], out: &m, and 53 more
+check: measuring the 3 named cells: blake3-servil-mt|continuous 64 B;blake3-servil-mt|continuous 128 B;blake3-servil-mt|continuous 256 B
+check: the builds differ here: .bss, .data, .data.rel.ro, .dynamic, .eh_frame, .eh_frame_hdr, .fini, .fini_array, .gcc_except_table, .got, .got.plt, .init, .init_array, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .tbss, .tdata, .text, .tm_clone_table; 69 functions of another size or on one side alone (<blake3_servil_core::each::HeldWorkspace<16>>::buffers; <blake3_servil_core::platform::Platform>::hash_many::<128>; <blake3_servil_core::platform::Platform>::hash_many::<192>; <blake3_servil_core::platform::Platform>::hash_many::<256>; <blake3_servil_core::platform::Platform>::hash_many::<320>; <blake3_servil_core::platform::Platform>::hash_many::<384>; <blake3_servil_core::platform::Platform>::hash_many::<448>; <blake3_servil_core::platform::Platform>::hash_many::<512>; <blake3_servil_core::platform::Platform>::hash_many::<576>; <blake3_servil_core::platform::Platform>::hash_many::<640>; <blake3_servil_core::platform::Platform>::hash_many::<704>; <blake3_servil_core::platform::Platform>::hash_many::<768>; and 57 more); 1660 of other bytes (<&&[u8; 32] as core::fmt::Debug>::fmt; <&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&(usize, usize) as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Display>::fmt; <&alloc::vec::Vec<&str> as core::fmt::Debug>::fmt; and 1648 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,1,2,3,6,7,8,9,12,13,14,15,18,19,20,21
+regress: 16 run pairs using 16 distinct new executable paths and 16 old, over --cells "blake3-servil-mt|continuous 64 B;blake3-servil-mt|continuous 128 B;blake3-servil-mt|continuous 256 B"
+regress: pair 1 of 16 in 4.0 s
+regress: pair 2 of 16 in 4.0 s
+regress: pair 3 of 16 in 4.1 s
+regress: pair 4 of 16 in 4.0 s
+regress: pair 5 of 16 in 4.0 s
+regress: pair 6 of 16 in 4.0 s
+regress: pair 7 of 16 in 4.0 s
+regress: pair 8 of 16 in 4.0 s
+regress: pair 9 of 16 in 4.0 s
+regress: pair 10 of 16 in 4.0 s
+regress: pair 11 of 16 in 4.0 s
+regress: pair 12 of 16 in 4.1 s
+regress: pair 13 of 16 in 4.0 s
+regress: pair 14 of 16 in 4.0 s
+regress: pair 15 of 16 in 4.0 s
+regress: pair 16 of 16 in 4.0 s
+bench-hashes: this machine's CPUs sit on 2 memory nodes; this run keeps to node 0 (48 of the 96 CPUs it could use, its memory there): the benchmark measures one memory node (METHODOLOGY.md, "One memory node")
+bench-hashes: this machine's CPUs sit on 2 memory nodes; this run keeps to node 0 (48 of the 96 CPUs it could use, its memory there): the benchmark measures one memory node (METHODOLOGY.md, "One memory node")
+check: BLAKE3-Servil's 9e18fda35a9b992e682516dee2146f51959ff5b0 (9e18fda35a9b) against def5e11eff984a4be4249fbdd10ff3901c5df648 (def5e11eff98)
+check: the change touches 120 added and 72 deleted lines in 4 files: threads/src/pipeline.rs (+120/-65), tools/mutants/threads/timeouts-aarch64.txt (+0/-1), tools/mutants/threads/timeouts-arm64.txt (+0/-3), tools/mutants/threads/timeouts-x86_64.txt (+0/-3)
+check: its hunks sit in: const MULTI_CUSTOM_BIT: u32 = 1u32 << 31;, struct Ring<X> {, impl<X> Ring<X> {, struct Rooms {, process_static! {, impl<T, B, P: Prepared + 'static> Pipeline<T, B, P> {, impl<T, B, P> Pipeline<T, B, P> {, mod test {, src/pipeline.rs	replace <impl Drop for Room>::drop with ()	1	hang: a Room's drop, src/pipeline.rs	replace += with -= in Pipeline<T, B, P>::drain_pieces	1	hang: me, src/pipeline.rs	replace - with + in <impl Drop for Room>::drop	1	hang: Room::dro, src/pipeline.rs	replace Pipeline<T, B, P>::try_take_room -> Option<Room> with No
+check: measuring the 3 named cells: blake3-servil-mt|continuous 64 B;blake3-servil-mt|continuous 128 B;blake3-servil-mt|continuous 256 B
+check: the builds differ here: .bss, .data, .data.rel.ro, .dynamic, .eh_frame, .eh_frame_hdr, .fini, .fini_array, .gcc_except_table, .got, .got.plt, .init, .init_array, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .tbss, .tdata, .text, .tm_clone_table; 30 functions of another size or on one side alone (<bench_hashes::pipeline::Messages>::receive::<bench_hashes::hash_batch_of<bench_hashes::use_digest>::{closure#1}, bench_hashes::use_digest>::{closure#0}; <blake3_servil::pipeline::PipeSlot>::acquire; <blake3_servil::pipeline::PipeStorage>::alloc; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::abort_slot; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::commit_multi; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::create; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::drain_pieces; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::end_slow; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::open_new_group; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::poll_message; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::poll_ready; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::poll_room; and 18 more); 1671 of other bytes (<&&[u8; 32] as core::fmt::Debug>::fmt; <&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&(usize, usize) as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Display>::fmt; <&alloc::vec::Vec<&str> as core::fmt::Debug>::fmt; and 1659 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,1,2,3,6,7,8,9,12,13,14,15,18,19,20,21
+regress: 16 run pairs using 16 distinct new executable paths and 16 old, over --cells "blake3-servil-mt|continuous 64 B;blake3-servil-mt|continuous 128 B;blake3-servil-mt|continuous 256 B"
+regress: pair 1 of 16 in 4.0 s
+regress: pair 2 of 16 in 4.0 s
+regress: pair 3 of 16 in 4.0 s
+regress: pair 4 of 16 in 4.1 s
+regress: pair 5 of 16 in 4.0 s
+regress: pair 6 of 16 in 4.0 s
+regress: pair 7 of 16 in 4.1 s
+regress: pair 8 of 16 in 4.0 s
+regress: pair 9 of 16 in 4.1 s
+regress: pair 10 of 16 in 4.0 s
+regress: pair 11 of 16 in 4.0 s
+regress: pair 12 of 16 in 4.1 s
+regress: pair 13 of 16 in 4.0 s
+regress: pair 14 of 16 in 4.0 s
+regress: pair 15 of 16 in 4.1 s
+regress: pair 16 of 16 in 4.0 s
+bench-hashes: this machine's CPUs sit on 2 memory nodes; this run keeps to node 0 (48 of the 96 CPUs it could use, its memory there): the benchmark measures one memory node (METHODOLOGY.md, "One memory node")
