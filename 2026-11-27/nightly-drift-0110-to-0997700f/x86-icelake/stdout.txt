@@ -1,0 +1,17 @@
+nightly-drift: host=fast-feedback-icelake-147 bench=3f119a507807078649d8700112994fce24666868 base=e1966b498bc769db3d51451a4ddc8188a19ed593 target=0997700f35b06db27b70dc4659964561ae500038
+regress: old side: bench 3f119a507807 clean; servil e1966b498bc7 clean
+regress: new side: bench 3f119a507807 clean; servil 0997700f35b0 clean
+  faster blake3-servil-mt|solo|ManyLongMessages|16: -13.6% (the pairs' geometric mean; 4 pairs, from -14.7% to -12.7%: -13.1% -13.8% -12.7% -14.7%) [cycles -13.7%, instructions -43.4%, cache misses +4.7%]
+  faster blake3-servil-st|solo|ManyLongMessages|16: -15.3% (the pairs' geometric mean; 4 pairs, from -16.8% to -13.7%: -13.7% -14.6% -16.2% -16.8%) [cycles -15.1%, instructions -43.4%, cache misses +4.8%]
+regress: no cell slower
+regress: instructions moved beyond +0.5% in 11 level cells, suspects first: blake3-servil-st|solo|ManyLongMessages|16 -43.4%; blake3-servil-st|solo|ContinuousLentMessages|64 B +1.5%; blake3-servil-st|solo|ContinuousKeyedMessages|64 B +1.3%; blake3-servil-st|solo|ContinuousMessages|64 B +1.2%; blake3-servil-st|solo|LentMessages|64 B +1.2%; blake3-servil-st|solo|BriefIdleManyMessages|1 +1.0%; blake3-servil-st|solo|IdleManyMessages|1 +0.9%; blake3-servil-st|solo|ManyMessages|1 +0.9%; blake3-servil-st|solo|ContinuousMessages|128 B +0.7%; blake3-servil-st|solo|LentMessages|128 B +0.7%; blake3-servil-st|solo|LentIncrementalMessage|64 B +0.6%
+regress: suspects: blake3-servil-st|solo|ContinuousLentMessages|64 B;blake3-servil-st|solo|IdleOneMessage|8 KiB;blake3-servil-st|solo|ContinuousKeyedMessages|64 B;blake3-servil-st|solo|IdleOneMessage|256 B;blake3-servil-st|solo|ContinuousMessages|64 B;blake3-servil-st|solo|IdleOneMessage|64 B;blake3-servil-st|solo|BriefIdleManyMessages|1;blake3-servil-st|solo|IdleOneMessage|128 B
+regress: pipeline lifecycle (4096 rooms, 4 pairs): wall 6.34 -> 6.48 ms; peak RSS 10.7 -> 10.7 MiB (level)
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+regress: old side: bench 3f119a507807 clean; servil e1966b498bc7 clean
+regress: new side: bench 3f119a507807 clean; servil 0997700f35b0 clean
+regress: no cell slower
+regress: instructions moved beyond +0.5% in 3 level cells, suspects first: blake3-servil-st|solo|ContinuousLentMessages|64 B +1.5%; blake3-servil-st|solo|ContinuousKeyedMessages|64 B +1.3%; blake3-servil-st|solo|ContinuousMessages|64 B +1.2%
+regress: suspects: blake3-servil-st|solo|ContinuousLentMessages|64 B;blake3-servil-st|solo|ContinuousKeyedMessages|64 B;blake3-servil-st|solo|ContinuousMessages|64 B
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+nightly-drift: stage=stage 2 (kept-drift/second) verdict=no regression (exit 0)
