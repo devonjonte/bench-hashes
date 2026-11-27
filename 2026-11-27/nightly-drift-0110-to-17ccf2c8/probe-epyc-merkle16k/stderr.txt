@@ -1,0 +1,117 @@
+check: BLAKE3-Servil's 66772d540dbaadfe46175975f6ea3518803decc0 (66772d540dba) against 0997700f35b06db27b70dc4659964561ae500038 (0997700f35b0)
+check: the change touches 187 added and 165 deleted lines in 8 files: src/ffi_chunk_root.rs (+1/-1), threads/src/finish.rs (+1/-1), threads/src/forms_test.rs (+2/-2), threads/src/lanes.rs (+108/-65), threads/src/lib.rs (+8/-6), threads/src/pipeline.rs (+52/-78), threads/tests/shuttle_pipeline.rs (+11/-11), threads/tests/shuttle_waker.rs (+4/-1)
+check: its hunks sit in: fn call(platform: Platform, input: &[u8], whole_blocks: usize, key: &CVWords, la, mod tests {, fn test_pool_from_two_callers() {, pub(crate) fn prepare_thread() {, fn with_scratch<C, T>(cut: impl FnOnce(&mut Vec<Piece>) -> C, job: impl FnOnce(C, fn tree_cvs<T>(pool: &Pool, input: &[u8], tree: &TreeHasher, counter: u64, merge, pub(crate) fn hash_many_over_pool(tree: &TreeHasher, batch: crate::throughput::P, pub(crate) fn hash_each(tree: &TreeHasher, items: &[(&[crate::throughput::Block], fn forked() -> ! {, pub(crate) mod sources {, pub(crate) struct Task {, impl Task {, and 20 more
+check: measuring the 1 named cells: blake3-servil-mt|merkle 16384
+check: the builds differ here: .bss, .data, .data.rel.ro, .dynamic, .eh_frame, .eh_frame_hdr, .fini, .fini_array, .got, .got.plt, .init, .init_array, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .tbss, .tdata, .text, .tm_clone_table; 21 functions of another size or on one side alone (<blake3_servil::lanes::Pool>::run_job; <blake3_servil::lanes::sources::Source>::publish_actions; <blake3_servil::lanes::sources::Source>::run_waiting_action; <blake3_servil::lanes::sources::Source>::take; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::commit_multi; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::create; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::open_new_group; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::poll_message; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::poll_message_slow; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::poll_ready; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::poll_room; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::publish_open; and 9 more); 1675 of other bytes (<&&[u8; 32] as core::fmt::Debug>::fmt; <&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&(usize, usize) as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::vec::Vec<&str> as core::fmt::Debug>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; and 1663 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23
+regress: 32 run pairs using 32 distinct new executable paths and 32 old, over --cells "blake3-servil-mt|merkle 16384"
+regress: pair 1 of 32 in 1.7 s
+regress: pair 2 of 32 in 1.7 s
+regress: pair 3 of 32 in 1.7 s
+regress: pair 4 of 32 in 1.7 s
+regress: pair 5 of 32 in 1.7 s
+regress: pair 6 of 32 in 1.7 s
+regress: pair 7 of 32 in 1.7 s
+regress: pair 8 of 32 in 1.7 s
+regress: pair 9 of 32 in 1.7 s
+regress: pair 10 of 32 in 1.7 s
+regress: pair 11 of 32 in 1.7 s
+regress: pair 12 of 32 in 1.7 s
+regress: pair 13 of 32 in 1.7 s
+regress: pair 14 of 32 in 1.7 s
+regress: pair 15 of 32 in 1.7 s
+regress: pair 16 of 32 in 1.7 s
+regress: pair 17 of 32 in 1.7 s
+regress: pair 18 of 32 in 1.7 s
+regress: pair 19 of 32 in 1.7 s
+regress: pair 20 of 32 in 1.7 s
+regress: pair 21 of 32 in 1.7 s
+regress: pair 22 of 32 in 1.7 s
+regress: pair 23 of 32 in 1.7 s
+regress: pair 24 of 32 in 1.7 s
+regress: pair 25 of 32 in 1.7 s
+regress: pair 26 of 32 in 1.7 s
+regress: pair 27 of 32 in 1.7 s
+regress: pair 28 of 32 in 1.7 s
+regress: pair 29 of 32 in 1.7 s
+regress: pair 30 of 32 in 1.7 s
+regress: pair 31 of 32 in 1.7 s
+regress: pair 32 of 32 in 1.7 s
+check: BLAKE3-Servil's 17ccf2c8f5bb689ec552be1c976b54311da0c29f (17ccf2c8f5bb) against 66772d540dbaadfe46175975f6ea3518803decc0 (66772d540dba)
+check: the change touches 692 added and 202 deleted lines in 15 files: threads/src/action_ring.rs (+63/-0), threads/src/lanes.rs (+45/-46), threads/src/lib.rs (+21/-8), threads/src/pipeline.rs (+158/-110), threads/tests/guard_alloc.rs (+23/-3), threads/tests/shuttle_source_ring.rs (+85/-0), tools/check-builds.sh (+1/-1), tools/mutants/check.py (+1/-1), tools/mutants/threads/known-aarch64.txt (+2/-3), tools/mutants/threads/known-arm64.txt (+2/-3), tools/mutants/threads/known-x86_64.txt (+2/-3), tools/mutants/threads/timeouts-aarch64.txt (+0/-5), and 3 more
+check: its hunks sit in: pub(crate) fn hash_many_over_pool(tree: &TreeHasher, batch: crate::throughput::P, pub(crate) mod places {, pub(crate) mod sources {, mod test {, pub(crate) mod block {, pub(crate) fn ran(kind: Ran) {, const NONE: u32 = u32::MAX;, impl<T> Drop for RawSlots<T> {, fn pack_arg(kind: u64, a: u32, b: u32, sme2: bool) -> u64 {, impl PipeStorage {, impl<T, B, P: Prepared + 'static> Pipeline<T, B, P> {, fn pipeline_capacities(limits: Limits) -> (usize, usize, usize) {, and 15 more
+check: measuring the 1 named cells: blake3-servil-mt|merkle 16384
+check: the builds differ here: .bss, .data, .data.rel.ro, .dynamic, .eh_frame, .eh_frame_hdr, .fini, .fini_array, .gcc_except_table, .got, .got.plt, .init, .init_array, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .tbss, .tdata, .text, .tm_clone_table; 15 functions of another size or on one side alone (<blake3_servil::lanes::sources::Source>::publish_actions; <blake3_servil::lanes::sources::Source>::take; <blake3_servil::pipeline::IndexRing>::new; <blake3_servil::pipeline::PipeStorage>::run_action; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::commit_multi; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::create; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::publish_open; <blake3_servil::pipeline::Pipeline<(), (), blake3_servil_core::block::Batch>>::submit_multi_slice; bench_hashes::pipeline::completed; bench_hashes::timed_cell::<5, 15, bench_hashes::use_digest>; bench_hashes::timed_cell::<7, 10, bench_hashes::use_digest>; bench_hashes::timed_cell::<7, 24, bench_hashes::use_digest>; and 3 more); 1696 of other bytes (<&&[u8; 32] as core::fmt::Debug>::fmt; <&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&(usize, usize) as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::vec::Vec<&str> as core::fmt::Debug>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; and 1684 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23
+regress: 32 run pairs using 32 distinct new executable paths and 32 old, over --cells "blake3-servil-mt|merkle 16384"
+regress: pair 1 of 32 in 1.7 s
+regress: pair 2 of 32 in 1.7 s
+regress: pair 3 of 32 in 1.7 s
+regress: pair 4 of 32 in 1.7 s
+regress: pair 5 of 32 in 1.7 s
+regress: pair 6 of 32 in 1.7 s
+regress: pair 7 of 32 in 1.7 s
+regress: pair 8 of 32 in 1.7 s
+regress: pair 9 of 32 in 1.7 s
+regress: pair 10 of 32 in 1.7 s
+regress: pair 11 of 32 in 1.7 s
+regress: pair 12 of 32 in 1.7 s
+regress: pair 13 of 32 in 1.7 s
+regress: pair 14 of 32 in 1.7 s
+regress: pair 15 of 32 in 1.7 s
+regress: pair 16 of 32 in 1.7 s
+regress: pair 17 of 32 in 1.7 s
+regress: pair 18 of 32 in 1.7 s
+regress: pair 19 of 32 in 1.7 s
+regress: pair 20 of 32 in 1.7 s
+regress: pair 21 of 32 in 1.7 s
+regress: pair 22 of 32 in 1.7 s
+regress: pair 23 of 32 in 1.7 s
+regress: pair 24 of 32 in 1.7 s
+regress: pair 25 of 32 in 1.7 s
+regress: pair 26 of 32 in 1.7 s
+regress: pair 27 of 32 in 1.7 s
+regress: pair 28 of 32 in 1.7 s
+regress: pair 29 of 32 in 1.7 s
+regress: pair 30 of 32 in 1.7 s
+regress: pair 31 of 32 in 1.7 s
+regress: pair 32 of 32 in 1.7 s
+check: BLAKE3-Servil's 17ccf2c8f5bb689ec552be1c976b54311da0c29f (17ccf2c8f5bb) against e1966b498bc769db3d51451a4ddc8188a19ed593 (e1966b498bc7)
+check: the change touches 11411 added and 16888 deleted lines in 158 files: .config/nextest.toml (+7/-4), .github/workflows/ci.yml (+47/-66), .github/workflows/one-assignee.yml (+1/-1), .github/workflows/release-artifacts.yml (+116/-41), AGENTS.md (+0/-62), ANNOUNCE.md (+2/-2), CHANGELOG.md (+78/-6), CONTRIBUTING.md (+69/-96), Cargo.toml (+7/-18), QUALITY.md (+15/-21), README.md (+11/-7), SECURITY.md (+9/-10), and 146 more
+check: its hunks sit in: jobs:, name: release artifacts, efficiently., bsky. :-), figure names its machine., The README lists what BLAKE3-Servil adds for callers; the code is laid out so:, test on, then the kernels and the gates). The Mac runner, message or pull request body where relevant):, found complete. A candidate lands once:, it takes and ticks each step:, sh tools/crates-release.sh, the script names, with `cargo publish --locked --no-verify` and the same, and 836 more
+check: measuring the 1 named cells: blake3-servil-mt|merkle 16384
+check: the builds differ here: .bss, .data, .data.rel.ro, .dynamic, .eh_frame, .eh_frame_hdr, .fini, .fini_array, .gcc_except_table, .got, .got.plt, .init, .init_array, .plt, .rela.dyn, .rela.plt, .relro_padding, .rodata, .tbss, .tdata, .text, .tm_clone_table; 199 functions of another size or on one side alone (<alloc::raw_vec::RawVec<&blake3_servil::pipeline::PipeStorage>>::grow_one; <alloc::raw_vec::RawVec<((&str, &str), core::mem::manually_drop::ManuallyDrop<bench_hashes::pipeline::Turns>)>>::grow_one; <alloc::raw_vec::RawVec<blake3_servil::pipeline::FreeSlot>>::grow_one; <alloc::vec::Vec<_, _>>::swap_remove::assert_failed; <bench_hashes::pipeline::Messages>::receive::<bench_hashes::hash_batch_of<bench_hashes::use_digest>::{closure#1}, bench_hashes::use_digest>::{closure#0}; <blake3_servil::lanes::Job>::hash_piece; <blake3_servil::lanes::Pool>::run_job; <blake3_servil::lanes::Pool>::serve; <blake3_servil::lanes::places::Plan>::done; <blake3_servil::lanes::places::Plan>::new; <blake3_servil::lanes::sources::Source>::publish_actions; <blake3_servil::lanes::sources::Source>::run_waiting_action; and 187 more); 1607 of other bytes (<&&[u8; 32] as core::fmt::Debug>::fmt; <&&[u8] as core::fmt::Debug>::fmt; <&&alloc::string::String as core::fmt::Display>::fmt; <&&str as core::fmt::Debug>::fmt; <&&str as core::fmt::Display>::fmt; <&(usize, usize) as core::fmt::Debug>::fmt; <&[u8; 4] as core::fmt::Debug>::fmt; <&[u8] as <alloc::ffi::c_str::CString>::new::SpecNewImpl>::spec_new_impl; <&alloc::boxed::Box<[u32]> as core::fmt::Debug>::fmt; <&alloc::string::String as core::fmt::Debug>::fmt; <&alloc::vec::Vec<&str> as core::fmt::Debug>::fmt; <&alloc::vec::Vec<alloc::string::String> as core::fmt::Debug>::fmt; and 1595 more)
+regress: each pair's runs take their samples after a gap on one CPU, the pairs alternating core parity over the cache domains: CPUs 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23
+regress: 32 run pairs using 32 distinct new executable paths and 32 old, over --cells "blake3-servil-mt|merkle 16384"
+regress: pair 1 of 32 in 1.7 s
+regress: pair 2 of 32 in 1.7 s
+regress: pair 3 of 32 in 1.7 s
+regress: pair 4 of 32 in 1.7 s
+regress: pair 5 of 32 in 1.7 s
+regress: pair 6 of 32 in 1.7 s
+regress: pair 7 of 32 in 1.7 s
+regress: pair 8 of 32 in 1.7 s
+regress: pair 9 of 32 in 1.7 s
+regress: pair 10 of 32 in 1.7 s
+regress: pair 11 of 32 in 1.7 s
+regress: pair 12 of 32 in 1.7 s
+regress: pair 13 of 32 in 1.7 s
+regress: pair 14 of 32 in 1.7 s
+regress: pair 15 of 32 in 1.7 s
+regress: pair 16 of 32 in 1.7 s
+regress: pair 17 of 32 in 1.7 s
+regress: pair 18 of 32 in 1.7 s
+regress: pair 19 of 32 in 1.7 s
+regress: pair 20 of 32 in 1.7 s
+regress: pair 21 of 32 in 1.7 s
+regress: pair 22 of 32 in 1.7 s
+regress: pair 23 of 32 in 1.7 s
+regress: pair 24 of 32 in 1.7 s
+regress: pair 25 of 32 in 1.7 s
+regress: pair 26 of 32 in 1.7 s
+regress: pair 27 of 32 in 1.7 s
+regress: pair 28 of 32 in 1.7 s
+regress: pair 29 of 32 in 1.7 s
+regress: pair 30 of 32 in 1.7 s
+regress: pair 31 of 32 in 1.7 s
+regress: pair 32 of 32 in 1.7 s
