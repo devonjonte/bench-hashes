@@ -1,0 +1,102 @@
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/fork && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/fork && git checkout --quiet --force --detach 7f392fdebc90aa362c7115cceb1824df2319102b)
+$ (cd /Users/benchrunner/checkouts/fork && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/fork && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet --prune origin)
+$ (cd /Users/benchrunner/checkouts/bench && git fetch --quiet origin +refs/pull/*/head:refs/remotes/origin/pr/*)
+$ (cd /Users/benchrunner/checkouts/bench && git checkout --quiet --force --detach 3f119a507807078649d8700112994fce24666868)
+$ (cd /Users/benchrunner/checkouts/bench && git rev-parse HEAD)
+$ (cd /Users/benchrunner/checkouts/bench && git clean -ffd --quiet)
+$ (cd /Users/benchrunner/checkouts/bench && cargo run --release --quiet -- check --fork /Users/benchrunner/checkouts/fork --against 2557d53c772edfa2f3eeb28b8c8827919a27d608 --when-quiet --keep /Users/benchrunner/tmp/20261127T035025Z-devon-check-pr579-7f392fd-v2.20261127T035049Z-mac-m6-timing/samples --cells all)
+check: BLAKE3-Servil's working tree (7f392fdebc90) against 2557d53c772edfa2f3eeb28b8c8827919a27d608 (2557d53c772e)
+check: the change touches 127 added and 64 deleted lines in 1 files: threads/src/pipeline.rs (+127/-64)
+check: its hunks sit in: const MULTI_CUSTOM_BIT: u32 = 1u32 << 31;, struct Ring<X> {, impl<X> Unpin for Ring<X> {}, impl<X> Ring<X> {, pub struct Pipeline<T, B = (), P = Batch<'static>> {, impl<T, B, P> Pipeline<T, B, P> {, mod test {
+check: the builds differ here: __DATA,__bss, __DATA,__data, __DATA,__la_symbol_ptr, __DATA,__thread_bss, __DATA,__thread_data, __DATA,__thread_vars, __DATA_CONST,__const, __DATA_CONST,__got, __TEXT,__const, __TEXT,__cstring, __TEXT,__eh_frame, __TEXT,__gcc_except_tab, __TEXT,__stub_helper, __TEXT,__stubs, __TEXT,__text, __TEXT,__unwind_info; 121 functions of another size or on one side alone (_RINvCs3EsFtA0ySxK_12bench_hashes10timed_cellKj6_Kj10_NvB2_10use_digestEB2_; _RINvCs3EsFtA0ySxK_12bench_hashes10timed_cellKj7_Kj15_NvB2_10use_digestEB2_; _RINvCs3EsFtA0ySxK_12bench_hashes10timed_cellKj7_Kj18_NvB2_10use_digestEB2_; _RINvCs3EsFtA0ySxK_12bench_hashes10timed_cellKj7_Kj19_NvB2_10use_digestEB2_; _RINvCs3EsFtA0ySxK_12bench_hashes10timed_cellKj7_Kj9_NvB2_10use_digestEB2_; _RINvCs3EsFtA0ySxK_12bench_hashes10timed_cellKj7_Kja_NvB2_10use_digestEB2_; _RINvCs3EsFtA0ySxK_12bench_hashes10timed_cellKj7_Kjf_NvB2_10use_digestEB2_; _RINvCs3EsFtA0ySxK_12bench_hashes10timed_cellKj8_Kj19_NvB2_10use_digestEB2_; _RINvCs3EsFtA0ySxK_12bench_hashes16each_interleavedNtNtB2_8pipeline8TurnSlotNvMs0_BO_BM_3newNCINvB2_16hash_interleavedNvB2_10use_digestEs2_0NCB1t_s3_0QB1R_EB2_; _RINvMs0_NtNtNtNtCsqzYUUC8K3T_3std3sys12thread_local6native4lazyINtB6_7StorageNtNtNtCseYdQuZ2GW0z_4core4task4wake5WakeruE16get_or_init_slowNvNvNtCs7ajt1ZsZ5td_13blake3_servil8pipeline14BLOCK_ON_WAKER27___rust_std_internal_init_fnECs3EsFtA0ySxK_12bench_hashes; _RINvMs2_NtNtCsqzYUUC8K3T_3std6thread5localINtB6_8LocalKeyINtNtCseYdQuZ2GW0z_4core4cell7RefCellINtNtCs3fFJ1Rg5C8Q_5alloc3vec3VechEEE4withNCINvCs3EsFtA0ySxK_12bench_hashes11each_streamKb0_NCINvB2f_11hash_streamNvB2f_10use_digestE0B3k_Es0_0uEB2f_; _RINvMs3_NtCs3fFJ1Rg5C8Q_5alloc3stre8replacenReECs3EsFtA0ySxK_12bench_hashes; and 109 more); 1624 of other bytes (OUTLINED_FUNCTION_0; OUTLINED_FUNCTION_1; OUTLINED_FUNCTION_16; OUTLINED_FUNCTION_17; OUTLINED_FUNCTION_22; OUTLINED_FUNCTION_23; OUTLINED_FUNCTION_24; OUTLINED_FUNCTION_28; OUTLINED_FUNCTION_3; OUTLINED_FUNCTION_30; OUTLINED_FUNCTION_33; OUTLINED_FUNCTION_35; and 1612 more)
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 4 run pairs using 4 distinct new executable paths and 4 old, over --contenders blake3-servil-st,blake3-servil-mt
+clocks: other programs kept 1.08 CPUs busy from 142.9 s to 143.9 s; measurements in that time may read slower than this machine runs
+regress: pair 1 again: busy: other programs kept 0.06 CPUs busy on average, 1.08 in the busiest window; busy in 1 of 113 windows (142.9-143.9 s)
+regress: pair 1 of 4 in 459.3 s
+regress: pair 2 of 4 in 229.7 s
+regress: pair 3 of 4 in 229.8 s
+regress: pair 4 of 4 in 229.9 s
+regress: old side: bench 3f119a507807 clean; servil 2557d53c772e clean
+regress: new side: bench 3f119a507807 clean; servil 7f392fdebc90 clean
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: suspects: blake3-servil-st|solo|IdleManyMessages|3;blake3-servil-mt|solo|IdleManyMessages|24;blake3-servil-mt|shared-os|ContinuousMessages|512 B;blake3-servil-st|solo|IdleManyMessages|2;blake3-servil-mt|shared-os|ContinuousMessages|16 KiB;blake3-servil-mt|solo|IdleManyMessages|8;blake3-servil-st|solo|IdleManyMessages|24;blake3-servil-mt|solo|ContinuousLentMessages|1 MiB
+regress: pipeline lifecycle (4096 rooms, 4 pairs): wall 1.73 -> 1.72 ms; peak RSS 7.4 -> 7.4 MiB (level)
+regress: power during the check: mains power
+check: a second stage for 8 suspects: 64 run pairs, a new link layout a side for each: blake3-servil-st|solo|IdleManyMessages|3, blake3-servil-mt|solo|IdleManyMessages|24, blake3-servil-mt|shared-os|ContinuousMessages|512 B, blake3-servil-st|solo|IdleManyMessages|2, blake3-servil-mt|shared-os|ContinuousMessages|16 KiB, blake3-servil-mt|solo|IdleManyMessages|8, blake3-servil-st|solo|IdleManyMessages|24, blake3-servil-mt|solo|ContinuousLentMessages|1 MiB
+regress: no CPU to pin to (no thread affinity or topology here): the OS places every run's measuring thread
+regress: 64 run pairs using 64 distinct new executable paths and 64 old, over --cells "blake3-servil-mt|continuous 16 KiB;blake3-servil-mt|continuous 512 B;blake3-servil-mt|continuous lent 1 MiB;blake3-servil-mt|idle 24;blake3-servil-mt|idle 8;blake3-servil-st|idle 2;blake3-servil-st|idle 24;blake3-servil-st|idle 3"
+regress: pair 1 of 64 in 7.6 s
+regress: pair 2 of 64 in 7.7 s
+regress: pair 3 of 64 in 7.7 s
+regress: pair 4 of 64 in 7.7 s
+regress: pair 5 of 64 in 7.7 s
+regress: pair 6 of 64 in 7.7 s
+regress: pair 7 of 64 in 7.7 s
+regress: pair 8 of 64 in 7.7 s
+regress: pair 9 of 64 in 7.7 s
+regress: pair 10 of 64 in 7.7 s
+regress: pair 11 of 64 in 7.7 s
+regress: pair 12 of 64 in 7.7 s
+regress: pair 13 of 64 in 7.7 s
+regress: pair 14 of 64 in 7.7 s
+regress: pair 15 of 64 in 7.7 s
+regress: pair 16 of 64 in 7.7 s
+regress: pair 17 of 64 in 7.7 s
+regress: pair 18 of 64 in 7.7 s
+regress: pair 19 of 64 in 7.7 s
+regress: pair 20 of 64 in 7.7 s
+regress: pair 21 of 64 in 7.7 s
+regress: pair 22 of 64 in 7.7 s
+regress: pair 23 of 64 in 7.7 s
+regress: pair 24 of 64 in 7.7 s
+regress: pair 25 of 64 in 7.7 s
+regress: pair 26 of 64 in 7.7 s
+regress: pair 27 of 64 in 7.7 s
+regress: pair 28 of 64 in 7.7 s
+regress: pair 29 of 64 in 7.7 s
+regress: pair 30 of 64 in 7.7 s
+regress: pair 31 of 64 in 7.7 s
+regress: pair 32 of 64 in 7.7 s
+regress: pair 33 of 64 in 7.7 s
+regress: pair 34 of 64 in 7.7 s
+regress: pair 35 of 64 in 7.7 s
+regress: pair 36 of 64 in 7.7 s
+regress: pair 37 of 64 in 7.7 s
+regress: pair 38 of 64 in 7.7 s
+regress: pair 39 of 64 in 7.7 s
+regress: pair 40 of 64 in 7.7 s
+regress: pair 41 of 64 in 7.7 s
+regress: pair 42 of 64 in 7.7 s
+regress: pair 43 of 64 in 7.7 s
+regress: pair 44 of 64 in 7.7 s
+regress: pair 45 of 64 in 7.8 s
+regress: pair 46 of 64 in 7.7 s
+regress: pair 47 of 64 in 7.7 s
+regress: pair 48 of 64 in 7.7 s
+regress: pair 49 of 64 in 7.7 s
+regress: pair 50 of 64 in 7.7 s
+regress: pair 51 of 64 in 7.7 s
+regress: pair 52 of 64 in 7.7 s
+regress: pair 53 of 64 in 7.7 s
+regress: pair 54 of 64 in 7.7 s
+regress: pair 55 of 64 in 7.7 s
+regress: pair 56 of 64 in 7.7 s
+regress: pair 57 of 64 in 7.7 s
+regress: pair 58 of 64 in 7.7 s
+regress: pair 59 of 64 in 7.7 s
+regress: pair 60 of 64 in 7.7 s
+regress: pair 61 of 64 in 7.7 s
+regress: pair 62 of 64 in 7.7 s
+regress: pair 63 of 64 in 7.7 s
+regress: pair 64 of 64 in 7.7 s
+regress: old side: bench 3f119a507807 clean; servil 2557d53c772e clean
+regress: new side: bench 3f119a507807 clean; servil 7f392fdebc90 clean
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: power during the check: mains power

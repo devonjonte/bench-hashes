@@ -1,0 +1,69 @@
+=== LEG p1_idxring_vecdeque_events: 2557d53c772edfa2f3eeb28b8c8827919a27d608 -> 2f872aa4144cb0c54cefcd7dd48cc5735ff47167 ===
+regress: old side: bench 3f119a507807 clean; servil 2557d53c772e clean
+regress: new side: bench 3f119a507807 clean; servil 2f872aa4144c clean
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: pipeline lifecycle (4096 rooms, 4 pairs): wall 7.73 -> 7.93 ms; peak RSS 7.7 -> 7.7 MiB (level)
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+LEG p1_idxring_vecdeque_events EXIT=0
+compare: old side: bench 3f119a507807 clean; servil 2557d53c772e clean
+compare: new side: bench 3f119a507807 clean; servil 2f872aa4144c clean
+| cell | old ns/unit | new ns/unit | new/old | verdict | pairs faster | CPU time | energy | cycles | instructions | cache misses |
+|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|
+| blake3-servil-mt / solo / ContinuousMessages / 64 B | 0.681 | 0.653 | x0.959 | level | 9 of 12 | x1.038 | - | x0.958 | x0.995 | x1.073 |
+| blake3-servil-mt / solo / ContinuousMessages / 128 B | 0.342 | 0.330 | x0.963 | level | 9 of 12 | x0.999 | - | x0.963 | x0.995 | x1.019 |
+| blake3-servil-mt / solo / ContinuousLentMessages / 64 B | 0.608 | 0.598 | x0.983 | level | 7 of 12 | x1.015 | - | x0.983 | x0.995 | x0.983 |
+| blake3-servil-mt / shared-one-cache / ContinuousMessages / 64 B | 0.723 | 0.706 | x0.977 | level | 8 of 12 | - | - | x0.977 | x0.995 | x0.984 |
+| blake3-servil-mt / shared-one-cache / ContinuousMessages / 128 B | 0.375 | 0.367 | x0.979 | level | 8 of 12 | - | - | x0.978 | x0.995 | x0.980 |
+| blake3-servil-mt / shared-one-cache / ContinuousLentMessages / 64 B | 0.596 | 0.569 | x0.955 | level | 11 of 12 | - | - | x0.958 | x0.995 | x1.013 |
+| blake3-servil-mt / shared-two-caches / ContinuousMessages / 64 B | 1.054 | 0.938 | x0.890 | level | 9 of 12 | - | - | x0.894 | x0.995 | x0.894 |
+| blake3-servil-mt / shared-two-caches / ContinuousMessages / 128 B | 0.703 | 0.615 | x0.874 | level | 7 of 12 | - | - | x0.878 | x0.995 | x0.901 |
+| blake3-servil-mt / shared-two-caches / ContinuousLentMessages / 64 B | 0.665 | 0.633 | x0.952 | level | 9 of 12 | - | - | x0.952 | x0.995 | x0.944 |
+
+=== LEG p2_idxring_opt_events: 2557d53c772edfa2f3eeb28b8c8827919a27d608 -> 694774abb829260cec8b703e9faf6d65909b5187 ===
+regress: old side: bench 3f119a507807 clean; servil 2557d53c772e clean
+regress: new side: bench 3f119a507807 clean; servil 694774abb829 clean
+  SLOWER blake3-servil-mt|shared-one-cache|ContinuousLentMessages|64 B: +7.9% (the pairs' geometric mean; 12 pairs, from +2.0% to +23.2%: +10.7% +6.4% +23.2% +3.9% +10.2% +7.9% +2.0% +5.8% +6.6% +13.0% +2.1% +5.1%) [cycles +8.0%, instructions -0.5%, cache misses +4.0%]
+  SLOWER blake3-servil-mt|shared-two-caches|ContinuousLentMessages|64 B: +8.6% (the pairs' geometric mean; 12 pairs, from -1.3% to +19.7%: +3.5% +8.7% +17.1% +2.6% +15.3% +19.7% -1.3% +2.2% +1.3% +10.8% +15.8% +9.9%) [cycles +8.6%, instructions -0.5%, cache misses +2.6%]
+regress: REGRESSION: 2 cells slower
+regress: pipeline lifecycle (4096 rooms, 4 pairs): wall 8.04 -> 7.60 ms; peak RSS 7.7 -> 7.7 MiB (level)
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+LEG p2_idxring_opt_events EXIT=1
+compare: old side: bench 3f119a507807 clean; servil 2557d53c772e clean
+compare: new side: bench 3f119a507807 clean; servil 694774abb829 clean
+| cell | old ns/unit | new ns/unit | new/old | verdict | pairs faster | CPU time | energy | cycles | instructions | cache misses |
+|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|
+| blake3-servil-mt / solo / ContinuousMessages / 64 B | 0.692 | 0.674 | x0.973 | level | 9 of 12 | x0.966 | - | x0.974 | x0.995 | x0.948 |
+| blake3-servil-mt / solo / ContinuousMessages / 128 B | 0.351 | 0.340 | x0.968 | level | 9 of 12 | x0.980 | - | x0.968 | x0.996 | x0.977 |
+| blake3-servil-mt / solo / ContinuousLentMessages / 64 B | 0.588 | 0.582 | x0.990 | level | 8 of 12 | x0.988 | - | x0.990 | x0.995 | x1.027 |
+| blake3-servil-mt / shared-one-cache / ContinuousMessages / 64 B | 0.713 | 0.677 | x0.949 | level | 10 of 12 | - | - | x0.949 | x0.995 | x0.975 |
+| blake3-servil-mt / shared-one-cache / ContinuousMessages / 128 B | 0.369 | 0.353 | x0.957 | level | 10 of 12 | - | - | x0.955 | x0.996 | x1.010 |
+| blake3-servil-mt / shared-one-cache / ContinuousLentMessages / 64 B | 0.592 | 0.639 | x1.079 | slower | 0 of 12 | - | - | x1.080 | x0.995 | x1.040 |
+| blake3-servil-mt / shared-two-caches / ContinuousMessages / 64 B | 0.936 | 0.998 | x1.066 | level | 5 of 12 | - | - | x1.064 | x0.995 | x1.031 |
+| blake3-servil-mt / shared-two-caches / ContinuousMessages / 128 B | 0.649 | 0.635 | x0.979 | level | 6 of 12 | - | - | x0.981 | x0.996 | x0.992 |
+| blake3-servil-mt / shared-two-caches / ContinuousLentMessages / 64 B | 0.649 | 0.705 | x1.086 | slower | 1 of 12 | - | - | x1.086 | x0.995 | x1.026 |
+
+=== LEG p3_0110_maybeuninit_ring: 2557d53c772edfa2f3eeb28b8c8827919a27d608 -> 207862df06b07e9c4819d3d90fab5dc21a46205b ===
+regress: old side: bench 3f119a507807 clean; servil 2557d53c772e clean
+regress: new side: bench 3f119a507807 clean; servil 207862df06b0 clean
+  faster blake3-servil-mt|shared-one-cache|ContinuousMessages|128 B: -8.0% (the pairs' geometric mean; 12 pairs, from -17.0% to +2.0%: -4.6% -4.7% -8.4% -10.1% -0.7% -17.0% +2.0% -11.3% -15.2% -5.2% -3.7% -15.4%) [cycles -8.1%, instructions -0.5%, cache misses -2.6%]
+  faster blake3-servil-mt|shared-one-cache|ContinuousMessages|64 B: -7.8% (the pairs' geometric mean; 12 pairs, from -18.5% to +1.4%: -8.6% -6.3% -12.1% -12.6% +1.4% -10.3% -0.8% -10.6% -9.7% +0.7% -3.7% -18.5%) [cycles -7.8%, instructions -0.5%, cache misses -6.4%]
+regress: no cell slower
+regress: no level cell's instructions moved beyond +0.5%
+regress: pipeline lifecycle (4096 rooms, 4 pairs): wall 8.25 -> 7.55 ms; peak RSS 7.8 -> 7.8 MiB (level)
+regress: power during the check: mains power, no battery, CPU frequency governor performance
+LEG p3_0110_maybeuninit_ring EXIT=0
+compare: old side: bench 3f119a507807 clean; servil 2557d53c772e clean
+compare: new side: bench 3f119a507807 clean; servil 207862df06b0 clean
+| cell | old ns/unit | new ns/unit | new/old | verdict | pairs faster | CPU time | energy | cycles | instructions | cache misses |
+|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|
+| blake3-servil-mt / solo / ContinuousMessages / 64 B | 0.692 | 0.678 | x0.980 | level | 7 of 12 | x0.974 | - | x0.979 | x0.995 | x0.959 |
+| blake3-servil-mt / solo / ContinuousMessages / 128 B | 0.351 | 0.344 | x0.979 | level | 8 of 12 | x0.936 | - | x0.978 | x0.996 | x0.980 |
+| blake3-servil-mt / solo / ContinuousLentMessages / 64 B | 0.593 | 0.594 | x1.001 | level | 7 of 12 | x0.986 | - | x1.001 | x0.997 | x1.002 |
+| blake3-servil-mt / shared-one-cache / ContinuousMessages / 64 B | 0.721 | 0.665 | x0.922 | faster | 10 of 12 | - | - | x0.922 | x0.995 | x0.936 |
+| blake3-servil-mt / shared-one-cache / ContinuousMessages / 128 B | 0.376 | 0.346 | x0.920 | faster | 11 of 12 | - | - | x0.919 | x0.995 | x0.974 |
+| blake3-servil-mt / shared-one-cache / ContinuousLentMessages / 64 B | 0.600 | 0.576 | x0.962 | level | 9 of 12 | - | - | x0.963 | x0.997 | x1.039 |
+| blake3-servil-mt / shared-two-caches / ContinuousMessages / 64 B | 0.965 | 0.944 | x0.979 | level | 4 of 12 | - | - | x0.979 | x0.995 | x0.947 |
+| blake3-servil-mt / shared-two-caches / ContinuousMessages / 128 B | 0.588 | 0.585 | x0.996 | level | 3 of 12 | - | - | x0.995 | x0.996 | x0.896 |
+| blake3-servil-mt / shared-two-caches / ContinuousLentMessages / 64 B | 0.647 | 0.650 | x1.004 | level | 5 of 12 | - | - | x1.004 | x0.997 | x1.093 |
+
